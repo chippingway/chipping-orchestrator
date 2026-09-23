@@ -347,7 +347,7 @@ def _resumed(
     """
     edited = _drift._detect_user_content_change(ctx.gh, ctx.issue, ctx.state)
     if edited is not None and sync.ahead <= 0:
-        _resume._resume_on_user_content_change(ctx, pr_number, edited)
+        _resume._resume_on_user_content_change(ctx, pr_number)
         return True
     if not _conflict_parks._waits_on_a_human(ctx.state):
         return False

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     MEASURED_CANDIDATE_SHA,
@@ -90,6 +91,13 @@ GIT_HARD_RESET = "--hard"
 GIT_CLEAN = "clean"
 GIT_CLEAN_FLAGS = "-fd"
 DRIFT_UNWIND_PENDING = "docs_drift_unwind_pending"
+
+# The reply a human writes while the final-docs hop is in flight, and where
+# the thread's reader stood before it. Nothing on this road delivers it: the
+# unwind changes a label and resets a worktree, and runs no agent at all.
+UNWIND_REPLY_ID = 300
+UNWIND_READ_THROUGH = 100
+UNWIND_REPLY = "and mention the new flag in the README"
 
 MISSING_PR_ISSUE_NUMBER = 101
 PARKED_MISSING_PR_ISSUE_NUMBER = 102
@@ -192,6 +200,42 @@ class HandleDocumentingDriftRouteTest(unittest.TestCase, _DocumentingDriftFixtur
         self.assertNotEqual(
             state.get("user_content_hash"),
             "stale-hash-from-original-body",
+        )
+
+    def test_a_relabel_alone_settles_no_human_input(self) -> None:
+        # The edit arrives as a COMMENT, which moves the same hash a body
+        # edit does. The unwind answers it by changing a label -- no docs
+        # agent runs, and nothing quotes the reply to anybody -- so the
+        # issue-thread cursor may not move past it. Recorded here, the words
+        # would reach the reviewer this relabel hands the issue to, and the
+        # fix round behind that, already marked as answered.
+        gh, issue = self._seeded(
+            last_action_comment_id=UNWIND_READ_THROUGH,
+        )
+        issue.comments.append(FakeComment(
+            id=UNWIND_REPLY_ID, body=UNWIND_REPLY, user=FakeUser(TRUSTED_AUTHOR),
+        ))
+
+        mocks = self._run_documenting(
+            gh,
+            issue,
+            run_agent=_agent(),
+            push_branch=True,
+            head_shas=[],
+            branch_ahead_behind=(0, 0),
+        )
+
+        mocks[RUN_AGENT].assert_not_called()
+        self.assertIn((self.issue_number, VALIDATING), gh.label_history)
+        state = gh.pinned_data(self.issue_number)
+        self.assertEqual(
+            state.get(LAST_ACTION_COMMENT_ID), UNWIND_READ_THROUGH,
+        )
+        # The revision IS recorded, and it is not about the conversation: it
+        # says this stage has already rerouted for the edit, so the next poll
+        # does not announce the same one again.
+        self.assertNotEqual(
+            state.get("user_content_hash"), "stale-hash-from-original-body",
         )
 
     def test_unparked_body_edit_routes_to_validating(self) -> None:

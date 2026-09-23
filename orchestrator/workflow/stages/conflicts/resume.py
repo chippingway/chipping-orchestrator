@@ -5,13 +5,15 @@
 All three go through one run helper because the session is locked to the
 backend that opened it and the agent-action stamp has to move on every resume,
 but what they do with the result differs. A body edit resumes on the new body
-and consumes the drift comments up front, so its two short-circuits -- a
-shutdown interruption and a live pause -- return WITHOUT writing pinned state:
-the refreshed hash and the consumed watermark are discarded together, and the
-next process re-detects the same edit rather than acting on a run it cannot
-trust. A human reply to a park resumes on the reply text and hands the result
-to the shared disposition. The third caller is the conflict resolution itself,
-which lives beside the rebase that produced the conflicted files.
+quoted from one frozen read, and records that read -- the comments and the
+requirements revision alike -- only once the run is back and only for an
+outcome that reached an agent: its three short-circuits, a launch the run
+circuit refused, a shutdown interruption and a live pause, return WITHOUT
+writing pinned state, so the next process re-detects the same edit rather than
+acting on a run it cannot trust. A human
+reply to a park resumes on the reply text and hands the result to the shared
+disposition. The third caller is the conflict resolution itself, which lives
+beside the rebase that produced the conflicted files.
 
 The reply path is also where `/orchestrator continue` is answered, and the
 three-way split matters: a session-failure park retries the dev on a neutral
@@ -38,10 +40,11 @@ from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.github.comments import filter_trusted
 from orchestrator.workflow.engine import (
     comments as _comments,
-    drift as _drift,
+    drift_delivery as _drift_delivery,
     guards as _guards,
     messages as _messages,
     prompt_context as _prompt_context,
+    prompt_delivery as _delivery,
     prompt_notes as _prompt_notes,
     usage as _usage,
 )
@@ -53,7 +56,10 @@ from orchestrator.workflow.stages.conflicts import (
     state as _state,
     transitions as _transitions,
 )
-from orchestrator.workflow.stages.implementing import resume as _dev_resume
+from orchestrator.workflow.stages.implementing import (
+    resume as _dev_resume,
+    resume_batch as _resume_batch,
+)
 from orchestrator.workflow.stages.validating import drift_outcomes as _drift_outcomes
 
 # What a round a body-edit resume finished is recorded as, in the audit event
@@ -64,17 +70,26 @@ _DRIFT_RESOLVED = "drift_resolved"
 def _resume_on_user_content_change(
     ctx: _models._ConflictContext,
     pr_number,
-    new_hash: str,
 ) -> None:
     """Resume the dev session after a human edited the issue body mid-rebase.
 
-    Posts a resuming ack, marks the drift comments consumed, and resumes
-    the dev on the updated body+comments. On a pushed fix bumps the
-    conflict round and hands to `validating`; on an ack (no commit) stays
-    in `resolving_conflict` without parking. The caller returns immediately
-    after this helper runs. Persists pinned state on every exit EXCEPT the
-    shutdown-sweep-interrupted / live-paused short-circuits, which return
-    without writing so the drift stays unconsumed and re-runs next process.
+    Posts a resuming ack and resumes the dev on the updated body plus the
+    conversation around it, quoted from ONE frozen read of the issue thread.
+    On a pushed fix bumps the conflict round and hands to `validating`; on an
+    ack (no commit) stays in `resolving_conflict` without parking. The caller
+    returns immediately after this helper runs. Persists pinned state on every
+    exit EXCEPT the shutdown-sweep-interrupted / live-paused short-circuits,
+    which return without writing so the drift stays unconsumed and re-runs next
+    process.
+
+    What the edit is recorded as answered by is that frozen record, settled
+    once the run is back and only for an outcome that reached an agent. The
+    baseline is inside it: read back off the live issue instead, this road
+    would mark an edit answered by a prompt nobody read, and the words below
+    it delivered by nobody. This surface is the issue thread and nothing else
+    -- no PR-conversation comment, inline review comment or review summary
+    enters the prompt -- so none of their cursors moves and the round that
+    reads them still delivers every one.
 
     A body edit resolved into a commit is a content update onto a pull request
     the remote already carries, so it publishes through the shared fix seam
@@ -90,29 +105,29 @@ def _resume_on_user_content_change(
     # the size gate reads "no head" as a caller that established none and pins
     # the push to whatever the pull request is standing on once the agent
     # returns -- so a commit somebody landed while it was out becomes the
-    # lease and is force-overwritten. Refused here rather than after, the
-    # refreshed hash and the consumed watermark are never written and the next
-    # tick re-detects the same edit.
+    # lease and is force-overwritten. Refused here rather than after, no prompt
+    # is frozen and nothing is recorded, so the next tick re-detects the same
+    # edit.
     wt = _conflict_guards._ensure_conflict_worktree(ctx)
     before_sha = _verification_probes._head_sha(wt)
     if not before_sha:
         _conflict_parks._park_unreadable_head(ctx)
         return
-    ctx.state.set("user_content_hash", new_hash)
     _comments._post_pr_comment(
         ctx.gh, int(pr_number), ctx.state,
         ":pencil2: issue body changed; resuming dev session.",
     )
-    # Mark issue-thread comments as consumed: the dev sees the full thread via
-    # `_recent_comments_text`, and the eventual validating->in_review handoff
-    # (after a successful pushed resolution flips back to validating) must not
-    # replay them.
-    _drift._mark_drift_comments_consumed(ctx.gh, ctx.issue, ctx.state)
-    run = _run_conflict_resume(ctx, _body_edit_followup(ctx))
+    run = _run_drift_resume(ctx)
+    # A launch the run circuit turned away: no process read the prompt, so the
+    # refusal it recorded where it was decided is the whole of what this tick
+    # says. Return before the disposition, which would otherwise park in the
+    # name of a run that never started and persist that park over the edit.
+    if _guards._ignore_if_never_invoked(ctx.issue, run.dev_result):
+        return
     # Shutdown-sweep interruption: ignore the partial result and return WITHOUT
-    # writing pinned state -- the drift bookkeeping (refreshed
-    # `user_content_hash`, consumed comments, session mutations) above is
-    # discarded so the next process re-detects and re-runs the drift resume.
+    # writing pinned state -- the frozen record below is never settled and the
+    # session mutations above are discarded, so the next process re-detects and
+    # re-runs the drift resume.
     # Must precede `_post_user_content_change_result`, which has no interrupted
     # check of its own and would otherwise parse `last_message` / route through
     # `_on_question` before the caller persists those changes.
@@ -126,6 +141,7 @@ def _resume_on_user_content_change(
     # the label is removed.
     if run.paused:
         return
+    _settles_what_it_delivered(ctx, run)
     # Read once and handed on, because the head this resume produced is what
     # three separate steps have to agree about: the commit the shared fix
     # publication measures and pushes, the receipt a hold leaves for the tick
@@ -159,17 +175,43 @@ def _resume_on_user_content_change(
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
 
 
-def _body_edit_followup(ctx: _models._ConflictContext) -> str:
-    """The prompt a body edit resumes the dev on.
+def _run_drift_resume(
+    ctx: _models._ConflictContext,
+) -> _models._ConflictResumeRun:
+    """Freeze what this edit's resume quotes, and run it on that text.
 
-    The edited body and the thread around it together, because what the dev
-    has to decide is whether the resolution it is in the middle of still
-    applies -- and a comment answering the edit is as much of that question as
-    the edit itself.
+    One read answers both questions the resume asks the thread -- what the
+    developer is handed, and what the issue may mark answered -- so the record
+    travels back on the run rather than off a second read behind it.
+    The same frozen conversation re-grounds a fresh respawn, where a rotated,
+    retired or poisoned session turns this resume into one: read live there it
+    would be a second reading, newer than the record this tick settles.
     """
-    return _drift._build_user_content_change_prompt(
-        ctx.issue, _prompt_context._recent_comments_text(ctx.issue),
+    answered = _drift_delivery._drift_resume_prompt(ctx.gh, ctx.issue, ctx.state)
+    return _run_conflict_resume(
+        ctx, answered.text,
+        thread_text=answered.delivery.rendered_text,
+        delivered=answered.delivery,
     )
+
+
+def _settles_what_it_delivered(
+    ctx: _models._ConflictContext, run: _models._ConflictResumeRun,
+) -> None:
+    """Record the frozen prompt an edit's resume was given as read.
+
+    For every outcome that reached an agent -- the push, the ACK, the timeout
+    and question parks -- and for none that did not. The caller returns ahead
+    of all three that did not, so what the predicate states here is the
+    contract rather than the last line of defence: the record is settled by
+    what the RUN came to, not by which guards a road happens to ask first.
+    Delivery says the developer was handed those words, never that anything
+    about them is resolved.
+    """
+    if run.delivered is None:
+        return
+    if _resume_batch._counts_as_delivered(run.dev_result, run.paused):
+        run.delivered.settle(ctx.state)
 
 
 def _resume_awaiting_human(
@@ -260,15 +302,30 @@ def _awaiting_human_followup(ctx: _models._ConflictContext) -> str | None:
 
 
 def _run_conflict_resume(
-    ctx: _models._ConflictContext, followup: str,
+    ctx: _models._ConflictContext,
+    followup: str,
+    *,
+    thread_text: str | None = None,
+    delivered: _delivery.PromptDeliverySnapshot | None = None,
 ) -> _models._ConflictResumeRun:
     """Resume the locked dev session over `followup` and stamp the agent
     action time. Shared by the drift, awaiting-human, and fresh-conflict
-    resume paths."""
+    resume paths.
+
+    `thread_text` is the frozen conversation a fresh respawn is re-grounded
+    with, for the caller that holds one: a rotated, retired or poisoned
+    session turns this resume into a spawn, and the preamble that spawn is
+    given would otherwise read the thread a second time -- newer than the
+    record the caller settles, carrying a comment nothing would record.
+    `delivered` is that record itself, carried back on the run for the road
+    that settles it.
+    """
     wt, conflict_result, paused = _dev_resume._resume_dev_with_text(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, followup, pause_guard=True,
+        thread_text=thread_text,
     )
     ctx.state.set("last_agent_action_at", _usage._now_iso())
     return _models._ConflictResumeRun(
         worktree=wt, dev_result=conflict_result, paused=paused,
+        delivered=delivered,
     )

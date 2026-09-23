@@ -29,12 +29,11 @@ class DriftMarksCommentsConsumedTest(
     at that comment and replay it as fresh PR feedback, buying a duplicate
     dev resume.
 
-    How far each goes differs, and the difference is what each prompt
-    carried. The PR-backed roads quote the live thread and mark it read to
-    the tip. The issue-backed ones record the frozen snapshot their prompt
-    was built from, which is why the cases below ask only that the mark
-    reached the comment that was delivered: what the excerpt bound dropped,
-    and what landed after the freeze, are deliberately left unread (the
+    How far each goes is the same question on all four, and the answer is
+    what each prompt carried: every one records the frozen snapshot it was
+    built from, which is why the cases below ask only that the mark reached
+    the comment that was delivered. What the excerpt bound dropped, and what
+    landed after the freeze, are deliberately left unread (the
     `DriftResumeDeliveryTest` cases below)."""
 
     def test_validating_bumps_past_human_comment(

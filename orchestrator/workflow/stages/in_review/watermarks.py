@@ -17,8 +17,11 @@ numbered below the notice posted after it: a mark carried to the newest
 comment takes that PR comment with it, and no later poll can go back for it.
 So each walks forward from where it is and stops at the first comment
 `_nobody_is_owed` cannot vouch for -- ours by the id ledger or the hidden
-marker, quoted into this tick's own prompt, already recorded on the issue
-thread's delivery cursor, or a control the run-limit hold has answered.
+marker, named by the frozen record this tick's own prompt was built from,
+already recorded on the issue thread's delivery cursor, or a control the
+run-limit hold has answered. The record is asked rather than the read behind
+it, because a bounded excerpt delivers less than it read and the context it
+cut is precisely what the walk has to stop below.
 
 Both are deliberately narrow. The bump only moves the issue-side watermark,
 because the inline-review and review-summary surfaces are consumed by the
@@ -42,6 +45,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
+    prompt_delivery as _delivery,
     run_grant_request as _run_grant_request,
 )
 from orchestrator.workflow.stages.in_review import (
@@ -109,8 +113,33 @@ def _nobody_is_owed(
     return _run_grant_request._is_bare_command(comment)
 
 
+def _delivered_here(
+    delivered: _delivery.PromptDeliverySnapshot | None,
+) -> set:
+    """The ids one frozen prompt record leaves no reader owed.
+
+    Its DELIVERED half is what a developer read. Its FILTERED half is what no
+    reader will ever be handed -- an untrusted author, a body carrying our
+    marker that the id ledger cannot vouch for -- so a walk crossing one skips
+    nothing, while leaving it unaccounted for would stop that walk on a
+    comment nobody is ever going to answer.
+
+    What the excerpt bound OMITTED is in neither half, which is exactly what
+    holds the walk below it: that context reached no agent, so the scan that
+    owns the surface still has to deliver it.
+    """
+    if delivered is None:
+        return set()
+    return {
+        entry.id for entry in delivered.entries
+        if entry.is_delivered or entry.is_filtered
+    }
+
+
 def _bump_in_review_watermarks(
-    ctx: _models._InReviewContext, *, issue_space_new: list | None = None,
+    ctx: _models._InReviewContext,
+    *,
+    delivered: _delivery.PromptDeliverySnapshot | None = None,
 ) -> None:
     """Carry the issue-side watermark (`pr_last_comment_id`) over what this
     tick wrote, and stop there.
@@ -125,11 +154,19 @@ def _bump_in_review_watermarks(
     can go back for it.
 
     So the walk starts at the watermark already persisted and advances only
-    through comments `_nobody_is_owed` vouches for -- ours, quoted into this
-    tick's prompt (`issue_space_new`), or already recorded on the issue
-    thread's own delivery cursor -- stopping at the first it cannot. The
-    delivery cursor is read as a per-surface fact rather than maxed into this
-    field: a PR comment numbered below it was in nobody's prompt.
+    through comments `_nobody_is_owed` vouches for -- ours, named by the
+    frozen record a prompt this tick delivered was built from (`delivered`),
+    or already recorded on the issue thread's own delivery cursor -- stopping
+    at the first it cannot. The delivery cursor is read as a per-surface fact
+    rather than maxed into this field: a PR comment numbered below it was in
+    nobody's prompt.
+
+    `delivered` is the record itself rather than a list of comments, because
+    the record is the only thing that knows which of them REACHED the agent: a
+    bounded excerpt drops its head, and a walk handed the whole read would
+    cross the very context the bound cut. A tick with no delivery -- a run
+    nobody read the prompt through -- hands over None and the walk crosses
+    only our own posts.
 
     A thread this call cannot re-read leaves the watermark exactly where it
     was, because the caller asks this AFTER its notice is posted and BEFORE
@@ -148,7 +185,7 @@ def _bump_in_review_watermarks(
     answered = _models._AnsweredIssueSpace(
         ours=set(_comments._orchestrator_ids(ctx.state)),
         consumed=_surfaces._consumed_issue_thread_id(ctx.state),
-        delivered={comment.id for comment in issue_space_new or ()},
+        delivered=_delivered_here(delivered),
     )
     try:
         above = _surfaces._issue_space_above(

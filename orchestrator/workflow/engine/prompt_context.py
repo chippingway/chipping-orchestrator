@@ -151,12 +151,13 @@ def _thread_text(
 
 def _recent_comments_text(issue: Issue, max_chars: int = _EXCERPT_CHARS) -> str:
     """Conversation text fed to the agent prompts that settle nothing by it
-    (documentation, decompose, question, discussion, and the PR-backed drift
-    resumes).
+    (documentation, decompose, question, and discussion).
 
     The validating reviewer is a prompt of the other kind: a round a park's
     reply bought records that reply, so it builds from `_delivered_thread`
-    and settles off that same read.
+    and settles off that same read. So does every requirements-drift resume,
+    on an open pull request as much as before one: what the developer is
+    quoted there is what the issue goes on to mark answered.
 
     An untrusted author's comment is dropped whole -- its body and any URLs
     it contains never reach the prompt -- so once `ALLOWED_ISSUE_AUTHORS`

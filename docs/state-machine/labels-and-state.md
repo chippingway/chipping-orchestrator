@@ -614,14 +614,19 @@ The keys that matter for the state machine fall into a few groups:
   the orchestrator reacts to a human edit, and whenever a `workflow:implementing` / `workflow:validating` frozen reply
   batch is settled, to the fingerprint of that read through the last reply it delivered. On a parked tick the drift
   check compares it with the frozen comments at or below the park's watermark, so replies to the park are delivered
-  by the batch rather than read as an edit. The issue-backed drift resumes on those two stages record it the same
+  by the batch rather than read as an edit. Every drift resume records it the same
   way: the settlement of the prompt that answered the edit writes it, to the fingerprint of the read that prompt was
   built from, so a comment written while the agent was out is still an edit. That fingerprint is also the revision
   the run's report is stamped with, so no reader holds a report against requirements its own prompt already
-  contained. Nothing on those two roads writes it ahead of the run: a deferral, a refusal park, a cleared park, a
+  contained. Three of the four roads write nothing ahead of the run: a deferral, a refusal park, a cleared park, a
   shutdown kill, a live pause and a launch the run circuit turned away all leave it where they found it, since a
   baseline written for a prompt nobody read would mark the edit answered and hand the words under it to the next
-  spawn recorded as delivered. What a run may cross on the issue thread is bounded beside it —
+  spawn recorded as delivered. `in_review` stages the refreshed value ahead of its run, and only because it may
+  never become durable apart from `in_review_handoff_pending` below; the settlement then refines it to what the
+  prompt fingerprinted, and the two short-circuits that write no pinned state at all discard both. The `documenting`
+  unwind writes it without delivering anything, and there it is a claim about the REROUTE rather than about the
+  conversation: no agent ran, so no feedback watermark moves and the comments stay unread for the reviewer the
+  relabel hands the issue to. What a run may cross on the issue thread is bounded beside it —
   see [the drift section](delivery-stages.md#user-content-drift-detection).
 - **The developer report a pull request is owed and the one it carries.** The additive
   `developer_report_delivery` / `developer_report_pending` / `developer_report_current` /
@@ -653,8 +658,8 @@ The keys that matter for the state machine fall into a few groups:
   carries the receipt the transaction will be named by, the report revision, whether a publication or a
   verification is owed, the route that produced it, the complete report text or the exact location and content
   revision a verification asserts, the feedback watermarks the run consumed, the bookkeeping its route closes, and
-  the requirements revision the run was actually handed — for a `workflow:validating` drift resume, the fingerprint
-  of the read its own prompt was built from (`in_review`'s is still its drift check's read), and for a fix round the
+  the requirements revision the run was actually handed — for a drift resume on either review stage, the fingerprint
+  of the read its own prompt was built from, and for a fix round the
   revision its own spawn was given — carried with the run rather
   than read back off the comment, which on a fixing tick is a baseline that same tick rewrites minutes later and
   would fold in every reply that arrived while the developer worked. The bookkeeping is what a
@@ -1549,13 +1554,25 @@ The keys that matter for the state machine fall into a few groups:
   The shared id space is a numbering, not a shared delivery record, so `in_review` and `fixing` read the two surfaces
   under it separately (`in_review/surfaces.py`: `_unread_issue_thread`, `_unread_pr_conversation`). The issue thread
   answers to `pr_last_comment_id` AND to `last_action_comment_id`, because the implementing and validating
-  awaiting-human resumes — and the issue-backed drift resume and fresh spawn beside them — watch that surface alone
+  awaiting-human resumes — and the fresh spawn and the `workflow:implementing`, `workflow:validating` and
+  `workflow:resolving_conflict` drift resumes beside them — watch that surface alone
   and settle the second field for what they quoted; a reply at or
   below it has been in a developer prompt and may not route the issue back to `workflow:fixing`. The PR conversation
   answers to `pr_last_comment_id` and to nothing else: nothing that advances the issue-thread cursor has read the pull
   request, so a PR comment numbered below the last answered reply is unread rather than delivered. Neither field is
   copied into the other and no maximum is taken across them — that maximum is exactly the value that hides one surface
   to bound the other.
+
+  The `in_review` drift resume is the one developer prompt that reads BOTH surfaces, and it is the one whose
+  settlement deliberately writes only ONE of the two fields. Its record covers the pull request's conversation and
+  the issue thread at two different moments — the conversation before the notice this road posts on it, the thread
+  after — so a comment landing on the pull request in between is in neither half while an issue reply numbered above
+  it is in one. Settled from the pair, `pr_last_comment_id` would step straight over that comment and no later poll
+  could go back for it. So the record settles `last_action_comment_id` and the requirements revision, and the shared
+  cursor is left to the park carry, which re-reads both surfaces at one moment, crosses exactly what the record
+  names, and stops at the first id it does not. Neither review surface is touched either way, because the prompt
+  quotes no inline comment and no review summary; a road that crossed those would hide a reviewer's words from the
+  `workflow:fixing` round that delivers them.
 
   `fixing` also WRITES `last_action_comment_id`, and it writes it for the issue thread alone. A fix round quotes every
   unread surface into one developer prompt, so the round that consumed an issue-thread reply settles that reply for the
@@ -1575,8 +1592,13 @@ The keys that matter for the state machine fall into a few groups:
   approval handoff's seed walk stops at the first unread non-orchestrator comment on either surface; the legacy
   migration reuses that same walk and seeds the two review surfaces at 0, since the orchestrator posts on neither and
   any advance there would cross somebody's review; and the park carry walks forward from the mark already persisted
-  through comments it can vouch for — ours, quoted into this tick's prompt, or recorded on `last_action_comment_id`
-  for the issue thread alone — stopping at the first it cannot. A carry to the newest comment would skip a PR comment
+  through comments it can vouch for — ours, named by the frozen delivery record this tick's own prompt was built
+  from, or recorded on `last_action_comment_id`
+  for the issue thread alone — stopping at the first it cannot. That carry is handed the RECORD rather than the read
+  behind it: a bounded excerpt delivers less than it read, and the context it cut is exactly what the walk has to
+  stop below. A comment the record names REFUSED — an outsider's, a pasted marker the id ledger cannot vouch for —
+  is crossed, since no reader is ever owed it and a walk that stopped there would stop forever. A carry to the
+  newest comment would skip a PR comment
   written while the tick was deciding, permanently (see [`delivery-stages.md`](delivery-stages.md),
   `_handle_in_review`).
 - **The requirements edit nothing has answered.** `requirements_drift_open`, additive and `true` only while a drift
@@ -1660,7 +1682,12 @@ The keys that matter for the state machine fall into a few groups:
   could belong to either.
   `ready_ping_sha` records the head the in_review handler already posted a `:bell:` HITL ping for.
   `docs_drift_unwind_pending` is set while `_handle_documenting`'s drift block is reconciling and cleared only on the
-  relabel back to `workflow:validating`.
+  relabel back to `workflow:validating`. `docs_drift_unwind_asked_at` rides beside it on the failure road: the id of
+  the notice a git step that could not be proved parked with. It is NOT a delivery cursor — no agent runs on that
+  road, so the comment that moved the requirements is still unread and `last_action_comment_id` is put back where the
+  tick found it — it is the boundary the unwind's silence is kept behind, so only a trusted reply ABOVE that notice
+  retries the reconcile rather than the triggering comment doing so on every poll. Additive: an issue parked before
+  the field existed falls back to `last_action_comment_id`, which is where that park left its mark.
 - **Fix routing.** `pending_fix_at` + per-namespace `pending_fix_issue_max_id` / `pending_fix_review_max_id` /
   `pending_fix_review_summary_max_id` recorded by the `in_review → fixing` route, plus the full
   `pending_fix_issue_ids` / `pending_fix_review_ids` / `pending_fix_review_summary_ids` batch lists. They are hints, not

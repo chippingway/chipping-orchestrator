@@ -3,9 +3,9 @@
 """What a requirements-drift resume under review does with the report it writes.
 
 The report is recorded before the size gate and the push, stamped with the
-requirements revision its own route handed the resume -- on `validating` the
-fingerprint of the read that resume's prompt was built from, on `in_review`
-the drift check's earlier read -- and published once the
+requirements revision its own route handed the resume -- on either review
+stage the fingerprint of the read that resume's prompt was built from -- and
+published once the
 code is out -- or at once, for a report that needed no commit. A commit with no
 report is held, an `ACK:` and a question keep their own roads, and a run that
 did not finish records nothing. An edit or comment landing while the agent is

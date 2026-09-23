@@ -1,10 +1,24 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
+"""What a documenting drift unwind records, and what it may not.
+
+The unwind runs no agent at all: it drops a stale approval, puts the worktree
+back on the pull request's head, and moves a label. So the comment that moved
+the requirements is delivered to nobody, and the failure road is where that is
+easiest to lose -- a git step that cannot be proved parks through the shared
+HITL helper, which stamps the thread read as far as the notice it just posted.
+Left there, a human's instruction would be marked answered by a fetch error,
+and the `workflow:fixing` round the eventual retry hands the issue to would
+never see it.
+"""
+
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+from orchestrator.workflow.engine import content_hash as _content_hash
+from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.fixtures import MEASURED_CANDIDATE_SHA
 from tests.workflow.stages.documenting import (
     documenting_test_support as documenting_support,
@@ -144,6 +158,16 @@ WATERMARK_PR_NUMBER = 73
 PICKUP_COMMENT_ID = 900
 PARK_COMMENT_ID = 950
 HUMAN_REPLY_ID = 1100
+
+# How far the thread had been delivered when the instruction arrived, and the
+# boundary the unwind's own silence is kept behind once its park has asked.
+UNWIND_READ_THROUGH = 100
+DRIFT_UNWIND_ASKED_AT = "docs_drift_unwind_asked_at"
+WRITE_PINNED_STATE = "write_pinned_state"
+UNWIND_INSTRUCTION = "also document the new retry backoff"
+UNWIND_RETRY = "fixed the remote, try again"
+BARE_CONTINUE = "/orchestrator continue"
+NEEDS_GUIDANCE = "needs your actual guidance here"
 
 
 class HandleDocumentingDriftRecoveryTest(unittest.TestCase, _DocumentingDriftFixture):
@@ -321,3 +345,171 @@ class HandleDocumentingDriftRecoveryTest(unittest.TestCase, _DocumentingDriftFix
         self.assertEqual(state.get(REVIEW_ROUND), 0)
         # Drift-unwind sentinel persists across the park.
         self.assertTrue(state.get(DRIFT_UNWIND_PENDING))
+
+
+def _assert_ran_no_git(case, capture) -> None:
+    """Refuse a tick that touched the checkout at all.
+
+    The reconcile is a fetch and then three hardened invocations, so a road
+    that was supposed to refuse and instead retried shows up on either seam.
+    """
+    capture.git_hardened.assert_not_called()
+    capture.mocks[AUTHED_FETCH].assert_not_called()
+
+
+def _notices(github) -> str:
+    """Everything this orchestrator has said on the issue thread, joined."""
+    return "".join(body for _, body in github.posted_comments)
+
+
+class _RecordsEveryWrite:
+    """Every pinned record one client is asked to make, as it is made.
+
+    A snapshot per write rather than the value left at the end, because what
+    a crash can stop at is each of them in turn -- so a case about a failure
+    window asks the list rather than the outcome.
+    """
+
+    def __init__(self, github) -> None:
+        self._record = github.write_pinned_state
+        self.written: list = []
+
+    def __call__(self, issue, state):
+        self.written.append(dict(state.data))
+        return self._record(issue, state)
+
+
+class DocumentingUnwindCursorTest(unittest.TestCase, _DocumentingDriftFixture):
+    """The delivery cursor a failed unwind's park may not carry.
+
+    The edit arrives as a COMMENT, so there is something on the thread for a
+    park to cross; a body edit leaves nothing and hides the whole question.
+    """
+
+    def setUp(self) -> None:
+        github, issue = self._edited_by_a_comment()
+        self.github = github
+        self.issue = issue
+        self.instruction = self._says(UNWIND_INSTRUCTION)
+
+    def test_every_durable_write_is_safe_to_crash_on(self) -> None:
+        # The failure window. Each pinned write this tick makes is a state a
+        # process could die on, so none of them may leave the cursor standing
+        # on our own notice: read back with no boundary beside it, the gate
+        # falls through to that cursor, finds the instruction below it, and
+        # waits for a comment nobody has any reason to write. The hold rides
+        # the park's own write rather than a second one, so there is no such
+        # state to die on.
+        durable = _RecordsEveryWrite(self.github)
+
+        with patch.object(
+            self.github, WRITE_PINNED_STATE, MagicMock(side_effect=durable),
+        ):
+            _run_drift_failure(self, self.github, self.issue, GIT_RESET)
+
+        self.assertTrue(durable.written)
+        for written in durable.written:
+            with self.subTest(cursor=written.get(LAST_ACTION_COMMENT_ID)):
+                self.assertLess(
+                    written.get(LAST_ACTION_COMMENT_ID), self.instruction,
+                )
+
+    def test_a_failed_unwind_holds_its_cursor(self) -> None:
+        # The reconcile's reset fails, so the road parks. Nothing ran, so the
+        # instruction under that park is still nobody's: the cursor stays
+        # where the tick found it, and the notice the park posted becomes the
+        # unwind's own boundary instead.
+        _assert_reset_failure_park(
+            self,
+            _run_drift_failure(self, self.github, self.issue, GIT_RESET),
+            self.github,
+        )
+
+        parked = self.github.pinned_data(self.issue_number)
+        self.assertEqual(
+            parked.get(LAST_ACTION_COMMENT_ID), UNWIND_READ_THROUGH,
+        )
+        self.assertGreater(
+            parked.get(DRIFT_UNWIND_ASKED_AT), self.instruction,
+        )
+
+    def test_a_bare_continue_earns_the_refusal(self) -> None:
+        # The park is waiting on a real answer, and a bare `/orchestrator
+        # continue` is not one. The batch it is classified in is what the park
+        # ASKED for -- the instruction the unwind delivered to nobody is not in
+        # it, so the command is bare rather than a command somebody wrote
+        # guidance beside, and the reconcile does not run on an operator's
+        # nudge. The refusal delivers nothing either, so the cursor stays put,
+        # only the unwind's own boundary moves past what it refused, and the
+        # poll after it reads nothing new and says nothing.
+        _run_drift_failure(self, self.github, self.issue, GIT_RESET)
+        self._says(BARE_CONTINUE)
+
+        refused = _run_with_git(self, self.github, self.issue, MagicMock())
+        said = len(self.github.posted_comments)
+        quiet = _run_with_git(self, self.github, self.issue, MagicMock())
+
+        _assert_ran_no_git(self, refused)
+        _assert_ran_no_git(self, quiet)
+        self.assertEqual(len(self.github.posted_comments), said)
+        self.assertIn(NEEDS_GUIDANCE, _notices(self.github))
+        self.assertNotIn((self.issue_number, VALIDATING), self.github.label_history)
+        _assert_pending_state(self, self.github)
+        self.assertEqual(
+            self.github.pinned_data(self.issue_number).get(
+                LAST_ACTION_COMMENT_ID,
+            ),
+            UNWIND_READ_THROUGH,
+        )
+
+    def test_the_held_cursor_survives_a_retry(self) -> None:
+        # The instruction is left above the cursor, and the road must not read
+        # it as the "try it again" signal -- that would re-post the same park
+        # on every poll. Its own boundary is what keeps the silence; when the
+        # operator answers above that notice the retry reconciles and hands
+        # the issue back, with the instruction still unread for the reviewer
+        # and the fix round behind it.
+        _run_drift_failure(self, self.github, self.issue, GIT_RESET)
+        said = len(self.github.posted_comments)
+
+        quiet = _run_with_git(self, self.github, self.issue, MagicMock())
+
+        quiet.git_hardened.assert_not_called()
+        self.assertEqual(len(self.github.posted_comments), said)
+
+        self._says(UNWIND_RETRY)
+        _run_with_git(self, self.github, self.issue, MagicMock(side_effect=[
+            MagicMock(returncode=0, stdout="0\t0\n", stderr=""),
+        ]))
+
+        self.assertIn((self.issue_number, VALIDATING), self.github.label_history)
+        settled = self.github.pinned_data(self.issue_number)
+        self.assertEqual(
+            settled.get(LAST_ACTION_COMMENT_ID), UNWIND_READ_THROUGH,
+        )
+        self.assertIsNone(settled.get(DRIFT_UNWIND_ASKED_AT))
+
+    def _edited_by_a_comment(self):
+        """A documenting issue whose baseline matches its body exactly.
+
+        So the only thing that can move the requirements is a comment, which
+        is the case this road loses.
+        """
+        github, issue = self._seeded(
+            park_reason=PARK_PUSH_FAILED,
+            last_action_comment_id=UNWIND_READ_THROUGH,
+        )
+        settled = github.pinned_data(self.issue_number)
+        settled["user_content_hash"] = (
+            _content_hash._compute_user_content_hash(issue, set())
+        )
+        github.seed_state(issue, **settled)
+        return github, issue
+
+    def _says(self, body: str) -> int:
+        """Put one trusted reply at the top of the thread, and name its id."""
+        spoke = self.github.next_reply_id(self.issue)
+        self.issue.comments.append(
+            FakeComment(id=spoke, body=body, user=FakeUser(TRUSTED_AUTHOR)),
+        )
+        return spoke

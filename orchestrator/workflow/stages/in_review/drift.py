@@ -29,8 +29,8 @@ that comment rather than at the thread's tip, so the reply the move hands on
 is the one they wrote.
 
 The session's report is handled as the validating drift handles it -- recorded
-before the push, stamped with the hash the drift check took here -- and bound
-only once the relabel is behind it. The fresh round the stale approval earns,
+before the push, stamped with the revision the read its own prompt was built
+from fingerprints to -- and bound only once the relabel is behind it. The fresh round the stale approval earns,
 and the marker saying this issue owes that move at all, are persisted BEFORE
 the relabel: a label that moves and a write that is then lost cannot hand the
 reviewer the budget the old approval was under, and a relabel that does not
@@ -41,7 +41,27 @@ is held until the report is confirmed. A report this stage still finds owed on a
 push, a held candidate an adjudication published, a process that died in
 between -- sends the issue back there too, ahead of everything else here.
 
-The ratchet over what that read delivered is taken twice: once before the
+What the resume quotes and what the issue may mark answered come off ONE
+frozen read of two surfaces, and the record of it is settled once the run is
+back. The prompt carries the bounded issue excerpt and, below it, the pull
+request's unread conversation -- read here rather than left to the ratchet,
+because the two share an id space and a mark taken over the thread alone would
+sit above a PR comment nobody has answered. What the excerpt bound cut is
+recorded as delivered to nobody, so the scan that owns the surface still hands
+it over, and the inline-review and review-summary watermarks are left where
+they are, since nothing here reads those.
+
+The record settles the issue thread's own cursor and the requirements
+revision, and no more. The cursor the two IssueComment surfaces SHARE is the
+carry's, because the record covers them at two different moments: the pull
+request is read before the notice this road posts on it, the thread after --
+so a comment landing on the pull request in between is in neither half, while
+an issue reply above it is in one. Settled from the pair, the shared cursor
+would step over that comment and no later poll could go back for it. The carry
+re-reads both surfaces at one moment instead, crosses exactly what the record
+names, and stops at the first id it does not.
+
+The ratchet over what that record names is taken twice: once before the
 disposition, so the first durable write the disposition makes carries it, and
 once after, for the notices the disposition itself posts. A carry taken only
 at the end is one a process dying mid-disposition loses, leaving a report and
@@ -49,38 +69,37 @@ a push durable over feedback still marked unread -- and that comment buys a
 `fixing` round the next time the issue reaches review, for words the developer
 answered in the prompt that quoted them.
 
-The PR conversation is read BEFORE the notice and the ratchet, and that
-ordering is the whole reason `_drift_unread_pr_conv` exists: the resume quotes
-the issue thread in full and marks it read to the tip, so a PR comment nobody
-has answered would sit under the mark that hop leaves behind. Capturing those
-comments up front, quoting them into the same prompt, and handing their ids to
-the ratchet as delivered is what keeps one from vanishing unanswered.
-
-Both refusals sit between the finished run and the disposition rather than
-before the run, because the run itself is what makes them decidable: a
-shutdown-interrupted result and a live pause both bail WITHOUT writing pinned
-state, so the refreshed hash, the consumed comments, and the cleared park are
-all discarded and the next process re-detects the same edit.
+All three refusals sit between the finished run and the disposition rather
+than before the run, because the run itself is what makes them decidable: a
+launch the run circuit turned away, a shutdown-interrupted result, and a live
+pause each bail WITHOUT writing pinned state, so the refreshed hash, the
+marker staged beside it, the cleared park, and every comment the prompt
+carried are all left unrecorded and the next process re-detects the same edit.
+Nothing read that prompt on any of the three, so nothing durable may act as
+though something had -- a park taken in the name of a run that never started
+included.
 """
 from __future__ import annotations
 
 import logging
-
-from github.Issue import Issue
+from dataclasses import replace
 
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
-from orchestrator.github.comments import filter_trusted
 from orchestrator.workflow.engine import (
     comments as _comments,
     drift as _engine_drift,
+    drift_delivery as _drift_delivery,
     guards as _guards,
-    prompt_context as _prompt_context,
+    prompt_delivery as _delivery,
     report_delivery as _report_delivery,
     report_records as _records,
     usage as _usage,
 )
-from orchestrator.workflow.stages.implementing import resume as _dev_resume
+from orchestrator.workflow.stages.implementing import (
+    resume as _dev_resume,
+    resume_batch as _resume_batch,
+)
 from orchestrator.workflow.stages.in_review import (
     feedback as _feedback,
     models as _models,
@@ -108,38 +127,22 @@ _BACK_TO_REVIEW = frozenset((
 ))
 
 
-def _build_drift_resume_prompt(issue: Issue, unread_pr_conv: list) -> str:
-    """Assemble the dev-resume prompt for a user-content drift: the recent
-    issue-thread conversation combined with any unread PR-conversation
-    comments so the dev sees both surfaces before the watermark bump consumes
-    them.
-    """
-    comments_text = _prompt_context._recent_comments_text(issue)
-    if unread_pr_conv:
-        pr_block = "\n\n".join(
-            _prompt_context._quote_comment_line(comment, label=" (PR comment)")
-            for comment in unread_pr_conv
-        )
-        prefix = f"{comments_text}\n\n" if comments_text else ""
-        comments_text = (
-            f"{prefix}Unread PR conversation comments:\n\n{pr_block}"
-        )
-    return _engine_drift._build_user_content_change_prompt(issue, comments_text)
-
-
 def _drift_unread_pr_conv(ctx: _models._InReviewContext) -> list:
     """Capture unread PR-conversation comments BEFORE the drift notice and the
     later watermark bump.
 
     The issue thread and PR conversation share the IssueComment id space, and
-    the drift resume marks the thread read to its tip -- so a PR-conversation
-    comment numbered below that tip would be under the issue thread's delivery
-    cursor without any prompt having carried it. Capturing those comments here,
-    quoting them in the followup, and handing the same list to the ratchet as
-    delivered is what stops one from being silently dropped. The read is the
-    surface's own (`_unread_pr_conversation`), so the issue-thread cursor cannot
-    bound it; orchestrator id / marker filtering mirrors the regular in_review
+    the resume settles the thread it quoted -- so a PR-conversation comment
+    numbered below what it recorded would be under that settlement without any
+    prompt having carried it. Capturing those comments here, quoting them into
+    the same frozen prompt, and recording them on the surface they were written
+    on is what stops one from being silently dropped. The read is the surface's
+    own (`_unread_pr_conversation`), so the issue-thread cursor cannot bound
+    it; orchestrator id / marker filtering mirrors the regular in_review
     comment scan.
+
+    Taken BEFORE the notice this road posts on the same surface, so the record
+    cannot name our own announcement as somebody's feedback.
     """
     orchestrator_ids = _comments._orchestrator_ids(ctx.state)
     return _feedback._drop_orchestrator_comments(
@@ -149,25 +152,26 @@ def _drift_unread_pr_conv(ctx: _models._InReviewContext) -> list:
 
 
 def _resume_dev_for_drift(
-    ctx: _models._InReviewContext, unread_pr_conv: list, new_hash: str,
+    ctx: _models._InReviewContext, unread_pr_conv: list,
 ) -> _models._DriftResume:
-    """Notify both surfaces, mark the issue-thread drift comments consumed,
-    resolve the worktree, and resume the locked dev session with the updated
-    body plus the unread PR conversation. Captures the pre-resume HEAD so the
-    disposition can tell a pushed fix from a no-commit ack.
+    """Notify the pull request, resolve the worktree, and resume the locked dev
+    session with the updated body, the issue thread, and the pull request's
+    unread conversation quoted from ONE frozen read.
 
-    The dev sees the full issue thread via `_recent_comments_text` in the resume
-    prompt, so marking the issue-thread comments consumed here keeps both a
-    later validating->in_review handoff and the in_review watermark check from
-    replaying them as fresh feedback. Untrusted authors are filtered out of the
-    quoted PR-conversation block; the watermark bump still consumes the raw
-    `unread_pr_conv` so an outsider comment is not re-scanned next tick.
+    Captures the pre-resume HEAD so the disposition can tell a pushed fix from
+    a no-commit ack, and carries the record of what that prompt quoted, which
+    is what the disposition settles. The record travels with the run rather
+    than being re-derived after it: the agent is out for minutes, and a mark
+    taken off the thread it comes back to crosses replies nobody delivered.
+
+    Untrusted authors reach neither half of it -- the prompt does not quote
+    them and the record names them refused, which is how the carry behind it
+    still crosses an outsider comment nobody is owed.
     """
     _comments._post_pr_comment(
         ctx.gh, int(ctx.pr_number), ctx.state,
         ":pencil2: issue body changed; resuming dev session.",
     )
-    _engine_drift._mark_drift_comments_consumed(ctx.gh, ctx.issue, ctx.state)
     # The checkout this resume runs in, recreated on the resolved branch
     # where the path is gone.
     wt = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
@@ -179,37 +183,46 @@ def _resume_dev_for_drift(
             ),
         )
     before_sha = _verification_probes._head_sha(wt)
+    answered = _drift_delivery._pr_drift_resume_prompt(
+        ctx.gh, ctx.issue, ctx.state, unread_pr_conv,
+    )
     wt, dev_result, paused = _dev_resume._resume_dev_with_text(
-        ctx.gh, ctx.spec, ctx.issue, ctx.state,
-        _build_drift_resume_prompt(ctx.issue, filter_trusted(unread_pr_conv)),
+        ctx.gh, ctx.spec, ctx.issue, ctx.state, answered.text,
         pause_guard=True,
+        # The frozen conversation a rotated, retired or poisoned session's
+        # respawn is re-grounded with, handed over rather than read again:
+        # taken there it would be a second reading, newer than the record this
+        # tick settles, carrying a comment the settlement would leave unread.
+        thread_text=answered.delivery.rendered_text,
     )
     ctx.state.set("last_agent_action_at", _usage._now_iso())
     return _models._DriftResume(
         worktree=wt, dev_result=dev_result, paused=paused, before_sha=before_sha,
-        requirements_revision=new_hash,
+        delivery=answered.delivery,
     )
 
 
 def _dispose_drift_result(
     ctx: _models._InReviewContext,
-    unread_pr_conv: list,
     resume: _models._DriftResume,
 ) -> None:
-    """Post the dev result (a no-commit reply is an ack, not a park), ratchet
-    the in_review issue-side watermark past everything consumed this tick, and
-    on a pushed fix, an ack, or a report with no commit bounce DIRECTLY back to
-    `validating` with `review_round` reset.
+    """Post the dev result (a no-commit reply is an ack, not a park), record
+    what the resume's prompt delivered, and on a pushed fix, an ack, or a
+    report with no commit bounce DIRECTLY back to `validating` with
+    `review_round` reset.
 
     The drift invalidated the prior validation either way: the reviewer approved
     against the OLD requirements, so `review_round` must reset before the issue
     can earn a fresh approval. Docs do not run here; the single docs pass is
-    deferred to the final-docs handoff after reviewer approval. Passing
-    `unread_pr_conv` to the bump is what lets its walk advance over those
-    ids: they were quoted into this tick's prompt, and the walk crosses
-    nothing it cannot account for, so without them it would stop at the
-    first one and re-fire them as fresh feedback next tick.
+    deferred to the final-docs handoff after reviewer approval.
+
+    The frozen record is settled only where the run counts the prompt as
+    delivered, and a run that read nothing hands the carry below no ids
+    either: a shutdown kill, a live pause and a launch the circuit turned away
+    all leave the edit and every comment under it exactly as unanswered as
+    they were.
     """
+    consumed = _settles_what_it_delivered(ctx, resume)
     # Carried TWICE, because the disposition below writes durably -- the
     # report ahead of the size gate, the receipt the push leaves, a park's own
     # state -- and a process that died past one of those writes with the carry
@@ -220,7 +233,7 @@ def _dispose_drift_result(
     # notices the disposition posts, which do not exist yet. Both stop at the
     # first comment nothing vouches for, so the early one can only ever cross
     # less.
-    _watermarks._bump_in_review_watermarks(ctx, issue_space_new=unread_pr_conv)
+    _watermarks._bump_in_review_watermarks(ctx, delivered=consumed)
     outcome = _drift_outcomes._post_user_content_change_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state,
         resume.worktree, resume.dev_result, resume.before_sha,
@@ -228,7 +241,7 @@ def _dispose_drift_result(
             WorkflowLabel.IN_REVIEW, resume.requirements_revision,
         ),
     )
-    _watermarks._bump_in_review_watermarks(ctx, issue_space_new=unread_pr_conv)
+    _watermarks._bump_in_review_watermarks(ctx, delivered=consumed)
     if outcome in _BACK_TO_REVIEW:
         _relabels_for_review(ctx)
     else:
@@ -245,6 +258,49 @@ def _dispose_drift_result(
         _report_settlement._settles_the_report(
             ctx.gh, ctx.spec, ctx.issue, ctx.state, WorkflowLabel.VALIDATING,
         )
+
+
+def _settles_what_it_delivered(
+    ctx: _models._InReviewContext, resume: _models._DriftResume,
+) -> _delivery.PromptDeliverySnapshot | None:
+    """Record the frozen prompt as read, and say whether it may be.
+
+    The issue thread's own delivery cursor and the requirements revision are
+    what this road writes; the inline-review and review-summary watermarks are
+    untouched because nothing here read them. What the excerpt bound cut holds
+    the thread's cursor below it, so the scan that owns that surface still
+    delivers it.
+
+    Only the issue thread's half of the record is written from, because
+    `pr_last_comment_id` spans BOTH IssueComment surfaces and this record
+    covers them at two different moments -- the pull request's conversation is
+    read before the resume's notice, the issue thread after it. A comment
+    landing on the pull request in between is in neither half, and an issue
+    reply numbered above it IS: settled together, the shared cursor would step
+    over a comment nobody has read and no later poll could go back for it. So
+    that cursor is left to `watermarks._bump_in_review_watermarks`, which
+    re-reads both surfaces at one moment, crosses exactly what this record
+    names, and stops at the first id it does not. Nothing is lost by the
+    split: the pull-request comments this prompt delivered are named in the
+    record that walk is handed, so it carries the cursor over them as readily
+    as a settlement would.
+
+    None is a run that never read the prompt through, and it is what the carry
+    behind this is handed too: a walk crossing ids a delivery nobody received
+    named would skip them for good. The caller returns ahead of every such
+    outcome, so what the predicate states here is the contract rather than the
+    last line of defence -- the record is settled by what the RUN came to, not
+    by which guards a road happens to ask first.
+    """
+    if not _resume_batch._counts_as_delivered(resume.dev_result, resume.paused):
+        return None
+    replace(
+        resume.delivery,
+        entries=resume.delivery.surface_provenance(
+            _delivery.SURFACE_ISSUE_THREAD,
+        ),
+    ).settle(ctx.state)
+    return resume.delivery
 
 
 def _relabels_for_review(ctx: _models._InReviewContext) -> None:
@@ -353,21 +409,29 @@ def _handle_user_content_drift(ctx: _models._InReviewContext) -> bool:
     # no report at all leave none, and the marker is what says it for them.
     # Written together, a process dying anywhere past the first durable write
     # leaves an issue that knows it owes `validating` a move; dying before it
-    # leaves an issue that simply re-detects the edit.
+    # leaves an issue that simply re-detects the edit. The settlement below
+    # refines the hash to the revision the prompt actually fingerprinted,
+    # which is a reply newer at most -- never older.
     ctx.state.set(_state._HANDOFF_PENDING, True)
-    unread_pr_conv = _drift_unread_pr_conv(ctx)
-    resume = _resume_dev_for_drift(ctx, unread_pr_conv, new_hash)
-    # Interrupted (shutdown sweep) or live-paused (operator added `paused` /
-    # `backlog` mid-run) resume: bail WITHOUT writing pinned state so everything
-    # staged above -- refreshed `user_content_hash`, consumed drift comments,
-    # `last_agent_action_at`, the `awaiting_human` clear inside
-    # `_resume_dev_with_text` -- is discarded and the next process re-detects the
-    # body change and leaves any committed work on the branch. Must precede
-    # `_dispose_drift_result` so it neither parses a partial reply nor persists
-    # the consumption.
+    resume = _resume_dev_for_drift(ctx, _drift_unread_pr_conv(ctx))
+    # Refused (the run circuit turned the launch away), interrupted (shutdown
+    # sweep) or live-paused (operator added `paused` / `backlog` mid-run)
+    # resume: bail WITHOUT writing pinned state so everything staged above --
+    # refreshed `user_content_hash`, the handoff marker, `last_agent_action_at`,
+    # the `awaiting_human` clear inside `_resume_dev_with_text` -- is discarded
+    # and the next process re-detects the body change and leaves any committed
+    # work on the branch. The hash and the marker are staged TOGETHER for
+    # exactly this reason: neither becomes durable here, so the pair stays
+    # consistent and the edit is re-detectable rather than absorbed by a
+    # prompt nothing read. All three must precede `_dispose_drift_result` so it
+    # neither parses a reply no process wrote nor parks in the name of a run
+    # that never started -- the refusal the circuit recorded where it was
+    # decided is the whole of what this tick says.
+    if _guards._ignore_if_never_invoked(ctx.issue, resume.dev_result):
+        return True
     if _guards._ignore_if_interrupted(ctx.issue, resume.dev_result):
         return True
     if resume.paused:
         return True
-    _dispose_drift_result(ctx, unread_pr_conv, resume)
+    _dispose_drift_result(ctx, resume)
     return True

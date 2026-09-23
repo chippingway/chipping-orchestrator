@@ -20,7 +20,8 @@ below leases against that SHA rather than whatever `ls-remote` reports later.
 
 `_ConflictResumeRun` carries what a finished dev resume cannot re-derive: the
 worktree it actually ran in (the resume may have re-created it), the result,
-and whether an operator paused mid-run.
+whether an operator paused mid-run, and -- on the body-edit road -- the record
+of exactly what its prompt quoted.
 """
 from __future__ import annotations
 
@@ -33,6 +34,7 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import prompt_delivery as _delivery
 
 
 @dataclass(frozen=True)
@@ -78,10 +80,21 @@ class _DivergeDecision:
 class _ConflictResumeRun:
     """The outputs of one locked dev resume in the rebase loop: the worktree
     the agent ran in (`_resume_dev_with_text` may re-create it), the agent
-    result, and whether an operator paused mid-run."""
+    result, and whether an operator paused mid-run.
+
+    `delivered` is the record the body-edit road freezes with its prompt and
+    settles once the run is back -- the comments that prompt quoted and the
+    requirements revision the read they came from fingerprints to. It rides
+    the run because it may not be re-derived after it: the thread moves while
+    an agent is out, and a mark taken off the one it comes back to crosses
+    replies nobody delivered. None on the two roads that freeze no record: the
+    fresh conflict quotes no conversation at all, and a park's reply is
+    consumed by the road that read it.
+    """
     worktree: Path
     dev_result: AgentResult
     paused: bool
+    delivered: _delivery.PromptDeliverySnapshot | None = None
 
 
 @dataclass(frozen=True)

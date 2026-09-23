@@ -191,14 +191,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             authors, and whole-comment operator commands, over the live thread or a read the caller
                             already holds; the legacy bare-continue mode recognizes an existing baseline
     drift.py                baseline persistence and legacy normalization, the dev resume a requirements edit earns, and
-                            the pre-implementation decomposition reset; the PR-backed roads mark the thread read to
-                            its tip, which is what their prompts quoted. On a parked tick the check measures the
+                            the pre-implementation decomposition reset; no road here marks a thread read to its tip,
+                            since a tip crosses what a bounded excerpt dropped and what landed while an agent was
+                            out. On a parked tick the check measures the
                             requirements by what the park had already read (`answered`), so replies to the park are
                             the frozen batch's, not drift
-    drift_delivery.py       the prompt an issue-backed edit is answered with and the record of what it quoted, frozen
+    drift_delivery.py       the prompt a requirements edit is answered with and the record of what it quoted, frozen
                             together off ONE read and settled by whoever disposes the run: context the excerpt bound
                             dropped holds the watermark below it, a reply written while the agent was out is in
-                            neither, and the revision recorded is that read's fingerprint rather than the thread's tip
+                            neither, and the revision recorded is that read's fingerprint rather than the thread's tip.
+                            The PR-backed variant freezes a second surface into the same record -- the pull request's
+                            unread conversation, quoted entire below the bounded thread -- and names an outsider's
+                            comment refused rather than dropping it, so the carry behind the run may cross what no
+                            reader is owed. It names NO shared watermark field: the two surfaces are covered at two
+                            moments, so the cursor spanning them is the caller's merged re-read to derive and no
+                            settlement's to write
     guards.py               what a finished agent run may leave behind: the never-invoked, shutdown-interruption,
                             and freshly-read pause refusals, and the awaiting-human park. The first is asked ahead
                             of the second wherever a stage reads the worktree before it asks whether the run
@@ -1006,7 +1013,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       replay_records.py     two-step replay persistence, before rebase and before publication; whole-commit reads and
                             the original publication identity keep a stale or unfinished record from proving a push
       resume.py             the three dev-resume entry points, the shared run, and the `/orchestrator continue`
-                            classification. Each of the three can end in a commit this stage publishes onto a
+                            classification. The body edit quotes one frozen read of the issue thread and settles
+                            that record -- the comments and the requirements revision alike -- once the run is back
+                            and only for an outcome that reached an agent; it reads no pull-request surface, so
+                            none of their cursors moves. Each of the three can end in a commit this stage publishes onto a
                             pull request the remote already carries, so each passes the size gate -- the fresh
                             conflict and the reply behind it through the shared conflict disposition, the body edit
                             through the shared fix publication -- and each names the round it would have counted,
@@ -1020,7 +1030,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       transitions.py        held-round receipt reads and writes, exact-head recovery, round increments, and handoff to
                             validation; a settled receipt is cleared only by the tail that pays it
       models.py             frozen conflict context, checkout and resume results, live replay pairs, and recorded replay
-                            values handed between the stage's owners
+                            values handed between the stage's owners; a body-edit resume's result carries the
+                            delivery record its prompt was cut from, since the thread moves while an agent is out
+                            and a mark taken off the one it returns to crosses replies nobody delivered
       state.py              the counter keys they share, the single settled pair one held round at a time is named
                             by, and the `conflict_replay_*` group a rebase writes about itself -- both ends of what
                             it replaced, the commit it produced, and the publication it was made against -- for the
@@ -1551,7 +1563,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             moved pull request reads as too -- the write that records the pass drops it, so no
                             receipt outlives the handoff it was written for
       drift.py              a body edit mid-hop: the dropped approval, the unwind sentinel, and the relabel to
-                            `workflow:validating`
+                            `workflow:validating`. No developer runs on this road, so nothing about the conversation
+                            is recorded -- the requirements revision alone goes down, and it says only that this
+                            stage has already rerouted for the edit. A git step that cannot be proved parks through
+                            the shared HITL helper, which stamps the thread read as far as its own notice, so this
+                            owner puts the delivery cursor back and keeps that notice as the unwind's own boundary:
+                            the silence a pending unwind holds is measured against it rather than against a cursor
+                            that would read the triggering comment as a retry signal every poll
       drift_reset.py        the fetch / probe / hard-reset that puts the worktree back on the PR head, and the parks
                             each failure earns
       handoff.py            the `pr_last_comment_id` ratchet that keeps in_review from replaying a consumed reply,
@@ -1567,7 +1585,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       models.py             the frozen records the owners hand each other, including the one reading of a finished
                             run three of them branch on -- whether it ended on a report -- taken where the run is
                             built rather than parsed again by each
-      state.py              the pinned-state keys they share
+      state.py              the pinned-state keys they share, the unwind sentinel and the boundary its silence
+                            is kept behind among them -- the second is no delivery cursor, since the road that
+                            writes it runs no agent at all
     fixing/                 `workflow:fixing`
       handler.py            the order one tick asks its questions in, plus the preflight terminals, the
                             missing-`pr_number` park, and the commit the no-feedback bounce publishes -- measured by
@@ -2524,13 +2544,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the hash is what stops a later tick re-detecting the edit -- a report recorded or a
                             debt withheld says the move is owed on the roads that leave one, and the marker says it
                             for the `ACK:` and the park that leave none, so neither may become durable without the
-                            other; the unread PR conversation
-                            captured first and its delivery
-                            ratcheted BOTH before the disposition -- so the first durable write that disposition
+                            other; the unread PR conversation captured first and frozen with the bounded issue
+                            excerpt into ONE delivery record, settled after the run and only for an outcome that
+                            reached an agent -- the issue thread's own cursor and the requirements revision, and no
+                            more, since the cursor the two surfaces SHARE covers a numbering this record read at two
+                            moments and only the carry's merged re-read can answer for it; neither review
+                            surface moves at all, as no prompt here reads one -- with the carry over that record
+                            taken BOTH before the disposition -- so the first durable write that disposition
                             makes carries it, rather than a process dying mid-way leaving a report and a push over
                             feedback still marked unread -- and after, for the notices the disposition posts; the
                             dev resume
-                            under the requirements revision the drift check handed it, and the `workflow:validating`
+                            under the requirements revision that record fingerprints, and the `workflow:validating`
                             return a pushed fix, an `ACK:`, and a report alone all take -- the fresh round and the
                             marker saying the move is owed persisted BEFORE that relabel, since a label moved first
                             and a write then lost hands the reviewer the budget the stale approval was earned
@@ -2556,8 +2580,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the requirements its report is stamped with -- owes each of those to the same read
       watermarks.py         how far a park's own notice may carry the issue-side mark, and the legacy seed a
                             manually-relabeled issue needs -- both walks forward from where the mark is, over what
-                            they can vouch for, and neither reads a tip
-      models.py             the per-tick handles and the drift-resume record
+                            they can vouch for, and neither reads a tip. The carry is handed the tick's frozen
+                            delivery record rather than the read behind it, since a bounded excerpt delivers less
+                            than it read and the context it cut is what the walk has to stop below
+      models.py             the per-tick handles and the drift-resume record, which carries the delivery its prompt
+                            was built from -- what the issue may mark answered, and the revision its report is
+                            stamped with, off the one read
       state.py              the issue-side watermark key they share, the marker saying this issue owes
                             `workflow:validating` a label move its own relabel did not land, and the one staged
                             write spelled here rather than at the owner that makes it: every field the hand-back
@@ -2704,7 +2732,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       drift_reports.py      that contract for a drift resume on an open pull request, which is that nothing this
                             road publishes may be work no report describes: the run's report recorded ahead of the
                             size gate under the route and the revision its CALLER handed it -- the prompt-delivery
-                            record's on `validating`, the drift check's read on `in_review` -- a
+                            record's on either review stage -- a
                             commit of this run's with no usable report parked rather than pushed, a report alone
                             recorded only over a tree proved clean -- parked on the tree otherwise, with nothing
                             recorded -- and a commit an earlier run stranded, under a run that committed NOTHING,

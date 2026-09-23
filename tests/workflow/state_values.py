@@ -11,6 +11,15 @@
 # a tick that returns without a write of its own still leaves these two.
 AGENT_RUN_CHARGE_WRITES = 2
 
+# The fields those two writes are about: the launch's own ledger, which no
+# handler reads or writes. A case asserting that a tick left NOTHING of its
+# own durable drops them rather than asserting around them.
+AGENT_RUN_CHARGE_KEYS = frozenset((
+    "agent_run_fingerprint",
+    "agent_run_reservation",
+    "agent_runs_used",
+))
+
 KEY_AWAITING_HUMAN = "awaiting_human"
 KEY_ISSUE_AGENT_RUNS = "issue_agent_runs"
 KEY_ISSUE_TOTAL_TOKENS = "issue_total_tokens"
