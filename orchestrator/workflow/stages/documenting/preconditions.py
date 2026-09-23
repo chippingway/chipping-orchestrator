@@ -112,6 +112,13 @@ def _refuse_parked_continue_command(
     stays silent and the retry falls through to `_run_documenting_dev`'s resume
     (issue #729) -- only the refusal needs interception here.
 
+    The batch is cut from what the park ASKED (`parks._asked_since`), which on
+    a drift unwind is the notice it posted rather than the delivery cursor
+    that road deliberately holds back. Cut from the cursor, the instruction
+    the unwind delivered to nobody would sit in the batch beside the command
+    and demote it to guidance -- and the reconcile behind this would run on an
+    operator's bare nudge, which is exactly what the refusal exists to stop.
+
     Returns True when a content-free continue on a non-retryable park was
     refused (command consumed, note posted, state written) and the caller must
     return. Returns False to fall through: not parked, an auto-rebase park (the
@@ -124,13 +131,20 @@ def _refuse_parked_continue_command(
     if park_reason in _base_sync_state._AUTO_REBASE_PARK_REASONS:
         return False
     new_comments = filter_trusted(
-        gh.comments_after(issue, state.get(_state._LAST_ACTION_COMMENT_ID))
+        gh.comments_after(issue, _parks._asked_since(state))
     )
     if not new_comments:
         return False
     if _messages._continue_command_action(new_comments, park_reason) != "refuse":
         return False
+    delivered_through = state.get(_state._LAST_ACTION_COMMENT_ID)
     _messages._refuse_parked_continue(gh, issue, state, new_comments)
+    # A refusal delivers nothing either, so on the unwind road it moves that
+    # road's own boundary and leaves the delivery cursor where the park left
+    # it. In the write below rather than one of its own: the shared refusal
+    # mutates memory and this is the write that makes all of it durable.
+    if state.get(_state._UNWIND_PENDING):
+        _parks._holds_the_delivery_cursor(state, delivered_through)
     gh.write_pinned_state(issue, state)
     return True
 

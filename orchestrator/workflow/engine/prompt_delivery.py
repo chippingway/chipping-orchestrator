@@ -633,6 +633,12 @@ class _SnapshotAssembler:
             return PromptDeliverySnapshot(
                 entries=tuple(provided),
                 requirements_revision=options.get("requirements_revision"),
+                # The text a caller assembling entries from SEVERAL reads
+                # hands over, since nothing here can render it: a prompt that
+                # quotes one surface under a heading it writes itself is text
+                # only that caller knows the shape of, and a record left
+                # without it would re-ground a respawn on half a prompt.
+                rendered_text=options.get("rendered_text", ""),
                 tracked_repos_text=options.get("tracked_repos_text", ""),
                 issue_watermark_field=options.get("issue_watermark_field"),
                 initial_cursors=cursors,

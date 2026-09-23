@@ -6,8 +6,14 @@ The content_hash owner defines which text is human guidance. This owner persists
 the first or normalized baseline, resumes implementation with the changed text,
 and clears split claims before routing pre-implementation drift to decomposition.
 
-What an issue-backed resume consumes is decided by one frozen read, which
-`drift_delivery.py` beside this owner freezes with the prompt built from it."""
+What a resume consumes is decided by one frozen read, which `drift_delivery.py`
+beside this owner freezes with the prompt built from it -- on an open pull
+request as much as before one, over that road's second surface as well. No road
+here reads a thread's TIP: a tip crosses the context a bounded excerpt dropped,
+a reply written while the agent was out, and a run no developer ever read the
+prompt through. A reroute that invokes nobody at all -- the `documenting`
+unwind -- records the requirements revision for itself and nothing about the
+conversation, since a label change delivers no words."""
 from __future__ import annotations
 
 from github.Issue import Issue
@@ -132,39 +138,6 @@ def _build_user_content_change_prompt(
         "reply (same as a regular agent question).\n\n"
         f"{_prompt_notes._FOREGROUND_ONLY_NOTE}"
     )
-
-
-def _mark_drift_comments_consumed(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
-) -> None:
-    """Advance `last_action_comment_id` past every comment visible on the
-    issue thread right now.
-
-    Used by the three roads that still mark the thread here: the PR-backed
-    `in_review` and `resolving_conflict` resumes, and the `documenting`
-    unwind that reroutes on an edit without running anybody. The two resumes
-    quote `_recent_comments_text(issue)` in their prompt, so the dev has
-    been fed the full conversation, and the next validating->in_review
-    handoff (via `_seed_watermark_past_self`) must NOT classify those same
-    comments as fresh, unconsumed feedback and replay them as a duplicate
-    dev resume on the next in_review tick. It reads
-    `latest_comment_id` rather than the `comments_after` walk because those
-    prompts feed the full thread (`_recent_comments_text`), not just
-    a single new-comments slice. One-way ratchet so a higher prior value
-    (e.g. a recent park comment id) is never lowered.
-
-    The issue-backed roads do not come here. `implementing` and `validating`
-    settle the frozen `drift_delivery._drift_resume_prompt` record instead,
-    which is bounded by what their prompt actually carried and taken only once
-    the run is back. A parked tick whose only change is replies to the park
-    never reaches either: the frozen reply batch delivers and settles those.
-    """
-    latest = gh.latest_comment_id(issue)
-    if not isinstance(latest, int):
-        return
-    prior = state.get("last_action_comment_id")
-    if not isinstance(prior, int) or latest > prior:
-        state.set("last_action_comment_id", latest)
 
 
 def _drift_to_decomposing_notice(orphan_children: list) -> str:

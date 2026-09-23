@@ -131,15 +131,30 @@ that batch uncapped so the record cannot name an omission the followup never mad
 text and they differ in one thing — whether anything is going to be recorded about it:
 
 - `_recent_comments_text` reads the thread and renders it, for the prompts whose stage settles nothing by them (the
-  documentation, decomposer, question and discussion prompts, and the PR-backed drift resumes).
+  documentation, decomposer, question and discussion prompts).
 - `_delivered_thread` takes the read itself and hands back a `prompt_delivery` snapshot: the same text, plus the
   record of which comments it is made of, which ones the bound left out, and the requirements revision that read
-  fingerprints to. The implementing fresh spawn, the issue-backed drift resumes and the validating reviewer round
+  fingerprints to. The implementing fresh spawn, every requirements-drift resume and the validating reviewer round
   build their prompts from it. The drift resumes always settle it afterwards; the fresh spawn settles it only where
   a pre-session edit was handed to that spawn to answer, since an ordinary spawn's thread is the pickup's to have
   recorded and nothing on that tick is owed an answer; and the reviewer round settles it only where a reply bought
   the round — a park's retry or an operator's grant — since an ordinary round reads the thread like any other
   reader and answers nobody.
+
+One prompt reads a second surface below the first. The `in_review` drift resume quotes the pull request's unread
+conversation under its own heading beneath the bounded thread, and `drift_delivery._pr_drift_resume_prompt` freezes
+the two into ONE record through `_delivered_pr_conversation`. That half is uncapped for the same reason the reply
+batch is — every comment handed over is quoted. An outsider's comment reaches neither the prompt nor the delivered
+half; it is kept as a refused entry, so the watermark carry behind the run may cross a comment no reader is ever
+owed.
+
+What that record may be SETTLED from is narrower than what it names, and the reason is that the two surfaces are
+read a moment apart. `pr_last_comment_id` spans both, so advancing it claims every id below it on either is
+delivered or owed to nobody — and a comment landing on the surface read first, after that read, is in neither half
+while an id above it on the other surface is in one. No record built from two readings can answer that. So the
+settlement writes the issue thread's own cursor and the requirements revision, and the shared one is derived by the
+`in_review` park carry, which re-reads both surfaces at one moment, crosses exactly the ids the record names, and
+stops at the first it does not.
 
 The rule the second shape exists for is that a prompt and the mark taken for it have to be one read. Three
 consequences hold wherever a prompt is settled, and they are the same on every road that does it — the frozen reply
@@ -153,7 +168,13 @@ batch a parked resume delivers, the drift resume, and the fresh spawn a pre-sess
 - the record is settled only once the run is back, and only for an outcome that counts the input as delivered: a
   shutdown kill, a live pause, and a launch the run circuit refused leave it entirely unread, while a timeout, an
   empty reply, an `ACK:`, and a question park all consume it. Delivery is not resolution — what an agent was handed
-  is a separate question from whether it answered.
+  is a separate question from whether it answered;
+- a settlement writes only a cursor ONE reading can vouch for. A cursor spanning two surfaces read a moment apart is
+  derived by a merged re-read instead, never by the record;
+- a route that invokes NO developer at all — the `documenting` drift unwind, which changes a label and resets a
+  worktree — settles no watermark whatever, since a relabel delivers nobody's words to anybody. Where a git step
+  there parks, the shared HITL park's own mark is put back and kept as that unwind's retry boundary rather than left
+  standing as a delivery cursor.
 
 ## The commit-subject contract in commit-producing prompts
 
@@ -286,9 +307,9 @@ owes a report it could not deliver, and is read as any other no-commit reply eve
 
 The **requirements-drift resume on an open pull request** acts on one too, on `workflow:validating` and `in_review`
 ([user-content drift](../state-machine/delivery-stages.md#user-content-drift-detection)). A commit the resume made
-has its report recorded before the size gate, under the requirements revision its own route handed it — on
-`workflow:validating` the one the prompt-delivery record fingerprints, which is the read that prompt was built from
-and the baseline its settlement writes; on `in_review` the drift check's earlier read — and
+has its report recorded before the size gate, under the requirements revision its own route handed it — on both
+stages the one the prompt-delivery record fingerprints, which is the read that prompt was built from
+and the baseline its settlement writes — and
 bound and settled once the push lands and the stage's own bookkeeping is written; one with no usable report parks
 rather than being pushed, and stays unpublished until a reply brings the report. A no-commit reply ending on a report
 outcome is published onto the head the pull request already carries — over a tree proved clean, or parked on the

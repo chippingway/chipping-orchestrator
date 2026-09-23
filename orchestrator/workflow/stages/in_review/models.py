@@ -13,7 +13,9 @@ missing one happens before this record exists.
 run: the worktree the resume actually ran in (the resolve may have recreated
 it), whether an operator paused mid-run, `before_sha`, which is the only
 thing that tells a pushed fix from a no-commit acknowledgement, and the
-requirements revision the resume was handed, which its report is stamped with.
+delivery record its prompt was built from -- which both names what the issue
+may mark answered and fingerprints the requirements its report is stamped
+with.
 
 `_AnsweredIssueSpace` is the three answers the watermark walk asks of every
 comment above the mark, bundled because they are one reading of one pinned
@@ -31,6 +33,7 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import prompt_delivery as _delivery
 
 
 @dataclass(frozen=True)
@@ -67,11 +70,30 @@ class _AnsweredIssueSpace:
 class _DriftResume:
     """Outcome of the drift dev-resume: the (possibly recreated) worktree, the
     agent result, whether an operator paused mid-run, the pre-resume HEAD
-    used to tell a pushed fix from a no-commit ack, and the hash the drift
-    check took of the content the resume was handed.
+    used to tell a pushed fix from a no-commit ack, and the record of exactly
+    what its prompt quoted.
+
+    `delivery` is that record, frozen WITH the prompt built from it and
+    settled once the run is back: it names the issue-thread and
+    PR-conversation comments the developer was handed, what the excerpt bound
+    left out on either, and the requirements revision that read fingerprints
+    to. Re-derived after the run instead, it would cross replies written while
+    the agent was out.
     """
     worktree: Any
     dev_result: Any
     paused: bool
     before_sha: Any
-    requirements_revision: str = ""
+    delivery: _delivery.PromptDeliverySnapshot
+
+    @property
+    def requirements_revision(self) -> str:
+        """The baseline the report this run may write is stamped with.
+
+        The delivery's rather than the drift check's, because the two readings
+        are a moment apart: a reply written in between is inside the prompt
+        and inside the baseline the settlement records, and a report stamped
+        with the earlier one would be held against requirements the issue has
+        already moved past.
+        """
+        return self.delivery.requirements_revision or ""
