@@ -15,6 +15,38 @@ run on a do-nothing prompt. The parse walks newest-first so a corrected
 command supersedes a stale one in the same batch, and an invalid argument is
 answered on the issue instead of guessed at.
 
+The cap's command is recorded as READ when this road answers it, and only
+where the comment IS the command and nothing else. Nothing else in the batch
+is -- not the requirements those words arrived beside, and not the guidance
+written beside them, which reached no agent either. A command written INSIDE
+a comment of guidance is that guidance, so the whole comment stays unread and
+the round the grant buys is what delivers and records it, under its own
+excerpt.
+
+That leaves the mark below words nobody carried, so the command outlives the
+cap it answered and the batch a later cap freezes carries it again. What says
+a grant was honored is the record written beside the round reset it bought,
+which is durable exactly where that reset is: the notice goes out before the
+reviewer runs, and a launch the run circuit refuses discards the reset and
+keeps the sentence, leaving a command an agent-run grant still has to hand
+back. The invalid-argument refusal is the other shape and answers to its own
+post instead, since its write follows that post rather than a run.
+
+A reviewer-side park's retry records nothing at all. Clearing that park is an
+action on the words, not a delivery of them, and the round it buys is what
+carries them -- bounded by its own excerpt, which is not this batch's. So the
+round records what it read (`reviewer.py`), a reply its excerpt cut short
+stays unread for the scan that owns the issue thread, and a round nothing ran
+-- the circuit's refusal, the report hold -- leaves the reply exactly where it
+found it.
+
+What both roads DO write down is the round the reply bought, because the
+clear can go out on a tick that runs no round: the reply has moved the
+requirements by then, and a later tick reading the park alone would find a
+plain edit and resume the developer ahead of the reviewer those words asked
+for. The note says which reply is owed a round, so the round that finally
+runs is the reviewer's and the settlement is that round's own.
+
 The transient reasons are the opposite shape: they fire only when NO comment
 arrived, because they exist for conditions that resolve on their own and the
 retry has to stay silent while it is still failing. Succeeding is the one thing
@@ -59,31 +91,74 @@ from orchestrator.workflow.stages.implementing import resume as _dev_resume
 from orchestrator.workflow.stages.validating import models as _models, recovery as _recovery, state as _state
 
 
-def _parse_add_review_rounds(
-    comments: list,
+def _cap_command_to_answer(
+    context: _models._AwaitingValidation,
 ) -> _state._ReviewRoundsCommand | None:
-    """Find the latest `/orchestrator add-review-rounds N` command across
-    `comments`.
+    """The `/orchestrator add-review-rounds N` command this tick has to answer.
 
-    Returns ``(n, None)`` for a valid positive `N`; ``(n, reason)`` when
-    the latest match has an invalid argument (caller posts `reason` and
-    stays parked); ``None`` when no comment carries the command. Walks
-    newest-first so a corrected command supersedes a stale one posted
-    earlier in the same batch.
+    Returns ``(comment, n, None)`` for a valid positive `N`; ``(comment, n,
+    reason)`` when the latest match has an invalid argument (caller posts
+    `reason` and stays parked); ``None`` when there is nothing here to act
+    on. Walks newest-first so a corrected command supersedes a stale one
+    posted earlier in the same batch, and an empty batch comes back None like
+    any other batch carrying no command -- a park nobody answered and a reply
+    that is not the command leave this road sitting exactly alike, since the
+    round a plain reply would spend is the one the cap already refused.
+
+    A grant already WRITTEN DOWN comes back None too. Its command may have
+    been left uncrossed -- a bounded round records only what its own excerpt
+    carried -- so the batch a LATER cap freezes reaches back below it and
+    offers the same words again, and honored twice they reset that cap for
+    free and go on doing it. The record staged beside the round reset is what
+    says one was honored, and it went down or did not with that reset: a
+    launch the run circuit refuses discards both, leaving the command an
+    agent-run grant hands back to be honored for real. A command posted after
+    the record carries an id of its own and is new.
+
+    The comment itself comes back because the road records exactly the words
+    it answers: which comment carried them is the whole of what a settlement
+    may cross, and whether it carried anything ELSE is what says it may be
+    crossed at all (`_is_bare_command`).
     """
-    for comment in reversed(comments):
+    granted_on = context.state.get(_state._CAP_GRANTED_ON)
+    for comment in reversed(context.comments):
         body = comment.body or ""
         command_match = _state._ADD_REVIEW_ROUNDS_RE.search(body)
         if not command_match:
             continue
+        if comment.id == granted_on:
+            return None
         additional_rounds = int(command_match.group(1))
         if additional_rounds <= 0:
             return (
+                comment,
                 additional_rounds,
                 f"expected a positive integer (got `{additional_rounds}`)",
             )
-        return (additional_rounds, None)
+        return (comment, additional_rounds, None)
     return None
+
+
+def _is_bare_command(issue_comment) -> bool:
+    """Whether this comment is the cap command and nothing else.
+
+    Only a bare one may be recorded as read when this road answers it. The
+    answer is posted the moment the command is parsed, so the command must
+    not come back on every poll -- and a comment that IS the command has
+    nothing else in it for the mark to cross.
+
+    Written ALONGSIDE guidance it is guidance too, held to the test
+    `/orchestrator continue` and `/orchestrator add-agent-runs` are held to
+    for the same reason. Those words reached no agent: this park hands its
+    batch to nobody, and the round a grant buys quotes the thread under its
+    OWN excerpt, which may cut a long comment short. Crossing the whole
+    comment here would spend a head no prompt has carried, and a refused
+    launch would leave it spent with no reviewer having run at all. So the
+    comment stays unread and the round that finally runs is what delivers
+    and records it.
+    """
+    written = (getattr(issue_comment, "body", "") or "").strip()
+    return _state._ADD_REVIEW_ROUNDS_RE.fullmatch(written) is not None
 
 
 def _review_cap_awaiting_action(
@@ -91,24 +166,30 @@ def _review_cap_awaiting_action(
 ) -> str | None:
     if context.park_reason != _state._REASON_REVIEW_CAP:
         return None
-    if not context.comments:
-        return _state._OUTCOME_RETURN
-    command = _parse_add_review_rounds(context.comments)
+    command = _cap_command_to_answer(context)
     if command is None:
         return _state._OUTCOME_RETURN
-    context.consume_comments()
-    additional_rounds, error = command
+    answered, additional_rounds, error = command
+    if _is_bare_command(answered):
+        context.consume_command(answered)
     if error is not None:
-        _comments._post_issue_comment(
-            context.gh,
-            context.issue,
-            context.state,
-            f":warning: `/orchestrator add-review-rounds` ignored: {error}.",
-        )
+        # Said once. This road's own write follows the post, so the post is
+        # the record: where guidance nobody delivered stands below the
+        # command -- or inside the very comment carrying it -- the mark stays
+        # below both and the batch comes back identical on every poll.
+        if not context.already_answered(answered):
+            _comments._post_issue_comment(
+                context.gh,
+                context.issue,
+                context.state,
+                f":warning: `/orchestrator add-review-rounds` ignored: {error}.",
+            )
         context.gh.write_pinned_state(context.issue, context.state)
         return _state._OUTCOME_RETURN
     new_round = max(0, config.MAX_REVIEW_ROUNDS - additional_rounds)
     context.state.set(_state._REVIEW_ROUND, new_round)
+    context.state.set(_state._CAP_GRANTED_ON, answered.id)
+    context.bought_a_round()
     context.clear_park()
     _comments._post_issue_comment(
         context.gh,
@@ -168,7 +249,7 @@ def _reviewer_retry_awaiting_action(
         _state._REASON_REVIEWER_TIMEOUT, _state._REASON_REVIEWER_FAILED,
     ):
         return None
-    context.consume_comments()
+    context.bought_a_round()
     context.clear_park()
     return "spawn_reviewer"
 

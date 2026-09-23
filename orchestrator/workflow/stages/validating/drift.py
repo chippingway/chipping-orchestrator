@@ -15,22 +15,36 @@ reviewer re-reads the edited body itself when it runs. `review_cap` is
 sharper still: the cap has consumed every round, so resuming the dev would
 just re-park on it, and the operator's `/orchestrator add-review-rounds`
 comment is itself content that moves the drift hash -- without the bypass the
-drift block would fire first and the command would never be parsed. The new
-baseline hash is persisted on every path regardless, so the next tick compares
-against something stable.
+drift block would fire first and the command would never be parsed. A deferral
+delivers the edit to nobody, so it records nothing about it: the reply it
+stands down for has its own words recorded by the road that acts on them and
+the requirements beside them by the round that runs, and an edit no prompt has
+carried is still an edit on the tick after this one.
+What it does record is the round it stood down FOR, because a silent recovery
+clears the park and ends its tick while the round it released runs on the
+next: without that note the edit would take the following tick down this road
+ahead of the retry the park was taken for.
 
-The full issue thread is marked consumed before the resume, because the dev
-sees it inside the resume prompt; leaving the watermark behind would let the
-in_review handoff replay those same comments as fresh feedback.
+What the dev is quoted and what the issue may mark answered come off ONE read,
+frozen with the prompt and settled once the run is back. The dev sees that
+conversation inside the resume prompt, so leaving the watermark behind would
+let the in_review handoff replay those same comments as fresh feedback --
+while a mark taken to the thread's tip would cross the context the excerpt
+bound left out, a reply written while the agent was out, and a run no
+developer ever read the prompt through.
 
-The hash the drift check takes here is also the requirements revision the
-resume is handed, and it travels with the run rather than being read back
-off the comment: the report the session writes is stamped with it, however
-long its publication takes. A commit's report is recorded before the push and
-bound once it lands; a report alone goes onto the unchanged head and spends no
-round, exactly as an `ACK:` does. Either way the reviewer waits for the report
-to be confirmed on the pull request, which is `report_hold`'s; the binding is
-`report_settlement`'s.
+The requirements revision the resume is handed is the one its own prompt
+fingerprints, and it travels with the run rather than being read back off the
+comment: the report the session writes is stamped with it, however long its
+publication takes. It is the delivery's rather than the drift check's, because
+those two readings are taken a moment apart -- a reply written in between is in
+the prompt and in the baseline the settlement records, and a report stamped
+with the earlier revision would be held against requirements the issue has
+already moved past and never published. A commit's report is recorded before
+the push and bound once it lands; a report alone goes onto the unchanged head
+and spends no round, exactly as an `ACK:` does. Either way the reviewer waits
+for the report to be confirmed on the pull request, which is `report_hold`'s;
+the binding is `report_settlement`'s.
 
 What the resume freezes for the helper that finishes it is a record only this
 route builds and only this route reads, so it answers on `drift_models.py`
@@ -48,11 +62,16 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     drift as _engine_drift,
-    prompt_context as _prompt_context,
+    drift_delivery as _drift_delivery,
+    guards as _guards,
+    report_delivery as _report_delivery,
     report_records as _records,
     usage as _usage,
 )
-from orchestrator.workflow.stages.implementing import resume as _dev_resume
+from orchestrator.workflow.stages.implementing import (
+    resume as _dev_resume,
+    resume_batch as _resume_batch,
+)
 from orchestrator.workflow.stages.validating import (
     drift_models as _drift_models,
     drift_outcomes as _outcomes,
@@ -65,11 +84,7 @@ from orchestrator.workflow.state import WorkflowLabel
 
 
 def _run_validating_drift(
-    gh: GitHubClient,
-    spec: _config_models.RepoSpec,
-    issue: Issue,
-    state: PinnedState,
-    requirements_revision: str,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> _drift_models._ValidatingDriftRun:
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if not worktree.exists():
@@ -79,18 +94,42 @@ def _run_validating_drift(
             branch=_naming._resolve_branch_name(state, spec, issue.number),
         )
     before_sha = _verification_probes._head_sha(worktree)
-    followup = _engine_drift._build_user_content_change_prompt(
-        issue, _prompt_context._recent_comments_text(issue),
-    )
+    answered = _drift_delivery._drift_resume_prompt(gh, issue, state)
     worktree, agent_result, paused = _dev_resume._resume_dev_with_text(
-        gh, spec, issue, state, followup, pause_guard=True,
+        gh, spec, issue, state, answered.text, pause_guard=True,
+        # The frozen conversation the fresh-respawn preamble is re-grounded
+        # with, so a rotated or retired session is handed this tick's one
+        # read rather than a newer one the settlement never saw.
+        thread_text=answered.delivery.rendered_text,
     )
     return _drift_models._ValidatingDriftRun(
-        worktree, agent_result, before_sha, paused, requirements_revision,
+        worktree, agent_result, before_sha, paused, answered.delivery,
     )
 
 
 def _defer_validating_drift(state: PinnedState) -> bool:
+    """Whether the reviewer owns this tick rather than the developer.
+
+    A round this stage already stood down for outranks the park that asked
+    for it, because the park is gone by the time that round runs: the silent
+    recovery clears the flags and ends its tick, a report still owed holds
+    the reviewer behind a clear already written, and the round runs a tick or
+    more later. Read off the park alone, the edit would take that tick down
+    the developer's road ahead of the retry -- so the deferral's own record
+    answers first.
+
+    Never while the pull request is still owed a report, whoever the round
+    belongs to. No reviewer runs behind that debt, and the record it is owed
+    was written against requirements a reply has already moved -- which the
+    reconciliation stands down on until a resume answers the edit. Standing
+    down for a round that hold is stopping would leave the two waiting on
+    each other for the life of the issue with nobody told, so the edit takes
+    the developer's road and the note stands for the round behind it.
+    """
+    if _report_delivery.owes_a_report(state):
+        return False
+    if state.get(_state._REVIEWER_OWES_A_ROUND):
+        return True
     return bool(
         state.get("awaiting_human")
         and state.get(_state._PARK_REASON)
@@ -109,6 +148,12 @@ def _finish_validating_drift(
     state: PinnedState,
     run: _drift_models._ValidatingDriftRun,
 ) -> None:
+    # What the resume quoted is recorded as answered for every outcome that
+    # reached an agent -- the push below, the ACK, the timeout and question
+    # parks -- and for none that did not: delivery says the developer was
+    # handed those words, never that they are resolved.
+    if _resume_batch._counts_as_delivered(run.agent_result, run.paused):
+        run.delivery.settle(state)
     owed = _rounds._spends_next_round(state)
     outcome = _outcomes._post_user_content_change_result(
         gh,
@@ -120,7 +165,7 @@ def _finish_validating_drift(
         run.before_sha,
         spends=owed,
         handed=_records.HandedRun(
-            WorkflowLabel.VALIDATING, run.requirements_revision,
+            WorkflowLabel.VALIDATING, run.delivery.requirements_revision,
         ),
     )
     if run.agent_result.interrupted:
@@ -166,13 +211,21 @@ def _resume_dev_on_validating_drift(
     operator's `/orchestrator add-review-rounds` command lives in the
     awaiting-human branch, and the command comment itself bumps the user-content
     hash, so without this bypass the drift block would fire first and the
-    command would never be parsed. The new baseline hash is persisted here
-    either way so the next tick's drift check has a stable comparison point.
+    command would never be parsed. A deferral records nothing about the edit:
+    it delivered the edit to nobody, and the reply it stands down for is
+    recorded as answered by that reply's own frozen batch.
 
     `parked` is the awaiting context a parked tick built first. Its frozen
     batch says what the park had already read, and the requirements are
     measured by that: the replies past it are that batch's to deliver and
     settle, so they are no edit here.
+
+    What the resume itself delivers is frozen with its prompt and settled by
+    `_finish_validating_drift`, and that settlement is the only thing on this
+    road that records a new baseline. A live pause, a shutdown kill, and a
+    launch the run circuit turned away each return without writing pinned
+    state, so every road that delivered nothing -- the three deferrals
+    included -- leaves the edit as unanswered as it found it.
     """
     new_hash = _engine_drift._detect_user_content_change(
         gh, issue, state,
@@ -180,21 +233,33 @@ def _resume_dev_on_validating_drift(
     )
     if new_hash is None:
         return False
-    state.set("user_content_hash", new_hash)
     if _defer_validating_drift(state):
+        # Nothing about the edit is recorded here -- it has been delivered to
+        # nobody -- but the round being stood down for is, so the tick that
+        # clears the park carries it and the drift road stays behind the
+        # reviewer rather than overtaking it the moment the flags come off.
+        #
+        # Only where no claim already stands. A reply that bought the round
+        # named itself in this note, and that round owes it a settlement
+        # wherever it runs; a deferral writing over the name would leave the
+        # round with nothing to record and the reply unread forever.
+        if not state.get(_state._REVIEWER_OWES_A_ROUND):
+            state.set(_state._REVIEWER_OWES_A_ROUND, True)
         return False
 
     _comments._post_issue_comment(
         gh, issue, state,
         ":pencil2: issue body changed; resuming dev session.",
     )
-    # Mark the full issue thread as consumed: the dev sees it via
-    # `_recent_comments_text` in the resume prompt, so the eventual
-    # handoff to in_review must not replay those comments as fresh
-    # feedback.
-    _engine_drift._mark_drift_comments_consumed(gh, issue, state)
-    run = _run_validating_drift(gh, spec, issue, state, new_hash)
+    run = _run_validating_drift(gh, spec, issue, state)
     state.set("last_agent_action_at", _usage._now_iso())
+    if _guards._ignore_if_never_invoked(issue, run.agent_result):
+        # The run circuit turned the launch away: no process read the prompt,
+        # so the refusal it recorded where it was decided is the whole of what
+        # this tick says. Returning here leaves the round, the park flags and
+        # the baseline exactly as they were, and the next tick re-detects the
+        # same edit for whatever finally answers it.
+        return True
     if run.paused:
         # Live pause applied during the drift resume: the helper already
         # stopped before persisting the session id or clearing

@@ -78,10 +78,7 @@ def _run_reviewer_round(
         branch=_naming._resolve_branch_name(state, spec, issue.number),
     )
     _, dev_backend_for_prompt, _, _ = _dev_session_read._read_dev_session(state)
-    review_prompt = _prompts._build_review_prompt(
-        spec, issue, _prompt_context._recent_comments_text(issue),
-        config.default_repo_specs(), dev_backend_for_prompt,
-    )
+    delivered = _prompt_context._delivered_thread(gh, issue, state)
     # Persist the full configured spec BEFORE the spawn so a reviewer
     # backend hiccup that yields no session id still leaves a durable
     # role-identity record. The trace reflects the reviewer's CLI args
@@ -95,7 +92,10 @@ def _run_reviewer_round(
         agent_role="reviewer",
         stage="validating",
         backend=config.REVIEW_AGENT,
-        prompt=review_prompt,
+        prompt=_prompts._build_review_prompt(
+            spec, issue, delivered.rendered_text,
+            config.default_repo_specs(), dev_backend_for_prompt,
+        ),
         cwd=wt,
         agent_spec=config.REVIEW_AGENT_SPEC,
         timeout=config.REVIEW_TIMEOUT,
@@ -133,7 +133,52 @@ def _run_reviewer_round(
         round_n=round_n,
         pr_number=pr_number,
         agent_result=review,
+        delivery=delivered,
     )
+
+
+def _settles_what_bought_the_round(
+    state: PinnedState,
+    parked: _models._AwaitingValidation | None,
+    reviewer_run: _models._ReviewerRun,
+) -> None:
+    """Record the reply that bought this round, now that the round has run.
+
+    A reviewer-side park is lifted by a human's retry and a spent cap by an
+    operator's grant; what either buys is this round, so what it delivered is
+    recorded by the run that happened and by nothing ahead of it. A launch the
+    run circuit turned away invoked no reviewer: the refusal was recorded
+    where it was decided, and the reply stays unread for the round a grant
+    finally buys.
+
+    What is recorded is THIS round's own snapshot rather than the batch the
+    park froze. The two are different reads under different bounds -- the
+    batch is unbounded and quotes the replies past the park's watermark, this
+    prompt is bounded and quotes the whole thread -- so a mark taken from the
+    batch would cross a reply this prompt cut short, and the words that never
+    reached anybody would be read by nobody ever again. Taken from the
+    round's own record, an excerpt that stopped short holds the watermark
+    below it and the scan that owns the issue thread still delivers it.
+
+    Only a reply that bought a round is recorded at all: an ordinary round
+    reads the thread like any other reader and answers nobody, so it consumes
+    nothing. The reply is the round's whether or not the park outlived the
+    tick that cleared it -- a report still owed holds the reviewer behind a
+    clear that is already written, and the round runs a tick or more later --
+    so the note that road left says who is owed a settlement when the context
+    the park was read from is long gone.
+
+    The round a deferral stood down for is discharged here for the same
+    reason -- it has now run -- but a deferral delivered nothing to record,
+    which is what lets an edit nobody has carried take the developer's road
+    on the next tick.
+    """
+    owed = state.get(_state._REVIEWER_OWES_A_ROUND)
+    if not reviewer_run.agent_result.invoked:
+        return
+    state.set(_state._REVIEWER_OWES_A_ROUND, None)
+    if parked is not None or owed == _state._ROUND_BOUGHT_BY_A_REPLY:
+        reviewer_run.delivery.settle(state)
 
 
 def _dispatch_reviewer_result(

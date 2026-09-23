@@ -122,6 +122,39 @@ The default single-repo deployment (or any host with `EXPOSE_TRACKED_REPOS=off`)
 added prompt tokens and zero behavior change**. See
 [`../configuration.md#agent-roles`](../configuration.md#agent-roles) for the env var.
 
+## What a prompt's conversation excerpt records
+
+Every prompt above quotes the issue thread through the trust filter in `workflow/engine/prompt_context.py`. A prompt
+that quotes the WHOLE thread is bounded to the last 4000 characters; the one that quotes a slice of it is not — the
+human-reply followup carries exactly the replies past a park's watermark, and `resume_batch._UNBOUNDED_EXCERPT` keeps
+that batch uncapped so the record cannot name an omission the followup never made. Two readers render the bounded
+text and they differ in one thing — whether anything is going to be recorded about it:
+
+- `_recent_comments_text` reads the thread and renders it, for the prompts whose stage settles nothing by them (the
+  documentation, decomposer, question and discussion prompts, and the PR-backed drift resumes).
+- `_delivered_thread` takes the read itself and hands back a `prompt_delivery` snapshot: the same text, plus the
+  record of which comments it is made of, which ones the bound left out, and the requirements revision that read
+  fingerprints to. The implementing fresh spawn, the issue-backed drift resumes and the validating reviewer round
+  build their prompts from it. The drift resumes always settle it afterwards; the fresh spawn settles it only where
+  a pre-session edit was handed to that spawn to answer, since an ordinary spawn's thread is the pickup's to have
+  recorded and nothing on that tick is owed an answer; and the reviewer round settles it only where a reply bought
+  the round — a park's retry or an operator's grant — since an ordinary round reads the thread like any other
+  reader and answers nobody.
+
+The rule the second shape exists for is that a prompt and the mark taken for it have to be one read. Three
+consequences hold wherever a prompt is settled, and they are the same on every road that does it — the frozen reply
+batch a parked resume delivers, the drift resume, and the fresh spawn a pre-session edit falls through to:
+
+- a comment a bounded prompt's excerpt dropped reaches no agent, so nothing records it as read; the issue-thread
+  watermark stops below it and the scan that owns that surface still delivers it. The uncapped reply batch drops
+  none, which is why it is uncapped;
+- a comment written after the read — during the minutes an agent is out — is quoted to nobody and crossed by nothing,
+  so it is still unread input on the next tick;
+- the record is settled only once the run is back, and only for an outcome that counts the input as delivered: a
+  shutdown kill, a live pause, and a launch the run circuit refused leave it entirely unread, while a timeout, an
+  empty reply, an `ACK:`, and a question park all consume it. Delivery is not resolution — what an agent was handed
+  is a separate question from whether it answered.
+
 ## The commit-subject contract in commit-producing prompts
 
 Every prompt whose agent may author a commit subject carries one subject contract, `_COMMIT_STYLE_NOTE` in
@@ -253,7 +286,9 @@ owes a report it could not deliver, and is read as any other no-commit reply eve
 
 The **requirements-drift resume on an open pull request** acts on one too, on `workflow:validating` and `in_review`
 ([user-content drift](../state-machine/delivery-stages.md#user-content-drift-detection)). A commit the resume made
-has its report recorded before the size gate, under the requirements revision the drift check handed the resume, and
+has its report recorded before the size gate, under the requirements revision its own route handed it — on
+`workflow:validating` the one the prompt-delivery record fingerprints, which is the read that prompt was built from
+and the baseline its settlement writes; on `in_review` the drift check's earlier read — and
 bound and settled once the push lands and the stage's own bookkeeping is written; one with no usable report parks
 rather than being pushed, and stays unpublished until a reply brings the report. A no-commit reply ending on a report
 outcome is published onto the head the pull request already carries — over a tree proved clean, or parked on the

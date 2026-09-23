@@ -7,7 +7,11 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.engine import content_hash as _content_hash
-from orchestrator.workflow.stages.validating import dev_fix as _dev_fix, drift_outcomes as _drift_outcomes
+from orchestrator.workflow.stages.validating import (
+    dev_fix as _dev_fix,
+    drift_outcomes as _drift_outcomes,
+    state as _state,
+)
 from tests.workflow.stages.validating import (
     validating_review_test_support as review_support,
 )
@@ -44,6 +48,11 @@ INTERRUPTED_RESUME_PR = 19
 TRUST_CAP_ISSUE = 90
 TRUST_RETRY_ISSUE = 91
 HUMAN_COMMENT_ID = 1100
+# Words nobody has delivered, standing below the command that answers first.
+UNREAD_GUIDANCE_ID = 1000
+UNREAD_GUIDANCE = "the cache key has to carry the locale"
+OWES_A_ROUND = "validating_reviewer_owes_a_round"
+DRIFT_NOTICE = ":pencil2:"
 LATEST_COMMAND_ID = 1101
 FOLLOWUP_COMMENT_ID = 1200
 HUMAN_RETRY_COMMENT_ID = 1300
@@ -200,6 +209,65 @@ class HandleValidatingReviewCapAddRoundsCommandTest(
         last_comment = gh.posted_comments[-1][1]
         self.assertIn("ignored", last_comment)
         self.assertIn("positive integer", last_comment)
+
+    def test_a_round_owed_from_an_earlier_tick(self) -> None:
+        # What a tick that cleared a park and ran no round leaves behind: the
+        # round the reply bought written down, and the reply itself unread.
+        # The requirements the thread carries have moved by now and no park
+        # says whose the tick is -- so read off the park alone this is a
+        # plain edit, and the DEVELOPER answers a request for a reviewer.
+        # Read off the note the reviewer runs, and what records those words
+        # is the read that round's own prompt was rendered from.
+        gh, issue = self._seeded(
+            comment_body="retry the reviewer please",
+            awaiting_human=False,
+            park_reason=None,
+            review_round=0,
+            user_content_hash=_content_hash._compute_user_content_hash(
+                make_issue(REVIEW_CAP_ISSUE, label=LABEL_VALIDATING), set(),
+            ),
+            **{OWES_A_ROUND: _state._ROUND_BOUGHT_BY_A_REPLY},
+        )
+
+        mocks = self._run_validating(
+            gh, issue, run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+        )
+
+        self.assertEqual(mocks[RUN_AGENT].call_args[0][0], config.REVIEW_AGENT)
+        self.assertNotIn(
+            DRIFT_NOTICE, "".join(body for _, body in gh.posted_comments),
+        )
+        state = self._capped(gh)
+        self.assertEqual(state.get(LAST_ACTION_COMMENT_ID), HUMAN_COMMENT_ID)
+        self.assertIsNone(state.get(OWES_A_ROUND))
+
+    def test_a_command_over_unread_guidance(self) -> None:
+        # Guidance nobody has delivered, with a bad command written above it.
+        # This park hands its batch to no agent -- only a grant gets past it
+        # -- so those words are still owed to the round a grant finally buys,
+        # and a mark crossing them here would spend words no prompt has ever
+        # carried. The command alone is recorded, which on this thread moves
+        # nothing: the answer already standing above it is then what keeps
+        # this road from saying the same thing on every poll.
+        gh, issue = self._seeded(comment_body="/orchestrator add-review-rounds 0")
+        issue.comments.insert(
+            0,
+            FakeComment(
+                id=UNREAD_GUIDANCE_ID,
+                body=UNREAD_GUIDANCE,
+                user=FakeUser(HUMAN_LOGIN),
+            ),
+        )
+
+        for _ in range(2):
+            self._run_validating(gh, issue, run_agent=_agent())
+
+        self.assertEqual(
+            self._capped(gh).get(LAST_ACTION_COMMENT_ID), ACTION_COMMENT_ID,
+        )
+        self.assertEqual(
+            len([body for _, body in gh.posted_comments if "ignored" in body]), 1,
+        )
 
     def test_plain_reply_stays_parked(self) -> None:
         # The original bug: on a `review_cap` park, a plain human reply

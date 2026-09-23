@@ -337,6 +337,21 @@ _PR_NUMBER = "pr_number"
 
 _IMPLEMENTING_STAGE = "implementing"
 
+# The refusal a pre-session edit earns where the branch carries commits no
+# session explains. Durable, unlike the reason `_park_awaiting_human` clears,
+# because this park has to recognize its own standing: said twice it is the
+# same sentence once a poll, and unrecognized it stands in front of the very
+# reply it asked for.
+_STALE_RECOVERED_WORK = "stale_recovered_work"
+
+# What a detected requirements edit leaves the rest of the tick. The first is
+# the answer the handler returns on; the second is the one it cannot act on
+# alone, since the pre-session road clears the park and falls THROUGH -- so
+# nothing has been delivered when it returns and what settles the edit is the
+# prompt the fresh spawn below goes on to build. Process-local, never pinned.
+_EDIT_OWNS_THE_TICK = "owns_the_tick"
+_EDIT_OWED_BY_THE_SPAWN = "owed_by_the_spawn"
+
 # The route a developer report produced on this stage is recorded under, and a
 # wire value like every key beside it: it goes into the pinned transaction and
 # is read back through the label vocabulary, so what it says is which road's

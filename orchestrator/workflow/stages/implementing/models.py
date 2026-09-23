@@ -6,7 +6,8 @@ Each one exists because a value has to survive a boundary the spawn cannot see
 across. `_PreparedDevRun` carries `before_sha` -- the pre-agent HEAD -- from
 whoever started the run to whoever disposes it, because that watermark is the
 only thing that tells a commit produced by THIS run from one already on the
-branch. `_AgentWork` and `_PRWork` carry the worktree (and, once pushed, the
+branch, and the record of what a fresh spawn's prompt quoted, for the road
+that has a requirements edit to settle against it. `_AgentWork` and `_PRWork` carry the worktree (and, once pushed, the
 branch) so the publication owner never re-derives either. `_DevSession` and
 `_DevResumePlan` freeze the locked spec, backend, args, and session id together
 with the fresh-spawn decision, so a resume cannot half-rotate a session.
@@ -17,6 +18,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from orchestrator.agents.models import AgentResult
+from orchestrator.workflow.engine.prompt_delivery import PromptDeliverySnapshot
+
+# What one fresh spawn answers with: the run, the live-pause decision read
+# after it, and the record of the conversation its prompt quoted.
+_SpawnedRun = tuple[AgentResult, bool, PromptDeliverySnapshot]
 
 
 @dataclass(frozen=True)
@@ -30,6 +36,21 @@ class _PreparedDevRun:
     # a recovered run publishes work whose HEAD moved on some earlier tick,
     # which looks exactly like a live run that answered without committing.
     recovered: bool = False
+    # What a FRESH spawn's prompt quoted of the issue thread, for the road
+    # that has something to settle against it. None everywhere else: a resume
+    # settles the frozen batch it was given, and a recovered publication
+    # quoted nobody.
+    delivery: PromptDeliverySnapshot | None = None
+
+    @classmethod
+    def from_spawn(
+        cls, spawned: _SpawnedRun, before_sha: str | None, worktree: Path,
+    ) -> _PreparedDevRun:
+        """One fresh spawn's result, pause decision, and delivered prompt."""
+        agent_result, paused, delivery = spawned
+        return cls(
+            agent_result, before_sha, paused, worktree, delivery=delivery,
+        )
 
 
 @dataclass(frozen=True)

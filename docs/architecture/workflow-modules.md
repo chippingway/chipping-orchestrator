@@ -80,7 +80,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     prompt_context.py       trusted-author thread reads, retained orchestrator comment ids, quoted comment lines, and
                             bounded tracked-repository awareness for agent prompts; marker text alone cannot admit a
                             comment, and a delivery snapshot over a read taken by the pinned comment's id is handed
-                            that id too
+                            that id too. `_delivered_thread` takes the read ITSELF for the prompts whose delivery is
+                            recorded -- the text, the entries it is made of, and the revision that read fingerprints
+                            to, so a prompt and the mark taken for it cannot be two readings
     prompt_delivery.py      shared process-local input-delivery snapshot and conservative settlement contract recording
                             exact delivered issue-thread, PR-conversation, inline-review, and review-summary inputs;
                             preserves distinct namespaces, watermark fields, bounded-excerpt omissions, filtering decisions,
@@ -189,9 +191,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             authors, and whole-comment operator commands, over the live thread or a read the caller
                             already holds; the legacy bare-continue mode recognizes an existing baseline
     drift.py                baseline persistence and legacy normalization, the dev resume a requirements edit earns, and
-                            the pre-implementation decomposition reset; consumed watermarks cover the guidance delivered
-                            to the agent. On a parked tick the check measures the requirements by what the park had
-                            already read (`answered`), so replies to the park are the frozen batch's, not drift
+                            the pre-implementation decomposition reset; the PR-backed roads mark the thread read to
+                            its tip, which is what their prompts quoted. On a parked tick the check measures the
+                            requirements by what the park had already read (`answered`), so replies to the park are
+                            the frozen batch's, not drift
+    drift_delivery.py       the prompt an issue-backed edit is answered with and the record of what it quoted, frozen
+                            together off ONE read and settled by whoever disposes the run: context the excerpt bound
+                            dropped holds the watermark below it, a reply written while the agent was out is in
+                            neither, and the revision recorded is that read's fingerprint rather than the thread's tip
     guards.py               what a finished agent run may leave behind: the never-invoked, shutdown-interruption,
                             and freshly-read pause refusals, and the awaiting-human park. The first is asked ahead
                             of the second wherever a stage reads the worktree before it asks whether the run
@@ -1760,7 +1767,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             an unread head cannot spend, since that comparison is what a retirement rests on --
                             and the retry-gated fresh spawn, which retires the pinned session wherever a
                             continuation is what paid for it: the grant is durable and the budget is shared, so the
-                            tick that spends one is not always the tick -- or even the stage -- that granted it
+                            tick that spends one is not always the tick -- or even the stage -- that granted it.
+                            The spawn's prompt and the record of the thread it quoted come off one read and travel
+                            on the prepared run, for the pre-session edit that is settled by nothing earlier
       session.py            the four session retirements -- the fourth being the continuation that buys a spent
                             budget one more attempt, which is a fresh spawn by definition -- and the fresh-spawn
                             prompt, whose re-grounding conversation is the caller's frozen read wherever it holds
@@ -2449,9 +2458,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             has bought an attempt, since a resume passes no gate and the attempt is owed as a fresh
                             spawn -- and the `ACK:` that answers it. A commit-less reply bringing the report an
                             undeliverable-report park asked for publishes the commits already on the branch; on a
-                            parked tick only an edit reaches this road, a reply going to the park's own resume
-      drift_preflight.py    a pre-session edit, the quiet timeout recovery -- held off only by a reply the
-                            tick's frozen batch would deliver -- and the awaiting-human resume on that batch
+                            parked tick only an edit reaches this road, a reply going to the park's own resume.
+                            What the resume quoted is settled by its disposition, and a pre-session edit by the
+                            spawn that answered it, for every outcome that reached an agent and no other -- the
+                            shutdown kill, the live pause and the launch the circuit turned away each returning
+                            before anything is written. That settlement is also what records the new baseline:
+                            nothing here stages it ahead of a run, since a baseline written for a prompt nobody
+                            read marks the edit answered and hands the words under it on as already delivered
+      drift_preflight.py    a pre-session edit -- handed on rather than consumed, since clearing a park delivers
+                            nothing at all -- the refusal that records nothing about the edit and its own reason
+                            durably instead, so the tick after it recognizes that park, says nothing again and
+                            stands down to the resume the reply it asked for belongs to, the quiet
+                            timeout recovery, held off by that reason and by a reply the
+                            tick's frozen batch would deliver, and the awaiting-human resume on that batch
       continue_command.py   `/orchestrator continue` on a parked issue, opening with the one park below that the
                             classifier here would refuse the right command on, and handing back outright a
                             batch the measurement park's own road would re-measure on: this read comes after
@@ -2486,7 +2505,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             both halves rather than remembered
       plan_handoff.py       the reconcile that keeps an accepted plan handoff in step with its PR until a
                             developer commits, and the marker that makes its own re-anchor recoverable
-      models.py             the frozen records the owners hand each other
+      models.py             the frozen records the owners hand each other, including what a fresh spawn quoted and
+                            what a requirements edit leaves the rest of the tick
       state.py              the pinned-state keys and CLI marker tuples they share, the label a report this stage
                             delivers records as its route -- a wire value like every key beside it -- and the two
                             retry bounds: the silent parks a session survives, and the readings one frozen pair
@@ -2561,7 +2581,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             point an agent at the branch -- and the report hold it asks last, behind the drift
                             resume that would supersede a stale report and ahead of the reviewer spawn, writing
                             a park the awaiting-human branch cleared into a round the hold then stops
-      reviewer.py           the round cap, the tracked reviewer spawn and its two refusals, and the verdict
+      reviewer.py           the round cap, the tracked reviewer spawn and its two refusals, what a round that
+                            RAN records about the reply or grant that bought it -- taken from the one read its
+                            OWN prompt was rendered from, under that prompt's bound, never from the unbounded
+                            batch a park froze for a developer, and owed to that reply whether or not the park
+                            outlived the tick that cleared it -- and about the note a deferral
+                            left, which that round discharges -- and the verdict
                             fan-out, with the subject an approved verdict hands the squash tail built here over
                             this run's own checkout
       collapse.py           whether a squash this issue began and did not finish is answered before anything else
@@ -2631,6 +2656,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       awaiting.py           the three park-reason claims on the context's one frozen reply batch, and the dev
                             attempt they fall through to, handed that same batch; the explicit `/orchestrator
                             continue` retry is re-grounded off its conversation less the commands it consumes.
+                            The cap's grant is the one control road recording anything of its own -- its WORDS
+                            as read, since the orchestrator answered them on the thread, and nothing else,
+                            because what no agent has read is the requirements they arrived beside. A
+                            reviewer-side park's retry records nothing at all: that reply belongs to the round it
+                            buys, which reads it under the round's own bound (`reviewer.py`). Both roads DO write
+                            down the round those words bought, since the clear can go out on a tick that runs no
+                            round and the reply has moved the requirements by the next one.
                             A transient retry that resolves drops the fresh review budget a hand-back recorded
                             with the park it clears: that retry IS the publication the budget was reset for --
                             pushed, or found not to exist -- and a record left standing would spend nothing for
@@ -2643,10 +2675,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             way, off a claim taken BEFORE the run, since the resume clears the park it was written
                             beside -- and spending the round `rounds.py` says it does, which is none where the
                             park came back from `in_review` with the budget already reset for it
-      drift.py              a body edit mid-review, the three parks that defer, the consumed-thread watermark, and
-                            the requirements revision the drift check hands the resume its report is stamped with;
-                            on a parked tick the edit is measured by what the park had already read
-      drift_models.py       the frozen record that route's resume hands the helper that finishes it
+      drift.py              a body edit mid-review, the three parks that defer -- which deliver nothing and so
+                            record nothing, baseline included -- the one thing that outranks a deferral, which is
+                            a report this stage still owes its pull request: no reviewer runs behind that debt,
+                            and the record it is owed was written against requirements a reply has already moved,
+                            so standing down for the held round would leave the two waiting on each other for the
+                            life of the issue -- and the frozen prompt its resume settles once the
+                            run is back. The requirements revision its report is stamped with is that prompt's own,
+                            not the drift check's a moment earlier: a reply landing between the two is in the prompt
+                            and in the settled baseline, and a report stamped behind them is one the reviewer hold
+                            refuses; on a parked tick the edit is measured by what the park had already read
+      drift_models.py       the frozen record that route's resume hands the helper that finishes it, the delivery
+                            it was built from -- and the revision that read fingerprints -- included
       drift_outcomes.py     the claim that the edit is still unanswered, written -- for a caller that named what
                             its resume was `handed`, which is the caller that reads it back -- beside every park a
                             resume ends on and dropped by every outcome that answers it, with the fresh review
@@ -2657,7 +2697,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             for the unchanged head as `reported`, and a commit held to the same contract
       drift_reports.py      that contract for a drift resume on an open pull request, which is that nothing this
                             road publishes may be work no report describes: the run's report recorded ahead of the
-                            size gate under the route and requirements revision the drift check handed it, a
+                            size gate under the route and the revision its CALLER handed it -- the prompt-delivery
+                            record's on `validating`, the drift check's read on `in_review` -- a
                             commit of this run's with no usable report parked rather than pushed, a report alone
                             recorded only over a tree proved clean -- parked on the tree otherwise, with nothing
                             recorded -- and a commit an earlier run stranded, under a run that committed NOTHING,
@@ -2750,10 +2791,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             was ever spent on. Both are asked by the resume that answers such a park and by the
                             silent retry that finishes its push
       models.py             the frozen records several owners in this stage hand each other -- a record one
-                            route builds and reads alone stays beside that route instead -- and the park clear
+                            route builds and reads alone stays beside that route instead -- the park clear
                             every awaiting road takes, which drops the unanswered-edit claim with the park it was
-                            written beside
+                            written beside, the two settlements an awaiting road may take -- the whole batch, or
+                            ONE control comment the orchestrator answered rather than delivered, with every other
+                            comment held in as an omission so no mark crosses words nobody read -- the record
+                            that such an answer already stands on the thread, and the note a reply's round is
+                            owed by
       state.py              the pinned-state keys, park reasons, and outcome tokens they share, including the
                             claim that a requirements edit this stage's resume ended without answering is still
-                            outstanding
+                            outstanding, and the note left for a reviewer round still owed -- the park it was
+                            written beside is gone before that round runs -- whose value says whether a reply
+                            bought the round, and so whether the round has anything to record
 ```

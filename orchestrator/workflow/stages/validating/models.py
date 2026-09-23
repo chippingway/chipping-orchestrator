@@ -20,9 +20,11 @@ reason and the one frozen reply batch every route through that park reads --
 the batch the dev resume behind them delivers and settles. The orchestrator's
 own comments are out of it by recorded id, and a body carrying the hidden
 marker that no id vouches for is out beside them, because every helper here
-reads a non-empty batch as "a human replied". Its two mutators are the pair
-every route owes: clearing the flags, and recording the frozen batch as
-consumed through the ordinary pinned settlement. `_RequestedChanges` and
+reads a non-empty batch as "a human replied". Its mutators are what a route
+owes the park it ends: clearing the flags, recording the frozen batch as
+consumed through the ordinary pinned settlement, recording ONE answered
+control comment and nothing else through the same settlement, and writing
+down that a reply has bought a reviewer round the tick may not get to run. `_RequestedChanges` and
 `_AwaitingDevAttempt` bracket the fix that follows a verdict: the first
 freezes what the CHANGES_REQUESTED route needs, the second reports whether
 the resume that ran was cut short by a live pause.
@@ -34,7 +36,7 @@ swallowing a mistyped `after_sha=`.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +45,7 @@ from github.Issue import Issue
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.github import client as _client, pinned_state as _pinned_state
+from orchestrator.workflow.engine import comments as _comments, prompt_delivery as _delivery
 from orchestrator.workflow.stages.implementing import resume_batch as _resume_batch
 from orchestrator.workflow.stages.validating import state as _state
 from orchestrator.workflow.state import WorkflowLabel
@@ -54,6 +57,12 @@ class _ReviewerRun:
     round_n: int
     pr_number: Any
     agent_result: AgentResult
+    # The record of what this round's prompt quoted of the issue thread. A
+    # reply that bought the round is recorded as read from THIS, never from
+    # the batch a park froze for a developer prompt: the two are different
+    # reads under different bounds, and a mark taken from the wider one
+    # crosses words this reviewer's excerpt cut short.
+    delivery: _delivery.PromptDeliverySnapshot
 
 
 @dataclass(frozen=True)
@@ -117,10 +126,11 @@ class _DevFixRun:
     # makes on the far side of a park.
     #
     # It carries the route, and then whatever that road could not leave
-    # anywhere else. The requirements revision is the snapshot the drift check
-    # took before the spawn, because the report is about the requirements that
-    # session saw rather than whatever the issue says by the time the report
-    # reaches the pull request. `spends` and `watermarks` are the round, the
+    # anywhere else. The requirements revision is the one the RUN was handed:
+    # the fingerprint of the read its prompt was built from wherever that road
+    # freezes one -- the drift resume and the batch resumes here -- because the
+    # report is about the requirements that session saw rather than whatever
+    # the issue says by the time the report reaches the pull request. `spends` and `watermarks` are the round, the
     # bookmarks and the readers a handover closes, frozen for the write that
     # settles the report: the one handover with no code in it passes no size
     # gate, so nothing else is left to carry them.
@@ -210,10 +220,87 @@ class _AwaitingValidation:
         """Record the frozen batch as consumed, forward only.
 
         Through the batch, so a route that consumes without a dev run -- the
-        review-cap command, the reviewer respawn, a collapse the reply
+        reviewer respawn once its round has run, a collapse the reply
         releases -- settles exactly the batch it handled and no other cursor.
         """
         self.batch.settle()
+
+    def consume_command(self, command) -> None:
+        """Record THIS command's words as read, and nothing else at all.
+
+        For a road that ANSWERED a control comment on the thread rather than
+        handing it to anybody: the command may not come back forever, since
+        the reply to it is already posted, but nothing else in the batch
+        reached an agent. Not the requirements it arrived beside, which stay
+        outstanding for the prompt that finally carries them -- and not the
+        guidance somebody wrote beside it either, which is why every other
+        comment goes in as an omission rather than being left out. Left out,
+        a mark would cross them; held in, one written below the command stops
+        the mark short of it and the words stay owed to a reader.
+
+        What is marked delivered is the whole COMMENT, so a caller may only
+        hand one whose whole body is the command
+        (`awaiting._is_bare_command`). A command written inside a comment of
+        guidance would be crossed with that guidance, which no prompt on this
+        road has carried and the bounded round a grant buys may never quote.
+        """
+        answered = getattr(command, "id", None)
+        _delivery.settle_delivery(
+            self.state,
+            replace(
+                self.batch.delivery,
+                requirements_revision=None,
+                entries=tuple(
+                    entry if entry.id == answered or entry.is_filtered
+                    else entry.with_status(_delivery.STATUS_OMITTED)
+                    for entry in self.batch.delivery.entries
+                ),
+            ),
+        )
+
+    def already_answered(self, command) -> bool:
+        """Whether a post of ours already stands above this control comment.
+
+        What keeps an answered command from coming back forever is normally
+        the mark that crossed it, but a command standing above guidance
+        nobody delivered -- or written inside a comment of it -- is answered
+        with the mark held below both. Our own posts are the other record
+        that it WAS answered: the id ledger names them, and one written after
+        the command is this road's reply to it.
+
+        Asked by the REFUSAL, whose own write follows the post it guards, so
+        the post is a record of a decision this road really took. The grant
+        cannot ask it: its notice goes out ahead of a reviewer whose run may
+        be refused, and every later post of ours -- the run-limit park's own
+        sentence, the receipt an agent-run grant earns -- would then read as
+        the answer to a command still waiting to be honored.
+
+        By id rather than by the marker our posts carry, because the question
+        is which comment a post of ours came after -- a marker says only that
+        we posted something, and the park's own notice carries one from
+        before the command was written. A newer command is above every
+        answer, so a corrected one is still answered; and while this park
+        stands, the road that answers commands is the only one posting.
+        """
+        spoken = getattr(command, "id", 0)
+        ours = frozenset(_comments._orchestrator_ids(self.state))
+        return any(
+            seen.id in ours and seen.id > spoken for seen in self.batch.read
+        )
+
+    def bought_a_round(self) -> None:
+        """Write down that this reply bought a reviewer round.
+
+        The round may not run on this tick: a report still owed holds the
+        reviewer, and the run circuit can turn the launch away. The clear
+        goes out regardless, so without this the next tick reads a park-free
+        issue whose requirements the reply itself has moved, and hands a
+        reviewer's retry to the developer. It also names the reply as the
+        round's to settle, wherever that round finally runs.
+        """
+        self.state.set(
+            _state._REVIEWER_OWES_A_ROUND, _state._ROUND_BOUGHT_BY_A_REPLY,
+        )
 
 
 @dataclass(frozen=True)

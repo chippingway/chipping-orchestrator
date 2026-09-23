@@ -264,6 +264,10 @@ class ReviewCapFixtureMixin(_PatchedWorkflowMixin):
         )
         return github, issue
 
+    def _capped(self, github) -> dict:
+        """What the cap park's pinned comment holds now."""
+        return github.pinned_data(REVIEW_CAP_ISSUE)
+
     def _assert_reviewer_spawn(self, github) -> None:
         reviewer_spawns = [
             event

@@ -614,7 +614,15 @@ The keys that matter for the state machine fall into a few groups:
   the orchestrator reacts to a human edit, and whenever a `workflow:implementing` / `workflow:validating` frozen reply
   batch is settled, to the fingerprint of that read through the last reply it delivered. On a parked tick the drift
   check compares it with the frozen comments at or below the park's watermark, so replies to the park are delivered
-  by the batch rather than read as an edit.
+  by the batch rather than read as an edit. The issue-backed drift resumes on those two stages record it the same
+  way: the settlement of the prompt that answered the edit writes it, to the fingerprint of the read that prompt was
+  built from, so a comment written while the agent was out is still an edit. That fingerprint is also the revision
+  the run's report is stamped with, so no reader holds a report against requirements its own prompt already
+  contained. Nothing on those two roads writes it ahead of the run: a deferral, a refusal park, a cleared park, a
+  shutdown kill, a live pause and a launch the run circuit turned away all leave it where they found it, since a
+  baseline written for a prompt nobody read would mark the edit answered and hand the words under it to the next
+  spawn recorded as delivered. What a run may cross on the issue thread is bounded beside it —
+  see [the drift section](delivery-stages.md#user-content-drift-detection).
 - **The developer report a pull request is owed and the one it carries.** The additive
   `developer_report_delivery` / `developer_report_pending` / `developer_report_current` /
   `developer_report_handoff` group, each one nested object, and each absent on every issue that predates it. They
@@ -645,8 +653,9 @@ The keys that matter for the state machine fall into a few groups:
   carries the receipt the transaction will be named by, the report revision, whether a publication or a
   verification is owed, the route that produced it, the complete report text or the exact location and content
   revision a verification asserts, the feedback watermarks the run consumed, the bookkeeping its route closes, and
-  the requirements revision the run was actually handed — for a drift resume, the hash its drift check took of the
-  content it handed the run, and for a fix round the revision its own spawn was given — carried with the run rather
+  the requirements revision the run was actually handed — for a `workflow:validating` drift resume, the fingerprint
+  of the read its own prompt was built from (`in_review`'s is still its drift check's read), and for a fix round the
+  revision its own spawn was given — carried with the run rather
   than read back off the comment, which on a fixing tick is a baseline that same tick rewrites minutes later and
   would fold in every reply that arrived while the developer worked. The bookkeeping is what a
   fix round freezes there as well as handing to the size gate, because the one handover with no code in it — a report
@@ -1532,7 +1541,8 @@ The keys that matter for the state machine fall into a few groups:
   The shared id space is a numbering, not a shared delivery record, so `in_review` and `fixing` read the two surfaces
   under it separately (`in_review/surfaces.py`: `_unread_issue_thread`, `_unread_pr_conversation`). The issue thread
   answers to `pr_last_comment_id` AND to `last_action_comment_id`, because the implementing and validating
-  awaiting-human resumes watch that surface alone and settle the second field for what they quoted; a reply at or
+  awaiting-human resumes — and the issue-backed drift resume and fresh spawn beside them — watch that surface alone
+  and settle the second field for what they quoted; a reply at or
   below it has been in a developer prompt and may not route the issue back to `workflow:fixing`. The PR conversation
   answers to `pr_last_comment_id` and to nothing else: nothing that advances the issue-thread cursor has read the pull
   request, so a PR comment numbered below the last answered reply is unread rather than delivered. Neither field is
@@ -1574,6 +1584,26 @@ The keys that matter for the state machine fall into a few groups:
   disposition writes it only for a caller that named what its resume was handed, which is the caller that reads it
   back — both review stages do, and `in_review` reads it for the budget its hand-back owes. An issue without the key
   has no edit outstanding.
+- **The reviewer round somebody is still owed.** `validating_reviewer_owes_a_round`, additive and set only between
+  the `workflow:validating` tick that stood a round up and the round that runs. A reviewer-side or `review_cap`
+  park owns the human's next comment, so the drift check stands down for it — but the park is gone before that
+  round runs: the silent recovery clears the flags and ends its tick, a report still owed holds the reviewer
+  behind a clear already written, and the reviewer spawns a tick or more later. An edit nobody has delivered would
+  take that tick down the developer's drift road instead, ahead of the retry the park was taken for, so both the
+  deferral and the road that clears such a park into a round write this down, whichever write goes out carries it,
+  and the round that actually runs drops it. The VALUE says who stood the round up, because that decides what the
+  round records: `true` is a silent recovery, which delivered nothing and leaves the edit outstanding, while
+  `"bought_by_a_reply"` names a human's retry or an operator's grant, whose words the round settles off its own
+  prompt wherever it finally runs. A deferral never writes over a claim already standing, or the round would be
+  left with nothing to record and the reply unread for good. An issue without the key owes no round.
+- **The review-cap grant already honored.** `review_cap_granted_comment_id`, additive, holding the id of the
+  comment the last `/orchestrator add-review-rounds` reset was written for. A grant may leave that command
+  uncrossed — a bounded reviewer round records only what its own excerpt carried — so the batch a LATER cap
+  freezes reaches back below it and offers the same words again; refusing a command this key already names is what
+  stops one comment resetting every cap the issue reaches. It is written beside the round reset, in the same
+  write, because the two must be durable together: the reset is staged for the reviewer's own write, so a launch
+  the lifetime run circuit refuses discards both and leaves the command an `/orchestrator add-agent-runs` grant
+  hands back to be honored for real. An issue without the key has granted nothing.
 - **The label move `in_review` owes.** `in_review_handoff_pending`, additive and `true` only while one is outstanding.
   A requirements edit leaves the approval that carried the issue to `in_review` stale, so the round resets to 0 and
   the label moves to `workflow:validating` — two operations a process can die between, and the marker goes down with

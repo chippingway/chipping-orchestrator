@@ -47,6 +47,8 @@ ACK_REPLY = "ACK: the pushed commit already covers the second edit."
 
 RETRY_COMMENT_ID = 60_000
 
+OWES_A_ROUND = "validating_reviewer_owes_a_round"
+
 # Where a clean checkout ends up when something moves it off the commit the
 # transaction in hand is about -- a base refresh that rebased the branch, a
 # worktree recreated on a tip that had moved.
@@ -166,8 +168,10 @@ class ReportHoldTest(unittest.TestCase, _HeldReview):
     def test_a_park_cleared_into_a_hold_is_written(self) -> None:
         # A reply clearing a reviewer park falls through to the review, which
         # a report still owed on the same requirements holds. The cleared park
-        # and the consumed reply are written anyway, so the next tick neither
-        # re-reads the reply nor waits on a park nobody is holding.
+        # is written anyway, so the next tick waits on a park nobody holds;
+        # the reply is not, because the round that would have carried it never
+        # opened. Nobody read those words, so they are still owed to the round
+        # that finally does.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
         self.github.report_failures.refused.add(PR)
         self.drift(world.reported())
@@ -189,9 +193,44 @@ class ReportHoldTest(unittest.TestCase, _HeldReview):
             (
                 self.pinned().get(AWAITING_HUMAN),
                 self.pinned().get(PARK_REASON),
-                self.pinned()[WATERMARK],
+                self.pinned().get(WATERMARK, 0) >= RETRY_COMMENT_ID,
+                bool(self.pinned().get(OWES_A_ROUND)),
             ),
-            (False, None, RETRY_COMMENT_ID),
+            (False, None, False, True),
+        )
+
+    def test_a_held_retry_falls_to_the_developer(self) -> None:
+        # The same clear, a tick later, with the report still owed. The round
+        # the reply bought is noted and outlives the tick -- but no reviewer
+        # runs behind that debt, and the record it is owed was written
+        # against requirements this very reply has moved, which the
+        # reconciliation stands down on until a resume answers the edit.
+        # Deferring to the held round would leave the two waiting on each
+        # other for the life of the issue with nobody told. So the edit takes
+        # the developer's road, those words are delivered and recorded there,
+        # and the round they bought is still owed behind it.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.github.report_failures.refused.add(PR)
+        self.drift(world.reported())
+        self.issue.comments.append(FakeComment(
+            id=RETRY_COMMENT_ID, body="retry please", user=FakeUser("alice"),
+        ))
+        _restate(self, awaiting_human=True, park_reason="reviewer_failed")
+
+        held = self.drift(REVIEW_REPLY, committed=False)
+        self.drift(world.reported(world.LATER_REPORT_TEXT), committed=False)
+
+        held[RUN_AGENT].assert_not_called()
+        self.assertIn(
+            ":pencil2:",
+            "".join(body for _, body in self.github.posted_comments),
+        )
+        self.assertEqual(
+            (
+                self.pinned().get(WATERMARK, 0) >= RETRY_COMMENT_ID,
+                bool(self.pinned().get(OWES_A_ROUND)),
+            ),
+            (True, True),
         )
 
 

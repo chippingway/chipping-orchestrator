@@ -7,7 +7,8 @@ a rebuilt conversation. Marker text alone cannot admit a comment. Repository
 context contains configured source paths and branches, with a bounded listing.
 Process-local delivery snapshots record exact delivered inputs and conservative
 settlement watermarks; a snapshot over a read taken by the pinned comment's id
-names that comment the same way.
+names that comment the same way. A prompt built from one of those reads and
+settled from it is one fact rather than two readings that have to agree.
 """
 from __future__ import annotations
 
@@ -15,14 +16,25 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.config import models as _config_models
+from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import is_trusted_author
-from orchestrator.workflow.engine import prompt_delivery
+from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    content_hash as _content_hash,
+    prompt_delivery,
+)
 
 # The blank line between quoted comments is the paragraph break the prompt
 # builders assemble their own sections with, so it keeps one definition.
 _SECTION_SEP = "\n\n"
 
 _TRACKED_REPOS_CAP = 20
+
+# What a prompt quotes of a thread at most. Named because the road that
+# settles what it delivered is bounded by exactly this number: the omissions a
+# delivery record holds a watermark below are the ones this cut.
+_EXCERPT_CHARS = 4000
 
 # The default for every reader that has no recorded orchestrator ids to offer,
 # which is every one but the conversation rebuild in the discussion stage.
@@ -116,7 +128,7 @@ def _prompt_comment_chunk(
 
 def _thread_text(
     issue_comments,
-    max_chars: int = 4000,
+    max_chars: int = _EXCERPT_CHARS,
     *,
     retained_ids: frozenset = _NO_RETAINED_IDS,
 ) -> str:
@@ -137,10 +149,14 @@ def _thread_text(
     return text[-max_chars:] if len(text) > max_chars else text
 
 
-def _recent_comments_text(issue: Issue, max_chars: int = 4000) -> str:
-    """Conversation text fed to every agent prompt (implement, review,
-    documentation, decompose, question, discussion, and the drift-resume
-    prompt).
+def _recent_comments_text(issue: Issue, max_chars: int = _EXCERPT_CHARS) -> str:
+    """Conversation text fed to the agent prompts that settle nothing by it
+    (documentation, decompose, question, discussion, and the PR-backed drift
+    resumes).
+
+    The validating reviewer is a prompt of the other kind: a round a park's
+    reply bought records that reply, so it builds from `_delivered_thread`
+    and settles off that same read.
 
     An untrusted author's comment is dropped whole -- its body and any URLs
     it contains never reach the prompt -- so once `ALLOWED_ISSUE_AUTHORS`
@@ -151,14 +167,16 @@ def _recent_comments_text(issue: Issue, max_chars: int = 4000) -> str:
 
     Nothing is retained past that filter here: this convenience reads the
     thread itself, so a caller holding recorded orchestrator ids passes them
-    to `_thread_text` with the snapshot it already has.
+    to `_thread_text` with the snapshot it already has. A prompt whose
+    delivery is going to be RECORDED takes `_delivered_thread` instead, since
+    a settlement wants the read its own text was rendered from.
     """
     return _thread_text(issue.get_comments(), max_chars)
 
 
 def _thread_delivery(
     issue_comments,
-    max_chars: int = 4000,
+    max_chars: int | None = _EXCERPT_CHARS,
     *,
     retained_ids: frozenset = _NO_RETAINED_IDS,
     **naming,
@@ -166,8 +184,10 @@ def _thread_delivery(
     """Build a delivery snapshot for an already-read list of comments.
 
     `naming` carries what the snapshot is told about who wrote what, beyond
-    the recorded ids: `pat_login`, `requirements_revision`, and the
-    `state_comment_id` of a read taken by the pinned comment's identity.
+    the recorded ids: `pat_login`, `requirements_revision`, the
+    `state_comment_id` of a read taken by the pinned comment's identity, and
+    the `state` whose watermarks the read was bounded by -- which is what
+    keeps an omission already below a cursor from holding that cursor back.
     """
     return prompt_delivery.create_prompt_delivery_snapshot(
         issue_comments=issue_comments,
@@ -177,19 +197,45 @@ def _thread_delivery(
     )
 
 
-def _recent_comments_delivery(
+def _delivered_thread(
+    gh: GitHubClient,
     issue: Issue,
-    max_chars: int = 4000,
-    *,
-    retained_ids: frozenset = _NO_RETAINED_IDS,
-    pat_login: str | None = None,
-    requirements_revision: str | None = None,
+    state: PinnedState,
+    max_chars: int = _EXCERPT_CHARS,
 ) -> prompt_delivery.PromptDeliverySnapshot:
-    """Build a delivery snapshot from current issue comments."""
+    """One read of an issue thread: the text a prompt quotes, and its record.
+
+    Taking the read here is what keeps those from being two questions.
+    `rendered_text` is exactly what `_thread_text` would render over the same
+    comments, and the entries beside it name the ones that text is made of, so
+    a caller builds its prompt from one and settles the other. Read twice, a
+    stage quotes a comment that landed between the reads and then records a
+    watermark below it, or records one above a comment it never showed.
+
+    The pinned state comment is left out by its IDENTITY, so a human reply
+    quoting its marker is a reply like any other. Our own posts stay in by
+    recorded id -- an agent reading the answers without the questions is
+    re-grounded on half a thread -- while a body carrying our marker that the
+    ledger cannot vouch for is refused, since the marker is text anybody may
+    paste.
+
+    The requirements revision is the fingerprint of THIS read -- the baseline
+    a later edit is compared against -- so an edit arriving after it is still
+    an edit on the next tick. What the excerpt bound dropped is inside that
+    fingerprint and outside the watermark, which stops below the first
+    omission: a baseline stopping short of the drop would re-open the same
+    prompt, bounded the same way, every poll, while the watermark left below
+    it keeps the dropped context deliverable by the road that owns it.
+    """
+    ours = _comments._orchestrator_ids(state)
+    read = gh.comments_after(issue, None, state_comment_id=state.comment_id)
     return _thread_delivery(
-        issue.get_comments(),
-        max_chars=max_chars,
-        retained_ids=retained_ids,
-        pat_login=pat_login,
-        requirements_revision=requirements_revision,
+        read,
+        max_chars,
+        retained_ids=frozenset(ours),
+        state=state,
+        state_comment_id=state.comment_id,
+        requirements_revision=_content_hash._compute_user_content_hash(
+            issue, ours, comments=read,
+        ),
     )

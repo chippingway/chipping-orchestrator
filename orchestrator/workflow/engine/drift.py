@@ -5,7 +5,9 @@
 The content_hash owner defines which text is human guidance. This owner persists
 the first or normalized baseline, resumes implementation with the changed text,
 and clears split claims before routing pre-implementation drift to decomposition.
-Consumed comment ids cover exactly the guidance delivered to the resumed agent."""
+
+What an issue-backed resume consumes is decided by one frozen read, which
+`drift_delivery.py` beside this owner freezes with the prompt built from it."""
 from __future__ import annotations
 
 from github.Issue import Issue
@@ -52,10 +54,11 @@ def _detect_user_content_change(
     frozen comments at or below its watermark. Replies past that watermark
     are answers to the park, and the frozen reply batch is what delivers,
     filters, and settles them; counted as an edit here they would take the
-    drift road instead, which quotes the whole live thread and marks it read
-    to the tip before the run. So on a parked tick only a change the replies
-    do not explain -- the title, the body, a comment the park had already
-    read -- is drift.
+    drift road instead, which quotes them inside a conversation excerpt of
+    its own and settles them under a record the park's own resume never made
+    -- the command the batch reserves and the marker it refuses included. So
+    on a parked tick only a change the replies do not explain -- the title,
+    the body, a comment the park had already read -- is drift.
     """
     orchestrator_ids = _comments._orchestrator_ids(state)
     current = _content_hash._compute_user_content_hash(issue, orchestrator_ids)
@@ -137,18 +140,24 @@ def _mark_drift_comments_consumed(
     """Advance `last_action_comment_id` past every comment visible on the
     issue thread right now.
 
-    Used by the user-content-drift paths after they resume the dev session
-    with `_recent_comments_text(issue)` quoted in the prompt: the dev has
-    been fed the full conversation, so the next validating->in_review
+    Used by the three roads that still mark the thread here: the PR-backed
+    `in_review` and `resolving_conflict` resumes, and the `documenting`
+    unwind that reroutes on an edit without running anybody. The two resumes
+    quote `_recent_comments_text(issue)` in their prompt, so the dev has
+    been fed the full conversation, and the next validating->in_review
     handoff (via `_seed_watermark_past_self`) must NOT classify those same
     comments as fresh, unconsumed feedback and replay them as a duplicate
     dev resume on the next in_review tick. It reads
-    `latest_comment_id` rather than the `comments_after` walk because the
-    drift prompt feeds the full thread (`_recent_comments_text`), not just
+    `latest_comment_id` rather than the `comments_after` walk because those
+    prompts feed the full thread (`_recent_comments_text`), not just
     a single new-comments slice. One-way ratchet so a higher prior value
-    (e.g. a recent park comment id) is never lowered. A parked tick whose only
-    change is replies to the park never reaches this: the frozen reply batch
-    delivers and settles those instead.
+    (e.g. a recent park comment id) is never lowered.
+
+    The issue-backed roads do not come here. `implementing` and `validating`
+    settle the frozen `drift_delivery._drift_resume_prompt` record instead,
+    which is bounded by what their prompt actually carried and taken only once
+    the run is back. A parked tick whose only change is replies to the park
+    never reaches either: the frozen reply batch delivers and settles those.
     """
     latest = gh.latest_comment_id(issue)
     if not isinstance(latest, int):
