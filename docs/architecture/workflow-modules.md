@@ -1535,7 +1535,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     documenting/            `workflow:documenting`
       handler.py            the order one final-docs tick asks its questions in
       preconditions.py      the terminals, the missing-`pr_number` guard, the parked-no-input fast path, and the
-                            refused bare continue
+                            refused bare continue -- classified over the batch written since the park ASKED, which
+                            on a half-finished drift unwind is that road's own notice rather than the delivery
+                            cursor it holds back: read from the cursor, the instruction nobody delivered would
+                            demote the command to guidance and the reconcile would re-run on an operator's nudge
       run.py                the branch refresh and diverged-worktree guard, the verdict an earlier pass left dropped
                             as this one begins -- every shape re-anchors the checked head, so a stale verdict beside
                             it would advertise a head no pass has documented as ready to merge -- plus the resume,
@@ -1581,7 +1584,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             standing is that move having landed and that write having failed -- and this stage
                             having the issue is the only proof of it, since the label history cannot tell a move
                             that never happened from one the drift unwind above later reversed
-      parks.py              the shared awaiting-human park and the missing-PR, dirty-tree, and question parks
+      parks.py              the shared awaiting-human park and the missing-PR, dirty-tree, and question parks, plus
+                            the hold a park taken during a drift unwind applies inside its OWN write: that road
+                            runs no agent, so the delivery cursor goes back where the tick found it and the notice
+                            just posted is kept as the unwind's boundary instead -- a correction in a second write
+                            is one a crash between them loses, and it loses it in the direction that waits forever.
+                            `_asked_since` is the reader half, and it is what every road classifying a parked reply
+                            asks so the two boundaries cannot be confused for each other
       models.py             the frozen records the owners hand each other, including the one reading of a finished
                             run three of them branch on -- whether it ended on a report -- taken where the run is
                             built rather than parsed again by each

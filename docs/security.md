@@ -499,9 +499,12 @@ The security posture:
   rather than silently absorbed as a new baseline. The late size gate's own content fingerprints read the same way:
   they are taken over the trusted thread alone, and both the watermark they advance and the shared
   `last_action_comment_id` they mark read stop at the highest TRUSTED comment, so an outsider posting above one is
-  neither folded into a baseline nor marked read on their behalf. The `in_review` drift path instead excludes untrusted
-  PR-conversation comments from the drift prompt but still advances its watermarks past them, so a later tick does
-  not re-scan them as fresh feedback.
+  neither folded into a baseline nor marked read on their behalf. The `in_review` drift path answers the same
+  question on its own second surface: an untrusted PR-conversation comment reaches neither the prompt nor the
+  delivered half of that prompt's frozen record, but the record still NAMES it, as refused. That is what lets the
+  watermark carry behind the run cross it, so a later tick does not re-scan it as fresh feedback — and it is why
+  refusing an entry outright would be the worse answer here, since a comment nothing recorded stops that walk on it
+  for good.
 - **Third-party Bot/App handling is deliberate.** Two distinct mechanisms apply. The `user_content_hash` drift hash,
   the late size gate's local content fingerprints beside it, and the community-contribution PR sweep exclude Bot /
   GitHub-App accounts (Dependabot, Renovate, CI bots) structurally via GitHub's `user.type == "Bot"` flag, independent

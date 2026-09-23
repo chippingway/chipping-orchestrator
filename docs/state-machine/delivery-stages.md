@@ -43,8 +43,9 @@ The drift-sensitive handlers — `_handle_decomposing`, `_handle_ready`, `_handl
 — run `_detect_user_content_change` somewhere in their flow. The hash covers the issue title, body, and every
 human-authored *issue-thread* comment body (PR-conversation comments are not in the hash). The hash and eight
 filters below live in `workflow/engine/content_hash.py`; baseline handling and drift routes live in
-`workflow/engine/drift.py`, and the frozen prompt an issue-backed resume is answered with in
-`workflow/engine/drift_delivery.py`. Operator-command filters read the syntax from the owners of those commands.
+`workflow/engine/drift.py`, and the frozen prompt every drift resume is answered with — on an open pull
+request as much as before one — in `workflow/engine/drift_delivery.py`. Operator-command filters read the
+syntax from the owners of those commands.
 
 `_handle_in_review` is the exception in ordering: it runs the four-surface fresh-feedback ID scan FIRST and routes any
 unread human comment past those watermarks to `workflow:fixing`, so the drift check that follows reacts only to
@@ -76,8 +77,8 @@ record because they answer different cursors and because only one of them is bou
 as a refused entry rather than dropped: no reader is ever owed it, so the watermark carry may cross it, and an entry
 nothing recorded would have stopped that walk on it forever.
 
-The rules below follow from the frozen record, and they are the general rules for
-issue-backed feedback rather than anything specific to a body edit:
+The rules below follow from the frozen record, and they are the general rules for feedback a prompt is settled by
+— on either surface it may quote — rather than anything specific to a body edit:
 
 - **The excerpt bound decides the mark.** Where there is one: a comment the drift resume's 4000-character excerpt
   dropped reaches no prompt, so the issue-thread watermark stops below it and it stays deliverable by the scan that
@@ -95,9 +96,12 @@ issue-backed feedback rather than anything specific to a body edit:
   what is wrong with the answer, not with the input. Each of the three refusals returns before pinned state is
   written (`_ignore_if_never_invoked`, `_ignore_if_interrupted`, and the live-pause flag), so a withheld run leaves
   the watermark, the park flags and the drift baseline exactly as it found them.
-- **Only the cursors the prompt read may move.** Each surface settles the field it answers to: the issue thread
-  moves `last_action_comment_id`, and on `in_review` — where the same prompt reads both IssueComment surfaces —
-  `pr_last_comment_id` beside it; the pull request's conversation moves `pr_last_comment_id` alone.
+- **Only a cursor ONE reading can vouch for is settled.** Every drift road settles `last_action_comment_id`, the
+  issue thread's own, for exactly what its prompt quoted there. `pr_last_comment_id` is nobody's settlement to
+  write: it spans both IssueComment surfaces, and the one record that covers both — `in_review`'s — reads them a
+  moment apart, so a comment landing on the surface read first, after that read, is in neither half while an id
+  above it on the other surface is in one. That cursor is derived by the park carry instead, which re-reads both
+  surfaces at one moment (see `_handle_in_review` below).
   `pr_last_review_comment_id` and `pr_last_review_summary_id` never move on any drift road, because no drift prompt
   quotes an inline review comment or a review summary — a road that crossed them would hide a reviewer's words from
   the `workflow:fixing` round that exists to deliver them.
@@ -214,11 +218,13 @@ the action depends on lifecycle position:
   not. Three of them freeze `_drift_resume_prompt` — the bounded issue-thread excerpt alone. `in_review` freezes
   `_pr_drift_resume_prompt`, which is that same excerpt plus the pull request's unread conversation quoted entire
   below it (`_drift_unread_pr_conv`, read before the notice this road posts on that surface), and records the two
-  apart: the issue thread settles `last_action_comment_id` beside `pr_last_comment_id`, the PR conversation settles
-  `pr_last_comment_id` alone, and `pr_last_review_comment_id` / `pr_last_review_summary_id` never move, since no
+  apart, and settles only the half one reading can vouch for: `last_action_comment_id` and the requirements
+  revision. `pr_last_comment_id` spans both surfaces and this record read them a moment apart, so it is left to the
+  watermark carry, which re-reads both at one moment, crosses exactly the ids the record names, and stops at the
+  first it cannot; `pr_last_review_comment_id` / `pr_last_review_summary_id` never move, since no
   prompt on this road quotes an inline comment or a review summary. An outsider's PR comment reaches neither the
-  prompt nor the delivered half of the record — it is retained as a refused entry, which is what lets the watermark
-  carry behind the run cross a comment no reader is ever owed. Whatever the excerpt bound dropped, and whatever
+  prompt nor the delivered half of the record — it is retained as a refused entry, which is what lets that
+  carry cross a comment no reader is ever owed. Whatever the excerpt bound dropped, and whatever
   landed while the agent was out, is in neither record and is still unread on the next tick.
   On `workflow:implementing` an **unspent `retry_cap_continued`** outranks
   the recorded session and sends the edit down the no-session road instead (park cleared, nothing recorded, fall
@@ -295,12 +301,14 @@ Per-stage specifics:
   it, since the bounded half delivered less than it read.
 - For **`workflow:resolving_conflict`** drift, ONLY the "pushed" outcome relabels back to `workflow:validating` (with
   `review_round=0`, `conflict_round` bumped). Ack and parked outcomes stay on `workflow:resolving_conflict` — the
-  rebase work is still unfinished. An `interrupted` resume (shutdown sweep killed the run mid-flight) short-circuits
-  BEFORE `_post_user_content_change_result` and returns WITHOUT writing pinned state, so the refreshed
-  `user_content_hash` / consumed-comment changes are discarded and the next process re-detects and re-runs the drift
-  resume (the caller guards via `_ignore_if_interrupted` ahead of the helper; the shared helper also self-guards on
-  interrupted as a backstop, returning `"parked"`). A mid-run `paused` / `backlog` (`pause_guard=True`) short-circuits
-  the same way, right after the interrupted check. This road reads the issue thread and nothing else, so its
+  rebase work is still unfinished. Three outcomes short-circuit BEFORE `_post_user_content_change_result` and return
+  WITHOUT writing pinned state, in this order: a launch the run circuit turned away
+  (`_ignore_if_never_invoked` — the refusal it recorded where it was decided is the whole of what the tick says, and
+  a disposition reached anyway would park in the name of a process that never started), an `interrupted` resume
+  (shutdown sweep killed the run mid-flight; the shared helper also self-guards on interrupted as a backstop,
+  returning `"parked"`), and a mid-run `paused` / `backlog` (`pause_guard=True`). None of them settles the frozen
+  record, and nothing on this road is staged ahead of the run, so the next process re-detects the same edit and
+  re-runs the drift resume. This road reads the issue thread and nothing else, so its
   settlement moves `last_action_comment_id` alone and every pull-request surface stays unread for the round that
   owns it.
 - For **`workflow:implementing`** drift, the resume runs only when `dev_session_id` is recorded. With recovered
@@ -1978,6 +1986,15 @@ because there it is the claim that this stage has already rerouted rather than a
      below stays silent (no spurious `routing back to validating`) and the retry reruns the FULL docs pass through the
      awaiting-human resume (step 10). The parser + classifier are shared with `_handle_implementing` / `_handle_fixing`;
      documenting has no preserved feedback batch, so only the refusal needs interception here.
+
+     The batch that classification reads is cut from what the park ASKED (`parks._asked_since`) rather than from
+     the delivery cursor, and on a half-finished drift unwind those are different comments: step 4's failure road
+     holds the cursor back over input nobody delivered and records its own notice as `docs_drift_unwind_asked_at`.
+     Cut from the cursor instead, the instruction that triggered the unwind would sit in the batch beside the
+     command and demote it to "continue plus guidance" — so the operator's bare nudge would fall through and re-run
+     the reconcile rather than earning the refusal this step exists for. The refusal delivers nothing either, so on
+     that road it moves the unwind's boundary past what it refused and leaves the delivery cursor where the park
+     left it, both in one write.
   4. **User-content drift → relabel back to `workflow:validating`** without spawning the docs agent. A title/body edit
      (or fresh human comment) during the final-docs hop invalidates the prior approval, so the reviewer must
      re-evaluate before any docs work can land. Housekeeping: post a `:pencil2: routing back to validating` notice,
