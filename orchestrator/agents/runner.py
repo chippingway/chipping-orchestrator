@@ -28,6 +28,7 @@ def build_agent_result(
     options: _agent_models.AgentRunOptions,
     process_result: _agent_models.SubprocessResult,
     last_message: str,
+    unfinished_steps: tuple[_agent_models.ToolLifecycle, ...] = (),
 ) -> _agent_models.AgentResult:
     """Combine process output with its persisted or parsed session id."""
     return _agent_models.AgentResult(
@@ -41,6 +42,7 @@ def build_agent_result(
         stdout=process_result.stdout,
         stderr=process_result.stderr,
         interrupted=process_result.interrupted,
+        unfinished_steps=unfinished_steps,
     )
 
 

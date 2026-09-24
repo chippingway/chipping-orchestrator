@@ -293,7 +293,7 @@ orchestrator/
                         inheritance chain
     reviews.py          current-head review aggregation: approval verdicts and unread-feedback watermarks
   agents/               publishes the run/result models, runner entry point, and process shutdown hook
-    models.py           the agent result, run-option, and subprocess-result models
+    models.py           the agent result and unfinished-step diagnostics, run-option, and subprocess-result models
     environment.py      credential filtering and the injected git identity
     session_ids.py      the backend-agnostic session-id walk: a UUID-shaped value at a known key, anywhere in
                         any CLI's event tree, so a resume is issued against what the run actually reported
