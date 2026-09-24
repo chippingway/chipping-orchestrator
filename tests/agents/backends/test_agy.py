@@ -92,3 +92,68 @@ class AntigravityResultTest(unittest.TestCase):
                 )
                 self.assertEqual(agent_result.last_message, answer)
                 self.assertEqual(agent_result.exit_code, exit_code)
+
+    def test_active_command_streams_rejected(self) -> None:
+        # Both regression streams cannot become successful results: an active command
+        # suppresses the terminal message, forces a non-zero exit, retains session_id
+        # and stdout, and provides structured diagnostics on unfinished_steps.
+        for name, stream_stdout in (
+            ("active_command", stream.ToolStream.active_command()),
+            ("active_with_checks", stream.ToolStream.active_with_checks()),
+        ):
+            with self.subTest(stream=name):
+                agent_result = agy.agy_result(
+                    models.AgentRunOptions(),
+                    models.SubprocessResult(stream_stdout, "", 0, False, False),
+                )
+                self.assertNotEqual(agent_result.exit_code, 0)
+                self.assertEqual(agent_result.last_message, "")
+                self.assertEqual(agent_result.session_id, stream.SESSION_ID)
+                self.assertEqual(agent_result.stdout, stream_stdout)
+                self.assertEqual(
+                    agent_result.unfinished_steps,
+                    (agy.agy_events.ToolLifecycle(step_index=1, tool_name=stream.TOOL_NAME, state="ACTIVE"),),
+                )
+                self.assertIn("unfinished tool steps", agent_result.stderr)
+                self.assertIn("run_command", agent_result.stderr)
+
+    def test_completed_command_retains_success(self) -> None:
+        # An eventually completed command retains the ordinary zero-exit final message.
+        stdout = stream.ToolStream.completed_command()
+        agent_result = agy.agy_result(
+            models.AgentRunOptions(),
+            models.SubprocessResult(stdout, "", 0, False, False),
+        )
+        self.assertEqual(agent_result.exit_code, 0)
+        self.assertEqual(agent_result.last_message, "Tests completed successfully.")
+        self.assertEqual(agent_result.unfinished_steps, ())
+
+    def test_repeated_frames_do_not_create_duplicates(self) -> None:
+        stdout = stream.ToolStream.repeated_updates()
+        agent_result = agy.agy_result(
+            models.AgentRunOptions(),
+            models.SubprocessResult(stdout, "", 0, False, False),
+        )
+        self.assertNotEqual(agent_result.exit_code, 0)
+        self.assertEqual(agent_result.last_message, "")
+        self.assertEqual(len(agent_result.unfinished_steps), 1)
+        self.assertEqual(agent_result.unfinished_steps[0].step_index, 1)
+
+    def test_prose_phrases_ignored_in_verdict(self) -> None:
+        # No phrase such as "I will wait" participates in classification.
+        # Even when earlier text claims it will wait, terminal success is preserved
+        # when every command reached DONE.
+        stdout = "\n".join((
+            stream.init_event(),
+            stream.step(1, kind="agent_response", state="DONE", text_delta="I will wait for pytest to finish."),
+            stream.ToolStream.tool_step(2, name=stream.TOOL_NAME, state="ACTIVE"),
+            stream.ToolStream.tool_step(2, name=stream.TOOL_NAME, state="DONE", out="passed"),
+            stream.terminal(status=stream.SUCCESS, response="All done."),
+        ))
+        agent_result = agy.agy_result(
+            models.AgentRunOptions(),
+            models.SubprocessResult(stdout, "", 0, False, False),
+        )
+        self.assertEqual(agent_result.exit_code, 0)
+        self.assertEqual(agent_result.last_message, "All done.")
+        self.assertEqual(agent_result.unfinished_steps, ())

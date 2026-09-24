@@ -1,12 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Agent run options and result models."""
+"""Agent run options, result models, and unfinished tool step diagnostics."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import NamedTuple, TypedDict
 
 from orchestrator import config
+from orchestrator.observability.usage.agy_events import ToolLifecycle
 from orchestrator.observability.usage.metrics import UsageMetrics
 
 
@@ -33,6 +34,10 @@ class AgentResult:
     # result put there, and a developer-report contract answered by a sentence
     # the orchestrator wrote itself is no report at all.
     invoked: bool = True
+    # Unfinished tool steps reported by a backend's lifecycle reducer (such
+    # as Antigravity tool lifecycles where active commands remained when a
+    # terminal envelope was emitted). Empty for completed or non-AGY runs.
+    unfinished_steps: tuple[ToolLifecycle, ...] = ()
 
 
 CodexResult = AgentResult

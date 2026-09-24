@@ -406,7 +406,8 @@ per-handler routing in
 `run_agent(backend, prompt, cwd, ...)` dispatches to the per-backend runner (`codex.run_codex` /
 `claude.run_claude` / `agy.run_agy`); `backend` is one of `"codex"` / `"claude"` / `"agy"` and is re-validated
 at call time so misuse fails loudly. All runners return a unified
-`AgentResult(session_id, last_message, exit_code, timed_out, stdout, stderr, interrupted, usage, invoked)`.
+`AgentResult(session_id, last_message, exit_code, timed_out, stdout, stderr,`
+`interrupted, usage, invoked, unfinished_steps)`.
 `interrupted`
 (default `False`) flags a run the runner observed exiting on SIGTERM/SIGKILL, in either form: the negative
 returncode `Popen` reports when the child itself dies from the signal (`-15` / `-9`), or the shell-convention
@@ -430,8 +431,10 @@ result that never flowed through
 counters `_accumulate_issue_usage` folds each run into, and the one visible receipt comment
 `_format_issue_usage_verdict` reads them back out of at a terminal — is in
 [`state-machine/labels-and-state.md#pinned-state`][pinned-state] and
-[`observability/usage.md`](observability/usage.md); nothing gates on the figure. `CodexResult` is kept as a
-transitional alias.
+[`observability/usage.md`](observability/usage.md); nothing gates on the figure. `unfinished_steps` (default `()`)
+carries structured diagnostics (`ToolLifecycle`) for any tool steps left unfinished when a backend emits terminal
+output (such as Antigravity active commands); when present, the terminal response is suppressed from `last_message`
+and the result is forced non-zero so recovery can act on it. `CodexResult` is kept as a transitional alias.
 
 Being the only call that starts an agent process is also what makes `_run_agent_tracked` the place the lifetime
 agent-run ledger is charged. `workflow/engine/run_circuit.py` is asked immediately around it: two durable writes
@@ -473,8 +476,11 @@ lock, and the resume mechanic are documented in
   `agy --dangerously-skip-permissions --output-format stream-json --input-format text --print-timeout <seconds>s`
   followed by `--conversation <sid>` on resumes and `--print <prompt>`. The timeout matches the process budget.
   `agy.py` reads `event: result` through `observability/usage/agy_events.py`; only a `SUCCESS` response becomes the
-  final message. Missing or failed terminal results produce a nonzero outcome, with diagnostics in `stderr`;
-  `INTERRUPTED` and `CANCELED` also mark the run interrupted. Partial text remains available in the trajectory.
+  final message, and only when the structured lifecycle reducer reports no unfinished tool steps. When unfinished steps
+  remain, the terminal response is suppressed, the outcome is forced non-zero, and `AgentResult.unfinished_steps`
+  carries the step identities for recovery. Missing or failed terminal results produce a nonzero outcome, with
+  diagnostics in `stderr`; `INTERRUPTED` and `CANCELED` also mark the run interrupted. Partial text remains available
+  in the trajectory.
 - **Input**: prompt string; optional resume session id; timeout (`AGENT_TIMEOUT` / `REVIEW_TIMEOUT`).
 - **Output**: `AgentResult(...)`. `session_id` is harvested by `agents/session_ids.py` walking the JSONL events for
   any UUID-shaped value at `session_id` / `conversation_id` / etc. (shared across all backends).
