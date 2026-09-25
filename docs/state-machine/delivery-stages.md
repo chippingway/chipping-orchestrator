@@ -1693,7 +1693,14 @@ because there it is the claim that this stage has already rerouted rather than a
      conversation and this step runs on grants the tick before it did not take out. See
      [the retry budget](labels-and-state.md#the-retry-budget).
   5. Else build the implementer prompt (issue body + recent comments + "commit, do not push"), persist `dev_agent`
-     BEFORE invoking `run_agent`, then spawn.
+     BEFORE invoking `run_agent`, then spawn through the bounded developer run coordinator
+     (`_coordinate_developer_run`). An initial AGY run that leaves an active command and no edits or commits is
+     resumed in the same worktree with a command recovery prompt without a human reply. Only a recovery that completes
+     its command may proceed to ordinary commit or publication disposition; repeated premature exits park retryably as
+     `agent_execution_failed` rather than `agent_question`. The daily fresh-spawn gate is charged only once for the
+     original fresh spawn, while every process consumes the lifetime agent-run ledger. Non-AGY backends (Codex,
+     Claude) and completed runs are untouched. Pause, timeout, shutdown sweep kill, and run-limit refusals stop
+     recovery.
   6. Branch on result:
      - `interrupted` (shutdown sweep killed the run mid-flight) → ignore the partial result and return WITHOUT writing
        pinned state, so durable GitHub state stays exactly as the prior tick left it and the next process retries.
@@ -1705,14 +1712,14 @@ because there it is the claim that this stage has already rerouted rather than a
        spawn, the awaiting-human resume (including the pre-disposition `_resume_dev_with_text` poisoned-session retry),
        and the user-content-change resume. The committed work stays on the branch and republishes through step 3's
        recovered-worktree path once the label is removed.
-     - `timed_out` → dispose on whether the run left a commit, which is two readings and not one
-       (`_timeout_left_commits`): HEAD advanced past the pre-agent SHA snapshot **and** the branch carries commits
-       `<remote>/<base>` does not. A clean advance that passes both goes through
-       the same committed-work seam — the size gate, and `_on_commits` past it — exactly as a normal completion (a
-       clean commit produced just before/around the kill is **not**
-       stranded behind `awaiting_human`); a dirty one parks via `_on_dirty_worktree`; anything else parks
-       (`agent_timeout`) with the durable `park_reason="agent_timeout"` re-set and `pre_implement_sha` persisted for
-       step 1's next-tick recovery. Neither reading answers alone. The `pre_implement_sha` watermark is what tells a
+     - `timed_out` → dispose on whether the run left a commit, which requires command completion
+       (`not unfinished_steps`) and two readings (`_timeout_left_commits`): HEAD advanced past the pre-agent SHA
+       snapshot **and** the branch carries commits `<remote>/<base>` does not. A clean advance that passes both
+       goes through the same committed-work seam — the size gate, and `_on_commits` past it — exactly as a normal
+       completion (a clean commit produced just before/around the kill is **not** stranded behind `awaiting_human`);
+       an unfinished command, dirty tree, or run leaving nothing parks (`agent_timeout`) with `pre_implement_sha`
+       persisted for step 1's next-tick recovery. Neither reading answers alone. The `pre_implement_sha`
+       watermark is what tells a
        commit produced by THIS run apart from commits already carried on the branch, which `_has_new_commits` cannot
        (it only compares to `<remote>/<base>`, which a branch can arrive at this stage already ahead of). And
        `_has_new_commits` is what says the head moved onto WORK rather than onto the base — an agent that rebases or
