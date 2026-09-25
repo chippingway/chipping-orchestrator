@@ -441,7 +441,7 @@ def _finalize_validating_approval(
         _verify._park_verify_failure(gh, issue, state, verify)
     # The verification can outlast an edit of the report, a push, or an edit
     # of the issue, and nothing past this line asks again before the squash.
-    elif _review_coverage._approval_still_covers(
+    elif _review_coverage._subject_still_stands(
         gh, issue, state, reviewer_run.subject,
     ):
         # Staged here and written by whichever write the squash road below

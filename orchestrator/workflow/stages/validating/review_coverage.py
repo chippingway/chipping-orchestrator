@@ -43,13 +43,13 @@ from orchestrator.workflow.stages.validating import review_report as _review_rep
 log = logging.getLogger("orchestrator.workflow")
 
 
-def _approval_still_covers(
+def _subject_still_stands(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
     subject: _review_subjects.ReviewSubject,
 ) -> bool:
-    """Whether an approval that just came back is of the subject standing now.
+    """Whether a verdict that just came back is of the subject standing now.
 
     The whole subject is resolved again, exactly as it was before the spawn,
     and has to equal the one the reviewer was handed: the pull request, the

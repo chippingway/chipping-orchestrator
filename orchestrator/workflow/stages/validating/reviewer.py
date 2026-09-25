@@ -34,14 +34,14 @@ read-only and starts over next tick.
 
 The verdict itself fans out to three owners: approved goes to the approval
 arc, a missing VERDICT line to the no-verdict park, and CHANGES_REQUESTED to
-the fix route. An approval is acted on only while the whole subject it was
-handed -- head, requirements, and report -- still stands; otherwise the run is
-recorded and the next tick's reviewer is handed the subject as it stands. The event is emitted
-for all of them, before the fan-out, so the analytics record exists even for
-the paths that park. Failed-run parks
-(timeout and unknown verdict) enrich the shared park funnel with typed
-correlation fields (`agent_role`, `session_id`, `review_round`, `retry_count`,
-`pr_number`).
+the fix route. An approval and a change request alike are acted on only while
+the whole subject the reviewer was handed -- head, requirements, and report --
+still stands; otherwise the run is recorded and the next tick's reviewer is
+handed the subject as it stands. The event is emitted for all of them, before
+the fan-out, so the analytics record exists even for the paths that park.
+Failed-run parks (timeout and unknown verdict) enrich the shared park funnel
+with typed correlation fields (`agent_role`, `session_id`, `review_round`,
+`retry_count`, `pr_number`).
 """
 from __future__ import annotations
 
@@ -259,16 +259,25 @@ def _dispatch_reviewer_result(
         session_id=review.session_id,
     )
 
+    if decision.verdict == "unknown":
+        _requested_changes._park_reviewer_no_verdict(
+            gh, issue, state, review, reviewer_run=reviewer_run,
+        )
+        return
+
+    # A verdict of a subject that no longer stands as it was handed -- a head
+    # pushed, the issue edited, the report edited or removed while the
+    # reviewer ran -- is about work that is not there: an approval would hand
+    # it on, and a change request would pay a developer to answer a review of
+    # words the pull request no longer carries. The run is recorded, and the
+    # next tick's reviewer is handed the subject as it stands, or refused.
+    if not _review_coverage._subject_still_stands(
+        gh, issue, state, reviewer_run.subject,
+    ):
+        gh.write_pinned_state(issue, state)
+        return
+
     if decision.verdict == "approved":
-        # An approval of a subject that no longer stands as it was handed --
-        # a head pushed, the issue edited, the report edited or removed while
-        # the reviewer ran -- covers nothing. The run is recorded, and the
-        # next tick's reviewer is handed the subject as it stands, or refused.
-        if not _review_coverage._approval_still_covers(
-            gh, issue, state, reviewer_run.subject,
-        ):
-            gh.write_pinned_state(issue, state)
-            return
         # The subject the size gate decides about is built on the road that
         # holds every part of it -- this run's checkout included -- rather
         # than rebuilt a layer down from the pieces.
@@ -276,12 +285,6 @@ def _dispatch_reviewer_result(
             _late_records._gate(gh, spec, issue, state, reviewer_run.wt),
             reviewer_run,
             _naming._resolve_branch_name(state, spec, issue.number),
-        )
-        return
-
-    if decision.verdict == "unknown":
-        _requested_changes._park_reviewer_no_verdict(
-            gh, issue, state, review, reviewer_run=reviewer_run,
         )
         return
 

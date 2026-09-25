@@ -40,6 +40,8 @@ GRANT_COMMAND = "/orchestrator add-review-rounds 1"
 
 GRANT_NOTICE = "review-cap reset"
 
+CAP_PARK = "review_cap"
+
 # Where the review refusals below leave the issue: held for a human, with the
 # report recorded as owed so the reply is answered by a fresh one.
 AWAITING_HUMAN = "awaiting_human"
@@ -125,22 +127,27 @@ class _ReviewedReports(_fix_world._FixReportMixin):
         )
         self.github.apply_foreign_label(self.issue, LABEL_IN_REVIEW)
 
-    def grants_a_round(self) -> None:
-        """Park on the spent review cap, and have an operator grant one round.
+    def replies_to_a_park(
+        self, reply: str = GRANT_COMMAND, reason: str = CAP_PARK,
+    ) -> None:
+        """Park the issue for a human, and have one reply to it.
 
-        The park's watermark is left at the thread's tip, so the grant is the
-        one reply past it -- the reply the awaiting branch spends on the cap.
+        On the spent review cap by default, which the reply -- an operator's
+        grant of one more round -- reopens; any other reason leaves the round
+        budget where it is. The park's watermark is left at the thread's tip,
+        so the reply is the one past it, which the awaiting branch spends.
         """
-        restate(
-            self,
-            awaiting_human=True,
-            park_reason="review_cap",
-            review_round=_fix_world._REVIEW_ROUNDS,
-            last_action_comment_id=max(
+        pinned = {
+            "awaiting_human": True,
+            "park_reason": reason,
+            "last_action_comment_id": max(
                 (seen.id for seen in self.issue.comments), default=0,
             ),
-        )
-        _fix_world.replied(self, GRANT_COMMAND)
+        }
+        if reason == CAP_PARK:
+            pinned["review_round"] = _fix_world._REVIEW_ROUNDS
+        restate(self, **pinned)
+        _fix_world.replied(self, reply)
 
     def in_review_tick(self):
         """One in_review tick, under this case's author policy."""

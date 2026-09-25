@@ -36,6 +36,7 @@ from tests.workflow.fixtures import (
     LABEL_DOCUMENTING,
     LABEL_VALIDATING,
     REVIEW_APPROVED_MESSAGE,
+    REVIEW_CHANGES_REQUESTED_MESSAGE,
     _agent,
     _open_pr_for,
 )
@@ -71,6 +72,11 @@ LATE_CRITERION = "Also cover the empty-input case, please."
 
 # What a reviewer that ran while something changed comes back with.
 LATE_APPROVAL = _agent(session_id=LATE_REVIEWER, last_message=REVIEW_APPROVED_MESSAGE)
+
+LATE_CHANGE_REQUEST = _agent(
+    session_id=LATE_REVIEWER,
+    last_message=f"1. Tighten the guard.\n\n{REVIEW_CHANGES_REQUESTED_MESSAGE}",
+)
 
 # What a developer resumed on an edit answers when it says the work, and the
 # report, already cover it.
@@ -178,7 +184,7 @@ class HandedReportTest(unittest.TestCase, world._ReviewedReports):
         # read: the report written before it is handed over, and approved.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
         self.reported_round(world.FIRST_REPORT)
-        self.grants_a_round()
+        self.replies_to_a_park()
 
         approved = self.reviewed(REVIEW_APPROVED_MESSAGE)
 
@@ -258,7 +264,7 @@ class RefusedReportTest(unittest.TestCase, _DamagedReports):
         # again nor finds the cap spent, and the round runs once it reads.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
         self.reported_round(world.FIRST_REPORT)
-        self.grants_a_round()
+        self.replies_to_a_park()
         self.github.report_failures.unreadable.add(PR)
 
         self.reviewed()
@@ -296,35 +302,39 @@ class RefusedReportTest(unittest.TestCase, _DamagedReports):
 class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
     """An approval is acted on only for the report the reviewer was handed."""
 
-    def test_an_edit_during_review_voids_approval(self) -> None:
-        # A human edits the report while the reviewer runs. The approval that
-        # comes back is of words the pull request no longer carries: nothing
-        # is announced, recorded as approved, or relabelled, the run itself
-        # is recorded, and the next tick refuses the edited report.
-        self.seeded(ISSUE, PR, LABEL_VALIDATING)
-        self.reported_round(world.FIRST_REPORT)
+    def test_an_edit_during_review_voids_the_verdict(self) -> None:
+        # A human edits the report while the reviewer runs. Whatever comes
+        # back is about words the pull request no longer carries: an approval
+        # is not announced, recorded, or relabelled, a change request pays no
+        # developer and moves no label, the run itself is recorded, and the
+        # next tick refuses the edited report.
+        for name, verdict in (
+            ("approved", LATE_APPROVAL), ("changes requested", LATE_CHANGE_REQUEST),
+        ):
+            with self.subTest(name):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.reported_round(world.FIRST_REPORT)
+                announced = len(self.github.posted_pr_comments)
 
-        self._ticked(
-            self._run_validating,
-            MagicMock(side_effect=_ChangedMidway(
-                partial(world.edits_report, self), LATE_APPROVAL,
-            )),
-            committed=False,
-        )
+                ran = self._ticked(
+                    self._run_validating,
+                    MagicMock(side_effect=_ChangedMidway(
+                        partial(world.edits_report, self), verdict,
+                    )),
+                    committed=False,
+                )
 
-        pinned = self.pinned()
-        self.assertEqual(
-            (
-                pinned.get("last_review_session_id"),
-                world.APPROVED in pinned,
-                self.github.label_history[-1],
-            ),
-            (LATE_REVIEWER, False, (ISSUE, LABEL_VALIDATING)),
-        )
-        self.assertFalse(any(
-            "review approved" in body for _, body in self.github.posted_pr_comments
-        ))
-        self.assert_refused(self.reviewed(), _review_report._EDITED)
+                self.assertEqual(
+                    (
+                        ran[RUN_AGENT].call_count,
+                        self.pinned().get("last_review_session_id"),
+                        world.APPROVED in self.pinned(),
+                        self.github.label_history[-1],
+                        len(self.github.posted_pr_comments),
+                    ),
+                    (1, LATE_REVIEWER, False, (ISSUE, LABEL_VALIDATING), announced),
+                )
+                self.assert_refused(self.reviewed(), _review_report._EDITED)
 
     def test_an_edit_during_verify_voids_approval(self) -> None:
         # The report is edited while the local verification runs, after the
@@ -491,7 +501,7 @@ class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
                 _prompt_context._delivered_thread(self.github, self.issue, state),
             )
             covers = [
-                _review_coverage._approval_still_covers(
+                _review_coverage._subject_still_stands(
                     self.github, self.issue, state, subject,
                 )
                 for subject in (
@@ -504,24 +514,33 @@ class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
         self.assertEqual(covers, [True, False, False])
 
     def test_a_late_criterion_holds_the_round(self) -> None:
-        # A criterion lands after the drift check and before the reviewer's
-        # read -- on an ordinary round, and on one an operator's grant bought,
-        # whose grant is the reviewer's to read and the criterion is not.
-        # Handed over, it would sit beside a report that never saw it: the
-        # round is held with nothing parked or approved and the owed round
-        # stood down, and the next tick's drift check resumes the developer on
-        # it, whose report is the one a reviewer is then handed beside it.
-        for granted in (False, True):
-            with self.subTest(granted=granted):
+        # A criterion the report never saw reaches the reviewer's read: landing
+        # after the drift check on an ordinary round, landing after the
+        # operator's grant that bought the round -- the grant is the reviewer's
+        # to read, the criterion is not -- or written as the very reply that
+        # retried a reviewer park, which retries itself unasked and so is
+        # answered in words only where somebody has something to say. Handed
+        # over, it would sit beside a report that never saw it: the round is
+        # held with nothing parked or approved and the owed round stood down,
+        # and the next tick's drift check resumes the developer on it, whose
+        # report is the one a reviewer is then handed beside it.
+        for name, reply, reason, lands_late in (
+            ("after the drift check", "", "", True),
+            ("after a grant", world.GRANT_COMMAND, world.CAP_PARK, True),
+            ("as the retry reply", LATE_CRITERION, "reviewer_failed", False),
+        ):
+            with self.subTest(name):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)
                 self.reported_round(world.FIRST_REPORT)
-                if granted:
-                    self.grants_a_round()
+                if reply:
+                    self.replies_to_a_park(reply, reason)
+                read = _prompt_context._delivered_thread
+                if lands_late:
+                    read = _ChangedMidway(
+                        partial(_drift_world.human_reply, self, LATE_CRITERION), read,
+                    )
 
-                with patch.object(_prompt_context, "_delivered_thread", _ChangedMidway(
-                    partial(_drift_world.human_reply, self, LATE_CRITERION),
-                    _prompt_context._delivered_thread,
-                )):
+                with patch.object(_prompt_context, "_delivered_thread", read):
                     self.reviewed(REVIEW_APPROVED_MESSAGE)[RUN_AGENT].assert_not_called()
 
                 self.assertEqual(

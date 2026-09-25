@@ -3203,20 +3203,21 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      of an edit included; the baseline rather than the reviewer's own read, which carries the reply that bought a
      retried or granted round). So no reviewer runs and the reply resumes the developer, whose report is then published
      and reviewed; a head or location nobody could read holds the tick silently. The reviewer's own read has to be the
-     revision the round was due to hand over — the baseline the drift check measured, or, on a round a reply bought, the
-     thread through that reply (`validating_reviewer_round_requirements`), since the reply is the reviewer's to read: a
-     thread that moved on past it — a criterion landing after the check or after the reply — is held the same way, the
-     owed round stood down, and the next tick's drift check resumes the developer on it before any reviewer is handed
-     the report. Every hold writes what the tick staged, so a cleared park and a cap grant with its notice are not
-     answered again. An issue that has never settled a report is reviewed with none. Then persist
-     `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the reviewer is spawned fresh each round with no
-     resume) and the resolved subject to `review_subject`, and run the reviewer with the read-only prompt, which quotes
-     that report whole between the issue and the inspection commands (must end with `VERDICT: APPROVED` or `VERDICT:
-     CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check (`_paused_during_agent_run`) right after the reviewer
-     returns short-circuits BEFORE the usage fold, session record, verdict parse, verify gate, squash, or relabel, so
-     the next tick re-spawns a fresh reviewer from durable state.
+     revision the round was due to hand over — the baseline the drift check measured, or, on a round a control-only
+     reply bought — a bare cap grant or `/orchestrator continue` — the thread through that reply
+     (`validating_reviewer_round_requirements`), since that reply is the reviewer's to read; a reply carrying words is
+     itself a requirements change and moves nothing forward: a thread that moved on past it — a criterion landing after
+     the check or after the reply — is held the same way, the owed round stood down, and the next tick's drift check
+     resumes the developer on it before any reviewer is handed the report. Every hold writes what the tick staged, so a
+     cleared park and a cap grant with its notice are not answered again. An issue that has never settled a report is
+     reviewed with none. Then persist `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the reviewer is
+     spawned fresh each round with no resume) and the resolved subject to `review_subject`, and run the reviewer with
+     the read-only prompt, which quotes that report whole between the issue and the inspection commands (must end with
+     `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check
+     (`_paused_during_agent_run`) right after the reviewer returns short-circuits BEFORE the usage fold, session record,
+     verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state.
   6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
-     - **approved** → the whole subject is resolved again first (`review_coverage._approval_still_covers`), over
+     - **approved** → the whole subject is resolved again first (`review_coverage._subject_still_stands`), over
        the issue read afresh, and has to equal the one the reviewer was handed — pull request, head, requirements,
        and the report's revision, digest, location, and words, a reviewer handed no report included. A push, an
        issue edit, or a report edited or removed while the reviewer ran, or a reading nobody could take, means the
@@ -3287,7 +3288,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        a transient provider refusal (`is_transient_provider_failure` — `API Error: 529 Overloaded` and its 5xx
        siblings), is tagged `reviewer_failed` so the next tick's transient-recovery branch re-spawns the reviewer;
        real reviewer text that merely omitted the marker stays `reviewer_no_verdict` for human adjudication.
-     - **changes_requested** → post the feedback to the PR, then flip the label to `workflow:fixing` BEFORE spawning
+     - **changes_requested** → held to the same whole-subject check first, since a change request of words the pull
+       request no longer carries would pay a developer to answer a review of work that is not there; it is not acted
+       on, and the run is recorded, wherever the subject moved while the reviewer ran. Otherwise post the feedback to
+       the PR, then flip the label to `workflow:fixing` BEFORE spawning
        the dev so the active job is observably "fixing reviewer-requested changes". Resume the dev with the fix
        prompt, and read what it hands back through `validating/fix_reports.py`, which holds the round to the
        developer report contract as the requirements-drift disposition holds a body-edit resume to it: on a new

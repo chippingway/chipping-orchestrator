@@ -1640,8 +1640,11 @@ The keys that matter for the state machine fall into a few groups:
   thread through the reply that bought the round, which is what that round is due to hand its reviewer. The reply is
   the reviewer's to read; anything written after it is a change the developer report never saw, so a reviewer read
   that differs from it holds the round and drops both keys, and the next tick's drift check hands the new words to
-  the developer. Additive, written only where the buying reply was delivered, and dropped with the note it rides
-  beside; a round bought before it existed is held to the drift baseline instead.
+  the developer. Additive, written only where the buying reply is a control and nothing else — the bare cap grant,
+  or a bare `/orchestrator continue` — and dropped with the note it rides beside. A reply carrying words is itself a
+  requirements change (a reviewer-side park retries on its own, so a reply to one says something), so it records
+  none and the round is held for the developer; a round bought before the key existed is held to the drift baseline
+  too.
 - **The review-cap grant already honored.** `review_cap_granted_comment_id`, additive, holding the id of the
   comment the last `/orchestrator add-review-rounds` reset was written for. A grant may leave that command
   uncrossed — a bounded reviewer round records only what its own excerpt carried — so the batch a LATER cap

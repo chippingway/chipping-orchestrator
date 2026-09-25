@@ -84,6 +84,7 @@ from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.engine import (
     comments as _comments,
+    messages as _messages,
     prompt_notes as _prompt_notes,
     report_delivery as _report_delivery,
 )
@@ -189,7 +190,12 @@ def _review_cap_awaiting_action(
     new_round = max(0, config.MAX_REVIEW_ROUNDS - additional_rounds)
     context.state.set(_state._REVIEW_ROUND, new_round)
     context.state.set(_state._CAP_GRANTED_ON, answered.id)
-    context.bought_a_round()
+    # The grant is a control, and a batch carrying nothing else asks the
+    # developer for nothing; any other words beside it are requirements.
+    context.bought_a_round(carries_requirements=not (
+        _is_bare_command(answered)
+        and all(seen.id == answered.id for seen in context.comments)
+    ))
     context.clear_park()
     _comments._post_issue_comment(
         context.gh,
@@ -250,7 +256,11 @@ def _reviewer_retry_awaiting_action(
         _state._REASON_REVIEWER_TIMEOUT, _state._REASON_REVIEWER_FAILED,
     ):
         return None
-    context.bought_a_round()
+    # A reviewer-side park retries itself with nobody replying, so a reply to
+    # one says something -- short of a bare `/orchestrator continue`.
+    context.bought_a_round(carries_requirements=not all(
+        _messages._is_bare_orchestrator_continue(seen) for seen in context.comments
+    ))
     context.clear_park()
     return "spawn_reviewer"
 

@@ -133,12 +133,17 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
             )
 
     def _run_paused_fix(self, github, issue):
+        # One fetch per read the tick takes of the issue, in order: the
+        # reviewer's pause guard, the subject the verdict is held to -- the
+        # issue as it stands, so the change request is acted on -- and the
+        # dev resume's pause guard.
         issue_fetch = MagicMock(
             side_effect=[
                 make_issue(
                     CHANGES_REQUESTED_ISSUE,
                     label=LABEL_VALIDATING,
                 ),
+                issue,
                 _paused_view(CHANGES_REQUESTED_ISSUE),
             ],
         )

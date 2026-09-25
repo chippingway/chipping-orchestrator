@@ -298,7 +298,7 @@ class _AwaitingValidation:
             seen.id in ours and seen.id > spoken for seen in self.batch.read
         )
 
-    def bought_a_round(self) -> None:
+    def bought_a_round(self, *, carries_requirements: bool) -> None:
         """Write down that this reply bought a reviewer round.
 
         The round may not run on this tick: a report still owed holds the
@@ -307,16 +307,22 @@ class _AwaitingValidation:
         issue whose requirements the reply itself has moved, and hands a
         reviewer's retry to the developer. It also names the reply as the
         round's to settle, wherever that round finally runs.
+
+        Where the reply is a control and nothing else, the thread through it
+        is what that round is due to hand its reviewer, and anything written
+        after it is requirements the report it reviews never saw. A reply
+        that `carries_requirements` is one of those itself: no reach is
+        recorded, so the round is due the drift baseline alone and is held
+        for the developer to answer the words first.
         """
         self.state.set(
             _state._REVIEWER_OWES_A_ROUND, _state._ROUND_BOUGHT_BY_A_REPLY,
         )
-        # The thread through the reply, which is what that round is due to hand
-        # its reviewer: anything written after it is requirements the report it
-        # reviews never saw.
         through = self.batch.delivery.requirements_revision
-        if through:
+        if through and not carries_requirements:
             self.state.set(_state._ROUND_BOUGHT_THROUGH, through)
+        elif self.state.get(_state._ROUND_BOUGHT_THROUGH) is not None:
+            self.state.set(_state._ROUND_BOUGHT_THROUGH, None)
 
 
 @dataclass(frozen=True)

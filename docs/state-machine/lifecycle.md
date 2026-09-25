@@ -422,8 +422,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
        untrusted, about another commit than the head, or written against
        requirements the baseline moved past ─► no reviewer spawned, parked
        report_undeliverable; a thread that moved past what the round was due
-       to hand over (the baseline, or the thread through the reply that bought
-       it) ─► no reviewer spawned, nothing parked, the owed round stood down,
+       to hand over (the baseline, or the thread through the control-only
+       reply that bought it; a worded reply moves it) ─► no reviewer spawned,
+       nothing parked, the owed round stood down,
        and the next tick's drift check resumes the developer
      workflow:validating --(APPROVED of the subject still standing, verify
        ok, subject still standing, squash ok)──► review_approved_subject
