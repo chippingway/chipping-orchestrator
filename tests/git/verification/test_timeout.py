@@ -34,6 +34,14 @@ class TimeoutVerifyRunTest(
         self.assertEqual(run.status, VERIFY_TIMEOUT)
         self.assertEqual(run.command, SLEEP_PAST_TIMEOUT)
         self.assertIsNone(run.exit_code)
+        # The cap it was killed under is recorded for the park comment to name.
+        self.assertEqual(run.timeout, 1)
+        # Nothing is read after the kill, so the after-readings stay unset
+        # rather than repeating the baseline.
+        self.assertEqual((run.head_before, run.tree_before), (run.commit, run.tree_identity))
+        self.assertEqual((run.head_after, run.tree_after), (None, None))
+        self.assertEqual([ran.status for ran in run.attempted_commands], [VERIFY_TIMEOUT])
+        self.assertFalse(run.is_reusable)
 
     def test_timeout_kills_full_process_group(self) -> None:
         # `subprocess.run(..., shell=True, timeout=...)` only SIGKILLs the

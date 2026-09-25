@@ -27,6 +27,7 @@ VERIFY_OK = "ok"
 PARK_VERIFY_FAILED = "verify_failed"
 PARK_VERIFY_TIMEOUT = "verify_timeout"
 VERIFY_TIMEOUT_SECONDS = 123
+CURRENT_TIMEOUT_SECONDS = 600
 RUN_VERIFY_COMMANDS = "_run_verify_commands"
 AWAITING_HUMAN = "awaiting_human"
 PARK_REASON = "park_reason"
@@ -42,7 +43,7 @@ class HandleValidatingVerifyGateTest(
 
     def test_empty_default_is_noop_on_approval(self) -> None:
         # With no `VERIFY_COMMANDS` configured, the gate short-circuits
-        # to ok inside the runner; the helper is still called once (so a
+        # to not_run inside the runner; the helper is still called once (so a
         # future config flip toggles the gate without code changes), but
         # the approval / squash / in_review handoff path is unchanged.
         gh, issue = self._seeded()
@@ -59,6 +60,9 @@ class HandleValidatingVerifyGateTest(
         call = mocks[RUN_VERIFY_COMMANDS].call_args
         self.assertEqual(call.args[1], config.VERIFY_COMMANDS)
         self.assertEqual(config.VERIFY_COMMANDS, ())
+        # The timeout is part of the configuration the result's context
+        # revision is minted from, so it is forwarded verbatim too.
+        self.assertEqual(call.args[2], config.VERIFY_TIMEOUT)
         # Handoff completed normally through the final-docs hop.
         self.assertIn((ISSUE, LABEL_DOCUMENTING), gh.label_history)
         state = gh.pinned_data(ISSUE)
@@ -141,16 +145,19 @@ class HandleValidatingVerifyGateTest(
         self._assert_failed_comment(gh.posted_comments[-1][1])
 
     def test_verify_timeout_parks(self) -> None:
+        # The park names the cap the run was killed under, not whatever the
+        # setting reads by the time the comment is written.
         gh, issue = self._seeded()
         run = VerifyResult(
             status=VERIFY_TIMEOUT,
             command=VERIFY_SLOW,
             exit_code=None,
             output="hanging...",
+            timeout=VERIFY_TIMEOUT_SECONDS,
         )
         with (
             patch.object(config, VERIFY_COMMANDS_SETTING, (VERIFY_SLOW,)),
-            patch.object(config, "VERIFY_TIMEOUT", VERIFY_TIMEOUT_SECONDS),
+            patch.object(config, "VERIFY_TIMEOUT", CURRENT_TIMEOUT_SECONDS),
         ):
             self._run_validating(
                 gh,
@@ -168,6 +175,7 @@ class HandleValidatingVerifyGateTest(
         last_comment = gh.posted_comments[-1][1]
         self.assertIn(VERIFY_SLOW, last_comment)
         self.assertIn("timed out after 123s", last_comment)
+        self.assertNotIn(f"{CURRENT_TIMEOUT_SECONDS}s", last_comment)
 
     def _assert_failed_comment(self, comment: str) -> None:
         self.assertIn("local verification failed", comment)

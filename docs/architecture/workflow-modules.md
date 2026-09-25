@@ -2710,7 +2710,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             id, abandoned outright on an unreadable PR rather than stranding an approved branch on
                             a read, and the ratchets reached past it, which is what each of the three watermarks
                             becomes against what is already persisted
-      verify.py             how a non-ok verify result reads and the park it earns
+      verify.py             how a refused verify result reads and the park it earns; `ok` and the `not_run` an
+                            empty `VERIFY_COMMANDS` returns both advance instead
       watermarks.py         the seed walk past leading orchestrator comments and a bare `/orchestrator
                             add-agent-runs` a grant left unread, and the ratchet that never regresses one
       requested_changes.py  the PR feedback and `workflow:fixing`-labeled dev fix, its report disposed of through

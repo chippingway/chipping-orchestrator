@@ -2168,8 +2168,9 @@ remote is still owed.
 After the reviewer emits `VERDICT: APPROVED`, `_handle_validating` runs the configured `VERIFY_COMMANDS` directly in
 the per-issue worktree — these are plain shell commands, not an agent role, so no `*_AGENT` env var applies. The gate
 runs before the approval comment, the squash, the watermark seeding, and the `workflow:documenting` (final-docs) label
-flip. A clean run advances the issue; any failure parks on `workflow:validating` with a typed `park_reason`
-(`verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed`). See
+flip. A clean run advances the issue, and so does an empty `VERIFY_COMMANDS`, whose `not_run` result is not evidence
+that anything passed; any failure parks on `workflow:validating` with a typed `park_reason` (`verify_failed` /
+`verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`). See
 [`../configuration.md#local-verification-gate`](../configuration.md#local-verification-gate) for the env-var
 reference.
 

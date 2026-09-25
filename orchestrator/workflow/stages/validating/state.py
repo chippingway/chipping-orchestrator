@@ -175,4 +175,5 @@ _VERIFY_STATUS_TO_REASON = MappingProxyType({
     "timeout": "verify_timeout",
     "dirty": "verify_dirty",
     "head_changed": "verify_head_changed",
+    "tree_changed": "verify_tree_changed",
 })

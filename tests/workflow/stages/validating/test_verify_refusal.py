@@ -35,6 +35,45 @@ AWAITING_HUMAN = "awaiting_human"
 PARK_REASON = "park_reason"
 VERIFY_COMMANDS_SETTING = "VERIFY_COMMANDS"
 
+# A run can refuse before any command, or on a reading after one that exited
+# 0; each parks with what the operator has to look at.
+_REFUSALS = (
+    (
+        VerifyResult(
+            status="tree_changed",
+            command=VERIFY_PYTEST,
+            exit_code=0,
+            tree_before="1234567890123456",
+            tree_after="",
+        ),
+        "verify_tree_changed",
+        (
+            f"`{VERIFY_PYTEST}` left HEAD in place but its tree no longer reads as the "
+            "tested one (123456789012 -> (unreadable))"
+        ),
+    ),
+    (
+        VerifyResult(status=VERIFY_DIRTY, command=VERIFY_PYTEST, exit_code=0),
+        PARK_VERIFY_DIRTY,
+        f"`{VERIFY_PYTEST}` exited 0 but the worktree status could not be read",
+    ),
+    (
+        VerifyResult(status=VERIFY_DIRTY, dirty_files=("stale.txt",)),
+        PARK_VERIFY_DIRTY,
+        "the worktree was dirty before any command ran: `stale.txt`",
+    ),
+    (
+        VerifyResult(status=VERIFY_DIRTY),
+        PARK_VERIFY_DIRTY,
+        "the worktree status could not be read before any command ran",
+    ),
+    (
+        VerifyResult(status=VERIFY_FAILED),
+        PARK_VERIFY_FAILED,
+        "the commit and tree to verify could not be read, so no command ran",
+    ),
+)
+
 
 class HandleValidatingVerifyRefusalTest(
     unittest.TestCase,
@@ -109,6 +148,16 @@ class HandleValidatingVerifyRefusalTest(
         last_comment = gh.posted_comments[-1][1]
         self.assertIn("build/artifact.bin", last_comment)
 
+    def test_refusals_park_with_what_refused(self) -> None:
+        for run, reason, detail in _REFUSALS:
+            with self.subTest(status=run.status, command=run.command, files=run.dirty_files):
+                gh = self._park_on(run)
+                state = gh.pinned_data(ISSUE)
+                self.assertTrue(state.get(AWAITING_HUMAN))
+                self.assertEqual(state.get(PARK_REASON), reason)
+                self.assertNotIn((ISSUE, LABEL_DOCUMENTING), gh.label_history)
+                self.assertIn(f"PR not handed off to in_review. {detail}.", gh.posted_comments[-1][1])
+
     def test_changes_requested_does_not_run_verify(self) -> None:
         gh, issue = self._seeded()
         # The verify mock should not be called -- assert by setting a
@@ -178,3 +227,15 @@ class HandleValidatingVerifyRefusalTest(
             (PARK_VERIFY_FAILED, PARK_VERIFY_TIMEOUT, PARK_VERIFY_DIRTY),
         )
         self.assertIn("did not emit a VERDICT line", gh.posted_comments[-1][1])
+
+    def _park_on(self, run: VerifyResult):
+        gh, issue = self._seeded()
+        with patch.object(config, VERIFY_COMMANDS_SETTING, (VERIFY_PYTEST,)):
+            self._run_validating(
+                gh,
+                issue,
+                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                head_shas=(REVIEW_SHA,),
+                verify_result=run,
+            )
+        return gh

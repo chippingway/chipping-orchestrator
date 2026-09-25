@@ -67,10 +67,13 @@ _FORBIDDEN_PREFIXES = (
 # The initializer binds nothing, so each name stays reachable only through the
 # owner that defines it.
 _OWNER_ONLY_NAMES = (
+    "VerifyCommandOutcome",
     "VerifyResult",
     "_VERIFY_OUTPUT_BUDGET",
+    "_context_revision",
     "_head_sha",
     "_run_verify_commands",
+    "_tree_sha",
     "_truncate_verify_output",
     "_worktree_dirty_files",
 )
