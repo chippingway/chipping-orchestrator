@@ -61,6 +61,21 @@ timezone = support.timezone
 
 
 FEEDBACK_BODY = "rename foo to bar"
+_INTERRUPTED_SIGTERM_EXIT = -15
+_INTERRUPTED_FIX_RUNS = (
+    _agent(
+        session_id=DEV_SESSION,
+        interrupted=True,
+        last_message="partial fix before the shutdown SIGTERM",
+    ),
+    _agent(
+        session_id=DEV_SESSION,
+        interrupted=True,
+        exit_code=_INTERRUPTED_SIGTERM_EXIT,
+        unfinished_steps=("run_command",),
+        last_message="partial fix before the shutdown SIGTERM",
+    ),
+)
 
 # The window the helper-level cases below are measured against: each dates its
 # items relative to this rather than carrying a duration of its own.
@@ -296,51 +311,42 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
         # the delivery settlement, bookmark clear, and awaiting_human
         # reset never reach GitHub. The next tick re-feeds the same comment
         # to a fresh dev session. Distinct from a no-commit no-ACK reply,
-        # which parks awaiting_human via `_on_question`.
-        old = datetime.now(timezone.utc) - timedelta(hours=1)
-        comment = FakeComment(
-            id=TRIGGER_ID,
-            body="please tighten the error handling",
-            user=FakeUser(ALICE),
-            created_at=old,
-        )
-        pr = self._open_pr()
-        scenario = IssueScenario(*self._seed(pr=pr, issue_comments=[comment]))
+        # which parks awaiting_human via `_on_question`. Both clean
+        # interruptions and signal kills with partial steps are ignored.
+        for run_case in _INTERRUPTED_FIX_RUNS:
+            with self.subTest(run=run_case):
+                comment = FakeComment(
+                    id=TRIGGER_ID,
+                    body="please tighten the error handling",
+                    user=FakeUser(ALICE),
+                    created_at=datetime.now(timezone.utc) - timedelta(hours=1),
+                )
+                pr = self._open_pr()
+                scenario = IssueScenario(*self._seed(pr=pr, issue_comments=[comment]))
 
-        with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
-            mocks = self._run_fixing(
-                scenario.github,
-                scenario.issue,
-                run_agent=_agent(
-                    session_id=DEV_SESSION,
-                    interrupted=True,
-                    last_message="partial fix before the shutdown SIGTERM",
-                ),
-                head_shas=(SHA_SAME, SHA_SAME),  # no new commit
-            )
+                with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
+                    mocks = self._run_fixing(
+                        scenario.github,
+                        scenario.issue,
+                        run_agent=run_case,
+                        head_shas=(SHA_SAME, SHA_SAME),  # no new commit
+                    )
 
-        # The resume DID run (so this exercises the post-resume guard, not a
-        # pre-resume bail) but produced no commit and was killed. One run,
-        # handed exactly this batch -- what the guard refuses is the RESULT.
-        self.assertEqual(only_prompt(mocks), pr_feedback_prompt((comment,)))
-        mocks[PUSH_BRANCH].assert_not_called()
-        # Nothing but the spawn's own charge persisted this tick: the rest of
-        # the seeded state stands untouched.
-        self.assertEqual(
-            scenario.github.write_state_calls, AGENT_RUN_CHARGE_WRITES,
-        )
-        # No relabel, no ACK FYI comment.
-        self.assertEqual(scenario.github.label_history, [])
-        self.assertEqual(scenario.github.posted_comments, [])
-        # Readers and bookmarks unmoved; awaiting_human not cleared/set.
-        self._pinned_data = scenario.github.pinned_data(ISSUE)
-        self.assertEqual(
-            self._pinned_data.get(PR_LAST_COMMENT_ID),
-            INITIAL_PR_COMMENT_WATERMARK,
-        )
-        self.assertEqual(self._pinned_data.get(PENDING_FIX_AT), PENDING_FIX_AT_TS)
-        self.assertEqual(self._pinned_data.get(PENDING_FIX_ISSUE_MAX_ID), TRIGGER_ID)
-        self.assertFalse(self._pinned_data.get(AWAITING_HUMAN))
+                self.assertEqual(only_prompt(mocks), pr_feedback_prompt((comment,)))
+                mocks[PUSH_BRANCH].assert_not_called()
+                self.assertEqual(
+                    scenario.github.write_state_calls, AGENT_RUN_CHARGE_WRITES,
+                )
+                self.assertEqual(scenario.github.label_history, [])
+                self.assertEqual(scenario.github.posted_comments, [])
+                self._pinned_data = scenario.github.pinned_data(ISSUE)
+                self.assertEqual(
+                    self._pinned_data.get(PR_LAST_COMMENT_ID),
+                    INITIAL_PR_COMMENT_WATERMARK,
+                )
+                self.assertEqual(self._pinned_data.get(PENDING_FIX_AT), PENDING_FIX_AT_TS)
+                self.assertEqual(self._pinned_data.get(PENDING_FIX_ISSUE_MAX_ID), TRIGGER_ID)
+                self.assertFalse(self._pinned_data.get(AWAITING_HUMAN))
 
     def test_interrupted_with_new_commit_is_ignored(self) -> None:
         # An interrupted resume that DID advance HEAD must also be ignored:

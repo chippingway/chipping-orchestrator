@@ -106,9 +106,9 @@ def _refuse_parked_continue_command(
 
     Documenting has no preserved feedback batch to replay, so a bare continue
     resolves to just two shapes: a retryable session-failure park
-    (`agent_silent` / `agent_timeout`) whose awaiting-human resume reruns the
-    FULL documentation prompt, and a park that needs a real answer. A bare
-    continue no longer shifts `user_content_hash`, so `_reconcile_documenting_drift`
+    (`agent_silent` / `agent_timeout` / `agent_execution_failed`) whose
+    awaiting-human resume reruns the FULL documentation prompt, and a park
+    that needs a real answer. A bare continue no longer shifts `user_content_hash`, so `_reconcile_documenting_drift`
     stays silent and the retry falls through to `_run_documenting_dev`'s resume
     (issue #729) -- only the refusal needs interception here.
 

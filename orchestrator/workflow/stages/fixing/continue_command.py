@@ -3,7 +3,8 @@
 """`/orchestrator continue` on a parked fix, and the batch it must not lose.
 
 The command means "retry this fix", and the park it usually answers is a dev
-session that went silent or timed out with the PR feedback still unaddressed.
+session that went silent, timed out, or suffered an execution failure
+(`agent_execution_failed`) with the PR feedback still unaddressed.
 Resuming on the command text alone is the failure this owner exists to prevent:
 the session that failed is dropped, a fresh one is grounded on the preserved
 batch, and anything the operator wrote beside the command rides along verbatim.
@@ -199,8 +200,9 @@ def _handle_continue_command(
 
     `/orchestrator continue` is the operator's "retry this fix" signal for a
     session-limit / session-failure park: a dev session that went silent
-    (`agent_silent`) or timed out (`agent_timeout`) and left the fix-loop
-    parked. The naive un-park resumes the dev on the command text alone,
+    (`agent_silent`), timed out (`agent_timeout`), or failed command execution
+    (`agent_execution_failed`) and left the fix-loop parked. The naive un-park
+    resumes the dev on the command text alone,
     dropping the PR review feedback the poisoned session never addressed --
     the geserdugarov/lance-open-source#23 shape.
 

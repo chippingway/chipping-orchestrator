@@ -21,6 +21,7 @@ CACHE_READ_TOKENS = 200
 _ACTIVE = "ACTIVE"
 _DONE = "DONE"
 _CMD_PARAM = "CommandLine"
+_DEFAULT_CMD = "pytest"
 
 
 def event(name: str, **payload) -> str:
@@ -79,7 +80,7 @@ class ToolStream:
         return step(index, kind="tool", state=state, tool_info=tool_payload)
 
     @classmethod
-    def active_command(cls, name: str = TOOL_NAME, cmd: str = "pytest") -> str:
+    def active_command(cls, name: str = TOOL_NAME, cmd: str = _DEFAULT_CMD) -> str:
         return "\n".join((
             init_event(),
             cls.tool_step(1, name=name, state=_ACTIVE, args={_CMD_PARAM: cmd}),
@@ -87,7 +88,7 @@ class ToolStream:
         ))
 
     @classmethod
-    def active_with_checks(cls, cmd: str = "pytest", task_id: str = "task-1") -> str:
+    def active_with_checks(cls, cmd: str = _DEFAULT_CMD, task_id: str = "task-1") -> str:
         status_msg = "Task task-1 is RUNNING"
         check_args = {"Action": "status", "TaskId": task_id}
         return "\n".join((
@@ -112,7 +113,7 @@ class ToolStream:
         ))
 
     @classmethod
-    def completed_command(cls, cmd: str = "pytest", task_id: str = "task-1") -> str:
+    def completed_command(cls, cmd: str = _DEFAULT_CMD, task_id: str = "task-1") -> str:
         status_msg = "Task task-1 is RUNNING"
         check_args = {"Action": "status", "TaskId": task_id}
         return "\n".join((
@@ -121,4 +122,19 @@ class ToolStream:
             cls.tool_step(2, name=TOOL_TASK, state=_DONE, args=check_args, out=status_msg),
             cls.tool_step(1, name=TOOL_NAME, state=_DONE, out="5 passed in 0.10s"),
             terminal(status=SUCCESS, response="Tests completed successfully."),
+        ))
+
+    @classmethod
+    def canceled_active_command(cls, name: str = TOOL_NAME, cmd: str = _DEFAULT_CMD) -> str:
+        return "\n".join((
+            init_event(),
+            cls.tool_step(1, name=name, state=_ACTIVE, args={_CMD_PARAM: cmd}),
+            terminal(status="CANCELED", response=None, error="Antigravity command cancelled"),
+        ))
+
+    @classmethod
+    def canceled_without_steps(cls) -> str:
+        return "\n".join((
+            init_event(),
+            terminal(status="CANCELED", response=None, error="process was interrupted"),
         ))

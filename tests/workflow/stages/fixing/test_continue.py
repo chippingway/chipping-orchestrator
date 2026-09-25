@@ -42,6 +42,7 @@ ISSUE = support.ISSUE
 NO_PRESERVED_MESSAGE = support.NO_PRESERVED_MESSAGE
 PARK_AGENT_SILENT = support.PARK_AGENT_SILENT
 PARK_AGENT_TIMEOUT = support.PARK_AGENT_TIMEOUT
+PARK_AGENT_EXECUTION_FAILED = support.PARK_AGENT_EXECUTION_FAILED
 PARK_REASON = support.PARK_REASON
 PENDING_FIX_AT = support.PENDING_FIX_AT
 PENDING_FIX_ISSUE_IDS = support.PENDING_FIX_ISSUE_IDS
@@ -75,7 +76,8 @@ posted_comment_contains = support.posted_comment_contains
 
 class _ContinueCommandFixtureMixin(_PatchedWorkflowMixin):
     """`/orchestrator continue` retries a `fixing` park caused by a
-    session-limit / session-failure reason (`agent_silent` / `agent_timeout`).
+    session-limit / session-failure reason (`agent_silent` / `agent_timeout` /
+    `agent_execution_failed`).
     On the in_review route it replays the PRESERVED review-feedback batch on a
     FRESH dev session rather than resuming on the command text -- the
     geserdugarov/lance-open-source#23 shape where a generic continue lost the
@@ -219,10 +221,11 @@ class OrchestratorContinueCommandTest(
     _ContinueCommandFixtureMixin,
 ):
     def test_session_error_park_replays_saved_batch(self) -> None:
-        # Both session-failure reasons: the command drops the poisoned session
-        # and replays the FULL preserved batch on a fresh spawn, then the
-        # pushed fix routes back to `validating` with the round reset.
-        for reason in (PARK_AGENT_SILENT, PARK_AGENT_TIMEOUT):
+        # Session-failure reasons (agent_silent, agent_timeout, agent_execution_failed):
+        # the command drops the poisoned session and replays the FULL preserved
+        # batch on a fresh spawn, then the pushed fix routes back to `validating`
+        # with the round reset.
+        for reason in (PARK_AGENT_SILENT, PARK_AGENT_TIMEOUT, PARK_AGENT_EXECUTION_FAILED):
             with self.subTest(reason=reason):
                 gh, issue, _pr = self._seed_parked_with_batch(
                     _ContinueSeed(park_reason=reason),

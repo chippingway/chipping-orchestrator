@@ -728,17 +728,18 @@ and the agent spec pinned into an in-flight session — are in
   (no handler runs, no worktree is rebased, no PR-stage relabel) without discarding the issue's state, and remove it
   to resume where it left off. Removing the label is the whole resume action, honored on the next poll; there is no
   un-pause command, and `/orchestrator continue` is unrelated — it retries a specific `awaiting_human` session-failure
-  park (`agent_silent` / `agent_timeout`) across the dev stages (`implementing`, `documenting`, `validating`,
-  `fixing`, `resolving_conflict`), and renews a spent spawn budget on a `retry_cap`-parked `workflow:decomposing` or
-  `workflow:implementing` issue, but never a `paused` hold. Applying `paused` while a developer agent is mid-run also
-  takes effect: every stage that resumes a dev agent (`implementing`, `validating`, `documenting`, `in_review`,
-  `fixing`, `resolving_conflict`) re-reads the label after the run returns, before any post-agent side effect, and
-  discards the result rather than pushing, opening a PR, relabeling, advancing watermarks, or posting comments, so the
-  committed work stays on the branch and republishes once the label is removed. The two conversation stages honor it
-  on the same terms: a `paused` that lands while a `question` or `discussion` round is running suppresses every
-  disposition below it, so nothing is posted, parked, folded into the usage counters, or written to pinned state. A
-  discussion round that had just committed the confirmed plan keeps that commit on its branch and has it published by
-  the tick after the label comes off, classified against the round anchor the stage wrote before the spawn.
+  park (`agent_silent` / `agent_timeout` / `agent_execution_failed`) across the dev stages (`implementing`,
+  `documenting`, `validating`, `fixing`, `resolving_conflict`), and renews a spent spawn budget on a
+  `retry_cap`-parked `workflow:decomposing` or `workflow:implementing` issue, but never a `paused` hold. Applying
+  `paused` while a developer agent is mid-run also takes effect: every stage that resumes a dev agent (`implementing`,
+  `validating`, `documenting`, `in_review`, `fixing`, `resolving_conflict`) re-reads the label after the run returns,
+  before any post-agent side effect, and discards the result rather than pushing, opening a PR, relabeling,
+  advancing watermarks, or posting comments, so the committed work stays on the branch and republishes once the label
+  is removed. The two conversation stages honor it on the same terms: a `paused` that lands while a `question` or
+  `discussion` round is running suppresses every disposition below it, so nothing is posted, parked, folded into the
+  usage counters, or written to pinned state. A discussion round that had just committed the confirmed plan keeps that
+  commit on its branch and has it published by the tick after the label comes off, classified against the round anchor
+  the stage wrote before the spawn.
 - `workflow:community_contribution` — Applied automatically (not by an operator) by the per-tick open-PR sweep when
   `ALLOWED_ISSUE_AUTHORS` is set: any open PR whose author is outside the allowlist is labeled and `HITL_HANDLE` is
   @-mentioned once per PR so a human reviews the community-submitted work. Bot authors (Dependabot, Renovate, CI bots)

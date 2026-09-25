@@ -46,7 +46,10 @@ from typing import Any, NamedTuple
 
 from github.Issue import Issue
 
-from orchestrator.agents.models import AgentResult
+from orchestrator.agents.models import (
+    AgentResult,
+    is_shutdown_sweep_interrupted as _is_shutdown_sweep_interrupted,
+)
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
@@ -58,7 +61,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 def _ignore_if_interrupted(issue: Issue, agent_result: AgentResult) -> bool:
     """True when `agent_result` came from a run the shutdown sweep killed
-    mid-flight (SIGTERM/SIGKILL -- `AgentResult.interrupted`).
+    mid-flight (SIGTERM/SIGKILL), leaving durable pinned state untouched.
 
     Such a run carries no trustworthy outcome: `last_message` is empty or a
     partial transcript chunk and no commit / question / timeout signal can be
@@ -75,7 +78,7 @@ def _ignore_if_interrupted(issue: Issue, agent_result: AgentResult) -> bool:
     Logs once at INFO so the interruption is visible without being mistaken
     for a real silence/timeout park.
     """
-    if not agent_result.interrupted:
+    if not _is_shutdown_sweep_interrupted(agent_result):
         return False
     log.info(
         "issue=#%d agent run interrupted by shutdown sweep; leaving durable "

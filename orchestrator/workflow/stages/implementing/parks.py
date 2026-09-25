@@ -2,19 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 """Classify an agent result that produced no publishable commit and park it.
 
-Session limits, transient provider failures, and silent exits retain their
-retryable reason and streak. Real questions clear that reason and streak.
-Each park emits its event and leaves the state write to the caller. Its
-reply watermark stops before any unclaimed human comment from the run.
+Session limits, transient provider failures, silent exits, and unfinished
+command executions retain their retryable reason and streak. Real questions
+clear that reason and streak. Each park emits its event and leaves the state
+write to the caller. Its reply watermark stops before any unclaimed human
+comment from the run.
 
-The classification is what the emitted reason says, and the two deliberately
-disagree with the durable `park_reason` beside them: a quota stop and a
-provider refusal report themselves by name while pinning the retryable
-`agent_silent` the continue command keys off, and a real question reports
-`agent_question` against a `park_reason` left null, because null there is what
-tells a later tick this park needs a human's actual guidance. The correlation
-the record carries beside the reason comes from `park_correlation`, which is
-also where the road that produced the run is named.
+The classification is what the emitted reason says: a quota stop and a provider
+refusal report themselves by name while pinning the retryable `agent_silent`,
+an unfinished command execution reports and pins `agent_execution_failed`, and a
+real question reports `agent_question` against a `park_reason` left null,
+because null there is what tells a later tick this park needs a human's actual
+guidance. The correlation the record carries beside the reason comes from
+`park_correlation`, which is also where the road that produced the run is named.
 """
 from __future__ import annotations
 
@@ -169,6 +169,47 @@ def _park_silent_failure(
     return "agent_silent"
 
 
+_PARK_EXECUTION_FAILED = "agent_execution_failed"
+
+
+def _park_execution_failure(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    agent_result: AgentResult,
+) -> str:
+    """Park an unfinished command execution as a RETRYABLE execution failure.
+
+    When an Antigravity run exits with active/unfinished tool steps, its
+    partial output was not accepted as a successful or verified result.
+    Instead of misinterpreting partial output as a clarifying question or
+    leaving `park_reason=None`, park with `agent_execution_failed` so an
+    operator's `/orchestrator continue` can retry the execution.
+    """
+    diag = _agent_diagnostics._format_stderr_diagnostics(agent_result, "Agent")
+    _comments._post_issue_comment(
+        gh,
+        issue,
+        state,
+        f"{config.HITL_MENTIONS} agent command execution failed (cancelled or "
+        "partial command output was not accepted); retry with "
+        f"`/orchestrator continue`.{diag}",
+    )
+    log.warning(
+        "issue=#%s agent command execution failed; exit_code=%d "
+        "unfinished_steps=%r stderr_tail=%r",
+        issue.number,
+        agent_result.exit_code,
+        [step.tool_name for step in agent_result.unfinished_steps],
+        _agent_diagnostics._stderr_log_tail(agent_result),
+    )
+    count = int(state.get(_state._SILENT_PARK_COUNT) or 0)
+    state.set(_state._AWAITING_HUMAN, True)
+    state.set(_state._PARK_REASON, _PARK_EXECUTION_FAILED)
+    state.set(_state._SILENT_PARK_COUNT, count + 1)
+    return _PARK_EXECUTION_FAILED
+
+
 def _on_question(
     gh: GitHubClient,
     issue: Issue,
@@ -177,11 +218,13 @@ def _on_question(
 ) -> None:
     """Classify what a run with no publishable commit left, park it, report it.
 
-    The final message is what picks the branch: the two classifiers match
-    known quota and provider-refusal phrasings as a PREFIX of it, and an empty
-    one is a silent exit. What the reported reason names is the branch that
-    ran, though, so the emitted vocabulary stays the closed set above however
-    the agent phrased itself.
+    The structured unfinished-command diagnostic is classified first: an
+    unfinished tool step is an execution failure rather than a question or
+    silent exit. Otherwise the final message is what picks the branch: the two
+    classifiers match known quota and provider-refusal phrasings as a PREFIX
+    of it, and an empty one is a silent exit. What the reported reason names
+    is the branch that ran, though, so the emitted vocabulary stays the closed
+    set above however the agent phrased itself.
 
     The correlation beside it is the part built from no prose at all. The road
     comes off `parked`, since the stage the event reads from the label is held
@@ -195,9 +238,11 @@ def _on_question(
     said_before = _comments._orchestrator_ids(state)
     agent_result = parked.agent_result
     raw = agent_result.last_message.strip()
-    if raw and _session_read._is_session_limit_message(agent_result):
+    if agent_result.unfinished_steps:
+        park_reason = _park_execution_failure(gh, issue, state, agent_result)
+    elif _session_read._is_session_limit_message(agent_result):
         park_reason = _park_session_limit(gh, issue, state, raw)
-    elif raw and _provider_failures.is_transient_provider_failure(agent_result):
+    elif _provider_failures.is_transient_provider_failure(agent_result):
         park_reason = _park_provider_unavailable(gh, issue, state, raw)
     elif raw:
         park_reason = _park_real_question(gh, issue, state, raw)

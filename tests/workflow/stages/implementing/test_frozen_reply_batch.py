@@ -122,12 +122,35 @@ _CLASSIFIED = (
     ("an answered grant under a reply", (_ANSWERED_GRANT, _GUIDANCE), (_GUIDANCE,)),
 )
 
+_SIGTERM_EXIT = -15
+_ACTIVE_STEP = ("run_command",)
+
 # Every run outcome, and whether it counts the batch as delivered.
 _OUTCOMES = (
     ("a clean answer", _agent(), False, True),
     ("a timeout", _agent(timed_out=True), False, True),
     ("an empty message", _agent(last_message=""), False, True),
     ("a shutdown kill", _agent(interrupted=True), False, False),
+    (
+        "a shutdown kill with active command",
+        _agent(
+            interrupted=True,
+            exit_code=_SIGTERM_EXIT,
+            unfinished_steps=_ACTIVE_STEP,
+        ),
+        False,
+        False,
+    ),
+    (
+        "backend cancellation with active command",
+        _agent(
+            interrupted=True,
+            exit_code=1,
+            unfinished_steps=_ACTIVE_STEP,
+        ),
+        False,
+        True,
+    ),
     ("a refused launch", _agent(invoked=False), False, False),
     ("a live pause", _agent(), True, False),
 )

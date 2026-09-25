@@ -7,9 +7,10 @@ new requirements, and it is recognized here before any drift or resume
 processing for exactly that reason: read as an ordinary comment it would shift
 the user-content hash and resume the dev as though the issue had been edited.
 
-Which parks it answers is the point. `agent_silent` and `agent_timeout` are
-session failures an operator can retry once the quota resets or the timeout is
-understood; a real question park is not, so a continue that carries no guidance
+Which parks it answers is the point. `agent_silent`, `agent_timeout`, and
+`agent_execution_failed` are session failures an operator can retry once the
+quota resets, the timeout is understood, or an unfinished command exits; a real
+question park is not, so a continue that carries no guidance
 is refused rather than replayed into a session that asked for words. The
 refresh-time auto-rebase parks own their own retry comment, so this declines
 them outright, and a continue that arrives ALONGSIDE genuine guidance is left
@@ -81,7 +82,8 @@ def _retry_parked_dev_session(
     batch: _resume_batch._ReplyBatch,
 ) -> None:
     """Resume the locked dev session as an intentional `/orchestrator continue`
-    retry of a session-failure park (`agent_silent` / `agent_timeout`), then
+    retry of a session-failure park (`agent_silent` / `agent_timeout` /
+    `agent_execution_failed`), then
     dispose the result exactly like the awaiting-human resume path.
 
     Unlike the generic human-reply resume this does NOT feed the bare command
@@ -143,10 +145,11 @@ def _handle_parked_continue_command(
     issue BEFORE generic user-content-drift / resume processing.
 
     `/orchestrator continue` is the recovery signal for a dev session that hit
-    a session/usage limit, a transient provider refusal, or a silent failure
-    (`_park_session_limit` / `_park_provider_unavailable` /
+    a session/usage limit, a transient provider refusal, a silent failure, or
+    an unfinished command (`_park_session_limit` / `_park_provider_unavailable` /
     `_park_silent_failure` tag all three `agent_silent`; an implementer timeout
-    tags `agent_timeout`). Counting the bare command as an ordinary comment routed
+    tags `agent_timeout`; an unfinished command tags `agent_execution_failed`).
+    Counting the bare command as an ordinary comment routed
     it through "issue body/content changed" drift handling and resumed the dev
     for the wrong reason (issue #729); a bare continue no longer shifts
     `user_content_hash`, and this handler routes it deliberately instead.

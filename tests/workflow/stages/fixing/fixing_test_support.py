@@ -178,6 +178,7 @@ PARK_PUSH_FAILED = "push_failed"
 PARK_AGENT_TIMEOUT = "agent_timeout"
 PARK_AGENT_SILENT = "agent_silent"
 PARK_AGENT_QUESTION = "agent_question"
+PARK_AGENT_EXECUTION_FAILED = "agent_execution_failed"
 
 AWAITING_HUMAN = "awaiting_human"
 
@@ -340,6 +341,21 @@ class _FixingFixtureMixin(_PatchedWorkflowMixin):
         }
         defaults.update(kwargs)
         return FakePR(**defaults)
+
+    def _assert_failure_notice(self, scenario: IssueScenario) -> None:
+        last_comment = scenario.github.posted_comments[-1][1]
+        for expected in (
+            "agent command execution failed",
+            "cancelled or partial command output was not accepted",
+            "/orchestrator continue",
+            "_Agent stderr (last 1KB):_",
+            "unfinished tool steps",
+            "run_command",
+        ):
+            self.assertIn(expected, last_comment)
+        self.assertNotIn("agent needs your input", last_comment)
+        self.assertNotIn("agent produced no output", last_comment)
+        self.assertNotIn("passed", last_comment.split("_Agent stderr")[0])
 
 
 class _StrandedFixingFixtureMixin(_FixingFixtureMixin):

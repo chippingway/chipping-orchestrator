@@ -1779,6 +1779,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             would refuse the operator's retry as "nothing new"
       continue_command.py   `/orchestrator continue` on a parked fix: the replay and what it may hand the dev --
                             guidance, never the command itself -- plus the two refusals and the guidance passthrough
+                            for retryable session failures (`agent_silent`, `agent_timeout`, `agent_execution_failed`)
       drift.py              the `workflow:resolving_conflict` reroute a stuck validating-route park earns when its
                             worktree has fallen behind base
       models.py             the frozen records the owners hand each other, the batch among them carrying the
@@ -2478,11 +2479,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the work and use the shared watermark reader after posting their notice; the refusal
                             reports which half failed, how many paths git named where it named any, and whether the
                             run had timed out
-      parks.py              classify session limits, transient provider failures, real questions, and silent exits;
-                            retryable failures keep their reason and streak, while a question clears both. The final
-                            message is what picks the branch -- the quota and provider phrasings are matched as a
-                            prefix of it, an empty one is the silent exit -- but what the record reports is the
-                            branch that ran, so the emitted vocabulary stays closed however the agent phrased itself
+      parks.py              classify unfinished commands, session limits, transient provider failures, real questions,
+                            and silent exits; retryable failures keep their reason and streak, while a question clears
+                            both. Structured unfinished command diagnostics precede message checks; otherwise the
+                            final message picks the branch -- the quota and provider phrasings matched as a prefix,
+                            an empty one the silent exit -- reporting the branch that ran so the emitted vocabulary
+                            stays closed however the agent phrased itself
       drift.py              a body edit mid-implementation: the resume it earns -- withheld while a continuation
                             has bought an attempt, since a resume passes no gate and the attempt is owed as a fresh
                             spawn -- and the `ACK:` that answers it. A commit-less reply bringing the report an
@@ -2500,7 +2502,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             stands down to the resume the reply it asked for belongs to, the quiet
                             timeout recovery, held off by that reason and by a reply the
                             tick's frozen batch would deliver, and the awaiting-human resume on that batch
-      continue_command.py   `/orchestrator continue` on a parked issue, opening with the one park below that the
+      continue_command.py   `/orchestrator continue` on a parked issue for retryable session failures (`agent_silent`,
+                            `agent_timeout`, `agent_execution_failed`), opening with the one park below that the
                             classifier here would refuse the right command on, and handing back outright a
                             batch the measurement park's own road would re-measure on: this read comes after
                             that road looked at the thread, so a command landing between the two is in this

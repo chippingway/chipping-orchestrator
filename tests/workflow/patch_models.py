@@ -32,12 +32,14 @@ class _AgentResultSeed:
     last_message: str = ""
     timed_out: bool = False
     interrupted: bool = False
+    stdout: str = ""
     stderr: str = ""
     exit_code: int | None = None
     # Whether a process produced this result. False is what a caller's own
     # synthesis carries -- the sentence it writes to publish committed work an
     # earlier run left -- which the report contract may not be held against.
     invoked: bool = True
+    unfinished_steps: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -152,10 +154,11 @@ def _agent(**agent_fields) -> AgentResult:
         last_message=seed.last_message,
         exit_code=exit_code,
         timed_out=seed.timed_out,
-        stdout="",
+        stdout=seed.stdout,
         stderr=seed.stderr,
         interrupted=seed.interrupted,
         invoked=seed.invoked,
+        unfinished_steps=seed.unfinished_steps,
     )
 
 

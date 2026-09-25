@@ -172,6 +172,7 @@ class ContinueCommandActionTest(unittest.TestCase):
     to the normal resume / drift path."""
 
     def test_retryable_park_bare_continue_retries(self) -> None:
+        self.assertIn("agent_execution_failed", messages._CONTINUE_PARK_REASONS)
         for reason in sorted(messages._CONTINUE_PARK_REASONS):
             with self.subTest(reason=reason):
                 self.assertEqual(

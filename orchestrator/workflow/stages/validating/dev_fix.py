@@ -203,7 +203,7 @@ def _dispose_dev_fix_result(
     state: PinnedState,
     run: _models._DevFixRun,
 ) -> bool:
-    if run.agent_result.interrupted:
+    if _guards._ignore_if_interrupted(issue, run.agent_result):
         return False
     if run.agent_result.timed_out:
         _park_dev_fix_timeout(gh, issue, state, run.before_sha)

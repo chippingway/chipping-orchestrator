@@ -63,6 +63,8 @@ file is the durable record.
   fanned out to `ANALYTICS_LOG_PATH` alongside this audit log through the shared `GitHubClient.emit_event` chokepoint;
   extras: `stage` (read from the current
   workflow label, not passed in), `reason` (e.g. `agent_timeout`, `push_failed`, `failed_checks`, `agent_question`,
+  `agent_execution_failed` (an unfinished command exit rejected as an execution failure, parked retryably as
+  `agent_execution_failed` with the operator told to reply `/orchestrator continue`),
   `agent_session_limit` (a quota-exhausted agent message, parked retryably as `agent_silent`),
   `agent_provider_unavailable` (a transient provider refusal — `API Error: 529 Overloaded` and its 5xx siblings —
   arriving as the agent's final message, parked retryably as `agent_silent` too), `dirty_worktree`,
@@ -96,11 +98,12 @@ file is the durable record.
   shared seam every committed candidate publishes through). What the correlation payload deliberately does not do
   is report any part of what the agent wrote: no last message, prompt, captured stream, or report body reaches
   either sink, and every field in it is a structured identifier the caller already held. The `reason` beside it is
-  a different matter — `_on_question` picks its branch from the final message, matching the known quota and
-  provider-refusal phrasings as a prefix and reading an empty message as a silent exit — but it reports the branch
-  that ran rather than the text that selected it, so the vocabulary stays closed. That is also why an
-  `agent_question` record sits beside a pinned `park_reason` of null: the event names the classification, and null
-  on the durable field is what tells a later tick this park needs a human's actual guidance.
+  a different matter — `_on_question` classifies structured unfinished tool steps first as `agent_execution_failed`,
+  then picks among the remaining branches from the final message, matching the known quota and provider-refusal
+  phrasings as a prefix and reading an empty message as a silent exit — but it reports the branch that ran rather
+  than the text that selected it, so the vocabulary stays closed. That is also why an `agent_question` record sits
+  beside a pinned `park_reason` of null: the event names the classification, and null on the durable field is what
+  tells a later tick this park needs a human's actual guidance.
 
   The two conversation stages forward the same vocabulary through their own stage funnels, which every ending of
   those stages lands on: `route`, `agent_role` (`question` and `decomposer` respectively — the discussion is the

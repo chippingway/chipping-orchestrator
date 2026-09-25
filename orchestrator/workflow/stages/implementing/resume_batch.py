@@ -41,7 +41,7 @@ from dataclasses import dataclass, replace
 
 from github.Issue import Issue
 
-from orchestrator.agents.models import AgentResult
+from orchestrator.agents.models import AgentResult, is_shutdown_sweep_interrupted
 from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
@@ -354,6 +354,6 @@ def _counts_as_delivered(agent_result: AgentResult, paused: bool) -> bool:
     message, a question -- because the prompt carrying those replies reached an
     agent. The batch says what was delivered, never that anything was resolved.
     """
-    if paused or agent_result.interrupted:
+    if paused or is_shutdown_sweep_interrupted(agent_result):
         return False
     return agent_result.invoked

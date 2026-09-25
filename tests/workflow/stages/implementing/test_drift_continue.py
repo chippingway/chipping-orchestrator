@@ -40,60 +40,58 @@ class ImplementingContinueCommandTest(
     def test_bare_continue_retries_without_notice(
         self,
     ) -> None:
-        # The #720 shape: parked `agent_silent`, stale watermark, human posts
-        # exactly `/orchestrator continue`. The dev session is resumed
-        # intentionally -- no "issue body changed" / "issue content changed"
-        # notice, and the bare command is NOT fed as the dev prompt.
-        scenario = IssueScenario(
-            *_seed_parked_implementing(
-                CONTINUE_RETRY_ISSUE,
-                park_reason="agent_silent",
-                # The baseline matches what the issue says, which is what an
-                # issue whose drift has been handled carries: this case is
-                # about the command rather than about an edit, and a stale
-                # baseline would hold the report its retry writes for the
-                # drift resume that answers the edit instead.
-                drift_neutral=True,
-            )
-        )
+        # Parked retryable session failure (`agent_silent`, `agent_execution_failed`),
+        # stale watermark, human posts exactly `/orchestrator continue`. The dev session
+        # is resumed intentionally -- no "issue body changed" notice, and the bare command
+        # is NOT fed as the dev prompt.
+        for reason in ("agent_silent", "agent_execution_failed"):
+            with self.subTest(park_reason=reason):
+                scenario = IssueScenario(
+                    *_seed_parked_implementing(
+                        CONTINUE_RETRY_ISSUE,
+                        park_reason=reason,
+                        drift_neutral=True,
+                    )
+                )
 
-        mocks = self._run_implementing(
-            scenario.github,
-            scenario.issue,
-            run_agent=_agent(
-                session_id=DEV_SESSION, last_message=_reported("finished it"),
-            ),
-            has_new_commits=True,
-            dirty_files=(),
-            push_branch=True,
-            head_shas=["sha-before", "sha-after"],
-        )
+                mocks = self._run_implementing(
+                    scenario.github,
+                    scenario.issue,
+                    run_agent=_agent(
+                        session_id=DEV_SESSION, last_message=_reported("finished it"),
+                    ),
+                    has_new_commits=True,
+                    dirty_files=(),
+                    push_branch=True,
+                    head_shas=["sha-before", "sha-after"],
+                )
 
-        # The dev retry/resume path is entered -- the poisoned but healthy
-        # session is resumed (not rotated), on the neutral retry prompt.
-        mocks[RUN_AGENT].assert_called_once()
-        prompt = mocks[RUN_AGENT].call_args[0][1]
-        self.assertIn("session/usage limit", prompt)
-        self.assertNotIn(CONTINUE_COMMAND, prompt)
-        self.assertEqual(
-            mocks[RUN_AGENT].call_args.kwargs.get("resume_session_id"),
-            DEV_SESSION,
-        )
-        # No drift notice of any kind.
-        self.assertFalse(
-            any(
-                "issue body changed" in body or "issue content changed" in body
-                for _, body in scenario.github.posted_comments
-            )
-        )
-        # The retry produced a commit, so the issue advanced to validating and
-        # the command comment is consumed (won't re-fire next tick).
-        self.assertIn((CONTINUE_RETRY_ISSUE, LABEL_VALIDATING), scenario.github.label_history)
-        self.assertEqual(len(scenario.github.opened_prs), 1)
-        self.assertEqual(
-            scenario.github.pinned_data(CONTINUE_RETRY_ISSUE).get(LAST_ACTION_COMMENT_ID),
-            COMMAND_COMMENT_ID,
-        )
+                # The dev retry/resume path is entered -- the session is resumed
+                # intentionally on the neutral retry prompt.
+                mocks[RUN_AGENT].assert_called_once()
+                prompt = mocks[RUN_AGENT].call_args[0][1]
+                self.assertIn("agent_execution_failed", prompt)
+                self.assertIn("session/usage limit", prompt)
+                self.assertNotIn(CONTINUE_COMMAND, prompt)
+                self.assertEqual(
+                    mocks[RUN_AGENT].call_args.kwargs.get("resume_session_id"),
+                    DEV_SESSION,
+                )
+                # No drift notice of any kind.
+                self.assertFalse(
+                    any(
+                        "issue body changed" in body or "issue content changed" in body
+                        for _, body in scenario.github.posted_comments
+                    )
+                )
+                # The retry produced a commit, so the issue advanced to validating and
+                # the command comment is consumed (won't re-fire next tick).
+                self.assertIn((CONTINUE_RETRY_ISSUE, LABEL_VALIDATING), scenario.github.label_history)
+                self.assertEqual(len(scenario.github.opened_prs), 1)
+                self.assertEqual(
+                    scenario.github.pinned_data(CONTINUE_RETRY_ISSUE).get(LAST_ACTION_COMMENT_ID),
+                    COMMAND_COMMENT_ID,
+                )
 
     def test_question_park_bare_continue_refuses(
         self,
