@@ -2903,10 +2903,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             written against requirements the drift baseline has moved past, an `ACK:` of an edit
                             included, which is the rule the hold holds an owed report to. The baseline rather than
                             the reviewer's own read, since that read carries the reply that bought a retried or
-                            granted round -- while on a round the drift check did NOT stand down for, that read has
-                            to be the baseline itself: one that moved on after the check is held, nothing parked or
-                            written, for the next tick's drift check to resume the developer on the new words. A
-                            reading nobody could take holds without a notice. The reading itself
+                            granted round -- while that read has to be the revision the round was due to hand over:
+                            the baseline, or on a round a reply bought the thread through that reply
+                            (`validating_reviewer_round_requirements`). One that moved on after it is held, nothing
+                            parked, the owed round stood down, for the next tick's drift check to resume the
+                            developer on the new words. A reading nobody could take holds without a notice, and
+                            every hold writes what the tick staged -- a cleared park, a cap grant and its notice --
+                            so none of it is answered twice. The reading itself
                             posts and parks nothing, so `review_coverage.py` takes it again
       review_coverage.py    whether an approval still covers the subject standing when it is acted on. When the
                             reviewer returns, the whole subject is resolved again over the issue read afresh and

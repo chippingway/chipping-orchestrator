@@ -311,6 +311,12 @@ class _AwaitingValidation:
         self.state.set(
             _state._REVIEWER_OWES_A_ROUND, _state._ROUND_BOUGHT_BY_A_REPLY,
         )
+        # The thread through the reply, which is what that round is due to hand
+        # its reviewer: anything written after it is requirements the report it
+        # reviews never saw.
+        through = self.batch.delivery.requirements_revision
+        if through:
+            self.state.set(_state._ROUND_BOUGHT_THROUGH, through)
 
 
 @dataclass(frozen=True)

@@ -1636,6 +1636,12 @@ The keys that matter for the state machine fall into a few groups:
   `"bought_by_a_reply"` names a human's retry or an operator's grant, whose words the round settles off its own
   prompt wherever it finally runs. A deferral never writes over a claim already standing, or the round would be
   left with nothing to record and the reply unread for good. An issue without the key owes no round.
+  `validating_reviewer_round_requirements` rides beside `"bought_by_a_reply"`: the requirements revision of the
+  thread through the reply that bought the round, which is what that round is due to hand its reviewer. The reply is
+  the reviewer's to read; anything written after it is a change the developer report never saw, so a reviewer read
+  that differs from it holds the round and drops both keys, and the next tick's drift check hands the new words to
+  the developer. Additive, written only where the buying reply was delivered, and dropped with the note it rides
+  beside; a round bought before it existed is held to the drift baseline instead.
 - **The review-cap grant already honored.** `review_cap_granted_comment_id`, additive, holding the id of the
   comment the last `/orchestrator add-review-rounds` reset was written for. A grant may leave that command
   uncrossed — a bounded reviewer round records only what its own excerpt carried — so the batch a LATER cap

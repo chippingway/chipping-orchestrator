@@ -40,7 +40,10 @@ The thread it releases has moved the requirements by then, so a tick reading
 the park alone finds a plain edit and takes the developer's road ahead of the
 reviewer the reply bought. Both roads write this down instead, and the round
 that finally runs drops it -- and settles the reply where the value says one
-bought it. Additive: an issue without it owes no round.
+bought it. Additive: an issue without it owes no round. Where a reply bought
+the round, the note is joined by the requirements revision of the thread
+through that reply, which is what the round is due to hand its reviewer, and
+`_discharges_the_owed_round` is the one place both are dropped together.
 
 `_CAP_GRANTED_ON` is the third, and it is the one record that says a cap grant
 took. The notice announcing it is posted before the reviewer runs while the
@@ -62,6 +65,8 @@ from __future__ import annotations
 import re
 from types import MappingProxyType
 from typing import Any
+
+from orchestrator.github.pinned_state import PinnedState
 
 _ReviewRoundsCommand = tuple[Any, int, str | None]
 
@@ -130,6 +135,14 @@ _REVIEWER_OWES_A_ROUND = "validating_reviewer_owes_a_round"
 # the note records nothing about.
 _ROUND_BOUGHT_BY_A_REPLY = "bought_by_a_reply"
 
+# The requirements revision a round a reply bought is due to hand its reviewer:
+# the thread fingerprinted through the last reply that bought it. Written beside
+# the note above and dropped with it, so the round can tell that reply -- which
+# is the reviewer's to read -- from words written after it, which are a
+# requirements change the developer has not answered. Additive: a round bought
+# before it existed has none, and is held to the drift baseline instead.
+_ROUND_BOUGHT_THROUGH = "validating_reviewer_round_requirements"
+
 # The comment a review-cap grant was WRITTEN for. Staged beside the round
 # reset it buys and carried by the same write, so it is durable exactly where
 # that reset is. Additive: an issue without it has granted nothing.
@@ -177,3 +190,16 @@ _VERIFY_STATUS_TO_REASON = MappingProxyType({
     "head_changed": "verify_head_changed",
     "tree_changed": "verify_tree_changed",
 })
+
+
+def _discharges_the_owed_round(state: PinnedState) -> None:
+    """Drop the note that a reviewer round is owed, and what it was due to hand.
+
+    Together, since the revision is about that note's round and no other: left
+    behind, it would hold some later round to a reply that round never bought.
+    It is dropped only where it is set, so an issue that never carried it is
+    not given the key.
+    """
+    state.set(_REVIEWER_OWES_A_ROUND, None)
+    if state.get(_ROUND_BOUGHT_THROUGH) is not None:
+        state.set(_ROUND_BOUGHT_THROUGH, None)

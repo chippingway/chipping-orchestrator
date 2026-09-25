@@ -210,7 +210,7 @@ def _settles_what_bought_the_round(
     owed = state.get(_state._REVIEWER_OWES_A_ROUND)
     if not reviewer_run.agent_result.invoked:
         return
-    state.set(_state._REVIEWER_OWES_A_ROUND, None)
+    _state._discharges_the_owed_round(state)
     if parked is not None or owed == _state._ROUND_BOUGHT_BY_A_REPLY:
         reviewer_run.delivery.settle(state)
 

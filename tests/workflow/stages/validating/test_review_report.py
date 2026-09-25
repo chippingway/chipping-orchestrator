@@ -173,6 +173,24 @@ class HandedReportTest(unittest.TestCase, world._ReviewedReports):
         )
         self.assertEqual(self.github.label_history[-1], (ISSUE, LABEL_DOCUMENTING))
 
+    def test_a_granted_round_reads_the_report(self) -> None:
+        # The grant is the reply that bought the round, and the reviewer's to
+        # read: the report written before it is handed over, and approved.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.reported_round(world.FIRST_REPORT)
+        self.grants_a_round()
+
+        approved = self.reviewed(REVIEW_APPROVED_MESSAGE)
+
+        self.assertEqual(
+            (
+                f"> {world.FIRST_REPORT}" in world.prompt(approved),
+                world.GRANT_COMMAND in world.prompt(approved),
+                self.github.label_history[-1],
+            ),
+            (True, True, (ISSUE, LABEL_DOCUMENTING)),
+        )
+
     def test_our_report_passes_a_human_allowlist(self) -> None:
         # The allowlist names the humans; the report this orchestrator
         # published is read as ours by login, not by that list.
@@ -233,6 +251,27 @@ class RefusedReportTest(unittest.TestCase, _DamagedReports):
         )
         self.github.report_failures.unreadable.clear()
         self.assertIn(f"> {world.FIRST_REPORT}", world.prompt(self.reviewed()))
+
+    def test_an_unread_report_answers_a_grant_once(self) -> None:
+        # A granted round whose report will not read holds, and writes the
+        # grant it was bought with: the next tick neither announces the grant
+        # again nor finds the cap spent, and the round runs once it reads.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.reported_round(world.FIRST_REPORT)
+        self.grants_a_round()
+        self.github.report_failures.unreadable.add(PR)
+
+        self.reviewed()
+        self.reviewed()
+        posted = [body for _, body in self.github.posted_comments]
+        held = (
+            sum(world.GRANT_NOTICE in body for body in posted),
+            self.pinned().get("review_round"),
+        )
+        self.github.report_failures.unreadable.clear()
+
+        self.assertIn(f"> {world.FIRST_REPORT}", world.prompt(self.reviewed()))
+        self.assertEqual(held, (1, _fix_world._REVIEW_ROUNDS - 1))
 
     def test_a_reply_brings_a_fresh_report(self) -> None:
         # The reply to the park resumes the developer, whose report is
@@ -465,24 +504,34 @@ class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
         self.assertEqual(covers, [True, False, False])
 
     def test_a_late_criterion_holds_the_round(self) -> None:
-        # The criterion lands between the drift check and the reviewer's read:
-        # handed over, it would sit beside a report that never saw it. The
-        # round is held with nothing parked or approved, and the next tick's
-        # drift check resumes the developer on it, whose report is the one a
-        # reviewer is then handed beside the criterion.
-        self.seeded(ISSUE, PR, LABEL_VALIDATING)
-        self.reported_round(world.FIRST_REPORT)
+        # A criterion lands after the drift check and before the reviewer's
+        # read -- on an ordinary round, and on one an operator's grant bought,
+        # whose grant is the reviewer's to read and the criterion is not.
+        # Handed over, it would sit beside a report that never saw it: the
+        # round is held with nothing parked or approved and the owed round
+        # stood down, and the next tick's drift check resumes the developer on
+        # it, whose report is the one a reviewer is then handed beside it.
+        for granted in (False, True):
+            with self.subTest(granted=granted):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.reported_round(world.FIRST_REPORT)
+                if granted:
+                    self.grants_a_round()
 
-        with patch.object(_prompt_context, "_delivered_thread", _ChangedMidway(
-            partial(_drift_world.human_reply, self, LATE_CRITERION),
-            _prompt_context._delivered_thread,
-        )):
-            self.reviewed(REVIEW_APPROVED_MESSAGE)[RUN_AGENT].assert_not_called()
+                with patch.object(_prompt_context, "_delivered_thread", _ChangedMidway(
+                    partial(_drift_world.human_reply, self, LATE_CRITERION),
+                    _prompt_context._delivered_thread,
+                )):
+                    self.reviewed(REVIEW_APPROVED_MESSAGE)[RUN_AGENT].assert_not_called()
 
-        self.assertEqual(
-            (self.pinned().get(world.AWAITING_HUMAN), world.APPROVED in self.pinned()),
-            (False, False),
-        )
+                self.assertEqual(
+                    (self.pinned().get(world.AWAITING_HUMAN), world.APPROVED in self.pinned()),
+                    (False, False),
+                )
+                self._answers_the_criterion()
+
+    def _answers_the_criterion(self) -> None:
+        """The developer's report reaches the next reviewer beside the criterion."""
         self._ticked(
             self._run_validating,
             MagicMock(side_effect=_fix_world._Runs(
