@@ -73,6 +73,14 @@ from orchestrator.workflow.state import WorkflowLabel
 # tick is fully handled and the caller returns at once.
 _HANDLED = _models._ParkedFixingDecision(stop=True)
 
+# The two silent-recovery answers that end the tick where they are found,
+# grouped because what they owe the issue is identical: nothing. One is the
+# size gate having taken the candidate, the other the reading of the branch
+# having withheld the clear, and neither may fall through to the drift reroute.
+_ENDS_THE_TICK_AS_FOUND = frozenset((
+    _validating_state._OUTCOME_HELD, _validating_state._OUTCOME_UNSETTLED,
+))
+
 
 def _dispatch_continue_command(
     ctx: _models._FixingContext, feedback: _models._FixingFeedback,
@@ -128,10 +136,18 @@ def _dispatch_validating_recovery(
     """Attempt silent recovery of a validating-route transient park.
 
     Returns a stop-decision when this branch owns the tick (a stuck transient
-    rerouted to `resolving_conflict` on drift, or a resolved transient flipped
-    back to `validating`, which also posts the one follow-up comment retiring
-    the mention the park was filed with), or ``None`` to fall through to the
+    rerouted to `resolving_conflict` on drift, a park the branch reading
+    withheld the clear from, or a resolved transient flipped back to
+    `validating`, which also posts the one follow-up comment retiring the
+    mention the park was filed with), or ``None`` to fall through to the
     stay-parked / clear-park default.
+
+    Only `stuck` reaches the drift reroute, and the narrowness is the contract
+    the retry answers in: a condition that has not resolved may really be a
+    base advance nobody synced, while an `unsettled` answer is the reading of
+    the branch itself refusing. Rerouted on that one, the park would come down
+    and the checkout be published by a road that stages no report debt for the
+    head it leaves -- which is the one thing the reading was withheld to stop.
 
     `answered` says the rescan found nothing this issue has not already been
     handed -- a report it OWES was written over that very batch, and the
@@ -152,13 +168,21 @@ def _dispatch_validating_recovery(
     recovery = _validating_recovery._try_recover_validating_transient_park(
         ctx.gh, ctx.spec, ctx.issue, ctx.state,
     )
-    if recovery == _validating_state._OUTCOME_HELD:
-        # The size gate took the candidate this retry was about. It has
-        # already parked the issue or handed it to the adjudication and
-        # written its own state, so the drift reroute below is not this
-        # tick's to take and the bounce is not this tick's to make.
+    if recovery in _ENDS_THE_TICK_AS_FOUND:
+        # `held` is the size gate having taken the candidate this retry was
+        # about: it has already parked the issue or handed it to the
+        # adjudication and written its own state, so a clear here would
+        # announce a recovery that did not happen and a relabel would move a
+        # label the gate has just set. `unsettled` is the reading of the BRANCH
+        # having withheld the clear -- nothing could place the checkout against
+        # its pull request, or a drift park stands over a commit the pull
+        # request has not got -- so the park stays exactly as it was filed, and
+        # the notice that filed it says what a second one would. Neither may
+        # reach the drift reroute below: the first would step on the state the
+        # gate just wrote, the second would hand `resolving_conflict` a
+        # checkout it publishes with no report debt staged for it.
         return _HANDLED
-    if recovery == "stuck":
+    if recovery == _validating_state._OUTCOME_STUCK:
         # The transient condition has not resolved on its own (e.g.
         # `push_failed` keeps failing). When the worktree has drifted from
         # the PR head in the meantime, hand the reconciliation to
@@ -278,6 +302,42 @@ def _settles_the_recovered_report(
     return _HANDLED
 
 
+def _retries_an_unproved_branch(
+    ctx: _models._FixingContext,
+    feedback: _models._FixingFeedback,
+    park_reason,
+    *,
+    answered: bool,
+) -> _models._ParkedFixingDecision | None:
+    """Let a quiet poll take again the branch reading a bounce could not.
+
+    The one park on this stage that is waiting for a READING rather than for a
+    person. The no-feedback bounce files it when nothing could place the
+    checkout against its pull request -- a status that did not read, a fetch
+    that did not return, a divergence git would not count -- and every one of
+    those is a condition the next poll may simply find gone. Held by the
+    stay-parked default behind this, the issue would sit on a network blip
+    until somebody replied, with no later tick ever fetching again.
+
+    So the road falls through WITHOUT clearing anything, and the bounce behind
+    it is the single reader: it takes the reading again, publishes whatever
+    that reading places, and retires this park in the write that relabels. A
+    reading that refuses again holds silently -- the park is already standing
+    and says exactly what a second notice would.
+
+    Only on a quiet tick. A reply is the human road this park also offers, and
+    the default below clears the flags and resumes the developer on their
+    words; `answered` is the reading the readers cannot give for themselves, so
+    a batch an owed report already covers counts as quiet here exactly as an
+    empty one does.
+    """
+    if park_reason != _state._REASON_UNPROVED_BRANCH:
+        return None
+    if feedback.all_items and not answered:
+        return None
+    return _models._ParkedFixingDecision(stop=False)
+
+
 def _dispatch_parked_fixing(
     ctx: _models._FixingContext, feedback: _models._FixingFeedback,
 ) -> _models._ParkedFixingDecision:
@@ -285,12 +345,19 @@ def _dispatch_parked_fixing(
 
     Returns a decision object. ``stop=True`` means the tick is fully handled
     and the caller must return immediately (auto-rebase park, a refused
-    `/orchestrator continue`, a silent validating-route recovery, a
+    `/orchestrator continue`, a silent validating-route recovery, a park the
+    branch reading behind that recovery withheld the clear from, a
     worktree-drift reroute, or a stay-parked-until-fresh-reply). ``stop=False``
-    clears the park and the caller proceeds to the resume; `replay_batch` is
+    sends the caller on; `replay_batch` is
     the batch an accepted `/orchestrator continue` hands that resume -- the
     preserved feedback where one could be rebuilt, the fresh reading minus the
     command where none could -- and ``None`` on a plain human reply.
+
+    Every road but one clears the park on its way out. The exception is the
+    quiet re-read of a branch the bounce could not place: that park is waiting
+    on a reading rather than on a person, so the flags stay exactly as they are
+    and the bounce behind this retires them in the write that relabels -- which
+    is what keeps a reading that refuses again from announcing itself twice.
     """
     park_reason = ctx.state.get(_state._PARK_REASON)
     # The refresh-time `_AUTO_REBASE_PARK_REASONS` parks belong to the
@@ -322,11 +389,19 @@ def _dispatch_parked_fixing(
     # mentioned never having said a word.
     answered = _feedback._read_by_an_owed_report(ctx.state, feedback)
 
-    recovery = _dispatch_validating_recovery(
-        ctx, feedback, park_reason, answered=answered,
-    )
-    if recovery is not None:
-        return recovery
+    # The silent validating-route recovery, then the one park here that waits
+    # on a READING rather than on a person: the branch the no-feedback bounce
+    # could not place. A quiet poll falls through to that bounce with the flags
+    # untouched, so it re-reads, publishes what the reading places, and retires
+    # the park in the write that relabels.
+    for claims_the_tick in (
+        _dispatch_validating_recovery, _retries_an_unproved_branch,
+    ):
+        decision = claims_the_tick(
+            ctx, feedback, park_reason, answered=answered,
+        )
+        if decision is not None:
+            return decision
 
     if answered or not feedback.all_items:
         # All other awaiting_human shapes (question parks, dirty worktree

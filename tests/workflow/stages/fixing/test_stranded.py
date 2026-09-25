@@ -41,8 +41,50 @@ timedelta = support.timedelta
 timezone = support.timezone
 PR_NUMBER = support.PR_NUMBER
 
-# A pull request somebody else pushed to while the resume was out.
+# A pull request somebody else pushed to while the resume was out, and the
+# commit a checkout something moved mid-reading is standing on.
 MOVED_PR_HEAD = "cafef00d" * 5
+
+# The divergence a case seeds, and the counts of a branch standing exactly
+# where its remote is.
+AHEAD_BEHIND = "branch_ahead_behind"
+IN_SYNC = (0, 0)
+
+# What a dev says when the feedback names nothing to change.
+ACKED_MESSAGE = (
+    "The branch already satisfies the comment.\n\n"
+    "ACK: nothing to fix; 'continue' names no defect"
+)
+
+# Every reading that leaves the branch unplaced against its pull request,
+# named by the shape it stands for.
+UNPROVED_SHAPES = (
+    ("remote moved", {AHEAD_BEHIND: (1, 2)}),
+    ("loose tree", {AHEAD_BEHIND: (1, 0), "dirty_files": ("AGENTS.md",)}),
+    ("unreadable tree", {AHEAD_BEHIND: IN_SYNC, "tree_readable": False}),
+    (
+        "unreadable divergence",
+        {AHEAD_BEHIND: IN_SYNC, "branch_divergence_readable": False},
+    ),
+    (
+        "fetch failed",
+        {
+            AHEAD_BEHIND: IN_SYNC,
+            "authed_fetch_result": MagicMock(returncode=1, stderr="boom"),
+        },
+    ),
+    # The counts said the two agree and the checkout was somewhere else by the
+    # time its own head was read: the ground moved between two commands, so
+    # the geometry they describe is about a checkout that no longer exists.
+    (
+        "checkout moved under the count",
+        {
+            AHEAD_BEHIND: IN_SYNC,
+            "fetched_branch_tip": SHA_SAME,
+            "head_shas": (SHA_SAME, SHA_SAME, MOVED_PR_HEAD),
+        },
+    ),
+)
 
 
 class _StrandedResumeMixin(_StrandedFixingFixtureMixin):
@@ -113,51 +155,23 @@ class StrandedFixRecoveryTest(unittest.TestCase, _StrandedResumeMixin):
         self.assertEqual(pinned_data.get(REVIEW_ROUND), 3)
         self.assertIn((ISSUE, VALIDATING), gh.label_history)
 
-    def test_stranded_fix_behind_remote_parks(self) -> None:
-        # Remote PR branch moved past our local view (behind > 0):
-        # pushing would race a head we have not reconciled, so the
-        # handler must fall back to the question park.
-        gh, issue = self._seed_stranded()
+    def test_unproved_shapes_park_the_question(self) -> None:
+        # Every reading the probe cannot take answers "nothing stranded"
+        # exactly as an empty branch does, and each of them may be a branch
+        # holding a commit the pull request has not got: pushing over one
+        # races a head nobody reconciled, and handing the round back
+        # presents a pull request that may be short of the fix. So the
+        # disposition publishes nothing and parks on the question it cannot
+        # answer for itself.
+        for shape, run_options in UNPROVED_SHAPES:
+            with self.subTest(shape=shape):
+                gh, issue = self._seed_stranded()
 
-        mocks = self._resumed(gh, issue, branch_ahead_behind=(1, 2))
+                mocks = self._resumed(gh, issue, **run_options)
 
-        self._pushes(mocks).assert_not_called()
-        pinned_data = gh.pinned_data(ISSUE)
-        self.assertTrue(pinned_data.get(AWAITING_HUMAN))
-        self.assertNotIn((ISSUE, VALIDATING), gh.label_history)
-
-    def test_stranded_fix_fetch_error_parks(self) -> None:
-        # The pre-push fetch failed; without a current view of the
-        # remote PR head the ahead/behind comparison is meaningless, so
-        # the handler must not push and falls back to the question park.
-        gh, issue = self._seed_stranded()
-
-        mocks = self._resumed(
-            gh,
-            issue,
-            branch_ahead_behind=(1, 0),
-            authed_fetch_result=MagicMock(returncode=1, stderr="boom"),
-        )
-
-        self._pushes(mocks).assert_not_called()
-        self.assertTrue(gh.pinned_data(ISSUE).get(AWAITING_HUMAN))
-
-    def test_no_commit_stranded_fix_dirty_tree_parks(self) -> None:
-        # Stray uncommitted files alongside the stranded commit: pushing
-        # only the commit would publish an incomplete branch (the exact
-        # shape the dirty-park guard exists for), so the handler must
-        # keep the question park.
-        gh, issue = self._seed_stranded()
-
-        mocks = self._resumed(
-            gh,
-            issue,
-            branch_ahead_behind=(1, 0),
-            dirty_files=("AGENTS.md",),
-        )
-
-        self._pushes(mocks).assert_not_called()
-        self.assertTrue(gh.pinned_data(ISSUE).get(AWAITING_HUMAN))
+                self._pushes(mocks).assert_not_called()
+                self.assertTrue(gh.pinned_data(ISSUE).get(AWAITING_HUMAN))
+                self.assertNotIn((ISSUE, VALIDATING), gh.label_history)
 
     def test_stranded_fix_push_error_parks_transient(self) -> None:
         # The deferred publish reuses the shared push tail, so a failed
@@ -174,6 +188,17 @@ class StrandedFixRecoveryTest(unittest.TestCase, _StrandedResumeMixin):
         self.assertTrue(pinned_data.get(AWAITING_HUMAN))
         self.assertEqual(pinned_data.get(PARK_REASON), PARK_PUSH_FAILED)
         self.assertNotIn((ISSUE, VALIDATING), gh.label_history)
+
+
+class StrandedAckFastPathTest(unittest.TestCase, _StrandedResumeMixin):
+    """What the in_review-route ACK may hand back, and what it may not.
+
+    The ack vouches for the FEEDBACK; what the fast path does with it --
+    clear the bookmarks, advance the readers, present the pull request as
+    needing nothing -- is a claim about the BRANCH. So it takes only the one
+    reading that makes that claim: the checkout proved to be standing exactly
+    where its publication is.
+    """
 
     def test_ack_stranded_fix_publishes(self) -> None:
         # in_review route (`pending_fix_at` set): the dev ACKs a no-commit
@@ -208,21 +233,50 @@ class StrandedFixRecoveryTest(unittest.TestCase, _StrandedResumeMixin):
         # Watermark advanced past the consumed feedback.
         self.assertGreaterEqual(self._pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
 
-    def test_behind_remote_ack_keeps_in_review(self) -> None:
-        # The remote PR branch moved past the local view (behind > 0):
-        # `_stranded_fix_unpushed` is conservative and reports False
-        # rather than racing a head we have not reconciled, so the ACK
-        # fast path proceeds as before -- return to `in_review` without
-        # pushing blind.
+    def test_an_unproved_branch_stands_the_ack_down(self) -> None:
+        # Every shape the probe cannot vouch for is a branch that may be
+        # carrying a commit the pull request has not got, and the ack says
+        # nothing about the publish state. Returning to `in_review` on one
+        # would clear the bookmarks, advance the readers, and present the
+        # pull request as complete over a head nobody placed -- so the fast
+        # path stands down and the disposition behind it parks on the
+        # question instead of answering it.
+        for shape, run_options in UNPROVED_SHAPES:
+            with self.subTest(shape=shape):
+                scenario = self._acked_scenario()
+
+                mocks = self._resumed(
+                    scenario.github,
+                    scenario.issue,
+                    message=ACKED_MESSAGE,
+                    **run_options,
+                )
+
+                self._pushes(mocks).assert_not_called()
+                self.assertNotIn(
+                    (ISSUE, IN_REVIEW), scenario.github.label_history,
+                )
+                self.assertNotIn(
+                    (ISSUE, VALIDATING), scenario.github.label_history,
+                )
+                self.assertTrue(
+                    scenario.github.pinned_data(ISSUE).get(AWAITING_HUMAN),
+                )
+
+    def test_a_branch_proved_empty_acks_to_in_review(self) -> None:
+        # The checkout and its remote agree exactly, so the ack is about a
+        # pull request that already carries everything: the bookmarks clear
+        # and the ready-ping is re-armed without a push.
         scenario = self._acked_scenario()
 
         mocks = self._resumed(
             scenario.github,
             scenario.issue,
-            message=(
-                "The branch already satisfies the comment.\n\nACK: nothing to fix; 'continue' names no defect"
-            ),
-            branch_ahead_behind=(1, 2),
+            message=ACKED_MESSAGE,
+            branch_ahead_behind=IN_SYNC,
+            # Standing exactly where the remote is: the counts agree AND the
+            # checkout's own head reads as the tip they were taken against.
+            fetched_branch_tip=SHA_SAME,
         )
 
         self._pushes(mocks).assert_not_called()

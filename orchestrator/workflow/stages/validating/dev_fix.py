@@ -15,8 +15,10 @@ its remote, which every reading here takes: it is what lets a no-commit run
 publish work an earlier tick left, and it is the head the push replaces
 whichever run made the commit. The fixing handler's no-feedback bounce and its
 ACK fast path ask the same question off no dev run at all. What it refuses is
-what the reading here inherits: a dirty tree, a failed fetch, or a remote that
-moved prove nothing, because pushing over a head nobody reconciled is worse
+what the reading here inherits: an unreadable status, a tree holding loose
+work, a failed fetch, a divergence git would not count, a remote that moved,
+and a checkout something moved between the count and the read of its own HEAD
+each prove nothing, because pushing over a head nobody reconciled is worse
 than one more park.
 
 `rounds.py` beside this owns the counter every landed fix pays into. It sits there
@@ -94,10 +96,17 @@ def _publishable_dev_fix(
     parks unmeasured, so the accumulated code and the report describing it
     stay in the checkout however many times the resume is retried.
 
-    What the proof refuses -- a dirty tree, a fetch that failed, a remote that
-    moved -- leaves a run that committed pinned to the head it began at, which
-    is the ordinary in-sync reading and the one the gate then refuses on if
-    the pull request has moved at all.
+    What the proof refuses leaves a run that committed pinned to the head it
+    began at, which is the ordinary in-sync reading and the one the gate then
+    refuses on if the pull request has moved at all. A fetch that failed, a
+    divergence git would not count, a remote that moved, and a checkout that
+    moved under the count itself are all answered that way: none of them is
+    evidence against the commit in hand, and the push they produce is leased to
+    a head a remote that really moved rejects rather than being overwritten.
+    The TREE is the refusal that is not about the remote at all, and
+    `_publish_dev_fix` behind this one is where it stops the publication:
+    nothing may be pushed out of a checkout nobody could read, whatever the
+    size gate is set to.
 
     None is every no-publish reading: a checkout that could not name its head
     at all, and one whose head is exactly what the run started on with nothing
@@ -108,9 +117,9 @@ def _publishable_dev_fix(
         after_sha = _verification_probes._head_sha(run.worktree)
     if not after_sha:
         return None
-    published = _stranded._stranded_fix_unpushed(
+    published = _stranded._stranded_evidence(
         spec, run.worktree, state, issue,
-    )
+    ).stranded
     if after_sha == run.before_sha and not published:
         return None
     return _replace(run, after_sha=after_sha, published_head=published)
@@ -150,16 +159,26 @@ def _publish_dev_fix(
     it. It says one commit is still owed a publication, and a record left
     standing past the push that made it would freeze this branch out of the
     pre-tick base refresh with nothing coming back to drop it.
+
+    The tree is proved BEFORE the push and by this owner, in both halves. A
+    status that named paths is the plain refusal -- pushing would publish a
+    branch that omits them -- and a status nobody could take is the same
+    refusal rather than a clean tree: it establishes nothing about what the
+    checkout carries. Left to the gate, only the first is covered on every
+    install: the size gate freezes its entry on the tree, and `DECOMPOSE=off`
+    keeps candidates out of that reading entirely -- so the unreadable half
+    would reach the remote and be answered by the proof taken AFTER the push,
+    which holds the handoff over a commit the pull request already has.
     """
     state.set("silent_park_count", 0)
-    dirty = _worktree_status._worktree_dirty_files(run.worktree)
-    if dirty:
-        _checkout_parks._on_dirty_worktree(
+    tree = _worktree_status._worktree_status(run.worktree)
+    if not tree.is_clean:
+        _checkout_parks._on_unpublishable_tree(
             gh, issue, state,
             _guards._ParkedRun(
                 run.agent_result, _guards._ROUTE_DEV_FIX,
             ),
-            dirty,
+            tree,
         )
         return False
     branch = _naming._resolve_branch_name(state, spec, issue.number)
@@ -234,7 +253,7 @@ def _handle_dev_fix_result(
     on True so the reviewer re-runs against the new head; any stale
     approval state must be reset by the caller before relabeling). A
     no-new-commit run also returns True when it published a stranded fix
-    a prior parked run had committed (see `stranded._stranded_fix_unpushed`).
+    a prior parked run had committed (see `stranded._stranded_evidence`).
     Returns False if the run produced no fix (timeout, no-new-commit, dirty
     tree, or push failure); caller should write state and return.
     A shutdown-killed (interrupted) run also returns False WITHOUT parking,

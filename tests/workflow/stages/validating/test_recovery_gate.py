@@ -19,6 +19,7 @@ gate's own write.
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 
 from tests.workflow.stages.validating import recovered_gate_support as support
 
@@ -48,6 +49,7 @@ PARK_PUSH_FAILED = support.PARK_PUSH_FAILED
 PARK_REASON = support.PARK_REASON
 PAST_THE_CEILING = support.PAST_THE_CEILING
 PRE_DEV_FIX_SHA = support.PRE_DEV_FIX_SHA
+INTERRUPTED_RESUME_HEAD = support.INTERRUPTED_RESUME_HEAD
 PUBLICATION_HEAD = support.PUBLICATION_HEAD
 PUSH_BRANCH = support.PUSH_BRANCH
 RECOVERY_ISSUE = support.RECOVERY_ISSUE
@@ -72,6 +74,45 @@ LABEL_REJECTED = "rejected"
 # The round the fixture parks on, and the one a published recovery moves it to.
 PARKED_ROUND = 1
 SPENT_ROUND = 2
+
+# The run options a case seeds the branch geometry with, and the counts a
+# checkout standing exactly where its publication is answers.
+HEAD_SHAS = "head_shas"
+AHEAD_BEHIND = "branch_ahead_behind"
+FETCHED_TIP = "fetched_branch_tip"
+IN_SYNC = (0, 0)
+ONE_AHEAD = (1, 0)
+# A branch carrying the commit an interrupted resume stranded AND the one the
+# round above it committed before being killed.
+TWO_AHEAD = (2, 0)
+
+# A checkout standing exactly where its publication is: the counts agree and
+# the head reads as the tip they were taken against, which is what says the
+# killed run really did leave nothing behind.
+LEVEL_WITH_THE_PUBLICATION = MappingProxyType({
+    HEAD_SHAS: (PUBLICATION_HEAD,) * 6,
+    AHEAD_BEHIND: IN_SYNC,
+    FETCHED_TIP: PUBLICATION_HEAD,
+})
+
+# The same tick over a branch whose head is a commit an earlier interrupted
+# resume left: the run found it there, so it committed nothing, and the pull
+# request has never carried it.
+STOOD_ON_A_STRANDED = MappingProxyType({
+    AHEAD_BEHIND: ONE_AHEAD, FETCHED_TIP: PUBLICATION_HEAD,
+})
+
+# Every reading that leaves that branch unplaced, named by the shape it stands
+# for. Each is a checkout that MAY be above its publication.
+UNPLACED_BRANCHES = (
+    ("remote moved", {AHEAD_BEHIND: (1, 2)}),
+    ("unreadable divergence", {"branch_divergence_readable": False}),
+    (
+        "fetch failed",
+        {"authed_fetch_result": support.MagicMock(returncode=1, stderr="no")},
+    ),
+    ("checkout moved under the count", {AHEAD_BEHIND: IN_SYNC}),
+)
 
 
 class DeferredPushRecoveryTest(
@@ -273,6 +314,33 @@ class TimedOutFixRecoveryTest(
         self.assertEqual(pushed.kwargs[REVISION], STRANDED_CANDIDATE)
         self.assertEqual(pushed.kwargs[LEASE], PUBLICATION_HEAD)
 
+    def test_a_commit_over_a_stranded_one_is_leased(self) -> None:
+        # The round that timed out opened on a commit an EARLIER interrupted
+        # resume left, so the anchor it stamped is where it found the checkout
+        # and not where the pull request is: the branch stands two commits
+        # above the publication. Read off that anchor, the push would be
+        # leased to a commit the pull request never carried and the gate would
+        # refuse it unmeasured, parking a human over work the branch is
+        # holding. Leased to the tip the reading proved and named for the
+        # commit it froze, the ordinary measurement and push happen instead.
+        scenario = self._seed_timed_out(**{
+            PRE_DEV_FIX_SHA: INTERRUPTED_RESUME_HEAD,
+        })
+
+        mocks = self._recover(
+            scenario, added_lines=UNDER_THE_CEILING, **{AHEAD_BEHIND: TWO_AHEAD},
+        )
+
+        self._assert_measured(mocks)
+        pushed = self._assert_pushed_once(mocks)
+        self.assertEqual(pushed.kwargs[REVISION], STRANDED_CANDIDATE)
+        self.assertEqual(pushed.kwargs[LEASE], PUBLICATION_HEAD)
+        pinned = self._pinned(scenario)
+        self.assertIsNone(pinned[PRE_DEV_FIX_SHA])
+        self.assertEqual(pinned[KEY_RECEIPT_SHA], STRANDED_CANDIDATE)
+        self.assertEqual(pinned[KEY_RECEIPT_LEASE], PUBLICATION_HEAD)
+        self._assert_park_cleared(scenario)
+
     def test_a_published_recovery_closes_the_park(self) -> None:
         # The anchor the park stamped has been answered, so leaving it would
         # let a later tick compare a fresh head against a head from rounds
@@ -289,16 +357,29 @@ class TimedOutFixRecoveryTest(
         self._assert_park_cleared(scenario)
         self._assert_recovery_followup(scenario.github, TIMEOUT_PUSHED_DETAIL)
 
-    def test_an_empty_run_is_never_measured(self) -> None:
-        # The checkout is where the killed run found it, so there is nothing
-        # to publish and nothing to read the size of. The park clears all the
-        # same -- the reviewer is what the issue needs next -- and the
-        # follow-up says which of the two things happened.
-        scenario = self._seed_timed_out(**{
-            PRE_DEV_FIX_SHA: STRANDED_CANDIDATE,
-        })
 
-        mocks = self._recover(scenario)
+class EmptyTimeoutRecoveryTest(
+    unittest.TestCase, support._RecoveredPublicationMixin,
+):
+    """A timeout that left the head where it found it, answered by the BRANCH.
+
+    "The run committed nothing" is a fact about the run, and what the next
+    reviewer reads is the checkout. The head that run found can itself be a
+    commit an earlier interrupted resume left, so the clear is taken off a
+    reading of the branch: level with its publication clears, a commit the
+    pull request has not got is published through the gate, and a reading
+    nobody could take holds the park the timeout already filed.
+    """
+
+    def test_an_empty_run_is_never_measured(self) -> None:
+        # The checkout is where the killed run found it AND where its pull
+        # request is, so there is nothing to publish and nothing to read the
+        # size of. The park clears all the same -- the reviewer is what the
+        # issue needs next -- and the follow-up says which of the two things
+        # happened.
+        scenario = self._seed_timed_out()
+
+        mocks = self._recover(scenario, **LEVEL_WITH_THE_PUBLICATION)
 
         self._assert_unmeasured(mocks)
         mocks[PUSH_BRANCH].assert_not_called()
@@ -308,11 +389,68 @@ class TimedOutFixRecoveryTest(
         self._assert_park_cleared(scenario)
         self._assert_recovery_followup(scenario.github, TIMEOUT_EMPTY_DETAIL)
 
+    def test_an_empty_run_publishes_what_it_stood_on(self) -> None:
+        # The killed run left the head where it found it, and the head it
+        # found is a commit an EARLIER interrupted resume left: the branch is
+        # one ahead of its publication and nothing on the comment knows. The
+        # clear is taken off the BRANCH rather than off the run, so that commit
+        # is work to publish and goes out through the ordinary measurement --
+        # read off the run alone it would send the next reviewer to a checkout
+        # the pull request is short of, with no receipt and no gate debt to
+        # stop it. What the healed park then tells the thread is the
+        # publication and not whose commit it was: this run made none, so a
+        # sentence crediting it would be describing work it never did.
+        scenario = self._seed_timed_out(**{
+            PRE_DEV_FIX_SHA: STRANDED_CANDIDATE,
+        })
+
+        mocks = self._recover(
+            scenario, added_lines=UNDER_THE_CEILING, **STOOD_ON_A_STRANDED,
+        )
+
+        mocks[RUN_AGENT].assert_not_called()
+        self._assert_measured(mocks)
+        pushed = self._assert_pushed_once(mocks)
+        self.assertEqual(pushed.kwargs[REVISION], STRANDED_CANDIDATE)
+        self.assertEqual(pushed.kwargs[LEASE], PUBLICATION_HEAD)
+        pinned = self._pinned(scenario)
+        self.assertIsNone(pinned[PRE_DEV_FIX_SHA])
+        self.assertEqual(pinned[REVIEW_ROUND], SPENT_ROUND)
+        self._assert_park_cleared(scenario)
+        self._assert_recovery_followup(scenario.github, TIMEOUT_PUSHED_DETAIL)
+
+    def test_an_unplaced_branch_holds_the_park(self) -> None:
+        # Every reading the probe cannot take answers "the run left nothing"
+        # exactly as an empty branch does, and each of them may be a checkout
+        # carrying a commit the pull request has not got. Cleared on one, the
+        # reviewer runs next over a head nobody read -- so the park the
+        # timeout already told a human about stands instead, with nothing
+        # measured, nothing pushed, and the anchor kept for the tick that can
+        # read the branch.
+        for shape, run_options in UNPLACED_BRANCHES:
+            with self.subTest(shape=shape):
+                scenario = self._seed_timed_out(**{
+                    PRE_DEV_FIX_SHA: STRANDED_CANDIDATE,
+                })
+
+                mocks = self._recover(scenario, **run_options)
+
+                mocks[RUN_AGENT].assert_not_called()
+                self._assert_unmeasured(mocks)
+                mocks[PUSH_BRANCH].assert_not_called()
+                self.assertEqual(
+                    self._pinned(scenario)[PRE_DEV_FIX_SHA],
+                    STRANDED_CANDIDATE,
+                )
+                self._assert_park_stands(scenario, PARK_AGENT_TIMEOUT)
+
     def test_a_moved_pull_request_refuses(self) -> None:
-        # The head the killed run began at is the head its pull request was
-        # standing on, and naming it is what makes somebody else's push refuse
-        # rather than be adopted as the lease. The two readings disagree, so
-        # nothing is measured, nothing is pushed, and the park stands.
+        # The push is leased to the tip the branch reading proved the
+        # publication to be standing on, and the gate reads that publication
+        # again for itself. The two disagree -- somebody moved the pull request
+        # -- so naming the head is what makes their push refuse rather than be
+        # adopted as the lease: nothing is measured, nothing is pushed, and the
+        # park stands.
         scenario = self._seed_timed_out()
         scenario.github.get_pr(RECOVERY_PR).head.sha = MOVED_HEAD
 

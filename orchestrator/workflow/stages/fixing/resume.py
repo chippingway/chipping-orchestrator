@@ -262,16 +262,24 @@ def _fixing_ack_fast_path(
     in `fixing`, so an ack returns to `in_review` (re-arming the ready-ping)
     instead of parking.
 
-    The fast path stands down on the stranded-fix shape: the ack vouches for
-    the *feedback*, not for the publish state, so when the clean HEAD is
-    strictly ahead of the remote PR branch (a fix a prior parked run committed
-    but never pushed -- e.g. a dirty-park whose stray files were later cleaned
-    up) relabeling to `in_review` here would clear the bookmarks and present a
-    PR head that is still missing the committed fix.
+    The fast path stands down on anything short of a branch PROVED to be
+    carrying nothing unpublished: the ack vouches for the *feedback*, not for
+    the publish state, and what this road does with it -- clear the bookmarks,
+    advance the readers, hand the pull request back as needing nothing -- is a
+    claim about the branch that the ack never made. A clean HEAD strictly
+    ahead of the remote PR branch is the shape that names itself (a fix a prior
+    parked run committed but never pushed -- e.g. a dirty-park whose stray
+    files were later cleaned up), and every refusal beside it is the same risk
+    with nothing proved either way: a tree nobody could read, a tree holding
+    loose work, a fetch that failed, a divergence git would not count, a
+    remote that moved past this checkout, and a checkout something moved while
+    it was being read. Read as an empty branch, each of them
+    presents a pull request as complete while the commit that completes it sits
+    in the worktree.
     Falling through lets the disposition publish the stranded HEAD through its
-    normal push tail and the pushed-fix exit route the freshened head back to
-    the reviewer. That probe is reached only on a head that READ, since an
-    unread one has already declined above.
+    normal push tail -- and, where nothing could be proved at all, park on the
+    question rather than answer it. That probe is reached only on a head that
+    READ, since an unread one has already declined above.
 
     The consumed batch is recorded by the caller ahead of this call, on the ack
     and the fall-through alike: the reading that says the feedback needs no
@@ -284,9 +292,9 @@ def _fixing_ack_fast_path(
     if not run.after_sha or run.after_sha != run.before_sha:
         return False
     ack_reason = _messages._drift_ack_reason(run.dev_result.last_message or "")
-    if not ack_reason or _stranded._stranded_fix_unpushed(
+    if not ack_reason or not _stranded._stranded_evidence(
         ctx.spec, run.worktree, ctx.state, ctx.issue,
-    ):
+    ).settled:
         return False
     _bookmarks._clear_pending_fix_bookmarks(ctx.state)
     quoted = _messages._as_blockquote(ack_reason)

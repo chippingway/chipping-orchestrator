@@ -614,10 +614,12 @@ orchestrator/
                         request at all owes nothing, and nothing is stripped on the way to a rewrite that is never
                         made. Pure functions reading no git, GitHub, or configuration
       probes.py         the two branch-geometry reads, and nothing about what a commit SAYS -- `titles` beside it owns
-                        that. One is the divergence reading -- the fetched ref resolved ONCE and HEAD counted against
-                        that immutable commit, since the counts are a claim about the tip and a ref something moves
-                        between two readings would leave a branch proved against one head and its push pinned to
-                        another. A reading that did not happen says so (`readable`) rather than answering `(0, 0)`,
+                        that. One is the divergence reading -- the fetched ref resolved ONCE and the local end counted
+                        against that immutable commit, since the counts are a claim about the tip and a ref something
+                        moves between two readings would leave a branch proved against one head and its push pinned to
+                        another. That local end is the checkout's symbolic `HEAD` unless the caller names a commit,
+                        which a caller whose next step is a PUBLICATION does: `HEAD` is re-resolved by every command
+                        that reads it, so counting against it and naming a commit afterwards can describe two. A reading that did not happen says so (`readable`) rather than answering `(0, 0)`,
                         which is what an in-sync branch answers and what every caller acting on it would rebase, spawn
                         over, and force-push on. The other is the FORK POINT one revision left the base at, which is
                         the commit a three-dot contribution resolves to and therefore the base a fingerprint is taken

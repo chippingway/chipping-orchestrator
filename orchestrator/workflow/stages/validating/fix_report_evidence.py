@@ -93,7 +93,7 @@ def _proves_the_published_head(
     receipt, which is persistent and on a tick that pushed nothing names an
     older round's commit.
     """
-    head = _stranded._published_head_in_sync(spec, worktree, state, issue)
+    head = _stranded._stranded_evidence(spec, worktree, state, issue).in_sync
     if not head:
         return False
     published = _late_publication_state._published_pull_request(state)

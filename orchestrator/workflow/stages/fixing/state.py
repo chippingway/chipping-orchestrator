@@ -35,6 +35,20 @@ _REVIEW_ROUND = "review_round"
 
 _CONFLICT_ROUND = "conflict_round"
 
+# What the no-feedback bounce files its own refusal under: not a fix that
+# failed but a branch nothing could place against its pull request, so the
+# relabel that would hand a reviewer that head is held. Durable, because it is
+# the only thing that tells a later tick whose park it is standing over, and
+# the one park on this stage waiting on a READING rather than on a person:
+# `parked.py` reads it to send a quiet poll back to that bounce with the flags
+# untouched, so the reading is taken again and the hand-back retires the park
+# in the write that relabels. It is none of the validating transient reasons
+# all the same -- those name a session or a reviewer run and dispatch to a
+# recovery that would publish against a record this park has none of. A reply
+# still resumes the developer, whose disposition publishes whatever the
+# checkout turns out to be carrying.
+_REASON_UNPROVED_BRANCH = "stranded_unproved"
+
 # The mark a fixing report transaction's own settlement leaves behind, and the
 # whole of the evidence the tick behind it acts on. That settlement applies this
 # route's bookkeeping and cannot move a label, so the round is over with the

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import unittest
 from types import MappingProxyType
+from unittest.mock import MagicMock
 
 from orchestrator import config
 from orchestrator.git.measurement.models import FrozenCommit
@@ -88,6 +89,48 @@ STRANDED_RETRY = MappingProxyType({
     "branch_ahead_behind": (1, 0),
     "fetched_branch_tip": world.PUBLISHED_HEAD,
 })
+
+# The counts a checkout standing exactly where its remote is answers with.
+IN_SYNC = (0, 0)
+
+# The same tick over a branch the probe could not place at all, one shape per
+# reading that can refuse. Each leaves the clear with no evidence that the
+# branch is carrying nothing the pull request has not got.
+UNPROVED_RETRIES = (
+    (
+        "remote moved",
+        {
+            world.HEAD_SHAS: (world.FIXED_HEAD,),
+            world.AHEAD_BEHIND: (0, 2),
+            world.FETCHED_TIP: world.PUBLISHED_HEAD,
+        },
+    ),
+    (
+        "unreadable divergence",
+        {
+            world.HEAD_SHAS: (world.FIXED_HEAD,),
+            "branch_divergence_readable": False,
+        },
+    ),
+    (
+        "fetch failed",
+        {
+            world.HEAD_SHAS: (world.FIXED_HEAD,),
+            "authed_fetch_result": MagicMock(returncode=1, stderr="boom"),
+        },
+    ),
+    # The counts said the checkout and its remote agree and the checkout was
+    # somewhere else by the time its own head was read: the ground moved
+    # between two commands, so neither answer is one the clear may act on.
+    (
+        "checkout moved under the count",
+        {
+            world.HEAD_SHAS: (world.FIXED_HEAD,),
+            world.AHEAD_BEHIND: IN_SYNC,
+            world.FETCHED_TIP: world.PUBLISHED_HEAD,
+        },
+    ),
+)
 
 AGENT_TIMEOUT = "agent_timeout"
 
@@ -490,8 +533,8 @@ class DriftReportRecoveryTest(unittest.TestCase, world._DriftReportMixin):
     A resume can commit and be interrupted before anything at all is written,
     so the pinned comment knows nothing of what it left. The retry behind it
     reads the head exactly where that resume put it, and "this run committed
-    nothing" -- the whole of what the clear used to ask -- is true while the
-    branch still carries work the pull request has not got.
+    nothing" -- a fact about the run alone -- is true while the branch still
+    carries work the pull request has not got.
     """
 
     def test_a_clear_reads_the_branch_it_leaves(self) -> None:
@@ -518,3 +561,34 @@ class DriftReportRecoveryTest(unittest.TestCase, world._DriftReportMixin):
         self.assertTrue(self.pinned()[OPEN_DRIFT])
         self.assertEqual(self.pull_request.head.sha, world.PUBLISHED_HEAD)
         self.drift(REVIEW_REPLY, **STRANDED_RETRY)[RUN_AGENT].assert_not_called()
+
+    def test_a_refused_reading_holds_the_park(self) -> None:
+        # The branch is placed by a reading, and a reading that did not happen
+        # answers "nothing stranded" exactly as an empty branch does. Cleared
+        # on one, the edit's obligation is retired on evidence nobody has --
+        # so each refusal leaves the park, its drift claim, and the pull
+        # request exactly where the timeout left them, and spawns nobody.
+        for shape, run_options in UNPROVED_RETRIES:
+            with self.subTest(shape=shape):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.drift(
+                    _agent(session_id=world.DEV_SESSION, interrupted=True),
+                )
+                self.drift(
+                    _agent(session_id=world.DEV_SESSION, timed_out=True),
+                    head_shas=(world.FIXED_HEAD, world.FIXED_HEAD),
+                )
+
+                retried = self.drift(REVIEW_REPLY, **run_options)
+
+                retried[RUN_AGENT].assert_not_called()
+                retried[PUSH_BRANCH].assert_not_called()
+                self.assertEqual(
+                    (self.pinned()[AWAITING_HUMAN],
+                     self.pinned()[PARK_REASON],
+                     self.pinned()[OPEN_DRIFT]),
+                    (True, AGENT_TIMEOUT, True),
+                )
+                self.assertEqual(
+                    self.pull_request.head.sha, world.PUBLISHED_HEAD,
+                )

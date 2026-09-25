@@ -2,11 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """Every reading the gate could not take, which costs the push and not the work.
 
-A tree that is not provably clean, a pull request whose state or head nothing
-could read, one that is closed or merged, a count that never happened, a head
-that moved off what a live record froze, and a frozen publication that is not
-the one this tick reads. Each parks with nothing pushed and no label moved,
-rather than reporting a number nobody took.
+A pull request whose state or head nothing could read, one that is closed or
+merged, a count that never happened, a head that moved off what a live record
+froze, and a frozen publication that is not the one this tick reads. Each parks
+with nothing pushed and no label moved, rather than reporting a number nobody
+took.
+
+A tree that is not provably clean never reaches the gate from this road: the
+publication proves the checkout for itself before it pushes, so the refusal is
+that road's own park and stands whatever the size gate is set to. The case
+below holds it on both settings, because the gate is the only tree proof the
+switch can take away.
 """
 from __future__ import annotations
 
@@ -53,6 +59,17 @@ config = fixing.config
 patch = fixing.patch
 
 _HELD = (ISSUE, LABEL_DECOMPOSING)
+# What a publication road that could not read its checkout reports its park
+# under, which is its own rather than the gate's: the tree is proved before the
+# push, so the refusal happens with the gate never asked. The pinned
+# `park_reason` stays None on it, exactly as the dirty-tree refusal beside it
+# leaves one, so no silent retry runs over a wait a human owns.
+PARK_UNREADABLE_WORKTREE = "unreadable_worktree"
+PARK_EVENT = "park_awaiting_human"
+# The clause that notice is recognized by, worded by the checkout-park owner.
+UNREADABLE_NOTICE = "could not be read"
+# The switch that decides whether candidates are measured at all.
+DECOMPOSE = "DECOMPOSE"
 # The two keywords a gated push names its commit and pins its ref by.
 REVISION = "revision"
 LEASE = "force_with_lease"
@@ -92,14 +109,39 @@ class GateRefusalTest(unittest.TestCase, _SizeGateFixtureMixin):
     """Every reading the gate could not take costs the push, not the work."""
 
     def test_an_unreadable_tree_refuses_the_push(self) -> None:
-        # A `git status` that established nothing names no paths, which is
-        # what a clean tree names too -- so the diff a push would publish is
-        # not the diff anything here could have measured.
-        scenario = self._seed_fix_round()
+        # A `git status` that established nothing names no paths, which is what
+        # a clean tree names too -- so what a push would publish is not what
+        # anything here could have read. The publication road refuses it ahead
+        # of the gate and on both settings of it: the gate's own tree proof
+        # rides the entry it freezes, and `DECOMPOSE=off` keeps candidates out
+        # of that reading, so left to it the unreadable half would reach the
+        # remote on exactly the installs that measure nothing.
+        for measured in (True, False):
+            with self.subTest(decompose=measured):
+                scenario = self._seed_fix_round()
 
-        mocks = self._run_fix_round(scenario, tree_readable=False)
+                with patch.object(config, DECOMPOSE, measured):
+                    mocks = self._run_fix_round(
+                        scenario, tree_readable=False,
+                    )
 
-        self._assert_refused(scenario, mocks)
+                self._assert_held(scenario, mocks)
+                mocks[COUNT_ADDED_LINES].assert_not_called()
+                self.assertTrue(
+                    self._pinned(scenario)[fixing.AWAITING_HUMAN],
+                )
+                self.assertIn(
+                    UNREADABLE_NOTICE,
+                    scenario.github.posted_comments[-1][1],
+                )
+                self.assertEqual(
+                    [
+                        event.get("reason")
+                        for event in scenario.github.recorded_events
+                        if event.get("event") == PARK_EVENT
+                    ],
+                    [PARK_UNREADABLE_WORKTREE],
+                )
 
     def test_a_pull_request_closed_mid_run_refuses(self) -> None:
         # The preflight drains a closed pull request before anything runs, so

@@ -16,6 +16,11 @@ from pathlib import Path
 from orchestrator.config import models as _config_models
 from orchestrator.git import commands
 
+# What a count names when the caller froze nothing: the checkout's own head,
+# re-resolved by every command that reads it. Good enough for a caller only
+# asking how stale a checkout is, and never enough for one about to publish.
+_CHECKOUT_HEAD = "HEAD"
+
 
 @dataclass(frozen=True)
 class _BranchDivergence:
@@ -46,17 +51,28 @@ class _BranchDivergence:
 
     @classmethod
     def taken(
-        cls, spec: _config_models.RepoSpec, worktree: Path, branch: str,
+        cls,
+        spec: _config_models.RepoSpec,
+        worktree: Path,
+        branch: str,
+        revision: str = _CHECKOUT_HEAD,
     ) -> _BranchDivergence:
-        """Resolve `<remote>/<branch>` once, then count HEAD against it.
+        """Resolve `<remote>/<branch>` once, then count `revision` against it.
 
         The caller must have fetched that ref immediately before calling, so
         what is resolved here is the tip the remote had a moment ago.
+
+        `revision` defaults to the checkout's own symbolic `HEAD`, which is
+        what a caller that only asks how far behind the branch is wants. A
+        caller whose next step is a PUBLICATION names an immutable id instead:
+        `HEAD` is re-resolved by every command that reads it, so a commit
+        landing mid-probe leaves the counts describing one commit while
+        everything taken afterwards describes another.
         """
         tip = cls._resolved_tip(spec, worktree, branch)
         if not tip:
             return cls()
-        return cls._counted_against(worktree, tip)
+        return cls._counted_against(worktree, tip, revision)
 
     @classmethod
     def _resolved_tip(
@@ -78,15 +94,16 @@ class _BranchDivergence:
 
     @classmethod
     def _counted_against(
-        cls, worktree: Path, tip: str,
+        cls, worktree: Path, tip: str, revision: str,
     ) -> _BranchDivergence:
-        """HEAD's distance from one immutable commit, or an unreadable one.
+        """`revision`'s distance from one immutable commit, or an unreadable one.
 
-        `ahead` is what HEAD has and the tip does not -- unpushed local work.
-        `behind` is what the tip has and HEAD does not -- a stale checkout.
+        `ahead` is what `revision` has and the tip does not -- unpushed local
+        work. `behind` is what the tip has and it does not -- a stale checkout.
         """
         counted = commands._git_hardened(
-            "rev-list", "--left-right", "--count", f"{tip}...HEAD",
+            "rev-list", "--left-right", "--count",
+            f"{tip}...{revision}", "--",
             cwd=worktree,
         )
         if counted.returncode != 0:
@@ -99,21 +116,26 @@ class _BranchDivergence:
         except ValueError:
             return cls()
         # `rev-list --left-right` reports the left side first, which is the
-        # tip: what it has and HEAD does not is `behind`.
+        # tip: what it has and the revision does not is `behind`.
         return cls(
             tip=tip, ahead=distance[1], behind=distance[0], readable=True,
         )
 
 
 def _branch_divergence(
-    spec: _config_models.RepoSpec, worktree: Path, branch: str
+    spec: _config_models.RepoSpec,
+    worktree: Path,
+    branch: str,
+    revision: str = _CHECKOUT_HEAD,
 ) -> _BranchDivergence:
-    """How far HEAD stands from the freshly-fetched `<remote>/<branch>` tip.
+    """How far `revision` stands from the freshly-fetched `<remote>/<branch>` tip.
 
     The seam every caller reaches this reading through, so a test names one
-    owner and the record above keeps the reasoning.
+    owner and the record above keeps the reasoning. `revision` is the
+    checkout's own `HEAD` unless a caller froze a commit to be counted, which
+    is what a caller whose next step is a push has to do.
     """
-    return _BranchDivergence.taken(spec, worktree, branch)
+    return _BranchDivergence.taken(spec, worktree, branch, revision)
 
 
 def _fork_point(spec: _config_models.RepoSpec, worktree: Path, revision: str) -> str:

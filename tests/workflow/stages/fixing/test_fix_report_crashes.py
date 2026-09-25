@@ -28,7 +28,6 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.workflow import (
     drift_reports as _drift_world,
     fix_report_crashes as crashes,
@@ -62,6 +61,10 @@ DELIVERED = "delivered"
 # The reviewer-feedback comment the direct round bookmarks as its lone replay
 # anchor, which a handover nothing confirmed may not drop.
 REVIEWER_COMMENT_ID = 1_002
+
+# What a branch nothing could place against its pull request is held under: the
+# park that waits for a READING, which the next quiet poll takes again.
+PARK_UNPROVED_BRANCH = "stranded_unproved"
 
 # A ceiling one line below what the crashed round committed, for the recovery
 # whose candidate the gate refuses to publish as one change.
@@ -152,17 +155,22 @@ class CrashedFixRoundTest(unittest.TestCase, world._FixReportMixin):
         )
 
 
-    def test_a_crash_over_a_lost_checkout_holds(self) -> None:
+    def test_a_crash_over_a_lost_checkout_retries(self) -> None:
         # The same window with the branch unprovable under it. The checkout
         # names a head the pull request is not standing on, so the binding
         # refuses; and nothing is stranded that anything could prove, which is
         # the answer that probe also gives a fetch that failed and a divergence
         # git would not count -- so no road here republishes the commit either.
-        # Every road having declined, the wait is announced rather than held in
-        # silence: nothing pushed, nothing published, the record intact, the
-        # debt standing, and a human asked. The reply the notice earns is what
-        # resumes a developer -- no poll does it on its own, because the
-        # record's own pairs say this batch has already been answered.
+        # The wait is announced rather than held in silence: nothing pushed,
+        # nothing published, the record intact and the debt standing.
+        #
+        # Held under the READING it is waiting for rather than as a report
+        # nothing can move, because the two ask opposite things of the next
+        # poll. The report is owed a publication and the refusal is the whole
+        # reason there is none, so the poll that takes the reading again
+        # publishes the commit, binds the same report to it, and hands the
+        # round back over the park -- where a report park would have waited
+        # for a human no condition clearing could answer.
         for refusal, lost in _LOST_CHECKOUTS:
             with self.subTest(checkout=refusal):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)
@@ -176,14 +184,18 @@ class CrashedFixRoundTest(unittest.TestCase, world._FixReportMixin):
                     world.reported(), **{**_drift_world.STRANDED, **lost},
                 )
 
-                held[PUSH_BRANCH].assert_not_called()
-                held[RUN_AGENT].assert_not_called()
                 self.assertEqual(
-                    (self.pull_request.head.sha, len(self.published_reports()),
-                     self.pinned()[PARK_REASON],
-                     self.records()[DELIVERED] is None),
-                    (world.PUBLISHED_HEAD, 0,
-                     _report_delivery.UNDELIVERABLE_REPORT, False),
+                    _held_over_the_reading(self, held),
+                    (world.PUBLISHED_HEAD, 0, PARK_UNPROVED_BRANCH, False),
+                )
+
+                retried = self.parked_resume(
+                    world.reported(), **_drift_world.STRANDED,
+                )
+
+                self.assertEqual(
+                    _finished_by_the_retry(self, retried),
+                    (1, (1, False), (ISSUE, LABEL_VALIDATING)),
                 )
 
 
@@ -245,6 +257,39 @@ class CrashedFixRoundTest(unittest.TestCase, world._FixReportMixin):
              self.pinned().get(REVIEWER_ANCHOR)),
             (1, 1, answered, None),
         )
+
+
+def _held_over_the_reading(case, mocks) -> tuple:
+    """What a tick that could not place the branch left the issue holding.
+
+    The pull request where it was, no report on it, the park that waits for a
+    reading, and the record still there for the poll that takes one -- with no
+    push and no developer paid for in between.
+    """
+    mocks[PUSH_BRANCH].assert_not_called()
+    mocks[RUN_AGENT].assert_not_called()
+    return (
+        case.pull_request.head.sha,
+        len(case.published_reports()),
+        case.pinned()[PARK_REASON],
+        case.records()[DELIVERED] is None,
+    )
+
+
+def _finished_by_the_retry(case, mocks) -> tuple:
+    """What the poll that finally took that reading finished, in one push.
+
+    One report on the pull request, the round handed back with nobody waiting,
+    and the label moved -- off the same record the held tick left, and with no
+    second developer run behind it.
+    """
+    mocks[RUN_AGENT].assert_not_called()
+    mocks[PUSH_BRANCH].assert_called_once()
+    return (
+        len(case.published_reports()),
+        _handover(case),
+        case.github.label_history[-1],
+    )
 
 
 def _handover(case) -> tuple:

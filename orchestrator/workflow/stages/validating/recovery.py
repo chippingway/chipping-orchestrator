@@ -25,16 +25,27 @@ A timeout that committed NOTHING is the same question asked of the branch
 rather than of the run: an earlier resume can have committed and been
 interrupted before anything was written, so the retry finds the head exactly
 where it left it while the branch still carries work the pull request has not
-got. Clearing there would take the edit's obligation with the park, so the
-park stands as `stuck` and the human the timeout already asked is who answers
-it.
+got. So the branch is PLACED before anything clears, on every road rather than
+on the drift one alone -- a reading that refused is no evidence the branch is
+where the pull request is, and cleared on one the reviewer runs over a
+checkout nothing accounted for. A commit found that way is published through
+the gate like any other, except on the drift road, where it is also work no
+report describes: there the park stands and the human the timeout already
+asked is who answers it. That hold and every refusal beside it answer
+`unsettled` rather than `stuck`, which is what keeps the branch reading out of
+the worktree-drift reroute a stuck retry earns: the reading IS what is in
+question, and a relabel taken over one clears the park and hands the checkout
+to a road that stages no debt for the head it publishes.
 
 `push_failed` and `agent_timeout` are the two that actually touch git;
 the reviewer-side reasons clear on sight, because there is no dev work to
-finish, only a reviewer to re-spawn. Every probe fails closed to `"stuck"` --
-a missing worktree, a dirty tree, an unreadable `pre_dev_fix_sha`, a push that
-fails again -- since leaving the park standing costs a poll and publishing
-blind costs the PR.
+finish, only a reviewer to re-spawn. Every probe fails closed -- a missing
+worktree, a dirty tree, an unreadable `pre_dev_fix_sha`, a push that fails
+again -- since leaving the park standing costs a poll and publishing blind
+costs the PR. WHICH word it fails closed with says what else may act on the
+park: `"stuck"` is a condition the drift reroute behind this one may still
+reinterpret as a base advance, and `"unsettled"` is the branch reading
+refusing, which nothing may.
 
 `_recovery_followup_comment` is the one sentence a healed park owes the thread,
 and it is decided here because the pair it is keyed by -- the reason parked and
@@ -92,14 +103,23 @@ _LAST_ACTION_COMMENT_ID = "last_action_comment_id"
 # Keyed by both because the same word means different work depending on what
 # parked: a `pushed` that finishes a `push_failed` is the retry the operator
 # was pinged about, while a `pushed` that finishes an `agent_timeout` is a
-# commit the killed run had already made.
+# commit nothing had published yet reaching the pull request.
+#
+# Both timeout clauses are about the BRANCH rather than about the run, because
+# one word covers two histories on each: the killed run may have committed
+# before it died, or it may have committed nothing and been standing on a
+# commit an earlier interrupted resume left. What healed is the same event
+# either way -- a commit reaching the publication, or the branch proving it
+# carries none the publication has not got -- and the branch is the only
+# witness left to which run made it, so a sentence crediting the timed-out run
+# would be a guess on half of them.
 _RECOVERY_DETAILS = MappingProxyType({
     (_state._REASON_PUSH_FAILED, _state._OUTCOME_PUSHED):
         "the failed push was retried and succeeded",
     (_state._REASON_AGENT_TIMEOUT, _state._OUTCOME_PUSHED):
-        "the commit the timed-out run had already made was pushed",
+        "a commit the branch was carrying unpublished was pushed",
     (_state._REASON_AGENT_TIMEOUT, _state._OUTCOME_CLEARED):
-        "the timed-out run had left nothing to publish",
+        "the branch was carrying nothing the pull request had not got",
     (_state._REASON_REVIEWER_TIMEOUT, _state._OUTCOME_CLEARED):
         "the reviewer is being re-spawned",
     (_state._REASON_REVIEWER_FAILED, _state._OUTCOME_CLEARED):
@@ -152,6 +172,12 @@ def _recover_timed_out_fix(
     request by an unadjudicated diff -- the exact publication the gate exists
     to stop -- so the reading happens before the push, with no developer
     having run on this tick.
+
+    `pre_dev_fix_sha` is read for ONE thing here: whether the killed run
+    committed at all. It is the head that run began at, which is where the
+    round found the checkout rather than where the pull request is -- an
+    earlier interrupted resume can have left a commit under it -- so it says
+    nothing about the publication, and the branch is what says that.
     """
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if (
@@ -163,69 +189,87 @@ def _recover_timed_out_fix(
     if not isinstance(before_sha, str):
         return _state._OUTCOME_STUCK
     current_sha = _verification_probes._head_sha(worktree)
-    if not current_sha or current_sha == before_sha:
-        if _clears_over_stranded_work(spec, issue, state, worktree):
-            return _state._OUTCOME_STUCK
+    return _answers_the_branch_the_run_left(
+        _late_records._gate(gh, spec, issue, state, worktree),
+        committed=bool(current_sha) and current_sha != before_sha,
+    )
+
+
+def _answers_the_branch_the_run_left(
+    gate: _late_gate_models._Gate, *, committed: bool,
+) -> str:
+    """Answer a timed-out round from the BRANCH, not from the run.
+
+    What the run did is a fact about the run, and the checkout is what the next
+    reviewer reads. The two come apart in both directions. A run that left the
+    head where it found it can be standing on a commit an EARLIER resume left
+    -- interrupted before anything was written, so nothing on the pinned
+    comment knows it exists -- and a run that DID commit can be standing on
+    its own commit above that same one, with the pull request two commits
+    below. Answered from the run alone, the first clears a park over work the
+    pull request has not got, and the second names the head the round opened
+    at as the publication it is replacing -- a commit the pull request may
+    never have carried, which the gate refuses on and parks a human over.
+
+    So the branch is placed instead, and the finding decides:
+
+      * PROVED carrying nothing unpublished -- the ordinary answer -- clears
+        the park, which is what the retry was for.
+      * PROVED carrying a commit the pull request has not got is work to
+        publish, and it goes out through the same size gate every other seam
+        onto an open pull request passes, named by the commit the reading
+        froze and leased to the remote tip it counted that commit against.
+        Both ends come off the reading for the same reason: they are the two
+        halves of one push, and each read anywhere else is a claim about a
+        world this tick did not see.
+      * Anything else is a reading nobody took -- a tree nobody could read, a
+        tree holding loose work, a fetch that failed, a divergence git would
+        not count, a remote that moved, a checkout something moved mid-reading
+        -- and holds. The cost of being wrong here is one more poll against a
+        human the timeout has already asked; the cost the other way is a
+        reviewer sent to a head nothing on the pull request carries.
+
+    `committed` decides one thing, and only on the requirements-drift road,
+    where an unpublished commit is also work no report describes. Where the
+    killed run MADE it, refusing to publish is the disposition's answer rather
+    than this one's -- nothing here can ask a session that is gone, and a park
+    whose whole purpose is to clear without a human would strand the work --
+    so the debt is staged into the write the push itself makes and the review
+    hold behind it asks a human for the report. Where the run committed
+    nothing, the commit belongs to a resume that already ended: the edit's
+    obligation would go with the park, so the park stands and the reply it
+    already asked for is what resumes the road that reports and publishes.
+
+    Both holds answer `unsettled`, and that is the whole difference between
+    them and a transient condition that merely has not cleared: what stands
+    here is the branch reading, so the drift reroute a `stuck` retry falls
+    through to may not reinterpret it as a base advance, clear the park, and
+    publish the checkout through a road that stages no report debt for it.
+
+    The gate subject is built by the caller and handed over whole, because the
+    reading below and the publication behind it have to be taken in the same
+    checkout of the same issue: two of them spelled a step apart is how one
+    ends up placing one worktree and pushing out of another.
+    """
+    state = gate.state
+    evidence = _stranded._stranded_evidence(
+        gate.spec, gate.worktree, state, gate.issue,
+    )
+    if evidence.settled:
         state.set(_state._PRE_DEV_FIX_SHA, None)
         return _state._OUTCOME_CLEARED
+    if not evidence.stranded:
+        return _state._OUTCOME_UNSETTLED
     if state.get(_state._OPEN_DRIFT):
-        # The commit this retry is finishing answers a requirements edit, and
-        # the run that made it was killed before it could report. Refusing to
-        # publish is the disposition's answer, not this one's: nothing here
-        # can ask a session that is gone, and a park whose whole purpose is
-        # to clear without a human would strand the work behind it. So the
-        # debt is staged into the write the push itself makes, and the review
-        # hold behind it asks a human for the report before any reviewer
-        # reads the head this leaves.
+        if not committed:
+            return _state._OUTCOME_UNSETTLED
         _drift_reports._owes_the_undescribed(state)
-    recovered = _publish_recovered_fix(
-        # The commit this recovery read and is publishing AS the timed-out
-        # run's. The gate proves the checkout again, and something landing
-        # between the two reads would otherwise be measured, pushed, and
-        # receipted here as the work that run left behind.
-        _late_records._gate(gh, spec, issue, state, worktree), current_sha,
-        # The head the killed run began at, which is the head its pull request
-        # was standing on: the branch is in sync with its publication when a
-        # fix round opens. Named, a pull request somebody pushed to while that
-        # run was out refuses this push rather than being overwritten by work
-        # built on the head it used to be on.
-        before_sha,
+    published = _publish_recovered_fix(
+        gate, evidence.candidate, evidence.stranded,
     )
-    if recovered == _state._OUTCOME_PUSHED:
+    if published == _state._OUTCOME_PUSHED:
         state.set(_state._PRE_DEV_FIX_SHA, None)
-    return recovered
-
-
-def _clears_over_stranded_work(
-    spec: _config_models.RepoSpec,
-    issue: Issue,
-    state: PinnedState,
-    worktree,
-) -> bool:
-    """Whether clearing this drift park would leave unpublished work behind.
-
-    "The run timed out without committing" is all the clear above ever asks,
-    and it is not the whole question. The branch that run stood on can carry a
-    commit an EARLIER one left -- interrupted before anything was written, so
-    nothing on the pinned comment knows it exists -- and on the drift road
-    that commit is work the pull request has not got and no report describes.
-    Cleared over it, the edit's obligation goes with the park and the reviewer
-    runs over a branch the pull request is short of, with no account of that
-    commit anywhere.
-
-    So the park stands instead, which is what `stuck` leaves: the timeout's
-    own notice already asked a human, and the reply it gets resumes the drift
-    road, where the report that reply writes is what publishes the commit.
-
-    Asked only where the park came off that road, since only there is a report
-    owed at all -- and answered only by a checkout git actually proved ahead.
-    The probe fails closed on a dirty tree, a failed fetch, and a remote that
-    moved, and clearing is the right answer for every one of those: none of
-    them is work this issue can publish now.
-    """
-    if not state.get(_state._OPEN_DRIFT):
-        return False
-    return bool(_stranded._stranded_fix_unpushed(spec, worktree, state, issue))
+    return published
 
 
 def _publish_recovered_fix(
@@ -240,25 +284,28 @@ def _publish_recovered_fix(
     taken as a reconciliation -- a head that is not the commit the record
     names is a checkout something moved, not a run's output.
 
-    `entered_head` is the head the publication was standing on before the
-    work being published was made, where the caller can name one. The timed-out
-    recovery can: the run it is finishing began on a branch in sync with its
-    pull request, and the anchor it left behind is that head -- so a pull
-    request somebody pushed to while that run was out refuses this push
-    instead of being overwritten by a commit built on the head it used to be
-    on. The failed-push recovery names none, and needs none: its commit was
-    already measured against a publication whose head the approval records,
-    and that recorded head is what its push is pinned to.
+    `entered_head` is the head the publication is standing on, which is what
+    this push replaces, where the caller can name one. The timed-out recovery
+    can, and it is the remote tip its own branch reading counted against --
+    read rather than inferred, because the head the round OPENED at is where
+    that round found the checkout and not necessarily where the pull request
+    is: a commit an earlier interrupted resume stranded sits between the two,
+    and a push pinned to the anchor would name a commit the publication never
+    carried and be refused unmeasured. Pinned to the proved tip, a pull request
+    somebody pushed to since is the moved remote the reading refuses on, and
+    one somebody moves between that reading and this push rejects it instead of
+    being overwritten. The failed-push recovery names none, and needs none: its
+    commit was already measured against a publication whose head the approval
+    records, and that recorded head is what its push is pinned to.
 
     `candidate` is the commit the CALLER read and is publishing as, where it
-    read one. The timed-out recovery does: it compares the head against the
-    pre-run SHA to decide there is anything to publish at all, and between
-    that reading and the proof the gate takes the worktree is writable -- so a
-    commit landing in the window would be measured, pushed, and receipted as
-    the work the killed run left. Named, the two are one decision and a
-    checkout standing anywhere else refuses. The failed-push recovery names
-    none: it read no head, and the commit it owes a push for is the one the
-    approval on the record already identifies.
+    read one. The timed-out recovery does: the same reading froze the commit
+    it counted, and between that reading and the proof the gate takes the
+    worktree is writable -- so a commit landing in the window would be
+    measured, pushed, and receipted as the work this recovery placed. Named,
+    the two are one decision and a checkout standing anywhere else refuses.
+    The failed-push recovery names none: it read no head, and the commit it
+    owes a push for is the one the approval on the record already identifies.
 
     The push is named and pinned by what the gate handed back, and the debt it
     pays is spent on it: an approval that outlives the publication it was
@@ -316,10 +363,17 @@ def _try_recover_validating_transient_park(
 
     Returns one of:
       * ``"stuck"`` -- the underlying condition has not resolved; caller
-        leaves the park flags in place and returns silently. A drift park
-        standing over a commit an earlier resume left unpublished answers
-        here too: this retry produced nothing of its own, but clearing would
-        drop the edit's obligation over work the pull request has not got.
+        leaves the park flags in place and returns silently, and the fixing
+        stage's worktree-drift reroute may still read the park as a base
+        advance nobody synced.
+      * ``"unsettled"`` -- the reading of the BRANCH is what withheld the
+        clear, so the park stands and nothing may reinterpret it. A timeout
+        whose branch nothing could PLACE answers here: this retry produced
+        nothing of its own, and clearing over a reading that could not be
+        taken would hand the next reviewer a checkout nobody read. So does a
+        drift park standing over a commit the pull request has not got, since
+        clearing there drops the edit's obligation with it -- and a reroute
+        taken over either publishes that checkout with no debt staged for it.
       * ``"held"`` -- the size gate took the candidate this retry was about,
         so nothing was published and the tick is over. The gate has already
         parked the issue or handed it to the adjudication and written its own
@@ -331,8 +385,10 @@ def _try_recover_validating_transient_park(
         dev-timeout that produced no commit over a branch in sync). Caller
         clears the flags and stays on `validating` so the reviewer reruns.
       * ``"pushed"`` -- a dev fix was finished off during recovery
-        (a deferred push of `push_failed`, or the trailing push of an
-        `agent_timeout` that had committed before being killed).
+        (a deferred push of `push_failed`, the trailing push of an
+        `agent_timeout` that had committed before being killed, or a commit
+        an earlier interrupted resume stranded on the branch a timeout that
+        committed nothing was standing on).
         Caller clears the flags, resets stale approval state, and
         stays on `validating` so the reviewer re-evaluates the new
         head.

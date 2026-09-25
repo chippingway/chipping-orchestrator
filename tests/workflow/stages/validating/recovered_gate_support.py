@@ -31,6 +31,7 @@ from tests.workflow.stages import implementing_fixing_test_cases
 
 config = _config
 patch = mock.patch
+MagicMock = mock.MagicMock
 IssueScenario = implementing_fixing_test_cases.IssueScenario
 
 MEASURED_BASE_SHA = fixtures.MEASURED_BASE_SHA
@@ -63,6 +64,19 @@ PUBLICATION_HEAD = fakes.DEFAULT_PR_HEAD_SHA
 # The commit the parked round left in the checkout and never published, which
 # is the head the recovery proves that checkout to.
 STRANDED_CANDIDATE = fixtures.MEASURED_CANDIDATE_SHA
+
+# The commit an EARLIER interrupted resume left on the branch, which is where
+# the round that timed out found the checkout: the anchor that round stamped,
+# and a commit the pull request has never carried.
+INTERRUPTED_RESUME_HEAD = "bc" * (fixtures.SHA_LENGTH // 2)
+
+# Where a parked round leaves the branch: one commit above the publication it
+# opened on, which is the whole reason a recovery has anything to publish.
+# Seeded once here, so a case spells the geometry only where that geometry is
+# what the case is about -- a branch level with its publication, one carrying
+# more than a single commit, or one no reading could place at all.
+STRANDED_DIVERGENCE = (1, 0)
+BRANCH_DIVERGENCE = "branch_ahead_behind"
 
 # A head somebody else pushed while the issue sat parked.
 MOVED_HEAD = "ab" * (fixtures.SHA_LENGTH // 2)
@@ -232,8 +246,16 @@ class _RecoveredPublicationMixin(
         it once more past its own push -- and in production those are three
         readings of a checkout nothing touched, so a fixture spelling them
         apart would be modelling the race rather than the tick.
+
+        The branch stands one commit above its publication for the same
+        reason: a park this recovery can publish anything for is one whose
+        round left a commit the pull request has not got, and that reading is
+        what names the commit and leases the push. A case about a branch
+        level with its publication, above it by more than one, or one nothing
+        could place seeds the geometry it is about instead.
         """
         run_options.setdefault("head_shas", (STRANDED_CANDIDATE,) * 6)
+        run_options.setdefault(BRANCH_DIVERGENCE, STRANDED_DIVERGENCE)
         with patch.object(
             _worktree_paths, WORKTREE_PATH, return_value=worktree,
         ), patch.object(config, DECOMPOSE, True):

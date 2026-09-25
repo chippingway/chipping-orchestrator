@@ -174,6 +174,8 @@ ORCHESTRATOR = "orchestrator"
 
 DEBOUNCE_SECONDS = 600
 
+HEAD_SHAS = "head_shas"
+
 PARK_PUSH_FAILED = "push_failed"
 PARK_AGENT_TIMEOUT = "agent_timeout"
 PARK_AGENT_SILENT = "agent_silent"
@@ -394,7 +396,14 @@ class _StrandedFixingFixtureMixin(_FixingFixtureMixin):
         The path is patched rather than seeded because the handler reads it to
         decide whether there is a checkout to probe at all, and the default
         patch set leaves that read real.
+
+        No agent runs on this tick, so the checkout is standing where an
+        earlier round left it rather than on anything this tick wrote: its head
+        is the stranded commit, which is the same commit the size gate proves
+        it to. Seeded here so the two readings of one worktree cannot disagree
+        by default -- a case about a checkout that MOVED seeds them apart.
         """
+        run_options.setdefault(HEAD_SHAS, (SHA_AFTER,))
         with patch.object(worktree_paths, WORKTREE_PATH, return_value=worktree):
             return self._run_fixing(
                 gh, issue, run_agent=_agent(), **run_options,

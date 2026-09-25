@@ -72,17 +72,22 @@ log = logging.getLogger("orchestrator.workflow")
 # head a pull request is standing on proves nothing about this transaction.
 _SETTLES_THE_ROUND = ((_state._SETTLED_ROUND, True),)
 
-# The park a landed publication is itself the answer to. One reason rather than
-# the transient set, because what membership claims here is narrower than "a
-# condition that may resolve with nobody commenting": `push_failed` is filed by
-# the very push a recorded report rides, so a settlement proving that push
-# landed has answered exactly the thing the notice asked about. The other
-# transient reasons are about a SESSION or a reviewer run -- an `agent_timeout`
-# park belongs to whichever round left it, and a later round can leave one over
-# feedback this report says nothing about. Retired from here, that round's
-# question would come down with a publication that is no answer to it, and the
-# feedback it was parked over is already recorded as delivered.
-_PARK_A_PUBLICATION_ANSWERS = _validating_state._REASON_PUSH_FAILED
+# The parks a landed publication is itself the answer to. Two reasons rather
+# than the transient set, because what membership claims here is narrower than
+# "a condition that may resolve with nobody commenting". `push_failed` is
+# filed by the very push a recorded report rides, so a settlement proving that
+# push landed has answered exactly the thing the notice asked about; and
+# `stranded_unproved` is filed by the no-feedback bounce over a branch it could
+# not place, so a round reaching a relabel at all has taken the reading that
+# park was waiting for. The other transient reasons are about a SESSION or a
+# reviewer run -- an `agent_timeout` park belongs to whichever round left it,
+# and a later round can leave one over feedback this report says nothing about.
+# Retired from here, that round's question would come down with a publication
+# that is no answer to it, and the feedback it was parked over is already
+# recorded as delivered.
+_PARKS_A_PUBLICATION_ANSWERS = frozenset((
+    _validating_state._REASON_PUSH_FAILED, _state._REASON_UNPROVED_BRANCH,
+))
 
 # What a reply that reached for the report contract and missed is held under.
 # The run is over, so nothing here clears on its own: what it asks for is a
@@ -437,17 +442,21 @@ def _hands_the_round_back(ctx: _models._FixingContext) -> None:
     mark is a claim about one rather than about whatever settlement is still
     lying there.
 
-    The park a landed publication ANSWERS is staged here rather than by any of
-    them, because the road that files one is never the road that settles it. A
-    `push_failed` park is filed by the very push a recorded report rides, and
+    The parks a landed publication ANSWERS are staged here rather than by any
+    of them, because the road that files one is never the road that settles it.
+    A `push_failed` park is filed by the very push a recorded report rides, and
     the silent retry that finally lands that push writes its receipt durably
     BEFORE it publishes -- so a tick dying in between comes back to a comment
     still saying a human is owed an answer, beside a record the recovery ahead
     of the next handler binds, publishes and hands straight back. Relabelled
     over that park, the issue reaches `workflow:validating` still
     `awaiting_human`: a recovery poll nobody needed, and one nothing can end at
-    all once the checkout it would retry against is gone. Only THAT park comes
-    down, and the narrowness is the point: a question park, a base-sync retry
+    all once the checkout it would retry against is gone. The `stranded_unproved`
+    park the no-feedback bounce files comes down here for the same reason from
+    the other end: it is waiting for a reading of the branch, and a round that
+    reaches this relabel at all is one where that reading was taken. Only THOSE
+    parks come down, and the narrowness is the point: a question park, a
+    base-sync retry
     park and this stage's own report parks are each waiting on a person, and a
     round ending is no reply to them -- while an `agent_timeout` park belongs to
     whichever round left it, so a LATER round that timed out over feedback this
@@ -476,7 +485,7 @@ def _hands_the_round_back(ctx: _models._FixingContext) -> None:
     places = _round_marks._places_the_round_in_hand(ctx.state)
     if places:
         _round_marks._stamps_the_round_handed_back(ctx.state)
-    if ctx.state.get(_state._PARK_REASON) == _PARK_A_PUBLICATION_ANSWERS:
+    if ctx.state.get(_state._PARK_REASON) in _PARKS_A_PUBLICATION_ANSWERS:
         ctx.state.set(_state._AWAITING_HUMAN, False)
         ctx.state.set(_state._PARK_REASON, None)
     ctx.state.set(_state._SETTLED_ROUND, None)
@@ -587,11 +596,18 @@ def _holds_a_stalled_report(ctx: _models._FixingContext) -> None:
     """Announce a report no road left on this issue can move, once.
 
     Reached by the no-feedback bounce, which is the last road of the tick:
-    nothing unread, nothing stranded to publish, and a report still owed.
-    Every road that could have moved it has already declined, so the
-    alternative is an issue finding those same three answers on every poll and
-    doing nothing with any of them -- silently, for as long as the pull
-    request stays open.
+    nothing unread, a branch PROVED to be carrying nothing the pull request
+    has not got, and a report still owed. Every road that could have moved it
+    has already declined, so the alternative is an issue finding those same
+    three answers on every poll and doing nothing with any of them --
+    silently, for as long as the pull request stays open.
+
+    The middle one is a proof rather than a silence, and the bounce asks it
+    ahead of this: a branch nothing could PLACE is a publication this host may
+    yet make, so it holds under the reading it is waiting for and the next
+    quiet poll publishes the commit, the report bound to it, and the round
+    behind both. Answered here instead, a reading that comes back a poll later
+    would find a park only a human clears.
 
     The way in that no other road covers is a transaction the engine will not
     settle because the REQUIREMENTS it was written against have moved: a human

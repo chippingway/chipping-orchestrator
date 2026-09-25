@@ -188,16 +188,27 @@ class _ParkedFixingDecision:
 class _StrandedPublication:
     """What the no-feedback bounce did with a commit an earlier run stranded.
 
-    Three answers rather than two, because the bounce owes a different thing
-    to each. A push earns the reviewer round the fresh head spends. Nothing to
-    push is the ordinary case and costs no round. And HELD is neither: the
-    size gate has already handed the issue to the adjudication under
+    Four answers rather than two, because the bounce owes a different thing to
+    each. A push earns the reviewer round the fresh head spends. Nothing to
+    push is the ordinary case and costs no round. HELD is neither: the size
+    gate has already handed the issue to the adjudication under
     `workflow:decomposing`, so the bounce may not relabel over it or spend a
     round on a head the reviewer is not going to see.
+
+    UNPROVED is the fourth, and it is the one that is not an outcome at all:
+    the probe could not say where the branch stands, so "nothing to push" is a
+    guess rather than a reading. Relabelled on it, the reviewer is handed a
+    pull request that may be short of a commit sitting in the checkout, and
+    this exit is the last tick that would have published it. `refusal` is the
+    probe's own clause for WHICH reading refused, carried so the notice that
+    holds the issue names a checkout to clear or a branch to reconcile rather
+    than saying only that nothing could be established.
     """
 
     pushed: bool = False
     held: bool = False
+    unproved: bool = False
+    refusal: str = ""
 
 
 @dataclass(frozen=True)

@@ -488,7 +488,10 @@ than a second source of truth: where the two disagree, the handler pages are aut
      clean worktree is out of sync with the PR -- behind base, OR
      already on base but local HEAD != the live pr.head.sha (an
      unpushed local rebase) -- the dead-lock breaker base sync can't
-     reach while parked. Every other awaiting-human shape (real agent
+     reach while parked. A retry that answered "unsettled" instead --
+     the reading of the branch itself withheld the clear -- routes
+     nowhere: the park stands as filed, because reconciling a checkout
+     nobody placed publishes it with no report debt staged for it. Every other awaiting-human shape (real agent
      question / dirty park / silent-crash / in_review-route transient)
      stays parked silently to preserve HITL -- except a push_failed park
      with a report still owed, where the readers the default would wait
@@ -497,15 +500,28 @@ than a second source of truth: where the two disagree, the handler pages are aut
      What counts as new feedback is the owed record's frozen pairs
      rather than the readers, for that same reason. If nothing is left
      to act on, publish any commit an earlier round stranded in the worktree
-     (`validating/stranded.py`'s clean-and-strictly-ahead probe, the
-     one the fix disposition and the ACK fast path ask too, through the
-     same size gate every push onto an open PR passes; a push that
-     lands adjusts review_round per pending_fix_at), bind the report
-     that push is the publication for, then
+     (`validating/stranded.py`'s typed placement of the branch against
+     its remote, the one the fix disposition and the ACK fast path ask
+     too, through the same size gate every push onto an open PR passes;
+     a push that lands adjusts review_round per pending_fix_at), bind
+     the report that push is the publication for, then
      clear pending_fix_* and bounce to workflow:validating. While a
      report is still owed nothing is spent, cleared or relabelled: the
      record stands for the tick that publishes it, and a wait nothing
-     left can end is announced once under report_undeliverable. A candidate
+     left can end is announced once under report_undeliverable -- but
+     only over a branch PROVED to be carrying nothing to publish. A
+     branch that probe could not PLACE -- an unreadable or loose tree, a
+     fetch that failed, a divergence git would not count, a remote that
+     moved, a checkout that moved under the count -- holds the relabel
+     ahead of that and is announced once under
+     stranded_unproved, since the reading that refused reads identically
+     to an empty branch and this exit is the last tick that would publish
+     a commit. That park waits on a reading rather than on a person, so
+     the step-6 parked dispatch sends every later quiet poll back to this
+     exit with the flags untouched and the hand-back retires it in the
+     write that relabels -- publishing the commit, binding a report owed
+     for it, and handing the round back on the first poll that places the
+     branch. A candidate
      the gate HELD stops the bounce instead: the issue is already on
      workflow:decomposing and this tick relabels nothing;
      otherwise honour IN_REVIEW_DEBOUNCE_SECONDS. Past the window,

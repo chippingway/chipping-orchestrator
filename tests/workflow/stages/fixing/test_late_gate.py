@@ -115,10 +115,14 @@ class StrandedBounceTest(
         # A park posts its notice and leaves the flags in memory, so the
         # bounce owes the write even though it is not bouncing: without it
         # the next tick reads an issue nothing is waiting on and pushes the
-        # very commit this one refused.
+        # very commit this one refused. The reading that refuses here is the
+        # gate's own -- the checkout was proved to be carrying the commit, so
+        # the bounce reached the measurement rather than holding ahead of it.
         gh, issue = self._seed_stranded_bounce()
 
-        mocks = self._bounced(gh, issue, tree_readable=False)
+        mocks = self._bounced(
+            gh, issue, added_lines=MeasurementFailure.DIFF_FAILED,
+        )
 
         mocks[PUSH_BRANCH].assert_not_called()
         pinned = gh.pinned_data(fixing.ISSUE)

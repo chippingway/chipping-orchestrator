@@ -262,6 +262,10 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
                     ),
                 ),
                 head_shas=(SHA_SAME, SHA_SAME),  # no new commit
+                # The branch this ack vouches for: the checkout standing
+                # exactly where the remote pull-request branch is, which is
+                # what the fast path proves before it hands the round back.
+                fetched_branch_tip=SHA_SAME,
             )
 
         self.assertIn((ISSUE, IN_REVIEW), scenario.github.label_history)

@@ -43,6 +43,11 @@ PARK_MEASUREMENT_FAILED = "late_measurement_failed"
 # read of one worktree: the recovery names the commit it is publishing as that
 # run's, and the gate refuses a checkout standing anywhere else.
 TIMEOUT_HEAD = MEASURED_CANDIDATE_SHA
+# What a killed run that COMMITTED leaves behind: a checkout standing one
+# commit above the publication the round opened on. The recovery PLACES the
+# branch there rather than reading the anchor that round stamped, so the
+# geometry is part of the world every committed-timeout case here needs.
+COMMITTED_DIVERGENCE = (1, 0)
 # What the checkout stands on once something has moved it out from under the
 # head this recovery read.
 MOVED_HEAD = "m0vedc0m" * 5
@@ -609,6 +614,7 @@ class ValidatingDevParkRecoveryTest(
             dirty_files=(),
             push_branch=True,
             head_shas=(TIMEOUT_HEAD,),  # HEAD moved past pre-agent SHA
+            branch_ahead_behind=COMMITTED_DIVERGENCE,
         )
 
         developer_mocks[RUN_AGENT].assert_not_called()
@@ -641,6 +647,7 @@ class ValidatingDevParkRecoveryTest(
             dirty_files=(),
             push_branch=True,
             head_shas=(TIMEOUT_HEAD,),
+            branch_ahead_behind=COMMITTED_DIVERGENCE,
         )
 
         mocks[COUNT_ADDED_LINES].assert_called_once()
@@ -667,6 +674,7 @@ class ValidatingDevParkRecoveryTest(
                 dirty_files=(),
                 push_branch=True,
                 head_shas=(TIMEOUT_HEAD,),
+                branch_ahead_behind=COMMITTED_DIVERGENCE,
                 added_lines=PAST_THE_CEILING,
             )
 
@@ -693,6 +701,7 @@ class ValidatingDevParkRecoveryTest(
                 dirty_files=(),
                 push_branch=True,
                 head_shas=(TIMEOUT_HEAD,),
+                branch_ahead_behind=COMMITTED_DIVERGENCE,
                 added_lines=PAST_THE_CEILING,
             )
 
@@ -732,6 +741,7 @@ class ValidatingDevParkSafetyTest(
             dirty_files=(),
             push_branch=False,
             head_shas=(TIMEOUT_HEAD,),
+            branch_ahead_behind=COMMITTED_DIVERGENCE,
         )
 
         developer_mocks[PUSH_BRANCH].assert_called_once()
@@ -761,6 +771,7 @@ class ValidatingDevParkSafetyTest(
             dirty_files=(),
             push_branch=True,
             head_shas=(TIMEOUT_HEAD,),
+            branch_ahead_behind=COMMITTED_DIVERGENCE,
             candidate_commit=FrozenCommit(sha=MOVED_HEAD),
         )
 
