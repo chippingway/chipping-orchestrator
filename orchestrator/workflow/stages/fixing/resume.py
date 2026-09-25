@@ -341,7 +341,7 @@ def _records_the_report_it_owes(
     that committed over a standing record owes is answered ahead of this, by
     the road that records that work as undescribed.
     """
-    if run.dev_result.timed_out:
+    if run.dev_result.timed_out or run.dev_result.unfinished_steps:
         return False
     if not run.reported and (
         not run.after_sha or run.after_sha == run.before_sha

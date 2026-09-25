@@ -32,6 +32,7 @@ from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
     report_locations as _report_locations,
+    report_outcome_models as _outcome_models,
     report_outcomes as _report_outcomes,
     report_record_state as _record_state,
 )
@@ -198,3 +199,29 @@ def _holds_unreported_work(
         ),
     )
     return True
+
+
+def _attributable_failed_run_commit(
+    state: PinnedState,
+    prepared: _models._PreparedDevRun,
+    head: str,
+    inherited_floor: str,
+) -> bool:
+    """True when an intentional retry returned a report over a commit from a failed run.
+
+    When an `agent_execution_failed` run commits work before parking, the commit
+    is attributable to that run rather than an inherited floor. Its intentional
+    `/orchestrator continue` retry may return a valid `REPORT: READY` with no HEAD
+    change (`head == prepared.before_sha`). In that recovery sequence, the clean
+    ahead-of-base commit attributable to the failed run is published through the
+    normal report, size, push, and PR gates.
+    """
+    if state.get(_state._PARK_REASON) != _state._PARK_EXECUTION_FAILED:
+        return False
+    pre_sha = state.get(_state._PRE_IMPLEMENT_SHA)
+    if not isinstance(pre_sha, str) or not pre_sha or head == pre_sha:
+        return False
+    if head == inherited_floor or prepared.agent_result.unfinished_steps:
+        return False
+    outcome = _report_outcomes._report_outcome_of_run(prepared.agent_result)
+    return isinstance(outcome, _outcome_models._ReadyReport)

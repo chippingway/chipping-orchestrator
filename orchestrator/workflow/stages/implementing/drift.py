@@ -229,6 +229,7 @@ def _dispose_implementing_drift(
                 _guards._ParkedRun(
                     drift.agent_result,
                     _guards._ROUTE_DEV_DRIFT_RESUME,
+                    before_sha=drift.before_sha,
                 ),
             )
     gh.write_pinned_state(issue, state)

@@ -117,6 +117,7 @@ def _publish_committed_work(
     the very write that records its report, so no crash leaves the two apart.
     """
     state.set(_state._READ_ONLY_BASELINE_SHA, None)
+    state.set(_state._PRE_IMPLEMENT_SHA, None)
     tree = _worktree_status._worktree_status(work.worktree)
     if not tree.is_clean:
         _checkout_parks._on_unpublishable_tree(

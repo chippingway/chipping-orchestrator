@@ -1653,12 +1653,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             deleted between two reads would reach the developer in the prompt while the requirements
                             fingerprint beside it never saw it, and the report that round writes is then one no
                             settlement can place
-      resume.py             the dev run, whose head is read on BOTH sides of it however the run ended -- a timeout
-                            is a way to commit like any other, and the road that holds a commit made over a standing
-                            report record has to see it -- the three refusals that will not count one as a delivery
-                            -- a launch
-                            nothing invoked, a shutdown kill, a live pause -- the settlement of the batch every other
-                            outcome DID deliver, the ACK fast path -- which stands down on any reply that USED the
+      resume.py             the dev run — routing through `implementing/execution.py`'s bounded coordinator to
+                            recover premature AGY command exits before disposition — whose head is read on BOTH sides
+                            of it however the run ended -- a timeout is a way to commit like any other, and the road
+                            that holds a commit made over a standing report record has to see it -- the three refusals
+                            that will not count one as a delivery -- a launch nothing invoked, a shutdown kill, a
+                            live pause -- the settlement of the batch every other outcome DID deliver, the ACK fast path
+                            -- which stands down on any reply that USED the
                             report contract, well or badly: one that reported is a handover to a fresh reviewer
                             rather than a reason to re-arm a ready ping, and one that reached for the markers and
                             missed (a report block with an `ACK:` beside it) is a broken contract rather than an
@@ -1862,12 +1863,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       worktree.py           the checkout a resume runs in, restored when reaped
       disposition.py        run-output attribution, inherited floors, timeout parks and their recovery, and agent-result
                             settlement; both heads must be readable and the run must leave commits above its floor --
-                            with one exception, an issue still owing a report it could not deliver, where a run that
+                            with two exceptions: an issue still owing a report it could not deliver, where a run that
                             comes back with a report and moved no head is publishing the commits already on the branch
-                            rather than asking a question. A RECOVERED run -- the restart shortcut -- is settled
-                            against the pinned comment as well as the tree, through `unreported_recovery.py`. The
-                            timeout park is bounded so its notice cannot carry the watermark over a reply written
-                            while the agent was out
+                            rather than asking a question; and an intentional `/orchestrator continue` retry of an
+                            `agent_execution_failed` park whose failed run committed work before parking and whose retry
+                            now returns a valid report outcome without moving HEAD again. A RECOVERED run -- the restart
+                            shortcut -- is settled against the pinned comment as well as the tree, through
+                            `unreported_recovery.py`. The timeout park is bounded so its notice cannot carry the
+                            watermark over a reply written while the agent was out
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
                             through a proved clean tree and the size gate; a recovery hands on the candidate it proved.
                             The report the run wrote is recorded between the tree and the gate, the last moment it is
@@ -1887,7 +1890,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             in the write that records its report -- except over a
                             delivery or transaction an earlier run recorded and has not settled, which describes the
                             branch before that commit, so the commit is held the same way with the record kept.
-                            Also the `invoked=False` result those recoveries hand the seam
+                            Also the `invoked=False` result those recoveries hand the seam, and the attribution check
+                            proving a failed run's commit for an intentional continue retry
       late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then
                             take a fresh or resumed measurement; the verdict carries the basis admitting publication
       late_gate_permission.py
