@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""HEAD, committed-object, and committed-path probes.
+"""HEAD, tree identity, committed-object, and committed-path probes.
 
 Reads use the git command owner's hardened, non-interactive envelope. Commit
 comparisons take established object IDs from the caller so they describe one
@@ -43,10 +43,33 @@ def _head_sha(worktree: Path) -> str:
     which is already true throughout validating, so we need an absolute SHA
     snapshot instead.
     """
-    head_result = _commands._git("rev-parse", "HEAD", cwd=worktree)
+    head_result = _commands._git_hardened("rev-parse", "--verify", "HEAD", cwd=worktree)
     if head_result.returncode != 0:
         return ""
     return (head_result.stdout or "").strip()
+
+
+def _tree_sha(worktree: Path, revision: str) -> str:
+    """Tree SHA of the commit `revision` names in `worktree`, or '' if unreadable.
+
+    Local verification records it as the full tree identity of the commit it
+    tested and re-reads it after every command. The revision is the object id
+    the caller already read rather than `HEAD`, for the reason the committed
+    probes below take one: `HEAD` is a moving name, and a tree read from it a
+    moment after the commit was read may be another commit's tree. Hardened
+    for the reason every probe here is, and object replacement being off is
+    what makes the answer the commit's own tree -- a planted `refs/replace`
+    entry would otherwise serve another commit's tree under this one's id.
+    An empty revision (a HEAD that could not be read) answers '' without
+    asking git.
+    """
+    if not revision:
+        return ""
+    target = f"{revision}^{{tree}}"
+    tree_result = _commands._git_hardened("rev-parse", "--verify", target, cwd=worktree)
+    if tree_result.returncode != 0:
+        return ""
+    return (tree_result.stdout or "").strip()
 
 
 def _head_on_branch(worktree: Path, branch: str) -> bool:

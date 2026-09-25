@@ -14,7 +14,8 @@ local verify gate at the head of it is the last thing standing between a
 branch that does not build and `in_review`; the optional squash, the notice
 its count is worded from, the end of the collapse record, and the relabel to
 `documenting` follow it, in that order. `verify` holds the other side of that
-gate -- how a non-ok result reads and the park it earns. `handoff` owns what
+gate -- how a refused result reads and the park it earns; ``ok`` and the
+``not_run`` an empty `VERIFY_COMMANDS` returns both advance. `handoff` owns what
 that arc leaves on the pull request for its own sake: the approval comment,
 and the watermark seed `approval` runs behind its notice so neither the docs
 hop nor in_review replays the orchestrator's own comments as human feedback.

@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""One verify command's subprocess lifecycle and its `VerifyResult` verdict.
+"""One verify command's subprocess lifecycle and its `VerifyCommandOutcome` verdict.
 
 Spawning, group teardown, and bounded draining live beside the classification
 that reads their outcome because the verdict depends on how the shell was torn
@@ -12,6 +12,7 @@ exactly as it reaches an agent run.
 """
 from __future__ import annotations
 
+import functools
 import os
 import signal
 import subprocess
@@ -92,16 +93,25 @@ def _spawn_verify_command(
 
 
 def _timeout_verify_result(
-    proc: subprocess.Popen, command: str,
-) -> _models.VerifyResult:
-    """Kill a timed-out verify group and retain its bounded partial output."""
+    proc: subprocess.Popen,
+    command: str,
+    baselines: tuple[str, str],
+) -> _models.VerifyCommandOutcome:
+    """Kill a timed-out verify group and retain its bounded partial output.
+
+    Nothing is read after the kill, so the after-readings stay None rather
+    than repeating the baseline as though HEAD and its tree had been observed.
+    """
     _kill_verify_group(proc)
     partial_output = _combine_output(*_drain_verify_output(proc))
-    return _models.VerifyResult(
-        status="timeout",
+    head_before, tree_before = baselines
+    return _models.VerifyCommandOutcome(
         command=command,
+        status=_models.VERIFY_STATUS_TIMEOUT,
         exit_code=None,
         output=_output._truncate_verify_output(partial_output),
+        head_before=head_before,
+        tree_before=tree_before,
     )
 
 
@@ -110,34 +120,46 @@ def _completed_verify_result(
     command: str,
     drained: tuple[str, str],
     worktree: Path,
-    head_before: str,
-) -> _models.VerifyResult | None:
-    """Classify one completed command, returning None only when it passed."""
-    combined_output = _combine_output(*drained)
-    if proc.returncode != 0:
-        return _models.VerifyResult(
-            status="failed",
-            command=command,
-            exit_code=proc.returncode,
-            output=_output._truncate_verify_output(combined_output),
-        )
-    dirty_files = _worktree_status._worktree_dirty_files(worktree)
-    if dirty_files:
-        return _models.VerifyResult(
-            status="dirty",
-            command=command,
-            exit_code=proc.returncode,
-            output=_output._truncate_verify_output(combined_output),
-            dirty_files=tuple(dirty_files),
-        )
+    baselines: tuple[str, str],
+) -> _models.VerifyCommandOutcome:
+    """Classify one completed command into its outcome record.
+
+    HEAD and its tree are read after every command, a failing one included, so
+    the transcript records what each command left behind. A zero exit passes
+    only on a status read that proved the worktree clean, and then only if
+    both readings match the baseline.
+    """
     head_after = _probes._head_sha(worktree)
-    if head_after == head_before:
-        return None
-    return _models.VerifyResult(
-        status="head_changed",
+    readings = (head_after, _probes._tree_sha(worktree, head_after))
+    outcome = functools.partial(
+        _models.VerifyCommandOutcome,
         command=command,
         exit_code=proc.returncode,
-        output=_output._truncate_verify_output(combined_output),
-        head_before=head_before,
-        head_after=head_after,
+        output=_output._truncate_verify_output(_combine_output(*drained)),
+        head_before=baselines[0],
+        head_after=readings[0],
+        tree_before=baselines[1],
+        tree_after=readings[1],
     )
+    if proc.returncode != 0:
+        return outcome(status=_models.VERIFY_STATUS_FAILED)
+    status = _worktree_status._worktree_status(worktree)
+    if not status.is_clean:
+        return outcome(status=_models.VERIFY_STATUS_DIRTY, dirty_files=status.paths)
+    return outcome(status=_identity_verdict(baselines, readings))
+
+
+def _identity_verdict(baselines: tuple[str, str], readings: tuple[str, str]) -> str:
+    """What a clean zero exit earns from HEAD and its tree, read before and after.
+
+    The tree after is resolved from the HEAD read after, so under an unchanged
+    HEAD a different tree is a read that failed or a store that no longer
+    answers for the commit -- either way the run cannot say which tree it
+    tested, and says so apart from a HEAD that moved.
+    """
+    (head_before, tree_before), (head_after, tree_after) = baselines, readings
+    if head_after != head_before:
+        return _models.VERIFY_STATUS_HEAD_CHANGED
+    if tree_after != tree_before:
+        return _models.VERIFY_STATUS_TREE_CHANGED
+    return _models.VERIFY_STATUS_OK

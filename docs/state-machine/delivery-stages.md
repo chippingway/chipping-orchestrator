@@ -3194,9 +3194,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      relabel, so the next tick re-spawns a fresh reviewer from durable state.
   6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
      - **approved** → in order: (1) run the local verify gate (`_run_verify_commands(wt, config.VERIFY_COMMANDS,
-       config.VERIFY_TIMEOUT)`); a non-ok result parks via `_park_verify_failure` with a typed `park_reason`
-       (`verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed`) and the approval / squash /
-       handoff do NOT fire (see
+       config.VERIFY_TIMEOUT)`); an empty command tuple returns `not_run`, which advances without being evidence that
+       anything passed, and any other non-ok result parks via `_park_verify_failure` with a typed `park_reason`
+       (`verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`) and the
+       approval / squash / handoff do NOT fire (see
        [`configuration.md#local-verification-gate`](../configuration.md#local-verification-gate)); (2) post
        `:white_check_mark: codex review approved.`; (3) when `SQUASH_ON_APPROVAL` is on (default), call
        `_squash_and_force_push` (subject reuses the first commit when it carries a reusable `<prefix>:` form —

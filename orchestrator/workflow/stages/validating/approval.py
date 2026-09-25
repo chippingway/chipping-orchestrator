@@ -5,7 +5,8 @@
 The reviewer's verdict is not the last gate. The local verify run comes first
 so an obviously-broken branch never reaches `in_review`, where the next reader
 is a human deciding whether to merge; a default-empty `VERIFY_COMMANDS`
-short-circuits to ok, and a failure parks in `validating` with a durable
+short-circuits to an explicit not-run result that advances without claiming
+anything passed, and a failure parks in `validating` with a durable
 reason rather than advancing. The squash follows, and its failure parks
 WITHOUT relabeling on purpose -- the original commits are still on the branch,
 and only a human can decide whether to keep the history or force it flat. The
@@ -379,9 +380,10 @@ def _finalize_validating_approval(
     The verify gate is the first gate after the reviewer so an obviously-broken
     branch never reaches `in_review` (GitHub CI still runs against the PR for
     the human merging it). Default-empty `VERIFY_COMMANDS` short-circuits to
-    "ok". A failed / timed-out command or a dirty tree left behind parks
-    awaiting_human in `validating` with a stable `park_reason`. A failed
-    squash / force-push also parks and STAYS in `validating` (no relabel), and
+    "not_run", which advances without being evidence that anything passed. A
+    failed / timed-out command, a worktree not proven clean before or after a
+    command, or a moved HEAD or tree parks awaiting_human in `validating`
+    with a stable `park_reason`. A failed squash / force-push also parks and STAYS in `validating` (no relabel), and
     its notice says which of the two places it left the branch: the original
     commits, or a collapse an earlier tick could not finish. On success the
     (possibly squashed) head routes through `documenting` for a final docs
@@ -398,7 +400,7 @@ def _finalize_validating_approval(
     verify = _verify_runner._run_verify_commands(
         reviewer_run.wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT,
     )
-    if verify.status != "ok":
+    if verify.status not in ("ok", "not_run"):
         _verify._park_verify_failure(gh, issue, state, verify)
         gh.write_pinned_state(issue, state)
         return

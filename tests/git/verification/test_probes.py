@@ -84,21 +84,36 @@ def _run_git(*args: str, cwd: Path) -> None:
     )
 
 
-class HeadShaProbeTest(unittest.TestCase):
-    """`_head_sha` snapshots HEAD so a verify-time commit can be detected."""
+class IdentityShaProbeTest(unittest.TestCase):
+    """`_head_sha` and `_tree_sha` snapshot HEAD and tree identities."""
 
     def test_reports_the_trimmed_rev_parse_output(self) -> None:
-        with patch.object(commands, "_git", return_value=_completed(0, f"{HEAD_SHA}\n")) as git:
+        with patch.object(commands, HARDENED_GIT, return_value=_completed(0, f"{HEAD_SHA}\n")) as git:
             self.assertEqual(probes._head_sha(WORKTREE), HEAD_SHA)
-            self.assertEqual(git.call_args.args, ("rev-parse", "HEAD"))
+            self.assertEqual(git.call_args.args, ("rev-parse", "--verify", "HEAD"))
             self.assertEqual(git.call_args.kwargs["cwd"], WORKTREE)
 
     def test_unreadable_head_reports_no_snapshot(self) -> None:
-        # An uninitialized repo has no HEAD to read. The runner treats the
-        # empty baseline as "no HEAD ever existed" and accepts only an
-        # unchanged "" afterwards, so the probe must not invent a SHA.
-        with patch.object(commands, "_git", return_value=_completed(GIT_FAILURE, "fatal: bad revision")):
+        with patch.object(commands, HARDENED_GIT, return_value=_completed(GIT_FAILURE, "fatal: bad revision")):
             self.assertEqual(probes._head_sha(WORKTREE), "")
+
+    def test_tree_of_the_named_revision_is_trimmed(self) -> None:
+        for revision in ("HEAD", HEAD_SHA):
+            with (
+                self.subTest(revision=revision),
+                patch.object(commands, HARDENED_GIT, return_value=_completed(0, f"{TREE_OBJECT}\n")) as git,
+            ):
+                self.assertEqual(probes._tree_sha(WORKTREE, revision), TREE_OBJECT)
+                self.assertEqual(git.call_args.args, ("rev-parse", "--verify", f"{revision}^{{tree}}"))
+                self.assertEqual(git.call_args.kwargs["cwd"], WORKTREE)
+
+    def test_unreadable_tree_reports_no_snapshot(self) -> None:
+        # An unread commit has no tree to name, so no git runs for it.
+        with patch.object(commands, HARDENED_GIT) as git:
+            self.assertEqual(probes._tree_sha(WORKTREE, ""), "")
+            git.assert_not_called()
+        with patch.object(commands, HARDENED_GIT, return_value=_completed(GIT_FAILURE, "fatal: bad revision")):
+            self.assertEqual(probes._tree_sha(WORKTREE, HEAD_SHA), "")
 
 
 class PorcelainParsingTest(unittest.TestCase):
@@ -255,6 +270,23 @@ class WorktreeDirtyFilesHardeningTest(unittest.TestCase):
             marker.exists() and marker.read_text(),
             "hardened dirty probe executed the planted core.fsmonitor",
         )
+
+    def test_tree_sha_ignores_planted_refs_replace(self) -> None:
+        head1 = probes._head_sha(self.work)
+        tree1 = probes._tree_sha(self.work, head1)
+        (self.work / "file2.txt").write_text("mutation\n")
+        _run_git("add", ".", cwd=self.work)
+        _run_git("commit", QUIET_FLAG, "-m", "second commit", cwd=self.work)
+        head2 = probes._head_sha(self.work)
+        tree2 = probes._tree_sha(self.work, head2)
+        self.assertNotEqual(tree1, tree2)
+        _run_git("replace", head1, head2, cwd=self.work)
+
+        # Prove the planted replacement is honored by a plain read, so the
+        # hardened answer below is the envelope refusing it.
+        unhardened = commands._git("rev-parse", "--verify", f"{head1}^{{tree}}", cwd=self.work)
+        self.assertEqual(unhardened.stdout.strip(), tree2)
+        self.assertEqual(probes._tree_sha(self.work, head1), tree1)
 
 
 if __name__ == "__main__":

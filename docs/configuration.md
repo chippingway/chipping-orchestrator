@@ -445,7 +445,14 @@ Check current consumption with `curl -H "Authorization: Bearer $TOKEN" https://a
 When the reviewer agent emits `VERDICT: APPROVED`, `_handle_validating` runs the configured `VERIFY_COMMANDS` in the
 per-issue worktree **before** posting the approval comment, squashing, seeding watermarks, or relabeling to
 `workflow:documenting`. A clean run advances the issue as usual; any failure parks the issue on `workflow:validating`
-with `awaiting_human=True` and a typed `park_reason`, so an operator can fix the breakage and resume.
+with `awaiting_human=True` and a typed `park_reason`, so an operator can fix the breakage and resume. An empty
+`VERIFY_COMMANDS` advances too, but its result is an explicit `not_run` rather than evidence that anything passed.
+
+A run records the commit and full tree it tested, both read before the first command; the exact ordered
+`VERIFY_COMMANDS`; each attempted command's outcome, exit code, and redacted, bounded output; `VERIFY_TIMEOUT`; and a
+context revision digested from those commands and that timeout. The worktree has to read clean before the first
+command and after each one, and HEAD and its tree have to read unchanged after each one; a reading that fails refuses
+exactly as a change would.
 
 The verify gate is the first gate after the reviewer agent — it catches regressions locally so an obviously-broken
 branch never reaches `in_review`. GitHub CI still runs against the PR; the human merging the PR is the consumer of CI's
@@ -486,17 +493,21 @@ running tests.
 
 ### Failure modes and `park_reason` tokens
 
-The park comment names the failing command, its exit code (or timeout), and a redacted / truncated tail (last 4096
-bytes) of the captured output. Output is redacted via `config.credentials.redact_secrets` **before** truncation so a
-secret straddling the cut cannot leak a partial value. `park_reason` is set to one of:
+The park comment names the failing command, its exit code (or timeout), and a redacted / truncated tail (the last
+4096 UTF-8 bytes, dropping any character the cut lands inside) of the captured output; a run refused before any
+command ran names the reading that refused it instead. Output is redacted via `config.credentials.redact_secrets`
+**before** truncation so a secret straddling the cut cannot leak a partial value. `park_reason` is set to one of:
 
-- `verify_failed` — Command exited non-zero.
+- `verify_failed` — Command exited non-zero, or the commit and tree to verify could not be read (no command ran).
 - `verify_timeout` — Command exceeded `VERIFY_TIMEOUT`.
-- `verify_dirty` — Command exited 0 but left uncommitted changes in the worktree (handing off a dirty tree would
-  advertise the PR as ready for human merge with state the dev never committed).
+- `verify_dirty` — The worktree could not be proven clean: it carried uncommitted changes before the first command (no
+  command ran), a command exited 0 but left uncommitted changes, or git could not read the status. Handing off a dirty
+  tree would advertise the PR as ready for human merge with state the dev never committed.
 - `verify_head_changed` — Command exited 0, tree clean, but the command moved `HEAD` (e.g. ran `git commit` on its
   own). The subsequent squash + force-push would otherwise publish an unreviewed commit; the park comment surfaces the
   before / after SHAs.
+- `verify_tree_changed` — Command exited 0 and left `HEAD` on the tested commit, but its tree no longer read as the
+  tree recorded before the run; the park comment surfaces the before / after tree ids.
 
 ### Examples
 
