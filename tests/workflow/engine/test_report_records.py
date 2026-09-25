@@ -23,6 +23,7 @@ from orchestrator.workflow.engine import (
     report_record_values as _record_values,
     report_records as _records,
     report_settlement_state as _settlement,
+    review_subjects as _review_subjects,
 )
 from orchestrator.workflow.late_split import formats as _formats
 from orchestrator.workflow.stages.implementing import (
@@ -73,14 +74,16 @@ def _reserved() -> int:
     """What a record reserves on the comment for the writes that follow it.
 
     The comment-id entry publishing the report leaves, the receipt the
-    publication gate writes when it pushes the commit, and the workflow label
-    the settlement records itself under. All three are read off the owners the
+    publication gate writes when it pushes the commit, the two subject records
+    the reviewer it is handed to writes, and the workflow label the
+    settlement records itself under. All of them are read off the owners the
     measurement itself replays rather than spelled here, because what a
     crowding case has to allow for IS that measurement: a number of its own
     would pass while the reservation drifted away from it.
     """
     entered = PinnedState()
     _comments._reserve_comment_slot(entered, _record_values.MAX_RECORDED_NUMBER)
+    _review_subjects.reserves_the_review(entered)
     _publication_state._record_publication(
         entered, _WIDEST_COMMIT, _WIDEST_COMMIT, _record_values.MAX_RECORDED_NUMBER,
     )

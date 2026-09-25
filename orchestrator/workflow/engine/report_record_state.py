@@ -54,11 +54,12 @@ from orchestrator.workflow.engine import (
     report_consumed_values as _consumed,
     report_record_fields as _fields,
     report_record_reading as _reading,
-    report_record_values as _record_values,
     report_records as _records,
     report_settlement_state as _settlement,
+    review_subjects as _review_subjects,
     stage_targets as _stage_targets,
 )
+from orchestrator.workflow.engine.report_record_values import MAX_RECORDED_NUMBER
 from orchestrator.workflow.late_split import formats as _formats
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -70,7 +71,7 @@ from orchestrator.workflow.state import WorkflowLabel
 # the settlement sized here is never smaller than the one that actually happens.
 _WIDEST_DIGEST = "f" * max(_formats.DIGEST_LENGTHS)
 
-_WIDEST_IDENTITY = _record_values.MAX_RECORDED_NUMBER
+_WIDEST_IDENTITY = MAX_RECORDED_NUMBER
 
 # The widest commit either member of the code-publication receipt is recorded
 # at. The head a push replaces is the member a record cannot know at all; the
@@ -304,6 +305,13 @@ def settled_payload(
     idempotent and one it already holds would reserve nothing while the real
     publication went on to add an entry of its own.
 
+    The reviewer the settled report is handed to writes twice more on this
+    comment -- the subject it was handed, before it spawns, and the subject an
+    approval covers -- so both are reserved here too, at the widest a review
+    records either, through `review_subjects.reserves_the_review`. Left out, a
+    report accepted at the ceiling is followed by a reviewer spawn whose own
+    write GitHub refuses on every tick.
+
     The fixing HAND-BACK is the other write of that kind, and it is reserved
     the same way and for the same reason. A settlement whose record froze the
     fixing mark cannot move a label, so the round it closed is handed back by
@@ -327,6 +335,7 @@ def settled_payload(
     settled = _pinned_state.PinnedState(state_data=dict(state.data))
     if pending.mode is _records.ReportMode.PUBLISH:
         _comments._reserve_comment_slot(settled, _WIDEST_IDENTITY)
+    _review_subjects.reserves_the_review(settled)
     _consumed.advance_consumed(settled, pending.watermarks)
     _consumed.close_bookkeeping(settled, pending.spends)
     recorded = _settlement.record_current_report(settled, _records.CurrentReport(

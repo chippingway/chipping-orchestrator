@@ -14,6 +14,7 @@ head the last one named. A location nobody could read pings nobody.
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from orchestrator.workflow.stages.validating import review_report as _review_report
 from tests.workflow import reviewed_reports as world
@@ -22,6 +23,22 @@ from tests.workflow.fixtures import LABEL_VALIDATING, REVIEW_APPROVED_MESSAGE
 ISSUE = 1_798
 
 PR = 17_980
+
+
+def _pings(case) -> list[str]:
+    """The ready pings the case's issue thread has been sent so far."""
+    return world.ready_pings(case.github)
+
+
+class _EditedWhileMerging:
+    """GitHub answering the mergeability request while a human edits the report."""
+
+    def __init__(self, case) -> None:
+        self._case = case
+
+    def __call__(self, *_called, **_options) -> bool:
+        world.edits_report(self._case)
+        return True
 
 
 class ReportFreshnessTest(unittest.TestCase, world._ReviewedReports):
@@ -45,7 +62,7 @@ class ReportFreshnessTest(unittest.TestCase, world._ReviewedReports):
         self.assertEqual(handed, ((ISSUE, LABEL_VALIDATING), 0, 1))
         self.assertIn(f"> {world.SECOND_REPORT}", world.prompt(approved))
         self.assertEqual(
-            (retired, len(world.ready_pings(self.github)), self._stamps()[0]),
+            (retired, self._observed()[2], self._stamps()[0]),
             ((None, None), 2, head),
         )
 
@@ -54,7 +71,7 @@ class ReportFreshnessTest(unittest.TestCase, world._ReviewedReports):
         return (
             self.github.label_history[-1],
             self.pinned().get("review_round"),
-            len(world.ready_pings(self.github)),
+            len(_pings(self)),
         )
 
     def _stamps(self) -> tuple:
@@ -96,13 +113,13 @@ class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports):
         ):
             with self.subTest(name):
                 self._approved_and_documented(pinged=pinged)
-                pings = len(world.ready_pings(self.github))
+                pings = len(_pings(self))
                 damage(self)
 
                 self.in_review_tick()
 
                 self.assertEqual(
-                    (self.github.label_history[-1], len(world.ready_pings(self.github))),
+                    (self.github.label_history[-1], len(_pings(self))),
                     ((ISSUE, LABEL_VALIDATING), pings),
                 )
                 self.assert_refused(self.reviewed(), detail)
@@ -121,10 +138,25 @@ class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports):
                 self.in_review_tick()
 
                 self.assertEqual(
-                    (self.github.label_history[-1], world.ready_pings(self.github)),
+                    (self.github.label_history[-1], _pings(self)),
                     ((ISSUE, LABEL_VALIDATING), []),
                 )
                 self.assertIn(f"> {world.FIRST_REPORT}", world.prompt(self.reviewed()))
+
+    def test_an_edit_while_merging_pings_nobody(self) -> None:
+        # The report reads as approved when the tick begins and is edited
+        # while GitHub answers whether the pull request is mergeable: the ping
+        # is not taken on it, and the next tick hands the issue back.
+        self._approved_and_documented(pinged=False)
+
+        with patch.object(self.github, "pr_is_mergeable", _EditedWhileMerging(self)):
+            self.in_review_tick()
+        pinged = _pings(self)
+        self.in_review_tick()
+
+        self.assertEqual(
+            (pinged, self.github.label_history[-1]), ([], (ISSUE, LABEL_VALIDATING)),
+        )
 
     def test_an_unread_report_holds_the_ping(self) -> None:
         # A location nobody could read vouches for nothing: no ping and no
@@ -134,12 +166,12 @@ class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports):
         self.github.report_failures.unreadable.add(PR)
 
         self.in_review_tick()
-        held = (len(self.github.label_history), world.ready_pings(self.github))
+        held = (len(self.github.label_history), _pings(self))
         self.github.report_failures.unreadable.clear()
         self.in_review_tick()
 
         self.assertEqual(held, (relabels, []))
-        self.assertEqual(len(world.ready_pings(self.github)), 1)
+        self.assertEqual(len(_pings(self)), 1)
 
     def _approved_and_documented(self, *, pinged: bool) -> None:
         """Approve the first report, document its head, and ping it if asked."""

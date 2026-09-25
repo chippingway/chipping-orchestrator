@@ -2649,7 +2649,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
                             round-trips ago -- and the one HITL ready-ping an approved, unvetoed head earns per head
                             SHA, which is no park and carries no mark; a fresh approval retires the stamp, so a
-                            report re-reviewed on an unchanged head is pinged again
+                            report re-reviewed on an unchanged head is pinged again, and the report the approval
+                            covered is read again at the ping itself, since the requests before it are time a
+                            human can edit it in
       surfaces.py           the two reads the shared IssueComment id space is taken as -- the issue thread against
                             the delivery cursor an issue-only resume settled as well, the PR conversation against
                             neither -- and the raw merged read tagged by surface that the watermark walks consume.

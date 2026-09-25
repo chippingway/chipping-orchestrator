@@ -888,7 +888,11 @@ The keys that matter for the state machine fall into a few groups:
   settles past the ceiling: the write that fails then fails after the report is already on the thread, and goes on
   failing identically for the rest of the issue's life. The entry is reserved under an id the ledger does not
   already hold, because the writer that records a comment is idempotent — reserving one already there reserves
-  nothing, while the publication lands under an id of its own and adds an entry anyway.
+  nothing, while the publication lands under an id of its own and adds an entry anyway. The two review subject
+  records land past the settlement on the same comment — `review_subject` when the report's reviewer spawns, and
+  `review_approved_subject` when it approves — so the measurement reserves both at the widest a review writes them
+  (`review_subjects.reserves_the_review`), and a report is never accepted into a comment its own reviewer could
+  not then write to.
 
   **The same measurement is taken again at publication**, against the comment as it stands then, and that is not
   belt-and-braces: it is the only one that can be right. A transaction the dispatcher's reconciliation cannot

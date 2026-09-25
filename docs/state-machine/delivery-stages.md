@@ -3476,7 +3476,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        current head vetoes the ping). The ping requires either `docs_checked_sha == pr.head.sha` with `docs_verdict` set
        OR `gh.pr_is_approved(pr, head_sha=pr.head.sha)` (a human/bot APPROVED review on the current head). When the
        gate passes, post a one-shot `:bell:` ping de-duplicated by `ready_ping_sha` — which a fresh approval
-       retires, so a report re-reviewed on an unchanged head is pinged again. The ping is NOT a
+       retires, so a report re-reviewed on an unchanged head is pinged again — once the report the approval covered
+       has been read again right before it (`review_coverage._approval_stands`): the mergeability and review
+       requests ahead of the ping are time a human can edit that report in, and a report that no longer stands, or
+       that could not be read, pings nobody and is handed back or read again next tick. The ping is NOT a
        park: `awaiting_human` stays false so subsequent ticks still react to new comments / an external merge.
        Unlike park branches, the ready ping does NOT call `_bump_in_review_watermarks`. It posts an issue comment
        like a park does, but it is not a park and owes the thread no "everything below here is read" claim: the ping

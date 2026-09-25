@@ -7,7 +7,9 @@ anything it describes has happened. So the record is accepted only where the
 writes that FOLLOW it still fit beside it, and each of those is a write this
 guard cannot take back once it has been made.
 
-Two of them land between the record and the settlement. Publishing the report
+Two of them land between the record and the settlement, and two more after it:
+the reviewer the settled report is handed to records the subject it was
+handed, and an approval records the subject it covers. Publishing the report
 records the comment it landed as, so the drift hash and the feedback scans pass
 over this orchestrator's own text. And an issue whose commit is not published
 yet stands down to the publication gate, which pushes and writes the receipt
@@ -33,9 +35,11 @@ from orchestrator.github.pinned_state import (
     PinnedState,
     pinned_state_body,
 )
+from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     report_record_state as _record_state,
     report_record_values as _record_values,
+    review_subjects as _review_subjects,
 )
 from orchestrator.workflow.late_split import formats as _formats
 from orchestrator.workflow.stages.implementing import (
@@ -69,6 +73,8 @@ _POSTED_ID = 9000000000000000001
 _WIDEST_COMMIT = "f" * max(_formats.COMMIT_LENGTHS)
 
 _WIDEST_IDENTITY = _record_values.MAX_RECORDED_NUMBER
+
+_WIDEST_DIGEST = "f" * max(_formats.DIGEST_LENGTHS)
 
 # A receipt no writer here produces, past every spelling its readers accept and
 # so past everything the reservation can model. What a hand edit or an older
@@ -128,6 +134,31 @@ class CeilingTransactionTest(unittest.TestCase, support.ReportTransactionCase):
 
         support.assert_one_report(self)
         self.assertIsNone(_record_state.read_pending_report(self.state))
+        self._assert_within_the_comment()
+        self._reviews_it()
+
+    def _reviews_it(self) -> None:
+        """The reviewer's subject, then the approval's, as each round writes them.
+
+        Both land past the settlement on this same comment, so a record
+        accepted at the ceiling has to have left room for them too.
+        """
+        reviewed = _review_subjects.ReviewSubject(
+            pr_number=support.PR_NUMBER,
+            commit=support.SOURCE_SHA,
+            requirements_revision=_WIDEST_DIGEST,
+            report=_review_subjects.ReviewReport(
+                text=support.REPORT_TEXT,
+                report_revision=_WIDEST_IDENTITY,
+                content_revision=_WIDEST_DIGEST,
+                source_sha=support.SOURCE_SHA,
+                requirements_revision=_WIDEST_DIGEST,
+                location=ReportLocation(pr_number=support.PR_NUMBER),
+            ),
+        )
+        _review_subjects.record_reviewed(self.state, reviewed)
+        self._assert_within_the_comment()
+        _review_subjects.record_approved(self.state, reviewed)
         self._assert_within_the_comment()
 
     def _crowded_by(self, held: tuple, seed, owed) -> None:

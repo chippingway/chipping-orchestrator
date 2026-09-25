@@ -7,13 +7,15 @@ An unmergeable PR -- branch protection, a real conflict, a base that moved --
 parks awaiting a human, because every automatic answer to it would be a guess
 about what the human wants merged.
 
-A mergeable PR earns one ping per head SHA, and each of the three gates in
+A mergeable PR earns one ping per head SHA, and each of the four gates in
 front of that ping protects the same claim. The ping says "ready for
 review/merge", so it may only fire for a head this orchestrator reviewed and
 documented (the final-docs marker) or that GitHub itself carries an APPROVED
 review for, and never over a standing CHANGES_REQUESTED veto. `ready_ping_sha`
 keys the de-duplication on the head that was pinged, so a new commit re-pings
-and a repeated tick on the same head stays silent.
+and a repeated tick on the same head stays silent. The last gate is the report
+the approval covered, read again at the ping itself: the requests the gate
+makes before it are time a human can edit that report in.
 
 Both writes this stage makes to a thread are bounded by the same fact: the
 feedback scan that decided this tick ran several GitHub round-trips ago, and a
@@ -30,6 +32,7 @@ from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments, guards as _guards
 from orchestrator.workflow.stages.in_review import models as _models, watermarks as _watermarks
+from orchestrator.workflow.stages.validating import review_coverage as _review_coverage
 
 
 def _final_docs_handoff_completed_for_head(
@@ -119,6 +122,14 @@ def _handle_mergeable_gate(ctx: _models._InReviewContext) -> None:
     # the earlier feedback scan and this point -- the next tick's
     # `comments_after` would skip it and the dev would never see the feedback.
     if ctx.state.get("ready_ping_sha") != head_sha:
+        # The approval is read again at the ping itself. The hand-back ahead of
+        # the feedback scan asked it too, but the mergeability and review
+        # requests since then are round-trips a human can edit or delete the
+        # report during, and the ping is the one claim here that the report was
+        # reviewed. Refused or unread, nobody is pinged, and the next tick's
+        # hand-back reads it again.
+        if not _review_coverage._approval_stands(ctx.gh, ctx.state):
+            return
         _comments._post_issue_comment(
             ctx.gh, ctx.issue, ctx.state,
             f":bell: {config.HITL_MENTIONS} PR #{pr_number} is ready "

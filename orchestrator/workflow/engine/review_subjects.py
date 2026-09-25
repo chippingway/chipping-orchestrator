@@ -60,6 +60,10 @@ _REPORT_CONTENT = "report_content"
 
 _PR_NUMBER = "pr_number"
 
+# The widest a head, a requirements revision, or a report digest is recorded
+# at, which is what a reservation holds each of them to.
+_WIDEST_HEX = "f" * max(*_formats.COMMIT_LENGTHS, *_formats.DIGEST_LENGTHS)
+
 # Every member a recorded subject carries, and nothing else.
 _MEMBERS = frozenset((_PR, _SHA, _REQUIREMENTS, _REPORT_REVISION, _REPORT_CONTENT))
 
@@ -134,7 +138,10 @@ class ReviewSubject:
         if not (
             (pr_number is not None or recorded[_PR] is None)
             and isinstance(recorded[_SHA], str)
-            and _blank_or_hex(recorded[_REQUIREMENTS], _formats.DIGEST_LENGTHS)
+            and (
+                recorded[_REQUIREMENTS] == ""
+                or _payloads.as_hex(recorded[_REQUIREMENTS], _formats.DIGEST_LENGTHS)
+            )
         ):
             return None
         raw_revision = recorded[_REPORT_REVISION]
@@ -180,6 +187,37 @@ def record_approved(state: PinnedState, subject: ReviewSubject) -> None:
             state.set(stamp, None)
 
 
+def reserves_the_review(state: PinnedState) -> None:
+    """Stage both subject records at the widest a review can write them.
+
+    For a measurement, never for a write. A developer report is accepted only
+    where the comment still has room for everything that follows it, and the
+    reviewer that report is handed to writes `review_subject` before it spawns
+    and, approving, `review_approved_subject` after -- onto the same comment,
+    past the settlement that measurement is taken over. Unreserved, a report
+    accepted at the ceiling is followed by a reviewer spawn whose write GitHub
+    refuses, on every tick, for the rest of the issue's life. Each record
+    replaces the last under its key, so reserving the widest of each is an
+    upper bound on what any later review leaves. Written through
+    `ReviewSubject.recorded`, so a member added there moves the reservation.
+    """
+    widest = ReviewSubject(
+        pr_number=_record_values.MAX_RECORDED_NUMBER,
+        commit=_WIDEST_HEX,
+        requirements_revision=_WIDEST_HEX,
+        report=ReviewReport(
+            text="",
+            report_revision=_record_values.MAX_RECORDED_NUMBER,
+            content_revision=_WIDEST_HEX,
+            source_sha=_WIDEST_HEX,
+            requirements_revision=_WIDEST_HEX,
+            location=ReportLocation(pr_number=_record_values.MAX_RECORDED_NUMBER),
+        ),
+    ).recorded()
+    state.set(REVIEW_SUBJECT, widest)
+    state.set(APPROVED_SUBJECT, dict(widest))
+
+
 def approval_covers_current(state: PinnedState) -> bool:
     """Whether the recorded approval was given the report recorded as current.
 
@@ -197,11 +235,6 @@ def approval_covers_current(state: PinnedState) -> bool:
         return False
     covered = ReviewSubject.identity_recorded_in(approved)
     return covered is not None and covered == _current_identity(state)
-
-
-def _blank_or_hex(recorded, lengths: frozenset) -> bool:
-    """Whether a member is "" -- nothing to name -- or a whole hex value."""
-    return recorded == "" or _payloads.as_hex(recorded, lengths) is not None
 
 
 def _current_identity(state: PinnedState) -> tuple | None:
