@@ -19,6 +19,7 @@ from dataclasses import replace
 from functools import partial
 from unittest.mock import MagicMock
 
+from orchestrator.git.verification.models import VerifyResult
 from orchestrator.github.developer_reports import content_digest
 from orchestrator.workflow.engine import prompt_context as _prompt_context, report_records as _records
 from orchestrator.workflow.late_split import handoffs as _late_handoffs
@@ -61,26 +62,27 @@ LATE_REVIEWER = "late-reviewer"
 # Where a human pushes the branch while a reviewer is out.
 MOVED_HEAD = "b0a7" * 10
 
-# Every settled report no reviewer may be handed: the damage done to it, named
-# as the `_DamagedReports` method that does it, and what the park says of it.
-REFUSED_REPORTS = (
-    ("missing", "deletes", _review_report._MISSING),
-    ("edited", "edits", _review_report._EDITED),
-    ("truncated", "truncates", _review_report._EDITED),
-    ("moved", "moves", _review_report._MOVED.format(settled=PR)),
-    ("stale", "unhands", _review_report._STALE),
-    ("unreadable", "damages", _review_report._UNREADABLE),
-)
+# What a reviewer that ran while something changed comes back with.
+LATE_APPROVAL = _agent(session_id=LATE_REVIEWER, last_message=REVIEW_APPROVED_MESSAGE)
+
+# What a developer resumed on an edit answers when it says the work, and the
+# report, already cover it.
+ACK_REPLY = "ACK: the report already covers the edited criteria."
 
 
 class _DamagedReports(world._ReviewedReports):
     """What can happen to a settled report before the next reviewer spawns."""
 
-    def deletes(self) -> None:
-        world.deletes_report(self)
+    def pushes(self) -> None:
+        self.pull_request.head.sha = MOVED_HEAD
 
-    def edits(self) -> None:
-        world.edits_report(self)
+    def acknowledges(self) -> None:
+        _drift_world.edits(self, _drift_world.LATER_BODY)
+        self._ticked(
+            self._run_validating,
+            MagicMock(side_effect=_fix_world._Runs(ACK_REPLY)),
+            committed=False,
+        )
 
     def truncates(self) -> None:
         landed = self.report_comment()
@@ -98,15 +100,36 @@ class _DamagedReports(world._ReviewedReports):
         world.restate(self, **{_records.CURRENT_REPORT: {"revision": "one"}})
 
 
-class _ChangedWhileReviewed:
-    """A reviewer that approves while something it was handed changes."""
+# Every settled report no reviewer may be handed: what happened to it, and what
+# the park says of it. The last two read intact and are stale against the
+# subject: a push onto the branch, and an edit the developer only acknowledged.
+REFUSED_REPORTS = (
+    ("missing", world.deletes_report, _review_report._MISSING),
+    ("edited", world.edits_report, _review_report._EDITED),
+    ("truncated", _DamagedReports.truncates, _review_report._EDITED),
+    ("moved", _DamagedReports.moves, _review_report._MOVED.format(settled=PR)),
+    ("stale", _DamagedReports.unhands, _review_report._STALE),
+    ("unreadable", _DamagedReports.damages, _review_report._UNREADABLE),
+    ("pushed past", _DamagedReports.pushes, _review_report._MOVED_COMMIT.format(
+        reported=_fix_world.PUBLISHED_HEAD, head=MOVED_HEAD,
+    )),
+    ("acknowledged", _DamagedReports.acknowledges, _review_report._MOVED_REQUIREMENTS),
+)
 
-    def __init__(self, change) -> None:
+
+class _ChangedMidway:
+    """A run -- a reviewer's, a verification's -- during which something changes.
+
+    `answer` is what the run comes back with once `change` has happened.
+    """
+
+    def __init__(self, change, answer) -> None:
         self._change = change
+        self._answer = answer
 
     def __call__(self, *_called, **_options):
         self._change()
-        return _agent(session_id=LATE_REVIEWER, last_message=REVIEW_APPROVED_MESSAGE)
+        return self._answer
 
 
 class HandedReportTest(unittest.TestCase, world._ReviewedReports):
@@ -149,7 +172,7 @@ class RefusedReportTest(unittest.TestCase, _DamagedReports):
             with self.subTest(name):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)
                 self.reported_round(world.FIRST_REPORT)
-                getattr(self, damage)()
+                damage(self)
 
                 self.assert_refused(self.reviewed(REVIEW_APPROVED_MESSAGE), detail)
 
@@ -175,7 +198,7 @@ class RefusedReportTest(unittest.TestCase, _DamagedReports):
         # published with no commit and handed to the next reviewer.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
         self.reported_round(world.FIRST_REPORT)
-        self.edits()
+        world.edits_report(self)
         self.reviewed()
         _fix_world.replied(self, "please publish the report again")
 
@@ -203,7 +226,9 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
 
         self._ticked(
             self._run_validating,
-            MagicMock(side_effect=_ChangedWhileReviewed(partial(world.edits_report, self))),
+            MagicMock(side_effect=_ChangedMidway(
+                partial(world.edits_report, self), LATE_APPROVAL,
+            )),
             committed=False,
         )
 
@@ -220,6 +245,50 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
             "review approved" in body for _, body in self.github.posted_pr_comments
         ))
         self.assert_refused(self.reviewed(), _review_report._EDITED)
+
+    def test_an_edit_during_verify_voids_approval(self) -> None:
+        # The report is edited while the local verification runs, after the
+        # subject was checked on the reviewer's return: the approval is not
+        # recorded, announced, or squashed under.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.reported_round(world.FIRST_REPORT)
+
+        mocks = self._ticked(
+            self._run_validating,
+            [LATE_APPROVAL],
+            committed=False,
+            verify_result=_ChangedMidway(
+                partial(world.edits_report, self), VerifyResult(status="not_run"),
+            ),
+        )
+
+        mocks["_squash_and_force_push"].assert_not_called()
+        self.assertEqual(
+            (world.APPROVED in self.pinned(), self.pinned().get("last_review_session_id")),
+            (False, LATE_REVIEWER),
+        )
+        self.assertFalse(any(
+            "review approved" in body for _, body in self.github.posted_pr_comments
+        ))
+        self.assert_refused(self.reviewed(), _review_report._EDITED)
+
+    def test_an_unrecorded_approval_voids_handoff(self) -> None:
+        # An approval recorded before approvals named a subject, over a pull
+        # request that carries a report: nothing says that report was the one
+        # approved, so the handoff goes and a reviewer is handed it.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.reported_round(world.FIRST_REPORT)
+        self.reviewed(REVIEW_APPROVED_MESSAGE)
+        self.github.apply_foreign_label(self.issue, LABEL_VALIDATING)
+        world.restate(self, **{HANDOFF_SHA: self.pull_request.head.sha})
+        world.forgets_approval(self)
+
+        reviewed = self.reviewed()
+
+        self.assertIn(f"> {world.FIRST_REPORT}", world.prompt(reviewed))
+        self.assertEqual(
+            self.github.label_history.count((ISSUE, LABEL_DOCUMENTING)), 1,
+        )
 
     def test_a_covered_squash_handoff_relabels(self) -> None:
         # A finished squash whose relabel did not land leaves the head the
@@ -325,7 +394,7 @@ class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
     def _approves_while(self, change) -> None:
         self._ticked(
             self._run_validating,
-            MagicMock(side_effect=_ChangedWhileReviewed(change)),
+            MagicMock(side_effect=_ChangedMidway(change, LATE_APPROVAL)),
             committed=False,
         )
 

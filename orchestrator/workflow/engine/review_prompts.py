@@ -93,9 +93,11 @@ def _review_report_block(subject: _review_subjects.ReviewSubject | None) -> str:
 
     Quoted whole and never cut: the stage hands over only a report it re-read
     and held to its recorded digest, so the words below are that revision
-    exactly. Where the branch or the requirements have moved since the report
-    was written, the reviewer is told so rather than left to infer it from two
-    hashes.
+    exactly. A report about another commit, or written against requirements
+    the issue has moved past, is refused before any reviewer is spawned; what
+    can still stand between the report and the thread the reviewer reads is a
+    reply that bought this round, and the reviewer is told the issue has moved
+    on rather than left to infer it from two hashes.
     """
     if subject is None or subject.report is None:
         return (
@@ -104,11 +106,6 @@ def _review_report_block(subject: _review_subjects.ReviewSubject | None) -> str:
         )
     report = subject.report
     notes = [_review_report_heading(report)]
-    if subject.commit and subject.commit != report.source_sha:
-        notes.append(
-            "The branch has moved since this report was written: the pull "
-            f"request now stands on `{subject.commit}`.",
-        )
     if (
         subject.requirements_revision
         and subject.requirements_revision != report.requirements_revision

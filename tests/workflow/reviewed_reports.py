@@ -71,6 +71,13 @@ def deletes_report(case) -> None:
     case.pull_request.issue_comments.remove(case.report_comment())
 
 
+def forgets_approval(case) -> None:
+    """Leave the approval as one recorded before approvals named a subject."""
+    state = case.github.read_pinned_state(case.issue)
+    state.data.pop(APPROVED, None)
+    case.github.write_pinned_state(case.issue, state)
+
+
 class _ReviewedReports(_fix_world._FixReportMixin):
     """Report rounds, reviews, and the in_review tick behind an approval.
 

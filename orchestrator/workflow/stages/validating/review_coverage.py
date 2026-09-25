@@ -79,15 +79,14 @@ def _approved_report_stands(gh: GitHubClient, state: PinnedState) -> bool | None
     """Whether the report the recorded approval covered still reads as settled.
 
     Asked by whoever would act on an approval after the round that earned it
-    -- the settled squash handoff here, and `in_review` -- once the pinned
-    records agree, since those records cannot see a human editing or deleting
-    the report comment in place. True where it still reads, and where there is
-    nothing to read: no approval recorded, one the pinned records already
-    refuse, or an approval of no report. False where it reads ABSENT or
-    CHANGED. None where the reading could not be taken.
+    -- the settled squash handoff here, and `in_review` -- beside the pinned
+    agreement `review_subjects.approval_covers_current` answers, since those
+    records cannot see a human editing or deleting the report comment in
+    place. True where it still reads, and where there is nothing of this
+    owner's to read: an approval the pinned records already refuse, which is
+    the caller's answer, or an issue with no report at all. False where it
+    reads ABSENT or CHANGED. None where the reading could not be taken.
     """
-    if not state.carries(_review_subjects.APPROVED_SUBJECT):
-        return True
     if not _review_subjects.approval_covers_current(state):
         return True
     current = _settlement.read_current_report(state)

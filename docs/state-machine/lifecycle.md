@@ -418,14 +418,18 @@ than a second source of truth: where the two disagree, the handler pages are aut
        report_undeliverable once no retry can settle it
      the settled report re-read and quoted whole in the reviewer's prompt
        (review_subject); unreadable on the pinned comment, about another
-       PR, out of step with its handoff, removed, edited, cut short, or
-       untrusted ─► no reviewer spawned, parked report_undeliverable
+       PR, out of step with its handoff, removed, edited, cut short,
+       untrusted, about another commit than the head, or written against
+       requirements the baseline moved past ─► no reviewer spawned, parked
+       report_undeliverable
      workflow:validating --(APPROVED of the subject still standing, verify
-       ok, squash ok)──► review_approved_subject recorded, docs_verdict and
+       ok, subject still standing, squash ok)──► review_approved_subject
+       recorded, docs_verdict and
        ready_ping_sha retired, label=workflow:documenting (final-docs)
        ──► in_review
-     in_review with a current report its approval did not cover, or the
-       approved one edited or removed in place ─► review_round=0,
+     in_review with a current report its approval did not cover (an
+       unrecorded approval covers none), or the approved one edited or
+       removed in place ─► review_round=0,
        label=workflow:validating (fresh reviewer, same head); a location
        nobody could read holds the tick with no ping
      MAX_REVIEW_ROUNDS exhausted ─► park HITL

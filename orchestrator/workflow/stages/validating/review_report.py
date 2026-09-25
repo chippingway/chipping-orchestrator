@@ -20,6 +20,19 @@ with the debt recorded, and the reply resumes the developer, whose report is
 then published and reviewed. A reading nobody could take -- the pull request,
 the location, the author -- holds the tick for the next one instead.
 
+A report that reads intact is still refused where it is STALE against the
+subject it would be handed with: written about another commit than the one the
+pull request stands on -- a rebase, a squash, a push nobody reported -- or
+against requirements the issue has moved past, which is the rule the hold
+already holds an owed report to. Both are asked of the drift baseline and the
+head rather than of the reviewer's own read, because that read also carries the
+reply that bought a retried or granted round, which is no requirement a
+developer answers; any other change to the thread is a drift the check ahead of
+this has already resumed the developer on. An `ACK:` that answered an edit
+leaves the report written against the requirements before it, and is refused
+the same way: the reply to the park it earns is the developer's chance to say
+what the report says now.
+
 An issue that has never settled a report is reviewed with none, which is every
 pull request opened before reports were published.
 
@@ -75,6 +88,18 @@ _EDITED = (
     "it is no longer the revision a reviewer may be handed"
 )
 
+_MOVED_COMMIT = (
+    "the report this issue last settled is about commit `{reported}`, and the "
+    "pull request now stands on `{head}`"
+)
+
+_MOVED_REQUIREMENTS = (
+    "the report this issue last settled was written against requirements the "
+    "issue has since moved past"
+)
+
+_USER_CONTENT_HASH = "user_content_hash"
+
 # What each reading short of PRESENT refuses the review for. UNCONFIRMED is
 # absent on purpose: a reading nobody could take holds instead.
 _REFUSED = MappingProxyType({
@@ -93,11 +118,17 @@ def _resolves_the_subject(
     """The subject this round's reviewer is handed, or None where it is not.
 
     None is a tick this owner ended: a refusal it parked, or a reading it
-    could not take and holds for the next tick.
+    could not take and holds for the next tick. A subject read whole is held
+    to the staleness rules here and nowhere else, since they are about handing
+    a report to a reviewer; a subject read again once the reviewer returns is
+    held to equality with this one instead.
     """
     subject, refusal = _reads_the_subject(
         gh, issue, state, pr_number, delivered.requirements_revision or "",
     )
+    if subject is not None:
+        refusal = _stale_refusal(state, subject)
+        subject = None if refusal else subject
     if refusal:
         _report_settlement._parks(gh, issue, state, refusal)
     elif subject is None:
@@ -185,6 +216,24 @@ def _settled_report(
         requirements_revision=current.subject.requirements_revision,
         location=current.location,
     ), ""
+
+
+def _stale_refusal(
+    state: PinnedState, subject: _review_subjects.ReviewSubject,
+) -> str:
+    """Why a report read intact is too old to hand this reviewer, or "".
+
+    Against the head the pull request stands on, and against the requirements
+    baseline the drift check holds the issue to.
+    """
+    report = subject.report
+    if report is None:
+        return ""
+    if report.source_sha != subject.commit:
+        return _MOVED_COMMIT.format(reported=report.source_sha, head=subject.commit)
+    if report.requirements_revision != state.get(_USER_CONTENT_HASH):
+        return _MOVED_REQUIREMENTS
+    return ""
 
 
 def _settled_refusal(

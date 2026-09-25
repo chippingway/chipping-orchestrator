@@ -725,16 +725,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     review_prompts.py       the fresh reviewer's prompt and the handover it is built over -- the backend that
                             implemented the work and the subject the validating stage resolved -- with the
                             developer report quoted whole between the issue and the inspection commands, named by
-                            revision and location, and a note wherever the head or the requirements have moved
+                            revision and location, and a note where the thread the reviewer reads has moved on
                             since it was written; a subject with no report says none is recorded
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision
                             and digest -- recorded as `review_subject` before the spawn and as
                             `review_approved_subject` once an approval passes the verify gate, where the approval
                             also retires the head-keyed `docs_verdict` and `ready_ping_sha` an earlier one left; and
                             the question every later reader of an approval asks, whether the report recorded as
-                            current is the one it covered, compared on the pinned records alone. An issue approved
-                            before the record existed is covered as it always was, and a record nobody can read
-                            covers nothing
+                            current is the one it covered, compared on the pinned records alone. An approval with
+                            no record covers only an issue with no report either -- one approved before the record
+                            existed over a pull request that has settled a report goes back for a fresh review --
+                            and a record nobody can read covers nothing
     conversation_prompts.py question, discussion, PR-feedback follow-up, and developer human-reply resume prompts;
                             discussion publication instructions describe the confirmed plan artifact and the commit
                             its stage verifies
@@ -2894,14 +2895,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             subject. Refused rather than reviewed -- parked under `report_undeliverable` with the
                             debt recorded, so the reply resumes the developer -- when the settled record will not
                             read, is about another pull request, disagrees with the handoff that settled it, or
-                            reads ABSENT or CHANGED (removed, edited, cut short, or untrusted); a reading nobody
-                            could take holds without a notice. The reading itself posts and parks nothing, so
-                            `review_coverage.py` takes it again
+                            reads ABSENT or CHANGED (removed, edited, cut short, or untrusted) -- and when a report
+                            that reads intact is STALE: about another commit than the pull request's head, or
+                            written against requirements the drift baseline has moved past, an `ACK:` of an edit
+                            included, which is the rule the hold holds an owed report to. The baseline rather than
+                            the reviewer's own read, since that read carries the reply that bought a retried or
+                            granted round. A reading nobody could take holds without a notice. The reading itself
+                            posts and parks nothing, so `review_coverage.py` takes it again
       review_coverage.py    whether an approval still covers the subject standing when it is acted on. When the
                             reviewer returns, the whole subject is resolved again over the issue read afresh and
                             has to EQUAL the one handed over -- pull request, head, requirements, and the report's
                             revision, digest, location, and words, a reviewer handed no report included -- or the
-                            approval is not acted on and the next round resolves the subject for itself. Later,
+                            approval is not acted on and the next round resolves the subject for itself; asked
+                            again by `approval.py` once the verify gate has passed, since a verification can run
+                            long enough for the report to be edited under it. Later,
                             once the pinned records agree the current report is the approved one, the report is
                             read at its location again, since no record sees a comment edited or deleted in place:
                             the settled squash handoff asks it before moving the label, and `in_review` before an

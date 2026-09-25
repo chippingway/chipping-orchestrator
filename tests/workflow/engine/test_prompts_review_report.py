@@ -5,7 +5,7 @@
 The reviewer is handed the report rather than left to fetch one: quoted whole
 between the issue and the commands that inspect the branch, named by its
 revision and location, and said to be the complete, current report. Where the
-branch or the requirements have moved since the report was written, the prompt
+thread the reviewer reads has moved on since the report was written, the prompt
 says so; where no report is recorded, it says that instead. None of it teaches
 the reviewer a report outcome of the developer's own.
 """
@@ -32,7 +32,6 @@ _REVISION = 3
 
 _REPORT_HEAD = "0b54a1c9e4f1d2a3b4c5d6e7f8091a2b3c4d5e6f"
 
-_MOVED_HEAD = "7c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d"
 
 _REQUIREMENTS = "requirements-at-the-report"
 
@@ -59,7 +58,6 @@ _INSPECTION = "Inspect the change with:"
 
 _COMPLETE_AND_CURRENT = "It is the complete, current report"
 
-_MOVED_NOTE = "The branch has moved since this report was written"
 
 _EDITED_NOTE = "The issue has changed since this report was written"
 
@@ -135,23 +133,20 @@ class ReviewPromptReportTest(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, prompt)
         for absent in (
-            _MOVED_NOTE, _EDITED_NOTE, _REPORT_READY_MARKER, _REPORT_VERIFIED_MARKER,
+            _EDITED_NOTE, _REPORT_READY_MARKER, _REPORT_VERIFIED_MARKER,
         ):
             with self.subTest(absent=absent):
                 self.assertNotIn(absent, prompt)
 
     def test_it_says_what_moved_since_the_report(self) -> None:
-        # A head the report was not written on, and requirements it was not
-        # written against, are each named -- and a report verified on the
-        # description says it was read there.
+        # A thread that moved on since the report -- the reply that bought
+        # this round -- is named, and a report verified on the description
+        # says it was read there.
         prompt = _prompt(_subject(
-            commit=_MOVED_HEAD,
             requirements=_EDITED_REQUIREMENTS,
             comment_id=None,
         ))
 
-        self.assertIn(f"now stands on `{_MOVED_HEAD}`", prompt)
-        self.assertIn(_MOVED_NOTE, prompt)
         self.assertIn(_EDITED_NOTE, prompt)
         self.assertIn(f"PR #{_PR_NUMBER}, its description", prompt)
 

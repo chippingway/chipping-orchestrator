@@ -3190,20 +3190,22 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      written when the hold stops it, so its reply is not answered twice.
   4. If `review_round >= MAX_REVIEW_ROUNDS` (default 3), park (`review_cap`). The park comment surfaces the
      `/orchestrator add-review-rounds N` escape hatch.
-  5. Otherwise resolve what the reviewer is handed (`review_report._resolves_the_subject`): the pull request's head,
-     and the developer report `developer_report_current` records, re-read from the exact location it settled at and
-     held to its digest. A settled record that will not read, one about another pull request, one its own handoff
-     does not describe, and a location that reads ABSENT or CHANGED — removed, edited, cut short, or written by an
-     author this deployment does not trust — each park under `report_undeliverable` with `developer_report_owed`
-     set, so no reviewer runs and the reply resumes the developer, whose report is then published and reviewed; a
-     head or location nobody could read holds the tick silently. An issue that has never settled a report is
-     reviewed with none. Then persist `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the reviewer
-     is spawned fresh each round with no resume) and the resolved subject to `review_subject`, and run the reviewer
-     with the read-only prompt, which quotes that report whole between the issue and the inspection commands (must
-     end with `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check
-     (`_paused_during_agent_run`) right after the reviewer returns short-circuits BEFORE the usage fold, session
-     record, verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable
-     state.
+  5. Otherwise resolve what the reviewer is handed (`review_report._resolves_the_subject`): the pull request's head, and
+     the developer report `developer_report_current` records, re-read from the exact location it settled at and held to
+     its digest. A settled record that will not read, one about another pull request, one its own handoff does not
+     describe, and a location that reads ABSENT or CHANGED — removed, edited, cut short, or written by an author this
+     deployment does not trust — each park under `report_undeliverable` with `developer_report_owed` set, and so does a
+     report that reads intact and is STALE: about another commit than the head the pull request stands on, or written
+     against requirements the drift baseline has moved past (the rule the hold above holds an owed report to, an `ACK:`
+     of an edit included; the baseline rather than the reviewer's own read, which carries the reply that bought a
+     retried or granted round). So no reviewer runs and the reply resumes the developer, whose report is then published
+     and reviewed; a head or location nobody could read holds the tick silently. An issue that has never settled a
+     report is reviewed with none. Then persist `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the
+     reviewer is spawned fresh each round with no resume) and the resolved subject to `review_subject`, and run the
+     reviewer with the read-only prompt, which quotes that report whole between the issue and the inspection commands
+     (must end with `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check
+     (`_paused_during_agent_run`) right after the reviewer returns short-circuits BEFORE the usage fold, session record,
+     verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state.
   6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
      - **approved** → the whole subject is resolved again first (`review_coverage._approval_still_covers`), over
        the issue read afresh, and has to equal the one the reviewer was handed — pull request, head, requirements,
@@ -3216,10 +3218,11 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        `_park_verify_failure` with a typed `park_reason`
        (`verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`) and the
        approval / squash / handoff do NOT fire (see
-       [`configuration.md#local-verification-gate`](../configuration.md#local-verification-gate)); then stage the
-       subject as `review_approved_subject`, retiring the `docs_verdict` and `ready_ping_sha` an earlier approval
-       left, since both are keyed on a head this approval may share; (2) post
-       `:white_check_mark: codex review approved.`; (3) when `SQUASH_ON_APPROVAL` is on (default), call
+       [`configuration.md#local-verification-gate`](../configuration.md#local-verification-gate)); then resolve and
+       compare the subject once more, since a verification can run long enough for the report to be edited under it, and
+       act on the approval only if it still stands; then stage the subject as `review_approved_subject`, retiring the
+       `docs_verdict` and `ready_ping_sha` an earlier approval left, since both are keyed on a head this approval may
+       share; (2) post `:white_check_mark: codex review approved.`; (3) when `SQUASH_ON_APPROVAL` is on (default), call
        `_squash_and_force_push` (subject reuses the first commit when it carries a reusable `<prefix>:` form —
        Conventional **or** repo-local such as `event:`/`career:` — otherwise `<inferred-prefix>: <issue title>`, where
        the prefix is inferred from recent base-branch history via `_infer_subject_prefix` and falls back to
@@ -3378,12 +3381,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      none — or of that very report since edited or removed at its location, which the stage re-reads there every
      tick an approval of a report stands (`review_coverage._approved_report_stands`); the head can be the very one
      the approval, its docs verdict, and its ping were about, and nothing keyed on the commit alone would notice. A
-     location nobody could read holds the whole tick, since every route below would act on an approval nothing
-     could vouch for. An issue approved before that record existed carries none and is not handed back on this
-     reading. Each way the issue stands on an approval earned against requirements or a report
-     that no longer stand. Left here the
-     report is never bound, since the hold that binds it is `validating`'s, and the ready ping below could invite a
-     merge on the stale approval. So `review_round` resets to 0 and the marker goes down in a write taken
+     location nobody could read holds the whole tick, since every route below would act on an approval nothing could
+     vouch for. An approval recorded before that record existed carries none, and is handed back on this reading
+     whenever a report is recorded — nothing says that report was the one approved. Each way the issue stands on an
+     approval earned against requirements or a report that no longer stand. Left here the report is never bound, since
+     the hold that binds it is `validating`'s, and the ready ping below could invite a merge on the stale approval. So
+     `review_round` resets to 0 and the marker goes down in a write taken
      BEFORE the label moves — the two cannot be one operation, and only this order is recoverable: a label moved
      first and a write then lost would put the issue under a reviewer with the budget the stale approval was earned
      under, while a relabel that does not land leaves both durable on an issue this same step moves on the next

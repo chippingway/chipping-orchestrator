@@ -18,7 +18,10 @@ or a reading that placed them nowhere at all.
 
 What the approval covers is recorded once the verify gate has passed, beside
 everything the handoff writes: the pull request, the head, the requirements,
-and the developer report the reviewer was handed. Every later reader that would
+and the developer report the reviewer was handed. The subject is resolved and
+compared once more between the two, since a verification can run long enough
+for the report to be edited under it, and an approval of the earlier words is
+not one the squash may be taken under. Every later reader that would
 act on this approval -- the settled handoff below, the in_review stage -- holds
 it to that report, so a report that changes on an unchanged commit is sent
 back to a reviewer rather than carried past one. The same record retires the
@@ -80,6 +83,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.validating import (
     handoff as _handoff,
     models as _models,
+    review_coverage as _review_coverage,
     state as _state,
     verify as _verify,
 )
@@ -416,10 +420,18 @@ def _finalize_validating_approval(
     )
     if verify.status not in ("ok", "not_run"):
         _verify._park_verify_failure(gh, issue, state, verify)
-        gh.write_pinned_state(issue, state)
+    # The verification can outlast an edit of the report, a push, or an edit
+    # of the issue, and nothing past this line asks again before the squash.
+    elif _review_coverage._approval_still_covers(
+        gh, issue, state, reviewer_run.subject,
+    ):
+        # Staged here and written by whichever write the squash road below
+        # makes, so an approval nothing recorded is never one a later tick
+        # acts on.
+        _review_subjects.record_approved(state, reviewer_run.subject)
+        _handoff._post_approval_comment(gh, issue, state, reviewer_run)
+        _squashed_and_handed_off(gate, branch, reviewer_run.pr_number)
         return
-    # Staged here and written by whichever write the squash road below makes,
-    # so an approval nothing recorded is never one a later tick acts on.
-    _review_subjects.record_approved(state, reviewer_run.subject)
-    _handoff._post_approval_comment(gh, issue, state, reviewer_run)
-    _squashed_and_handed_off(gate, branch, reviewer_run.pr_number)
+    # A failed verification parks and an approval the subject moved out from
+    # under is dropped; either way what the run left is the write owed.
+    gh.write_pinned_state(issue, state)

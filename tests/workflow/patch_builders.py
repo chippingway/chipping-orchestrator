@@ -125,7 +125,9 @@ def _validation_mocks(context: _WorkflowRunContext) -> dict[str, object]:
         verify_result = VerifyResult(status=verify_status)
     return {
         "_squash_and_force_push": _patch_publication._squashed(context.squash_result),
-        "_run_verify_commands": MagicMock(return_value=verify_result),
+        # A seeded result, or a callable taking the runner's place -- which is
+        # how a case acts inside the window a verification is running in.
+        "_run_verify_commands": _support._as_mock(verify_result),
         "_rebase_in_progress": MagicMock(
             return_value=bool(context.rebase_in_progress),
         ),

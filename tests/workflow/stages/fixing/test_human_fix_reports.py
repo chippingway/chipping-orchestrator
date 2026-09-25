@@ -220,6 +220,7 @@ class HumanFeedbackHandoverTest(unittest.TestCase, human._HumanFixReportMixin):
             "the reader stops below the comment no prompt carried",
         )
         self.github.apply_foreign_label(self.issue, LABEL_IN_REVIEW)
+        human.approves_the_report(self)
 
         self.rescanned()
 

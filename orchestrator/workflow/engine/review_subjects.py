@@ -22,12 +22,13 @@ would advertise the new report as already reviewed, documented, and announced.
 `approval_covers_current` is the question every later reader asks: whether the
 report this issue records as current is still the one the approval was given.
 It compares the pinned records and reads nothing from GitHub -- an edit of the
-report comment in place is the reviewer's own refusal to find, before the
-spawn and again before an approval is acted on. An issue approved before the
-record existed carries no `review_approved_subject`, and its approval covers
-what it always did; a record present in any shape its reader refuses covers
-nothing, so a hand edit sends the issue back to a reviewer rather than past
-one.
+report comment in place is `stages/validating/review_coverage.py`'s to find.
+An approval with no record at all covers only an issue that has no report
+either: one approved before the record existed, over a pull request that has
+since settled a report, is an approval nothing says was of that report, so the
+issue goes back for a review that is. A record present in any shape its reader
+refuses covers nothing, so a hand edit sends the issue back to a reviewer
+rather than past one.
 """
 from __future__ import annotations
 
@@ -145,14 +146,15 @@ def record_approved(state: PinnedState, subject: ReviewSubject) -> None:
 def approval_covers_current(state: PinnedState) -> bool:
     """Whether the recorded approval was given the report recorded as current.
 
-    True where no approval record exists at all, since an approval earned
-    before this record did is one nothing here can speak for. Otherwise the
-    pull request and the report revision have to agree -- no report on either
-    side is agreement, one report on one side is not -- and an unreadable
-    record on either side agrees with nothing.
+    With no approval record at all, only where no report is recorded either
+    -- claimed, readable or not -- since an approval nothing identifies may
+    have been of any report, or of none. Otherwise the pull request and the
+    report revision have to agree -- no report on either side is agreement,
+    one report on one side is not -- and an unreadable record on either side
+    agrees with nothing.
     """
     if not state.carries(APPROVED_SUBJECT):
-        return True
+        return not _settlement.carries_settled_record(state)
     approved = state.get(APPROVED_SUBJECT)
     if not isinstance(approved, dict):
         return False

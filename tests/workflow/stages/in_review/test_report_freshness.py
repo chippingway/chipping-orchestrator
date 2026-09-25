@@ -91,7 +91,6 @@ class ReportFreshnessTest(unittest.TestCase, world._ReviewedReports):
         self.in_review_tick()
 
 
-
 class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports):
     """The approved report is read again before the approval is relied on."""
 
@@ -116,6 +115,22 @@ class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports):
                 )
                 self.assert_refused(self.reviewed(), detail)
 
+    def test_an_unrecorded_approval_goes_back(self) -> None:
+        # An approval recorded before approvals named a subject, over a pull
+        # request that carries a report: its docs verdict and head stand, but
+        # nothing says the report was the one approved, so no ping is taken on
+        # it and the issue goes back for a review that is.
+        self._approved_and_documented(pinged=False)
+        world.forgets_approval(self)
+
+        self.in_review_tick()
+
+        self.assertEqual(
+            (self.github.label_history[-1], world.ready_pings(self.github)),
+            ((ISSUE, LABEL_VALIDATING), []),
+        )
+        self.assertIn(f"> {world.FIRST_REPORT}", world.prompt(self.reviewed()))
+
     def test_an_unread_report_holds_the_ping(self) -> None:
         # A location nobody could read vouches for nothing: no ping and no
         # hand-back, and the ping follows once it reads again.
@@ -139,6 +154,7 @@ class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports):
         self.documented()
         if pinged:
             self.in_review_tick()
+
 
 if __name__ == "__main__":
     unittest.main()

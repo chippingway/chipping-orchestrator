@@ -4,9 +4,9 @@
 
 An approval is recorded against the pull request and the developer report the
 reviewer was handed, and it covers the issue only while the report recorded as
-current is that same revision -- on the same commit or any other. An issue
-approved before the record existed is covered as it always was; a record
-nobody can read covers nothing. Recording an approval retires the head-keyed
+current is that same revision -- on the same commit or any other. An approval
+with no record covers only an issue with no report either, and a record nobody
+can read covers nothing. Recording an approval retires the head-keyed
 docs verdict and ready ping an earlier approval left, and gives an issue that
 never carried them no key.
 """
@@ -97,7 +97,8 @@ class ApprovalCoverageTest(unittest.TestCase):
     def test_the_report_revision_decides(self) -> None:
         first = _report(1, _FIRST_DIGEST)
         cases = (
-            ("no approval recorded", _state((2, _SECOND_DIGEST)), True),
+            ("no approval, no report", _state(), True),
+            ("no approval, but a report", _state((2, _SECOND_DIGEST)), False),
             (
                 "the approved report is current",
                 _approved(_state((1, _FIRST_DIGEST)), _subject(first)),
