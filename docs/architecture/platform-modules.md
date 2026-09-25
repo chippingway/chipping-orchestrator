@@ -288,10 +288,59 @@ orchestrator/
     pull_request_retirement.py
                         idempotent supersession notices followed by closure; an authenticated marker read can travel
                         from the caller so no extra request intervenes between its final proof and the write
+    pull_request_verification.py
+                        finding and posting the workflow verification artifacts on a pull request's conversation,
+                        over the same road the developer report takes and with that owner's own readings rather
+                        than a second vocabulary saying the same thing: every reading is present, absent, changed,
+                        or unconfirmed, only absent is posted onto, and the lookup is scoped by the transaction
+                        receipt, so a retry finds the exact comment GitHub already accepted and a later artifact
+                        on the same commit is a comment of its own. A pasted copy is not ours; a post whose
+                        response was lost stays unconfirmed until a read settles it; an artifact for another pull
+                        request is refused before any request is made. Rereading a published artifact is the
+                        report owner's `reread_report_location`, since a location is a pull request and a comment
+                        id either way. The thread read and the post are this owner's own seams, so the in-memory
+                        double answers them for artifacts without inheriting whatever a case arranged for reports.
+                        Recording the comment an artifact landed as belongs above this layer, since the ledger of
+                        this orchestrator's own comments is pinned state: a caller publishes through
+                        `workflow/engine/verification_comments.py`, which takes that id off the reading returned
+                        here
     pull_requests.py    PR creation, comments, body edits, labels, SHA-pinned merge, and remote-branch deletion;
-                        the mutation mixin includes the read, developer-report, and retirement owners in the client's
-                        inheritance chain
+                        the mutation mixin includes the read, retirement, and both evidence owners --
+                        developer-report and verification-artifact, grouped because they are one kind of thing
+                        reached one way -- in the client's inheritance chain
     reviews.py          current-head review aggregation: approval verdicts and unread-feedback watermarks
+    verification_artifacts.py
+                        the workflow verification artifact comment format: the workflow's own evidence about a
+                        tested tree, appended as its own comment beside the developer report rather than into it
+                        and never into the description, so the report keeps its own source identity and no
+                        human-authored sentence is rewritten. It names the repository and pull request, the
+                        commit and tree the commands ran on, the head the pull request carried when it was
+                        written, the review subject and requirements revision it answers for, and the
+                        verification-context revision it ran under -- four object ids rather than one, because
+                        evidence carried forward, the round it answers, and the head that has moved since are
+                        three different commits. Each artifact carries its own revision, so several on one commit
+                        read as an ordered history; the hidden header repeats that identity beside the
+                        transaction receipt and the digest of the evidence, and the ordinary orchestrator marker
+                        closes the body, which is what keeps a generated artifact from ever being read back as a
+                        human's fresh feedback. An identity the header cannot carry and a body past a comment's
+                        length are refused rather than cut, and a comment reads back as an artifact only when it
+                        is ours and re-renders byte for byte -- never one whose header claims a witness this
+                        format does not name, a count of more digits than Python converts, or evidence that
+                        reconstructs past what a comment holds, which a body short enough to have been posted
+                        still claims once its preamble is gone. Every such claim is ANSWERED rather than
+                        raised: the question is asked of somebody else's comment, on a thread anybody can post
+                        to, so nothing a comment says about itself may leave the scan that asked by an exception
+    verification_evidence.py
+                        what an artifact reports and who witnessed it: one command, the status it exited, and
+                        whatever bounded transcript the artifact carries for it, rendered once here so the digest
+                        an artifact publishes is taken over one spelling of them. Orchestrator-executed evidence
+                        is this process reporting commands it spawned itself; reviewer-reported evidence is a
+                        reviewer run's account of commands nobody here observed, and the witness travels with the
+                        commands rather than being a footnote to them. A command carrying the backtick that
+                        delimits it, a transcript carrying the fence that closes it, and either carrying a
+                        receipt marker of ours are refused where they are declared, which is the only place they
+                        can still be told apart from a rendering. No command at all renders as an explicit
+                        absence, since a section that simply listed nothing would read as a run that passed
   agents/               publishes the run/result models, runner entry point, and process shutdown hook
     models.py           the agent result and unfinished-step diagnostics, run-option, and subprocess-result models
     environment.py      credential filtering and the injected git identity

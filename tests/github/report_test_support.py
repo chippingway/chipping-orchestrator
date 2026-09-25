@@ -1,12 +1,14 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The two clients the developer-report contract is held against.
+"""The two clients the append-only evidence contracts are held against.
 
-The real client is driven over pull requests shaped the way PyGithub hands them
-over, so the requests it makes are the ones production makes; the shared fake is
-driven over its own records. Each backend can fail a read, refuse a post, or
-land a post and lose its response, and each reports what was written to the
-description, which a report must never touch.
+A developer report and a workflow verification artifact are published onto one
+conversation the same way, so one pair of backends answers for both. The real
+client is driven over pull requests shaped the way PyGithub hands them over, so
+the requests it makes are the ones production makes; the shared fake is driven
+over its own records. Each backend can fail a read, refuse a post, or land a
+post and lose its response, and each reports what was written to the
+description, which neither kind of evidence may ever touch.
 """
 from __future__ import annotations
 
@@ -118,6 +120,13 @@ class WireBackend:
     def description_writes(self) -> list:
         return self.pull_request.edit.call_args_list
 
+    def posted_comments(self) -> list:
+        """Every comment this client posted, read off the requests it made."""
+        return [
+            (PR_NUMBER, posted.args[0])
+            for posted in self.pull_request.create_issue_comment.call_args_list
+        ]
+
     def _get_pull(self, pr_number: int) -> MagicMock:
         pull_request = self._pulls.get(pr_number)
         if pull_request is None or pull_request.failing == UNREADABLE:
@@ -158,3 +167,7 @@ class FakeBackend:
 
     def description_writes(self) -> list:
         return self.gh.edited_pr_bodies
+
+    def posted_comments(self) -> list:
+        """Every comment this client posted, read off the ledger it keeps of ours."""
+        return list(self.gh.posted_pr_comments)

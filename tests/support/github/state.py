@@ -36,12 +36,16 @@ class _FakePullHistory:
 
 @dataclass
 class _FakeReportFailures:
-    """Pull requests whose developer-report requests GitHub leaves unanswered.
+    """Pull requests whose report and artifact requests GitHub leaves unanswered.
 
     Three ways, because each leaves GitHub holding something different. A read
     that failed says nothing about the thread; a refused post landed nothing;
     a lost response landed the comment and still raised, which is the accepted
     write a retry has to find rather than post again.
+
+    One set for both evidence surfaces, since there is one conversation behind
+    them: a thread nobody can read is unreadable for a verification artifact
+    exactly as it is for a developer report.
     """
 
     unreadable: set[int] = field(default_factory=set)

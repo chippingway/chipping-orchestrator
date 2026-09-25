@@ -32,3 +32,4 @@ UnreadableUser = _models.UnreadableUser
 LazyPullRequest = _lazy.LazyPullRequest
 make_developer_report = _factories.make_developer_report
 make_issue = _factories.make_issue
+make_verification_artifact = _factories.make_verification_artifact

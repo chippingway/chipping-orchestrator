@@ -10,7 +10,7 @@ from tests.support.github import (
     issues as issue_service,
     pr_service as pull_service,
     pr_views as pull_views,
-    report_service as pull_reports,
+    verification_service as pull_evidence,
 )
 from tests.support.github.comment_ids import _FIRST_COMMENT_ID, _CommentIdAllocator
 from tests.support.github.models import DEFAULT_BOT_LOGIN, FakeIssue
@@ -56,7 +56,7 @@ class _PullServices(
     """Combine pull-request operations behind one inheritance branch."""
 
 
-class _PullClient(_PullViews, _PullServices, pull_reports._PullReportService):
+class _PullClient(_PullViews, _PullServices, pull_evidence._PullEvidenceService):
     """Compose the complete pull-request-side fake surface."""
 
 

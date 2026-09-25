@@ -72,11 +72,22 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     comments.py             the orchestrator marker, bound from the GitHub trust owner, and the bounded id ledger
                             shared by issue and pull-request comment posts; a developer report enters the ledger on
                             whichever reading finds it on the thread, since a post whose response was lost hands
-                            back no id; callers persist the ledger, and shared token accounts are never treated as
+                            back no id, and a verification artifact enters the same one through the sibling owner
+                            below; callers persist the ledger, and shared token accounts are never treated as
                             exclusively automated. The id a report landed as is read off the LOOKUP, which
                             resolves it once when the reading is taken: this records a comment before its caller
                             ever sees the reading, and an id answered afresh to each of them could fail here and
                             succeed there -- leaving the settled report at a comment the ledger never learned
+    verification_comments.py
+                            one verification artifact published onto a pull request and recorded in the ledger
+                            above, beside the owner holding that ledger rather than inside it: what this answers
+                            for is one domain's publication, while that owner answers for the marker, the id
+                            list, and the plain comment posts every stage makes. The id is read off the LOOKUP
+                            for the reason a report's is, and recorded on whichever reading finds the artifact,
+                            since a post whose response was lost hands back none. Both halves are needed: the
+                            marker in the artifact's own rendering says the comment is ours once its id ages out
+                            of the ledger, and the id says so once somebody edits the marker away -- without
+                            which a feedback scan reads this orchestrator's own evidence as a human's request
     prompt_context.py       trusted-author thread reads, retained orchestrator comment ids, quoted comment lines, and
                             bounded tracked-repository awareness for agent prompts; marker text alone cannot admit a
                             comment, and a delivery snapshot over a read taken by the pinned comment's id is handed
