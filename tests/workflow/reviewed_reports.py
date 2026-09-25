@@ -24,6 +24,9 @@ FIRST_REPORT = "Covers the requested change; `uv run pytest tests` passes."
 
 SECOND_REPORT = "Says how the suite was run, as the reviewer asked, on the same commit."
 
+# What a human leaves in place of the first report when they edit its comment.
+EDITED_REPORT = "A different account of the work."
+
 # The records the reviewer and the approval leave on the pinned comment.
 REVIEWED = "review_subject"
 
@@ -55,6 +58,17 @@ def restate(case, **fields) -> None:
 def ready_pings(github) -> list[str]:
     """Every ready ping the issue thread has been sent."""
     return [body for _, body in github.posted_comments if READY_PING in body]
+
+
+def edits_report(case) -> None:
+    """Rewrite the words of the report recorded as current, in place."""
+    landed = case.report_comment()
+    landed.body = landed.body.replace(FIRST_REPORT, EDITED_REPORT)
+
+
+def deletes_report(case) -> None:
+    """Remove the comment the report recorded as current landed as."""
+    case.pull_request.issue_comments.remove(case.report_comment())
 
 
 class _ReviewedReports(_fix_world._FixReportMixin):

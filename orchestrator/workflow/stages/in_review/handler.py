@@ -17,7 +17,8 @@ contract for issue-thread feedback on an open PR.
 An approval that no longer covers the work is asked before either, right
 behind the terminals: a report a drift resume still owes, the marker one of
 its outcomes left when its relabel did not land, or a developer report other
-than the one the approval was given. The approval this label stands on was
+than the one the approval was given -- another revision, or the approved one
+edited or removed at its location. The approval this label stands on was
 earned against requirements or a report that no longer stand, so feedback,
 drift and the ready ping all wait for `validating` to re-review.
 

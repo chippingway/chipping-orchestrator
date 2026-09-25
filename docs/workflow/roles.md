@@ -2170,7 +2170,7 @@ remote is still owed.
 
 ## Local verify gate (not an agent)
 
-After the reviewer emits `VERDICT: APPROVED` — and the report it was handed still reads as it was handed —
+After the reviewer emits `VERDICT: APPROVED` — and the whole subject it was handed still stands —
 `_handle_validating` runs the configured `VERIFY_COMMANDS` directly in the per-issue worktree — these are plain shell
 commands, not an agent role, so no `*_AGENT` env var applies. The gate runs before the approval record, the approval
 comment, the squash, the watermark seeding, and the `workflow:documenting` (final-docs) label flip. A clean run

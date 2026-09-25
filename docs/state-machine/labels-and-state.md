@@ -1675,6 +1675,9 @@ The keys that matter for the state machine fall into a few groups:
   squash handoff on `workflow:validating`, and the stale-approval hand-back on `in_review` -- holds it to the report
   `developer_report_current` records now: another revision, other words, or a report where the approval saw none is
   a subject nobody reviewed, so the handoff is dropped for a fresh reviewer and the in_review issue is handed back.
+  Both also read that report at its location again, since no record sees its comment edited or removed in place,
+  and hold rather than act where the location could not be read. The approval itself is taken only where the whole
+  subject resolved again when the reviewer returns equals `review_subject`.
   Both are additive: an issue without `review_approved_subject` was approved before it existed and is covered as it
   always was, while one present in any shape its reader refuses, `null` included, covers nothing.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s

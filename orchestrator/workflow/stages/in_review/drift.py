@@ -110,6 +110,7 @@ from orchestrator.workflow.stages.in_review import (
 from orchestrator.workflow.stages.validating import (
     drift_outcomes as _drift_outcomes,
     report_settlement as _report_settlement,
+    review_coverage as _review_coverage,
     state as _validating_state,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -369,19 +370,32 @@ def _hands_a_stale_approval_back(ctx: _models._InReviewContext) -> bool:
     marker goes down with the park and the move is made ahead of the feedback
     scan that would otherwise route that reply to `fixing`.
 
-    An approval recorded against another developer report than the one the
-    issue now records as current is the third. The head can be the very one
-    that approval, its docs pass, and its ready ping were about, so nothing
-    keyed on the commit notices -- and a report nobody reviewed would be
-    advertised as ready to merge.
+    An approval of a developer report other than the one the pull request
+    carries is the third: recorded against another revision than the one the
+    issue now records as current, or of the current one since edited or
+    removed at its location, which only a fresh reading of that location can
+    see. The head can be the very one that approval, its docs pass, and its
+    ready ping were about, so nothing keyed on the commit notices -- and a
+    report nobody reviewed would be advertised as ready to merge. A location
+    nobody could read decides nothing and HOLDS the tick, since every route
+    below would act on an approval nothing could vouch for.
 
     Either way nothing else this stage does runs first: `validating` recovers
     a failed push, binds and settles what a publication carried, and holds the
     reviewer until the pull request carries the report. A park standing beside
     the debt moves with it, and is answered there.
     """
-    if not _state.owes_validating_a_move(ctx.state):
+    stands = not _state.owes_validating_a_move(ctx.state) and (
+        _review_coverage._approved_report_stands(ctx.gh, ctx.state)
+    )
+    if stands:
         return False
+    if stands is None:
+        log.info(
+            "issue=#%s could not re-read the developer report its approval "
+            "covered on PR #%s; holding the tick", ctx.issue.number, ctx.pr_number,
+        )
+        return True
     log.warning(
         "issue=#%s owes PR #%s a move to validating its approval no longer "
         "covers; handing it back rather than acting on a stale approval",

@@ -4,16 +4,18 @@
 
 The docs verdict and the ready ping are keyed on the head alone, so on an
 unchanged commit they would speak for a report nobody reviewed. An issue whose
-current report is not the one its approval covered is handed back to
+current report is not the one its approval covered -- another revision, or the
+approved one edited or removed at its location -- is handed back to
 `validating` before anything here reads them, and a fresh approval retires
-both -- so the report that approval covers earns a ping of its own on the very
-head the last one named.
+both, so the report that approval covers earns a ping of its own on the very
+head the last one named. A location nobody could read pings nobody.
 """
 
 from __future__ import annotations
 
 import unittest
 
+from orchestrator.workflow.stages.validating import review_report as _review_report
 from tests.workflow import reviewed_reports as world
 from tests.workflow.fixtures import LABEL_VALIDATING, REVIEW_APPROVED_MESSAGE
 
@@ -88,6 +90,55 @@ class ReportFreshnessTest(unittest.TestCase, world._ReviewedReports):
         self.documented()
         self.in_review_tick()
 
+
+
+class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports):
+    """The approved report is read again before the approval is relied on."""
+
+    def test_a_report_changed_in_place_goes_back(self) -> None:
+        # An edit before the ping, and a deletion after it: no pinned record
+        # moves, the location no longer holds the report the approval saw,
+        # so the issue goes back and its reviewer refuses what is there.
+        for name, pinged, damage, detail in (
+            ("edited", False, world.edits_report, _review_report._EDITED),
+            ("deleted", True, world.deletes_report, _review_report._MISSING),
+        ):
+            with self.subTest(name):
+                self._approved_and_documented(pinged=pinged)
+                pings = len(world.ready_pings(self.github))
+                damage(self)
+
+                self.in_review_tick()
+
+                self.assertEqual(
+                    (self.github.label_history[-1], len(world.ready_pings(self.github))),
+                    ((ISSUE, LABEL_VALIDATING), pings),
+                )
+                self.assert_refused(self.reviewed(), detail)
+
+    def test_an_unread_report_holds_the_ping(self) -> None:
+        # A location nobody could read vouches for nothing: no ping and no
+        # hand-back, and the ping follows once it reads again.
+        self._approved_and_documented(pinged=False)
+        relabels = len(self.github.label_history)
+        self.github.report_failures.unreadable.add(PR)
+
+        self.in_review_tick()
+        held = (len(self.github.label_history), world.ready_pings(self.github))
+        self.github.report_failures.unreadable.clear()
+        self.in_review_tick()
+
+        self.assertEqual(held, (relabels, []))
+        self.assertEqual(len(world.ready_pings(self.github)), 1)
+
+    def _approved_and_documented(self, *, pinged: bool) -> None:
+        """Approve the first report, document its head, and ping it if asked."""
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.reported_round(world.FIRST_REPORT)
+        self.reviewed(REVIEW_APPROVED_MESSAGE)
+        self.documented()
+        if pinged:
+            self.in_review_tick()
 
 if __name__ == "__main__":
     unittest.main()

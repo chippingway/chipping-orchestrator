@@ -420,12 +420,14 @@ than a second source of truth: where the two disagree, the handler pages are aut
        (review_subject); unreadable on the pinned comment, about another
        PR, out of step with its handoff, removed, edited, cut short, or
        untrusted ─► no reviewer spawned, parked report_undeliverable
-     workflow:validating --(APPROVED of the report still carried, verify ok,
-       squash ok)──► review_approved_subject recorded, docs_verdict and
+     workflow:validating --(APPROVED of the subject still standing, verify
+       ok, squash ok)──► review_approved_subject recorded, docs_verdict and
        ready_ping_sha retired, label=workflow:documenting (final-docs)
        ──► in_review
-     in_review with a current report its approval did not cover ─►
-       review_round=0, label=workflow:validating (fresh reviewer, same head)
+     in_review with a current report its approval did not cover, or the
+       approved one edited or removed in place ─► review_round=0,
+       label=workflow:validating (fresh reviewer, same head); a location
+       nobody could read holds the tick with no ping
      MAX_REVIEW_ROUNDS exhausted ─► park HITL
      squash failure ─► park HITL on workflow:validating, no relabel
 

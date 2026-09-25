@@ -34,9 +34,9 @@ read-only and starts over next tick.
 
 The verdict itself fans out to three owners: approved goes to the approval
 arc, a missing VERDICT line to the no-verdict park, and CHANGES_REQUESTED to
-the fix route. An approval is acted on only while the report it was handed is
-still the one the pull request carries; otherwise the run is recorded and the
-next tick's reviewer is handed the report as it stands. The event is emitted
+the fix route. An approval is acted on only while the whole subject it was
+handed -- head, requirements, and report -- still stands; otherwise the run is
+recorded and the next tick's reviewer is handed the subject as it stands. The event is emitted
 for all of them, before the fan-out, so the analytics record exists even for
 the paths that park. Failed-run parks
 (timeout and unknown verdict) enrich the shared park funnel with typed
@@ -70,6 +70,7 @@ from orchestrator.workflow.stages.validating import (
     approval as _approval,
     models as _models,
     requested_changes as _requested_changes,
+    review_coverage as _review_coverage,
     review_report as _review_report,
     state as _state,
 )
@@ -259,11 +260,11 @@ def _dispatch_reviewer_result(
     )
 
     if decision.verdict == "approved":
-        # An approval of a report the pull request no longer carries as it
-        # was handed -- edited or removed while the reviewer ran -- covers
-        # nothing. The run is recorded, and the next tick's reviewer is
-        # handed the report as it stands, or refused one.
-        if not _review_report._approval_still_covers(
+        # An approval of a subject that no longer stands as it was handed --
+        # a head pushed, the issue edited, the report edited or removed while
+        # the reviewer ran -- covers nothing. The run is recorded, and the
+        # next tick's reviewer is handed the subject as it stands, or refused.
+        if not _review_coverage._approval_still_covers(
             gh, issue, state, reviewer_run.subject,
         ):
             gh.write_pinned_state(issue, state)

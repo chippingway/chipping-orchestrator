@@ -2635,7 +2635,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             later tick gives an issue whose approval an edit made stale, read off a report it still
                             owes (a failed push, a held candidate, a tick that died mid-way) or off that marker,
                             which is the only thing an `ACK:` and a resume that PARKED leave, or off an approval
-                            recorded against another report than the current one -- a question answers
+                            recorded against another report than the current one or of one since edited or
+                            removed at its location -- a location nobody could read holding the tick -- a question
+                            answers
                             the edit with nothing, so the move is owed from there too, and made ahead of the
                             feedback scan that would otherwise route the answer to `workflow:fixing` -- with the
                             comment a human wrote while the resume was out still unread beneath the carry, so the
@@ -2693,7 +2695,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             fan-out, with the subject an approved verdict hands the squash tail built here over
                             this run's own checkout. The developer report is resolved through `review_report.py`
                             ahead of the spawn and the subject it yields recorded beside the reviewer spec, and an
-                            approval is acted on only while the report it was handed still reads as it was
+                            approval is acted on only while `review_coverage.py` finds that whole subject standing
       collapse.py           whether a squash this issue began and did not finish is answered before anything else
                             runs an agent, over the same tail the approval road runs -- what the branch is owed
                             does not depend on which reading sent the tick. Asked only from that road it would be
@@ -2715,8 +2717,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             The settled handoff is answered beside it and needs no checkout at all: the label
                             a finished squash never got to move is moved here, but only while the pull request is
                             still standing on the commit that handoff named and the developer report recorded as
-                            current is the one its approval covered -- a report settled on that same commit since
-                            is work no reviewer has read
+                            current is the one its approval covered and still reads at its location as it settled
+                            -- a report settled on that same commit since, or edited or removed in place, is work
+                            no reviewer has read, and a location nobody could read holds the tick
       approval.py           the verify gate and the squash-and-hand-off tail both roads run, over the subject,
                             branch, and pull request number whichever road decided them hands in -- the review
                             subject recorded as approved once the gate passes, riding whichever write the tail
@@ -2892,8 +2895,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             debt recorded, so the reply resumes the developer -- when the settled record will not
                             read, is about another pull request, disagrees with the handoff that settled it, or
                             reads ABSENT or CHANGED (removed, edited, cut short, or untrusted); a reading nobody
-                            could take holds without a notice. The same re-reading is taken again before an
-                            approval is acted on, since a human may edit the report while the reviewer runs
+                            could take holds without a notice. The reading itself posts and parks nothing, so
+                            `review_coverage.py` takes it again
+      review_coverage.py    whether an approval still covers the subject standing when it is acted on. When the
+                            reviewer returns, the whole subject is resolved again over the issue read afresh and
+                            has to EQUAL the one handed over -- pull request, head, requirements, and the report's
+                            revision, digest, location, and words, a reviewer handed no report included -- or the
+                            approval is not acted on and the next round resolves the subject for itself. Later,
+                            once the pinned records agree the current report is the approved one, the report is
+                            read at its location again, since no record sees a comment edited or deleted in place:
+                            the settled squash handoff asks it before moving the label, and `in_review` before an
+                            approval may stand behind a ready ping. Nothing here parks or posts
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its

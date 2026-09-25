@@ -56,8 +56,11 @@ reviewer, on every tick, until the pull request carries it, which is why
 `handler` asks that hold last, ahead of the spawn. Once nothing is owed,
 `review_report` hands the reviewer the report the pull request carries -- the
 one last settled, re-read and quoted whole -- or refuses the round over one
-the thread has moved out of reach, and asks the same question again before
-`approval` may act on the verdict that comes back.
+the thread has moved out of reach, and `review_coverage` holds every approval
+to the subject standing when it is acted on: resolved again whole before
+`approval` may take the verdict that comes back, and the approved report read
+again at its location before the settled squash handoff or `in_review` relies
+on it.
 
 `models` and `state` carry the records and the wire keys the rest share.
 Callers import the owner they need, so this initializer binds nothing: the

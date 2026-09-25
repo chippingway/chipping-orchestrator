@@ -64,7 +64,7 @@ record was about, and it goes rather than sending the branch on unread. A
 commit is not the whole of what was approved, though: a developer report that
 changed on that same commit is work no reviewer has read, so the record is
 also acted on only while the report recorded as current is the one the
-approval covered.
+approval covered and still reads, at its location, as it settled.
 """
 from __future__ import annotations
 
@@ -92,6 +92,7 @@ from orchestrator.workflow.stages.implementing import (
 from orchestrator.workflow.stages.validating import (
     approval as _approval,
     models as _models,
+    review_coverage as _review_coverage,
     state as _state,
 )
 
@@ -250,10 +251,12 @@ def _finished_handoff(
     nobody could read decides neither way, and the tick is held for the next
     one to ask again.
 
-    The report is asked before the pull request, since it costs no request:
-    a developer report settled on this commit after the approval -- or one the
-    approval's record no longer agrees with -- is a subject nobody reviewed,
-    and the record goes on the same terms as a moved head.
+    The report is asked before the pull request: a developer report settled
+    on this commit after the approval -- or one the approval's record no longer
+    agrees with, or the approved one edited or removed at its location since --
+    is a subject nobody reviewed, and the record goes on the same terms as a
+    moved head. A location nobody could read holds the tick, as an unread
+    pull request does.
     """
     settled = _late_handoffs.read_settled_handoff(state)
     if not settled:
@@ -263,15 +266,7 @@ def _finished_handoff(
         # have caught. It goes, and the round below runs.
         _late_handoffs.clear_settled_handoff(state)
         return False
-    if not _review_subjects.approval_covers_current(state):
-        log.info(
-            "issue=#%s carries a developer report its approval did not cover; "
-            "dropping the settled squash handoff for a fresh review",
-            issue.number,
-        )
-        _late_handoffs.clear_settled_handoff(state)
-        return False
-    standing = _publication_stands_on(gh, issue, state, settled)
+    standing = _handoff_stands(gh, issue, state, settled)
     if standing is None:
         return True
     if not standing:
@@ -279,6 +274,29 @@ def _finished_handoff(
         return False
     _approval._hands_to_documenting(gh, issue, state)
     return True
+
+
+def _handoff_stands(
+    gh: GitHubClient, issue: Issue, state: PinnedState, settled: str,
+) -> bool | None:
+    """Whether what the settled handoff was owed over still stands, None unread.
+
+    The approval first -- the report it covered still the current one, and
+    still reading at its location as it settled -- and then the pull request,
+    still standing on the commit the handoff named.
+    """
+    covered = _review_subjects.approval_covers_current(state) and (
+        _review_coverage._approved_report_stands(gh, state)
+    )
+    if covered is False:
+        log.info(
+            "issue=#%s carries a developer report its approval did not cover; "
+            "dropping the settled squash handoff for a fresh review",
+            issue.number,
+        )
+    if not covered:
+        return covered
+    return _publication_stands_on(gh, issue, state, settled)
 
 
 def _publication_stands_on(

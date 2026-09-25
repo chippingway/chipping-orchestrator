@@ -23,11 +23,9 @@ the location, the author -- holds the tick for the next one instead.
 An issue that has never settled a report is reviewed with none, which is every
 pull request opened before reports were published.
 
-The same re-reading is taken again once an APPROVAL comes back, since the
-reviewer ran for minutes and a human may have edited the report meanwhile. An
-approval of words the pull request no longer carries is not acted on: the tick
-records the run and ends, and the next one resolves the report as it now
-stands.
+The reading itself posts nothing and parks nothing, so `review_coverage` takes
+it again once an approval comes back and wherever an approval is later acted
+on, and holds that approval to the subject standing then.
 """
 from __future__ import annotations
 
@@ -95,55 +93,51 @@ def _resolves_the_subject(
     """The subject this round's reviewer is handed, or None where it is not.
 
     None is a tick this owner ended: a refusal it parked, or a reading it
-    could not take and holds for the next tick. The pull request's head is
-    read first, since a subject names the commit the pull request carries and
-    a head nobody could read is none.
+    could not take and holds for the next tick.
+    """
+    subject, refusal = _reads_the_subject(
+        gh, issue, state, pr_number, delivered.requirements_revision or "",
+    )
+    if refusal:
+        _report_settlement._parks(gh, issue, state, refusal)
+    elif subject is None:
+        log.info(
+            "issue=#%d could not read the pull request or the report its "
+            "reviewer would be handed; holding the review for the next tick",
+            issue.number,
+        )
+    return subject
+
+
+def _reads_the_subject(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    pr_number,
+    requirements: str,
+) -> tuple[_review_subjects.ReviewSubject | None, str]:
+    """The subject as it stands, or why none may be handed, posting nothing.
+
+    `(subject, "")` where one is handed, `(None, refusal)` where the settled
+    report is refused for good, and `(None, "")` where a reading could not be
+    taken. The pull request's head is read first, since a subject names the
+    commit the pull request carries and a head nobody could read is none.
     """
     number = _payloads.as_identity(pr_number)
     commit = _pull_request_head(gh, issue, number)
     if commit is None:
-        return None
+        return None, ""
     report = None
     if _settlement.carries_settled_record(state):
-        report = _settled_report(gh, issue, state, number)
+        report, refusal = _settled_report(gh, state, number)
         if report is None:
-            return None
+            return None, refusal
     return _review_subjects.ReviewSubject(
         pr_number=number,
         commit=commit,
-        requirements_revision=delivered.requirements_revision or "",
+        requirements_revision=requirements,
         report=report,
-    )
-
-
-def _approval_still_covers(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    subject: _review_subjects.ReviewSubject,
-) -> bool:
-    """Whether an approval that just came back is still about the report here.
-
-    Nothing on the pinned comment moves while the reviewer runs, so what can
-    have moved is the location: a human editing or deleting the report the
-    reviewer was handed. It is re-read, and the words it holds now have to be
-    the words the reviewer read. A subject with no report has nothing to
-    re-read. A reading nobody could take is no proof either, and the approval
-    it would have licensed waits for a reviewer who can be shown one.
-    """
-    if subject.report is None:
-        return True
-    current = _settlement.read_current_report(state)
-    if current is not None:
-        presence, text = _settled_reading.carried_text(gh, state, current)
-        if presence is _pr_reports.ReportPresence.PRESENT and text == subject.report.text:
-            return True
-    log.warning(
-        "issue=#%d reviewer approved developer report revision %d, which PR "
-        "#%s no longer carries as it was handed; not acting on the approval",
-        issue.number, subject.report.report_revision, subject.pr_number,
-    )
-    return False
+    ), ""
 
 
 def _pull_request_head(
@@ -161,47 +155,36 @@ def _pull_request_head(
     except Exception:
         log.exception(
             "issue=#%d could not read PR #%d to name the commit its reviewer "
-            "is handed; holding the review for the next tick",
-            issue.number, number,
+            "is handed", issue.number, number,
         )
         return None
     return head or ""
 
 
 def _settled_report(
-    gh: GitHubClient, issue: Issue, state: PinnedState, number: int | None,
-) -> _review_subjects.ReviewReport | None:
-    """The complete settled report, re-read, or None where none is handed.
+    gh: GitHubClient, state: PinnedState, number: int | None,
+) -> tuple[_review_subjects.ReviewReport | None, str]:
+    """The complete settled report re-read, or why none is handed.
 
     The pinned pair is judged before anything is requested, then the location
-    is read. A refusal parks here and an unreadable location holds, and both
-    answer None.
+    is read. A refusal answers `(None, refusal)` and an unreadable location
+    `(None, "")`.
     """
     current = _settlement.read_current_report(state)
     refusal = _settled_refusal(state, current, number)
     if refusal:
-        _report_settlement._parks(gh, issue, state, refusal)
-        return None
+        return None, refusal
     presence, text = _settled_reading.carried_text(gh, state, current)
-    if presence is _pr_reports.ReportPresence.PRESENT:
-        return _review_subjects.ReviewReport(
-            text=text,
-            report_revision=current.report_revision,
-            content_revision=current.content_revision,
-            source_sha=current.subject.source_sha,
-            requirements_revision=current.subject.requirements_revision,
-            location=current.location,
-        )
-    refused = _REFUSED.get(presence)
-    if refused:
-        _report_settlement._parks(gh, issue, state, refused)
-    else:
-        log.info(
-            "issue=#%d could not re-read developer report revision %d on PR "
-            "#%d; holding the review for the next tick",
-            issue.number, current.report_revision, current.subject.pr_number,
-        )
-    return None
+    if presence is not _pr_reports.ReportPresence.PRESENT:
+        return None, _REFUSED.get(presence, "")
+    return _review_subjects.ReviewReport(
+        text=text,
+        report_revision=current.report_revision,
+        content_revision=current.content_revision,
+        source_sha=current.subject.source_sha,
+        requirements_revision=current.subject.requirements_revision,
+        location=current.location,
+    ), ""
 
 
 def _settled_refusal(

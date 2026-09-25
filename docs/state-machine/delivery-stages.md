@@ -3084,8 +3084,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      one carrying only the `late_collapse_handoff_sha` a finished handoff left moves the label that handoff never
      got to move (and drops the record behind it), or drops it unspent where the pull request has since moved off
      the commit it names — or where the developer report recorded as current is not the one the approval covered
-     (`review_approved_subject`), since a report settled on that same commit since is work no reviewer has read and
-     the round below reviews it.
+     (`review_approved_subject`), or no longer reads at its location as it settled, since a report settled on that
+     same commit since, or edited or removed in place, is work no reviewer has read and the round below reviews it;
+     a location nobody could read holds the tick.
   2. Awaiting-human path: resume on the dev's locked spec; on a successful pushed fix, bump `review_round` and stay on
      `workflow:validating`. A park standing over an unanswered requirements edit is the one claim that changes what the
      resume's answer MEANS, since a reply to a park is no drift and this is the road that delivers it. Two parks carry
@@ -3204,9 +3205,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      record, verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable
      state.
   6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
-     - **approved** → the report the reviewer was handed is re-read first, and an approval of words the location no
-       longer holds — edited or removed while the reviewer ran, or unreadable — is not acted on: the run is recorded
-       and the next tick resolves the report as it stands. Then, in order: (1) run the local verify gate
+     - **approved** → the whole subject is resolved again first (`review_coverage._approval_still_covers`), over
+       the issue read afresh, and has to equal the one the reviewer was handed — pull request, head, requirements,
+       and the report's revision, digest, location, and words, a reviewer handed no report included. A push, an
+       issue edit, or a report edited or removed while the reviewer ran, or a reading nobody could take, means the
+       approval is not acted on: the run is recorded and the next tick resolves the subject as it stands. Then,
+       in order: (1) run the local verify gate
        (`_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`); an empty command tuple returns
        `not_run`, which advances without being evidence that anything passed, and any other non-ok result parks via
        `_park_verify_failure` with a typed `park_reason`
@@ -3371,9 +3375,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      a resume that PARKED — a question, a timeout — leaves the same silence over an edit it answered with nothing.
      Or a `review_approved_subject` recorded against another developer report than the one
      `developer_report_current` records now — another revision, other words, or a report where the approval saw
-     none — since the head can be the very one the approval, its docs verdict, and its ping were about, and nothing
-     keyed on the commit alone would notice; an issue approved before that record existed carries none and is not
-     handed back on this reading. Each way the issue stands on an approval earned against requirements or a report
+     none — or of that very report since edited or removed at its location, which the stage re-reads there every
+     tick an approval of a report stands (`review_coverage._approved_report_stands`); the head can be the very one
+     the approval, its docs verdict, and its ping were about, and nothing keyed on the commit alone would notice. A
+     location nobody could read holds the whole tick, since every route below would act on an approval nothing
+     could vouch for. An issue approved before that record existed carries none and is not handed back on this
+     reading. Each way the issue stands on an approval earned against requirements or a report
      that no longer stand. Left here the
      report is never bound, since the hold that binds it is `validating`'s, and the ready ping below could invite a
      merge on the stale approval. So `review_round` resets to 0 and the marker goes down in a write taken
