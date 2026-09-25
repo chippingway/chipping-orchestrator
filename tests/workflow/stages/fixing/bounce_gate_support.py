@@ -28,6 +28,13 @@ LABEL_DECOMPOSING = fixtures.LABEL_DECOMPOSING
 # What each seeded probe answer is called where a case reads it back.
 AHEAD_BEHIND = "branch_ahead_behind"
 ADDED_LINES = "added_lines"
+CANDIDATE_COMMIT = "candidate_commit"
+FETCHED_TIP = "fetched_branch_tip"
+HEAD_SHAS = "head_shas"
+
+# The commit the gate proves a checkout to, for a case that has the branch
+# probe and that proof read one worktree a moment apart.
+FrozenCommit = _published_gate.FrozenCommit
 
 # The head the stranded proof is taken against, which is the head the pull
 # request is standing on: the fetch is what makes the local ref agree with the

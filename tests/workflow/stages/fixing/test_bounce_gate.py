@@ -24,6 +24,10 @@ from tests.workflow.stages.fixing import bounce_gate_support as support, fixing_
 
 ADDED_LINES = support.ADDED_LINES
 AHEAD_BEHIND = support.AHEAD_BEHIND
+CANDIDATE_COMMIT = support.CANDIDATE_COMMIT
+FETCHED_TIP = support.FETCHED_TIP
+FrozenCommit = support.FrozenCommit
+HEAD_SHAS = support.HEAD_SHAS
 CEILING = support.CEILING
 COUNT_ADDED_LINES = support.COUNT_ADDED_LINES
 GET_PR = support.GET_PR
@@ -45,6 +49,7 @@ MOVED_HEAD = support.MOVED_HEAD
 NOTHING_AHEAD = support.NOTHING_AHEAD
 ONE_COMMIT = support.ONE_COMMIT
 PARK_MEASUREMENT_FAILED = support.PARK_MEASUREMENT_FAILED
+PARK_UNPROVED_BRANCH = "stranded_unproved"
 PAST_THE_CEILING = support.PAST_THE_CEILING
 PUBLICATION_HEAD = support.PUBLICATION_HEAD
 REVISION = support.REVISION
@@ -243,12 +248,98 @@ class RefusedBounceTest(unittest.TestCase, support._GatedBounceMixin):
 
         mocks = self._bounce(
             scenario,
-            **{AHEAD_BEHIND: NOTHING_AHEAD, ADDED_LINES: UNDER_THE_CEILING},
+            **{
+                AHEAD_BEHIND: NOTHING_AHEAD,
+                # "Level with its publication" is one commit named three
+                # times: the remote the landed push left, the head the
+                # checkout is standing on, and the pull request's own.
+                FETCHED_TIP: STRANDED_CANDIDATE,
+                HEAD_SHAS: (STRANDED_CANDIDATE,),
+                ADDED_LINES: UNDER_THE_CEILING,
+            },
         )
 
         mocks[COUNT_ADDED_LINES].assert_not_called()
         mocks[PUSH_BRANCH].assert_not_called()
         self._assert_bounced(scenario, round_n=SPENT_ROUND)
+
+
+class CheckoutRaceRefusalTest(unittest.TestCase, support._GatedBounceMixin):
+    """The two windows a checkout can move in, and the refusal each earns.
+
+    No developer runs on this exit, so nothing in the worktree is this route's
+    output: a head that moved under it is somebody else's commit -- another
+    tick, an operator, a stray descendant -- and publishing it would send the
+    reviewer work nothing on this tick ever read.
+    """
+
+    def test_a_checkout_moved_mid_reading_refuses(self) -> None:
+        # The checkout moves WHILE the branch is being placed: the commit is
+        # frozen, the count is taken against that id, and the re-proof finds
+        # the worktree somewhere else. The count is still sound -- it named an
+        # immutable commit -- but the push it would license would go out over
+        # a checkout nothing here has read, so the reading refuses and the
+        # bounce never reaches the gate at all.
+        scenario = self._seed_gated_bounce()
+
+        mocks = self._bounce(
+            scenario,
+            **{
+                ADDED_LINES: UNDER_THE_CEILING,
+                # Frozen before the count, and something else by the time the
+                # re-proof reads it -- with the gate agreeing about where the
+                # checkout ended up, so nothing downstream would catch it:
+                # unfrozen, this tick measures and pushes the later commit.
+                HEAD_SHAS: (STRANDED_CANDIDATE, MOVED_HEAD),
+                CANDIDATE_COMMIT: FrozenCommit(sha=MOVED_HEAD),
+            },
+        )
+
+        mocks[COUNT_ADDED_LINES].assert_not_called()
+        self._assert_refused_without_a_reading(scenario, mocks)
+
+    def test_a_checkout_that_moved_refuses(self) -> None:
+        # The other end of the same race: the reading placed the branch and
+        # the checkout moved before the gate proved it. No developer ran on
+        # this tick, so nothing in the worktree is this route's output and a
+        # head that moved under it is a different commit entirely -- another
+        # tick, an operator, a stray descendant. The reading counted one
+        # commit and the gate proves the checkout to another, so the two do
+        # not describe the same candidate.
+        scenario = self._seed_gated_bounce()
+
+        mocks = self._bounce(
+            scenario,
+            **{
+                ADDED_LINES: UNDER_THE_CEILING,
+                # What the branch-placement probe counted, and what the gate
+                # finds the checkout standing on a moment later.
+                HEAD_SHAS: (STRANDED_CANDIDATE,),
+                CANDIDATE_COMMIT: FrozenCommit(sha=MOVED_HEAD),
+            },
+        )
+
+        mocks[COUNT_ADDED_LINES].assert_not_called()
+        self._assert_held(scenario, mocks)
+        pinned = self._pinned(scenario)
+        self.assertTrue(pinned[AWAITING_HUMAN])
+        self.assertEqual(pinned[PARK_REASON], PARK_MEASUREMENT_FAILED)
+        self._assert_nothing_spent(pinned)
+
+    def _assert_refused_without_a_reading(self, scenario, mocks) -> None:
+        """The bounce that never reached the gate: held under its own park."""
+        self._assert_held(scenario, mocks)
+        pinned = self._pinned(scenario)
+        self.assertTrue(pinned[AWAITING_HUMAN])
+        self.assertEqual(pinned[PARK_REASON], PARK_UNPROVED_BRANCH)
+        self._assert_nothing_spent(pinned)
+
+    def _assert_nothing_spent(self, pinned) -> None:
+        """No round counted and the bookmark left for a round that can vouch."""
+        self.assertEqual(pinned[REVIEW_ROUND], SEEDED_ROUND)
+        self.assertEqual(
+            pinned[PENDING_FIX_REVIEWER_COMMENT_ID], fixing.REVIEWER_FEEDBACK_ID,
+        )
 
 
 if __name__ == "__main__":

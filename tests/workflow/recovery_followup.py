@@ -23,8 +23,8 @@ LAST_ACTION_COMMENT_ID = "last_action_comment_id"
 RECOVERED_PREFIX = "Recovered automatically:"
 NO_ACTION_LINE = "No action needed."
 PUSH_RETRIED_DETAIL = "the failed push was retried and succeeded"
-TIMEOUT_PUSHED_DETAIL = "the commit the timed-out run had already made was pushed"
-TIMEOUT_EMPTY_DETAIL = "the timed-out run had left nothing to publish"
+TIMEOUT_PUSHED_DETAIL = "a commit the branch was carrying unpublished was pushed"
+TIMEOUT_EMPTY_DETAIL = "the branch was carrying nothing the pull request had not got"
 REVIEWER_RESPAWN_DETAIL = "the reviewer is being re-spawned"
 
 

@@ -268,7 +268,7 @@ Result routing in `_post_user_content_change_result`:
   that finished and declined to report;
 - a no-commit reply whose clean HEAD is strictly ahead of the remote PR branch (a fix a prior parked / interrupted run
   committed but never pushed) is published through the push tail and counted as a pushed fix
-  (`validating/stranded._stranded_fix_unpushed`), ahead of the ack check — EXCEPT on the requirements-drift road,
+  (`validating/stranded._stranded_evidence`), ahead of the ack check — EXCEPT on the requirements-drift road,
   where such a commit is work no report on the pull request describes: there it stays unpublished and the
   undescribed-work flag goes down for it, so the reply keeps its own road as an ack or a question while the review
   hold behind it asks a human for the report. Which run left the commit decides nothing; a reply that IS a report
@@ -2173,7 +2173,12 @@ Every push onto a pull request the remote already carries goes through the same 
 such pushes and no others:
 
 - the shared dev-fix publication `validating/dev_fix._publish_dev_fix` (the reviewer's `CHANGES_REQUESTED` loop, the
-  awaiting-human resume, and the body-edit drift resume an open PR takes);
+  awaiting-human resume, and the body-edit drift resume an open PR takes). It proves the checkout's tree for itself
+  before the push, in both halves — paths git named and a `git status` that established nothing — and parks through
+  `implementing/checkout_parks._on_unpublishable_tree` on either. The gate's own tree proof rides the entry it
+  freezes, which `DECOMPOSE=off` never takes, so the unreadable half would otherwise reach the remote on exactly the
+  installs that measure nothing and be answered by the post-push proof, which holds the handoff over a commit the
+  pull request already has;
 - the fixing handler's no-feedback bounce `fixing/handler._publish_stranded_fix`;
 - the two `validating/recovery.py` retries that finish a deferred push or a commit a timeout killed the disposition
   before it saw, both through `_publish_recovered_fix`;
@@ -2510,8 +2515,10 @@ shared fix disposition takes the stranded probe's reading for a run that COMMITT
 hands the gate the remote tip that reading was compared against. Read off the head the run began at instead, the entry
 names a publication the pull request cannot be matched to and parks `late_measurement_failed` — and every retry behind
 it parks the same way, so the accumulated code and the report describing it never leave the checkout. Where the probe
-refuses — a dirty tree, a failed fetch, a remote that moved — a run that committed falls back to the head it began at,
-which is the in-sync reading and the one the gate then refuses on if the pull request has moved at all.
+refuses — an unreadable or loose tree, a failed fetch, a divergence git would not count, a remote that moved, a
+checkout that moved under the count itself — a run
+that committed falls back to the head it began at, which is the in-sync reading and the one the gate then refuses on
+if the pull request has moved at all.
 
 **What the gate hands back is spent on the push.** Not merely its permission: the commit it measured, and the head the
 entry froze. The push is named against the first, so a checkout another tick, an operator, or a stray descendant moved
@@ -3086,13 +3093,30 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      the resume parked and the head the reply lands is one no reviewer has read.
      A transient park (`_VALIDATING_TRANSIENT_PARK_REASONS`) with NO new comment goes to
      `_try_recover_validating_transient_park` instead, which retries silently and, on `cleared` / `pushed`, posts the
-     **Recovery follow-up** described below before clearing the park. `cleared` asks the BRANCH as well as the run
-     where the park came off the requirements-drift road: a resume can commit and be interrupted before anything is
-     written, so the retry behind it finds the head exactly where that resume left it while the pull request is
-     still short of the commit. Clearing there would drop the edit's obligation over work no report describes, so
-     the park stands as `stuck` and the human the timeout notice already mentioned is who answers it.
-     Its two git-touching retries — the deferred push
-     and the commit a timeout killed the disposition before it saw — publish through the same
+     **Recovery follow-up** described below before clearing the park. An `agent_timeout` park is answered by the
+     BRANCH rather than by the run, whether that run committed or not, and on every road rather than on the
+     requirements-drift one alone.
+     `pre_dev_fix_sha` decides ONE thing there: whether the killed run committed at all. It is the head that run
+     began at, which is where the round found the checkout and not where the pull request is — a resume can commit
+     and be interrupted before anything is written, so the round behind it opens on a commit the publication has
+     never carried. Read as the publication, a clear taken over it hands the next reviewer a checkout the pull
+     request is short of, and a push pinned to it names a head the pull request never had and is refused unmeasured,
+     parking a human over work the branch is holding. So the reading decides —
+     `validating/stranded._stranded_evidence` again. Level with its publication clears. A commit the pull request has
+     not got is work to publish rather than a reason to wait, and goes out through the gate below named by the commit
+     that reading froze and leased to the remote tip it counted that commit against, so a pull request somebody moved
+     is the moved remote the reading refuses on rather than a lease this push would overwrite. On the drift road that
+     commit is also work no report describes, and which run made it decides: one the KILLED run made is published
+     with the debt staged into the write the push makes, since nothing here can ask a session that is gone, while one
+     an earlier resume stranded leaves the park standing — clearing there would drop the edit's obligation, and the
+     human the timeout notice already mentioned is who answers it. Every refusal holds the same way, because a clear
+     taken on a reading nobody could take sends the next reviewer to a checkout with no receipt and no gate debt
+     behind it. Both holds answer `unsettled` rather than `stuck`, and that word is what keeps them out of the
+     worktree-drift reroute below: what stands there is the reading of the branch, so a relabel taken over one would
+     clear the park and hand the checkout to `workflow:resolving_conflict`, which publishes it with nothing staged
+     for a commit no report describes.
+     Its git-touching retries — the deferred push, the commit a timeout killed the disposition before it saw, and
+     the commit an earlier interrupted resume stranded under one that committed nothing — publish through the same
      [size gate](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr) the shared dev-fix publication
      passes. Where the park came off that road the commit a timeout left is work no report describes — the run was
      killed before it could report — so the debt for it is staged into the write the push makes, and the report hold
@@ -3420,15 +3444,18 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
   failure), OR a HITL ping (no relabel), OR a no-op tick.
 
 **Recovery follow-up.** Both callers of `_try_recover_validating_transient_park` — the `workflow:validating`
-awaiting-human branch and the `workflow:fixing` parked branch — post one short issue comment on a `cleared` /
-`pushed` outcome, before the pinned write that clears the park, so the HITL mention that filed the park is not the
-thread's last word after the system has healed itself. The wording is chosen by
-`_recovery_followup_comment(gh, issue, state, park_reason, outcome)` from the (reason, outcome) pair: the failed push
-retried, the timed-out run's commit pushed, the timed-out run having left nothing to publish, or the reviewer being
-re-spawned. It carries no @mention (closing the loop must not notify a second time), and it is skipped entirely when
-pinned state carries no `last_action_comment_id` — nothing then says a mention was posted (the pickup anchors one on
-every issue it starts, so only a legacy issue can lack it) — or when the pair has no wording. A `stuck` outcome posts
-nothing at all, so a still-failing retry stays silent poll after poll.
+awaiting-human branch and the `workflow:fixing` parked branch — post one short issue comment on a `cleared` / `pushed`
+outcome, before the pinned write that clears the park, so the HITL mention that filed the park is not the thread's
+last word after the system has healed itself. The wording is chosen by `_recovery_followup_comment(gh, issue, state,
+park_reason, outcome)` from the (reason, outcome) pair: the failed push retried, a commit the branch was carrying
+unpublished pushed, the branch proving it carries nothing the pull request has not got, or the reviewer being
+re-spawned. Both timeout clauses are about the BRANCH rather than about the run, because one outcome covers two
+histories — the killed run committed before it died, or it committed nothing and stood on a commit an earlier
+interrupted resume left — and only the branch is left to say which. It carries no @mention (closing the loop must not
+notify a second time), and it is skipped entirely when pinned state carries no `last_action_comment_id` — nothing then
+says a mention was posted (the pickup anchors one on every issue it starts, so only a legacy issue can lack it) — or
+when the pair has no wording. The outcomes that healed nothing — `stuck`, `unsettled`, and `held`, the
+`_RECOVERY_HOLDS_THE_PARK` set — post nothing at all, so a still-failing retry stays silent poll after poll.
 
 Exactly one lands per park episode, and the receipt for that is the thread rather than pinned state. The post and
 the write that clears the park are two operations, so a process that dies between them leaves GitHub holding a
@@ -3624,7 +3651,11 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        counted here at all: the report the retry's own push is the publication for goes out first — bound to the
        commit THAT attempt's receipt names, never the standing value — and the hand-back behind it applies the pairs
        the record froze and takes the park down with the mark. On `stuck`, fall through to the worktree-drift check
-       below. On `held` — the size gate
+       below. On `unsettled` — the reading of the BRANCH is what withheld the clear, either because nothing could
+       place the checkout against its pull request or because a drift park stands over a commit the pull request has
+       not got — the tick stops with the park exactly as it was filed and nothing announced: the reroute below may
+       not re-read that park as a base advance, since reconciling it publishes the checkout with no report debt
+       staged for whatever it carries. On `held` — the size gate
        took the candidate the retry was about — the tick stops outright: no follow-up, no clear, no drift reroute, and
        no relabel, because the gate has already parked the issue or moved it to `workflow:decomposing` and written its
        own state.
@@ -3635,7 +3666,8 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        HITL contract.
 
      **Worktree-drift dead-lock breaker** (`_reconcile_parked_fixing`). Reached only from the
-     stuck-validating-route-transient branch above: the self-recovery could not clear the condition, and the
+     stuck-validating-route-transient branch above — an `unsettled` answer stops in the dispatch instead — so the
+     park that arrives is one whose self-recovery could not clear the condition, and whose
      underlying cause may be a base advance that landed mid-park (the per-tick base sync deliberately stands down on
      every `awaiting_human` park — `_sync_pr_worktree_to_base` returns at its `awaiting_human` gate — so nobody else
      will sync this worktree). On a clean worktree the breaker routes to `workflow:resolving_conflict` — seeding
@@ -3654,12 +3686,19 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
   7. If there is nothing this tick may act on — the watermarks already cover the bookmarks, or a report the issue
      OWES has already answered every item the rescan found (its record's frozen pairs again; an explicit
      `/orchestrator continue` still replays) — publish any **stranded fix** first —
-     `validating/stranded._stranded_fix_unpushed` against the worktree the issue already has on disk, i.e. a commit
+     `validating/stranded._stranded_evidence` against the worktree the issue already has on disk, i.e. a commit
      an earlier run left unpushed (a dev run whose outcome the live-pause guard discarded, a run killed before its
      push) — through the same [size gate](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr)
      the shared dev-fix publication passes, since this is the second seam a candidate reaches a
      published pull request through and a
-     bounce that pushed unmeasured would be the way past a ceiling every other route holds to. On a
+     bounce that pushed unmeasured would be the way past a ceiling every other route holds to. The gate is named
+     BOTH ends that reading placed the branch between: the remote tip as the lease, and the local commit the count
+     was taken over as the candidate. That commit is frozen BEFORE the count and re-proved after it, since `HEAD`
+     is re-resolved by every command that reads it — and the checkout's cleanliness is re-proved beside it,
+     since the fetch and the count are time enough for a tree to pick up loose work without its head moving
+     at all. No developer ran on this tick, so nothing in the checkout is
+     this route's output — and left unfrozen or unnamed, a commit landing between the count and the gate's own
+     proof is what gets measured, pushed and receipted as the stranded work, with nothing here having read it. On a
      successful push adjust `review_round` per the same route discriminator the pushed-fix exit uses (`pending_fix_at`
      read BEFORE the clear: in_review route resets to 0, validating route bumps by 1). Then clear `pending_fix_*` and
      bounce back to `workflow:validating`. While a report is OWED none of that happens: the gate is handed nothing to
@@ -3668,12 +3707,27 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      round of this route's, the write which took it already applied the pairs the record froze and the hand-back goes
      out through the same mark correlation every other settlement-driven relabel does; where it settles some other
      route's record it closes nothing here, and the bounce carries on to spend the round its own push earned. Where
-     nothing publishes at all and the report is still owed, the relabel is held and the wait nothing left can end is
-     announced once under `report_undeliverable` rather than kept in silence.
+     the branch PROVED it is carrying nothing to publish and the report is still owed, the relabel is held and the
+     wait nothing left can end is announced once under `report_undeliverable` rather than kept in silence. That park
+     is taken only on a proof: a reading that REFUSED is answered by the retryable hold below it instead, since the
+     report is owed a publication and the refusal is the whole reason there is none -- held as a report no road can
+     move, the retry never happens and a reading that comes back a poll later ends nothing.
 
-     A worktree that is not on disk, a probe refusal (dirty tree, failed fetch,
-     a remote that moved), or a failed push bounces without pushing and without touching the round — the commit stays
-     on the branch for a later push to carry. A candidate the gate HELD stops the bounce outright: the issue is on
+     A worktree that is not on disk and a failed push bounce without pushing and without touching the round — the
+     commit stays on the branch for a later push to carry. A probe REFUSAL does not bounce: a tree nobody could read,
+     a tree holding loose work, a fetch that failed, a divergence git would not count, a remote that moved, and a
+     checkout whose own HEAD read as something other than the tip the counts were taken against are
+     each a branch that may be carrying the commit this exit is the last tick to publish, and every one of them reads
+     identically to an empty branch. So the relabel is held with nothing spent, nothing cleared and no watermark
+     moved, and the hold is announced once under `stranded_unproved` with the notice naming which reading refused.
+     That park waits on a READING rather than on a person, so step 6's parked dispatch sends every later quiet poll
+     straight back to this exit with the flags untouched: the branch is placed again, whatever the reading places is
+     published, and the hand-back retires the park in the write that relabels — a refusal that comes back the same
+     holds again in silence, and a human reply still takes the ordinary resume road. A report owed over such a
+     branch rides that same park and that same retry: the record is untouched, so the poll that publishes the commit
+     binds the report to it and hands the round back in one go. Only a
+     branch PROVED to be standing where its publication is lets the relabel through. A candidate the gate HELD stops
+     the bounce outright: the issue is on
      `workflow:decomposing` by then, and relabeling over it would publish the very question the gate just opened.
      This exit is the validating route's LAST chance at that commit: the
      reviewer feedback that started the round is orchestrator-authored, so the step-4 rescan filters it out and no
@@ -3714,11 +3768,12 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      Then the report contract itself — the report of a commit this
      run made is recorded ahead of the size gate, and a run that committed with none parks instead, an unfinished one
      in this road's own words since the engine exempts it and this road publishes. Then the disposition: a
-     no-commit reply first checks for a **stranded fix** (`_stranded_fix_unpushed`): when the worktree is clean and HEAD
+     no-commit reply first checks for a **stranded fix** (`_stranded_evidence`): when the worktree is clean and HEAD
      is strictly ahead of the fetched remote PR branch (a fix committed by an earlier parked run whose publish was
      blocked — e.g. a dirty-park whose stray files were cleaned up afterwards), the handler publishes it through the
      normal push tail and treats the run as a pushed fix — this outranks the ACK fast path on both routes, so an acked
-     stranded fix is published rather than relabeled. **ACK fast path** (in_review route only, no stranded fix, and no
+     stranded fix is published rather than relabeled. **ACK fast path** (in_review route only, a branch PROVED to be
+     carrying nothing unpublished, and no
      report outcome, and no report OWED — a debt read off the RECORD rather than off this run, since a round standing
      on a report an earlier tick could not deliver would otherwise present the pull request as needing nothing while
      that report sits on the pinned comment): if the
@@ -3726,7 +3781,12 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      instructs it to emit this when
      the comments name no actionable change — a vague "continue" / "ok" — and neither the branch nor its report has to
      change), clear `pending_fix_*`, post the ack as an
-     FYI, and relabel straight to **`in_review`** without parking. A run that ended on a report outcome is excluded
+     FYI, and relabel straight to **`in_review`** without parking. Every probe refusal stands the fast path down with
+     the stranded reading itself, because the ack vouches for the FEEDBACK and this road makes a claim about the
+     branch: an unreadable or loose tree, a failed fetch, an unreadable divergence, a remote that moved, and a
+     checkout that moved between the ahead/behind count and the read of its own HEAD each leave
+     a pull request that may be short of a commit, so the reply falls through to the disposition and parks on the
+     question instead of answering it. A run that ended on a report outcome is excluded
      by that same debt reading: the contract step just recorded its report, so the issue owes one from that line
      onwards — a report is a handover the next reviewer has to read, and it takes the publication road below rather
      than re-arming a ready ping on the approval it supersedes. A run that REACHED for the report contract and

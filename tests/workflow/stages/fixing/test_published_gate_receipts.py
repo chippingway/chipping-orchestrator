@@ -30,11 +30,16 @@ MEASURED_BASE_SHA = support.MEASURED_BASE_SHA
 MEASURED_CANDIDATE_SHA = support.MEASURED_CANDIDATE_SHA
 
 # A checkout clean where the round proves it and where the gate freezes it,
-# carrying work by the proof past the push. Twice clean before that push
-# because a reported round asks the checkout for itself ahead of the gate: a
-# tree this host proves is carrying something is the refusal its report's own
-# terminal park is for, and no road here publishes over one.
+# carrying work by the proof past the push. FOUR times clean before that push,
+# because three readings precede the gate's: a reported round asks the checkout
+# for itself, the branch-placement probe behind it asks again before it counts
+# anything against the remote, and the publication road proves the tree once
+# more of its own accord -- that one is the proof the size gate cannot be asked
+# for when it is switched off. A tree this host proves is carrying something is
+# a refusal to every one of them, and no road here publishes over one.
 _DIRTIED_AROUND_THE_PUSH = (
+    support._WorktreeStatus(readable=True, paths=()),
+    support._WorktreeStatus(readable=True, paths=()),
     support._WorktreeStatus(readable=True, paths=()),
     support._WorktreeStatus(readable=True, paths=()),
     support._WorktreeStatus(readable=True, paths=("stray.py",)),

@@ -499,6 +499,10 @@ class FixingTransientParkRecoveryTest(
                 # recovery's own reading and that proof are one read of one
                 # worktree.
                 head_shas=(SHA_AFTER,),
+                # Where that commit leaves the branch: one above the head the
+                # pull request is standing on, which is the reading the
+                # recovery places it by and the head its push is leased to.
+                branch_ahead_behind=(1, 0),
                 push_branch=True,
                 dirty_files=(),
             )

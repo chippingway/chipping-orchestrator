@@ -214,11 +214,12 @@ def _transient_awaiting_action(
     recovery = _recovery._try_recover_validating_transient_park(
         context.gh, context.spec, context.issue, context.state,
     )
-    # `held` joins `stuck` in owing nothing: the size gate took the candidate
-    # and has already parked the issue or moved it to the adjudication, so
-    # clearing the park here would announce a recovery that did not happen and
-    # step on the state the gate just wrote.
-    if recovery not in (_state._OUTCOME_STUCK, _state._OUTCOME_HELD):
+    # Every outcome that healed nothing owes the thread nothing: the size gate
+    # took the candidate and has already parked the issue or moved it to the
+    # adjudication, or the reading of the branch withheld the clear. Announced
+    # here, a recovery that did not happen would be claimed, and the state the
+    # gate just wrote stepped on.
+    if recovery not in _state._RECOVERY_HOLDS_THE_PARK:
         followup = _recovery._recovery_followup_comment(
             context.gh,
             context.issue,

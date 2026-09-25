@@ -36,6 +36,7 @@ from tests.support.fakes import (
 )
 from tests.workflow.fixtures import (
     AGENT_RUN_CHARGE_WRITES,
+    MEASURED_CANDIDATE_SHA,
     _agent,
     _PatchedWorkflowMixin,
 )
@@ -164,6 +165,10 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
         `paused` is gone, so nothing is patched over the issue fetch; the
         worktree probe is answered with `worktree` because the handler reads it
         to decide whether there is a checkout holding the discarded commit.
+
+        No agent runs on this tick, so the head that checkout reads is the
+        commit the paused run left -- the same commit the size gate proves it
+        to, since both are readings of one worktree.
         """
         with seam_patch(WORKTREE_PATH, MagicMock(return_value=worktree)):
             return self._run_fixing(
@@ -171,6 +176,7 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
                 issue,
                 run_agent=_agent(),
                 branch_ahead_behind=(1, 0),
+                head_shas=(MEASURED_CANDIDATE_SHA,),
             )
 
     def _assert_drift_paused(self, github, mocks, before_writes: int) -> None:

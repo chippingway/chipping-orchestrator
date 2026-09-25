@@ -362,15 +362,18 @@ def _moved_off_the_caller(
     a record about the wrong commit, and one after the push leaves the wrong
     commit on the pull request.
 
-    A recovery names one for the same reason a run does, and proves it for a
-    sharper one: no developer ran, so the reading that licensed the recovery
-    is about a commit a previous tick recorded, and a head that moved between
-    that proof and this one is not a fresh candidate to measure in its place.
-    It is a commit an operator's authorization does not cover, published on
-    its own count while the record names another.
+    A caller with no developer behind it names one for the same reason a run
+    does, and proves it for a sharper one: nothing in the checkout is that
+    tick's output, so the reading that licensed the publication is about a
+    commit something else left -- one a previous tick recorded, or one a
+    branch placement counted and froze -- and a head that moved between that
+    reading and this one is not a fresh candidate to measure in its place. It
+    is a commit an operator's authorization does not cover, or work no reading
+    placed, published on its own count while the record names another.
 
-    Silent where the caller named nothing -- a bounce over a checkout it did
-    not just write -- and where the two agree, which is every ordinary tick.
+    Silent where the caller genuinely read no commit -- a retry whose
+    publication the approval on the record already identifies -- and where the
+    two agree, which is every ordinary tick.
     """
     if not gate.candidate or gate.candidate == candidate_sha:
         return False

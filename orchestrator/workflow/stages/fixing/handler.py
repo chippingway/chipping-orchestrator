@@ -41,6 +41,21 @@ outcome was discarded (a `paused` label applied mid-run) is never re-run:
 without the publish here the reviewer would read a head that is missing the fix
 it asked for. While a report is still owed that same road holds the relabel
 instead, and announces the wait nothing left can end.
+
+The relabel is held on one more reading, and it is the one the publish above
+depends on: a branch nothing could place against its pull request. "Nothing to
+publish" and "nothing could be read" are the same silence from the probe and
+opposite facts about the branch, so the bounce acts only on the first. The
+refusals wait instead, under one notice naming which reading refused -- this
+exit is the last road of the tick, so an issue held in silence would find the
+same answer on every poll with nobody told.
+
+That park waits on a READING rather than on a person, which is what makes it
+different from every other park this stage files: the parked dispatch sends a
+quiet poll straight back here with the flags untouched, so the reading is
+taken again, whatever it places is published, and the hand-back retires the
+park in the write that relabels. A refusal that comes back the same holds
+again in silence -- the standing park already says what a second notice would.
 """
 from __future__ import annotations
 
@@ -80,6 +95,19 @@ from orchestrator.workflow.state import WorkflowLabel
 log = logging.getLogger("orchestrator.workflow")
 
 _PR_NUMBER = "pr_number"
+
+_UNPROVED_BRANCH_PARK = (
+    "{mentions} this issue has nothing left to act on and cannot be handed "
+    "back for review, because {detail}. A commit this checkout is carrying "
+    "and the pull request is not would be published on this step, and that "
+    "cannot be established as things stand -- so nothing was pushed, nothing "
+    "was consumed, and the branch and the pull request are exactly as they "
+    "were. Clear the checkout, or reconcile it with the pull request's "
+    "branch, and the next tick publishes whatever is outstanding and returns "
+    "the issue to review; reply and the orchestrator resumes the session on "
+    "your words instead."
+)
+
 
 def _park_fixing_without_pr(gh: GitHubClient, issue: Issue, state) -> None:
     """Park a `fixing` issue that carries no pinned `pr_number`.
@@ -197,10 +225,23 @@ def _publish_stranded_fix(
     gets to count it: a hold relabels, so bookkeeping applied afterwards is
     lost to any crash in that window and no later tick goes back for it.
 
-    The worktree may be gone (a terminal cleanup, a fresh host), the stranded
-    probe refuses every shape it cannot vouch for, and a failed push leaves the
-    commit on disk for the next round's push to carry rather than claiming a
-    publish that did not happen.
+    The worktree may be gone (a terminal cleanup, a fresh host) and a failed
+    push leaves the commit on disk for the next round's push to carry rather
+    than claiming a publish that did not happen.
+
+    What goes out is the commit the reading COUNTED rather than whatever the
+    checkout points at by the time the gate looks: no developer ran on this
+    tick, so nothing in the worktree is this route's output and a head that
+    moved under it is a different candidate entirely.
+
+    Every reading short of a proof stops the bounce instead of passing for an
+    empty branch. "Nothing was proved stranded" is the same answer the probe
+    gives a tree nobody could read, a tree holding loose work, a fetch that
+    failed, a divergence git would not count, a remote that moved, and a
+    checkout something moved between the count and the read of its own HEAD --
+    and each of those may be a branch carrying the very commit this exit is
+    the last tick to publish. Only a branch PROVED to be standing where its
+    publication is lets the relabel through.
     """
     wt = _worktree_paths._worktree_path(spec, issue.number)
     if not wt.exists():
@@ -211,18 +252,33 @@ def _publish_stranded_fix(
         return _models._StrandedPublication(
             held=_late_reconcile._holds_absent_checkout(gh, spec, issue, state),
         )
-    stranded = _stranded._stranded_fix_unpushed(spec, wt, state, issue)
+    evidence = _stranded._stranded_evidence(spec, wt, state, issue)
+    stranded = evidence.stranded
     if not stranded:
-        return _models._StrandedPublication()
+        return _models._StrandedPublication(
+            unproved=not evidence.settled, refusal=evidence.refusal,
+        )
     branch = _naming._resolve_branch_name(state, spec, issue.number)
     published = _late_push._publishes(
         _late_records._gate(gh, spec, issue, state, wt), branch,
-        # The remote head the stranded proof was taken against, which is the
-        # branch this push replaces. Left for the gate to read afterwards, a
-        # head somebody landed between that proof and this push becomes the
-        # lease and is force-overwritten by work proved against the head it
-        # used to be on.
-        _late_gate_models._Entered(spends=spends, head=stranded),
+        _late_gate_models._Entered(
+            spends=spends,
+            # The remote head the stranded proof was taken against, which is
+            # the branch this push replaces. Left for the gate to read
+            # afterwards, a head somebody landed between that proof and this
+            # push becomes the lease and is force-overwritten by work proved
+            # against the head it used to be on.
+            head=stranded,
+            # The LOCAL commit that same proof counted, which is the work
+            # going out. No developer ran on this tick, so the checkout is
+            # writable throughout it -- another tick, an operator, a stray
+            # descendant -- and a commit landing between the count and the
+            # gate's own proof is a different candidate: measured, pushed and
+            # receipted as the stranded work while nothing here ever read it.
+            # Named, the two are one decision and a checkout standing anywhere
+            # else refuses.
+            candidate=evidence.candidate,
+        ),
     )
     if published.held:
         return _models._StrandedPublication(held=True)
@@ -279,6 +335,59 @@ def _binds_the_stranded_report(ctx: _models._FixingContext) -> bool:
     return True
 
 
+def _holds_an_unproved_branch(
+    ctx: _models._FixingContext, refusal: str,
+) -> None:
+    """Hold the bounce over a branch nothing could prove, and say so once.
+
+    The relabel is the one thing this exit cannot take back, so it waits for a
+    reading rather than for the absence of one. Nothing has moved while it
+    waits: no round is spent, no bookmark is cleared, and the commit -- if
+    there is one -- stays exactly where the last run left it, so the poll that
+    finally takes the reading publishes it. A report recorded for that
+    publication waits the same way and on this same park: the record is
+    untouched, so the poll that publishes the commit binds the report to it and
+    hands the round back over the park in one go.
+
+    Announced rather than held in silence, because this is the last road of
+    the tick: every other has already declined, so the alternative is an issue
+    finding the same answer on every poll for as long as the pull request
+    stays open with nobody told. What the notice names is the finding itself,
+    which is the whole point of the probe answering in words -- a checkout an
+    operator has to clear and a network request that did not return are the
+    same silence from a bounce that only said "could not be established".
+
+    Said once. The parked dispatch sends every later quiet poll back to this
+    same exit, so a condition that keeps refusing reaches here again and
+    again; announced each time it would bury its own first notice under a
+    thread of identical ones. A park anybody ELSE has taken is left exactly as
+    it is for a different reason: the issue is already waiting on a human and
+    replacing their question with this one answers it on their behalf.
+
+    BOUNDED, like every park that lands behind a reading it did not take
+    itself. The rescan that found nothing to act on was taken at the top of
+    the tick and placing the branch is a network call, so a human writing in
+    that window wrote something this tick never looked at -- and it is
+    numbered below the notice posted after it. Stamped at that notice, the
+    watermark would carry their comment with it and the next quiet poll would
+    place the branch, bounce, and hand the reviewer a head over guidance
+    nobody ever answered. The bounded walk crosses our own comments and stops
+    at theirs, so the reply stays unread for the resume it is owed.
+    """
+    if ctx.state.get(_state._AWAITING_HUMAN):
+        return
+    _guards._park_awaiting_human(
+        ctx.gh, ctx.issue, ctx.state,
+        _UNPROVED_BRANCH_PARK.format(
+            mentions=config.HITL_MENTIONS, detail=refusal,
+        ),
+        reason=_state._REASON_UNPROVED_BRANCH,
+        bounded=True,
+    )
+    ctx.state.set(_state._PARK_REASON, _state._REASON_UNPROVED_BRANCH)
+    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+
+
 def _bounce_without_feedback(
     gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state, pr,
 ) -> None:
@@ -302,6 +411,20 @@ def _bounce_without_feedback(
     somewhere else drops this exit back onto its own pushed road: what the
     binding hands back is whether the settlement was this round's, and where it
     was not, the bookkeeping the record applied was some other route's.
+
+    A branch the probe could not place against its pull request holds the same
+    way, and it is answered AHEAD of the report, because it says the more
+    particular thing about why nothing went out and it is the one of the two
+    that can clear on its own. What is refused there is the relabel rather than
+    the publish: nothing was pushed because nothing could be proved
+    publishable, and a reviewer sent to the head anyway may be reading a pull
+    request short of a commit this tick was the last to carry. The report rides
+    that same wait -- it is the publication it was written for that is missing,
+    not a road -- so the park is the retryable one and the poll that finally
+    takes the reading publishes the commit, the report bound to it, and the
+    hand-back behind both. Read as a report nothing can move, the same
+    condition takes a park only a human clears, and the reading coming back a
+    poll later ends nothing at all.
     """
     ctx = _models._FixingContext(gh, spec, issue, state, pr)
     pending_fix_at_was_set = state.get(_state._PENDING_FIX_AT) is not None
@@ -341,14 +464,39 @@ def _bounce_without_feedback(
         if reporting and _binds_the_stranded_report(ctx):
             return
         _late_gate_models._spend(state, owed)
+    elif stranded.unproved:
+        # The probe could not say where the branch stands against its pull
+        # request, and "nothing to publish" is the answer it gives to that as
+        # well as to an empty branch. This exit is the last tick that would
+        # publish a commit an earlier round stranded, so it waits for a
+        # reading instead of relabelling on the absence of one: nothing is
+        # spent, nothing is cleared, and the wait is announced rather than
+        # repeated silently on every poll.
+        #
+        # Asked ahead of an owed report, and that order is the difference
+        # between a park a poll clears and one only a human does. A report
+        # still owed here is owed a PUBLICATION, and the reading that refused
+        # is the whole reason there is none: held as a report no road can move,
+        # the retry never happens and the reading coming back a poll later
+        # ends nothing. Held as the reading it is, the next quiet poll comes
+        # straight back to this exit, publishes the commit, binds the report
+        # to it, and hands the round back over the same park.
+        log.warning(
+            "repo=%s issue=#%s could not prove where the branch stands "
+            "against PR #%s on the no-feedback bounce; holding the relabel",
+            spec.slug, issue.number, state.get(_PR_NUMBER),
+        )
+        _holds_an_unproved_branch(ctx, stranded.refusal)
+        return
     elif reporting:
-        # Nothing was published and a report is still owed, which is the one
-        # thing this exit may not clear or relabel past: the bookmarks below
-        # are what an outstanding publication replays from, and a reviewer
-        # sent to the head instead would read work nothing on the pull
-        # request describes. The record stands for the tick that publishes it
-        # -- and since this exit is the last road of the tick, a wait nothing
-        # left can end is announced here rather than held in silence.
+        # Nothing was published, the branch PROVED it is carrying nothing to
+        # publish, and a report is still owed -- which is the one thing this
+        # exit may not clear or relabel past: the bookmarks below are what an
+        # outstanding publication replays from, and a reviewer sent to the head
+        # instead would read work nothing on the pull request describes. The
+        # record stands for the tick that publishes it -- and since this exit
+        # is the last road of the tick, a wait nothing left can end is
+        # announced here rather than held in silence.
         _reporting._holds_a_stalled_report(ctx)
         gh.write_pinned_state(issue, state)
         return

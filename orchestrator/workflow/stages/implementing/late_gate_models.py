@@ -165,9 +165,14 @@ class _Gate:
     # to publish untouched.
     answering: bool = False
     # The commit the caller named as the one it means to publish, where it
-    # read one for itself. Empty where the caller has none -- a bounce over a
-    # checkout it did not just write, a recovery answering a recorded pair --
-    # and the head this owner proves is the whole of the answer there.
+    # read one for itself. Every road that READS a commit names it, whether a
+    # developer ran for it or not: the fix disposition names the head its run
+    # left, the no-feedback bounce names the commit its branch reading counted
+    # and froze, and the transient recovery names the commit it published as
+    # the killed run's. Empty where the caller genuinely read none -- a
+    # recovery answering a recorded pair, a failed-push retry whose commit the
+    # approval already identifies -- and the head this owner proves is the
+    # whole of the answer there.
     candidate: str = ""
     # The publication this call was entered on, where there is one. It is the
     # whole of what makes this gate reusable past the initial push: nothing

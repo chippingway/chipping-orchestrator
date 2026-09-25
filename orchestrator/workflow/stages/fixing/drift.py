@@ -17,6 +17,13 @@ be inspecting, or a branch genuinely in sync with the PR -- reports no drift,
 because there the transient condition really is the blocker and the HITL
 contract says a human answers it.
 
+Which parks arrive here is the other half of that, and it is the recovery's to
+decide: only a condition that has not resolved does, because only there can a
+base advance be the cause. A park the branch reading itself withheld the clear
+from never reaches this owner at all -- what is missing there is evidence about
+the checkout, and the reconciliation this one hands off to publishes that
+checkout with no report debt staged for whatever it turns out to carry.
+
 The `pending_fix_*` bookmarks and in_review watermarks are left untouched on
 the way out, so the eventual in_review re-entry still re-discovers the feedback
 that started the loop.
@@ -160,12 +167,16 @@ def _reconcile_parked_fixing(ctx: _models._FixingContext) -> bool:
     `resolving_conflict` on worktree drift.
 
     Called from the `recovery == "stuck"` branch of
-    `_dispatch_validating_recovery`: `_try_recover_validating_transient_park`
-    could not clear the transient condition (e.g. `push_failed` keeps
-    failing), but the underlying cause may be a base advance that landed while
-    the issue was parked. The per-tick base sync (`_sync_pr_worktree_to_base`)
-    deliberately stands down on every `awaiting_human` park, so the integration
-    work nobody else will do is stranded and the issue sits parked forever.
+    `_dispatch_validating_recovery` and from nowhere else: that word says
+    `_try_recover_validating_transient_park` could not clear the transient
+    condition (e.g. `push_failed` keeps failing), while the underlying cause
+    may be a base advance that landed under the park. An `"unsettled"` answer
+    stops in the dispatch above instead, since there it is the reading of the
+    branch that is missing and a reroute would publish the checkout regardless.
+
+    The per-tick base sync (`_sync_pr_worktree_to_base`) deliberately stands
+    down on every `awaiting_human` park, so the integration work nobody else
+    will do is stranded and the issue sits parked forever.
 
     Returns False (issue stays parked) when the worktree is missing, dirty (an
     operator may be inspecting a dirty-tree park), or the worktree is already

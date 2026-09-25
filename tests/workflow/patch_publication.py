@@ -51,14 +51,23 @@ def _squash_outcome(seed) -> _publication_models._SquashOutcome:
 
 
 def _fetched(seed) -> MagicMock:
-    """The fetch seam, answering once or a reading at a time.
+    """The fetch seam, answering once, a reading at a time, or for itself.
 
     A sequence is a tick whose two fetches differ -- the pull request's branch
     lands and the base does not -- which is the only way the second refusal is
     reached at all.
+
+    Anything else callable is taken as the fetch ITSELF, which is what a case
+    about something landing while this call is out needs: the fetch is the
+    network step of every branch reading, so it is the window a human comment
+    arrives in. A seeded RESULT is a mock, and mocks are callable too, so the
+    two are told apart by whether the seed is one rather than by whether it
+    can be called.
     """
     if isinstance(seed, (list, tuple)):
         return MagicMock(side_effect=list(seed))
+    if callable(seed) and not isinstance(seed, MagicMock):
+        return MagicMock(side_effect=seed)
     return MagicMock(return_value=seed)
 
 

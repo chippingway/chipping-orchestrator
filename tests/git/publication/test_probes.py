@@ -25,6 +25,11 @@ REV_PARSE = "rev-parse"
 TIP = "1ec04e5e" * 5
 MOVED_TIP = "cafe1234" * 5
 
+# The local commit a caller about to publish freezes and counts, and the
+# argument that keeps a revision from being read as a path.
+FROZEN = "5eed1ced" * 5
+PATH_SEPARATOR = "--"
+
 # Every reading that did not happen, which is what no caller may act on.
 UNREADABLE = probes._BranchDivergence()
 
@@ -146,6 +151,51 @@ class BranchDivergenceTest(unittest.TestCase):
         with patch.object(commands, HARDENED_HELPER, git):
             return probes._branch_divergence(
                 _spec(remote_name="private"), WORKTREE, BRANCH,
+            )
+
+
+class FrozenRevisionDivergenceTest(unittest.TestCase):
+    """The local end named as a commit, for a caller about to publish.
+
+    `HEAD` is a symbol every command re-resolves, so a count taken against it
+    is a claim about whatever the checkout pointed at when `rev-list` ran --
+    and a caller that names a commit afterwards can be naming another. A
+    publication has to be about ONE commit at both ends, so it freezes the
+    local id and counts that.
+    """
+
+    def test_a_named_revision_is_what_the_count_walks(self) -> None:
+        # The whole contract, and the reason it is asserted on the command
+        # rather than on the counts: a revision the range did not carry reads
+        # back identically, and reverting to symbolic `HEAD` would restore
+        # the race in silence.
+        git = _ResolvesThenCounts(TIP, counts="0\t1\n")
+
+        divergence = self._divergence(git, FROZEN)
+
+        self.assertEqual((divergence.tip, divergence.ahead), (TIP, 1))
+        counted, _cwd = git.calls[1]
+        self.assertIn(f"{TIP}...{FROZEN}", counted)
+        self.assertNotIn(f"{TIP}...HEAD", counted)
+        # The revision is stopped from being read as a path, so a branch or a
+        # commit that looks like one cannot turn the count into a file walk.
+        self.assertEqual(counted[-1], PATH_SEPARATOR)
+
+    def test_no_revision_counts_the_checkout_head(self) -> None:
+        # The default every caller that only asks how stale a checkout is
+        # keeps, so freezing is opt-in rather than a rewrite of them all.
+        git = _ResolvesThenCounts(TIP)
+
+        self._divergence(git, None)
+
+        counted, _cwd = git.calls[1]
+        self.assertIn(f"{TIP}...HEAD", counted)
+
+    def _divergence(self, git, revision):
+        named = () if revision is None else (revision,)
+        with patch.object(commands, HARDENED_HELPER, git):
+            return probes._branch_divergence(
+                _spec(remote_name="private"), WORKTREE, BRANCH, *named,
             )
 
 

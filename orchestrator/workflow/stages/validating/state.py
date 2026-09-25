@@ -144,6 +144,24 @@ _OUTCOME_STUCK = "stuck"
 # recovery that did not happen and moving a label the gate has just set.
 _OUTCOME_HELD = "held"
 
+# The reading of the BRANCH is what withheld the clear, so the park stands
+# exactly as it was filed. Spelled apart from `stuck` because that word is what
+# licenses the fixing stage's worktree-drift reroute, and the claim here is a
+# different one: a condition that keeps failing may really be a base advance
+# nobody synced, while a checkout nothing could place, or one proved to be
+# carrying a commit no report describes, is a branch whose publication is the
+# very thing being withheld. Rerouted on either, the park comes down and that
+# checkout is published by a road staging no report debt for the head it leaves.
+_OUTCOME_UNSETTLED = "unsettled"
+
+# The recovery outcomes that heal nothing: the caller clears no park, posts no
+# follow-up, and moves no label on any of them. One grouping rather than a
+# tuple spelled at each road, since a caller naming only the words it knows
+# reads a later addition as a recovery that happened.
+_RECOVERY_HOLDS_THE_PARK = frozenset((
+    _OUTCOME_STUCK, _OUTCOME_HELD, _OUTCOME_UNSETTLED,
+))
+
 _OUTCOME_RETURN = "return"
 
 _SHORT_SHA_LEN = 12

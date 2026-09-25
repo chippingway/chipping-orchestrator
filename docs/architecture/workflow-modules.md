@@ -1611,7 +1611,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     fixing/                 `workflow:fixing`
       handler.py            the order one tick asks its questions in, plus the preflight terminals, the
                             missing-`pr_number` park, and the commit the no-feedback bounce publishes -- measured by
-                            the same size gate the shared dev-fix publication passes, so a held candidate stops the
+                            the same size gate the shared dev-fix publication passes, named BOTH ends of the
+                            reading that placed it so a checkout something moved refuses instead of having
+                            whatever it points at pushed, and a held candidate stops the
                             bounce rather than being relabelled over -- before it hands the PR back to the reviewer.
                             Ahead of the scan, everything this issue's report obligation owes
                             (`report_recovery.py`): a round whose publication SETTLED while nobody was looking is
@@ -1623,8 +1625,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             own frozen pairs cover everything the scan found. Either way the bounce publishes
                             whatever is stranded, BINDS the report that push is the publication for -- on the
                             commit the receipt of that attempt names, never the standing value -- and hands the
-                            round back; while a report is still owed it holds the relabel, the bookmarks and the
-                            round instead, and announces the wait nothing left can end
+                            round back; while a report is still owed over a branch PROVED to be carrying nothing
+                            to publish it holds the relabel, the bookmarks and the round instead, and announces
+                            the wait nothing left can end. A branch the stranded reading could not PLACE holds
+                            the same three AHEAD of that, under `stranded_unproved` and a notice naming which
+                            reading refused: every refusal reads identically to an empty branch, and this exit
+                            is the last tick that would publish a commit. That park waits on a READING rather
+                            than on a person, so a quiet poll arrives back here with the flags untouched, takes
+                            the reading again, and hands the round back on the first one that places the branch
+                            -- publishing a report owed for that commit on the same push -- while a refusal that
+                            repeats holds again without a second notice. Ordered that way because a report owed
+                            behind a refusal is owed a PUBLICATION: parked as a report no road can move, the
+                            retry never runs and the reading coming back ends nothing
       feedback.py           the rescan past the three in_review watermarks -- read through that stage's own
                             per-surface owner, so the issue thread answers to the issue-only delivery cursor too and
                             the pull request never does (a bare `/orchestrator add-agent-runs` is no
@@ -1663,7 +1675,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             rather than a reason to re-arm a ready ping, and one that reached for the markers and
                             missed (a report block with an `ACK:` beside it) is a broken contract rather than an
                             acknowledgement to act on, and neither is a reply on an issue that already OWES a
-                            report, which is a debt read off the record rather than off this run -- the report
+                            report, which is a debt read off the record rather than off this run, and which asks
+                            the branch PROVED to be carrying nothing unpublished rather than merely nothing proved
+                            stranded, since the ack vouches for the feedback and the hand-back is a claim about
+                            the branch -- the report
                             contract the resume is held to through `reporting.py`, the `workflow:validating`
                             relabel a published report earns, and the round a PUSHED fix spends here while a
                             report still owed leaves the round, the bookmarks and the readers to the write that
@@ -1778,21 +1793,29 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             owner CONSUMES the mark it asks about: one it may not place is the mark of a round
                             that is over either way, and left standing it would be waiting for whichever fixing
                             round came next
-      parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in.
+      parked.py             the five answers an `awaiting_human` tick can reach and the order they are asked in.
                             What counts as a reply is the reading the readers cannot give while a report is owed,
                             so the record's own frozen pairs decide it: a rescan with nothing above them clears
                             no park. The silent recovery is widened for one shape by the same rule -- a
                             `push_failed` park on the in_review route with a report still owed, where both groups
                             are the settlement's and the default would hold the issue on a park nothing clears --
                             and the retry that lands publishes the report against the commit ITS receipt names
-                            before the hand-back retires the park. An accepted `/orchestrator continue` is
+                            before the hand-back retires the park. The `stranded_unproved` park the no-feedback
+                            bounce files is the one shape here waiting on a READING rather than on a person, so
+                            a quiet poll falls back through to that bounce with the flags left exactly as they
+                            are: it is the single reader, and the park comes down in the write that relabels --
+                            which is what keeps a reading that refuses again from announcing itself twice. An
+                            accepted `/orchestrator continue` is
                             resolved here rather than falling through, since the stay-parked default behind it
                             would refuse the operator's retry as "nothing new"
       continue_command.py   `/orchestrator continue` on a parked fix: the replay and what it may hand the dev --
                             guidance, never the command itself -- plus the two refusals and the guidance passthrough
                             for retryable session failures (`agent_silent`, `agent_timeout`, `agent_execution_failed`)
       drift.py              the `workflow:resolving_conflict` reroute a stuck validating-route park earns when its
-                            worktree has fallen behind base
+                            worktree has fallen behind base. Only a condition that has not resolved reaches it: a
+                            park the branch READING withheld the clear from answers in a word of its own, since the
+                            reconciliation this owner hands off to publishes that checkout with no report debt
+                            staged for whatever it turns out to be carrying
       models.py             the frozen records the owners hand each other, the batch among them carrying the
                             whole issue-thread READ it was cut from -- the conversation a fresh spawn quotes and
                             the requirements a report is stamped with both come off it -- and the comment ids this
@@ -2692,23 +2715,31 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             head it carries on as the lease, taken for a run that committed as well as for one
                             that did not -- a tick committing over work an earlier one stranded begins at a
                             commit the pull request has never carried, so a lease read off that head parks every
-                            such tick unmeasured -- the size gate every fix route publishes through, told the
+                            such tick unmeasured -- the tree proved in BOTH halves before the push, since the
+                            size gate's own proof rides the entry it freezes and `DECOMPOSE=off` freezes none,
+                            the size gate every fix route publishes through, told the
                             state the run really belongs to by the route that relabels before it spawns rather
                             than reading it off the issue object, the push and the approval it spends, the round
                             bump, and the bounded timeout park
-      stranded.py           two readings of one branch, taken for opposite answers. The STRANDED probe is the
-                            one under that reading, which the `fixing` handler also asks off no dev run at all: a
-                            clean checkout fetched and proved strictly AHEAD of the remote pull request branch and
-                            behind nothing, answering with the head it was compared against so the push that
-                            follows is pinned to it. A run that committed takes it for that head alone, since
-                            whether the branch is ahead decides nothing there. The AFFIRMATIVE reading beside it
-                            is for the roads that publish WITHOUT pushing -- a report of the work the pull request
-                            already carries, and the recovery that hands such a report on -- and what it asks is
-                            EQUALITY rather than ahead-ness: a clean tree, a fetch that returned, a divergence git
-                            counted as zero BOTH ways, a tip that reads, and a local HEAD that reads and IS that
-                            tip, answered as that head so the caller holds the rest of its evidence to one commit.
-                            Both refuse on a dirty tree, a failed fetch, an unreadable divergence or a remote that
-                            moved, because a head nobody reconciled is worse than one more park
+      stranded.py           one reading of a branch against the publication it is on, answered in words rather
+                            than yes-or-nothing. Eight findings, two of them readings and six refusals. A clean
+                            checkout fetched and proved strictly AHEAD of the remote pull request branch and
+                            behind nothing is `stranded`; the two proved EQUAL are `in_sync`. Both name BOTH
+                            ends -- the remote tip the count was taken against, which is what the push replaces
+                            and is leased to, and the local commit it was counted over, which is the work going
+                            out. That local commit is FROZEN before anything counts it, and the commit AND the
+                            tree are both proved again afterwards, so the numbers and the checkout handed on are
+                            one world: `HEAD` is a symbol every command re-resolves, and a fetch and a count are
+                            time a worktree can move or pick up loose work in. A size gate given both ends then
+                            refuses a checkout that moved rather than measuring whatever it points at. The refusals are a status nobody could take, a tree holding
+                            loose work, a fetch that did not return, a divergence git would not count, a remote
+                            that moved, and a HEAD that did not read or disagreed with the count. Typed
+                            because "nothing to publish" and "nothing could be read" are opposite facts about the
+                            branch: collapsed, the fix disposition publishes blind, the ACK fast path hands back a
+                            pull request that may be short of a commit, the transient recovery clears a drift park
+                            over one or leases a push to a head its publication never carried, and the no-feedback
+                            bounce relabels past the last tick that would have published it. What each refusal MEANS is spelled here too, so the road that stops on
+                            one names the reading rather than the silence
       awaiting.py           the three park-reason claims on the context's one frozen reply batch, and the dev
                             attempt they fall through to, handed that same batch; the explicit `/orchestrator
                             continue` retry is re-grounded off its conversation less the commands it consumes.
@@ -2825,14 +2856,26 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reconciliation stands down on rather than holding, so a silent hold there would
                             suppress every later reviewer with nobody told
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
-                            timeout's commit is the one road to a published pull request nothing else measures,
-                            and where the park it clears came off the requirements-drift road that commit is work
-                            no report describes, so the debt for it is staged into the write the push makes and
-                            the review hold asks a human before any reviewer reads that head; a timeout that
-                            committed NOTHING reads the branch as well as the run, since an earlier resume can
-                            have committed and been interrupted before anything was written, and a clear there
-                            would drop the edit's obligation over work the pull request has not got --
-                            the debt the push that lands pays, the round `rounds.py` says that push spends, which
+                            timeout's commit is the one road to a published pull request nothing else measures.
+                            A timed-out round is answered by the BRANCH rather than by the run on both its
+                            shapes, and on every road rather than on the drift one alone: `pre_dev_fix_sha` says
+                            only whether the killed run committed at all, since it is the head that round OPENED
+                            at and a commit an earlier interrupted resume left can sit between it and the
+                            publication. Level with its publication clears; a commit the pull request has not got
+                            is published through the same gate, named by the commit the reading froze and leased
+                            to the remote tip it counted that commit against -- pinned to the anchor instead, the
+                            push names a head the publication never carried and is refused unmeasured, parking a
+                            human over work the branch is holding. On the requirements-drift road that commit is
+                            also work no report describes, and which run made it decides: one the KILLED run made
+                            publishes with the debt staged into the write the push makes, since nothing here can
+                            ask a session that is gone, and the review hold asks a human before any reviewer
+                            reads that head, while one an earlier resume stranded leaves the park standing for
+                            the reply that reports it. A reading nobody could take holds, because a clear taken
+                            on one sends the next reviewer to a checkout with no receipt and no gate debt behind
+                            it. Both holds answer in a word of their own rather than as a condition that has not
+                            cleared, which is what keeps the branch reading out of the fixing stage's worktree-drift
+                            reroute: relabelled there, the park comes down and the checkout is published by a road
+                            that stages nothing for it -- the debt the push that lands pays, the round `rounds.py` says that push spends, which
                             is none where the park was delaying a publication an `in_review` hand-back had already
                             reset the budget for, the held outcome that owes the caller no follow-up and
                             no relabel, and the one sentence a park that healed itself owes the thread

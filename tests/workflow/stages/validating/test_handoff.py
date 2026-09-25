@@ -328,6 +328,10 @@ class ValidatingRecoveryStaysOnValidatingTest(
                 dirty_files=(),
                 push_branch=True,
                 head_shas=(AFTER_FIX_SHA,),  # HEAD moved past pre-agent SHA.
+                # Where that commit leaves the branch: one above the head its
+                # pull request is standing on, which is what the recovery
+                # places and what the push it licenses is leased to.
+                branch_ahead_behind=(1, 0),
             )
 
         recovery_state = recovery_gh.pinned_data(PUSHED_DEV_RECOVERY_ISSUE)
