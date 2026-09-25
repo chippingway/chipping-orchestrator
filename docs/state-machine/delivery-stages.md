@@ -3202,13 +3202,16 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      against requirements the drift baseline has moved past (the rule the hold above holds an owed report to, an `ACK:`
      of an edit included; the baseline rather than the reviewer's own read, which carries the reply that bought a
      retried or granted round). So no reviewer runs and the reply resumes the developer, whose report is then published
-     and reviewed; a head or location nobody could read holds the tick silently. An issue that has never settled a
-     report is reviewed with none. Then persist `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the
-     reviewer is spawned fresh each round with no resume) and the resolved subject to `review_subject`, and run the
-     reviewer with the read-only prompt, which quotes that report whole between the issue and the inspection commands
-     (must end with `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check
-     (`_paused_during_agent_run`) right after the reviewer returns short-circuits BEFORE the usage fold, session record,
-     verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state.
+     and reviewed; a head or location nobody could read holds the tick silently. On a round the drift check did not
+     stand down for, the reviewer's own read has to be the baseline that check measured: a thread that moved on in
+     between — a criterion landing after the check — is held the same way, and the next tick's drift check resumes the
+     developer on it before any reviewer is handed the report. An issue that has never settled a report is reviewed with
+     none. Then persist `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the reviewer is spawned fresh
+     each round with no resume) and the resolved subject to `review_subject`, and run the reviewer with the read-only
+     prompt, which quotes that report whole between the issue and the inspection commands (must end with `VERDICT:
+     APPROVED` or `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check (`_paused_during_agent_run`)
+     right after the reviewer returns short-circuits BEFORE the usage fold, session record, verdict parse, verify gate,
+     squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state.
   6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
      - **approved** → the whole subject is resolved again first (`review_coverage._approval_still_covers`), over
        the issue read afresh, and has to equal the one the reviewer was handed — pull request, head, requirements,

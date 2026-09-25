@@ -33,6 +33,16 @@ leaves the report written against the requirements before it, and is refused
 the same way: the reply to the park it earns is the developer's chance to say
 what the report says now.
 
+The requirements the reviewer is handed are its own read, taken after the drift
+check -- so a criterion landing in between reaches the reviewer beside a report
+that never saw it. On a round the drift check did not stand down for, that read
+has to be the baseline the check measured; one that has moved on is held, with
+nothing parked or written, and the next tick's drift check resumes the
+developer on the new words before any reviewer is handed the report. A round
+the check DID stand down for -- the one a reply bought, or one a deferral left
+owed -- hands the reviewer those words on purpose, which is why that read is
+never compared on such a round.
+
 An issue that has never settled a report is reviewed with none, which is every
 pull request opened before reports were published.
 
@@ -58,7 +68,10 @@ from orchestrator.workflow.engine import (
     review_subjects as _review_subjects,
 )
 from orchestrator.workflow.late_split import payloads as _payloads
-from orchestrator.workflow.stages.validating import report_settlement as _report_settlement
+from orchestrator.workflow.stages.validating import (
+    report_settlement as _report_settlement,
+    state as _validating_state,
+)
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -126,6 +139,12 @@ def _resolves_the_subject(
     subject, refusal = _reads_the_subject(
         gh, issue, state, pr_number, delivered.requirements_revision or "",
     )
+    if subject is not None and _outran_the_drift_check(state, subject):
+        log.info(
+            "issue=#%d thread moved after the drift check, past the report its "
+            "reviewer would be handed; holding for the drift road", issue.number,
+        )
+        return None
     if subject is not None:
         refusal = _stale_refusal(state, subject)
         subject = None if refusal else subject
@@ -216,6 +235,19 @@ def _settled_report(
         requirements_revision=current.subject.requirements_revision,
         location=current.location,
     ), ""
+
+
+def _outran_the_drift_check(
+    state: PinnedState, subject: _review_subjects.ReviewSubject,
+) -> bool:
+    """Whether a reviewer would be handed requirements newer than its report's.
+
+    Only on a round the drift check did not stand down for, and only where
+    there is a report the new words could be missing from.
+    """
+    if subject.report is None or state.get(_validating_state._REVIEWER_OWES_A_ROUND):
+        return False
+    return subject.requirements_revision != state.get(_USER_CONTENT_HASH)
 
 
 def _stale_refusal(

@@ -17,7 +17,7 @@ from __future__ import annotations
 import unittest
 from dataclasses import replace
 from functools import partial
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from orchestrator.git.verification.models import VerifyResult
 from orchestrator.github.developer_reports import content_digest
@@ -64,6 +64,10 @@ MOVED_HEAD = "b0a7" * 10
 
 # The base a squash an earlier tick began was collapsing onto.
 COLLAPSE_BASE = "ba5e" * 10
+
+# An acceptance criterion a human adds after the drift check has measured the
+# thread, and before the reviewer's own read of it.
+LATE_CRITERION = "Also cover the empty-input case, please."
 
 # What a reviewer that ran while something changed comes back with.
 LATE_APPROVAL = _agent(session_id=LATE_REVIEWER, last_message=REVIEW_APPROVED_MESSAGE)
@@ -121,17 +125,20 @@ REFUSED_REPORTS = (
 
 
 class _ChangedMidway:
-    """A run -- a reviewer's, a verification's -- during which something changes.
+    """A step -- a reviewer's run, a verification, a read -- during which something changes.
 
-    `answer` is what the run comes back with once `change` has happened.
+    `answer` is what the step comes back with once `change` has happened: the
+    result itself, or the real step to call through to.
     """
 
     def __init__(self, change, answer) -> None:
         self._change = change
         self._answer = answer
 
-    def __call__(self, *_called, **_options):
+    def __call__(self, *called, **options):
         self._change()
+        if callable(self._answer):
+            return self._answer(*called, **options)
         return self._answer
 
 
@@ -456,6 +463,38 @@ class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
             ]
 
         self.assertEqual(covers, [True, False, False])
+
+    def test_a_late_criterion_holds_the_round(self) -> None:
+        # The criterion lands between the drift check and the reviewer's read:
+        # handed over, it would sit beside a report that never saw it. The
+        # round is held with nothing parked or approved, and the next tick's
+        # drift check resumes the developer on it, whose report is the one a
+        # reviewer is then handed beside the criterion.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.reported_round(world.FIRST_REPORT)
+
+        with patch.object(_prompt_context, "_delivered_thread", _ChangedMidway(
+            partial(_drift_world.human_reply, self, LATE_CRITERION),
+            _prompt_context._delivered_thread,
+        )):
+            self.reviewed(REVIEW_APPROVED_MESSAGE)[RUN_AGENT].assert_not_called()
+
+        self.assertEqual(
+            (self.pinned().get(world.AWAITING_HUMAN), world.APPROVED in self.pinned()),
+            (False, False),
+        )
+        self._ticked(
+            self._run_validating,
+            MagicMock(side_effect=_fix_world._Runs(
+                _fix_world.reported(world.SECOND_REPORT),
+            )),
+            committed=False,
+        )
+        handed = world.prompt(self.reviewed())
+        self.assertEqual(
+            (f"> {world.SECOND_REPORT}" in handed, LATE_CRITERION in handed),
+            (True, True),
+        )
 
     def _approves_while(self, change) -> None:
         self._ticked(
