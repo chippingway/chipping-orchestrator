@@ -25,8 +25,9 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.agents.models import ToolLifecycle
 from tests.workflow.engine import charged_run_roads as roads, charged_run_test_support as support
-from tests.workflow.fixtures import _agent, _PatchedWorkflowMixin
+from tests.workflow.fixtures import _agent, _PatchedWorkflowMixin, _reported
 
 # What a resume lands on when the backend has lost the transcript it names.
 _POISONED = _agent(
@@ -57,6 +58,31 @@ class ChargedLaunchTest(unittest.TestCase, _PatchedWorkflowMixin):
 
         self.assertEqual(driven.spawns, 2)
         self._assert_charged(driven, launches=2)
+
+    def test_an_agy_recovery_pays_for_both_spawns(self) -> None:
+        # An initial AGY run that exits prematurely with unfinished tool steps
+        # earns an immediate bounded recovery in the same worktree. The daily
+        # fresh-spawn gate is charged only once, while both processes are
+        # charged to the lifetime agent-run ledger.
+        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+        incomplete = _agent(
+            session_id="agy-sess",
+            exit_code=1,
+            unfinished_steps=(step,),
+        )
+        recovered = _agent(
+            session_id="agy-sess",
+            last_message=_reported(),
+        )
+        driven = roads.IMPLEMENTING_FRESH.drive(
+            self,
+            [incomplete, recovered],
+            dev_agent="agy",
+        )
+
+        self.assertEqual(driven.spawns, 2)
+        self._assert_charged(driven, launches=2)
+        self.assertNotEqual(driven.github.label_history, [])
 
     def test_an_interrupted_launch_stays_charged(self) -> None:
         for road in roads.ROADS:

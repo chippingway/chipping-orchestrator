@@ -289,6 +289,8 @@ def _timeout_left_commits(
     on a branch that was already ahead of base that difference publishes work
     the run never made.
     """
+    if prepared.agent_result.unfinished_steps:
+        return False
     if not _attributable_run(prepared, after_sha):
         return False
     if after_sha == prepared.before_sha:
@@ -334,11 +336,6 @@ def _dispose_agent_result(
     recovery that republishes an earlier run's commits asks too.
     """
     if prepared.agent_result.timed_out:
-        # The implementer can commit clean work and then get killed by the
-        # timeout (or a descendant finishes the commit during cleanup). Don't
-        # strand that commit behind `awaiting_human`: publish it if this run
-        # really left a commit and the tree is clean, park a dirty tree for
-        # inspection, or park as a timeout when it left nothing.
         after_sha = _verification_probes._head_sha(prepared.worktree)
         if _timeout_left_commits(spec, prepared, after_sha):
             _candidate_recovery._publish_committed_work(
@@ -353,7 +350,7 @@ def _dispose_agent_result(
         gh.write_pinned_state(issue, state)
         return
 
-    if not _run_left_commits(spec, state, prepared):
+    if prepared.agent_result.unfinished_steps or not _run_left_commits(spec, state, prepared):
         _parks._on_question(
             gh, issue, state,
             _guards._ParkedRun(

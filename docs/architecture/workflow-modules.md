@@ -1798,8 +1798,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the retry-gated fresh spawn, which retires the pinned session wherever a
                             continuation is what paid for it: the grant is durable and the budget is shared, so the
                             tick that spends one is not always the tick -- or even the stage -- that granted it.
-                            The spawn's prompt and the record of the thread it quoted come off one read and travel
-                            on the prepared run, for the pre-session edit that is settled by nothing earlier
+                            The spawn routes through `execution.py`'s bounded developer run coordinator to resume
+                            premature AGY command exits before disposition. The spawn's prompt and the record of the
+                            thread it quoted come off one read and travel on the prepared run, for the pre-session
+                            edit that is settled by nothing earlier
       session.py            the four session retirements -- the fourth being the continuation that buys a spent
                             budget one more attempt, which is a fresh spawn by definition -- and the fresh-spawn
                             prompt, whose re-grounding conversation is the caller's frozen read wherever it holds
@@ -1843,8 +1845,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             parameter would have refused on its own
       execution.py          one resume, its poisoned-session retry -- withheld on an issue a poll observed closed,
                             since that retry is a SECOND agent -- and what each attempt is allowed to persist; the
-                            bounded AGY command-recovery coordinator that recognizes incomplete command outcomes
-                            and permits at most one immediate tracked continuation
+                            bounded AGY command-recovery coordinator (`_coordinate_developer_run`) that recognizes
+                            incomplete command outcomes and permits at most one immediate tracked continuation for
+                            both fresh spawns and resumes
       worktree.py           the checkout a resume runs in, restored when reaped
       disposition.py        run-output attribution, inherited floors, timeout parks and their recovery, and agent-result
                             settlement; both heads must be readable and the run must leave commits above its floor --

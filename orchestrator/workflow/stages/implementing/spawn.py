@@ -57,18 +57,16 @@ from orchestrator.git.worktrees import (
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    guards as _guards,
-    issue_usage as _issue_usage,
     prompt_context as _prompt_context,
     prompts as _prompts,
     retry_budget as _retry_budget,
     retry_ledger as _retry_ledger,
     run_charge_state as _run_charge_state,
-    usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
     candidate_recovery as _candidate_recovery,
     drift_preflight as _drift_preflight,
+    execution as _execution,
     models as _models,
     resume_batch as _resume_batch,
     session as _session,
@@ -104,29 +102,30 @@ def _spawn_implementer(
     session = _models._DevSession(*_session_read._read_dev_session(state))
     state.set(_state._DEV_AGENT, session.spec)
     delivered = _prompt_context._delivered_thread(gh, issue, state)
-    agent_result = _usage._run_agent_tracked(
+    agent_result, paused = _execution._coordinate_developer_run(
         gh,
         _run_charge_state.AgentRunBudget(issue=issue, state=state),
-        agent_role="developer",
-        stage=_state._IMPLEMENTING_STAGE,
+        issue=issue,
+        state=state,
+        worktree=worktree,
         backend=session.backend,
+        stage=_state._IMPLEMENTING_STAGE,
         prompt=_prompts._build_implement_prompt(
             spec,
             issue,
             delivered.rendered_text,
             config.default_repo_specs(),
         ),
-        cwd=worktree,
         agent_spec=session.spec,
         extra_args=session.extra_args,
         review_round=state.get("review_round", 0),
         retry_count=state.get(_state._RETRY_COUNT),
+        pause_guard=True,
     )
-    _issue_usage._accumulate_issue_usage(state, agent_result.usage)
     if agent_result.session_id:
         state.set(_state._DEV_SESSION_ID, agent_result.session_id)
         state.set(_state._DEV_RESUME_COUNT, 0)
-    return agent_result, _guards._paused_during_agent_run(gh, issue), delivered
+    return agent_result, paused, delivered
 
 
 def _charge_fresh_spawn(
