@@ -134,3 +134,16 @@ _DEVELOPER_CONTINUE_RETRY_PROMPT = (
     f"{_CONTINUE_RETRY_PROMPT}\n\n{_COMMIT_STYLE_NOTE}\n\n"
     f"{_DEVELOPER_REPORT_NOTE}\n\n{_FOREGROUND_ONLY_NOTE}"
 )
+
+_AGY_RECOVERY_PROMPT = (
+    "Your previous response ended while a command or tool step was still active. "
+    "Inspect the interrupted command, rerun cancelled or partial verification "
+    "where needed, and continue the current implementation or fix rather than "
+    "treating prior output as success. "
+    "Do NOT push -- the orchestrator pushes and opens the PR."
+)
+
+_DEVELOPER_AGY_RECOVERY_PROMPT = (
+    f"{_AGY_RECOVERY_PROMPT}\n\n{_COMMIT_STYLE_NOTE}\n\n"
+    f"{_DEVELOPER_REPORT_NOTE}\n\n{_FOREGROUND_ONLY_NOTE}"
+)
