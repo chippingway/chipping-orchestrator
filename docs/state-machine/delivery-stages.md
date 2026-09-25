@@ -1608,7 +1608,11 @@ because there it is the claim that this stage has already rerouted rather than a
        neutral retry prompt — NOT the bare command text, so the dev is grounded on its transcript (or, once
        `_resume_dev_with_text` rotates it, a fresh respawn preamble quoting the classifier's frozen conversation less
        the commands) rather than the nudge — and the result disposes
-       through the normal commit / timeout / question paths, with no "issue body changed" notice. A park needing a real
+       through the normal commit / timeout / question paths, with no "issue body changed" notice. If the failed run
+       already committed work before parking, its tip moved past `pre_implement_sha` and above any inherited floor;
+       when an intentional retry returns a valid `REPORT: READY` outcome with no HEAD change, that clean ahead-of-base
+       commit attributable to the failed run is published through the normal report, size, push, and PR gates, clearing
+       `pre_implement_sha` and `park_reason`. A park needing a real
        answer (any other `park_reason`) consumes the command and posts a refusal (`_refuse_parked_continue`) once, then
        stays parked (no per-tick loop). The size gate's own `late_measurement_failed` park is answered one step
        AHEAD of that classifier by `implementing/late_candidate_recovery.py`'s

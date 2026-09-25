@@ -168,16 +168,24 @@ def _run_left_commits(
     it -- it is defined by commits that predate the tick, so there is no run
     here to attribute anything to.
 
-    A head that did not move has one exception, and it is the park this stage
-    takes over a report it could not deliver. Such an issue was never waiting
-    for code: the commits are on the branch already, published or not, and
-    what was asked for was a report this workflow could record and bind. So a
-    run that comes back with one is publishing rather than asking, and the
+    A head that did not move has two exceptions. The first is the park this
+    stage takes over a report it could not deliver. Such an issue was never
+    waiting for code: the commits are on the branch already, published or not,
+    and what was asked for was a report this workflow could record and bind. So
+    a run that comes back with one is publishing rather than asking, and the
     seam below records its report in place of the one nothing could deliver
     and carries the same commits through. What that exception is held to
     belongs to the owner that spells it -- a debt owed, a report outcome, and
     a branch that carries something -- so an ordinary reply, a question, or a
     run that fell short is read here exactly as it always was.
+
+    The second is an intentional `/orchestrator continue` retry of an
+    `agent_execution_failed` session failure park. When that failed run committed
+    work before parking, its tip moved past `pre_implement_sha` and above any
+    inherited floor. If its intentional retry returns a valid `REPORT: READY`
+    outcome without moving HEAD again, that clean ahead-of-base commit is
+    attributable to the failed run and is published through the normal report,
+    size, push, and PR gates (`_unreported_recovery._attributable_failed_run_commit`).
     """
     if not _worktree_creation._has_new_commits(spec, prepared.worktree):
         return False
@@ -186,7 +194,11 @@ def _run_left_commits(
     head = _verification_probes._head_sha(prepared.worktree)
     if not _attributable_run(prepared, head):
         return False
-    if head != _inherited_floor(state) and head != prepared.before_sha:
+    if (head != _inherited_floor(state) and head != prepared.before_sha) or (
+        _unreported_recovery._attributable_failed_run_commit(
+            state, prepared, head, _inherited_floor(state),
+        )
+    ):
         return True
     return _report_redelivery.redelivers_an_owed_report(
         spec, state, prepared.agent_result, prepared.worktree,
@@ -354,7 +366,9 @@ def _dispose_agent_result(
         _parks._on_question(
             gh, issue, state,
             _guards._ParkedRun(
-                prepared.agent_result, _guards._ROUTE_DEV_RUN,
+                prepared.agent_result,
+                _guards._ROUTE_DEV_RUN,
+                before_sha=prepared.before_sha,
             ),
         )
         gh.write_pinned_state(issue, state)

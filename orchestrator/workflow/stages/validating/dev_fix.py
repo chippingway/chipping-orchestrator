@@ -215,7 +215,9 @@ def _dispose_dev_fix_result(
         _dev_parks._on_question(
             gh, issue, state,
             _guards._ParkedRun(
-                run.agent_result, _guards._ROUTE_DEV_FIX,
+                run.agent_result,
+                _guards._ROUTE_DEV_FIX,
+                before_sha=run.before_sha,
             ),
         )
         return False

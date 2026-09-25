@@ -24,6 +24,11 @@ _PatchedWorkflowMixin = support._PatchedWorkflowMixin
 _agent = support._agent
 _seed_parked_implementing = support._seed_parked_implementing
 
+_PARK_EXECUTION_FAILED = "agent_execution_failed"
+_SHA_BEFORE = "sha-before"
+_SHA_COMMITTED = "sha-committed"
+_PRE_IMPLEMENT_SHA = "pre_implement_sha"
+
 
 class ImplementingContinueCommandTest(
     unittest.TestCase,
@@ -44,7 +49,7 @@ class ImplementingContinueCommandTest(
         # stale watermark, human posts exactly `/orchestrator continue`. The dev session
         # is resumed intentionally -- no "issue body changed" notice, and the bare command
         # is NOT fed as the dev prompt.
-        for reason in ("agent_silent", "agent_execution_failed"):
+        for reason in ("agent_silent", _PARK_EXECUTION_FAILED):
             with self.subTest(park_reason=reason):
                 scenario = IssueScenario(
                     *_seed_parked_implementing(
@@ -63,7 +68,7 @@ class ImplementingContinueCommandTest(
                     has_new_commits=True,
                     dirty_files=(),
                     push_branch=True,
-                    head_shas=["sha-before", "sha-after"],
+                    head_shas=[_SHA_BEFORE, "sha-after"],
                 )
 
                 # The dev retry/resume path is entered -- the session is resumed
@@ -154,3 +159,156 @@ class ImplementingContinueCommandTest(
         mocks[RUN_AGENT].assert_called_once()
         prompt = mocks[RUN_AGENT].call_args[0][1]
         self.assertIn("rename the flag to --strict", prompt)
+
+class FailedRunContinueRetryTest(
+    unittest.TestCase,
+    _PatchedWorkflowMixin,
+):
+    """Intentional continue retries over committed work from a failed run."""
+
+    def test_failed_commit_published_on_continue(self) -> None:
+        # An agent_execution_failed run committed work before parking.
+        # Its intentional retry (/orchestrator continue) returns a valid REPORT: READY
+        # with NO head change. That clean ahead-of-base commit attributable to the
+        # failed run is published through normal gates: PR opened, label -> validating,
+        # pre_implement_sha cleared, park_reason cleared.
+        gh, issue = _seed_parked_implementing(
+            CONTINUE_RETRY_ISSUE,
+            park_reason=_PARK_EXECUTION_FAILED,
+            drift_neutral=True,
+        )
+        state = gh.read_pinned_state(issue)
+        state.set(_PRE_IMPLEMENT_SHA, _SHA_BEFORE)
+        gh.write_pinned_state(issue, state)
+        mocks = self._run_implementing(
+            gh,
+            issue,
+            run_agent=_agent(
+                session_id=DEV_SESSION,
+                last_message=_reported("finished the work"),
+            ),
+            has_new_commits=True,
+            dirty_files=(),
+            push_branch=True,
+            head_shas=[_SHA_COMMITTED, _SHA_COMMITTED],
+        )
+        self._assert_spawned(mocks)
+        self.assertIn((CONTINUE_RETRY_ISSUE, LABEL_VALIDATING), gh.label_history)
+        self.assertEqual(len(gh.opened_prs), 1)
+        pinned = gh.pinned_data(CONTINUE_RETRY_ISSUE)
+        self.assertIsNone(pinned.get(_PRE_IMPLEMENT_SHA))
+        self.assertIsNone(pinned.get("park_reason"))
+        self.assertFalse(pinned.get(AWAITING_HUMAN))
+
+    def test_uncommitted_retry_does_not_publish(self) -> None:
+        # Failed run made no commit (head == pre_sha). Even if retry returns REPORT: READY,
+        # no empty commit or unearned publication occurs.
+        gh, issue = _seed_parked_implementing(
+            CONTINUE_RETRY_ISSUE,
+            park_reason=_PARK_EXECUTION_FAILED,
+            drift_neutral=True,
+        )
+        state = gh.read_pinned_state(issue)
+        state.set(_PRE_IMPLEMENT_SHA, _SHA_BEFORE)
+        gh.write_pinned_state(issue, state)
+        mocks = self._run_implementing(
+            gh,
+            issue,
+            run_agent=_agent(
+                session_id=DEV_SESSION,
+                last_message=_reported("finished"),
+            ),
+            has_new_commits=False,
+            dirty_files=(),
+            head_shas=[_SHA_BEFORE, _SHA_BEFORE],
+        )
+        self._assert_spawned(mocks)
+        self.assertEqual(gh.opened_prs, [])
+        self.assertNotIn((CONTINUE_RETRY_ISSUE, LABEL_VALIDATING), gh.label_history)
+
+    def test_carried_floor_retry_does_not_publish(self) -> None:
+        # If head matches the inherited floor, it must not broadly publish arbitrary carried-over commits.
+        gh, issue = _seed_parked_implementing(
+            CONTINUE_RETRY_ISSUE,
+            park_reason=_PARK_EXECUTION_FAILED,
+            drift_neutral=True,
+        )
+        state = gh.read_pinned_state(issue)
+        state.set(_PRE_IMPLEMENT_SHA, _SHA_BEFORE)
+        state.set("read_only_baseline_sha", "sha-floor")
+        gh.write_pinned_state(issue, state)
+        mocks = self._run_implementing(
+            gh,
+            issue,
+            run_agent=_agent(
+                session_id=DEV_SESSION,
+                last_message=_reported("finished"),
+            ),
+            has_new_commits=True,
+            dirty_files=(),
+            head_shas=["sha-floor", "sha-floor"],
+        )
+        self._assert_spawned(mocks)
+        self.assertEqual(gh.opened_prs, [])
+        self.assertNotIn((CONTINUE_RETRY_ISSUE, LABEL_VALIDATING), gh.label_history)
+
+    def test_continue_retry_question_parks(self) -> None:
+        # If the intentional retry asks a clarification question (no REPORT: READY),
+        # it parks as a question rather than publishing.
+        gh, issue = _seed_parked_implementing(
+            CONTINUE_RETRY_ISSUE,
+            park_reason=_PARK_EXECUTION_FAILED,
+            drift_neutral=True,
+        )
+        state = gh.read_pinned_state(issue)
+        state.set(_PRE_IMPLEMENT_SHA, _SHA_BEFORE)
+        gh.write_pinned_state(issue, state)
+        mocks = self._run_implementing(
+            gh,
+            issue,
+            run_agent=_agent(
+                session_id=DEV_SESSION,
+                last_message="Which database adapter should be used?",
+            ),
+            has_new_commits=True,
+            dirty_files=(),
+            head_shas=[_SHA_COMMITTED, _SHA_COMMITTED],
+        )
+        self._assert_spawned(mocks)
+        self.assertEqual(gh.opened_prs, [])
+        self.assertNotIn((CONTINUE_RETRY_ISSUE, LABEL_VALIDATING), gh.label_history)
+        pinned = gh.pinned_data(CONTINUE_RETRY_ISSUE)
+        self.assertTrue(pinned.get(AWAITING_HUMAN))
+        self.assertIsNone(pinned.get("park_reason"))
+
+    def test_dirty_continue_retry_parks_dirty(self) -> None:
+        # If worktree is dirty, it parks dirty rather than publishing.
+        gh, issue = _seed_parked_implementing(
+            CONTINUE_RETRY_ISSUE,
+            park_reason=_PARK_EXECUTION_FAILED,
+            drift_neutral=True,
+        )
+        state = gh.read_pinned_state(issue)
+        state.set(_PRE_IMPLEMENT_SHA, _SHA_BEFORE)
+        gh.write_pinned_state(issue, state)
+        mocks = self._run_implementing(
+            gh,
+            issue,
+            run_agent=_agent(
+                session_id=DEV_SESSION,
+                last_message=_reported("finished"),
+            ),
+            has_new_commits=True,
+            dirty_files=("dirty.py",),
+            head_shas=[_SHA_COMMITTED, _SHA_COMMITTED],
+        )
+        self._assert_spawned(mocks)
+        self.assertEqual(gh.opened_prs, [])
+        self.assertNotIn((CONTINUE_RETRY_ISSUE, LABEL_VALIDATING), gh.label_history)
+        pinned = gh.pinned_data(CONTINUE_RETRY_ISSUE)
+        self.assertTrue(pinned.get(AWAITING_HUMAN))
+        self.assertIsNone(pinned.get("park_reason"))
+        self.assertIn("dirty.py", gh.posted_comments[-1][1])
+
+    def _assert_spawned(self, mocks: dict[str, object]) -> None:
+        mocks[RUN_AGENT].assert_called_once()

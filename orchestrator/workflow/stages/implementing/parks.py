@@ -169,7 +169,7 @@ def _park_silent_failure(
     return "agent_silent"
 
 
-_PARK_EXECUTION_FAILED = "agent_execution_failed"
+_PARK_EXECUTION_FAILED = _state._PARK_EXECUTION_FAILED
 
 
 def _park_execution_failure(
@@ -177,6 +177,7 @@ def _park_execution_failure(
     issue: Issue,
     state: PinnedState,
     agent_result: AgentResult,
+    before_sha: str | None = None,
 ) -> str:
     """Park an unfinished command execution as a RETRYABLE execution failure.
 
@@ -184,7 +185,9 @@ def _park_execution_failure(
     partial output was not accepted as a successful or verified result.
     Instead of misinterpreting partial output as a clarifying question or
     leaving `park_reason=None`, park with `agent_execution_failed` so an
-    operator's `/orchestrator continue` can retry the execution.
+    operator's `/orchestrator continue` can retry the execution. Persists
+    `pre_implement_sha` if not already set, so an intentional retry that
+    returns a valid report can attribute committed work to the failed run.
     """
     diag = _agent_diagnostics._format_stderr_diagnostics(agent_result, "Agent")
     _comments._post_issue_comment(
@@ -207,6 +210,8 @@ def _park_execution_failure(
     state.set(_state._AWAITING_HUMAN, True)
     state.set(_state._PARK_REASON, _PARK_EXECUTION_FAILED)
     state.set(_state._SILENT_PARK_COUNT, count + 1)
+    if before_sha and not state.get(_state._PRE_IMPLEMENT_SHA):
+        state.set(_state._PRE_IMPLEMENT_SHA, before_sha)
     return _PARK_EXECUTION_FAILED
 
 
@@ -239,7 +244,9 @@ def _on_question(
     agent_result = parked.agent_result
     raw = agent_result.last_message.strip()
     if agent_result.unfinished_steps:
-        park_reason = _park_execution_failure(gh, issue, state, agent_result)
+        park_reason = _park_execution_failure(
+            gh, issue, state, agent_result, before_sha=parked.before_sha,
+        )
     elif _session_read._is_session_limit_message(agent_result):
         park_reason = _park_session_limit(gh, issue, state, raw)
     elif _provider_failures.is_transient_provider_failure(agent_result):
