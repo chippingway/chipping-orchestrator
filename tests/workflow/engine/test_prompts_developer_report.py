@@ -76,6 +76,7 @@ def _developer_prompts() -> dict[str, str]:
             comments,
         ),
         "continue_retry_resume": _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
+        "agy_recovery_resume": _prompt_notes._DEVELOPER_AGY_RECOVERY_PROMPT,
     }
 
 

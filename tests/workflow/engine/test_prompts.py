@@ -121,6 +121,7 @@ def _commit_producing_prompts() -> dict[str, str]:
             comments,
         ),
         "continue_retry": _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
+        "agy_recovery": _prompt_notes._DEVELOPER_AGY_RECOVERY_PROMPT,
     }
 
 
@@ -229,6 +230,15 @@ class CommitProducingNotesTest(unittest.TestCase):
                 self.assertIn(_FOREGROUND_MARKER, prompt)
                 for marker in _AGY_WAIT_MARKERS:
                     self.assertIn(marker, prompt)
+
+    def test_agy_recovery_prompt_guidance(self) -> None:
+        prompt = _prompt_notes._DEVELOPER_AGY_RECOVERY_PROMPT
+        self.assertIn("Inspect the interrupted command", prompt)
+        self.assertIn("rerun cancelled or partial verification where needed", prompt)
+        self.assertIn("continue the current implementation or fix", prompt)
+        self.assertIn("rather than treating prior output as success", prompt)
+
+
 
 
 class ConflictResolutionPromptTest(unittest.TestCase):

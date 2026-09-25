@@ -1842,7 +1842,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             re-grounded from where the caller holds one, and the unknown option a named
                             parameter would have refused on its own
       execution.py          one resume, its poisoned-session retry -- withheld on an issue a poll observed closed,
-                            since that retry is a SECOND agent -- and what each attempt is allowed to persist
+                            since that retry is a SECOND agent -- and what each attempt is allowed to persist; the
+                            bounded AGY command-recovery coordinator that recognizes incomplete command outcomes
+                            and permits at most one immediate tracked continuation
       worktree.py           the checkout a resume runs in, restored when reaped
       disposition.py        run-output attribution, inherited floors, timeout parks and their recovery, and agent-result
                             settlement; both heads must be readable and the run must leave commits above its floor --
