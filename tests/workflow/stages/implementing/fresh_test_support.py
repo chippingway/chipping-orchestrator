@@ -14,6 +14,8 @@ from orchestrator.agents.models import AgentResult
 from tests.workflow.fixtures import AGENT_RUN_CHARGE_WRITES
 from tests.workflow.stages import implementing_fixing_test_cases
 
+_AWAITING_HUMAN = "awaiting_human"
+
 
 def claude_run_exiting(returncode: int) -> AgentResult:
     """Return the result `run_claude` builds for an empty run exiting `returncode`.
@@ -76,7 +78,7 @@ def assert_human_reply_resume(
     test_case.assertIn("NEVER start a background job", followup)
     test_case.assertEqual(len(github.opened_prs), 1)
     test_case.assertFalse(
-        github.pinned_data(2).get("awaiting_human"),
+        github.pinned_data(2).get(_AWAITING_HUMAN),
     )
 
 
@@ -96,7 +98,7 @@ def assert_interrupted_spawn_state(
     # The interrupted spawn's session id is NOT persisted -- the next
     # process re-spawns fresh rather than resuming a half-built session.
     test_case.assertNotIn("dev_session_id", state)
-    test_case.assertFalse(state.get("awaiting_human"))
+    test_case.assertFalse(state.get(_AWAITING_HUMAN))
     test_case.assertIsNone(state.get("park_reason"))
     test_case.assertFalse(state.get("silent_park_count"))
 
@@ -112,7 +114,7 @@ def assert_interrupted_resume_state(
         github.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
     )
     state = github.pinned_data(issue_number)
-    test_case.assertTrue(state.get("awaiting_human"))
+    test_case.assertTrue(state.get(_AWAITING_HUMAN))
     test_case.assertEqual(
         state.get("last_action_comment_id"),
         action_comment_id,
@@ -128,4 +130,38 @@ def assert_interrupted_resume_state(
             github,
             "timed out",
         ),
+    )
+
+
+def assert_execution_failure_park(
+    test_case,
+    scenario,
+    log_messages: list[str],
+) -> None:
+    test_case.assertEqual(
+        (
+            scenario.github.pinned_data(1).get(_AWAITING_HUMAN),
+            scenario.github.pinned_data(1).get("park_reason"),
+            scenario.github.pinned_data(1).get("silent_park_count"),
+        ),
+        (True, "agent_execution_failed", 1),
+    )
+    comment = scenario.github.posted_comments[-1][1]
+    for expected in (
+        "agent command execution failed",
+        "cancelled or partial command output was not accepted",
+        "/orchestrator continue",
+        "_Agent stderr (last 1KB):_",
+        "unfinished tool steps",
+        "run_command",
+    ):
+        test_case.assertIn(expected, comment)
+    test_case.assertNotIn("agent needs your input", comment)
+    test_case.assertNotIn("agent produced no output", comment)
+    test_case.assertNotIn("passed", comment.split("_Agent stderr")[0])
+    test_case.assertTrue(
+        any(
+            "agent command execution failed" in msg and "exit_code=1" in msg
+            for msg in log_messages
+        )
     )

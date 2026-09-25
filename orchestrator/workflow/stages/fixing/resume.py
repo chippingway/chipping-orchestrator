@@ -374,7 +374,7 @@ def _delivered_nothing(
     bounce a PR head that is missing the fix. Left on disk, a later clean run
     republishes it through the stranded-fix tail.
     """
-    if run.dev_result.interrupted:
+    if _guards._ignore_if_interrupted(ctx.issue, run.dev_result):
         return True
     if _guards._ignore_if_never_invoked(ctx.issue, run.dev_result):
         return True

@@ -269,7 +269,9 @@ def _finish_requested_fix(
         handed=_records.HandedRun(WorkflowLabel.FIXING, spends=owed.fields),
     )
     if outcome not in _state._REPORTING_OUTCOMES:
-        if not attempt.run.agent_result.interrupted:
+        if not _guards._ignore_if_interrupted(
+            context.issue, attempt.run.agent_result,
+        ):
             context.gh.write_pinned_state(context.issue, context.state)
         return
     if outcome == _state._OUTCOME_PUSHED:
@@ -308,7 +310,7 @@ def _handle_validating_changes_requested(
 
     The id of the reviewer-feedback PR comment is recorded in
     `pending_fix_reviewer_comment_id` so a session-failure park on this route
-    (`agent_silent` / `agent_timeout`) is retryable by `/orchestrator continue`:
+    (`agent_silent` / `agent_timeout` / `agent_execution_failed`) is retryable by `/orchestrator continue`:
     the fixing handler's `_reconstruct_pending_fix_batch` replays that exact
     comment. `pending_fix_at` is deliberately NOT set (it discriminates the
     in_review route's review-round reset from this route's bump), so the anchor

@@ -117,7 +117,8 @@ _RESPAWN_REPORT_NOTE = (
 )
 
 _CONTINUE_RETRY_PROMPT = (
-    "Resuming after a session/usage limit or a silent session failure. "
+    "Resuming after a session/usage limit, execution failure "
+    "(`agent_execution_failed`), or a silent session failure. "
     "Re-read the issue requirements and the conversation in your transcript, "
     "then CONTINUE the work already in progress and COMMIT any remaining "
     "changes in your current worktree. Do NOT push -- the orchestrator pushes "

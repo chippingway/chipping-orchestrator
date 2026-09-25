@@ -21,6 +21,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from orchestrator import config
+from orchestrator.agents.models import ToolLifecycle
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.implementing import park_correlation as _park_correlation
 from tests.support.fakes import FakeGitHubClient, make_issue
@@ -61,6 +62,7 @@ _DIRTY_PATHS = ("ledger.py", "ledger_test.py")
 _PINNED_PR_NUMBER = 77
 _PINNED_RETRY_COUNT = 2
 _PINNED_CONFLICT_ROUND = 3
+_PARK_EXECUTION_FAILED = "agent_execution_failed"
 
 
 def _flattened(record: dict) -> str:
@@ -96,6 +98,13 @@ class _ParkRecordCase(unittest.TestCase, _PatchedWorkflowMixin):
         records, github = self._park_records(**run_options)
         self.assertEqual(len(records), 1)
         return records[0], github.pinned_data(_QUESTION_ISSUE)
+
+    def _assert_park_reason(
+        self, record: dict, pinned: dict, reason: str, exit_code: int = 1,
+    ) -> None:
+        self.assertEqual(record[_KEY_REASON], reason)
+        self.assertEqual(record[_KEY_EXIT_CODE], exit_code)
+        self.assertEqual(pinned.get(_KEY_PARK_REASON), reason)
 
 
 class DeveloperQuestionParkRecordTest(_ParkRecordCase):
@@ -178,6 +187,37 @@ class FailedRunParkRecordTest(_ParkRecordCase):
                 self.assertEqual(record[_KEY_EXIT_CODE], exit_code)
                 self.assertEqual(record[_KEY_ROUTE], _guards._ROUTE_DEV_RUN)
                 self.assertEqual(pinned.get(_KEY_PARK_REASON), "agent_silent")
+
+    def test_unfinished_command_records_failure(self) -> None:
+        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+        record, pinned = self._only_park(
+            run_agent=_agent(
+                session_id=_DEV_SESSION,
+                last_message="",
+                exit_code=1,
+                interrupted=True,
+                unfinished_steps=(step,),
+            ),
+            has_new_commits=False,
+        )
+        self._assert_park_reason(record, pinned, _PARK_EXECUTION_FAILED)
+        self.assertEqual(record[_KEY_ROUTE], _guards._ROUTE_DEV_RUN)
+
+    def test_unfinished_command_precedes_question(self) -> None:
+        # Even if the agent returned clarification text, structured unfinished
+        # command steps take precedence over message-based question branches.
+        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+        record, pinned = self._only_park(
+            run_agent=_agent(
+                session_id=_DEV_SESSION,
+                last_message="Should I proceed with running the remaining tests?",
+                exit_code=1,
+                interrupted=True,
+                unfinished_steps=(step,),
+            ),
+            has_new_commits=False,
+        )
+        self._assert_park_reason(record, pinned, _PARK_EXECUTION_FAILED)
 
 
 class CheckoutRefusalRecordTest(_ParkRecordCase):

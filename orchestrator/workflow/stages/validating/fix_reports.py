@@ -206,7 +206,7 @@ def _dispose_reported_fix(
     to publish MEANS: a report is an answer this road publishes, where every
     other no-commit reply is still the question it always was.
     """
-    if run.agent_result.interrupted:
+    if _guards._ignore_if_interrupted(issue, run.agent_result):
         return _state._OUTCOME_PARKED
     if run.agent_result.timed_out:
         _evidence._consumes_the_delivered(state, run)

@@ -9,7 +9,11 @@ from __future__ import annotations
 import signal
 import unittest
 
+from orchestrator.agents import models as _agent_models
+from orchestrator.agents.backends import agy as _agy
+from orchestrator.agents.models import ToolLifecycle
 from orchestrator.workflow.engine import content_hash as _content_hash
+from tests.support import agy_stream as _agy_stream
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -29,6 +33,7 @@ from tests.workflow.stages.implementing_fixing_test_cases import IssueScenario
 AWAITING_HUMAN = "awaiting_human"
 RUN_AGENT = "run_agent"
 LEGACY_SESSION = "sess-old"
+_NEW_SESSION = "sess-new"
 ACTION_COMMENT_ID = 900
 HUMAN_REPLY_ID = 1100
 INTERRUPTED_RESUME_ISSUE = 70
@@ -36,6 +41,7 @@ INTERRUPTED_SPAWN_ISSUE = 71
 SHELL_SIGNAL_EXIT_BASE = 128
 TRAPPED_SIGTERM_EXIT = SHELL_SIGNAL_EXIT_BASE + signal.SIGTERM
 DIRTY_FILE_COUNT = 15
+_AGENT_NO_OUTPUT = "agent produced no output"
 
 
 def _seed_fresh_issue(label=LABEL_IMPLEMENTING):
@@ -43,6 +49,19 @@ def _seed_fresh_issue(label=LABEL_IMPLEMENTING):
     issue = make_issue(1, label=label)
     gh.add_issue(issue)
     return gh, issue
+
+
+def _run_and_assert_failure_park(case, agent_result) -> None:
+    scenario = IssueScenario(*_seed_fresh_issue())
+    with case.assertLogs("orchestrator.workflow", level="WARNING") as logs:
+        case._run_implementing(
+            scenario.github,
+            scenario.issue,
+            run_agent=agent_result,
+            has_new_commits=False,
+        )
+        log_messages = [record.getMessage() for record in logs.records]
+    fresh_test_support.assert_execution_failure_park(case, scenario, log_messages)
 
 
 class HandleImplementingFreshRunTest(unittest.TestCase, _PatchedWorkflowMixin):
@@ -132,7 +151,7 @@ class HandleImplementingFreshRunTest(unittest.TestCase, _PatchedWorkflowMixin):
         self.assertEqual(state.get("park_reason"), "agent_silent")
         self.assertEqual(state.get("silent_park_count"), 1)
         last_comment = gh.posted_comments[-1][1]
-        self.assertIn("agent produced no output", last_comment)
+        self.assertIn(_AGENT_NO_OUTPUT, last_comment)
         self.assertIn("session-resume failure", last_comment)
         self.assertNotIn("agent needs your input", last_comment)
         # No quoted empty-message body either.
@@ -158,13 +177,36 @@ class HandleImplementingFreshRunTest(unittest.TestCase, _PatchedWorkflowMixin):
             log_messages = [record.getMessage() for record in logs.records]
 
         last_comment = scenario.github.posted_comments[-1][1]
-        self.assertIn("agent produced no output", last_comment)
+        self.assertIn(_AGENT_NO_OUTPUT, last_comment)
         self.assertIn("_Agent stderr (last 1KB):_", last_comment)
         self.assertIn("401 Unauthorized", last_comment)
         self.assertIn("_Agent exit code:_ 1", last_comment)
         self.assertTrue(
-            any("agent produced no output" in message and "exit_code=1" in message for message in log_messages)
+            any(_AGENT_NO_OUTPUT in message and "exit_code=1" in message for message in log_messages)
         )
+
+    def test_unfinished_command_parks_failure(self) -> None:
+        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+        _run_and_assert_failure_park(
+            self,
+            _agent(
+                last_message="pytest passed 5 tests",
+                stderr="Antigravity ended with unfinished tool steps:\n  - step 1: run_command [ACTIVE]",
+                exit_code=1,
+                unfinished_steps=(step,),
+            ),
+        )
+        for code in (1, 130):
+            with self.subTest(code=code):
+                _run_and_assert_failure_park(
+                    self,
+                    _agy.agy_result(
+                        _agent_models.AgentRunOptions(),
+                        _agent_models.SubprocessResult(
+                            _agy_stream.ToolStream.canceled_active_command(), "", code, False, False,
+                        ),
+                    ),
+                )
 
     def test_push_failure_parks_without_opening_pr(self) -> None:
         gh, issue = _seed_fresh_issue()
@@ -304,16 +346,77 @@ class HandleImplementingInterruptedTest(unittest.TestCase, _PatchedWorkflowMixin
         # A trapped SIGTERM -- `claude` exiting 143 with no output -- reaches
         # the stage through the real classification and takes the same quiet
         # retry as a run the signal killed outright, never the silent park.
+        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
         agent_results = (
-            ("signal_death", _agent(session_id="sess-new", interrupted=True)),
+            ("signal_death", _agent(session_id=_NEW_SESSION, interrupted=True)),
+            (
+                "signal_death_with_active_command",
+                _agent(
+                    session_id=_NEW_SESSION,
+                    interrupted=True,
+                    exit_code=-signal.SIGTERM,
+                    unfinished_steps=(step,),
+                ),
+            ),
             (
                 "trapped_sigterm",
                 fresh_test_support.claude_run_exiting(TRAPPED_SIGTERM_EXIT),
+            ),
+            (
+                "trapped_sigterm_with_active_command",
+                _agent(
+                    session_id=_NEW_SESSION,
+                    interrupted=True,
+                    exit_code=TRAPPED_SIGTERM_EXIT,
+                    unfinished_steps=(step,),
+                ),
+            ),
+            (
+                "agy_interrupted_no_steps",
+                _agy.agy_result(
+                    _agent_models.AgentRunOptions(resume_session_id=_NEW_SESSION),
+                    _agent_models.SubprocessResult(
+                        _agy_stream.ToolStream.canceled_without_steps(), "", 1, False, False,
+                    ),
+                ),
             ),
         )
         for case, agent_result in agent_results:
             with self.subTest(case=case):
                 self._assert_spawn_ignored(agent_result)
+
+    def test_timed_out_interrupted_agy_parks(self) -> None:
+        # A timed-out AGY run with active command steps emits a CANCELED
+        # envelope and is normalized with `interrupted=True` and `exit_code=-1`.
+        # It must NOT be ignored as a shutdown sweep interruption: the stage
+        # disposes it as an `agent_timeout` park and writes durable pinned state.
+        scenario = IssueScenario(*_seed_fresh_issue())
+        agy_timed_out = _agy.agy_result(
+            _agent_models.AgentRunOptions(),
+            _agent_models.SubprocessResult(
+                _agy_stream.ToolStream.canceled_active_command(),
+                "",
+                -1,
+                True,
+                False,
+            ),
+        )
+        self.assertTrue(agy_timed_out.interrupted)
+        self.assertTrue(agy_timed_out.timed_out)
+        self.assertEqual(agy_timed_out.exit_code, -1)
+
+        self._run_implementing(
+            scenario.github,
+            scenario.issue,
+            run_agent=agy_timed_out,
+            has_new_commits=False,
+        )
+
+        pinned_data = scenario.github.pinned_data(1)
+        self.assertTrue(pinned_data.get(AWAITING_HUMAN))
+        self.assertEqual(pinned_data.get("park_reason"), "agent_timeout")
+        last_comment = scenario.github.posted_comments[-1][1]
+        self.assertIn("agent timed out", last_comment)
 
     def _assert_spawn_ignored(self, agent_result) -> None:
         gh = FakeGitHubClient()

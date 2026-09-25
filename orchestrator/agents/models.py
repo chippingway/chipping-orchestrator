@@ -3,6 +3,7 @@
 """Agent run options, result models, and unfinished tool step diagnostics."""
 from __future__ import annotations
 
+import signal
 from dataclasses import dataclass
 from typing import NamedTuple, TypedDict
 
@@ -74,3 +75,47 @@ class SubprocessResult(NamedTuple):
     exit_code: int
     timed_out: bool
     interrupted: bool
+
+
+_SHELL_SIGNAL_EXIT_BASE = 128
+_INTERRUPTED_EXIT_CODES = frozenset((
+    -signal.SIGTERM,
+    -signal.SIGKILL,
+    _SHELL_SIGNAL_EXIT_BASE + signal.SIGTERM,
+    _SHELL_SIGNAL_EXIT_BASE + signal.SIGKILL,
+))
+
+
+def is_signal_interrupted(agent_result: AgentResult) -> bool:
+    """True when `agent_result` was terminated by an operating system signal
+    (such as SIGTERM/SIGKILL from the shutdown sweep), as opposed to a backend
+    cancellation or error exit."""
+    if getattr(agent_result, "timed_out", None) is True:
+        return False
+    if not getattr(agent_result, "interrupted", False):
+        return False
+    exit_code = getattr(agent_result, "exit_code", None)
+    if not isinstance(exit_code, int):
+        return False
+    return exit_code in _INTERRUPTED_EXIT_CODES
+
+
+def is_shutdown_sweep_interrupted(agent_result: AgentResult) -> bool:
+    """True when `agent_result` represents a genuine shutdown interruption.
+
+    A process-signal interruption (SIGTERM/SIGKILL or shell-signal return code)
+    is ALWAYS a shutdown sweep kill regardless of whether partial output
+    happened to contain active tool steps. For backend cancellations (e.g. AGY
+    CANCELED/INTERRUPTED statuses with normal process exit codes), only runs
+    without structured unfinished tool steps are ignored as interruptions; runs
+    carrying structured unfinished steps are execution failures that must
+    proceed to disposition. Timed-out runs are never shutdown interruptions.
+    """
+    if getattr(agent_result, "timed_out", None) is True:
+        return False
+    if not getattr(agent_result, "interrupted", False):
+        return False
+    if is_signal_interrupted(agent_result):
+        return True
+    unfinished = getattr(agent_result, "unfinished_steps", ())
+    return not (isinstance(unfinished, (tuple, list)) and bool(unfinished))

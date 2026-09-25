@@ -90,7 +90,7 @@ def _dispose_user_content_change_result(
     reply to no report contract has nothing to continue on the far side of a
     park, and a claim written for it would be one nothing ever answers.
     """
-    if run.agent_result.interrupted:
+    if _guards._ignore_if_interrupted(issue, run.agent_result):
         return _state._OUTCOME_PARKED
     outcome = _reads_the_finished_resume(gh, spec, issue, state, run)
     if run.handed is not None:

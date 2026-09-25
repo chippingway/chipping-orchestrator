@@ -45,7 +45,11 @@ from orchestrator.workflow.engine import (
 
 _DRIFT_ACK_RE = re.compile(r"^\s*ACK:\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE)
 
-_CONTINUE_PARK_REASONS = frozenset(("agent_silent", "agent_timeout"))
+_CONTINUE_PARK_REASONS = frozenset((
+    "agent_execution_failed",
+    "agent_silent",
+    "agent_timeout",
+))
 
 # The shared issue-thread cursor a refusal consumes its own command through.
 _LAST_ACTION_COMMENT_ID = "last_action_comment_id"
@@ -147,9 +151,9 @@ def _continue_command_action(new_comments: list, park_reason) -> str:
     consumed watermark. Returns:
 
       * ``"retry"``       -- a retryable session-failure park
-        (`agent_silent` / `agent_timeout`) whose fresh comments are ALL bare
-        continues: retry the parked dev flow intentionally, without feeding
-        the bare command to the dev as guidance.
+        (`agent_execution_failed` / `agent_silent` / `agent_timeout`) whose fresh
+        comments are ALL bare continues: retry the parked dev flow intentionally,
+        without feeding the bare command to the dev as guidance.
       * ``"refuse"``      -- a park that needs real guidance (a genuine agent
         question, a dirty worktree, a diverged branch, ...) whose fresh
         comments are ALL bare continues: the command carries no answer, so

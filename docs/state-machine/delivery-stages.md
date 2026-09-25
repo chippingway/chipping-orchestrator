@@ -1602,8 +1602,9 @@ because there it is the claim that this stage has already rerouted rather than a
        [the retry budget](labels-and-state.md#the-retry-budget).
      - **`/orchestrator continue` operator command** (`_handle_parked_continue_command`, run BEFORE the drift check so
        the bare command is never mis-read as requirement drift). On a retryable session-failure park (`park_reason` in
-       `_CONTINUE_PARK_REASONS` = `agent_silent` / `agent_timeout`) a content-free continue retries the dev
-       intentionally (`_retry_parked_dev_session`): the command watermark is consumed, the session is resumed on a
+       `_CONTINUE_PARK_REASONS` = `agent_silent` / `agent_timeout` / `agent_execution_failed`) a content-free continue
+       retries the dev intentionally (`_retry_parked_dev_session`): the command watermark is consumed, the session is
+       resumed on a
        neutral retry prompt — NOT the bare command text, so the dev is grounded on its transcript (or, once
        `_resume_dev_with_text` rotates it, a fresh respawn preamble quoting the classifier's frozen conversation less
        the commands) rather than the nudge — and the result disposes
@@ -1934,12 +1935,14 @@ because there it is the claim that this stage has already rerouted rather than a
        to "no paths", which is the answer a clean tree gives, so the seam that publishes asks the status form and
        refuses on either half of "not provably clean". An index entry marked `assume-unchanged` / `skip-worktree`
        comes back as a path AND withholds the reading, so it takes the dirty park and is named there.
-     - no new commits → `_on_question`, which parks on whose words the last message is. A quota notice
-       (`_is_session_limit_message`) and a transient provider refusal (`agents/provider_failures.py`'s
-       `is_transient_provider_failure` — `API Error: 529 Overloaded` and its 5xx siblings) are the CLI's rather than
-       the agent's, so both park retryably as `agent_silent` with the operator told to reply `/orchestrator continue`;
-       any other non-empty message is posted as a real HITL question (`park_reason=None`); an empty one is the
-       silent-failure park (`agent_silent`).
+     - no new commits → `_on_question`, which parks on the agent result and whose words the last message is. A run
+       carrying unfinished command diagnostics (`unfinished_steps`) parks retryably as `agent_execution_failed` with
+       an execution-failure notice explaining that cancelled or partial command output was not accepted and the
+       operator told to reply `/orchestrator continue`. A quota notice (`_is_session_limit_message`) and a transient
+       provider refusal (`agents/provider_failures.py`'s `is_transient_provider_failure` — `API Error: 529 Overloaded`
+       and its 5xx siblings) are the CLI's rather than the agent's, so both park retryably as `agent_silent` with the
+       operator told to reply `/orchestrator continue`; any other non-empty message is posted as a real HITL question
+       (`park_reason=None`); an empty one is the silent-failure park (`agent_silent`).
 - **Output**: one of four. A pushed branch + open PR + the report on it + label moved to `workflow:validating`; a
   pushed branch + open PR whose report is still owed, unparked and still on `workflow:implementing` for the next tick
   to finish; an **unpublished** committed candidate held under `workflow:decomposing` for size adjudication, with no
@@ -1981,11 +1984,12 @@ because there it is the claim that this stage has already rerouted rather than a
   2. **`pr_number` missing → park** with `missing_pr_number`. Documenting only runs against an existing PR worktree.
   3. **`/orchestrator continue` refusal** (`_refuse_parked_continue_command`, run BEFORE the drift block). A bare
      continue on a park needing a real answer consumes the command and posts a refusal (`_refuse_parked_continue`) once,
-     then stays parked. A retryable session-failure park (`agent_silent` / `agent_timeout`) and a command carrying
-     genuine guidance both fall through: because a bare continue no longer shifts `user_content_hash`, the drift block
-     below stays silent (no spurious `routing back to validating`) and the retry reruns the FULL docs pass through the
-     awaiting-human resume (step 10). The parser + classifier are shared with `_handle_implementing` / `_handle_fixing`;
-     documenting has no preserved feedback batch, so only the refusal needs interception here.
+     then stays parked. A retryable session-failure park (`agent_silent` / `agent_timeout` / `agent_execution_failed`)
+     and a command carrying genuine guidance both fall through: because a bare continue no longer shifts
+     `user_content_hash`, the drift block below stays silent (no spurious `routing back to validating`) and the retry
+     reruns the FULL docs pass through the awaiting-human resume (step 10). The parser + classifier are shared with
+     `_handle_implementing` / `_handle_fixing`; documenting has no preserved feedback batch, so only the refusal needs
+     interception here.
 
      The batch that classification reads is cut from what the park ASKED (`parks._asked_since`) rather than from
      the delivery cursor, and on a half-finished drift unwind those are different comments: step 4's failure road
@@ -3101,8 +3105,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      `review_round` to `max(0, MAX_REVIEW_ROUNDS - N)`, clears the park, and falls through to spawn the reviewer this
      same tick. Values at or above the configured maximum grant one full review budget rather than extending the
      budget past it. A second exception: a bare `/orchestrator continue` on a session-failure dev park (`agent_silent` /
-     `agent_timeout`) is intercepted (`_continue_command_action`) and retries the dev on the neutral
-     `_DEVELOPER_CONTINUE_RETRY_PROMPT` — NOT the literal command, which the dev has no context for — while
+     `agent_timeout` / `agent_execution_failed`) is intercepted (`_continue_command_action`) and retries the dev on
+     the neutral `_DEVELOPER_CONTINUE_RETRY_PROMPT` — NOT the literal command, which the dev has no context for — while
      `_handle_dev_fix_result` still publishes any stranded commit; a bare continue on a park needing a real answer
      refuses (`_refuse_parked_continue`) and stays parked. A command carrying real guidance, or a normal reply,
      resumes the dev on that text, with the commit-subject and developer report contracts restated beside it
@@ -3560,13 +3564,14 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
   6. If `awaiting_human`, first handle the **`/orchestrator continue` operator command** (`_handle_continue_command`).
      It is matched as an EXACT LINE (`^\s*/orchestrator continue\s*$`), so a comment carrying the command line AND real
      guidance still counts as the command; the command is handled on BOTH routes so a session-limit / session-failure
-     park (`agent_silent` / `agent_timeout`) is never resumed on the bare command text. Two dev final messages are
-     parked `agent_silent` by `_on_question` rather than as a real `park_reason=None` question, because neither is the
-     agent's own words: a recognized Claude session/usage-limit notice (`_is_session_limit_message`), and a transient
-     provider refusal such as `API Error: 529 Overloaded` (`agents/provider_failures.py`'s
-     `is_transient_provider_failure`, which prefers the terminal result event's `is_error` flag and otherwise requires
-     a non-zero exit beside the prefix, so a successful answer that merely quotes the error stays an answer). A quota
-     reset and a provider that came back are therefore retried here rather than refused as needing human guidance.
+     park (`agent_silent` / `agent_timeout` / `agent_execution_failed`) is never resumed on the bare command text.
+     Unfinished command executions are parked `agent_execution_failed` by `_on_question`, and two dev final messages
+     are parked `agent_silent` rather than as a real `park_reason=None` question, because neither is the agent's own
+     words: a recognized Claude session/usage-limit notice (`_is_session_limit_message`), and a transient provider
+     refusal such as `API Error: 529 Overloaded` (`agents/provider_failures.py`'s `is_transient_provider_failure`,
+     which prefers the terminal result event's `is_error` flag and otherwise requires a non-zero exit beside the prefix,
+     so a successful answer that merely quotes the error stays an answer). A quota reset, a provider that came back,
+     and a retryable command failure are therefore retried here rather than refused as needing human guidance.
      The helper returns one of three
      actions: **replay** — an eligible session-failure park **with a reconstructable batch** (the in_review route's
      `pending_fix_*` bookmarks, or the validating route's `pending_fix_reviewer_comment_id` anchor): drop the poisoned
@@ -3821,11 +3826,11 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      to `workflow:validating`, and a bare acknowledgement stays here without parking so a harmless clarification does
      not stall the rebase. The reply
      path uses the same `_post_conflict_resolution_result` helper as the fresh path, and a bare `/orchestrator
-     continue` on it is intercepted like `validating`'s: a session-failure park (`agent_silent` / `agent_timeout`)
-     retries the dev on the neutral `_CONTINUE_RETRY_PROMPT` instead of the literal command, a park needing a real
-     answer refuses, and an auto-rebase park is left to the refresh retry-unpark (`_continue_command_action` /
-     `_refuse_parked_continue`). A park left by a *reading* rather than a question is not answered here at all — see
-     the transient-park note below.
+     continue` on it is intercepted like `validating`'s: a session-failure park (`agent_silent` / `agent_timeout` /
+     `agent_execution_failed`) retries the dev on the neutral `_CONTINUE_RETRY_PROMPT` instead of the literal command,
+     a park needing a real answer refuses, and an auto-rebase park is left to the refresh retry-unpark
+     (`_continue_command_action` / `_refuse_parked_continue`). A park left by a *reading* rather than a question is
+     not answered here at all — see the transient-park note below.
   5. Ensure the PR worktree, refresh the refs, and read the divergence (steps 6–8 below). The **cap check** comes
      after all of it, immediately in front of the rebase in step 10: what `MAX_CONFLICT_ROUNDS` refuses is another
      *attempt*, and everything step 8 does is work already done that this stage still owes an effect for — a round a

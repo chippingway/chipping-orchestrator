@@ -168,7 +168,7 @@ def _finish_validating_drift(
             WorkflowLabel.VALIDATING, run.delivery.requirements_revision,
         ),
     )
-    if run.agent_result.interrupted:
+    if _guards._ignore_if_interrupted(issue, run.agent_result):
         return
     if outcome == _state._OUTCOME_PUSHED:
         _rounds._bump_review_round(state, owed)

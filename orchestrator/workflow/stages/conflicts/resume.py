@@ -272,7 +272,8 @@ def _awaiting_human_followup(ctx: _models._ConflictContext) -> str | None:
     if not new_comments:
         return None  # no human reply yet
     # `/orchestrator continue` on a parked rebase, BEFORE the generic comment
-    # resume. A session-failure park (`agent_silent` / `agent_timeout`) retries
+    # resume. A session-failure park (`agent_silent` / `agent_timeout` /
+    # `agent_execution_failed`) retries
     # the dev intentionally on a neutral prompt -- NOT the literal command,
     # which the dev has no context for -- while a park needing a real answer
     # refuses. Auto-rebase parks belong to the refresh retry-unpark, so leave

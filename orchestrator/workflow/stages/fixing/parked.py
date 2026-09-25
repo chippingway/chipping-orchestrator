@@ -304,7 +304,8 @@ def _dispatch_parked_fixing(
 
     # `/orchestrator continue` operator command (exact line, so a comment
     # carrying the command AND real guidance still counts). Handled on BOTH
-    # routes so a session-failure park (`agent_silent` / `agent_timeout`) never
+    # routes so a session-failure park (`agent_silent` / `agent_timeout` /
+    # `agent_execution_failed`) never
     # resumes the dev on the bare command text. A "replay" or "refuse"
     # decision owns the tick; a "passthrough" returns None and falls through.
     if _messages._parse_orchestrator_continue(feedback.issue_space):

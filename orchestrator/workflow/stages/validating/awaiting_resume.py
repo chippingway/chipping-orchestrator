@@ -43,6 +43,7 @@ from __future__ import annotations
 
 from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.workflow.engine import (
+    guards as _guards,
     messages as _messages,
     report_delivery as _report_delivery,
     report_records as _records,
@@ -95,7 +96,9 @@ def _resume_validating_awaiting_dev(context: _models._AwaitingValidation) -> str
         spends=owed,
     )
     if not pushed:
-        if not attempt.run.agent_result.interrupted:
+        if not _guards._ignore_if_interrupted(
+            context.issue, attempt.run.agent_result,
+        ):
             context.gh.write_pinned_state(context.issue, context.state)
         return _state._OUTCOME_RETURN
     _rounds._bump_review_round(context.state, owed)
@@ -159,7 +162,7 @@ def _answers_the_drift_park(
             context.batch.delivery.requirements_revision,
         ),
     )
-    if attempt.run.agent_result.interrupted:
+    if _guards._ignore_if_interrupted(context.issue, attempt.run.agent_result):
         return _state._OUTCOME_RETURN
     if outcome == _state._OUTCOME_PUSHED:
         _rounds._bump_review_round(context.state, owed)

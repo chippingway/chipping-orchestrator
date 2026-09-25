@@ -4,9 +4,15 @@
 
 from __future__ import annotations
 
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 
+from orchestrator.agents import models as _agent_models
+from orchestrator.agents.backends import agy as _agy
 from orchestrator.github.pinned_state import PinnedState
+from tests.support import agy_stream as _agy_stream
 from tests.workflow.stages.fixing import (
     fixing_test_support as support,
     report_crash_support as crash,
@@ -45,6 +51,13 @@ patch = support.patch
 timedelta = support.timedelta
 timezone = support.timezone
 
+_ALICE_USER = FakeUser(ALICE)
+_LABEL_VALIDATING = (ISSUE, VALIDATING)
+_CLEANUP_QUESTION_WT = "_cleanup_question_worktree"
+_CLEANUP_TERMINAL_BRANCH = "_cleanup_terminal_branch"
+_DIRTY_FILE_NAME = "orchestrator/uncommitted_work.py"
+_DIRTY_CONTENT = "# uncommitted work from interrupted session\n"
+
 
 class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
     def test_missing_dev_session_spawns_fresh(self) -> None:
@@ -57,11 +70,11 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
         # spawn here pins the "resume correctly" half of the
         # crash/restart contract (the other half -- park on missing
         # `pr_number` -- is in `FixingLabelRoutingTest`).
-        long_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+        long_ago = support.now_utc() - timedelta(hours=1)
         comment = FakeComment(
             id=TRIGGER_ID,
             body="please tighten the test",
-            user=FakeUser(ALICE),
+            user=_ALICE_USER,
             created_at=long_ago,
         )
         pr = self._open_pr()
@@ -94,7 +107,7 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
         # directly to validating for the reviewer to re-evaluate).
         self._pinned_data = scenario.github.pinned_data(ISSUE)
         self.assertFalse(self._pinned_data.get(AWAITING_HUMAN))
-        self.assertIn((ISSUE, VALIDATING), scenario.github.label_history)
+        self.assertIn(_LABEL_VALIDATING, scenario.github.label_history)
         self.assertNotIn((ISSUE, DOCUMENTING), scenario.github.label_history)
 
     def test_push_error_parks_with_transient_reason(self) -> None:
@@ -103,11 +116,11 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
         # MUST stay at `fixing` so the operator can see where the issue
         # is in the lifecycle; flipping to `validating` would imply the
         # fix landed when it did not.
-        long_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+        long_ago = support.now_utc() - timedelta(hours=1)
         comment = FakeComment(
             id=TRIGGER_ID,
             body=FIX_FEEDBACK,
-            user=FakeUser(ALICE),
+            user=_ALICE_USER,
             created_at=long_ago,
         )
         self._pr = self._open_pr()
@@ -129,7 +142,7 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
         self.assertTrue(pinned_data.get(AWAITING_HUMAN))
         self.assertEqual(pinned_data.get(PARK_REASON), PARK_PUSH_FAILED)
         # Label stayed at `fixing` -- no relabel to `validating`.
-        self.assertNotIn((ISSUE, VALIDATING), scenario.github.label_history)
+        self.assertNotIn(_LABEL_VALIDATING, scenario.github.label_history)
         self.assertNotIn((ISSUE, DOCUMENTING), scenario.github.label_history)
         # The round reported, so what it consumed rides the record rather than
         # the readers: the report is still owed, and the write that finally
@@ -180,7 +193,7 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
                 self.assertTrue(support.posted_comment_contains(
                     self._scenario.github, crash.UNPUBLISHABLE_PHRASE,
                 ))
-                self.assertNotIn((ISSUE, VALIDATING), scenario_labels(self))
+                self.assertNotIn(_LABEL_VALIDATING, scenario_labels(self))
                 self.assertNotIn((ISSUE, DOCUMENTING), scenario_labels(self))
                 self.assertGreaterEqual(
                     pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID,
@@ -191,11 +204,11 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
         # handler routes through `_on_question`, which parks
         # awaiting_human and posts the agent's text on the issue
         # thread. Label MUST stay at `fixing`.
-        long_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+        long_ago = support.now_utc() - timedelta(hours=1)
         comment = FakeComment(
             id=TRIGGER_ID,
             body="please address the lint",
-            user=FakeUser(ALICE),
+            user=_ALICE_USER,
             created_at=long_ago,
         )
         pr = self._open_pr()
@@ -215,7 +228,8 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
 
         self._pinned_data = scenario.github.pinned_data(ISSUE)
         self.assertTrue(self._pinned_data.get(AWAITING_HUMAN))
-        self.assertNotIn((ISSUE, VALIDATING), scenario.github.label_history)
+        self.assertIsNone(self._pinned_data.get(PARK_REASON))
+        self.assertNotIn(_LABEL_VALIDATING, scenario.github.label_history)
         self.assertNotIn((ISSUE, DOCUMENTING), scenario.github.label_history)
         # Agent's question was surfaced to the human.
         self._joined = "\n".join(comment_body for _, comment_body in scenario.github.posted_comments)
@@ -224,13 +238,108 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
             self._joined,
         )
 
+    def test_unfinished_command_validating_route(self) -> None:
+        wt_path, dirty_file = _make_dirty_worktree(self, "fixing-failure-wt-")
+        scenario = IssueScenario(
+            *self._seed(
+                pr=self._open_pr(
+                    issue_comments=[
+                        FakeComment(
+                            id=support.REVIEWER_FEEDBACK_ID,
+                            body=(
+                                ":eyes: codex review (round 1/3) requested changes:\n\n"
+                                "please fix the last-frame-wins docstring\n\n"
+                                "<!--orchestrator-comment-->"
+                            ),
+                            user=FakeUser(support.ORCHESTRATOR),
+                            created_at=support.now_utc() - timedelta(hours=2),
+                        ),
+                    ],
+                ),
+                issue_comments=[
+                    FakeComment(
+                        id=support.COMMAND_COMMENT_ID,
+                        body=support.CONTINUE_COMMAND,
+                        user=_ALICE_USER,
+                        created_at=support.now_utc() - timedelta(minutes=10),
+                    ),
+                ],
+                extra_state={
+                    support.PENDING_FIX_AT: None,
+                    support.PENDING_FIX_ISSUE_MAX_ID: None,
+                    support.PENDING_FIX_REVIEWER_COMMENT_ID: support.REVIEWER_FEEDBACK_ID,
+                    support.AWAITING_HUMAN: True,
+                    support.PARK_REASON: support.PARK_AGENT_SILENT,
+                    support.REVIEW_ROUND: 1,
+                    support.PR_LAST_COMMENT_ID: support.INITIAL_PR_COMMENT_WATERMARK,
+                },
+            )
+        )
+        pinned = _assert_execution_park(
+            self, scenario, _run_execution_failure(self, scenario, wt_path), dirty_file,
+        )
+        self.assertEqual(
+            (
+                pinned.get("pr_number"),
+                pinned.get(support.PENDING_FIX_REVIEWER_COMMENT_ID),
+                pinned.get(support.PENDING_FIX_AT),
+            ),
+            (support.PR_NUMBER, support.REVIEWER_FEEDBACK_ID, None),
+        )
+        _assert_continue_success(
+            self,
+            scenario,
+            _run_continue_retry(self, scenario, wt_path),
+            dirty_file,
+            "please fix the last-frame-wins docstring",
+        )
+
+    def test_unfinished_command_in_review_route(self) -> None:
+        wt_path, dirty_file = _make_dirty_worktree(self, "fixing-in-review-wt-")
+        scenario = IssueScenario(
+            *self._seed(
+                pr=self._open_pr(),
+                issue_comments=[
+                    FakeComment(
+                        id=TRIGGER_ID,
+                        body="please address the lint",
+                        user=_ALICE_USER,
+                        created_at=support.now_utc() - timedelta(hours=1),
+                    ),
+                ],
+                extra_state={
+                    support.PENDING_FIX_ISSUE_IDS: [TRIGGER_ID],
+                },
+            )
+        )
+        pinned = _assert_execution_park(
+            self, scenario, _run_execution_failure(self, scenario, wt_path), dirty_file,
+        )
+        self.assertEqual(
+            (
+                pinned.get("pr_number"),
+                pinned.get(support.PENDING_FIX_AT),
+                pinned.get(support.PENDING_FIX_ISSUE_MAX_ID),
+                pinned.get(support.PENDING_FIX_ISSUE_IDS),
+                pinned.get(support.PENDING_FIX_REVIEWER_COMMENT_ID),
+            ),
+            (support.PR_NUMBER, support.PENDING_FIX_AT_TS, TRIGGER_ID, [TRIGGER_ID], None),
+        )
+        _assert_continue_success(
+            self,
+            scenario,
+            _run_continue_retry(self, scenario, wt_path),
+            dirty_file,
+            "please address the lint",
+        )
+
     def _dirty_round(self, *, committed: bool) -> dict:
         """One fix round that reported over a checkout carrying loose work."""
-        long_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+        long_ago = support.now_utc() - timedelta(hours=1)
         comment = FakeComment(
             id=TRIGGER_ID,
             body="please rename helper",
-            user=FakeUser(ALICE),
+            user=_ALICE_USER,
             created_at=long_ago,
         )
         pr = self._open_pr()
@@ -252,6 +361,98 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
                 dirty_files=["orchestrator/foo.py"],
             )
         return scenario.github.pinned_data(ISSUE)
+
+
+def _make_dirty_worktree(case: unittest.TestCase, prefix: str) -> tuple[Path, Path]:
+    wt_dir = tempfile.mkdtemp(prefix=prefix)
+    case.addCleanup(shutil.rmtree, wt_dir, ignore_errors=True)
+    wt_path = Path(wt_dir)
+    dirty_file = wt_path / _DIRTY_FILE_NAME
+    dirty_file.parent.mkdir(parents=True, exist_ok=True)
+    dirty_file.write_text(_DIRTY_CONTENT)
+    return wt_path, dirty_file
+
+
+def _run_execution_failure(case, scenario: IssueScenario, wt_path: Path) -> dict:
+    agent_result = _agy.agy_result(
+        _agent_models.AgentRunOptions(resume_session_id=DEV_SESSION),
+        _agent_models.SubprocessResult(
+            _agy_stream.ToolStream.canceled_active_command(), "", 1, False, False,
+        ),
+    )
+    with (
+        patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS),
+        patch.object(support.worktree_paths, support.WORKTREE_PATH, return_value=wt_path),
+    ):
+        return case._run_fixing(
+            scenario.github,
+            scenario.issue,
+            run_agent=agent_result,
+            head_shas=(SHA_BEFORE, SHA_BEFORE),
+            dirty_files=[_DIRTY_FILE_NAME],
+        )
+
+
+def _assert_execution_park(
+    case, scenario: IssueScenario, first_mocks: dict, dirty_file: Path,
+) -> dict:
+    pinned = scenario.github.pinned_data(ISSUE)
+    case.assertEqual(
+        (pinned.get(AWAITING_HUMAN), pinned.get(PARK_REASON)),
+        (True, support.PARK_AGENT_EXECUTION_FAILED),
+    )
+    case.assertNotIn(_LABEL_VALIDATING, scenario.github.label_history)
+    first_mocks[_CLEANUP_QUESTION_WT].assert_not_called()
+    first_mocks[_CLEANUP_TERMINAL_BRANCH].assert_not_called()
+    case.assertTrue(dirty_file.exists())
+    case.assertEqual(dirty_file.read_text(), _DIRTY_CONTENT)
+    case._assert_failure_notice(scenario)
+    return pinned
+
+
+def _run_continue_retry(case, scenario: IssueScenario, wt_path: Path) -> dict:
+    retry_command_id = max(comment.id for comment in scenario.issue.comments) + 1
+    scenario.issue.comments.append(
+        FakeComment(
+            id=retry_command_id,
+            body=support.CONTINUE_COMMAND,
+            user=_ALICE_USER,
+            created_at=support.now_utc(),
+        ),
+    )
+    with (
+        patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS),
+        patch.object(support.worktree_paths, support.WORKTREE_PATH, return_value=wt_path),
+    ):
+        return case._run_fixing(
+            scenario.github,
+            scenario.issue,
+            run_agent=_agent(
+                session_id=support.FRESH_SESSION,
+                last_message=support.PUSHED_FIX_MESSAGE,
+            ),
+            head_shas=(SHA_BEFORE, SHA_AFTER),
+        )
+
+
+def _assert_continue_success(
+    case, scenario: IssueScenario, retry_mocks: dict, dirty_file: Path, expected_text: str,
+) -> None:
+    retry_mocks["_ensure_worktree"].assert_not_called()
+    retry_mocks[_CLEANUP_QUESTION_WT].assert_not_called()
+    retry_mocks[_CLEANUP_TERMINAL_BRANCH].assert_not_called()
+    case.assertEqual(
+        (
+            scenario.github.pinned_data(ISSUE).get(AWAITING_HUMAN),
+            scenario.github.pinned_data(ISSUE).get(PARK_REASON),
+            dirty_file.exists(),
+        ),
+        (False, None, True),
+    )
+    retry_mocks[support.RUN_AGENT].assert_called_once()
+    case.assertIn(expected_text, retry_mocks[support.RUN_AGENT].call_args.args[1])
+    case.assertIsNone(retry_mocks[support.RUN_AGENT].call_args.kwargs.get(support.RESUME_SESSION_ID))
+    case.assertIn(_LABEL_VALIDATING, scenario.github.label_history)
 
 
 def scenario_labels(case) -> list:
