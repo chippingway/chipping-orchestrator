@@ -37,7 +37,10 @@ _MODULES = (
     "orchestrator.github.pull_request_reads",
     "orchestrator.github.pull_request_reports",
     "orchestrator.github.pull_request_retirement",
+    "orchestrator.github.pull_request_verification",
     "orchestrator.github.reviews",
+    "orchestrator.github.verification_artifacts",
+    "orchestrator.github.verification_evidence",
 )
 
 # Owner-only names the facade must not resolve: the domain surfaces each have an

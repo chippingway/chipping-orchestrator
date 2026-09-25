@@ -5,7 +5,8 @@
 The hidden marker survives eviction from the bounded id ledger. Both identify
 our comments without treating a shared token account as exclusively automated.
 A developer report carries the marker in its own rendering and enters the
-ledger on whichever reading finds it on the thread.
+ledger on whichever reading finds it on the thread; a verification artifact
+does the same through `verification_comments`, which records into this one.
 Callers persist the modified ledger; prompt_context owns trusted thread reads."""
 from __future__ import annotations
 
