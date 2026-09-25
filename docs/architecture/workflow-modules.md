@@ -1822,7 +1822,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             orchestrator RECORDED as it posted them, which is what keeps its own questions in that
                             conversation under an allowlist naming only humans: an agent handed the answers
                             without the questions they answer is re-grounded on half a thread
-      state.py              the pinned-state keys they share
+      state.py              the pinned-state keys they share, and the one park reason this stage files itself:
+                            what a no-feedback bounce holds a branch it could not place under, which is the only
+                            park here waiting on a READING rather than on a person -- durable, because nothing
+                            else tells a later tick whose park it is standing over, and none of the validating
+                            transient reasons, since those dispatch to a recovery that would publish against a
+                            record this park has none of
     implementing/           `workflow:implementing`
       handler.py            the order one tick asks its questions in, opening with the retry-cap notice a stranded
                             park still owes
@@ -2909,5 +2914,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             round still owed -- the park it was written beside is gone before that round runs
                             -- whose value says whether a reply bought the round, and so whether the round has
                             anything to record, and the comment a review-cap grant was written for, which is
-                            how a grant already honored is told from one a refused round left still owed
+                            how a grant already honored is told from one a refused round left still owed. Two
+                            of the outcome tokens are about what a caller may do NEXT rather than about what
+                            healed: the word a silent retry answers with when the BRANCH reading is what
+                            withheld the clear -- told apart from a transient condition that merely has not
+                            resolved, since only the second licenses the fixing stage's worktree-drift reroute
+                            -- and the grouping of every outcome that healed nothing, which is what keeps a road
+                            testing for the words it knows from reading a later addition as a recovery
 ```

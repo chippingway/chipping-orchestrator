@@ -69,10 +69,18 @@ file is the durable record.
   `agent_provider_unavailable` (a transient provider refusal — `API Error: 529 Overloaded` and its 5xx siblings —
   arriving as the agent's final message, parked retryably as `agent_silent` too), `dirty_worktree`,
   `unreadable_worktree` (a seam that publishes from a checkout, or resumes an agent over one, could not read what it
-  is carrying — the implementing publication and the conflict stage's clean rebase could not PROVE the tree clean
+  is carrying — the implementing publication, the shared dev-fix publication every fix round pushes through, and the
+  conflict stage's clean rebase could not PROVE the tree clean
   (`git status` failed, or an index entry is marked `assume-unchanged` / `skip-worktree`, which is a repository to
   look at rather than the file list `dirty_worktree` carries), and the conflict stage's two dev resumes got no
-  reading at all), `unreadable_head` (nothing could name a commit a `resolving_conflict` round turns on — the head a
+  reading at all),
+  `stranded_unproved` (the `workflow:fixing` no-feedback bounce could not place the branch against its pull request
+  at all — an unreadable or loose tree, a failed fetch, a divergence git would not count, a remote that moved, or a
+  checkout that moved under the count — so the relabel back to review is held rather than taken over a reading
+  nobody could take. It is the one park here a later poll can clear on its own: a quiet tick comes back to the same
+  bounce, and the park comes down in the write that finally relabels, while a human reply resumes the developer as
+  it does on any other park),
+  `unreadable_head` (nothing could name a commit a `resolving_conflict` round turns on — the head a
   clean rebase left, the head it started from, the head a body-edit resume begins at, or the head recovered commits
   leave the branch on — so the push behind it would carry neither a lease nor a named candidate),
   `reviewer_timeout`, `reviewer_failed`, `reviewer_no_verdict`, `decomposer_timeout`, `decomposer_silent`,

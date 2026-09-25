@@ -2479,8 +2479,10 @@ it is the whole pull request rather than the diff this one push adds. Without it
 `MAX_ADDED_LINES` one small fix at a time, which is the outcome the gate exists to prevent.
 
 **The commit the caller named is the commit the gate decides about.** Every seam that reads a head for itself names
-it — the docs pass, the squash, both conflict resolutions, the crash-recovered conflict push, the auto rebase, and the
-base-sync crash recovery behind it — and the gate proves the checkout again, because a caller's word is not a proof.
+it, whether a developer ran for it or not — the docs pass, the squash, both conflict resolutions, the crash-recovered
+conflict push, the auto rebase, the base-sync crash recovery behind it, the shared fix disposition, the no-feedback
+bounce naming the commit its branch reading counted and froze, and the timed-out recovery naming the commit it
+publishes as the killed round's — and the gate proves the checkout again, because a caller's word is not a proof.
 Between those two reads the worktree is writable, so a commit landing there is a *different candidate*: measured,
 pushed, and recorded by the gate while the caller goes on to stamp the id IT read as what it published — in the notice
 it posts, the audit event it emits, and the round it records. So the caller names it, and a checkout standing anywhere
@@ -2491,9 +2493,11 @@ request.
 The approval a crash left owed a push names its commit too, off the record rather than off a read: a debt is a claim
 about ONE commit, and the checkout is proved to be standing on it before the gate is entered. Read once and named,
 that proof and the gate's own reading are about the same approval — a commit landing between them is refused rather
-than published under a decision taken about another one, with the debt dropped as paid. Empty for the seams that
-publish a checkout they did not just write (the no-feedback bounce, the reconciliation answering a recorded pair),
-where the head this gate proves is the whole of the answer.
+than published under a decision taken about another one, with the debt dropped as paid. Empty only for the seams
+that genuinely read no commit (the reconciliation answering a recorded pair, the failed-push retry whose commit that
+approval already identifies), where the head this gate proves is the whole of the answer. A seam that publishes a
+checkout it did not just write is not one of those: nothing in that checkout is its own output, so the commit its
+reading placed is exactly the one a head moving under it would be measured and pushed in place of.
 
 **The head a round began at is named too, and it is the PUBLICATION's rather than the checkout's.** A fix or docs
 round opens with the branch in sync with its pull request — the reviewer just read that head — so the head the run
@@ -2501,7 +2505,7 @@ started on is the head the publication was standing on, and it is what the round
 read afterwards instead, a push somebody else landed while the agent was out becomes the lease: the candidate was
 built on the head the branch used to be on, so the force-push puts it there and takes the other push with it. Named up
 front, the two readings of that one fact disagree and nothing is measured or pushed at all. The timed-out recovery
-names the anchor the killed run left for the same reason, and the seams publishing a commit an earlier tick stranded
+and the seams publishing a commit an earlier tick stranded all
 name the remote tip their own proof was taken against — the probe fetches the branch and compares HEAD to that tip, so
 the tip is what their push replaces, and a head somebody landed between the probe and the push disagrees with it
 rather than being adopted as the lease and force-overwritten by work proved against the head it used to be on. A tip
@@ -2515,10 +2519,14 @@ shared fix disposition takes the stranded probe's reading for a run that COMMITT
 hands the gate the remote tip that reading was compared against. Read off the head the run began at instead, the entry
 names a publication the pull request cannot be matched to and parks `late_measurement_failed` — and every retry behind
 it parks the same way, so the accumulated code and the report describing it never leave the checkout. Where the probe
-refuses — an unreadable or loose tree, a failed fetch, a divergence git would not count, a remote that moved, a
-checkout that moved under the count itself — a run
+refuses about the REMOTE — a failed fetch, a divergence git would not count, a remote that moved, a checkout that
+moved under the count itself — a run
 that committed falls back to the head it began at, which is the in-sync reading and the one the gate then refuses on
-if the pull request has moved at all.
+if the pull request has moved at all: none of those is evidence against the commit in hand, and the push they produce
+is leased to a head a remote that really moved rejects rather than overwrites. A tree that is not provably clean is
+the refusal that is not about the remote at all, and the disposition stops the publication on it before the push
+rather than pinning one — that proof is the shared dev-fix publication's own, which is why it holds whatever
+`DECOMPOSE` is set to.
 
 **What the gate hands back is spent on the push.** Not merely its permission: the commit it measured, and the head the
 entry froze. The push is named against the first, so a checkout another tick, an operator, or a stray descendant moved
@@ -3850,7 +3858,9 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
   published), OR label flipped to
   `in_review` (in_review route, ACK fast path on this tick only), OR a HITL park (`report_undeliverable` for a record
   nobody can read, a checkout that refuses for good, a reply that missed the report contract, a run that committed
-  and did not finish, a commit over a standing record, or a report no road left on this issue can move), OR a no-op
+  and did not finish, a commit over a standing record, or a report no road left on this issue can move; and
+  `stranded_unproved` where the bounce could not place the branch against its pull request, which is the one park
+  here waiting on a READING rather than on a person), OR a no-op
   (quiet-window wait, missing-PR park already set, or a reading this poll could not take).
 
 ## `_handle_resolving_conflict` (label `workflow:resolving_conflict`)

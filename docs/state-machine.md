@@ -405,21 +405,21 @@ mergeable, docs-complete or GitHub-approved, and carries no standing human CHANG
 
 ### `_handle_fixing` (label `workflow:fixing`)
 
-The dev fix loop, entered from `in_review` on unread feedback or from `workflow:validating` on a
-`CHANGES_REQUESTED` verdict — `pending_fix_at` is the route discriminator that decides whether a pushed fix resets
-`review_round` or bumps it. It owns the `IN_REVIEW_DEBOUNCE_SECONDS` quiet window, the `/orchestrator continue` batch
-replay, the stranded-fix publish, the in_review-route ACK fast path, the recovery that finishes a round whose
-report is recorded and whose process died before it was handed on, and the worktree-drift dead-lock breaker that
-hands a stuck validating-route park to `workflow:resolving_conflict`. It also settles what each round delivered, per
-surface and against the reader that owns it, which is why this stage writes `last_action_comment_id` for its
-issue-thread half as well as the in_review watermarks for the pull request's three — a round that finished on a
-report settles them from the record of that report instead, when it lands. Its resume answers the same developer
-report contract the `CHANGES_REQUESTED` round ahead of it answers: a commit publishes under the report of it, a
-report needing no commit reaches the pull request on the head the branch and its publication receipt are proved to
-agree on, and either handover spends the route's one fix round and hands the issue back to `workflow:validating`,
-where the reviewer waits for the report — the round a report alone buys being the settlement's to write, since a
-handover nothing confirmed has bought none.
-Full flow:
+The dev fix loop, entered from `in_review` on unread feedback or from `workflow:validating` on a `CHANGES_REQUESTED`
+verdict — `pending_fix_at` is the route discriminator that decides whether a pushed fix resets `review_round` or bumps
+it. It owns the `IN_REVIEW_DEBOUNCE_SECONDS` quiet window, the `/orchestrator continue` batch replay, the stranded-fix
+publish — held, rather than bounced past, where nothing could place the branch against its pull request, which is the
+one park on this stage waiting on a reading a later poll may simply get — the in_review-route ACK fast path, the
+recovery that finishes a round whose report is recorded and whose process died before it was handed on, and the
+worktree-drift dead-lock breaker that hands a stuck validating-route park to `workflow:resolving_conflict`, which a
+reading that refused never reaches. It also settles what each round delivered, per surface and against the reader that
+owns it, which is why this stage writes `last_action_comment_id` for its issue-thread half as well as the in_review
+watermarks for the pull request's three — a round that finished on a report settles them from the record of that
+report instead, when it lands. Its resume answers the same developer report contract the `CHANGES_REQUESTED` round
+ahead of it answers: a commit publishes under the report of it, a report needing no commit reaches the pull request on
+the head the branch and its publication receipt are proved to agree on, and either handover spends the route's one fix
+round and hands the issue back to `workflow:validating`, where the reviewer waits for the report — the round a report
+alone buys being the settlement's to write, since a handover nothing confirmed has bought none. Full flow:
 [`state-machine/delivery-stages.md`][fixing].
 
 ### `_handle_resolving_conflict` (label `workflow:resolving_conflict`)
