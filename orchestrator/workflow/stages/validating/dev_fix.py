@@ -103,6 +103,8 @@ def _publishable_dev_fix(
     at all, and one whose head is exactly what the run started on with nothing
     of that run's stranded on the branch unpushed.
     """
+    if run.agent_result.unfinished_steps:
+        return None
     after_sha = run.after_sha
     if after_sha is None:
         after_sha = _verification_probes._head_sha(run.worktree)

@@ -1653,12 +1653,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             deleted between two reads would reach the developer in the prompt while the requirements
                             fingerprint beside it never saw it, and the report that round writes is then one no
                             settlement can place
-      resume.py             the dev run, whose head is read on BOTH sides of it however the run ended -- a timeout
-                            is a way to commit like any other, and the road that holds a commit made over a standing
-                            report record has to see it -- the three refusals that will not count one as a delivery
-                            -- a launch
-                            nothing invoked, a shutdown kill, a live pause -- the settlement of the batch every other
-                            outcome DID deliver, the ACK fast path -- which stands down on any reply that USED the
+      resume.py             the dev run — routing through `implementing/execution.py`'s bounded coordinator to
+                            recover premature AGY command exits before disposition — whose head is read on BOTH sides
+                            of it however the run ended -- a timeout is a way to commit like any other, and the road
+                            that holds a commit made over a standing report record has to see it -- the three refusals
+                            that will not count one as a delivery -- a launch nothing invoked, a shutdown kill, a
+                            live pause -- the settlement of the batch every other outcome DID deliver, the ACK fast path
+                            -- which stands down on any reply that USED the
                             report contract, well or badly: one that reported is a handover to a fresh reviewer
                             rather than a reason to re-arm a ready ping, and one that reached for the markers and
                             missed (a report block with an `ACK:` beside it) is a broken contract rather than an

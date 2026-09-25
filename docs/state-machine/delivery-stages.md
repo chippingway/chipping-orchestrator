@@ -3224,8 +3224,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        real reviewer text that merely omitted the marker stays `reviewer_no_verdict` for human adjudication.
      - **changes_requested** → post the feedback to the PR, then flip the label to `workflow:fixing` BEFORE spawning
        the dev so the active job is observably "fixing reviewer-requested changes". Resume the dev with the fix
-       prompt, and read what it hands back through `validating/fix_reports.py`, which holds the round to the
-       developer report contract as the requirements-drift disposition holds a body-edit resume to it: on a new
+       prompt (routed through `implementing/execution.py`'s bounded coordinator to recover premature AGY command exits
+       before disposition), and read what it hands back through `validating/fix_reports.py`, which holds the round to
+       the developer report contract as the requirements-drift disposition holds a body-edit resume to it: on a new
        commit + clean tree the report is recorded as `developer_report_delivery` BEFORE the
        [size gate on a published pull request](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr)
        reads the candidate, and on a push, bump `review_round`, clear the reviewer anchor, flip back to
@@ -3260,12 +3261,15 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        only road to confirmation: the review hold on `workflow:validating` is what binds a delivery and settles it, and
        it refuses every reviewer while the report is owed — so a replayed publication or handoff counts no second
        round and no reviewer reads unconfirmed work. The dev spawn records `stage="fixing"` for analytics.
-       On any park (timeout, no-commit, dirty, push-fail) the label STAYS `workflow:fixing` with
-       `awaiting_human=True` and `_handle_fixing` owns the awaiting-human cycle thereafter. A run that COMMITTED and
-       handed over no usable report — including one that did not finish, which the engine exempts from the contract
-       because the roads that exemption serves publish
-       nothing either way — parks under `report_undeliverable` with nothing pushed, the commit in the worktree and
-       the round unspent, in this road's own words rather than the engine's. Every park a reporting round earns carries
+       On any park (timeout, premature execution exit, no-commit, dirty, push-fail) the label STAYS
+       `workflow:fixing` with `awaiting_human=True` and `_handle_fixing` owns the awaiting-human cycle thereafter. A
+       premature AGY exit with unfinished tool steps triggers an immediate in-session continuation in the existing
+       worktree; if unfinished steps persist across the continuation, the run is not publishable and parks under
+       retryable `agent_execution_failed` while preserving reviewer anchors and uncommitted edits. A run that
+       COMMITTED and handed over no usable report — including one that did not finish, which the engine exempts from
+       the contract because the roads that exemption serves publish nothing either way — parks under
+       `report_undeliverable` with nothing pushed, the commit in the worktree and the round unspent, in this road's
+       own words rather than the engine's. Every park a reporting round earns carries
        the input its prompt delivered into the park's OWN write rather than a caller's afterwards: durable over
        feedback that still reads as unanswered, the park is one the next tick reads as fresh and resumes the developer
        over again, with nobody having replied and another agent run spent. An `interrupted` dev resume is ignored:
@@ -3713,7 +3717,11 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
 
      Then the report contract itself — the report of a commit this
      run made is recorded ahead of the size gate, and a run that committed with none parks instead, an unfinished one
-     in this road's own words since the engine exempts it and this road publishes. Then the disposition: a
+     in this road's own words since the engine exempts it and this road publishes. Resumed developer runs execute
+     through `implementing/execution.py`'s bounded coordinator, recovering premature AGY command exits with unfinished
+     steps in the existing worktree before inspecting commits or reports; runs that exit with unfinished steps across
+     the continuation do not count as valid reports and park under retryable `agent_execution_failed` while preserving
+     reviewer context and uncommitted edits. Then the disposition: a
      no-commit reply first checks for a **stranded fix** (`_stranded_fix_unpushed`): when the worktree is clean and HEAD
      is strictly ahead of the fetched remote PR branch (a fix committed by an earlier parked run whose publish was
      blocked — e.g. a dirty-park whose stray files were cleaned up afterwards), the handler publishes it through the

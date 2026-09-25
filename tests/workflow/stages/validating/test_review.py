@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from contextlib import ExitStack
 
+from orchestrator.agents.models import ToolLifecycle
 from tests.workflow.stages.validating import (
     validating_review_test_support as review_support,
 )
@@ -84,6 +85,7 @@ KEY_PR_NUMBER = "pr_number"
 BACKEND_CLAUDE = "claude"
 BACKEND_CODEX = "codex"
 HUMAN_LOGIN = "alice"
+KEY_PENDING_REVIEWER_COMMENT_ID = "pending_fix_reviewer_comment_id"
 
 
 class HandleValidatingFreshReviewTest(
@@ -538,6 +540,66 @@ class HandleValidatingFixLoopEdgeCasesTest(
         last_comment = edge_github.posted_comments[-1][1]
         self.assertIn("review still has comments", last_comment)
 
+    def test_dev_fix_agy_recovery_succeeds(self) -> None:
+        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+        edge_github, edge_issue = self._seeded(
+            dev_agent="agy",
+            dev_session_id=DEV_SESSION,
+            codex_session_id=None,
+        )
+        edge_patches = self._run_validating(
+            edge_github,
+            edge_issue,
+            run_agent=[
+                self._changes_requested_review(),
+                _agent(session_id=DEV_SESSION, exit_code=1, unfinished_steps=(step,)),
+                _fixed(),
+            ],
+            dirty_files=(),
+            push_branch=True,
+            head_shas=FIX_HEAD_SHAS,
+        )
+
+        edge_patches[PUSH_BRANCH].assert_called_once()
+        edge_state = edge_github.pinned_data(FIX_LOOP_ISSUE)
+        self.assertEqual(edge_state.get(REVIEW_ROUND), 1)
+        self.assertFalse(edge_state.get(AWAITING_HUMAN, False))
+        self.assertIsNone(edge_state.get(KEY_PENDING_REVIEWER_COMMENT_ID))
+        self.assertIn((FIX_LOOP_ISSUE, LABEL_FIXING), edge_github.label_history)
+        self.assertEqual(edge_github.label_history[-1], (FIX_LOOP_ISSUE, LABEL_VALIDATING))
+
+    def test_dev_fix_agy_repeated_failure_parks(self) -> None:
+        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+        edge_github, edge_issue = self._seeded(
+            dev_agent="agy",
+            dev_session_id=DEV_SESSION,
+            codex_session_id=None,
+        )
+        edge_patches = self._run_validating(
+            edge_github,
+            edge_issue,
+            run_agent=[
+                self._changes_requested_review(),
+                _agent(session_id=DEV_SESSION, exit_code=1, unfinished_steps=(step,)),
+                _agent(session_id=DEV_SESSION, exit_code=1, unfinished_steps=(step,)),
+            ],
+            dirty_files=(),
+            push_branch=True,
+            head_shas=[BEFORE_FIX_SHA, BEFORE_FIX_SHA],
+        )
+
+        edge_patches[PUSH_BRANCH].assert_not_called()
+        edge_state = edge_github.pinned_data(FIX_LOOP_ISSUE)
+        self.assertEqual(edge_state.get(REVIEW_ROUND), 0)
+        self.assertTrue(edge_state.get(AWAITING_HUMAN))
+        self.assertEqual(edge_state.get(PARK_REASON), "agent_execution_failed")
+        self.assertIsNotNone(edge_state.get(KEY_PENDING_REVIEWER_COMMENT_ID))
+        self.assertIn("agent command execution failed", edge_github.posted_comments[-1][1])
+        self.assertIn("/orchestrator continue", edge_github.posted_comments[-1][1])
+        self.assertIn((FIX_LOOP_ISSUE, LABEL_FIXING), edge_github.label_history)
+        self.assertNotIn((FIX_LOOP_ISSUE, LABEL_VALIDATING), edge_github.label_history)
+
+
 
 def _fixed():
     """The dev run a CHANGES_REQUESTED tick spends after the reviewer's."""
@@ -595,7 +657,7 @@ class HandleValidatingFixLoopRoutingTest(
 
         pinned = held_github.pinned_data(FIX_LOOP_ISSUE)
         self.assertEqual(pinned[REVIEW_ROUND], 1)
-        self.assertIsNone(pinned.get("pending_fix_reviewer_comment_id"))
+        self.assertIsNone(pinned.get(KEY_PENDING_REVIEWER_COMMENT_ID))
 
     def test_a_landed_fix_publishes_what_was_measured(self) -> None:
         # The push a fix earns is named against the commit the gate proved
@@ -728,7 +790,7 @@ class HandleValidatingFixLoopRoutingTest(
         self.assertTrue(route_state.get(AWAITING_HUMAN))
         # The reviewer feedback is anchored, and its id matches the PR comment
         # the handler posted this tick.
-        self.assertIsNotNone(route_state.get("pending_fix_reviewer_comment_id"))
+        self.assertIsNotNone(route_state.get(KEY_PENDING_REVIEWER_COMMENT_ID))
         # The in_review-route discriminator is NOT set on this route.
         self.assertIsNone(route_state.get("pending_fix_at"))
         self.assertIn((6, LABEL_FIXING), route_github.label_history)
@@ -751,7 +813,7 @@ class HandleValidatingFixLoopRoutingTest(
         )
 
         route_state = route_github.pinned_data(6)
-        self.assertIsNone(route_state.get("pending_fix_reviewer_comment_id"))
+        self.assertIsNone(route_state.get(KEY_PENDING_REVIEWER_COMMENT_ID))
         self.assertEqual(route_state.get(REVIEW_ROUND), 3)
         self.assertEqual(route_github.label_history[-1], (6, LABEL_VALIDATING))
 
