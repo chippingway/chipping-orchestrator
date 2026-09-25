@@ -946,7 +946,9 @@ The keys that matter for the state machine fall into a few groups:
   failures, the reviewer timeout and no-VERDICT parks, and the review cap) — and so do the agent-run-limit notice and
   the repair of its lost write, because the launch the circuit refuses is very often one of these resumes. The
   `in_review` unmergeable park asks for it too, and it follows no run: what it follows is that tick's own feedback
-  scan and several GitHub round-trips after it, which is the same window by another name. Where nothing
+  scan and several GitHub round-trips after it, which is the same window by another name. The `fixing` bounce's
+  `stranded_unproved` park is the same shape — the scan is at the top of the tick and placing the branch is a fetch,
+  so a human writing in between is numbered below the notice posted after them. Where nothing
   is unread the bound IS the notice id, so it is never the worse answer.
 
   That field doubles as the record that a mention was
@@ -977,7 +979,15 @@ The keys that matter for the state machine fall into a few groups:
   standing it takes no park at all and does not hold either, because the route that answers a foreign park is the
   handler behind this guard (see
   [`delivery-stages.md`](delivery-stages.md#the-developer-report-transaction-every-dispatch)).
-  `workflow/engine/report_delivery.py` re-sets `report_undeliverable` for a reason of a third kind: the roads on the
+  The no-feedback bounce re-sets `stranded_unproved` for a reason unlike any of those: that park is waiting on a
+  READING rather than on a person. The reason is the only thing that says so, and the parked dispatch reads it back
+  to send a quiet poll straight to the bounce with the flags untouched — where the branch is placed again, whatever
+  that reading places is published, and the hand-back retires the park in the write that relabels. Cleared on the way
+  in instead, a reading that refused again would have to announce itself afresh — the standing park already says
+  what a second notice would — and the issue would sit unparked with nothing published in between; filed under any
+  of the transient validating reasons, it would dispatch to a recovery that publishes against a record this park has
+  none of. A human reply still takes the ordinary resume road.
+  `workflow/engine/report_delivery.py` re-sets `report_undeliverable` for a reason of a fourth kind: the roads on the
   recording side that take it — a report this build cannot record, a completed run that handed over none at all,
   and a recovery (the restart shortcut, or a road that republishes a candidate a gate record named) finding
   committed work no recorded report describes — leave no record behind them, so the park is the DEBT as well as the
