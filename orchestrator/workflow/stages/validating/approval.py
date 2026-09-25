@@ -21,7 +21,9 @@ everything the handoff writes: the pull request, the head, the requirements,
 and the developer report the reviewer was handed. The subject is resolved and
 compared once more between the two, since a verification can run long enough
 for the report to be edited under it, and an approval of the earlier words is
-not one the squash may be taken under. Every later reader that would
+not one the squash may be taken under. The tail both roads share holds its
+relabel on the same question, which is the only time it is asked on the road
+that finishes a squash an earlier tick began. Every later reader that would
 act on this approval -- the settled handoff below, the in_review stage -- holds
 it to that report, so a report that changes on an unchanged commit is sent
 back to a reviewer rather than carried past one. The same record retires the
@@ -339,6 +341,16 @@ def _persists_then_relabels(
 ) -> None:
     """Land everything this handoff owes durably, and only then move the label.
 
+    The label is moved only while the approval it is owed over still covers
+    the report the pull request carries. The recovery of a squash an earlier
+    tick did not finish reaches here with no reviewer behind it, so it is the
+    one road on which nothing has asked that since the approval -- and a
+    report edited in the meantime is work nobody reviewed. The rewrite itself
+    is finished either way, since a branch may not be left standing
+    mid-rewrite; what is held is the move, and the settled record this write
+    leaves is what the next tick answers, dropping it for a fresh reviewer or
+    moving the label once the report reads again.
+
     The rewrite is over and announced, so what stays on the comment is not a
     claim any more but the commit the move behind this write is owed over.
     Dropped outright, a relabel that does not land would leave an issue on
@@ -351,6 +363,13 @@ def _persists_then_relabels(
     """
     _collapses.settle_pending_collapse(state, sha)
     gh.write_pinned_state(issue, state)
+    if not _review_coverage._approval_stands(gh, state):
+        log.info(
+            "issue=#%s finished its squash under an approval that no longer "
+            "covers the report the pull request carries; holding the move to "
+            "documenting", issue.number,
+        )
+        return
     _hands_to_documenting(gh, issue, state)
 
 

@@ -86,6 +86,11 @@ def _state(current: tuple[int, str] | None = None, **fields) -> PinnedState:
     return state
 
 
+def _without(recorded: dict, member: str) -> dict:
+    """`recorded` with one member dropped, as a truncated write leaves it."""
+    return {key: kept for key, kept in recorded.items() if key != member}
+
+
 def _approved(state: PinnedState, subject: review_subjects.ReviewSubject) -> PinnedState:
     review_subjects.record_approved(state, subject)
     return state
@@ -139,12 +144,30 @@ class ApprovalCoverageTest(unittest.TestCase):
 
     def test_an_unreadable_record_covers_nothing(self) -> None:
         # Damage on either side, `null` included, is never agreement -- not
-        # even with an approval that saw no report at all.
+        # even with an approval that saw no report at all, over an issue that
+        # has none. The approval is read whole: a subject short of its head or
+        # its requirements, or carrying either in a shape nothing writes, or a
+        # member nothing writes, is no approval.
         approved_none = _subject(None).recorded()
         cases = (
             ("approval is null", _state(**{_APPROVED: None})),
             ("approval names half a report", _state(**{
                 _APPROVED: {**approved_none, "report_revision": 1},
+            })),
+            ("approval without its head", _state(**{
+                _APPROVED: _without(approved_none, "sha"),
+            })),
+            ("a head spelled as null", _state(**{
+                _APPROVED: {**approved_none, "sha": None},
+            })),
+            ("approval without its requirements", _state(**{
+                _APPROVED: _without(approved_none, "requirements"),
+            })),
+            ("requirements that are no digest", _state(**{
+                _APPROVED: {**approved_none, "requirements": "stale-hash"},
+            })),
+            ("a member nothing writes", _state(**{
+                _APPROVED: {**approved_none, "verdict": "approved"},
             })),
             ("current report is damaged", _state(**{
                 _APPROVED: approved_none,

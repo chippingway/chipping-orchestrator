@@ -735,7 +735,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             current is the one it covered, compared on the pinned records alone. An approval with
                             no record covers only an issue with no report either -- one approved before the record
                             existed over a pull request that has settled a report goes back for a fresh review --
-                            and a record nobody can read covers nothing
+                            and a record nobody can read covers nothing: it is read whole, exactly the five members
+                            its writer spells, so one short of its head or its requirements is no approval
     conversation_prompts.py question, discussion, PR-feedback follow-up, and developer human-reply resume prompts;
                             discussion publication instructions describe the confirmed plan artifact and the commit
                             its stage verifies
@@ -2724,7 +2725,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       approval.py           the verify gate and the squash-and-hand-off tail both roads run, over the subject,
                             branch, and pull request number whichever road decided them hands in -- the review
                             subject recorded as approved once the gate passes, riding whichever write the tail
-                            makes -- that number
+                            makes, and the relabel that tail owes held wherever that approval no longer covers the
+                            report the pull request carries, the rewrite finished either way -- the one check the
+                            recovery of a squash an earlier tick did not finish gets -- that number
                             read as an identity before the squash subject may reference it: the optional squash,
                             the park each of its four readings earns, the notice its count is worded from --
                             posted ahead of the seed it orders, and the one failure that stops the road, since
@@ -2911,8 +2914,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             long enough for the report to be edited under it. Later,
                             once the pinned records agree the current report is the approved one, the report is
                             read at its location again, since no record sees a comment edited or deleted in place:
-                            the settled squash handoff asks it before moving the label, and `in_review` before an
-                            approval may stand behind a ready ping. Nothing here parks or posts
+                            the squash tail asks it before its relabel, on either road into it, the settled squash
+                            handoff before moving a label that tail left owed, and `in_review` before an approval
+                            may stand behind a ready ping. Nothing here parks or posts
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its

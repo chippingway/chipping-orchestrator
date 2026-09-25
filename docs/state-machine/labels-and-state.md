@@ -1681,7 +1681,8 @@ The keys that matter for the state machine fall into a few groups:
   Both are additive: an issue without `review_approved_subject` was approved before it existed, and that approval
   covers only an issue with no `developer_report_current` either — over a report, nothing says it was the one
   approved, so the issue goes back for a fresh review — while one present in any shape its reader refuses, `null`
-  included, covers nothing.
+  included, covers nothing. That reader takes the record whole: exactly the five members its writer spells, each in
+  that writer's shape, so a record short of its `sha` or its `requirements` is no approval either.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one

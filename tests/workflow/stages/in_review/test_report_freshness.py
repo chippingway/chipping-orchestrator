@@ -27,42 +27,34 @@ PR = 17_980
 class ReportFreshnessTest(unittest.TestCase, world._ReviewedReports):
     """A report changed on the pinged head goes back for a fresh review."""
 
-    def test_a_later_report_is_handed_back(self) -> None:
+    def test_a_later_report_is_reviewed_and_pinged(self) -> None:
         # The issue reaches `in_review` again carrying the first approval, its
         # docs verdict, and its ping, all on the head the second report is
         # about: it goes back for review with a fresh round budget, pinging
-        # nobody.
-        self._handed_back()
-
-        self.assertEqual(
-            (
-                self.github.label_history[-1],
-                self.pinned().get("review_round"),
-                len(world.ready_pings(self.github)),
-            ),
-            ((ISSUE, LABEL_VALIDATING), 0, 1),
-        )
-
-    def test_a_fresh_approval_pings_the_same_head(self) -> None:
-        # The fresh reviewer is handed the second report, its approval retires
-        # the stamps the first left, and the docs pass behind it earns a
-        # second ping on the head the first ping named.
+        # nobody. The fresh reviewer is handed the second report, its approval
+        # retires the stamps the first left, and the docs pass behind it earns
+        # a second ping on the head the first ping named.
         head = self._handed_back()
+        handed = self._observed()
 
         approved = self.reviewed(REVIEW_APPROVED_MESSAGE)
         retired = self._stamps()
         self.documented()
         self.in_review_tick()
 
+        self.assertEqual(handed, ((ISSUE, LABEL_VALIDATING), 0, 1))
         self.assertIn(f"> {world.SECOND_REPORT}", world.prompt(approved))
-        self.assertEqual(retired, (None, None))
         self.assertEqual(
-            (
-                len(world.ready_pings(self.github)),
-                self.pinned().get("ready_ping_sha"),
-                self.pull_request.head.sha,
-            ),
-            (2, head, head),
+            (retired, len(world.ready_pings(self.github)), self._stamps()[0]),
+            ((None, None), 2, head),
+        )
+
+    def _observed(self) -> tuple:
+        """The label last moved, the round budget, and the pings sent so far."""
+        return (
+            self.github.label_history[-1],
+            self.pinned().get("review_round"),
+            len(world.ready_pings(self.github)),
         )
 
     def _stamps(self) -> tuple:
@@ -115,21 +107,24 @@ class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports):
                 )
                 self.assert_refused(self.reviewed(), detail)
 
-    def test_an_unrecorded_approval_goes_back(self) -> None:
-        # An approval recorded before approvals named a subject, over a pull
-        # request that carries a report: its docs verdict and head stand, but
-        # nothing says the report was the one approved, so no ping is taken on
-        # it and the issue goes back for a review that is.
-        self._approved_and_documented(pinged=False)
-        world.forgets_approval(self)
+    def test_an_unnamed_approval_goes_back(self) -> None:
+        # An approval recorded before approvals named a subject, and one whose
+        # record has lost its head, over a pull request that carries a report:
+        # the docs verdict and the head stand, but nothing says the report was
+        # the one approved, so no ping is taken on it and the issue goes back
+        # for a review that is.
+        for member in ("", "sha"):
+            with self.subTest(member=member or "unrecorded"):
+                self._approved_and_documented(pinged=False)
+                world.forgets_approval(self, member)
 
-        self.in_review_tick()
+                self.in_review_tick()
 
-        self.assertEqual(
-            (self.github.label_history[-1], world.ready_pings(self.github)),
-            ((ISSUE, LABEL_VALIDATING), []),
-        )
-        self.assertIn(f"> {world.FIRST_REPORT}", world.prompt(self.reviewed()))
+                self.assertEqual(
+                    (self.github.label_history[-1], world.ready_pings(self.github)),
+                    ((ISSUE, LABEL_VALIDATING), []),
+                )
+                self.assertIn(f"> {world.FIRST_REPORT}", world.prompt(self.reviewed()))
 
     def test_an_unread_report_holds_the_ping(self) -> None:
         # A location nobody could read vouches for nothing: no ping and no

@@ -3080,13 +3080,16 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      worded behind it is held rather than re-entered, since the gate posts a fresh notice for every reading it
      cannot take; the human's reply then clears that park and is spent on the recovery rather than on a dev resumed
      over a branch mid-rewrite. A recovery that finishes clears the park it found, so nothing carries an
-     `awaiting_human` into `documenting`. An issue with nothing recorded costs one lookup on the pinned comment;
-     one carrying only the `late_collapse_handoff_sha` a finished handoff left moves the label that handoff never
-     got to move (and drops the record behind it), or drops it unspent where the pull request has since moved off
+     `awaiting_human` into `documenting` — and it moves the label there only while the approval it finishes under
+     still covers the report the pull request carries (`review_coverage._approval_stands`): the rewrite is finished
+     either way, since no branch may be left standing mid-rewrite, but the move is held and the handoff it leaves is
+     dropped on the next tick for a fresh reviewer. An issue with nothing recorded costs one lookup on the pinned
+     comment; one carrying only the `late_collapse_handoff_sha` a finished handoff left moves the label that handoff
+     never got to move (and drops the record behind it), or drops it unspent where the pull request has since moved off
      the commit it names — or where the developer report recorded as current is not the one the approval covered
-     (`review_approved_subject`), or no longer reads at its location as it settled, since a report settled on that
-     same commit since, or edited or removed in place, is work no reviewer has read and the round below reviews it;
-     a location nobody could read holds the tick.
+     (`review_approved_subject`), or no longer reads at its location as it settled, since a report settled on that same
+     commit since, or edited or removed in place, is work no reviewer has read and the round below reviews it; a
+     location nobody could read holds the tick.
   2. Awaiting-human path: resume on the dev's locked spec; on a successful pushed fix, bump `review_round` and stay on
      `workflow:validating`. A park standing over an unanswered requirements edit is the one claim that changes what the
      resume's answer MEANS, since a reply to a park is no drift and this is the road that delivers it. Two parks carry
@@ -3379,7 +3382,7 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      Or a `review_approved_subject` recorded against another developer report than the one
      `developer_report_current` records now — another revision, other words, or a report where the approval saw
      none — or of that very report since edited or removed at its location, which the stage re-reads there every
-     tick an approval of a report stands (`review_coverage._approved_report_stands`); the head can be the very one
+     tick an approval of a report stands (`review_coverage._approval_stands`); the head can be the very one
      the approval, its docs verdict, and its ping were about, and nothing keyed on the commit alone would notice. A
      location nobody could read holds the whole tick, since every route below would act on an approval nothing could
      vouch for. An approval recorded before that record existed carries none, and is handed back on this reading

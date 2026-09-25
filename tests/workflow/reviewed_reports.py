@@ -71,10 +71,17 @@ def deletes_report(case) -> None:
     case.pull_request.issue_comments.remove(case.report_comment())
 
 
-def forgets_approval(case) -> None:
-    """Leave the approval as one recorded before approvals named a subject."""
+def forgets_approval(case, member: str = "") -> None:
+    """Leave the approval unrecorded, or recorded without one `member`.
+
+    Unrecorded is what an approval made before approvals named a subject
+    leaves; a member missing is a truncated write or a hand edit.
+    """
     state = case.github.read_pinned_state(case.issue)
-    state.data.pop(APPROVED, None)
+    if member:
+        state.data[APPROVED].pop(member)
+    else:
+        state.data.pop(APPROVED)
     case.github.write_pinned_state(case.issue, state)
 
 

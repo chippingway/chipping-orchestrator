@@ -11,12 +11,14 @@ standing NOW wherever it is about to be relied on.
 
 When the reviewer returns, the whole subject is resolved again the way
 `review_report` resolved it before the spawn -- over the issue read afresh --
-and has to equal the one handed over. Later, once the pinned records already
-agree that the report recorded as current is the one approved, the report is
-read at its location once more, since no pinned record sees a human editing or
-deleting the comment in place: the settled squash handoff on this stage asks
-it before moving the label past the reviewer, and `in_review` asks it before
-the approval may stand behind a ready ping.
+and has to equal the one handed over. Later, the approval is held to the
+report recorded as current -- the pinned records have to agree it is the one
+approved, and the report is read at its location once more, since no pinned
+record sees a human editing or deleting the comment in place. The squash tail
+asks it before moving the label past the reviewer, whether an approval or the
+recovery of a squash an earlier tick did not finish sent it there; the settled
+handoff asks it before moving a label that tail left owed; and `in_review` asks
+it before the approval may stand behind a ready ping.
 
 Nothing here parks or posts. What a refusal owes is the next reviewer
 round's to decide, and that round resolves the subject for itself.
@@ -75,20 +77,19 @@ def _approval_still_covers(
     return False
 
 
-def _approved_report_stands(gh: GitHubClient, state: PinnedState) -> bool | None:
-    """Whether the report the recorded approval covered still reads as settled.
+def _approval_stands(gh: GitHubClient, state: PinnedState) -> bool | None:
+    """Whether the recorded approval still covers the report the pull request carries.
 
-    Asked by whoever would act on an approval after the round that earned it
-    -- the settled squash handoff here, and `in_review` -- beside the pinned
-    agreement `review_subjects.approval_covers_current` answers, since those
-    records cannot see a human editing or deleting the report comment in
-    place. True where it still reads, and where there is nothing of this
-    owner's to read: an approval the pinned records already refuse, which is
-    the caller's answer, or an issue with no report at all. False where it
-    reads ABSENT or CHANGED. None where the reading could not be taken.
+    Asked by whoever would act on an approval after the round that earned it.
+    The pinned records first -- `review_subjects.approval_covers_current` --
+    and then the report itself at its location, which those records cannot
+    see a human editing or deleting in place. True where both agree, and
+    where there is no report at all to read. False where the records refuse
+    the approval or the location reads ABSENT or CHANGED. None where the
+    reading could not be taken.
     """
     if not _review_subjects.approval_covers_current(state):
-        return True
+        return False
     current = _settlement.read_current_report(state)
     if current is None:
         return True

@@ -22,7 +22,7 @@ from unittest.mock import MagicMock
 from orchestrator.git.verification.models import VerifyResult
 from orchestrator.github.developer_reports import content_digest
 from orchestrator.workflow.engine import prompt_context as _prompt_context, report_records as _records
-from orchestrator.workflow.late_split import handoffs as _late_handoffs
+from orchestrator.workflow.late_split import collapses as _collapses, handoffs as _late_handoffs
 from orchestrator.workflow.stages.validating import (
     review_coverage as _review_coverage,
     review_report as _review_report,
@@ -61,6 +61,9 @@ LATE_REVIEWER = "late-reviewer"
 
 # Where a human pushes the branch while a reviewer is out.
 MOVED_HEAD = "b0a7" * 10
+
+# The base a squash an earlier tick began was collapsing onto.
+COLLAPSE_BASE = "ba5e" * 10
 
 # What a reviewer that ran while something changed comes back with.
 LATE_APPROVAL = _agent(session_id=LATE_REVIEWER, last_message=REVIEW_APPROVED_MESSAGE)
@@ -133,7 +136,7 @@ class _ChangedMidway:
 
 
 class HandedReportTest(unittest.TestCase, world._ReviewedReports):
-    """What each reviewer is handed, and what an approval records."""
+    """What each reviewer is handed, under whatever allowlist is configured."""
 
     def test_each_reviewer_reads_the_current_report(self) -> None:
         # Two report-only rounds on one commit: the first reviewer has no
@@ -162,6 +165,37 @@ class HandedReportTest(unittest.TestCase, world._ReviewedReports):
             (pinned[world.REVIEWED], pinned[world.APPROVED]), (subject, subject),
         )
         self.assertEqual(self.github.label_history[-1], (ISSUE, LABEL_DOCUMENTING))
+
+    def test_our_report_passes_a_human_allowlist(self) -> None:
+        # The allowlist names the humans; the report this orchestrator
+        # published is read as ours by login, not by that list.
+        self.allowed = (HUMAN,)
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.reported_round(world.FIRST_REPORT)
+
+        self.assertIn(f"> {world.FIRST_REPORT}", world.prompt(self.reviewed()))
+
+    def test_a_verified_report_needs_trust(self) -> None:
+        # A report a human published and a round verified is handed whole
+        # while its author is trusted, and refused once the deployment no
+        # longer trusts them.
+        for allowed, handed in (((HUMAN,), True), (("bob",), False)):
+            with self.subTest(allowed=allowed):
+                self.allowed = (HUMAN,)
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                published = _fix_world.published_report(self, HUMAN_REPORT)
+                self.requested_fix(
+                    _fix_world.verified(PR, published.id, HUMAN_REPORT),
+                    committed=False,
+                )
+                self.allowed = allowed
+
+                reviewed = self.reviewed()
+
+                if handed:
+                    self.assertIn("> Ran the suite by hand", world.prompt(reviewed))
+                else:
+                    self.assert_refused(reviewed, _review_report._EDITED)
 
 
 class RefusedReportTest(unittest.TestCase, _DamagedReports):
@@ -272,14 +306,15 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
         ))
         self.assert_refused(self.reviewed(), _review_report._EDITED)
 
+
+class SquashHandoffTest(unittest.TestCase, world._ReviewedReports):
+    """The label a finished squash owes moves only under an approval that stands."""
+
     def test_an_unrecorded_approval_voids_handoff(self) -> None:
         # An approval recorded before approvals named a subject, over a pull
         # request that carries a report: nothing says that report was the one
         # approved, so the handoff goes and a reviewer is handed it.
-        self.seeded(ISSUE, PR, LABEL_VALIDATING)
-        self.reported_round(world.FIRST_REPORT)
-        self.reviewed(REVIEW_APPROVED_MESSAGE)
-        self.github.apply_foreign_label(self.issue, LABEL_VALIDATING)
+        self._approved_and_relabelled()
         world.restate(self, **{HANDOFF_SHA: self.pull_request.head.sha})
         world.forgets_approval(self)
 
@@ -294,10 +329,7 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
         # A finished squash whose relabel did not land leaves the head the
         # move is owed over. While the report its approval covered is current,
         # the next tick moves the label without a reviewer.
-        self.seeded(ISSUE, PR, LABEL_VALIDATING)
-        self.reported_round(world.FIRST_REPORT)
-        self.reviewed(REVIEW_APPROVED_MESSAGE)
-        self.github.apply_foreign_label(self.issue, LABEL_VALIDATING)
+        self._approved_and_relabelled()
         world.restate(self, **{HANDOFF_SHA: self.pull_request.head.sha})
 
         self.reviewed()[RUN_AGENT].assert_not_called()
@@ -310,10 +342,7 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
         # The approved report is still the current record, but a human has
         # edited its comment since: the handoff is not moved past the
         # reviewer, and the reviewer round refuses the edited report.
-        self.seeded(ISSUE, PR, LABEL_VALIDATING)
-        self.reported_round(world.FIRST_REPORT)
-        self.reviewed(REVIEW_APPROVED_MESSAGE)
-        self.github.apply_foreign_label(self.issue, LABEL_VALIDATING)
+        self._approved_and_relabelled()
         world.restate(self, **{HANDOFF_SHA: self.pull_request.head.sha})
         world.edits_report(self)
 
@@ -346,6 +375,43 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
             (self.pinned().get(HANDOFF_SHA), self.github.label_history[-1]),
             (None, (ISSUE, LABEL_VALIDATING)),
         )
+
+    def test_an_edited_report_holds_squash_recovery(self) -> None:
+        # A squash the approval began and did not finish is finished -- no
+        # branch may be left standing mid-rewrite -- but the report its
+        # approval covered has been edited since, so the label is not moved
+        # past a reviewer: the next tick drops the handoff that squash left,
+        # and its reviewer round refuses the edited report.
+        self._approved_and_relabelled()
+        self._owes_a_collapse()
+        world.edits_report(self)
+
+        recovered = self._ticked(
+            self._run_validating, [LATE_APPROVAL], committed=False,
+            squash_result=(True, self.pull_request.head.sha, 1, None),
+        )
+
+        recovered["_squash_and_force_push"].assert_called_once()
+        recovered[RUN_AGENT].assert_not_called()
+        self.assertEqual(
+            self.github.label_history.count((ISSUE, LABEL_DOCUMENTING)), 1,
+        )
+        self.assert_refused(self.reviewed(), _review_report._EDITED)
+
+    def _approved_and_relabelled(self) -> None:
+        """Approve the first report, and put the issue back on `validating`."""
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.reported_round(world.FIRST_REPORT)
+        self.reviewed(REVIEW_APPROVED_MESSAGE)
+        self.github.apply_foreign_label(self.issue, LABEL_VALIDATING)
+
+    def _owes_a_collapse(self) -> None:
+        """Leave the terms of a squash an earlier tick began and did not finish."""
+        state = self.github.read_pinned_state(self.issue)
+        _collapses.record_pending_collapse(
+            state, head=_fix_world.PUBLISHED_HEAD, base_sha=COLLAPSE_BASE, count=2,
+        )
+        self.github.write_pinned_state(self.issue, state)
 
 
 class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
@@ -406,40 +472,6 @@ class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
             (LATE_REVIEWER, False),
         )
         self.assertNotIn((ISSUE, LABEL_DOCUMENTING), self.github.label_history)
-
-class ConfiguredAuthorTest(unittest.TestCase, world._ReviewedReports):
-    """The report reaches the reviewer under whatever allowlist is configured."""
-
-    def test_our_report_passes_a_human_allowlist(self) -> None:
-        # The allowlist names the humans; the report this orchestrator
-        # published is read as ours by login, not by that list.
-        self.allowed = (HUMAN,)
-        self.seeded(ISSUE, PR, LABEL_VALIDATING)
-        self.reported_round(world.FIRST_REPORT)
-
-        self.assertIn(f"> {world.FIRST_REPORT}", world.prompt(self.reviewed()))
-
-    def test_a_verified_report_needs_trust(self) -> None:
-        # A report a human published and a round verified is handed whole
-        # while its author is trusted, and refused once the deployment no
-        # longer trusts them.
-        for allowed, handed in (((HUMAN,), True), (("bob",), False)):
-            with self.subTest(allowed=allowed):
-                self.allowed = (HUMAN,)
-                self.seeded(ISSUE, PR, LABEL_VALIDATING)
-                published = _fix_world.published_report(self, HUMAN_REPORT)
-                self.requested_fix(
-                    _fix_world.verified(PR, published.id, HUMAN_REPORT),
-                    committed=False,
-                )
-                self.allowed = allowed
-
-                reviewed = self.reviewed()
-
-                if handed:
-                    self.assertIn("> Ran the suite by hand", world.prompt(reviewed))
-                else:
-                    self.assert_refused(reviewed, _review_report._EDITED)
 
 
 if __name__ == "__main__":

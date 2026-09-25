@@ -60,6 +60,9 @@ _REPORT_CONTENT = "report_content"
 
 _PR_NUMBER = "pr_number"
 
+# Every member a recorded subject carries, and nothing else.
+_MEMBERS = frozenset((_PR, _SHA, _REQUIREMENTS, _REPORT_REVISION, _REPORT_CONTENT))
+
 # The two head-keyed stamps an approval retires: the final-docs verdict the
 # in_review merge gate reads a head as documented by, and the head it last
 # pinged a human for.
@@ -110,6 +113,40 @@ class ReviewSubject:
             self.report.content_revision,
         )
 
+    @classmethod
+    def identity_recorded_in(cls, recorded: dict) -> tuple | None:
+        """The pull request and report revision a `recorded` object names, or None.
+
+        Read whole or not at all, like every pinned record: exactly the members
+        `recorded` writes, each in the shape it spells them -- a pull request
+        that is a number or `null` for none, a head that is text ("" for
+        none: it is whatever the pull request answered, and nothing here
+        compares it again), a requirements revision that is a whole digest or
+        "" -- since a subject short of its head or its requirements is a
+        truncation or a hand edit, and read as an approval it would stand
+        behind a ping for a subject nobody can name. Both report members `null` together is
+        a subject with no report; one without the other, or either in a shape
+        its writer never spells, is damage.
+        """
+        if set(recorded) != _MEMBERS:
+            return None
+        pr_number = _payloads.as_identity(recorded[_PR])
+        if not (
+            (pr_number is not None or recorded[_PR] is None)
+            and isinstance(recorded[_SHA], str)
+            and _blank_or_hex(recorded[_REQUIREMENTS], _formats.DIGEST_LENGTHS)
+        ):
+            return None
+        raw_revision = recorded[_REPORT_REVISION]
+        raw_digest = recorded[_REPORT_CONTENT]
+        if raw_revision is None and raw_digest is None:
+            return (pr_number, None, None)
+        revision = _record_values.as_recorded_number(raw_revision)
+        digest = _payloads.as_hex(raw_digest, _formats.DIGEST_LENGTHS)
+        if not revision or not digest:
+            return None
+        return (pr_number, revision, digest)
+
     def recorded(self) -> dict:
         """The pinned object this subject is written as."""
         _, revision, digest = self.report_identity
@@ -158,26 +195,13 @@ def approval_covers_current(state: PinnedState) -> bool:
     approved = state.get(APPROVED_SUBJECT)
     if not isinstance(approved, dict):
         return False
-    covered = _identity_of(approved)
+    covered = ReviewSubject.identity_recorded_in(approved)
     return covered is not None and covered == _current_identity(state)
 
 
-def _identity_of(recorded: dict) -> tuple | None:
-    """The pull request and report revision one recorded subject names, or None.
-
-    Both report members absent together is a subject with no report; one
-    without the other, or either in a shape its writer never spells, is damage.
-    """
-    pr_number = _payloads.as_identity(recorded.get(_PR))
-    raw_revision = recorded.get(_REPORT_REVISION)
-    raw_digest = recorded.get(_REPORT_CONTENT)
-    if raw_revision is None and raw_digest is None:
-        return (pr_number, None, None)
-    revision = _record_values.as_recorded_number(raw_revision)
-    digest = _payloads.as_hex(raw_digest, _formats.DIGEST_LENGTHS)
-    if not revision or not digest:
-        return None
-    return (pr_number, revision, digest)
+def _blank_or_hex(recorded, lengths: frozenset) -> bool:
+    """Whether a member is "" -- nothing to name -- or a whole hex value."""
+    return recorded == "" or _payloads.as_hex(recorded, lengths) is not None
 
 
 def _current_identity(state: PinnedState) -> tuple | None:

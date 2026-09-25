@@ -387,7 +387,7 @@ def _hands_a_stale_approval_back(ctx: _models._InReviewContext) -> bool:
     the debt moves with it, and is answered there.
     """
     stands = not _state.owes_validating_a_move(ctx.state) and (
-        _review_coverage._approved_report_stands(ctx.gh, ctx.state)
+        _review_coverage._approval_stands(ctx.gh, ctx.state)
     )
     if stands:
         return False

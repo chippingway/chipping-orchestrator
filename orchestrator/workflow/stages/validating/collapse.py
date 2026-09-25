@@ -81,7 +81,6 @@ from orchestrator.git.worktrees import (
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import review_subjects as _review_subjects
 from orchestrator.workflow.late_split import (
     collapses as _collapses,
     handoffs as _late_handoffs,
@@ -285,9 +284,7 @@ def _handoff_stands(
     still reading at its location as it settled -- and then the pull request,
     still standing on the commit the handoff named.
     """
-    covered = _review_subjects.approval_covers_current(state) and (
-        _review_coverage._approved_report_stands(gh, state)
-    )
+    covered = _review_coverage._approval_stands(gh, state)
     if covered is False:
         log.info(
             "issue=#%s carries a developer report its approval did not cover; "
