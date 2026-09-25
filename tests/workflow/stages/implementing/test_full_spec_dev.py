@@ -45,6 +45,7 @@ _FullSpecFixtureMixin = support._FullSpecFixtureMixin
 _TEST_SPEC = support._TEST_SPEC
 _agent = support._agent
 _issue_branch = support._issue_branch
+_open_pr_for = support._open_pr_for
 make_issue = support.make_issue
 patch = support.patch
 _agent_runner = support.agent_runner
@@ -101,6 +102,7 @@ class FullSpecDevPersistenceTest(unittest.TestCase, _FullSpecFixtureMixin):
             dev_session_id="dev-67002",
             review_round=0,
         )
+        _open_pr_for(gh, issue_number=RESUMED_DEV_ISSUE, pr_number=RESUMED_DEV_ISSUE)
         # Config now points to plain claude (no args).
         self._enter(self._patch_dev_config(CLAUDE_SPEC, BACKEND_CLAUDE, CLAUDE_ARGS))
         # Reviewer too -- we just want the dev-fix call to use the stored spec.

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import prompts as _prompts
+from orchestrator.workflow.engine import review_prompts as _review_prompts
 from orchestrator.workflow.stages.validating import handler as _validating
 from tests.workflow.stages import full_spec_test_support as support
 
@@ -29,6 +29,7 @@ _FullSpecFixtureMixin = support._FullSpecFixtureMixin
 _TEST_SPEC = support._TEST_SPEC
 _agent = support._agent
 _issue_branch = support._issue_branch
+_open_pr_for = support._open_pr_for
 make_issue = support.make_issue
 
 
@@ -48,6 +49,7 @@ class FullSpecReviewerPersistenceTest(
             dev_session_id="dev-67010",
             review_round=0,
         )
+        _open_pr_for(gh, issue_number=FRESH_REVIEW_ISSUE, pr_number=FRESH_REVIEW_ISSUE)
 
         self._enter(
             self._patch_review_config(
@@ -90,6 +92,7 @@ class FullSpecReviewerPersistenceTest(
             dev_session_id="dev-67011",
             review_round=0,
         )
+        _open_pr_for(gh, issue_number=REVIEW_COMMENT_ISSUE, pr_number=REVIEW_COMMENT_ISSUE)
 
         self._enter(self._patch_review_config(BACKEND_CLAUDE, BACKEND_CLAUDE, ()))
 
@@ -118,6 +121,7 @@ class FullSpecReviewerPersistenceTest(
             dev_session_id="dev-67012",
             review_round=0,
         )
+        _open_pr_for(gh, issue_number=CHANGE_REQUEST_ISSUE, pr_number=CHANGE_REQUEST_ISSUE)
 
         self._enter(self._patch_review_config(BACKEND_CLAUDE, BACKEND_CLAUDE, ()))
 
@@ -146,12 +150,12 @@ class FullSpecReviewerPersistenceTest(
         # "a separate codex session" before the fix, which is wrong when
         # claude is the dev backend. Build the prompt directly and
         # assert it reflects the dev backend.
-        prompt = _prompts._build_review_prompt(
+        prompt = _review_prompts._build_review_prompt(
             _TEST_SPEC,
             make_issue(REVIEW_PROMPT_ISSUE),
             "",
             [_TEST_SPEC],
-            dev_backend=BACKEND_CLAUDE,
+            _review_prompts.ReviewHandover(dev_backend=BACKEND_CLAUDE),
         )
         self.assertIn("A separate claude session", prompt)
         self.assertNotIn("A separate codex session", prompt)

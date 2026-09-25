@@ -60,7 +60,11 @@ published, and the reviewer below would be a second review of exactly that.
 The record left in the claim's place names the commit the move is owed over,
 and it is acted on only while the pull request is still standing on it --
 anything that moved the publication on has moved the work past the round this
-record was about, and it goes rather than sending the branch on unread.
+record was about, and it goes rather than sending the branch on unread. A
+commit is not the whole of what was approved, though: a developer report that
+changed on that same commit is work no reviewer has read, so the record is
+also acted on only while the report recorded as current is the one the
+approval covered.
 """
 from __future__ import annotations
 
@@ -77,6 +81,7 @@ from orchestrator.git.worktrees import (
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import review_subjects as _review_subjects
 from orchestrator.workflow.late_split import (
     collapses as _collapses,
     handoffs as _late_handoffs,
@@ -244,6 +249,11 @@ def _finished_handoff(
     back to the same reading and answers it the same way. A pull request
     nobody could read decides neither way, and the tick is held for the next
     one to ask again.
+
+    The report is asked before the pull request, since it costs no request:
+    a developer report settled on this commit after the approval -- or one the
+    approval's record no longer agrees with -- is a subject nobody reviewed,
+    and the record goes on the same terms as a moved head.
     """
     settled = _late_handoffs.read_settled_handoff(state)
     if not settled:
@@ -251,6 +261,14 @@ def _finished_handoff(
         # value nothing may be moved over: a label taken past the reviewer on
         # a string that cannot name a commit is one no comparison could ever
         # have caught. It goes, and the round below runs.
+        _late_handoffs.clear_settled_handoff(state)
+        return False
+    if not _review_subjects.approval_covers_current(state):
+        log.info(
+            "issue=#%s carries a developer report its approval did not cover; "
+            "dropping the settled squash handoff for a fresh review",
+            issue.number,
+        )
         _late_handoffs.clear_settled_handoff(state)
         return False
     standing = _publication_stands_on(gh, issue, state, settled)

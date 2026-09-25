@@ -7,10 +7,19 @@ is what stops a review loop that cannot converge from spending agent runs
 forever; parking on it leaves the PR and worktree intact so an operator can
 grant more rounds instead of restarting the issue.
 
-The configured reviewer spec is persisted BEFORE the spawn. A backend hiccup
-that yields no session id still leaves a durable record of which spec ran that
-round, and a config flip mid-flight cannot retroactively rewrite the history.
-Overwriting it every round is correct here precisely because the reviewer is
+The developer report the reviewer is handed is resolved next, still ahead of
+the spawn: `review_report` re-reads the report this issue last settled from
+the location it settled at and quotes it whole, beside the issue and the
+commands that inspect the branch, so what the reviewer judges is the report the
+pull request actually carries rather than whichever one it would have fetched.
+A report that cannot be handed over -- refused for good, or unreadable this
+tick -- ends the tick there with no reviewer spawned.
+
+The configured reviewer spec is persisted BEFORE the spawn, and the subject
+the reviewer is handed beside it. A backend hiccup that yields no session id
+still leaves a durable record of which spec ran that round and what it was
+shown, and a config flip mid-flight cannot retroactively rewrite the history.
+Overwriting both every round is correct here precisely because the reviewer is
 spawned fresh each time rather than resumed.
 
 After the run, two refusals stand between the reviewer and any disposition,
@@ -25,8 +34,11 @@ read-only and starts over next tick.
 
 The verdict itself fans out to three owners: approved goes to the approval
 arc, a missing VERDICT line to the no-verdict park, and CHANGES_REQUESTED to
-the fix route. The event is emitted for all of them, before the fan-out, so
-the analytics record exists even for the paths that park. Failed-run parks
+the fix route. An approval is acted on only while the report it was handed is
+still the one the pull request carries; otherwise the run is recorded and the
+next tick's reviewer is handed the report as it stands. The event is emitted
+for all of them, before the fan-out, so the analytics record exists even for
+the paths that park. Failed-run parks
 (timeout and unknown verdict) enrich the shared park funnel with typed
 correlation fields (`agent_role`, `session_id`, `review_round`, `retry_count`,
 `pr_number`).
@@ -45,7 +57,8 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     issue_usage as _issue_usage,
     prompt_context as _prompt_context,
-    prompts as _prompts,
+    review_prompts as _review_prompts,
+    review_subjects as _review_subjects,
     run_charge_state as _run_charge_state,
     usage as _usage,
 )
@@ -57,6 +70,7 @@ from orchestrator.workflow.stages.validating import (
     approval as _approval,
     models as _models,
     requested_changes as _requested_changes,
+    review_report as _review_report,
     state as _state,
 )
 
@@ -77,25 +91,28 @@ def _run_reviewer_round(
         spec, issue.number,
         branch=_naming._resolve_branch_name(state, spec, issue.number),
     )
-    _, dev_backend_for_prompt, _, _ = _dev_session_read._read_dev_session(state)
     delivered = _prompt_context._delivered_thread(gh, issue, state)
+    subject = _review_report._resolves_the_subject(
+        gh, issue, state, pr_number, delivered,
+    )
+    if subject is None:
+        return None
     # Persist the full configured spec BEFORE the spawn so a reviewer
     # backend hiccup that yields no session id still leaves a durable
     # role-identity record. The trace reflects the reviewer's CLI args
     # and a config flip mid-flight cannot retroactively rewrite which
     # spec ran each round. The reviewer is spawned fresh each round
     # (no resume), so always overwriting the field with the current
-    # config spec is the right behavior here.
+    # config spec is the right behavior here -- and the subject it is
+    # handed with it.
     state.set("review_agent", config.REVIEW_AGENT_SPEC)
+    _review_subjects.record_reviewed(state, subject)
     review = _usage._run_agent_tracked(
         gh, _run_charge_state.AgentRunBudget(issue=issue, state=state),
         agent_role="reviewer",
         stage="validating",
         backend=config.REVIEW_AGENT,
-        prompt=_prompts._build_review_prompt(
-            spec, issue, delivered.rendered_text,
-            config.default_repo_specs(), dev_backend_for_prompt,
-        ),
+        prompt=_review_prompt(spec, issue, state, delivered.rendered_text, subject),
         cwd=wt,
         agent_spec=config.REVIEW_AGENT_SPEC,
         timeout=config.REVIEW_TIMEOUT,
@@ -134,6 +151,22 @@ def _run_reviewer_round(
         pr_number=pr_number,
         agent_result=review,
         delivery=delivered,
+        subject=subject,
+    )
+
+
+def _review_prompt(
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    thread_text: str,
+    subject: _review_subjects.ReviewSubject,
+) -> str:
+    """The prompt one round's reviewer is handed, over what the round resolved."""
+    _, dev_backend, _, _ = _dev_session_read._read_dev_session(state)
+    return _review_prompts._build_review_prompt(
+        spec, issue, thread_text, config.default_repo_specs(),
+        _review_prompts.ReviewHandover(dev_backend=dev_backend, subject=subject),
     )
 
 
@@ -226,6 +259,15 @@ def _dispatch_reviewer_result(
     )
 
     if decision.verdict == "approved":
+        # An approval of a report the pull request no longer carries as it
+        # was handed -- edited or removed while the reviewer ran -- covers
+        # nothing. The run is recorded, and the next tick's reviewer is
+        # handed the report as it stands, or refused one.
+        if not _review_report._approval_still_covers(
+            gh, issue, state, reviewer_run.subject,
+        ):
+            gh.write_pinned_state(issue, state)
+            return
         # The subject the size gate decides about is built on the road that
         # holds every part of it -- this run's checkout included -- rather
         # than rebuilt a layer down from the pieces.

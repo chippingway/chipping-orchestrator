@@ -101,9 +101,9 @@ Shape of the block:
   read-only ones (reviewer / decomposer / question), and in the discussion prompts, whose single write a human's
   confirmation unlocks — none of them widens what the surrounding prompt granted.
 
-Delivery builders live in `workflow/engine/prompts.py`, question/discussion, PR-follow-up, and human-reply resume
-builders in `workflow/engine/conversation_prompts.py`, and the decomposition builder in
-`workflow/engine/decomposition_prompts.py`. Their use of the awareness block is:
+Delivery builders live in `workflow/engine/prompts.py`, the reviewer's in `workflow/engine/review_prompts.py`,
+question/discussion, PR-follow-up, and human-reply resume builders in `workflow/engine/conversation_prompts.py`, and
+the decomposition builder in `workflow/engine/decomposition_prompts.py`. Their use of the awareness block is:
 
 - **Embedded** in `_build_implement_prompt`, `_build_documentation_prompt`, `_build_review_prompt`,
   `_build_decompose_prompt`, `_build_question_prompt`, `_build_discussion_prompt`, and

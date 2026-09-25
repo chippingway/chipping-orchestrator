@@ -21,6 +21,7 @@ from orchestrator.workflow.engine import (
     prompt_notes as _prompt_notes,
     prompts,
     report_outcomes,
+    review_prompts as _review_prompts,
 )
 from orchestrator.workflow.engine.report_outcome_models import (
     _REPORT_END_MARKER,
@@ -189,7 +190,7 @@ class RespawnAndStagePromptTest(unittest.TestCase):
             "documentation": prompts._build_documentation_prompt(
                 _TEST_SPEC, _issue(), "", [_TEST_SPEC],
             ),
-            "review": prompts._build_review_prompt(
+            "review": _review_prompts._build_review_prompt(
                 _TEST_SPEC, _issue(), "", [_TEST_SPEC],
             ),
             "conflict": prompts._build_conflict_resolution_prompt(

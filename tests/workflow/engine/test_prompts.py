@@ -19,6 +19,7 @@ from orchestrator.workflow.engine import (
     drift,
     prompt_notes as _prompt_notes,
     prompts,
+    review_prompts as _review_prompts,
 )
 from orchestrator.workflow.stages.decomposition import late_revision as _late_revision
 from tests.support.fakes import FakeComment, FakeUser, make_issue
@@ -59,7 +60,7 @@ def _discussion_prompt(spec, issue, comments_text, specs) -> str:
 _HEADER_BUILDERS = (
     ("implement", prompts._build_implement_prompt),
     ("respawn_preamble", prompts._build_fresh_respawn_preamble),
-    ("review", prompts._build_review_prompt),
+    ("review", _review_prompts._build_review_prompt),
     ("documentation", prompts._build_documentation_prompt),
     ("question", _conversation_prompts._build_question_prompt),
     ("decompose", _decomposition_prompts._build_decompose_prompt),

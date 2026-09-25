@@ -14,10 +14,11 @@ bounce the issue to `validating` for a comment that should have recorded
 `pending_fix_*` bookmarks and flipped to `fixing`, which is the documented
 contract for issue-thread feedback on an open PR.
 
-An approval a requirements edit made stale is asked before either, right
-behind the terminals: a report a drift resume still owes, or the marker one
-of its outcomes left when its relabel did not land. The approval this label
-stands on was earned against requirements that no longer exist, so feedback,
+An approval that no longer covers the work is asked before either, right
+behind the terminals: a report a drift resume still owes, the marker one of
+its outcomes left when its relabel did not land, or a developer report other
+than the one the approval was given. The approval this label stands on was
+earned against requirements or a report that no longer stand, so feedback,
 drift and the ready ping all wait for `validating` to re-review.
 
 The missing-`pr_number` park is the one question asked before the context
@@ -89,8 +90,10 @@ def _handle_in_review(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Is
     against the updated body. An approval such an edit already made stale
     -- a report that resume still owes, or the marker an outcome left when
     its relabel did not land -- hands the issue back before any of the
-    routes below run. Docs do not run on the drift exit: the single docs
-    pass is deferred to the final-docs handoff after reviewer approval.
+    routes below run, and so does one recorded against a developer report
+    other than the one the issue now records as current. Docs do not run on
+    the drift exit: the single docs pass is deferred to the final-docs
+    handoff after reviewer approval.
     """
     state = gh.read_pinned_state(issue)
     pr_number = state.get("pr_number")
@@ -124,9 +127,10 @@ def _handle_in_review(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Is
     ):
         return
 
-    # An approval a requirements edit made stale outranks everything below --
-    # a report a drift resume still owes, or a label move one of its outcomes
-    # did not land. Only `validating` binds that report and re-reviews.
+    # An approval that no longer covers the work outranks everything below --
+    # a report a drift resume still owes, a label move one of its outcomes
+    # did not land, or a developer report the approval was never given. Only
+    # `validating` binds that report and re-reviews.
     if _drift._hands_a_stale_approval_back(ctx):
         return
 

@@ -67,7 +67,12 @@ per-stage behavior is in
   executing the resume.
 - **Reviewer freshness.** `_handle_validating` spawns a fresh reviewer subprocess every round with no resume, so
   `REVIEW_AGENT` changes take effect on the next validating tick. The current value is recorded in `review_agent` for
-  traceability only.
+  traceability only. Each reviewer is handed the developer report its pull request carries — re-read from where it
+  settled and quoted whole beside the issue and the inspection commands, never fetched by the reviewer or left to
+  the bounded thread excerpt — and what it reviewed is recorded beside the spec as `review_subject`: the pull
+  request, its head, the requirements revision, and the report revision. A report that changes on an unchanged head
+  is a new subject, so it always reaches a fresh reviewer; nothing an earlier approval left keyed on the head alone
+  stands in for that review (see [`review_approved_subject`][review-subject]).
 - **Decomposer reuse.** `_handle_decomposing` spawns the decomposer once and resumes it on every awaiting-human
   reply — with one park excepted. An issue stopped on its spent spawn budget (`retry_cap`) is waiting on a human
   deciding to spend more of this issue's day on it rather than on words for the agent, so a reply resumes nothing
@@ -2165,16 +2170,18 @@ remote is still owed.
 
 ## Local verify gate (not an agent)
 
-After the reviewer emits `VERDICT: APPROVED`, `_handle_validating` runs the configured `VERIFY_COMMANDS` directly in
-the per-issue worktree — these are plain shell commands, not an agent role, so no `*_AGENT` env var applies. The gate
-runs before the approval comment, the squash, the watermark seeding, and the `workflow:documenting` (final-docs) label
-flip. A clean run advances the issue, and so does an empty `VERIFY_COMMANDS`, whose `not_run` result is not evidence
-that anything passed; any failure parks on `workflow:validating` with a typed `park_reason` (`verify_failed` /
-`verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`). See
+After the reviewer emits `VERDICT: APPROVED` — and the report it was handed still reads as it was handed —
+`_handle_validating` runs the configured `VERIFY_COMMANDS` directly in the per-issue worktree — these are plain shell
+commands, not an agent role, so no `*_AGENT` env var applies. The gate runs before the approval record, the approval
+comment, the squash, the watermark seeding, and the `workflow:documenting` (final-docs) label flip. A clean run
+advances the issue, and so does an empty `VERIFY_COMMANDS`, whose `not_run` result is not evidence that anything
+passed; any failure parks on `workflow:validating` with a typed `park_reason` (`verify_failed` / `verify_timeout` /
+`verify_dirty` / `verify_head_changed` / `verify_tree_changed`). See
 [`../configuration.md#local-verification-gate`](../configuration.md#local-verification-gate) for the env-var
 reference.
 
 [workflow-labels]: ../state-machine/labels-and-state.md#workflow-labels
+[review-subject]: ../state-machine/labels-and-state.md#pinned-state
 [late-run]: ../state-machine/labels-and-state.md#the-late-run
 [late-state]: ../state-machine/labels-and-state.md#late-generation-state
 [retry-budget]: ../state-machine/labels-and-state.md#the-retry-budget

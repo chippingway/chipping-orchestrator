@@ -423,6 +423,9 @@ class HandleValidatingReviewCapCommandGuardTest(
             dev_session_id=DEV_SESSION,
             dev_agent=BACKEND_CODEX,
         )
+        review_support._open_pr_for(
+            guard_github, issue_number=CAP_RECOVERY_ISSUE, pr_number=SECONDARY_PR,
+        )
 
         # Tick 1: cap park.
         self._run_validating(

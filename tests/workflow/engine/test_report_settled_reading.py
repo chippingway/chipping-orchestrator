@@ -192,6 +192,41 @@ class SettledReadingTest(unittest.TestCase, _Readings):
         self.assertIs(self.still_carries(), ReportPresence.CHANGED)
 
 
+class SettledTextTest(unittest.TestCase, _Readings):
+    """The words a proved reading hands a reviewer, and none where it is not."""
+
+    def setUp(self) -> None:
+        support.ReportTransactionCase.setUp(self)
+
+    def carried_text(self) -> tuple[ReportPresence, str]:
+        """Read the settled report again, with the text it carries."""
+        return _settled_reading.carried_text(
+            self.gh, self.state, _settlement.read_current_report(self.state),
+        )
+
+    def test_the_text_is_the_settled_revision_alone(self) -> None:
+        # A publication hands over the report inside our rendering -- not the
+        # header or the preamble around it -- and a verified description the
+        # whole body its digest was taken over.
+        landed = self.published()
+        self.assertEqual(
+            self.carried_text(), (ReportPresence.PRESENT, support.REPORT_TEXT),
+        )
+
+        landed.body = f"{landed.body}\n\nEdited once it settled."
+        self.assertEqual(self.carried_text(), (ReportPresence.CHANGED, ""))
+
+        self.gh.report_failures.unreadable.add(support.PR_NUMBER)
+        self.assertEqual(self.carried_text(), (ReportPresence.UNCONFIRMED, ""))
+
+    def test_a_verified_description_is_handed_whole(self) -> None:
+        self.verification()
+        self.reconcile()
+        self.assertEqual(
+            self.carried_text(), (ReportPresence.PRESENT, _HUMAN_REPORT),
+        )
+
+
 class UnpayableDebtTest(unittest.TestCase, _Readings):
     """Which owed transactions no retry settles, as the thread stands."""
 

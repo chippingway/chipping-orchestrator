@@ -676,7 +676,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its location: a description was verified, a comment is held to the rendering. An
                             author nobody could read is UNCONFIRMED. `stages/implementing/report_handoff.py` asks
                             it last before a handoff, for the report a publication settled and for the one a
-                            recovery would hand on
+                            recovery would hand on; `stages/validating/review_report.py` asks it for the TEXT as
+                            well, the settled revision alone -- a publication's words out of its rendering, a
+                            verified location's whole body -- held to the digest once more before a reviewer is
+                            handed it
     report_binding.py       what a publication does with the report its run delivered once the push has landed:
                             the record bound to that repository, pull request, branch and commit in one write made
                             BEFORE anything is posted, then published. Both steps on every call, held to the
@@ -717,8 +720,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             metadata the orchestrator appends for the pull request and the tracked issue's number is
                             never one of them -- the developer report contract spelled from the report vocabulary with
                             its fresh-respawn counterpart, and the continuation notes for a session-limit retry
-    prompts.py              implementation, review, documentation, fixing, conflict-resolution, and fresh-session prompt
+    prompts.py              implementation, documentation, fixing, conflict-resolution, and fresh-session prompt
                             builders; each response marker agrees with the parser that settles its stage
+    review_prompts.py       the fresh reviewer's prompt and the handover it is built over -- the backend that
+                            implemented the work and the subject the validating stage resolved -- with the
+                            developer report quoted whole between the issue and the inspection commands, named by
+                            revision and location, and a note wherever the head or the requirements have moved
+                            since it was written; a subject with no report says none is recorded
+    review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision
+                            and digest -- recorded as `review_subject` before the spawn and as
+                            `review_approved_subject` once an approval passes the verify gate, where the approval
+                            also retires the head-keyed `docs_verdict` and `ready_ping_sha` an earlier one left; and
+                            the question every later reader of an approval asks, whether the report recorded as
+                            current is the one it covered, compared on the pinned records alone. An issue approved
+                            before the record existed is covered as it always was, and a record nobody can read
+                            covers nothing
     conversation_prompts.py question, discussion, PR-feedback follow-up, and developer human-reply resume prompts;
                             discussion publication instructions describe the confirmed plan artifact and the commit
                             its stage verifies
@@ -2589,8 +2605,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             may lose
     in_review/              `in_review`
       handler.py            the order one tick asks its questions in, and the missing-`pr_number` park asked before
-                            the rest -- with an approval a requirements edit made stale asked right behind the
-                            terminals
+                            the rest -- with an approval that no longer covers the work, stale by a requirements
+                            edit or recorded against another developer report, asked right behind the terminals
       feedback.py           the four surfaces scanned before the drift check, their author filters (a bare
                             `/orchestrator add-agent-runs` is nobody's review), and the park that stays silent for
                             the base-sync retry loop
@@ -2618,7 +2634,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             move -- and the report bound only once the relabel is behind it; and the hand-back a
                             later tick gives an issue whose approval an edit made stale, read off a report it still
                             owes (a failed push, a held candidate, a tick that died mid-way) or off that marker,
-                            which is the only thing an `ACK:` and a resume that PARKED leave -- a question answers
+                            which is the only thing an `ACK:` and a resume that PARKED leave, or off an approval
+                            recorded against another report than the current one -- a question answers
                             the edit with nothing, so the move is owed from there too, and made ahead of the
                             feedback scan that would otherwise route the answer to `workflow:fixing` -- with the
                             comment a human wrote while the resume was out still unread beneath the carry, so the
@@ -2627,7 +2644,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             lands it on `workflow:validating` spends no round the edit has already paid for
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
                             round-trips ago -- and the one HITL ready-ping an approved, unvetoed head earns per head
-                            SHA, which is no park and carries no mark
+                            SHA, which is no park and carries no mark; a fresh approval retires the stamp, so a
+                            report re-reviewed on an unchanged head is pinged again
       surfaces.py           the two reads the shared IssueComment id space is taken as -- the issue thread against
                             the delivery cursor an issue-only resume settled as well, the PR conversation against
                             neither -- and the raw merged read tagged by surface that the watermark walks consume.
@@ -2643,9 +2661,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             was built from -- what the issue may mark answered, and the revision its report is
                             stamped with, off the one read
       state.py              the issue-side watermark key they share, the marker saying this issue owes
-                            `workflow:validating` a label move its own relabel did not land, and the one staged
-                            write spelled here rather than at the owner that makes it: every field the hand-back
-                            puts down, asked by the report reservation so a field added moves it too
+                            `workflow:validating` a label move its own relabel did not land, the predicate reading
+                            that marker beside a report still owed and an approval of another report, and the one
+                            staged write spelled here rather than at the owner that makes it: every field the
+                            hand-back puts down, asked by the report reservation so a field added moves it too
     question/               `question`
       handler.py            the order one tick asks its questions in, the closed-issue finalize that outranks them,
                             and both worktree teardowns
@@ -2672,7 +2691,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             outlived the tick that cleared it -- and about the note a deferral
                             left, which that round discharges -- and the verdict
                             fan-out, with the subject an approved verdict hands the squash tail built here over
-                            this run's own checkout
+                            this run's own checkout. The developer report is resolved through `review_report.py`
+                            ahead of the spawn and the subject it yields recorded beside the reviewer spec, and an
+                            approval is acted on only while the report it was handed still reads as it was
       collapse.py           whether a squash this issue began and did not finish is answered before anything else
                             runs an agent, over the same tail the approval road runs -- what the branch is owed
                             does not depend on which reading sent the tick. Asked only from that road it would be
@@ -2693,9 +2714,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             decides over is built here, off that reading, rather than a layer down off the pieces.
                             The settled handoff is answered beside it and needs no checkout at all: the label
                             a finished squash never got to move is moved here, but only while the pull request is
-                            still standing on the commit that handoff named
+                            still standing on the commit that handoff named and the developer report recorded as
+                            current is the one its approval covered -- a report settled on that same commit since
+                            is work no reviewer has read
       approval.py           the verify gate and the squash-and-hand-off tail both roads run, over the subject,
-                            branch, and pull request number whichever road decided them hands in -- that number
+                            branch, and pull request number whichever road decided them hands in -- the review
+                            subject recorded as approved once the gate passes, riding whichever write the tail
+                            makes -- that number
                             read as an identity before the squash subject may reference it: the optional squash,
                             the park each of its four readings earns, the notice its count is worded from --
                             posted ahead of the seed it orders, and the one failure that stops the road, since
@@ -2861,6 +2886,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             takes -- and a debt no record describes at all. Every one of those is something the
                             reconciliation stands down on rather than holding, so a silent hold there would
                             suppress every later reviewer with nobody told
+      review_report.py      the report a reviewer is handed once nothing is owed: the one last settled, re-read
+                            where it settled and quoted whole, and the pull request's head read with it for the
+                            subject. Refused rather than reviewed -- parked under `report_undeliverable` with the
+                            debt recorded, so the reply resumes the developer -- when the settled record will not
+                            read, is about another pull request, disagrees with the handoff that settled it, or
+                            reads ABSENT or CHANGED (removed, edited, cut short, or untrusted); a reading nobody
+                            could take holds without a notice. The same re-reading is taken again before an
+                            approval is acted on, since a human may edit the report while the reviewer runs
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its

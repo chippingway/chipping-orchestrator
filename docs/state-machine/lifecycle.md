@@ -416,8 +416,16 @@ than a second source of truth: where the two disagree, the handler pages are aut
      a developer report still owed ─► no reviewer spawned; bound and
        settled where the receipt and checkout prove it, else parked
        report_undeliverable once no retry can settle it
-     workflow:validating --(APPROVED, verify ok, squash ok)──►
-       label=workflow:documenting (final-docs) ──► in_review
+     the settled report re-read and quoted whole in the reviewer's prompt
+       (review_subject); unreadable on the pinned comment, about another
+       PR, out of step with its handoff, removed, edited, cut short, or
+       untrusted ─► no reviewer spawned, parked report_undeliverable
+     workflow:validating --(APPROVED of the report still carried, verify ok,
+       squash ok)──► review_approved_subject recorded, docs_verdict and
+       ready_ping_sha retired, label=workflow:documenting (final-docs)
+       ──► in_review
+     in_review with a current report its approval did not cover ─►
+       review_round=0, label=workflow:validating (fresh reviewer, same head)
      MAX_REVIEW_ROUNDS exhausted ─► park HITL
      squash failure ─► park HITL on workflow:validating, no relabel
 

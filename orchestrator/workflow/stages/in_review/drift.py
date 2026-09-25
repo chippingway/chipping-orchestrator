@@ -348,10 +348,10 @@ def _relabels_for_review(ctx: _models._InReviewContext) -> None:
 
 
 def _hands_a_stale_approval_back(ctx: _models._InReviewContext) -> bool:
-    """Send an issue whose approval a requirements edit made stale back to review.
+    """Send an issue whose approval no longer covers its work back to review.
 
-    True where it did, and the caller must return. Two things say so, and
-    each is what the other cannot say.
+    True where it did, and the caller must return. Three things say so, and
+    each is what the others cannot say.
 
     A developer report still OWED is one: the resume that recorded it was
     answering an edit, so the approval is stale whatever became of the report
@@ -369,15 +369,18 @@ def _hands_a_stale_approval_back(ctx: _models._InReviewContext) -> bool:
     marker goes down with the park and the move is made ahead of the feedback
     scan that would otherwise route that reply to `fixing`.
 
+    An approval recorded against another developer report than the one the
+    issue now records as current is the third. The head can be the very one
+    that approval, its docs pass, and its ready ping were about, so nothing
+    keyed on the commit notices -- and a report nobody reviewed would be
+    advertised as ready to merge.
+
     Either way nothing else this stage does runs first: `validating` recovers
     a failed push, binds and settles what a publication carried, and holds the
     reviewer until the pull request carries the report. A park standing beside
     the debt moves with it, and is answered there.
     """
-    if not (
-        _report_delivery.owes_a_report(ctx.state)
-        or ctx.state.get(_state._HANDOFF_PENDING)
-    ):
+    if not _state.owes_validating_a_move(ctx.state):
         return False
     log.warning(
         "issue=#%s owes PR #%s a move to validating its approval no longer "

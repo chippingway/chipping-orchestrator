@@ -16,6 +16,15 @@ commits off the tip and in the reflog behind a recorded head, the approved
 commits still in the branch's own history under work committed on top of them,
 or a reading that placed them nowhere at all.
 
+What the approval covers is recorded once the verify gate has passed, beside
+everything the handoff writes: the pull request, the head, the requirements,
+and the developer report the reviewer was handed. Every later reader that would
+act on this approval -- the settled handoff below, the in_review stage -- holds
+it to that report, so a report that changes on an unchanged commit is sent
+back to a reviewer rather than carried past one. The same record retires the
+final-docs verdict and the ready ping an earlier approval left, since each is
+keyed on a head this approval may share.
+
 The ordering inside the handoff matters too. The squash notice is posted
 BEFORE `handoff` is asked to seed the watermarks, so that its own id lands in
 the recorded orchestrator set and the seed walk steps past it; the reverse
@@ -58,7 +67,11 @@ from orchestrator.github import (
     client as _client,
     pinned_state as _pinned_state,
 )
-from orchestrator.workflow.engine import comments as _comments, guards as _guards
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    guards as _guards,
+    review_subjects as _review_subjects,
+)
 from orchestrator.workflow.late_split import (
     collapses as _collapses,
     handoffs as _late_handoffs,
@@ -374,8 +387,9 @@ def _hands_to_documenting(
 def _finalize_validating_approval(
     gate, reviewer_run: _models._ReviewerRun, branch: str,
 ) -> None:
-    """Finalize an approved review: verify gate, approval comment, optional
-    squash, in_review handoff watermarks, then relabel to `documenting`.
+    """Finalize an approved review: verify gate, the approved subject, approval
+    comment, optional squash, in_review handoff watermarks, then relabel to
+    `documenting`.
 
     The verify gate is the first gate after the reviewer so an obviously-broken
     branch never reaches `in_review` (GitHub CI still runs against the PR for
@@ -404,5 +418,8 @@ def _finalize_validating_approval(
         _verify._park_verify_failure(gh, issue, state, verify)
         gh.write_pinned_state(issue, state)
         return
+    # Staged here and written by whichever write the squash road below makes,
+    # so an approval nothing recorded is never one a later tick acts on.
+    _review_subjects.record_approved(state, reviewer_run.subject)
     _handoff._post_approval_comment(gh, issue, state, reviewer_run)
     _squashed_and_handed_off(gate, branch, reviewer_run.pr_number)

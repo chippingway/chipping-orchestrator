@@ -5,7 +5,10 @@
 Each carries something the owner downstream cannot re-derive. `_ReviewerRun`
 holds the worktree the reviewer actually ran in and the round it ran as, so
 the approval gate verifies the same checkout that was reviewed and the
-feedback comment names the round the human sees on the PR. `_ReviewerDecision`
+feedback comment names the round the human sees on the PR -- and the subject
+it was handed, the report included, so an approval is recorded against what
+the reviewer read rather than against whatever is current once it returns.
+`_ReviewerDecision`
 folds the parsed verdict together with the run, and its `feedback` falls back
 to the agent's last message so a reviewer that put its reasoning above the
 VERDICT line still reaches the dev. `_DevFixRun` carries `before_sha` -- the
@@ -45,7 +48,11 @@ from github.Issue import Issue
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.github import client as _client, pinned_state as _pinned_state
-from orchestrator.workflow.engine import comments as _comments, prompt_delivery as _delivery
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    prompt_delivery as _delivery,
+    review_subjects as _review_subjects,
+)
 from orchestrator.workflow.stages.implementing import resume_batch as _resume_batch
 from orchestrator.workflow.stages.validating import state as _state
 from orchestrator.workflow.state import WorkflowLabel
@@ -63,6 +70,9 @@ class _ReviewerRun:
     # reads under different bounds, and a mark taken from the wider one
     # crosses words this reviewer's excerpt cut short.
     delivery: _delivery.PromptDeliverySnapshot
+    # The pull request, head, requirements, and report this round's prompt
+    # handed the reviewer, which is what an approval of it covers.
+    subject: _review_subjects.ReviewSubject
 
 
 @dataclass(frozen=True)

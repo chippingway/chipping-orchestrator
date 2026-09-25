@@ -28,6 +28,12 @@ leaving an issue here to be pinged as ready on an approval that is over. It
 is additive: an issue without it owes no move, which is every issue that
 predates it.
 
+`owes_validating_a_move` reads it back beside the two other things that say
+the same: a developer report still owed, and an approval recorded against a
+report other than the one the issue now records as current. It is asked here
+because the marker is what it chiefly reads, and every road that stages the
+move is answered by it.
+
 `stages_the_handoff` is the one write spelled here rather than at the owner
 that makes it. Every field the hand-back puts down goes down together -- the
 marker above, the fresh review round, and the record that the publication this
@@ -39,13 +45,29 @@ reservation with it instead of quietly eating a margin nobody rechecks.
 from __future__ import annotations
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import report_delivery as _report_delivery
+from orchestrator.workflow.engine import (
+    report_delivery as _report_delivery,
+    review_subjects as _review_subjects,
+)
 
 _PR_LAST_COMMENT_ID = "pr_last_comment_id"
 
 _HANDOFF_PENDING = "in_review_handoff_pending"
 
 _REVIEW_ROUND = "review_round"
+
+
+def owes_validating_a_move(state: PinnedState) -> bool:
+    """Whether the approval this label stands on no longer covers the work.
+
+    A report still owed, a move staged and not made, or an approval of some
+    other report than the current one -- each answered by the same move.
+    """
+    return (
+        _report_delivery.owes_a_report(state)
+        or bool(state.get(_HANDOFF_PENDING))
+        or not _review_subjects.approval_covers_current(state)
+    )
 
 
 def stages_the_handoff(

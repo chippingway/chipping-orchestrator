@@ -3083,7 +3083,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      `awaiting_human` into `documenting`. An issue with nothing recorded costs one lookup on the pinned comment;
      one carrying only the `late_collapse_handoff_sha` a finished handoff left moves the label that handoff never
      got to move (and drops the record behind it), or drops it unspent where the pull request has since moved off
-     the commit it names.
+     the commit it names — or where the developer report recorded as current is not the one the approval covered
+     (`review_approved_subject`), since a report settled on that same commit since is work no reviewer has read and
+     the round below reviews it.
   2. Awaiting-human path: resume on the dev's locked spec; on a successful pushed fix, bump `review_round` and stay on
      `workflow:validating`. A park standing over an unanswered requirements edit is the one claim that changes what the
      resume's answer MEANS, since a reply to a park is no drift and this is the road that delivers it. Two parks carry
@@ -3187,18 +3189,32 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      written when the hold stops it, so its reply is not answered twice.
   4. If `review_round >= MAX_REVIEW_ROUNDS` (default 3), park (`review_cap`). The park comment surfaces the
      `/orchestrator add-review-rounds N` escape hatch.
-  5. Otherwise persist `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the reviewer is spawned fresh
-     each round with no resume), then run the reviewer with the read-only prompt (must end with `VERDICT: APPROVED` or
-     `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check (`_paused_during_agent_run`) right after the
-     reviewer returns short-circuits BEFORE the usage fold, session record, verdict parse, verify gate, squash, or
-     relabel, so the next tick re-spawns a fresh reviewer from durable state.
+  5. Otherwise resolve what the reviewer is handed (`review_report._resolves_the_subject`): the pull request's head,
+     and the developer report `developer_report_current` records, re-read from the exact location it settled at and
+     held to its digest. A settled record that will not read, one about another pull request, one its own handoff
+     does not describe, and a location that reads ABSENT or CHANGED — removed, edited, cut short, or written by an
+     author this deployment does not trust — each park under `report_undeliverable` with `developer_report_owed`
+     set, so no reviewer runs and the reply resumes the developer, whose report is then published and reviewed; a
+     head or location nobody could read holds the tick silently. An issue that has never settled a report is
+     reviewed with none. Then persist `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the reviewer
+     is spawned fresh each round with no resume) and the resolved subject to `review_subject`, and run the reviewer
+     with the read-only prompt, which quotes that report whole between the issue and the inspection commands (must
+     end with `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check
+     (`_paused_during_agent_run`) right after the reviewer returns short-circuits BEFORE the usage fold, session
+     record, verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable
+     state.
   6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
-     - **approved** → in order: (1) run the local verify gate (`_run_verify_commands(wt, config.VERIFY_COMMANDS,
-       config.VERIFY_TIMEOUT)`); an empty command tuple returns `not_run`, which advances without being evidence that
-       anything passed, and any other non-ok result parks via `_park_verify_failure` with a typed `park_reason`
+     - **approved** → the report the reviewer was handed is re-read first, and an approval of words the location no
+       longer holds — edited or removed while the reviewer ran, or unreadable — is not acted on: the run is recorded
+       and the next tick resolves the report as it stands. Then, in order: (1) run the local verify gate
+       (`_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`); an empty command tuple returns
+       `not_run`, which advances without being evidence that anything passed, and any other non-ok result parks via
+       `_park_verify_failure` with a typed `park_reason`
        (`verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`) and the
        approval / squash / handoff do NOT fire (see
-       [`configuration.md#local-verification-gate`](../configuration.md#local-verification-gate)); (2) post
+       [`configuration.md#local-verification-gate`](../configuration.md#local-verification-gate)); then stage the
+       subject as `review_approved_subject`, retiring the `docs_verdict` and `ready_ping_sha` an earlier approval
+       left, since both are keyed on a head this approval may share; (2) post
        `:white_check_mark: codex review approved.`; (3) when `SQUASH_ON_APPROVAL` is on (default), call
        `_squash_and_force_push` (subject reuses the first commit when it carries a reusable `<prefix>:` form —
        Conventional **or** repo-local such as `event:`/`career:` — otherwise `<inferred-prefix>: <issue title>`, where
@@ -3347,13 +3363,18 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        salvage the still-open PR.
      - `open` with an open issue → fall through.
   3. **A stale approval → relabel back to `workflow:validating`.** Asked right behind the terminals and ahead of
-     everything below (`_hands_a_stale_approval_back`), on either of two readings. A report a requirements-drift
+     everything below (`_hands_a_stale_approval_back`), on any of three readings. A report a requirements-drift
      resume recorded and this issue still owes its pull request — a delivery its push never carried, a transaction
      not yet settled, or the debt of a run that committed with no report. Or `in_review_handoff_pending`, the marker
      a hand-back leaves until its own relabel has landed, which is what an outcome recording NO report needs: an
      `ACK:` whose relabel failed leaves no debt, no drift to re-detect, and nothing else to say the move is owed, and
      a resume that PARKED — a question, a timeout — leaves the same silence over an edit it answered with nothing.
-     Either way the issue stands on an approval earned against requirements that no longer exist. Left here the
+     Or a `review_approved_subject` recorded against another developer report than the one
+     `developer_report_current` records now — another revision, other words, or a report where the approval saw
+     none — since the head can be the very one the approval, its docs verdict, and its ping were about, and nothing
+     keyed on the commit alone would notice; an issue approved before that record existed carries none and is not
+     handed back on this reading. Each way the issue stands on an approval earned against requirements or a report
+     that no longer stand. Left here the
      report is never bound, since the hold that binds it is `validating`'s, and the ready ping below could invite a
      merge on the stale approval. So `review_round` resets to 0 and the marker goes down in a write taken
      BEFORE the label moves — the two cannot be one operation, and only this order is recoverable: a label moved
@@ -3431,7 +3452,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      - `True` → check `gh.pr_has_changes_requested(pr, head_sha=head_sha)` (a standing human CHANGES_REQUESTED on the
        current head vetoes the ping). The ping requires either `docs_checked_sha == pr.head.sha` with `docs_verdict` set
        OR `gh.pr_is_approved(pr, head_sha=pr.head.sha)` (a human/bot APPROVED review on the current head). When the
-       gate passes, post a one-shot `:bell:` ping de-duplicated by `ready_ping_sha`. The ping is NOT a
+       gate passes, post a one-shot `:bell:` ping de-duplicated by `ready_ping_sha` — which a fresh approval
+       retires, so a report re-reviewed on an unchanged head is pinged again. The ping is NOT a
        park: `awaiting_human` stays false so subsequent ticks still react to new comments / an external merge.
        Unlike park branches, the ready ping does NOT call `_bump_in_review_watermarks`. It posts an issue comment
        like a park does, but it is not a park and owes the thread no "everything below here is read" claim: the ping

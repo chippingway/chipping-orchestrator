@@ -1666,6 +1666,17 @@ The keys that matter for the state machine fall into a few groups:
   rather than at the hand-back that makes it — a developer report recorded on THIS stage's drift road is accepted
   only where the comment has room for that whole write, so a field added to it moves that refusal too. A report
   recorded on any other route is not charged for it, since no other stage hands an approval back.
+- **Review subject.** `review_subject` is what the latest reviewer was handed, staged beside `review_agent` before
+  the spawn and written by the round's own write: `pr`, `sha` (the head the pull request stood on), `requirements`
+  (the fingerprint of the thread read the prompt quotes), and `report_revision` + `report_content` (the revision and
+  digest of the developer report quoted whole in the prompt, both `null` for a pull request that has never settled
+  one). `review_approved_subject` is the same object for the latest approval, staged once the verify gate passes and
+  written by whichever write the squash tail makes. Every later reader that would act on an approval -- the settled
+  squash handoff on `workflow:validating`, and the stale-approval hand-back on `in_review` -- holds it to the report
+  `developer_report_current` records now: another revision, other words, or a report where the approval saw none is
+  a subject nobody reviewed, so the handoff is dropped for a fresh reviewer and the in_review issue is handed back.
+  Both are additive: an issue without `review_approved_subject` was approved before it existed and is covered as it
+  always was, while one present in any shape its reader refuses, `null` included, covers nothing.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one
@@ -1690,7 +1701,9 @@ The keys that matter for the state machine fall into a few groups:
   the docs pass it just bought. So the relabel window keeps no receipt, and it does not need one: what it leaves is
   the record a same-head approval leaves, and the next tick runs the pass rather than handing off on evidence that
   could belong to either.
-  `ready_ping_sha` records the head the in_review handler already posted a `:bell:` HITL ping for.
+  `ready_ping_sha` records the head the in_review handler already posted a `:bell:` HITL ping for. Both it and
+  `docs_verdict` are keyed on a head alone, so a recorded approval retires both (below): an approval of a new report
+  on the head they name would otherwise be read as documented before its docs pass ran, and pinged by nobody.
   `docs_drift_unwind_pending` is set while `_handle_documenting`'s drift block is reconciling and cleared only on the
   relabel back to `workflow:validating`. `docs_drift_unwind_asked_at` rides beside it on the failure road: the id of
   the notice a git step that could not be proved parked with. It is NOT a delivery cursor — no agent runs on that

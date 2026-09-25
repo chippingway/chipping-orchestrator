@@ -21,6 +21,11 @@ def _review_seed():
         codex_session_id=support._DEV_SESSION_ID,
         review_round=0,
     )
+    support._helpers._open_pr_for(
+        github,
+        issue_number=support._REVIEW_ISSUE_NUMBER,
+        pr_number=support._REVIEW_PR_NUMBER,
+    )
     return github, issue
 
 

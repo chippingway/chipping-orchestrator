@@ -36,6 +36,7 @@ from tests.workflow.fixtures import (
     AGENT_RUN_CHARGE_WRITES,
     _agent,
     _manifest,
+    _open_pr_for,
     _PatchedWorkflowMixin,
 )
 
@@ -129,6 +130,7 @@ class ReviewerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             review_round=0,
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
+        _open_pr_for(gh, issue_number=_REVIEWER_ISSUE_NUMBER, pr_number=_REVIEW_PR_NUMBER)
         before_writes = gh.write_state_calls
 
         get_issue_mock = MagicMock(

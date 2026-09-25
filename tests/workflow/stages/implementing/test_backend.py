@@ -36,6 +36,7 @@ _PatchedWorkflowMixin = support._PatchedWorkflowMixin
 _TEST_SPEC = support._TEST_SPEC
 _agent = support._agent
 _issue_branch = support._issue_branch
+_open_pr_for = support._open_pr_for
 config = support.config
 make_issue = support.make_issue
 patch = support.patch
@@ -80,6 +81,7 @@ class ConfigurableBackendTest(unittest.TestCase, _PatchedWorkflowMixin):
             dev_session_id=DEV_SESSION,
             review_round=0,
         )
+        _open_pr_for(gh, issue_number=REVIEW_BACKEND_ISSUE, pr_number=REVIEW_BACKEND_ISSUE)
 
         with patch.object(config, "REVIEW_AGENT", BACKEND_CODEX):
             mocks = self._run(
@@ -109,6 +111,7 @@ class ConfigurableBackendTest(unittest.TestCase, _PatchedWorkflowMixin):
             dev_session_id=DEV_SESSION,
             review_round=0,
         )
+        _open_pr_for(gh, issue_number=DEV_FIX_BACKEND_ISSUE, pr_number=DEV_FIX_BACKEND_ISSUE)
         with (
             patch.object(config, "DEV_AGENT", BACKEND_CLAUDE),
             patch.object(config, "REVIEW_AGENT", BACKEND_CLAUDE),

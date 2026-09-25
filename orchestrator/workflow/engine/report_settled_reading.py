@@ -9,6 +9,11 @@ header a publication of ours went out under, and who wrote it, each held to the
 road the settlement says it took. The implementing stage's publication asks it
 last before its handoff, for the report it settled and for the one a recovery
 would hand on.
+
+The reviewer asks the same question and needs the answer's TEXT as well: it is
+handed the report it reviews rather than left to find one, so what it quotes is
+exactly the revision the settlement recorded -- the words re-read from the
+location, held to the digest once more, and nothing cut short.
 """
 from __future__ import annotations
 
@@ -58,11 +63,45 @@ def still_carries(
     the rendering, the stricter of the two. UNCONFIRMED is a reading nobody
     could take, of the content or of who wrote it.
     """
+    return _reading(gh, state, current)[0]
+
+
+def carried_text(
+    gh: GitHubClient, state: PinnedState, current: _records.CurrentReport,
+) -> tuple[_pr_reports.ReportPresence, str]:
+    """The reading `still_carries` takes, and the complete report it found.
+
+    The text is what a reviewer is handed, so it is the settled revision
+    itself and nothing near it: a publication's own words out of the rendering
+    that proved it, or the whole of a verified location. Held to the recorded
+    digest once more before it is handed over, because the two readings above
+    prove a comment and a location respectively and neither is the text -- a
+    reading that could not say which words it proved is CHANGED, and one whose
+    words would not read is UNCONFIRMED. The text is "" on every answer but
+    PRESENT.
+    """
+    presence, found = _reading(gh, state, current)
+    if presence is not _pr_reports.ReportPresence.PRESENT:
+        return presence, ""
+    try:
+        text = _text_at(found, current)
+    except Exception:
+        log.exception("the text of a settled developer report would not read")
+        return _pr_reports.ReportPresence.UNCONFIRMED, ""
+    if text is None or _reports.content_digest(text) != current.content_revision:
+        return _pr_reports.ReportPresence.CHANGED, ""
+    return presence, text
+
+
+def _reading(
+    gh: GitHubClient, state: PinnedState, current: _records.CurrentReport,
+) -> tuple[_pr_reports.ReportPresence, Any]:
+    """One settled reading, and what it found where it found anything."""
     lookup = gh.reread_report_location(
         current.location, content_sha256=current.content_revision,
     )
     if lookup.presence not in _READ_PRESENCES:
-        return lookup.presence
+        return lookup.presence, None
     if _settled_as(current) is _records.ReportMode.VERIFY:
         authored = _publishing._trusts_the_author(lookup.found)
         carried = lookup.presence is _pr_reports.ReportPresence.PRESENT
@@ -70,10 +109,24 @@ def still_carries(
         authored = _wrote_it_ourselves(gh, lookup.found)
         carried = _renders_as_settled(lookup.found, state, current)
     if not carried or authored is False:
-        return _pr_reports.ReportPresence.CHANGED
+        return _pr_reports.ReportPresence.CHANGED, lookup.found
     if authored is None:
-        return _pr_reports.ReportPresence.UNCONFIRMED
-    return _pr_reports.ReportPresence.PRESENT
+        return _pr_reports.ReportPresence.UNCONFIRMED, lookup.found
+    return _pr_reports.ReportPresence.PRESENT, lookup.found
+
+
+def _text_at(found: Any, current: _records.CurrentReport) -> str | None:
+    """The report text a proved location carries, or None where it names none.
+
+    A publication is the text inside our rendering, so the header and the
+    preamble around it are no part of what the developer wrote; a verified
+    location is its whole body, since that is what its digest was taken over.
+    """
+    if _settled_as(current) is _records.ReportMode.VERIFY:
+        body = getattr(found, "body", None)
+        return body if isinstance(body, str) else None
+    published = _reports.developer_report_from_comment(found, bot_login=None)
+    return None if published is None else published.text
 
 
 def _settled_as(current: _records.CurrentReport) -> _records.ReportMode:
