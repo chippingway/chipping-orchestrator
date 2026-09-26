@@ -5,7 +5,9 @@
 Trust-filtered thread and repository context comes from prompt_context. Shared
 placeholders and execution notes come from prompt_notes; every response marker
 matches the parser that decides the corresponding workflow outcome. Conversation
-and decomposition builders live beside these delivery-stage builders."""
+and decomposition builders live beside these delivery-stage builders. The review
+builder here is the one the validating stage spawns with; the dormant one that
+quotes the developer report whole is `review_prompts`'."""
 from __future__ import annotations
 
 from github.Issue import Issue

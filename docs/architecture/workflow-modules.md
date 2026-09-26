@@ -674,9 +674,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (pull request, commit, requirements, revision, receipt) recorded -- so a comment cut
                             down to its bare text is CHANGED though it hashes. A record naming no road is read off
                             its location: a description was verified, a comment is held to the rendering. An
-                            author nobody could read is UNCONFIRMED. `stages/implementing/report_handoff.py` asks
-                            it last before a handoff, for the report a publication settled and for the one a
-                            recovery would hand on
+                            author nobody could read is UNCONFIRMED, and so is a published comment whose body will not
+                            read again for its parse. `stages/implementing/report_handoff.py` asks it last before a
+                            handoff, for the report a publication settled and for the one a recovery would hand on.
+                            `carried_text` takes the same reading and returns the TEXT as well, the settled revision
+                            alone -- a publication's words out of the very parse whose header the reading proved, a
+                            verified location's whole body -- held to the digest once more, "" on every answer but
+                            PRESENT; it is dormant, since the validating stage hands its reviewer no report
     report_binding.py       what a publication does with the report its run delivered once the push has landed:
                             the record bound to that repository, pull request, branch and commit in one write made
                             BEFORE anything is posted, then published. Both steps on every call, held to the
@@ -719,6 +723,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its fresh-respawn counterpart, and the continuation notes for a session-limit retry
     prompts.py              implementation, review, documentation, fixing, conflict-resolution, and fresh-session prompt
                             builders; each response marker agrees with the parser that settles its stage
+    review_prompts.py       a DORMANT fresh-reviewer prompt and the handover it is built over -- the backend that
+                            implemented the work and the subject its caller resolved -- with the developer report
+                            quoted whole between the issue and the inspection commands, named by revision and
+                            location, and a note where the requirements have moved on since it was written; a subject
+                            with no report says none is recorded. The validating stage spawns its reviewer over
+                            `prompts.py`'s builder, which quotes no report
+    review_subjects.py      DORMANT records of what one review is of -- pull request, head, requirements revision,
+                            and report revision and digest -- spelled as `review_subject` for the subject a reviewer
+                            is handed and as `review_approved_subject` for the one an approval covers, where
+                            recording the approval also retires the head-keyed `docs_verdict` and `ready_ping_sha`
+                            an earlier one left; and the question every reader of an approval would ask, whether the
+                            report recorded as current is the one it covered, compared on the pinned records alone.
+                            An approval with no record covers only an issue with no report either, and a record
+                            nobody can read covers nothing: it is read whole, exactly the five members its writer
+                            spells, each in its shape -- requirements that are a digest or "", both report members
+                            or neither, a whole commit id as the head wherever a pull request is named, and neither a
+                            head nor a report where none is -- or neither its identity nor its requirements are
+                            read. No stage writes or reads either record
     conversation_prompts.py question, discussion, PR-feedback follow-up, and developer human-reply resume prompts;
                             discussion publication instructions describe the confirmed plan artifact and the commit
                             its stage verifies
@@ -2861,6 +2883,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             takes -- and a debt no record describes at all. Every one of those is something the
                             reconciliation stands down on rather than holding, so a silent hold there would
                             suppress every later reviewer with nobody told
+      review_comment.py     the DORMANT binding of a review to its pinned comment. A subject resolved from the state a
+                            tick read when it began is bound only to a comment read afresh that carries the same report
+                            records -- a later report settled in between, on the very head by another road, is there and
+                            nowhere in hand -- and a road about to act on an approval asks the same; where it does not,
+                            the comment will not read or parse, or the fresh reading is another comment than the one the
+                            state was read from -- replaced or gone, whose write would pin a second one -- the answer
+                            hands nothing over and writes nothing. Read against that binding again as a reviewer
+                            returns, records that moved refuse the verdict and everything the comment changed since is
+                            carried onto the state in hand, while another comment or an unread one carries nothing and
+                            writes nothing. Records are compared as the comment's JSON spells them, so one written
+                            `null` where there was none, or a revision `true` where it was `1`, is a move. Nothing here
+                            parks or posts, and no road in the stage asks it
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its
