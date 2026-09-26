@@ -5,8 +5,9 @@
 One contract, held against the real client and against the shared fake: which
 reading licenses a post, what an unanswered request is answered with, that a
 retry finds the exact artifact GitHub already accepted, that ownership takes
-our author and our exact rendering together, and that neither the description
-nor the developer report beside it is ever written.
+our author and our exact rendering together, that a settled artifact is re-read
+at its own comment as exactly that, and that neither the description nor the
+developer report beside it is ever written.
 """
 from __future__ import annotations
 
@@ -218,7 +219,38 @@ class _RecoveryContract:
         return reading.presence, reading.found
 
 
-class _VerificationContract(_PublicationContract, _RecoveryContract):
+class _RereadContract:
+    """A settled artifact is re-read at its comment, and only ours counts."""
+
+    def test_an_artifact_is_reread_at_its_comment(self) -> None:
+        # Present only as ours, byte for byte, at that very comment: a pasted
+        # copy, a comment the thread no longer carries, and an edit are each
+        # what they are, and a thread nobody could read says nothing.
+        posted = self.gh.publish_verification_artifact(self.pull_request, _ARTIFACT).found
+        pasted = self.seed(_PUBLISHED, login=_HUMAN_LOGIN)
+        asked = (posted.id, pasted.id, pasted.id + 1)
+        readings = [self._at(comment_id) for comment_id in asked]
+        posted.body = _PUBLISHED.replace("exit 0", "exit 1", 1)
+        readings.append(self._at(posted.id))
+        self.refuse(support.UNREADABLE)
+        with self.assertLogs(_GITHUB_LOG, _WARNING):
+            readings.append(self._at(posted.id))
+
+        self.assertEqual(readings, [
+            (ReportPresence.PRESENT, _ARTIFACT),
+            (ReportPresence.CHANGED, None),
+            (ReportPresence.ABSENT, None),
+            (ReportPresence.CHANGED, None),
+            (ReportPresence.UNCONFIRMED, None),
+        ])
+        self.assertEqual(self.posted_comments(), [(support.PR_NUMBER, _PUBLISHED)])
+
+    def _at(self, comment_id: int) -> tuple:
+        """What one comment on the case's pull request is, as an artifact."""
+        return self.gh.reread_verification_artifact(self.pull_request, comment_id)
+
+
+class _VerificationContract(_PublicationContract, _RecoveryContract, _RereadContract):
     """Everything the real client and the shared fake answer alike."""
 
 

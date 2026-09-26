@@ -2,22 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 """What one local `VERIFY_COMMANDS` run is worth as evidence, bound to its target.
 
-Only two kinds of run are evidence, and each only on its own transcript. A
-passing run is one `VerifyResult.is_reusable` vouches for: every configured
-command ran, in order, exited 0 on the tested commit and tree, and the context
-revision is the one its commands and timeout mint. A failing run is one whose
-commands before the last each passed that same way and whose last exited
-nonzero while leaving HEAD and its tree where they were -- a genuine failure of
-the tested tree, which stays actionable evidence rather than disappearing.
+Only a run `VerifyResult.is_reusable` vouches for is evidence: every
+configured command ran, in order, exited 0, and was followed by a status read
+that PROVED the worktree clean and by readings of the tested commit and tree
+unchanged, under the context revision its commands and timeout mint. That is
+what lets the transcript stand for the committed tree and nothing else.
 
-Everything else binds nothing. An empty configuration ran nothing and is not
-evidence that anything passed; a timeout, a dirty tree, or a moved HEAD or
-tree is a run that cannot say which tree it describes; and a run that never
-read its commit and tree has nothing to bind. Nothing is counted or inferred:
-the commands published are exactly the ones that ran, with the status and the
-already-redacted, already-bounded output each one earned.
+A run that failed is not bound, however genuine its failure. The runner reads
+the worktree after a zero exit only, so a command that rewrote tracked files
+and then exited nonzero leaves no proof the failure was the committed tree's
+rather than its own edit's -- and evidence that cannot say which tree it
+describes is not evidence. A failure stays actionable where it already is: the
+verify gate parks on it with the command and its output. Nor is anything else
+bound: an empty configuration ran nothing and is not evidence that anything
+passed, and a timeout, a dirty tree, or a moved HEAD or tree cannot say which
+tree it tested.
 
-A command the published format refuses -- a transcript carrying the fence that
+Nothing is counted or inferred: the commands published are exactly the ones
+that ran, with the already-redacted, already-bounded output each one earned. A
+command the published format refuses -- a transcript carrying the fence that
 closes it, say -- binds nothing either, because an artifact that cannot be
 posted is not evidence anybody can be shown.
 """
@@ -34,7 +37,7 @@ def local_run_evidence(
     run: _verify_models.VerifyResult, target: _records.EvidenceTarget,
 ) -> LocalRunEvidence | None:
     """The binding and commands `run` is evidence of for `target`, or None."""
-    if not _transcript_is_evidence(run):
+    if not run.is_reusable:
         return None
     try:
         commands = tuple(
@@ -55,39 +58,3 @@ def local_run_evidence(
         context_revision=run.context_revision,
     )
     return binding, commands
-
-
-def _transcript_is_evidence(run: _verify_models.VerifyResult) -> bool:
-    """Whether `run` passed whole, or failed on its last command and nowhere else."""
-    if run.is_reusable:
-        return True
-    ran = run.attempted_commands
-    if run.status != _verify_models.VERIFY_STATUS_FAILED or not ran:
-        return False
-    if not (run.commit and run.tree_identity and run.timeout):
-        return False
-    if run.context_revision != _verify_models._context_revision(
-        run.configured_commands, run.timeout,
-    ):
-        return False
-    *passed, failed = ran
-    earlier = tuple(outcome.command for outcome in ran)
-    return (
-        earlier == run.configured_commands[:len(ran)]
-        and all(_verify_models._passed_on(outcome, run.commit, run.tree_identity) for outcome in passed)
-        and _failed_on(failed, run.commit, run.tree_identity)
-    )
-
-
-def _failed_on(
-    outcome: _verify_models.VerifyCommandOutcome, commit: str, tree: str,
-) -> bool:
-    """Whether `outcome` exited nonzero and left `commit` and `tree` where they were."""
-    readings = (outcome.head_before, outcome.head_after, outcome.tree_before, outcome.tree_after)
-    exited = outcome.exit_code
-    return (
-        outcome.status == _verify_models.VERIFY_STATUS_FAILED
-        and isinstance(exited, int)
-        and exited != 0
-        and readings == (commit, commit, tree, tree)
-    )

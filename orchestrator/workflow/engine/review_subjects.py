@@ -38,11 +38,6 @@ over a pull request that has since settled a report, is an approval nothing
 says was of that report, so the issue goes back for a review that is. A record
 present in any shape its reader refuses covers nothing, so a hand edit sends
 the issue back to a reviewer rather than past one.
-
-Verification evidence answers for a review subject too, recorded in this
-owner's own shape, and is held to the report recorded as current by the same
-identity an approval is (`current_report_identity`, read by
-`verification_subject`).
 """
 from __future__ import annotations
 
@@ -295,15 +290,11 @@ def approval_covers_current(state: PinnedState) -> bool:
     if not state.carries(APPROVED_SUBJECT):
         return not _settlement.carries_settled_record(state)
     covered = ReviewSubject.identity_recorded_in(state.get(APPROVED_SUBJECT))
-    return covered is not None and covered == current_report_identity(state)
+    return covered is not None and covered == _current_identity(state)
 
 
-def current_report_identity(state: PinnedState) -> tuple | None:
+def _current_identity(state: PinnedState) -> tuple | None:
     """The pull request and the report recorded as current, or None for damage.
-
-    Public because verification evidence answers for a review subject too
-    (`verification_proof`), and is held to the report the pull request
-    carries by this same identity rather than by a second reading of it.
 
     Asked of the settled records as CLAIMS first, for the reason every guard
     over them is: a record nobody can read is not an issue without a report,

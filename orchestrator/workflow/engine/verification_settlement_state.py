@@ -11,8 +11,9 @@ leaves an artifact on the pull request and a transaction still claiming it is
 owed, or current evidence that nothing records as ever having been published.
 
 Nothing here RELABELS evidence. A record retired from pending or current keeps
-the commit and tree it was about and the head it answered for, and goes into
-history saying why it stopped being what it was; the next current record is a
+its whole binding -- the commit and tree it was about, the head it answered
+for, and the report and review subject it answered to -- and goes into history
+saying why it stopped being what it was; the next current record is a
 settlement of its own. So a run is never presented as one on a commit it did
 not run on, and an invalidation says so rather than leaving stale evidence
 standing as current.

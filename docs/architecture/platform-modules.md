@@ -298,7 +298,8 @@ orchestrator/
                         response was lost stays unconfirmed until a read settles it; an artifact for another pull
                         request is refused before any request is made. Rereading a published artifact is the
                         report owner's `reread_report_location`, since a location is a pull request and a comment
-                        id either way. The thread read and the post are this owner's own seams, so the in-memory
+                        id either way; `reread_verification_artifact` re-reads the one comment a settlement
+                        recorded and answers with the artifact of ours it still is, or why it is not. The thread read and the post are this owner's own seams, so the in-memory
                         double answers them for artifacts without inheriting whatever a case arranged for reports.
                         Recording the comment an artifact landed as belongs above this layer, since the ledger of
                         this orchestrator's own comments is pinned state: a caller publishes through

@@ -1,56 +1,104 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What the pinned report records and the issue say about the subject evidence answers for.
+"""What the review records, the settled report, and the issue say about the subject evidence answers for.
 
-Evidence is written for a review subject, and a review subject names the
-developer report the pull request carried when it was resolved. So evidence
-can only be current while that report still is: no report transaction owed,
-and the settled report the same revision and the same words the subject names
--- compared by `review_subjects.current_report_identity`, the identity every
-approval reader already compares, rather than by a second reading of it. And
-it can only be current while the issue still carries the requirements the
-evidence was bound to, read by the same fingerprint the drift owner and every
-report transaction read.
+Evidence is written for a review subject in `review_subjects`' own shape, and
+it is current only while that subject is still the authoritative one, which is
+asked three ways.
 
-Both refusals DEFER: what clears them is a route behind the reconciliation --
-the report transaction settling, a fresh reviewer round, a drift resume, or
-fresher evidence superseding this. Only a requirements reading nobody could
-take holds.
+The RECORDED subject first. Which record is applicable follows the witness: a
+reviewer's own account answers for the subject the reviewer that RETURNED was
+handed (`review_returned_subject`), and a run this orchestrator executed
+answers for the subject the latest reviewer was handed (`review_subject`),
+which is the one an approval is later recorded over. The bound subject has to
+equal that record whole -- pull request, head, requirements, report revision
+and digest -- so evidence bound to a subject no reviewer was handed, or handed
+since, is not current. An issue that records no such subject, or one nobody
+can read, has no subject any evidence answers for. A developer report still
+owed is a subject about to move, so it defers first.
+
+The SETTLED REPORT second, read exactly as a reviewer is handed it
+(`stages/validating/review_report.py`, resolved when called): the current
+report and the handoff that settled it held to each other, and the report
+re-read at its recorded location, published or verified, under an author this
+deployment trusts, and still hashing to its digest. The bound subject has to
+name that report's revision and digest. A report gone, edited, or out of step
+with its handoff is a subject nobody can hand a reviewer, and one nobody could
+re-read holds.
+
+The REQUIREMENTS last: the issue still has to carry the revision the evidence
+was bound to, read by the fingerprint the drift owner and every report
+transaction read.
+
+Every refusal but an unreadable reading DEFERS: what clears it is a route
+behind the reconciliation -- the report transaction settling, a fresh reviewer
+round, a drift resume, or fresher evidence superseding this.
 """
 from __future__ import annotations
 
+import importlib
 import logging
+from types import MappingProxyType
 
 from github.Issue import Issue
 
+from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.verification_evidence import EvidenceSource
 from orchestrator.workflow.engine import (
     comments as _comments,
     content_hash as _content_hash,
     report_evidence_models as _evidence_models,
     report_record_state as _report_record_state,
     review_subjects as _review_subjects,
+    stage_targets as _stage_targets,
     verification_records as _records,
 )
 
 log = logging.getLogger("orchestrator.workflow")
 
+# The recorded review subject each witness's evidence answers for.
+_APPLICABLE_SUBJECT = MappingProxyType({
+    EvidenceSource.ORCHESTRATOR_EXECUTED: _review_subjects.REVIEW_SUBJECT,
+    EvidenceSource.REVIEWER_REPORTED: _review_subjects.RETURNED_SUBJECT,
+})
+
 
 def subject_verdict(
-    state: PinnedState, target: _records.EvidenceTarget,
+    state: PinnedState, binding: _records.EvidenceBinding,
 ) -> _evidence_models.ReportEvidence | None:
-    """Refuse a review subject that is not about the report standing now, or None.
-
-    A developer report transaction still owed is a subject about to move, so
-    it defers to that transaction, which the dispatcher reconciles first. A
-    settled report nobody can read matches no subject, and neither does a
-    subject naming another revision, other words, or a report where the
-    settled records carry none.
-    """
+    """Refuse evidence whose subject is not the applicable recorded one, or None."""
+    applicable = _APPLICABLE_SUBJECT[binding.source]
+    recorded = state.get(applicable)
     refusal = ""
     if _report_record_state.carries_pending_report(state):
         refusal = "a developer report the review subject would describe is still owed"
-    elif target.subject_identity != _review_subjects.current_report_identity(state):
+    elif _review_subjects.ReviewSubject.identity_recorded_in(recorded) is None:
+        refusal = f"no readable {applicable} is recorded for the evidence to answer for"
+    elif recorded != binding.target.subject:
+        refusal = f"the evidence answers for another subject than the recorded {applicable}"
+    if not refusal:
+        return None
+    return _evidence_models.ReportEvidence(
+        _evidence_models.ReportEvidenceVerdict.DEFER, refusal,
+    )
+
+
+def report_verdict(
+    gh: GitHubClient, state: PinnedState, target: _records.EvidenceTarget,
+) -> _evidence_models.ReportEvidence | None:
+    """Refuse a subject that is not about the settled report as re-read now, or None."""
+    report, refusal = importlib.import_module(
+        _stage_targets._VALIDATING_REVIEW_REPORT_OWNER,
+    )._settled_report(gh, state, target.publication.pr_number)
+    if report is None and not refusal:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.HOLD,
+            "the settled developer report could not be re-read",
+        )
+    if report is not None and target.subject_identity != (
+        target.publication.pr_number, report.report_revision, report.content_revision,
+    ):
         refusal = "the review subject is not about the report the pull request carries"
     if not refusal:
         return None

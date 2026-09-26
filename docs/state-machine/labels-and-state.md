@@ -1735,9 +1735,10 @@ The keys that matter for the state machine fall into a few groups:
   `[command, exit status, transcript]`. `verification_evidence_current` is the evidence the pull request carries now:
   the same binding without the commands, plus the artifact's evidence digest (`content`), the comment it landed as
   (`comment`), and whether every command exited 0 (`passed`); `null` once invalidated. `verification_evidence_history`
-  is the five most recent retired records, oldest first -- each by receipt, revision, tested commit and tree, target
-  head, context, digest, `passed`, `comment` (`null` for a transaction abandoned before any post was confirmed), and
-  `retired` (`superseded`, `invalidated`, or `abandoned`) -- an index of artifacts that all stay on the pull request.
+  is the five most recent retired records, oldest first -- each with its receipt, revision, whole binding (the report
+  revision and digest and the complete review subject included, since the artifact names only the subject's head),
+  digest, `passed`, `comment` (`null` for a transaction abandoned before any post was confirmed), and `retired`
+  (`superseded`, `invalidated`, or `abandoned`) -- beside artifacts that all stay on the pull request.
   `verification_evidence_handoff` is the receipt of the last finished transaction with its pull request, revision,
   target head, and, where it could be read, the label the issue carried as it settled (`under`). An issue without any
   of the keys owes, holds, and has retired nothing.
@@ -1750,14 +1751,19 @@ The keys that matter for the state machine fall into a few groups:
   unlabelled. It publishes only once it has PROVED the pull request open on the recorded branch and standing on the
   target head, the branch and checkout standing there too, the tested commit, the target head, and the review
   subject's head each a readable commit carrying the recorded tree, the configured context the recorded one, no
-  developer report still owed and the review subject naming the one `developer_report_current` records, and the
-  issue's requirements the bound revision. The post is scoped by the receipt, so an accepted write whose response was
+  developer report still owed, the bound review subject equal to the applicable record (`review_returned_subject` for
+  reviewer-reported evidence, `review_subject` for orchestrator-executed), the settled report re-read exactly as a
+  reviewer is handed it -- `developer_report_current` and `developer_report_handoff` agreeing, and the report at its
+  recorded location unchanged under its author -- and named by that subject, and the issue's requirements the bound
+  revision. The post is scoped by the receipt, so an accepted write whose response was
   lost is found rather than repeated; the pull request and requirements are proved again over fresh reads before ONE
   write supersedes the earlier current record into history, installs the new one and the handoff, and drops the
   pending record. A reading nobody could take holds the tick; anything a push, a drift resume, a fresh reviewer, or
   fresher evidence answers stands down with the transaction owed. Nothing here parks: an unreadable record is dropped,
   and one whose pull request ended or that settled evidence has overtaken is abandoned into history; a record its own
-  handoff already names is dropped without a second post. Evidence answers for another head only through a
+  handoff already names is dropped without a second post. A reader relying on the current record re-proves all of
+  that and its publication besides: the handoff describing it, and the comment it recorded still our artifact with
+  its identity and digest (`workflow/engine/verification_current.py`). Evidence answers for another head only through a
   carry-forward decision (`workflow/engine/verification_carry_forward.py`) exposed when that head's full tree, read
   from the repository, is the tested tree and the configured context is the recorded one -- patch ids, contribution
   fingerprints, topic diffs, and rewrite names are never consulted -- and the carried record keeps naming the commit

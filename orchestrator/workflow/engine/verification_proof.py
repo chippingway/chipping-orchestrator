@@ -10,16 +10,18 @@ written for; that the branch and this checkout stand there too; that the
 tested commit, the target head, and the review subject's head are commits this
 repository reads with the one tree the run recorded; that the verification
 context the commands ran under is the one configured now; that the review
-subject is about the developer report the pull request carries, with no report
-transaction still owed; and that the issue's requirements are still the ones
-the evidence was bound to.
+subject is the applicable one the review records carry, with no report
+transaction still owed; that it names the settled developer report as re-read
+at its recorded location, exactly as a reviewer is handed it; and that the
+issue's requirements are still the ones the evidence was bound to.
 
 The pull request is read first, through the report domain's own reading, and
 every other reading stands behind it: an ENDED pull request retires the
 transaction, and nothing short of that reading may stand in front of it. The
-rest follow cheapest first -- the context and the pinned subject cost nothing,
-the branch and the objects cost one fetch, and the requirements cost the
-comment walk the drift owner already makes.
+rest follow cheapest first -- the context and the recorded subject cost
+nothing, the branch and the objects cost one fetch, the report costs one read
+of its location, and the requirements cost the comment walk the drift owner
+already makes.
 
 The verdicts are the report transaction's own (`report_evidence_models`), and
 they mean the same here. HOLD is a reading nobody could take. DEFER is a
@@ -37,6 +39,8 @@ another one -- including an empty one -- is not current once it moves.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from github.Issue import Issue
 
 from orchestrator import config
@@ -47,6 +51,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
     report_publication_evidence as _publication,
+    verification_current as _current,
     verification_records as _records,
     verification_settlement_state as _settlement,
     verification_subject as _subject,
@@ -61,22 +66,18 @@ def configured_context_revision() -> str:
     )
 
 
-def evidence_verdict(
-    gh: GitHubClient,
-    spec: _config_models.RepoSpec,
-    issue: Issue,
-    state: PinnedState,
-    binding: _records.EvidenceBinding,
-) -> _evidence_models.ReportEvidence:
-    """Prove -- or refuse -- that `binding` is evidence for the world as it stands."""
-    found = _publication.subject_verdict(gh, binding.target.publication)
-    return rest_verdict(spec, issue, state, binding, found)
+@dataclass(frozen=True)
+class ProofReading:
+    """The client, repository, issue, and pinned comment one proof reads."""
+
+    gh: GitHubClient
+    spec: _config_models.RepoSpec
+    issue: Issue
+    state: PinnedState
 
 
 def rest_verdict(
-    spec: _config_models.RepoSpec,
-    issue: Issue,
-    state: PinnedState,
+    reading: ProofReading,
     binding: _records.EvidenceBinding,
     found: _evidence_models.ReportEvidence,
 ) -> _evidence_models.ReportEvidence:
@@ -84,41 +85,49 @@ def rest_verdict(
 
     `found` is the one reading that cannot be repeated without changing what
     is being proved, so a caller that had to see it first hands it on here and
-    the proved pull request is what comes back on success.
+    the proved pull request is what comes back on success. The pinned readings
+    come first, then the checkout, then the report and the requirements, each
+    of which is a request.
     """
     if not found.proved:
         return found
-    refused = _context_verdict(binding) or _subject.subject_verdict(state, binding.target)
+    refused = _context_verdict(binding) or _subject.subject_verdict(reading.state, binding)
     if refused is None:
-        refused = _world.world_verdict(spec, issue, binding)
+        refused = _world.world_verdict(reading.spec, reading.issue, binding)
+    if refused is None:
+        refused = _subject.report_verdict(reading.gh, reading.state, binding.target)
     if refused is None:
         refused = _subject.requirements_verdict(
-            issue, state, binding.target.publication.requirements_revision,
+            reading.issue, reading.state, binding.target.publication.requirements_revision,
         )
     return found if refused is None else refused
 
 
-def current_evidence_verdict(
-    gh: GitHubClient,
-    spec: _config_models.RepoSpec,
-    issue: Issue,
-    state: PinnedState,
-) -> _evidence_models.ReportEvidence:
-    """Prove the current evidence still stands for the world, or refuse it.
+def current_evidence_verdict(reading: ProofReading) -> _evidence_models.ReportEvidence:
+    """Prove the current evidence still stands and is still published, or refuse it.
 
     For a reader about to rely on the current record -- a reviewer handed it,
     a readiness decision -- rather than for the reconciliation that settled
-    it: a head, a context, a report, or requirements can each move after the
-    settlement, and the record alone cannot see any of them. An issue with no
-    current evidence defers, since nothing on this road can produce some.
+    it: a head, a context, a report, a review subject, or requirements can
+    each move after the settlement, and the artifact can be deleted or edited,
+    and the record alone sees none of it. So its handoff and its artifact are
+    read again (`verification_current`) behind the pull request, and then the
+    whole proof a settlement takes. An issue with no current evidence defers,
+    since nothing on this road can produce some.
     """
-    current = _settlement.read_current_evidence(state)
+    current = _settlement.read_current_evidence(reading.state)
     if current is None:
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.DEFER,
             "this issue records no current verification evidence",
         )
-    return evidence_verdict(gh, spec, issue, state, current.binding)
+    found = _publication.subject_verdict(reading.gh, current.binding.target.publication)
+    if not found.proved:
+        return found
+    unpublished = _current.publication_verdict(
+        reading.gh, reading.state, current, found.pull_request,
+    )
+    return unpublished or rest_verdict(reading, current.binding, found)
 
 
 def _context_verdict(

@@ -8,8 +8,8 @@ decided from. A handoff carries only what says WHICH transaction finished --
 the receipt, the pull request, the revision, and the head -- since the artifact
 itself stays on the pull request and a second copy on the pinned comment would
 only be a second thing to disagree with it. A history entry is written by
-`verification_history_fields`, over the members `record_members` reads here
-for both.
+`verification_history_fields` over the same binding, and the members
+`record_members` reads here for both.
 
 Every reader here refuses what its own writer would not have produced, and
 answers None for it. The state owner above decides what a refusal means for
@@ -108,29 +108,22 @@ def handoff_from(recorded: object) -> _records.EvidenceHandoff | None:
     )
 
 
-def record_members(recorded: dict, named: tuple = ()) -> dict[str, Any] | None:
+def record_members(recorded: dict) -> dict[str, Any] | None:
     """What every current and history record carries, read as their writers spell it.
 
-    The receipt, the revision, the evidence digest, and the pass flag, plus
-    any whole hex member `named` lists as `(member, key, lengths)`. Returned
-    as the keyword arguments those records are built from, or None where any
-    of them is not what the writers spell.
+    The receipt, the revision, the evidence digest, and the pass flag,
+    returned as the keyword arguments those records are built from, or None
+    where any of them is not what the writers spell.
     """
-    identified = _hex_members(
-        recorded, (("content_revision", CONTENT_DIGEST, _formats.DIGEST_LENGTHS), *named),
-    )
     receipt = _record_values.as_receipt(recorded.get(RECEIPT))
     revision = _record_values.as_recorded_number(recorded.get(REVISION))
+    digest = _payloads.as_hex(recorded.get(CONTENT_DIGEST), _formats.DIGEST_LENGTHS)
     passed = recorded.get(PASSED)
-    if identified is None or not (receipt and revision) or not isinstance(passed, bool):
+    if not (receipt and revision and digest) or not isinstance(passed, bool):
         return None
-    return {"receipt": receipt, "revision": revision, "passed": passed, **identified}
-
-
-def _hex_members(recorded: dict, named: tuple) -> dict[str, str] | None:
-    """Each `(member, key, lengths)` read as whole hex, or None if any is not."""
-    identified = {
-        member: _payloads.as_hex(recorded.get(key), lengths)
-        for member, key, lengths in named
+    return {
+        "receipt": receipt,
+        "revision": revision,
+        "content_revision": digest,
+        "passed": passed,
     }
-    return None if None in identified.values() else identified

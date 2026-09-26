@@ -20,8 +20,9 @@ posted and dropped by the write that settles it. CURRENT is the evidence the
 pull request carries now, and nothing but a proved settlement may write it.
 HISTORY is every earlier record in the order it was retired -- superseded by a
 later settlement, invalidated by a reader that proved the world moved past it,
-or abandoned before it ever settled -- so older evidence is kept as history
-rather than relabelled as a run on something newer. HANDOFF is the receipt
+or abandoned before it ever settled -- each with its whole binding, so older
+evidence is kept as history, still saying which report and review it answered
+for, rather than relabelled as a run on something newer. HANDOFF is the receipt
 that one transaction finished, and it is what turns a replay into a no-op.
 
 The binding EXTENDS the report records rather than forking them. What the
@@ -211,7 +212,14 @@ class CurrentEvidence:
 
 @dataclass(frozen=True)
 class HistoricalEvidence:
-    """One earlier record, kept as what it was and why it stopped being it.
+    """One earlier record, kept whole as what it was and why it stopped being it.
+
+    The binding is kept entire -- the pull request, branch, and head it
+    answered for, the requirements, the review subject with the developer
+    report's revision and digest, the witness, and the tested commit, tree, and
+    context -- because the artifact on the pull request names only the review
+    subject's head, and a retirement that dropped the rest would leave history
+    unable to say which report and review the evidence answered for.
 
     `comment_id` is None for a transaction abandoned before any post was
     confirmed; its artifact may still be on the pull request under `receipt`.
@@ -219,10 +227,7 @@ class HistoricalEvidence:
 
     receipt: str
     revision: int
-    tested_sha: str
-    tested_tree: str
-    target_head: str
-    context_revision: str
+    binding: EvidenceBinding
     content_revision: str
     passed: bool
     retired: Retirement
@@ -233,14 +238,10 @@ class HistoricalEvidence:
         cls, record: PendingEvidence | CurrentEvidence, retired: Retirement,
     ) -> HistoricalEvidence:
         """The history entry one pending or current record leaves when retired."""
-        binding = record.binding
         return cls(
             receipt=record.receipt,
             revision=record.revision,
-            tested_sha=binding.tested_sha,
-            tested_tree=binding.tested_tree,
-            target_head=binding.target.target_head,
-            context_revision=binding.context_revision,
+            binding=record.binding,
             content_revision=record.content_revision,
             passed=record.passed,
             retired=retired,

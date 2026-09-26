@@ -124,19 +124,24 @@ class HistoryTest(unittest.TestCase, support.VerificationEvidenceCase):
     def setUp(self) -> None:
         support.VerificationEvidenceCase.setUp(self)
 
-    def test_an_invalidation_keeps_it_as_history(self) -> None:
+    def test_an_invalidation_keeps_it_whole(self) -> None:
         settled = self.record()
         self.reconcile()
 
         self.assertTrue(_settlement.retire_current_evidence(self.state))
 
+        # Kept whole: the report revision and digest and the complete review
+        # subject survive, though the artifact names only the subject's head.
         self.assertIsNone(_settlement.read_current_evidence(self.state))
         self.assertEqual(
             [
-                (entry.receipt, entry.retired, entry.target_head)
+                (entry.receipt, entry.retired, entry.binding)
                 for entry in _settlement.read_evidence_history(self.state)
             ],
-            [(settled.receipt, _records.Retirement.INVALIDATED, support.TESTED_SHA)],
+            [(settled.receipt, _records.Retirement.INVALIDATED, settled.binding)],
+        )
+        self.assertEqual(
+            settled.binding.target.subject, self.subject.recorded(),
         )
         self.assertFalse(_settlement.retire_current_evidence(self.state))
 

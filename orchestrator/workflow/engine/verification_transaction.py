@@ -143,7 +143,9 @@ def _answers_what_is_owed(
             "over; abandoning revision %d", issue.number, pending.revision,
         )
         return _retires(gh, issue, state, pending)
-    evidence = _proof.rest_verdict(spec, issue, state, pending.binding, found)
+    evidence = _proof.rest_verdict(
+        _proof.ProofReading(gh, spec, issue, state), pending.binding, found,
+    )
     if not evidence.proved:
         log.info(
             "issue=#%d cannot make verification evidence revision %d current "

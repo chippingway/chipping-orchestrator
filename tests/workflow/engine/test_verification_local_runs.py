@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which local verify runs are evidence, and exactly what they are evidence of.
 
-A run that passed whole and a run whose last command failed on the tested tree
-are evidence, carrying exactly the commands that ran with the status each
-earned -- the failure stays actionable rather than vanishing. An empty
-configuration, a timeout, a dirty or moved tree, a run that never read what it
-tested, and a transcript the artifact format would refuse are not evidence of
-anything and bind nothing.
+Only a run that passed whole, with a clean tree proved after every command, is
+evidence, carrying exactly the commands that ran. A failed run binds nothing,
+however genuine: the runner reads no worktree status after a nonzero exit, so a
+command that rewrote tracked files before failing -- which is what an outcome
+naming dirty files records -- could otherwise be bound to the committed tree.
+An empty configuration, a timeout, a dirty or moved tree, a run that never read
+what it tested, and a transcript the artifact format would refuse bind nothing
+either.
 """
 from __future__ import annotations
 
@@ -81,24 +83,20 @@ class LocalRunEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
         support.VerificationEvidenceCase.setUp(self)
         self.target = self.binding().target
 
-    def test_passing_and_failing_runs_are_evidence(self) -> None:
-        runs = (
-            (_run(_outcome(support.SUITE), _outcome(_LINT)), (0, 0)),
-            (_run(_outcome(support.SUITE), _FAILED_LINT, status=_FAILED), (0, _FAILED_EXIT)),
-        )
-        for run, statuses in runs:
-            with self.subTest(status=run.status):
-                binding, commands = _local_runs.local_run_evidence(run, self.target)
+    def test_a_passing_run_is_evidence(self) -> None:
+        run = _run(_outcome(support.SUITE), _outcome(_LINT))
 
-                self.assertEqual(
-                    (binding.tested_sha, binding.tested_tree, binding.context_revision),
-                    (support.TESTED_SHA, support.TESTED_TREE, run.context_revision),
-                )
-                self.assertIs(binding.source, EvidenceSource.ORCHESTRATOR_EXECUTED)
-                self.assertEqual(
-                    [(ran.command, ran.exit_status, ran.output) for ran in commands],
-                    _transcript(run, statuses),
-                )
+        binding, commands = _local_runs.local_run_evidence(run, self.target)
+
+        self.assertEqual(
+            (binding.tested_sha, binding.tested_tree, binding.context_revision),
+            (support.TESTED_SHA, support.TESTED_TREE, run.context_revision),
+        )
+        self.assertIs(binding.source, EvidenceSource.ORCHESTRATOR_EXECUTED)
+        self.assertEqual(
+            [(ran.command, ran.exit_status, ran.output) for ran in commands],
+            _transcript(run, (0, 0)),
+        )
 
     def test_a_run_about_no_one_tree_binds_nothing(self) -> None:
         fenced = _outcome(support.SUITE, output="```\nclosed early")
@@ -112,6 +110,14 @@ class LocalRunEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
             "moved head": _run(
                 _outcome(support.SUITE, status=_MOVED, head_after=support.REBASED_SHA),
                 status=_MOVED,
+            ),
+            "failure on the tested tree": _run(
+                _outcome(support.SUITE), _FAILED_LINT, status=_FAILED,
+            ),
+            "failure that rewrote tracked files": _run(
+                _outcome(support.SUITE),
+                dataclasses.replace(_FAILED_LINT, dirty_files=("orchestrator/cli.py",)),
+                status=_FAILED,
             ),
             "failure that moved the head": _run(
                 dataclasses.replace(_FAILED_LINT, head_after=support.REBASED_SHA),

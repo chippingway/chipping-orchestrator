@@ -966,17 +966,23 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Stands aside**: a closed issue, a `done` or `rejected` label, a hard-skip control label, or no workflow label at
   all. Nothing is published or dropped, so a reopen or a relabel finds the record as it was.
 - **Outcomes**:
-  - **Settled** → the pull request, branch, checkout, tested and target trees, review subject, configured context,
-    and requirements all PROVED; the artifact is posted (or found, by its receipt, where an earlier post's response
-    was lost), the pull request and requirements are proved again over fresh reads, and one write makes it current,
-    moves the earlier current evidence into history as superseded, and records the handoff.
-  - **Held** → a reading nobody could take: the pull request, the fetch, the divergence, the requirements, or an
-    unconfirmed post. The next tick asks again.
+  - **Settled** → the pull request, branch, checkout, tested and target trees, configured context, the recorded
+    review subject (`review_returned_subject` for a reviewer's account, `review_subject` otherwise), the settled
+    report re-read at its location as a reviewer is handed it, and the requirements all PROVED; the artifact is
+    posted (or found, by its receipt, where an earlier post's response was lost), the pull request and requirements
+    are proved again over fresh reads, and one write makes it current, moves the earlier current evidence into
+    history as superseded, and records the handoff.
+  - **Held** → a reading nobody could take: the pull request, the fetch, the divergence, the report's location, the
+    requirements, or an unconfirmed post. The next tick asks again.
   - **Stood down** → a moved head or branch, an absent checkout, an unreadable or different tree, a moved
-    configuration, a report still owed or superseded, edited requirements, an edited artifact, or a settlement the
+    configuration, a report still owed, a review subject absent or replaced, a report settled after the review or
+    deleted, edited, or out of step with its handoff, edited requirements, an edited artifact, or a settlement the
     comment no longer has room for. The transaction stays owed for the route that answers it.
   - **Retired** → a replay its own handoff names is dropped; an unreadable record is dropped; a record whose pull
     request ended, or that settled evidence has overtaken, is abandoned into history. It never parks.
+- **Relying on it later**: `current_evidence_verdict` proves the current record again for a reader -- its handoff,
+  its artifact re-read at the recorded comment, and then the whole proof above -- so a deleted or edited artifact is
+  not reported as current.
 - **Carry-forward**: `workflow/engine/verification_carry_forward.py` decides whether current evidence answers for
   another head, and only on the full tree identity of that head and an unchanged configured context. What it licenses
   is a new transaction naming the tested commit unchanged and the new head as its target, which this reconciliation

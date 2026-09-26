@@ -16,6 +16,8 @@ from pathlib import Path
 from orchestrator.git.publication.probes import _BranchDivergence
 from tests.workflow.engine.report_checkout_fixture import Fetched
 
+BRANCH = "orchestrator/chippingway__orchestrator/issue-7"
+
 TESTED_SHA = "3f786850e387550fdab836ed7e6dc881de23001b"
 
 TESTED_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"

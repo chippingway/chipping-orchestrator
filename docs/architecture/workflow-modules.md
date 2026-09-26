@@ -147,7 +147,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reader would accept. Shape is settled before truth: a well-formed declaration naming
                             another commit, or any revision but the current one, is stale. Nothing is counted or
                             inferred from what the reviewer wrote
-    stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call;
+    stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call
+                            (the settled-report reader the verification-evidence proof reuses among them);
                             the unlabeled target reaches pickup through the same resolver. Named here too, though
                             no label routes to any of them, are the stage owners a report record's own measurement
                             REPLAYS to size the writes that land behind it: the two code-publication receipt
@@ -753,15 +754,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             read covers nothing: it is read whole, exactly the five members its writer spells, each in
                             its shape -- requirements that are a digest or "", both report members or neither, a whole
                             commit id as the head wherever a pull request is named, and neither a head nor a report
-                            where none is -- or neither its identity, its head, nor its requirements are read.
-                            `current_report_identity` is the report side of that comparison, published so
-                            verification evidence is held to the settled report by the same identity
+                            where none is -- or neither its identity, its head, nor its requirements are read
     verification_records.py the verification-evidence records and their pinned keys: PENDING
                             (`verification_evidence_pending`, the run and its binding, written before the artifact
                             is posted), CURRENT (`verification_evidence_current`), HISTORY
                             (`verification_evidence_history`, retired records with why -- superseded, invalidated,
-                            or abandoned), and HANDOFF (`verification_evidence_handoff`, the receipt of the last
-                            finished transaction). A binding extends the report records rather than forking them:
+                            or abandoned, each keeping its whole binding), and HANDOFF
+                            (`verification_evidence_handoff`, the receipt of the last finished transaction). A binding extends the report records rather than forking them:
                             its target is a report `ReportSubject` about the head the evidence answers for, beside
                             the review subject exactly as `review_subjects.py` records it, and the run adds the
                             tested commit and full tree, the context revision, and the witness. The artifact a
@@ -777,9 +776,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             current and history record share (`record_members`); each reader refuses what its own
                             writer would not produce
     verification_history_fields.py
-                            the pinned object one history entry is written as: an index of an artifact that stays
-                            on the pull request, whose comment may be `null` for a transaction abandoned before any
-                            post was confirmed
+                            the pinned object one history entry is written as: the whole binding -- report revision
+                            and digest and the complete review subject included, since the artifact names only the
+                            subject's head -- beside an index of an artifact that stays on the pull request, whose
+                            comment may be `null` for a transaction abandoned before any post was confirmed
     verification_record_state.py
                             the pending transaction's round trip: presence and reading, minting (a revision past
                             every record the issue keeps, and a receipt spelled from it and a fresh nonce, since a
@@ -795,23 +795,32 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             record abandoned -- into history without ever relabelling a run. History keeps the five
                             newest entries, oldest out, which keeps revisions monotonic
     verification_local_runs.py
-                            what one local `VERIFY_COMMANDS` run is worth as evidence: a run `is_reusable` vouches
-                            for, or one whose last command failed on the tested tree and nowhere else, bound to its
-                            target with exactly the commands that ran; an empty configuration, a timeout, a dirty or
-                            moved tree, and a transcript the artifact would refuse bind nothing
+                            what one local `VERIFY_COMMANDS` run is worth as evidence: only a run `is_reusable`
+                            vouches for, bound to its target with exactly the commands that ran. A failed run binds
+                            nothing, since the runner proves no clean tree after a nonzero exit; nor do an empty
+                            configuration, a timeout, a dirty or moved tree, or a transcript the artifact would
+                            refuse
     verification_world.py   the branch and object half of the evidence proof: a checkout on this host, the branch
                             held by `report_remote_evidence.py` to the target head, and the tested commit, the
                             target head, and the review subject's head each read as a commit carrying the one tree
                             the run recorded (`tree_of`)
-    verification_subject.py the pinned and issue half: no developer report still owed, the review subject naming the
-                            report `review_subjects.current_report_identity` says is current, and the requirements
-                            the evidence was bound to still the issue's own
+    verification_subject.py the subject half: no developer report still owed; the bound review subject equal to the
+                            applicable record (`review_returned_subject` for a reviewer's account, `review_subject`
+                            for a run this orchestrator executed); the settled report re-read exactly as a reviewer
+                            is handed it -- the settled pair held to each other and the report read at its location,
+                            through `stages/validating/review_report.py` resolved when called -- and named by that
+                            subject; and the requirements the evidence was bound to still the issue's own
     verification_proof.py   the whole proof, pull request first through `report_publication_evidence.py` and then
                             cheapest first -- the context against `configured_context_revision` (the verify runner's
                             own over the configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, for both witnesses), the
-                            subject, the world, the requirements -- in the report transaction's verdict vocabulary;
-                            and `current_evidence_verdict`, the same proof for a reader about to rely on the current
-                            record
+                            recorded subject, the world, the settled report, the requirements -- in the report
+                            transaction's verdict vocabulary; and `current_evidence_verdict`, for a reader about to
+                            rely on the current record: its publication first (`verification_current.py`), then the
+                            same proof
+    verification_current.py whether the current record is still what the pull request carries: the handoff has to
+                            describe it, and the comment it recorded, re-read, has to be our artifact with the
+                            recorded identity and evidence digest; a deleted or edited artifact defers, and a thread
+                            nobody could read holds
     verification_carry_forward.py
                             the carry-forward decision, exposed only when the target head's full tree, read from this
                             repository, is the tested tree and the configured context is the recorded one -- no

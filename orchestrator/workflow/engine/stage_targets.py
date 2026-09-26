@@ -13,7 +13,9 @@ relabel writes; the stamp a fixing hand-back leaves on the comment the
 settlement ahead of it left; and the records a reviewer round writes onto that
 same comment. Each is replayed through the owner that performs
 it rather than respelled here, so a member added there moves every reservation
-taken against it.
+taken against it. The owner that re-reads the settled report a reviewer is
+handed is named here too, for the verification-evidence proof that holds its
+review subject to that same reading.
 """
 from __future__ import annotations
 
@@ -86,6 +88,14 @@ _VALIDATING_PACKAGE = "orchestrator.workflow.stages.validating"
 # review it is handed to, and asking the stage directly would make the
 # engine's own import pull the handlers that import it back.
 _VALIDATING_REVIEW_RECORDS_OWNER = f"{_VALIDATING_PACKAGE}.review_records"
+
+# The owner that resolves the settled developer report a reviewer is handed --
+# the settled pair held to each other, and the report re-read at its recorded
+# location. Named here and resolved when called for the same reason: the
+# verification-evidence proof holds the report its review subject names to that
+# exact reading, and asking the stage directly would make the engine's own
+# import pull the handlers that import it back.
+_VALIDATING_REVIEW_REPORT_OWNER = f"{_VALIDATING_PACKAGE}.review_report"
 
 # The one handler a label does not choose. It is reached by being closed on a
 # cleanup-swept label instead, and it is deliberately not in the table below:

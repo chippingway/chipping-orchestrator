@@ -9,6 +9,12 @@ a reading could not be taken. A move that a route behind the guard answers -- a
 push, a drift resume, a fresh reviewer, fresher evidence -- stands down
 instead, so the stage behind it still runs.
 
+The review subject is held to the records a reviewer actually wrote, and the
+report it names is re-read where its settlement put it, exactly as a reviewer
+is handed it: a subject nobody recorded, one a later review replaced, a report
+settled after the review, and a report deleted, edited, out of step with its
+handoff, or unreadable are each refused.
+
 The settlement proves the pull request and the requirements once more after the
 post, since a push can land while the artifact is being written: evidence is
 then left owed rather than declared current over a head nobody verified.
@@ -20,21 +26,21 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.github.verification_evidence import EvidenceSource
 from orchestrator.workflow.engine import (
-    report_evidence_models as _evidence_models,
     report_records as _report_records,
-    report_settlement_state as _report_settlement,
-    verification_proof as _proof,
+    review_subjects as _review_subjects,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from tests.workflow.engine import verification_evidence_test_support as support, verification_world_fixture as _world
-from tests.workflow.fixtures import _TEST_SPEC
+from tests.workflow.engine import (
+    verification_evidence_test_support as support,
+    verification_report_fixture as _report,
+    verification_world_fixture as _world,
+)
 
 _ABSENT_CHECKOUT = Path("/nonexistent/orchestrator/issue-7")
-
-_LATER_DIGEST = "22b2e1d2c3b4a5968778695a4b3c2d1e0ff0e1d2c3b4a5968778695a4b3c2d1e"
 
 _LEVEL = "INFO"
 
@@ -85,9 +91,41 @@ _REFUSALS = (
         False, "would describe is still owed",
     ),
     (
-        "a later report settled",
-        lambda case: case.settles_a_later_report(),
+        "no review subject is recorded",
+        lambda case: case.persists(_review_subjects.REVIEW_SUBJECT, None),
+        False, "no readable review_subject is recorded",
+    ),
+    (
+        "a later review was handed another report",
+        lambda case: case.settles(_report.settles_report(case, 2, _report.LATER_REPORT_TEXT)),
+        False, "another subject than the recorded review_subject",
+    ),
+    (
+        "a report settled after the review",
+        lambda case: case.settles(_report.settles_report(
+            case, 2, _report.LATER_REPORT_TEXT, reviewed=False,
+        )),
         False, "not about the report the pull request carries",
+    ),
+    (
+        "the report comment was deleted",
+        lambda case: case.pull_request.issue_comments.remove(case.report_comment()),
+        False, "no longer at the location it was recorded at",
+    ),
+    (
+        "the report comment was edited",
+        lambda case: setattr(case.report_comment(), "body", "Rewritten by hand."),
+        False, "was edited, cut short, or rewritten",
+    ),
+    (
+        "the report handoff is gone",
+        lambda case: case.persists(_report_records.REPORT_HANDOFF, None),
+        False, "disagrees with the handoff that settled it",
+    ),
+    (
+        "the report would not re-read",
+        lambda case: case.gh.report_failures.unreadable.add(support.PR_NUMBER),
+        True, "the settled developer report could not be re-read",
     ),
     (
         "the branch would not fetch",
@@ -121,19 +159,17 @@ class UnprovedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
         self.state.set(key, recorded)
         self.gh.write_pinned_state(self.issue, self.state)
 
-    def settles_a_later_report(self) -> None:
-        """Settle a second developer report revision over the first."""
-        current = _report_settlement.read_current_report(self.state)
-        _report_settlement.record_current_report(
-            self.state, _report_records.CurrentReport(
-                subject=current.subject,
-                report_revision=2,
-                content_revision=_LATER_DIGEST,
-                location=current.location,
-                mode=current.mode,
-            ),
-        )
+    def settles(self, _subject) -> None:
+        """Persist what a later settlement staged on the comment."""
         self.gh.write_pinned_state(self.issue, self.state)
+
+    def report_comment(self):
+        """The comment the settled report was published as."""
+        location = self.subject.report.location
+        return next(
+            posted for posted in self.pull_request.issue_comments
+            if posted.id == location.comment_id
+        )
 
     def test_every_moved_fact_refuses_the_evidence(self) -> None:
         for moved, moves, holds, refusal in _REFUSALS:
@@ -152,10 +188,12 @@ class UnprovedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
                 self.assertIsNone(_settlement.read_current_evidence(self.state))
 
     def test_a_subject_about_another_tree(self) -> None:
-        # A subject naming a head the tested tree is not -- evidence answering
-        # for a review of different content -- never becomes current.
+        # Even a subject a reviewer really was handed never makes evidence
+        # current where its head is not the tested tree: the evidence would be
+        # answering for a review of different content.
         target = self.binding().target
         subject = dict(target.subject, sha=support.REBASED_SHA)
+        self.state.set(_review_subjects.REVIEW_SUBJECT, subject)
         pending = self.record(self.binding(
             target=_records.EvidenceTarget(target.publication, subject),
         ))
@@ -168,6 +206,38 @@ class UnprovedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
 
         self.assertEqual(self.artifacts(), [])
         self.assertEqual(_record_state.read_pending_evidence(self.state), pending)
+
+
+class ReviewerReportedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
+    """A reviewer's account answers for the subject the reviewer that RETURNED read."""
+
+    def setUp(self) -> None:
+        support.VerificationEvidenceCase.setUp(self)
+        self.pending = self.record(
+            self.binding(source=EvidenceSource.REVIEWER_REPORTED),
+        )
+
+    def test_it_settles_over_the_returned_subject(self) -> None:
+        self.assertFalse(self.reconcile())
+
+        self.assertEqual(
+            [found.source for found in self.artifacts()],
+            [EvidenceSource.REVIEWER_REPORTED],
+        )
+
+    def test_no_returned_subject_answers_for_it(self) -> None:
+        # A launch whose reviewer never returned leaves `review_subject`
+        # naming the report and nothing saying a reviewer read it.
+        self.state.set(_review_subjects.RETURNED_SUBJECT, None)
+        self.gh.write_pinned_state(self.issue, self.state)
+
+        with self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
+            self.assertFalse(self.reconcile())
+            self.assertIn(
+                "no readable review_returned_subject", support.logged_refusal(logged),
+            )
+
+        self.assertEqual(self.artifacts(), [])
 
 
 class MovedDuringPublicationTest(unittest.TestCase, support.VerificationEvidenceCase):
@@ -197,40 +267,9 @@ class MovedDuringPublicationTest(unittest.TestCase, support.VerificationEvidence
         self.assertIsNone(_settlement.read_current_evidence(persisted))
         self.assertEqual(_record_state.read_pending_evidence(persisted), self.pending)
         # The artifact is ours on the ledger even though it never settled.
-        self.assertEqual(len(persisted.get(support.LEDGER)), 1)
-
-
-class CurrentEvidenceVerdictTest(unittest.TestCase, support.VerificationEvidenceCase):
-    """A reader relying on current evidence proves it against the world first."""
-
-    def setUp(self) -> None:
-        support.VerificationEvidenceCase.setUp(self)
-
-    def verdict(self) -> _evidence_models.ReportEvidence:
-        """What a reader asking now is told about the current evidence."""
-        with self.seams():
-            return _proof.current_evidence_verdict(
-                self.gh, _TEST_SPEC, self.issue, self.state,
-            )
-
-    def test_current_evidence_stands_until_moved(self) -> None:
-        absent = self.verdict()
-        self.record()
-        self.reconcile()
-
-        standing = self.verdict()
-        self.moves_the_head(support.REBASED_SHA)
-        moved = self.verdict()
-
-        self.assertEqual(
-            [reading.verdict for reading in (absent, standing, moved)],
-            [
-                _evidence_models.ReportEvidenceVerdict.DEFER,
-                _evidence_models.ReportEvidenceVerdict.PROVED,
-                _evidence_models.ReportEvidenceVerdict.DEFER,
-            ],
+        self.assertIn(
+            self.pull_request.issue_comments[-1].id, persisted.get(support.LEDGER),
         )
-        self.assertIs(standing.pull_request, self.pull_request)
 
 
 if __name__ == "__main__":

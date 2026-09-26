@@ -32,11 +32,11 @@ def _closes(case) -> None:
 
 
 def _labels_done(case) -> None:
-    case.label = LABEL_DONE
+    case.issue.labels = [FakeLabel(LABEL_DONE)]
 
 
 def _labels_rejected(case) -> None:
-    case.label = LABEL_REJECTED
+    case.issue.labels = [FakeLabel(LABEL_REJECTED)]
 
 
 def _pauses(case) -> None:
@@ -44,7 +44,7 @@ def _pauses(case) -> None:
 
 
 def _unlabels(case) -> None:
-    case.label = None
+    case.issue.labels.clear()
 
 
 class EvidenceDispatchTest(unittest.TestCase, support.VerificationEvidenceCase):
@@ -57,7 +57,7 @@ class EvidenceDispatchTest(unittest.TestCase, support.VerificationEvidenceCase):
     def test_the_real_chain_settles_live_work(self) -> None:
         with self.seams():
             refused = _dispatch_guards._pinned_state_refuses(
-                self.gh, _TEST_SPEC, self.issue, self.label,
+                self.gh, _TEST_SPEC, self.issue, self.gh.workflow_label(self.issue),
             )
 
         persisted = self.gh.read_pinned_state(self.issue)
