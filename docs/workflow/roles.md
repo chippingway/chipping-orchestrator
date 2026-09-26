@@ -68,19 +68,21 @@ per-stage behavior is in
 - **Reviewer freshness.** `_handle_validating` spawns a fresh reviewer subprocess every round with no resume, so
   `REVIEW_AGENT` changes take effect on the next validating tick. The current value is recorded in `review_agent` for
   traceability only. Each reviewer is handed the developer report its pull request carries — re-read from where it
-  settled and quoted whole beside the issue and the inspection commands, never fetched by the reviewer or left to
-  the bounded thread excerpt — and what it reviewed is recorded beside the spec as `review_subject`, both written
-  before the reviewer spawns: the pull request, its head, the requirements revision, and the report revision. A
-  pull request with no report recorded, a
-  report about another commit than that head, and one written against requirements the issue has moved past are
-  refused rather than handed over. A report that changes on an unchanged head is a new subject, so it always reaches
-  a fresh reviewer — one settling before the spawn holds the round, and one settling while a reviewer is out, while
-  its approval is verified or squashed, or while `in_review` decides its ready ping voids what that approval would
-  have earned, and either stays current — and nothing an earlier approval left keyed on the head alone stands in for
-  that review (see [`review_approved_subject`][review-subject]). Nor does an approval of requirements the issue has
-  moved past, or of a head a push has replaced: the squash handoff reads the issue and the pull request's head
-  afresh against what the approval was given before it moves the label to `workflow:documenting`, and `in_review`
-  hands such an approval back and reads both afresh before its ready ping.
+  settled and quoted whole beside the issue and the inspection commands, never fetched by the reviewer or left to the
+  bounded thread excerpt — and what it reviewed is recorded beside the spec as `review_subject`, both written before the
+  reviewer spawns: the pull request, its head, the requirements revision, and the report revision. The same subject is
+  recorded again as `review_returned_subject` in the write a reviewer that RETURNS makes, since the launch's record goes
+  down before the run budget is asked and a refused launch leaves it with no reviewer invoked; that returned record is
+  what tells a hand-back still owed its review from one a reviewer has read. A pull request with no report recorded, a
+  report about another commit than that head, and one written against requirements the issue has moved past are refused
+  rather than handed over. A report that changes on an unchanged head is a new subject, so it always reaches a fresh
+  reviewer — one settling before the spawn holds the round, and one settling while a reviewer is out, while its approval
+  is verified or squashed, or while `in_review` decides its ready ping voids what that approval would have earned, and
+  either stays current — and nothing an earlier approval left keyed on the head alone stands in for that review (see
+  [`review_approved_subject`][review-subject]). Nor does an approval of requirements the issue has moved past, or of a
+  head a push has replaced: the squash handoff reads the issue and the pull request's head afresh against what the
+  approval was given before it moves the label to `workflow:documenting`, and `in_review` hands such an approval back
+  and reads both afresh before its ready ping.
 - **Decomposer reuse.** `_handle_decomposing` spawns the decomposer once and resumes it on every awaiting-human
   reply — with one park excepted. An issue stopped on its spent spawn budget (`retry_cap`) is waiting on a human
   deciding to spend more of this issue's day on it rather than on words for the agent, so a reply resumes nothing
