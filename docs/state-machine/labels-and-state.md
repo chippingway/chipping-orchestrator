@@ -1760,15 +1760,16 @@ The keys that matter for the state machine fall into a few groups:
   refused -- that reads back identically, whose artifact renders, and the comment has room for it AND for its whole
   settling write and the later invalidation of the evidence that installs, measured at the widest comment id and label
   with the artifact's ledger entry reserved; a later record abandons a readable earlier one into history in the same
-  write, and drops one nobody can read. A settlement is ONE composed write, and only of the transaction the comment
-  records -- the earlier current record superseded into history, the new one and the handoff installed, and the pending
-  record set to `null` -- and a comment id past what the records carry settles nothing. A retirement -- the current
-  record invalidated, or the stored pending record, named whole, abandoned -- is composed on a copy and writes nothing
-  where the comment could not carry it; a transaction minted and never recorded, or one a later record replaced, is
-  never abandoned. A local `VERIFY_COMMANDS` run binds (`workflow/engine/verification_local_runs.py`) only where
-  `is_reusable` vouches for it, it ran on the head its target answers for, and its transcript is one the artifact would
-  publish in one comment, measured at the widest receipt and revision a record carries -- the room on the pinned comment
-  is left to the recorder; a failed, empty, timed-out, dirty, or moved run, or one on another head, binds nothing.
+  write, and drops one nobody can read. A settlement is ONE composed write onto the comment the transaction was recorded
+  on, and only of the transaction that comment records -- the earlier current record superseded into history, the new
+  one and the handoff installed, and the pending record set to `null` -- and a comment id past what the records carry
+  settles nothing. A retirement (the current record invalidated, or the stored pending record, named whole, abandoned)
+  is composed on a copy and writes nothing where the comment could not carry it; a transaction minted and never
+  recorded, or one a later record replaced, is never abandoned. A local `VERIFY_COMMANDS` run binds
+  (`workflow/engine/verification_local_runs.py`) only where `is_reusable` vouches for it, it ran on the head its target
+  answers for, and its transcript is one the artifact would publish in one comment, measured at the widest receipt and
+  revision a record carries -- the room on the pinned comment is left to the recorder; a failed, empty, timed-out,
+  dirty, or moved run, or one on another head, binds nothing.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one
