@@ -44,7 +44,7 @@ while `workflow:<tag>` is the **wire label** the GitHub issue carries. `in_revie
 - **Implementer / dev** — `DEV_AGENT` (default `claude`), spawned by implementing and resumed by documenting,
   validating, fixing, and conflicts; locked per issue after the first spawn.
 - **Reviewer** — `REVIEW_AGENT` (default `codex`), spawned fresh by validating every round, so the current config
-  always wins.
+  always wins, and handed the developer report the pull request carries, quoted whole in its prompt.
 
 The defaults (`claude` decomposes, `claude` implements, `codex` reviews) require those two CLIs; both need to be
 authenticated on the host before the orchestrator starts. Per-role detail:
@@ -115,7 +115,11 @@ requirements-drift resume, a reviewer-requested round on either side of the park
 human-feedback round `in_review` routes to `workflow:fixing`: the report is recorded before the size gate, stamped
 with the requirements revision the run was handed, bound once the code is out (or at once, for a report alone, which
 spends the round a pushed fix spends because the next reviewer reads it), and the reviewer waits until the pull
-request carries it. The additive `developer_report_*` pinned records (`workflow/engine/report_record*`,
+request carries it. That reviewer is then handed the report re-read where it settled, and what it approves is
+recorded as `review_approved_subject` — pull request, head, requirements, and report — so a report that changes on
+an unchanged head goes back to a fresh reviewer rather than riding an earlier approval
+([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)).
+The additive `developer_report_*` pinned records (`workflow/engine/report_record*`,
 `report_delivery_state.py` and `report_settlement_state.py`) carry that report and the publication transaction it is
 bound into across a process that dies mid-way; `workflow/engine/report_transaction.py` reconciles an outstanding
 transaction ahead of every stage handler — proving the world it was recorded against, publishing or re-reading the
