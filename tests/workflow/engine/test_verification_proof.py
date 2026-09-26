@@ -21,6 +21,7 @@ then left owed rather than declared current over a head nobody verified.
 """
 from __future__ import annotations
 
+import functools
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -29,6 +30,7 @@ from orchestrator import config
 from orchestrator.github.verification_evidence import EvidenceSource
 from orchestrator.workflow.engine import (
     report_records as _report_records,
+    report_settlement_state as _report_settlement,
     review_subjects as _review_subjects,
     verification_record_state as _record_state,
     verification_records as _records,
@@ -241,22 +243,25 @@ class ReviewerReportedEvidenceTest(unittest.TestCase, support.VerificationEviden
 
 
 class MovedDuringPublicationTest(unittest.TestCase, support.VerificationEvidenceCase):
-    """A head that moves while the artifact is written leaves the evidence owed."""
+    """Whatever moves while the artifact is written leaves the evidence owed."""
 
     def setUp(self) -> None:
         support.VerificationEvidenceCase.setUp(self)
         self.pending = self.record()
         self.posts = self.gh._post_verification_artifact
+        self.meanwhile = None
 
-    def posts_then_pushes(self, pull_request, body: str):
-        """Land the artifact, then let a push move the head before the settlement."""
+    def posts_then_moves(self, pull_request, body: str):
+        """Land the artifact, then let `meanwhile` move the world before the settlement."""
         landed = self.posts(pull_request, body)
-        self.moves_the_head(support.REBASED_SHA)
+        if self.meanwhile is not None:
+            self.meanwhile()
         return landed
 
     def test_a_push_during_the_post(self) -> None:
+        self.meanwhile = functools.partial(self.moves_the_head, support.REBASED_SHA)
         with patch.object(
-            self.gh, "_post_verification_artifact", self.posts_then_pushes,
+            self.gh, "_post_verification_artifact", self.posts_then_moves,
         ), self.assertLogs(support.WORKFLOW_LOG, _LEVEL):
             self.assertFalse(self.reconcile())
 
@@ -271,6 +276,36 @@ class MovedDuringPublicationTest(unittest.TestCase, support.VerificationEvidence
             self.pull_request.issue_comments[-1].id, persisted.get(support.LEDGER),
         )
 
+    def test_a_report_settling_during_the_post(self) -> None:
+        # A later report revision, and the review of it, land while the
+        # artifact is posted -- written to the pinned comment, or still only
+        # in the state the tick holds. Either way the evidence for the earlier
+        # subject is not declared current, and the refusal writes nothing back
+        # over what the comment carries.
+        for persisted_first in (True, False):
+            with self.subTest(persisted_first=persisted_first):
+                self.setUp()
+                self.meanwhile = functools.partial(self.settles_later, persisted=persisted_first)
+                with patch.object(
+                    self.gh, "_post_verification_artifact", self.posts_then_moves,
+                ), self.assertLogs(support.WORKFLOW_LOG, _LEVEL):
+                    self.assertFalse(self.reconcile())
+
+                persisted = self.gh.read_pinned_state(self.issue)
+                self.assertIsNone(_settlement.read_current_evidence(persisted))
+                self.assertEqual(
+                    _record_state.read_pending_evidence(persisted), self.pending,
+                )
+                self.assertEqual(
+                    _report_settlement.read_current_report(persisted).report_revision,
+                    2 if persisted_first else 1,
+                )
+
+    def settles_later(self, *, persisted: bool) -> None:
+        """Settle and review report revision 2, and write it where `persisted` says."""
+        _report.settles_report(self, 2, _report.LATER_REPORT_TEXT)
+        if persisted:
+            self.gh.write_pinned_state(self.issue, self.state)
 
 if __name__ == "__main__":
     unittest.main()

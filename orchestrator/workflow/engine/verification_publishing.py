@@ -16,15 +16,7 @@ definite answer about content a human owns, and STANDS DOWN onto the routes
 behind the reconciliation with the transaction still owed. Nothing is posted a
 second time either way.
 
-The settlement proves the world once more before it declares anything current,
-because a post is long enough for it to move: the pull request, read afresh,
-has to be standing on the head the artifact was written for, and the issue,
-read afresh, has to carry the requirements the evidence was bound to. The
-settling label is read off that same issue. Then ONE write installs it:
-the evidence that was current goes into history as superseded, this one
-becomes current, the handoff names its receipt, and the pending record is
-dropped. A settlement replayed after a crash in front of that write finds the
-artifact by its receipt and makes the same write again.
+The settlement that follows a landed post is `verification_settling`'s.
 
 The room for that write is proved ahead of the post, not at it: here nothing
 has happened yet, while at the write the artifact is already on the thread.
@@ -36,32 +28,21 @@ from typing import Any
 
 from github.Issue import Issue
 
-from orchestrator.github import (
-    labels as _labels,
-    pull_request_reports as _pr_reports,
-    verification_evidence as _evidence,
-)
-from orchestrator.github.client import GitHubClient
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github import pull_request_reports as _pr_reports, verification_evidence as _evidence
 from orchestrator.workflow.engine import (
-    report_evidence_models as _evidence_models,
-    report_publication_evidence as _publication,
     report_record_state as _report_record_state,
     verification_comments as _verification_comments,
+    verification_proof as _proof,
     verification_record_state as _record_state,
     verification_records as _records,
-    verification_settlement_state as _settlement,
-    verification_subject as _subject,
+    verification_settling as _settling,
 )
-from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
 
 def publishes(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
+    reading: _proof.ProofReading,
     pending: _records.PendingEvidence,
     pull_request: Any,
 ) -> bool:
@@ -70,6 +51,7 @@ def publishes(
     True holds the tick; False lets it carry on, over a transaction either
     settled or still owed.
     """
+    issue, state = reading.issue, reading.state
     settled = _record_state.settled_payload(state, pending)
     if settled is None or not _report_record_state.fits_the_comment(settled):
         log.error(
@@ -81,7 +63,7 @@ def publishes(
         return False
     try:
         lookup = _verification_comments._publish_verification_artifact(
-            gh, pull_request, state, pending.artifact,
+            reading.gh, pull_request, state, pending.artifact,
         )
     except _evidence.ArtifactRefusedError:
         log.exception(
@@ -98,85 +80,7 @@ def publishes(
             issue.number, pending.revision,
         )
         return True
-    return settles(gh, issue, state, pending, lookup.landed_id)
-
-
-def settles(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    pending: _records.PendingEvidence,
-    comment_id: int,
-) -> bool:
-    """Declare one published transaction current, in one write, or leave it owed."""
-    fresh, refused = _fresh_world(gh, issue, state, pending)
-    if refused is not None:
-        log.info(
-            "issue=#%d is not settling verification evidence revision %d: %s; "
-            "leaving it owed", issue.number, pending.revision, refused.refusal,
-        )
-        # The artifact is on the thread and its comment id is in the ledger
-        # held here; persisted now, since the tick that next proves the world
-        # may defer before it ever reads the thread again.
-        gh.write_pinned_state(issue, state)
-        return refused.holds
-    composed = _settlement.settled_state(state, pending, comment_id, _label_of(fresh))
-    if composed is None:
-        log.error(
-            "issue=#%d published verification evidence revision %d and settles "
-            "into a record this build will not store; holding the tick",
-            issue.number, pending.revision,
-        )
-        return True
-    state.data = composed.data
-    gh.write_pinned_state(issue, state)
-    log.info(
-        "issue=#%d settled verification evidence revision %d on PR #%d",
-        issue.number, pending.revision,
-        pending.binding.target.publication.pr_number,
-    )
-    return False
-
-
-def _fresh_world(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    pending: _records.PendingEvidence,
-) -> tuple[Issue | None, _evidence_models.ReportEvidence | None]:
-    """The issue read afresh, or the refusal the pull request or requirements earn."""
-    standing = _publication.subject_verdict(gh, pending.binding.target.publication)
-    if not standing.proved:
-        return None, standing
-    try:
-        fresh = gh.get_issue(issue.number)
-    except Exception:
-        log.exception(
-            "issue=#%d could not be re-read before settling its verification "
-            "evidence", issue.number,
-        )
-        return None, _evidence_models.ReportEvidence(
-            _evidence_models.ReportEvidenceVerdict.HOLD,
-            "the issue could not be re-read for its requirements",
-        )
-    requirements = pending.binding.target.publication.requirements_revision
-    return fresh, _subject.requirements_verdict(fresh, state, requirements)
-
-
-def _label_of(fresh: Issue) -> WorkflowLabel | None:
-    """The workflow label `fresh` carries, or None where it will not read.
-
-    Fail-closed: a settlement raising out of a lazy label read would leave the
-    artifact published and the transaction still owed.
-    """
-    try:
-        return _labels.workflow_label(fresh)
-    except Exception:
-        log.exception(
-            "issue=#%d could not read the label its verification evidence "
-            "settled under; recording the settlement without one", fresh.number,
-        )
-        return None
+    return _settling.settles(reading, pending, lookup.landed_id)
 
 
 def _refuses_the_reading(

@@ -6,7 +6,8 @@ The current record says what a settlement put on the pull request once. A
 reader about to rely on it -- a reviewer handed it, a readiness decision -- is
 told PROVED only while the world still matches the binding AND the pull request
 still carries the very artifact that settled, under the handoff that settled
-it. A deleted or edited artifact, a handoff describing other evidence, and a
+it, with the pass flag its commands earn. A deleted or edited artifact, a
+handoff describing other evidence, a pass flag the artifact contradicts, and a
 moved head each refuse it; a thread nobody could read holds.
 """
 from __future__ import annotations
@@ -104,6 +105,23 @@ class CurrentEvidenceVerdictTest(unittest.TestCase, support.VerificationEvidence
 
                 self.assertIs(refused.verdict, verdict)
                 self.assertIn(refusal, refused.refusal)
+
+
+    def test_a_pass_flag_its_artifact_contradicts(self) -> None:
+        # A failed run settles as failing evidence and is proved as such; the
+        # pinned flag rewritten to claim it passed no longer describes the
+        # artifact, whose commands say one exited 1.
+        self.record(exit_status=1)
+        self.reconcile()
+        failing = self.verdict()
+        claimed = dict(self.state.get(_records.CURRENT_EVIDENCE), passed=True)
+        self.state.set(_records.CURRENT_EVIDENCE, claimed)
+
+        refused = self.verdict()
+
+        self.assertIs(failing.verdict, _evidence_models.ReportEvidenceVerdict.PROVED)
+        self.assertIs(refused.verdict, _DEFER)
+        self.assertIn("no longer the one that settled", refused.refusal)
 
 
 if __name__ == "__main__":

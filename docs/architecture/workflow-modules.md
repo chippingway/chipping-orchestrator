@@ -819,8 +819,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             same proof
     verification_current.py whether the current record is still what the pull request carries: the handoff has to
                             describe it, and the comment it recorded, re-read, has to be our artifact with the
-                            recorded identity and evidence digest; a deleted or edited artifact defers, and a thread
-                            nobody could read holds
+                            recorded identity, evidence digest, and a pass flag its commands earn; a deleted or
+                            edited artifact, or a flag it contradicts, defers, and a thread nobody could read holds
     verification_carry_forward.py
                             the carry-forward decision, exposed only when the target head's full tree, read from this
                             repository, is the tested tree and the configured context is the recorded one -- no
@@ -829,10 +829,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             proves whole
     verification_publishing.py
                             posting a proved transaction's artifact through `verification_comments.py`, scoped by
-                            its receipt, and settling it: the room re-proved before the post, UNCONFIRMED held, any
-                            other reading short of PRESENT stood down, and -- once the pull request and the
-                            requirements are proved again over fresh reads -- the one settling write, stamped with
-                            the label the issue carries then
+                            its receipt: the room re-proved before the post, UNCONFIRMED held, any other reading
+                            short of PRESENT stood down, and a landed post handed to the settlement
+    verification_settling.py
+                            the settlement of a landed post: the issue and the pinned comment read afresh, the
+                            comment held to the state in hand on every bound record, the whole proof taken again
+                            over them, and ONE write composed over that fresh comment, stamped with the label the
+                            issue carries then; a refusal writes only the artifact's ledger entry onto it
+    verification_durable.py the pinned comment read afresh before a settlement: the comment this tick read, parsed,
+                            and carrying `pr_number`, the developer report's records, both review subjects, and the
+                            four evidence records exactly as the state in hand spells them, or the field that moved
     verification_transaction.py
                             the evidence reconciliation the dispatcher runs directly behind the report
                             transaction: stands aside on work that is not live (closed, `done`/`rejected`, a

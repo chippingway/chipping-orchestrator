@@ -16,8 +16,9 @@ latest.
 The ARTIFACT has to be there: the comment the settlement recorded, read again
 off the pull request's thread, has to be ours and re-render byte for byte as
 an artifact, and that artifact has to be the one the record describes -- the
-receipt and revision, every identity member the binding supplies, and the
-digest of the evidence it carries. A comment deleted, edited out of shape, or
+receipt and revision, every identity member the binding supplies, the digest of
+the evidence it carries, and whether every command it carries exited 0, which
+is what the record's pass flag claims. A comment deleted, edited out of shape, or
 standing there as some other artifact is evidence nobody can be shown.
 
 Both refusals DEFER, since what answers them is fresh evidence rather than a
@@ -25,7 +26,6 @@ retry; a thread nobody could read HOLDS.
 """
 from __future__ import annotations
 
-import dataclasses
 from typing import Any
 
 from orchestrator.github.client import GitHubClient
@@ -85,18 +85,23 @@ def _handoff_describes(state: PinnedState, current: _records.CurrentEvidence) ->
 
 
 def _is_the_settled_artifact(found: Any, current: _records.CurrentEvidence) -> bool:
-    """Whether an artifact re-read is the one `current` records, commands aside.
+    """Whether an artifact re-read is exactly the one `current` records.
 
-    The record keeps no commands, so the identity is compared on an artifact
-    built from the record with none, and the commands by their digest.
+    The record keeps no commands, so the transaction it settled from is rebuilt
+    with the commands the artifact carries and held to all of it: that
+    transaction's artifact has to BE the one found -- identity and commands --
+    and its evidence digest and its pass flag have to be the ones recorded. A
+    pinned `passed` saying true over an artifact carrying a failed command is
+    a record that no longer describes what the pull request shows.
     """
-    recorded = _records.PendingEvidence(
+    settled_from = _records.PendingEvidence(
         receipt=current.receipt,
         revision=current.revision,
         binding=current.binding,
-        commands=(),
-    ).artifact
+        commands=found.commands,
+    )
     return (
-        dataclasses.replace(found, commands=()) == recorded
-        and found.content_revision == current.content_revision
+        settled_from.artifact == found
+        and settled_from.content_revision == current.content_revision
+        and settled_from.passed == current.passed
     )
