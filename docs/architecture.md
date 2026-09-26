@@ -773,8 +773,8 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
   stages, which pin their own agent and session keys rather than a decomposing one.
 - **implementer agent (`DEV_AGENT`)** — subprocess. Trigger: `_handle_implementing` (no commits yet, retry budget OK)
   or HITL resume. Cadence: one shot per tick when needed.
-- **reviewer agent (`REVIEW_AGENT`)** — subprocess (fresh session). Trigger: `_handle_validating`, round < max.
-  Cadence: one shot per tick.
+- **reviewer agent (`REVIEW_AGENT`)** — subprocess (fresh session). Trigger: `_handle_validating`, round < max, over
+  a developer report the pull request carries, which the prompt quotes whole. Cadence: one shot per tick.
 - **dev-fix agent** — subprocess (resumed dev session). Trigger: a reviewer `CHANGES_REQUESTED` verdict (dispatched
   from `_handle_validating` after the relabel to `workflow:fixing`) or fresh in_review PR feedback (dispatched from
   `_handle_fixing` after the quiet window) — both run with `stage="fixing"` and bounce back to `workflow:validating`
