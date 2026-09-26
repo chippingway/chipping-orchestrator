@@ -53,6 +53,33 @@ _DIGITS = 5000
 _UNCONVERTIBLE = "1" * _DIGITS
 
 
+class _Rereading:
+    """A published comment whose body is served from `renderings` in turn.
+
+    The last rendering answers every read past the others, and `reads` counts
+    them all, since on a lazily completed GitHub object each is a request that
+    can come back with whatever the comment holds by then -- or fail, which an
+    exception among the renderings is.
+    """
+
+    def __init__(self, landed, renderings: tuple[str | Exception, ...]) -> None:
+        self.id = landed.id
+        self.user = landed.user
+        self.created_at = landed.created_at
+        self.reads = 0
+        self._renderings = renderings
+
+    @property
+    def body(self) -> str:
+        """The next rendering, counted."""
+        last = len(self._renderings) - 1
+        served = self._renderings[min(self.reads, last)]
+        self.reads += 1
+        if isinstance(served, Exception):
+            raise served
+        return served
+
+
 class _Readings(support.ReportTransactionCase):
     """One transaction, settled or left owed, and the fresh reading of it."""
 
@@ -190,6 +217,79 @@ class SettledReadingTest(unittest.TestCase, _Readings):
         settled[_MODE] = str(_records.ReportMode.PUBLISH)
         self.state.set(_records.CURRENT_REPORT, settled)
         self.assertIs(self.still_carries(), ReportPresence.CHANGED)
+
+
+class SettledTextTest(unittest.TestCase, _Readings):
+    """The words a proved reading hands a reviewer, and none where it is not."""
+
+    def setUp(self) -> None:
+        support.ReportTransactionCase.setUp(self)
+
+    def carried_text(self) -> tuple[ReportPresence, str]:
+        """Read the settled report again, with the text it carries."""
+        return _settled_reading.carried_text(
+            self.gh, self.state, _settlement.read_current_report(self.state),
+        )
+
+    def test_the_text_is_the_settled_revision_alone(self) -> None:
+        # A publication hands over the report inside our rendering -- not the
+        # header or the preamble around it -- and a verified description the
+        # whole body its digest was taken over.
+        landed = self.published()
+        self.assertEqual(
+            self.carried_text(), (ReportPresence.PRESENT, support.REPORT_TEXT),
+        )
+
+        landed.body = f"{landed.body}\n\nEdited once it settled."
+        self.assertEqual(self.carried_text(), (ReportPresence.CHANGED, ""))
+
+        self.gh.report_failures.unreadable.add(support.PR_NUMBER)
+        self.assertEqual(self.carried_text(), (ReportPresence.UNCONFIRMED, ""))
+
+    def test_the_words_are_those_the_header_proved(self) -> None:
+        # One parse of the comment proves the header and yields the words, so
+        # a comment reading as another commit once it has been proved -- the
+        # same words under a moved header -- is never read again for them:
+        # the text costs no read of the comment past the reading itself.
+        landed = self.published()
+        settled = landed.body
+        proving = self.served(landed, (settled,))
+        self.assertIs(self.still_carries(), ReportPresence.PRESENT)
+
+        moved = settled.replace(support.SOURCE_SHA, support.MOVED_SHA)
+        rereading = self.served(landed, (settled,) * proving.reads + (moved,))
+        self.assertEqual(
+            self.carried_text(), (ReportPresence.PRESENT, support.REPORT_TEXT),
+        )
+        self.assertEqual(rereading.reads, proving.reads)
+
+    def test_an_unreadable_reread_is_unconfirmed(self) -> None:
+        # The location read, then the parse's own read of the body failed: a
+        # reading nobody could take, answered as one rather than raised, and
+        # no words are handed over.
+        landed = self.published()
+        failed = ConnectionError("the comment would not read again")
+
+        self.served(landed, (landed.body, failed))
+        self.assertIs(self.still_carries(), ReportPresence.UNCONFIRMED)
+        self.served(landed, (landed.body, failed))
+        self.assertEqual(self.carried_text(), (ReportPresence.UNCONFIRMED, ""))
+
+    def served(self, landed, renderings: tuple[str | Exception, ...]) -> _Rereading:
+        """Put a comment serving `renderings` where `landed` was posted."""
+        comments = self.pull_request.issue_comments
+        standing = next(
+            index for index, posted in enumerate(comments) if posted.id == landed.id
+        )
+        comments[standing] = _Rereading(landed, renderings)
+        return comments[standing]
+
+    def test_a_verified_description_is_handed_whole(self) -> None:
+        self.verification()
+        self.reconcile()
+        self.assertEqual(
+            self.carried_text(), (ReportPresence.PRESENT, _HUMAN_REPORT),
+        )
 
 
 class UnpayableDebtTest(unittest.TestCase, _Readings):

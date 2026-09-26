@@ -9,10 +9,18 @@ header a publication of ours went out under, and who wrote it, each held to the
 road the settlement says it took. The implementing stage's publication asks it
 last before its handoff, for the report it settled and for the one a recovery
 would hand on.
+
+`carried_text` asks the same question and returns the answer's TEXT as well,
+for a reviewer that is handed the report it reviews rather than left to find
+one: what it would quote is exactly the revision the settlement recorded --
+the words re-read from the location, held to the digest once more, and nothing
+cut short. It is dormant: the validating stage hands its reviewer no report, so
+nothing in production asks it.
 """
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 from orchestrator.github import (
@@ -58,22 +66,85 @@ def still_carries(
     the rendering, the stricter of the two. UNCONFIRMED is a reading nobody
     could take, of the content or of who wrote it.
     """
+    return _reading(gh, state, current).presence
+
+
+def carried_text(
+    gh: GitHubClient, state: PinnedState, current: _records.CurrentReport,
+) -> tuple[_pr_reports.ReportPresence, str]:
+    """The reading `still_carries` takes, and the complete report it found.
+
+    The text is what a reviewer is handed, so it is the settled revision
+    itself and nothing near it. A publication's words are the ones out of the
+    very parse whose header the reading proved, never a later read of the
+    comment, which could carry the same words under another header. A
+    verified location's are its whole body, since that is what its digest was
+    taken over. Either is held to the recorded digest once more before it is
+    handed over: a reading that could not say which words it proved is
+    CHANGED, and one whose words would not read is UNCONFIRMED. The text is ""
+    on every answer but PRESENT.
+    """
+    reading = _reading(gh, state, current)
+    if reading.presence is not _pr_reports.ReportPresence.PRESENT:
+        return reading.presence, ""
+    text = reading.rendered
+    if _settled_as(current) is _records.ReportMode.VERIFY:
+        try:
+            text = getattr(reading.found, "body", None)
+        except Exception:
+            log.exception("the text of a settled developer report would not read")
+            return _pr_reports.ReportPresence.UNCONFIRMED, ""
+    if (
+        not isinstance(text, str)
+        or _reports.content_digest(text) != current.content_revision
+    ):
+        return _pr_reports.ReportPresence.CHANGED, ""
+    return reading.presence, text
+
+
+@dataclass(frozen=True)
+class _Reading:
+    """One settled reading: its answer, what it was read off, and its words.
+
+    `rendered` is the text a PUBLISHED location proved, taken from the parse
+    its header and digest were held to. None on the verified road, whose text
+    is the location's whole body, and wherever nothing was proved.
+    """
+
+    presence: _pr_reports.ReportPresence
+    found: Any = None
+    rendered: str | None = None
+
+
+def _reading(
+    gh: GitHubClient, state: PinnedState, current: _records.CurrentReport,
+) -> _Reading:
+    """One settled reading, and what it found where it found anything."""
     lookup = gh.reread_report_location(
         current.location, content_sha256=current.content_revision,
     )
     if lookup.presence not in _READ_PRESENCES:
-        return lookup.presence
+        return _Reading(lookup.presence)
+    rendered = None
     if _settled_as(current) is _records.ReportMode.VERIFY:
         authored = _publishing._trusts_the_author(lookup.found)
         carried = lookup.presence is _pr_reports.ReportPresence.PRESENT
     else:
         authored = _wrote_it_ourselves(gh, lookup.found)
-        carried = _renders_as_settled(lookup.found, state, current)
+        # The parse reads the comment's body again, and on a lazily completed
+        # GitHub object that read is a request of its own: one that fails is
+        # a reading nobody could take, not a report that left.
+        try:
+            rendered = _settled_rendering(lookup.found, state, current)
+        except Exception:
+            log.exception("a published developer report would not read again")
+            return _Reading(_pr_reports.ReportPresence.UNCONFIRMED, lookup.found)
+        carried = rendered is not None
     if not carried or authored is False:
-        return _pr_reports.ReportPresence.CHANGED
+        return _Reading(_pr_reports.ReportPresence.CHANGED, lookup.found)
     if authored is None:
-        return _pr_reports.ReportPresence.UNCONFIRMED
-    return _pr_reports.ReportPresence.PRESENT
+        return _Reading(_pr_reports.ReportPresence.UNCONFIRMED, lookup.found)
+    return _Reading(_pr_reports.ReportPresence.PRESENT, lookup.found, rendered)
 
 
 def _settled_as(current: _records.CurrentReport) -> _records.ReportMode:
@@ -90,18 +161,20 @@ def _settled_as(current: _records.CurrentReport) -> _records.ReportMode:
     return _records.ReportMode.PUBLISH
 
 
-def _renders_as_settled(
+def _settled_rendering(
     found: Any, state: PinnedState, current: _records.CurrentReport,
-) -> bool:
-    """Whether what stands at a published location is the report that settled.
+) -> str | None:
+    """The words a published location carries as the report that settled, or None.
 
     A comment, re-rendering exactly as a report, whose header and text digest
-    are the settlement's own. Who wrote it is `_wrote_it_ourselves`'s question.
+    are the settlement's own; its text is returned from that same parse, so
+    the words and the header proved are one reading. Who wrote it is
+    `_wrote_it_ourselves`'s question.
     """
     if current.location.comment_id is None:
-        return False
+        return None
     published = _reports.developer_report_from_comment(found, bot_login=None)
-    return published is not None and (
+    settled = published is not None and (
         published.pr_number,
         published.source_sha,
         published.requirements_revision,
@@ -116,6 +189,7 @@ def _renders_as_settled(
         getattr(_settlement.read_handoff(state), "receipt", None),
         current.content_revision,
     )
+    return published.text if settled else None
 
 
 def _wrote_it_ourselves(gh: GitHubClient, found: Any) -> bool | None:
