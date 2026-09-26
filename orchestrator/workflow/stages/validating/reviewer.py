@@ -39,15 +39,19 @@ the analytics record exists even for the paths that park. An approval and a
 change request alike are acted on only while the whole subject the reviewer
 was handed -- head, requirements, and report -- still stands; otherwise the
 run is recorded and the next tick's reviewer is handed the subject as it
-stands. The pinned comment is read once more just before the spawn for that
-reason: a report settling while the reviewer runs is recorded there and
-nowhere in the state this tick holds, and the write that records the run has
-to lay itself over that settlement rather than undo it. Failed-run parks
+stands. The pinned comment is read again as the reviewer returns, before any
+of that is written, for that reason: a report settling while the reviewer
+runs is recorded there and nowhere in the state this tick holds, and every
+write the run makes has to lay itself over that settlement rather than undo
+it -- where the comment will not read, nothing is written at all. Failed-run
+parks
 (timeout and unknown verdict) enrich the shared park funnel with typed
 correlation fields (`agent_role`, `session_id`, `review_round`, `retry_count`,
 `pr_number`).
 """
 from __future__ import annotations
+
+from dataclasses import replace
 
 from github.Issue import Issue
 
@@ -74,6 +78,7 @@ from orchestrator.workflow.stages.validating import (
     approval as _approval,
     models as _models,
     requested_changes as _requested_changes,
+    review_comment as _review_comment,
     review_coverage as _review_coverage,
     review_report as _review_report,
     state as _state,
@@ -97,10 +102,10 @@ def _run_reviewer_round(
         branch=_naming._resolve_branch_name(state, spec, issue.number),
     )
     delivered = _prompt_context._delivered_thread(gh, issue, state)
-    subject = _review_report._resolves_the_subject(
+    handover = _review_report._resolves_the_subject(
         gh, issue, state, pr_number, delivered,
     )
-    if subject is None:
+    if handover is None:
         return None
     # Persist the full configured spec BEFORE the spawn so a reviewer
     # backend hiccup that yields no session id still leaves a durable
@@ -111,21 +116,19 @@ def _run_reviewer_round(
     # config spec is the right behavior here -- and the subject it is
     # handed with it.
     state.set("review_agent", config.REVIEW_AGENT_SPEC)
-    _review_subjects.record_reviewed(state, subject)
+    _review_subjects.record_reviewed(state, handover.subject)
     reviewer_run = _models._ReviewerRun(
         wt=wt,
         round_n=round_n,
         pr_number=pr_number,
-        # Read ahead of the spawn on the next line -- keywords are evaluated
-        # in the order written -- so what the comment carried as the reviewer
-        # went out is what a write taken while it ran is measured against.
-        spawned_over=dict(gh.read_pinned_state(issue).data),
         agent_result=_usage._run_agent_tracked(
             gh, _run_charge_state.AgentRunBudget(issue=issue, state=state),
             agent_role="reviewer",
             stage="validating",
             backend=config.REVIEW_AGENT,
-            prompt=_review_prompt(spec, issue, state, delivered.rendered_text, subject),
+            prompt=_review_prompt(
+                spec, issue, state, delivered.rendered_text, handover.subject,
+            ),
             cwd=wt,
             agent_spec=config.REVIEW_AGENT_SPEC,
             timeout=config.REVIEW_TIMEOUT,
@@ -134,7 +137,8 @@ def _run_reviewer_round(
             retry_count=state.get("retry_count"),
         ),
         delivery=delivered,
-        subject=subject,
+        subject=handover.subject,
+        resolved_over=handover.resolved_over,
     )
     # Live pause: an operator applied `paused` / `backlog` while the reviewer
     # ran. Dispatch only saw the pre-run labels, so re-check a freshly fetched
@@ -160,7 +164,32 @@ def _run_reviewer_round(
     # branches.
     if _guards._ignore_if_interrupted(issue, reviewer_run.agent_result):
         return None
-    return reviewer_run
+    return _read_again_on_return(gh, issue, state, reviewer_run)
+
+
+def _read_again_on_return(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    reviewer_run: _models._ReviewerRun,
+) -> _models._ReviewerRun | None:
+    """The run, once the pinned comment is read again; None to end the tick unwritten.
+
+    Read before anything the run leaves is written -- a park for a timeout or
+    a missing verdict as much as the record of a verdict -- since each of
+    those writes goes out from the state in hand, and a report that settled
+    while the reviewer ran is on the comment and nowhere in it. What moved is
+    carried onto that state first, and marks the verdict as one of a subject
+    that no longer stands. A comment that will not read or parse ends the tick
+    with nothing written, as an interrupted run does: the next tick spawns a
+    reviewer over whatever the comment carries then.
+    """
+    stood = _review_comment._records_stand(
+        gh, issue, state, reviewer_run.resolved_over,
+    )
+    if stood is None:
+        return None
+    return replace(reviewer_run, report_moved=not stood)
 
 
 def _review_prompt(
@@ -279,8 +308,8 @@ def _dispatch_reviewer_result(
     # developer to answer a review of words the pull request no longer
     # carries. The run is recorded over whatever settled meanwhile, and the
     # next tick's reviewer is handed the subject as it stands, or refused.
-    if not _review_coverage._subject_still_stands(
-        gh, issue, state, reviewer_run.subject, reviewer_run.spawned_over,
+    if reviewer_run.report_moved or not _review_coverage._subject_still_stands(
+        gh, issue, state, reviewer_run.subject,
     ):
         gh.write_pinned_state(issue, state)
         return

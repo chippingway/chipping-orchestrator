@@ -1690,10 +1690,11 @@ The keys that matter for the state machine fall into a few groups:
   `developer_report_current` records now: another revision, other words, or a report where the approval saw none is
   a subject nobody reviewed, so the handoff is dropped for a fresh reviewer and the in_review issue is handed back.
   Both also read that report at its location again, since no record sees its comment edited or removed in place,
-  and hold rather than act where the location could not be read. The approval itself is taken only where the
-  pinned comment, read again when the reviewer returns, still carries the report records it carried as the reviewer
-  went out -- a settlement that landed meanwhile is kept, and the verdict dropped -- and the whole subject resolved
-  again equals `review_subject`.
+  and hold rather than act where the location could not be read. `review_subject` is handed over only where the
+  pinned comment carries the report records the subject was resolved from, and the approval itself is taken only
+  where it still carries them when the reviewer returns and once the approval is verified -- a settlement that
+  landed meanwhile is kept, and the verdict dropped; a comment that will not read is written over by nothing -- and
+  the whole subject resolved again equals `review_subject`.
   Both are additive: an issue without `review_approved_subject` was approved before it existed, and that approval
   covers only an issue with no `developer_report_current` either — over a report, nothing says it was the one
   approved, so the issue goes back for a fresh review — while one present in any shape its reader refuses, `null`

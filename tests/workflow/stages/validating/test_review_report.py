@@ -359,17 +359,22 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
         # the pinned comment says it is no longer current: the verdict is not
         # acted on, the write that records the run keeps the later report
         # current instead of putting back the one handed over, and the next
-        # reviewer is handed the later one.
-        for name, verdict, verified in (
-            ("approved", LATE_APPROVAL, False),
-            ("changes requested", LATE_CHANGE_REQUEST, False),
-            ("approved, then verified", LATE_APPROVAL, True),
+        # reviewer is handed the later one. Where the comment then will not
+        # read as the verdict is taken, nothing says which report is current:
+        # nothing is written -- neither the run nor what its verdict earns --
+        # and the later report stays current all the same.
+        for name, verdict, verified, unread in (
+            ("approved", LATE_APPROVAL, False, False),
+            ("changes requested", LATE_CHANGE_REQUEST, False, False),
+            ("approved, then verified", LATE_APPROVAL, True, False),
+            ("approved, then unread", LATE_APPROVAL, False, True),
+            ("verified, then unread", LATE_APPROVAL, True, True),
         ):
             with self.subTest(name):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)
                 self.reported_round(world.FIRST_REPORT)
 
-                ran = self._settles_while(verdict, verified=verified)
+                ran = self._settles_while(verdict, verified=verified, unread=unread)
 
                 self.assertEqual(
                     (
@@ -377,11 +382,35 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
                         self.records()["current"].report_revision,
                         world.APPROVED in self.pinned(),
                         self.github.label_history[-1],
-                        self.pinned().get(LAST_REVIEWER),
+                        self.pinned().get(LAST_REVIEWER) == LATE_REVIEWER,
                     ),
-                    (1, 3, False, (ISSUE, LABEL_VALIDATING), LATE_REVIEWER),
+                    (1, 3, False, (ISSUE, LABEL_VALIDATING), not unread),
                 )
                 self.assertIn(f"> {world.SECOND_REPORT}", world.prompt(self.reviewed()))
+
+    def test_a_settlement_before_spawn_holds(self) -> None:
+        # A later report settles after this tick read the pinned comment and
+        # before its reviewer spawns. The report the tick resolved still reads
+        # where it was, so only the comment says it is no longer current: no
+        # reviewer is handed it, nothing the tick holds is written over the
+        # later report, and the next reviewer is handed that one.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.reported_round(world.FIRST_REPORT)
+        writes = self.github.write_state_calls
+        read = _ChangedMidway(self._settles_the_second, _prompt_context._delivered_thread)
+
+        with patch.object(_prompt_context, "_delivered_thread", read):
+            held = self.reviewed(REVIEW_APPROVED_MESSAGE)
+
+        self.assertEqual(
+            (
+                held[RUN_AGENT].call_count,
+                self.github.write_state_calls - writes,
+                self.records()["current"].report_revision,
+            ),
+            (0, 0, 3),
+        )
+        self.assertIn(f"> {world.SECOND_REPORT}", world.prompt(self.reviewed()))
 
     def test_an_edit_during_verify_voids_approval(self) -> None:
         # The report is edited while the local verification runs, after the
@@ -409,26 +438,42 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
         ))
         self.assert_refused(self.reviewed(), _review_report._EDITED)
 
-    def _settles_while(self, verdict, *, verified: bool):
+    def _settles_the_second(self, then=None) -> None:
+        """Settle the second report on the head the pull request stands on.
+
+        `then` is what happens next, where a case has anything happen.
+        """
+        _published_reports.republishes_the_report(
+            self.github, self.issue, world.SECOND_REPORT,
+        )
+        if then is not None:
+            then()
+
+    def _settles_while(self, verdict, *, verified: bool, unread: bool = False):
         """One reviewer round, while a later report settles on the same head.
 
         During the reviewer's own run, or -- `verified` -- during the local
-        verification of the approval it came back with.
+        verification of the approval it came back with. `unread` fails every
+        read of the pinned comment from then until the tick ends.
         """
-        settles = partial(
-            _published_reports.republishes_the_report,
-            self.github, self.issue, world.SECOND_REPORT,
+        unreadable = patch.object(
+            self.github, "read_pinned_state",
+            side_effect=ConnectionError("the pinned comment could not be read"),
         )
+        settles = partial(self._settles_the_second, then=unreadable.start if unread else None)
         if verified:
-            return self._ticked(
+            ran = self._ticked(
                 self._run_validating, [verdict], committed=False,
                 verify_result=_ChangedMidway(settles, VerifyResult(status="not_run")),
             )
-        return self._ticked(
-            self._run_validating,
-            MagicMock(side_effect=_ChangedMidway(settles, verdict)),
-            committed=False,
-        )
+        else:
+            ran = self._ticked(
+                self._run_validating,
+                MagicMock(side_effect=_ChangedMidway(settles, verdict)),
+                committed=False,
+            )
+        unreadable.stop()
+        return ran
 
 
 class SquashHandoffTest(unittest.TestCase, world._ReviewedReports):
@@ -567,10 +612,10 @@ class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
             handed = _review_report._resolves_the_subject(
                 self.github, self.issue, state, PR,
                 _prompt_context._delivered_thread(self.github, self.issue, state),
-            )
+            ).subject
             covers = [
                 _review_coverage._subject_still_stands(
-                    self.github, self.issue, state, subject, state.data,
+                    self.github, self.issue, state, subject,
                 )
                 for subject in (
                     handed,

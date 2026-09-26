@@ -3211,31 +3211,40 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      resumes the developer on it before any reviewer is handed the report. Every hold writes what the tick staged, so a
      cleared park and a cap grant with its notice are not answered again. A pull request with no settled report on
      record is refused the same way — parked under `report_undeliverable` with the debt set, so the reply resumes the
-     developer for one — since a reviewer handed none would be judging work nobody has described. Then persist
+     developer for one — since a reviewer handed none would be judging work nobody has described. Before any of that
+     is decided or written, the pinned comment is read once more (`review_comment._resolved_over`) and has to carry
+     the report records the state in hand carries: the subject was resolved from the state the tick read when it
+     began, and a later report settled since — on the very head, by another road — is there and nowhere in hand. Where
+     it does not, or will not read or parse, no reviewer is handed anything and the tick ends WITHOUT writing, since
+     any write would put the replaced report back; the next tick resolves the later one. Then persist
      `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the reviewer is spawned fresh each round with no
-     resume) and the resolved subject to `review_subject`, read the pinned comment once more as the reviewer goes out,
-     and run the reviewer with the read-only prompt, which quotes that report whole between the issue and the
-     inspection commands (must end with `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` /
-     `backlog` re-check
+     resume) and the resolved subject to `review_subject`, and run the reviewer with the read-only prompt, which quotes
+     that report whole between the issue and the inspection commands (must end with `VERDICT: APPROVED` or
+     `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check
      (`_paused_during_agent_run`) right after the reviewer returns short-circuits BEFORE the usage fold, session record,
      verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state.
+     Past it, and before the timeout park, the no-verdict park, or anything a verdict earns is written, the pinned
+     comment is read again against the reading the subject was bound to (`review_comment._records_stand`): a report
+     record it moved since — a later report settled on the same head by another road — is carried onto the state in
+     hand with everything else the comment changed since, so every write the run makes keeps that settlement current
+     instead of putting back the report the reviewer was handed, and the verdict is not acted on; a comment that will
+     not read or parse carries nothing, and the tick ends with nothing written.
   6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
-     - **approved** → the pinned comment is read again first (`review_coverage._subject_still_stands`): a report
-       record it moved since the spawn — a later report settled on the same head by another road — refuses the
-       verdict, and everything the comment changed since then is carried onto the state in hand, so the write that
-       records the run keeps that settlement current instead of putting back the report the reviewer was handed; a
-       comment that will not read or will not parse refuses it and carries nothing. Then the whole subject is resolved
-       again, over the issue read afresh, and has to equal the one the reviewer was handed — pull request, head,
-       requirements, and the report's revision, digest, location, and words. A push, an issue edit, or a report edited
-       or removed while the reviewer ran, or a reading nobody could take, means the approval is not acted on: the run
-       is recorded and the next tick resolves the subject as it stands. Then, in order: (1) run the local verify gate
-       (`_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`); an empty command tuple returns
-       `not_run`, which advances without being evidence that anything passed, and any other non-ok result parks via
+     - **approved** → unless the report records moved above, the whole subject is resolved again
+       (`review_coverage._subject_still_stands`), over the issue read afresh, and has to equal the one the reviewer
+       was handed — pull request, head, requirements, and the report's revision, digest, location, and words. A push,
+       an issue edit, or a report edited or removed while the reviewer ran, or a reading nobody could take, means the
+       approval is not acted on: the run is recorded and the next tick resolves the subject as it stands. Then, in
+       order: (1) run the local verify gate
+       (`_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`) and read the pinned comment again
+       as on the reviewer's return, before anything below is written — a comment that will not read ends the tick with
+       nothing written, and report records that moved are carried first; an empty command tuple returns `not_run`,
+       which advances without being evidence that anything passed, and any other non-ok result parks via
        `_park_verify_failure` with a typed `park_reason`
        (`verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`) and the
        approval / squash / handoff do NOT fire (see
-       [`configuration.md#local-verification-gate`](../configuration.md#local-verification-gate)); then resolve and
-       compare the subject once more — the pinned comment included — since a verification can run long enough for the
+       [`configuration.md#local-verification-gate`](../configuration.md#local-verification-gate)); otherwise, where the
+       records stood, resolve and compare the subject once more, since a verification can run long enough for the
        report to be edited or replaced under it, and act on the approval only if it still stands; then stage the
        subject as `review_approved_subject`, retiring the `docs_verdict` and `ready_ping_sha` an earlier approval left,
        since both are keyed on a head this approval may share; (2) post `:white_check_mark: codex review approved.`;

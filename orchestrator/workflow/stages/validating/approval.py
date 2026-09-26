@@ -85,6 +85,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.validating import (
     handoff as _handoff,
     models as _models,
+    review_comment as _review_comment,
     review_coverage as _review_coverage,
     state as _state,
     verify as _verify,
@@ -437,12 +438,19 @@ def _finalize_validating_approval(
     verify = _verify_runner._run_verify_commands(
         reviewer_run.wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT,
     )
+    # The verification can outlast a report settling on the same head, an
+    # edit of the report, a push, or an edit of the issue, and nothing past
+    # this line asks again before the squash. What settled is carried before
+    # anything below writes, and a comment that will not read writes nothing.
+    records_stand = _review_comment._records_stand(
+        gh, issue, state, reviewer_run.resolved_over,
+    )
+    if records_stand is None:
+        return
     if verify.status not in ("ok", "not_run"):
         _verify._park_verify_failure(gh, issue, state, verify)
-    # The verification can outlast an edit of the report, a push, or an edit
-    # of the issue, and nothing past this line asks again before the squash.
-    elif _review_coverage._subject_still_stands(
-        gh, issue, state, reviewer_run.subject, reviewer_run.spawned_over,
+    elif records_stand and _review_coverage._subject_still_stands(
+        gh, issue, state, reviewer_run.subject,
     ):
         # Staged here and written by whichever write the squash road below
         # makes, so an approval nothing recorded is never one a later tick

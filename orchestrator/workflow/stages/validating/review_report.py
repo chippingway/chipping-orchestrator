@@ -56,6 +56,15 @@ debt, so the reply resumes the developer for one. That is every pull request
 opened before reports were published, and any road that delivered code without
 a report.
 
+The subject is resolved from the state the tick read when it began, so the
+pinned comment is read once more before anything is decided, and has to carry
+the report records that state carries (`review_comment`): a later report
+settled in between is there and nowhere in hand. Where it does not, or will not
+read, the tick ends with nothing handed over and nothing written, since any
+write would put the replaced report back; the next tick resolves the later
+one. That reading is handed on with the subject, and it is what the verdict's
+return measures the comment against.
+
 The reading itself posts nothing and parks nothing, so `review_coverage` takes
 it again once an approval comes back and wherever an approval is later acted
 on, and holds that approval to the subject standing then.
@@ -80,6 +89,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.late_split import payloads as _payloads
 from orchestrator.workflow.stages.validating import (
     report_settlement as _report_settlement,
+    review_comment as _review_comment,
     state as _validating_state,
 )
 
@@ -142,18 +152,23 @@ def _resolves_the_subject(
     state: PinnedState,
     pr_number,
     delivered: _delivery.PromptDeliverySnapshot,
-) -> _review_subjects.ReviewSubject | None:
+) -> _review_comment._ResolvedSubject | None:
     """The subject this round's reviewer is handed, or None where it is not.
 
     None is a tick this owner ended: a refusal it parked, or a reading it
     could not take and holds for the next tick. A subject read whole is held
     to the staleness rules here and nowhere else, since they are about handing
     a report to a reviewer; a subject read again once the reviewer returns is
-    held to equality with this one instead.
+    held to equality with this one instead. Nothing is decided or written
+    until the pinned comment is read and agrees with the state the subject was
+    resolved from -- see `review_comment`.
     """
     subject, refusal = _reads_the_subject(
         gh, issue, state, pr_number, delivered.requirements_revision or "",
     )
+    resolved_over = _review_comment._resolved_over(gh, issue, state)
+    if resolved_over is None:
+        return None
     if subject is not None and _outran_the_drift_check(state, subject):
         log.info(
             "issue=#%d thread moved past what its reviewer was due to be "
@@ -163,15 +178,16 @@ def _resolves_the_subject(
         subject = None
     elif subject is not None:
         refusal = _stale_refusal(state, subject)
-        subject = None if refusal else subject
     if refusal:
         _report_settlement._parks(gh, issue, state, refusal)
-    elif subject is None:
+        return None
+    if subject is None:
         log.info(
             "issue=#%d holding the review for the next tick", issue.number,
         )
         gh.write_pinned_state(issue, state)
-    return subject
+        return None
+    return _review_comment._ResolvedSubject(subject, resolved_over)
 
 
 def _reads_the_subject(

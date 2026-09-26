@@ -2698,8 +2698,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             left, which that round discharges -- and the verdict
                             fan-out, with the subject an approved verdict hands the squash tail built here over
                             this run's own checkout. The developer report is resolved through `review_report.py`
-                            ahead of the spawn and the subject it yields recorded beside the reviewer spec, and an
-                            approval is acted on only while `review_coverage.py` finds that whole subject standing
+                            ahead of the spawn and the subject it yields recorded beside the reviewer spec; the
+                            pinned comment is read again through `review_comment.py` as the reviewer returns, before
+                            any park or record the run leaves is written, and an approval is acted on only while
+                            `review_coverage.py` finds that whole subject standing
       collapse.py           whether a squash this issue began and did not finish is answered before anything else
                             runs an agent, over the same tail the approval road runs -- what the branch is owed
                             does not depend on which reading sent the tick. Asked only from that road it would be
@@ -2912,18 +2914,28 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the owed round stood down, for the next tick's drift check to resume the developer on the
                             new words. A reading nobody could take holds without a notice, and every hold writes what
                             the tick staged -- a cleared park, a cap grant and its notice -- so none of it is answered
-                            twice. The reading itself posts and parks nothing, so `review_coverage.py` takes it again
+                            twice. Nothing is decided or written until `review_comment.py` finds the pinned comment
+                            carrying the report records the subject was resolved from. The reading itself posts and
+                            parks nothing, so `review_coverage.py` takes it again
+      review_comment.py     the pinned comment a review is bound to. The subject is resolved from the state the tick
+                            read when it began, so the comment is read once it is resolved and has to carry the same
+                            report records: a later report settled in between -- on the very head, by another road --
+                            is there and nowhere in hand, while the report the tick resolved still reads intact. Where
+                            it does not, or will not read or parse, nothing is handed over and the tick ends WITHOUT
+                            writing, since any write would put the replaced report back. The reading that agreed goes
+                            with the subject, and the comment is read against it again as the reviewer returns and
+                            once more after an approval is verified, before anything the run leaves is written: records
+                            that moved refuse the verdict and everything the comment changed since is carried onto the
+                            state in hand, so every write the run makes keeps that settlement current; a comment that
+                            will not read or parse carries nothing and the tick writes nothing
       review_coverage.py    whether an approval still covers the subject standing when it is acted on. When the reviewer
-                            returns -- approving or requesting changes -- the pinned comment is read again first,
-                            against the copy `reviewer.py` read of it as the reviewer went out: a report record it moved
-                            meanwhile, a later report settled on the same head, refuses the verdict, and everything the
-                            comment changed since the spawn is carried onto the state in hand so the write recording the
-                            run keeps that settlement current. Then the whole subject is resolved again over the issue
-                            read afresh and has to EQUAL the one handed over -- pull request, head, requirements, and
-                            the report's revision, digest, location, and words -- or the verdict is not acted on and the
-                            next round resolves the subject for itself; asked again by `approval.py` once the verify
-                            gate has passed, since a verification can run long enough for the report to be edited or
-                            replaced under it. Later, once the pinned records agree the current report is the approved
+                            returns -- approving or requesting changes -- and the report records on the pinned comment
+                            stand (`review_comment.py`), the whole subject is resolved again over the issue read afresh
+                            and has to EQUAL the one handed over -- pull request, head, requirements, and the report's
+                            revision, digest, location, and words -- or the verdict is not acted on and the next round
+                            resolves the subject for itself; asked again by `approval.py` once the verify gate has
+                            passed, since a verification can run long enough for the report to be edited or replaced
+                            under it. Later, once the pinned records agree the current report is the approved
                             one, the report is read at its location again, since no record sees a comment edited or
                             deleted in place: the squash tail asks it before its relabel, on either road into it, the
                             settled squash handoff before moving a label that tail left owed, and `in_review` before an

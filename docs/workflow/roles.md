@@ -73,8 +73,9 @@ per-stage behavior is in
   request, its head, the requirements revision, and the report revision. A pull request with no report recorded, a
   report about another commit than that head, and one written against requirements the issue has moved past are
   refused rather than handed over. A report that changes on an unchanged head is a new subject, so it always reaches
-  a fresh reviewer — one settling while a reviewer is out voids that reviewer's verdict and stays current — and
-  nothing an earlier approval left keyed on the head alone stands in for that review (see
+  a fresh reviewer — one settling before the spawn holds the round, and one settling while a reviewer is out voids
+  that reviewer's verdict, and either stays current — and nothing an earlier approval left keyed on the head alone
+  stands in for that review (see
   [`review_approved_subject`][review-subject]).
 - **Decomposer reuse.** `_handle_decomposing` spawns the decomposer once and resumes it on every awaiting-human
   reply — with one park excepted. An issue stopped on its spent spawn budget (`retry_cap`) is waiting on a human
