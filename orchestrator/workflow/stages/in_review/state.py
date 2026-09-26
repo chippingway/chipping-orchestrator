@@ -28,6 +28,13 @@ leaving an issue here to be pinged as ready on an approval that is over. It
 is additive: an issue without it owes no move, which is every issue that
 predates it.
 
+`owes_validating_a_move` reads it back beside the other things that say the
+same: a developer report still owed, and an approval recorded against a report
+other than the one the issue now records as current, or against requirements
+other than the ones its drift baseline holds. It is asked here
+because the marker is what it chiefly reads, and every road that stages the
+move is answered by it.
+
 `stages_the_handoff` is the one write spelled here rather than at the owner
 that makes it. Every field the hand-back puts down goes down together -- the
 marker above, the fresh review round, and the record that the publication this
@@ -39,13 +46,55 @@ reservation with it instead of quietly eating a margin nobody rechecks.
 from __future__ import annotations
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import report_delivery as _report_delivery
+from orchestrator.workflow.engine import (
+    report_delivery as _report_delivery,
+    review_subjects as _review_subjects,
+)
 
 _PR_LAST_COMMENT_ID = "pr_last_comment_id"
 
 _HANDOFF_PENDING = "in_review_handoff_pending"
 
 _REVIEW_ROUND = "review_round"
+
+# The requirements baseline the drift check holds an issue to.
+_USER_CONTENT_HASH = "user_content_hash"
+
+
+def owes_validating_a_move(state: PinnedState) -> bool:
+    """Whether the approval this label stands on no longer covers the work.
+
+    A report still owed, a move staged and not made, or an approval of some
+    other report than the current one, or of other requirements than the
+    drift baseline holds the issue to -- each answered by the same move.
+    """
+    return (
+        _report_delivery.owes_a_report(state)
+        or bool(state.get(_HANDOFF_PENDING))
+        or not _review_subjects.approval_covers_current(state)
+        or not approval_covers_requirements(state)
+    )
+
+
+def approval_covers_requirements(state: PinnedState) -> bool:
+    """Whether the recorded approval was given the requirements the baseline holds.
+
+    The approval was given the thread at one revision, and a drift baseline
+    moved past it is requirements somebody was handed since -- a developer
+    resumed on an edit, a reply spent on a park -- that no reviewer was.
+    Asked here, where the approval is about to be advertised as ready to
+    merge; the roads that finish a squash already under way do not ask it. An
+    approval nothing recorded names no requirements, and is held to its
+    report alone. An edit landing after the baseline was measured is
+    `review_coverage`'s to find, over the issue read afresh at the ping.
+    """
+    approved = state.get(_review_subjects.APPROVED_SUBJECT)
+    if not isinstance(approved, dict):
+        return True
+    return (
+        _review_subjects.ReviewSubject.requirements_recorded_in(approved)
+        == state.get(_USER_CONTENT_HASH)
+    )
 
 
 def stages_the_handoff(

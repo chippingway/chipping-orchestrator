@@ -10,28 +10,31 @@ approved -- so a verdict is recorded against all four, and nothing keyed on a
 commit alone may stand in for a review of a report that commit has since
 acquired.
 
-Two records. `review_subject` is the subject a reviewer was handed, put down
-beside the reviewer spec before the spawn so an operator can read which report
-a round saw. `review_approved_subject` is the subject an approval covers,
-written once the local verify gate has passed, and recording it RETIRES the
-ready ping and the final-docs verdict an earlier approval left: both are keyed
-on the head alone, so on an unchanged commit they would advertise the new
-report as already reviewed, documented, and announced.
+Two records, written by the validating stage and read wherever an approval is
+about to be acted on. `review_subject` is the subject a reviewer was handed,
+written beside the reviewer spec before the spawn so an operator can read which
+report a round saw. `review_approved_subject` is the subject an approval
+covers, written once the local verify gate has passed, and recording it
+RETIRES the ready ping and the final-docs verdict an earlier approval left:
+both are keyed on the head alone, so on an unchanged commit they would
+advertise the new report as already reviewed, documented, and announced.
+`ReviewSubject.widest` is the subject either record is at its widest, which a
+developer report's acceptance leaves room for
+(`stages/validating/review_records.py`).
 
 `approval_covers_current` is the question every reader of an approval asks:
 whether the report this issue records as current is still the one the approval
 was given. It compares the pinned records and reads nothing from GitHub, so a
 report edited in place at its location is a question for a fresh reading of
-that location, never for these records. An approval with no record at all
-covers only an issue that has no report either: one approved before the record
-existed, over a pull request that has since settled a report, is an approval
-nothing says was of that report. A record present in any shape its reader
-refuses covers nothing, so a hand edit is read as no approval rather than as
-one.
-
-These helpers are dormant: the validating stage spawns its reviewer without a
-subject and acts on an approval without asking whether it covers the current
-report, so nothing in production writes or reads either record.
+that location (`stages/validating/review_coverage.py`), never for these
+records. The in_review stage, which would advertise the approval to a human,
+asks the same of the requirements the approval was given
+(`stages/in_review/state.py`). An approval with no record at all covers only
+an issue that has no report either: one approved before the record existed,
+over a pull request that has since settled a report, is an approval nothing
+says was of that report, so the issue goes back for a review that is. A record
+present in any shape its reader refuses covers nothing, so a hand edit sends
+the issue back to a reviewer rather than past one.
 """
 from __future__ import annotations
 
@@ -62,6 +65,10 @@ _REPORT_REVISION = "report_revision"
 _REPORT_CONTENT = "report_content"
 
 _PR_NUMBER = "pr_number"
+
+# The widest a head, a requirements revision, or a report digest is recorded
+# at, which is what the widest subject holds each of them to.
+_WIDEST_HEX = "f" * max(*_formats.COMMIT_LENGTHS, *_formats.DIGEST_LENGTHS)
 
 # Every member a recorded subject carries, and nothing else.
 _MEMBERS = frozenset((_PR, _SHA, _REQUIREMENTS, _REPORT_REVISION, _REPORT_CONTENT))
@@ -95,9 +102,10 @@ class ReviewReport:
 class ReviewSubject:
     """The pull request, head, requirements, and report one review is of.
 
-    `report` is None for a subject with no developer report: a pull request
-    reviewed while none had settled on it. Such a record is still a subject,
-    and a report settling after it is a change to it.
+    `report` is None for a subject with no developer report. No reviewer is
+    handed one -- `stages/validating/review_report.py` refuses a pull request
+    with no report -- but the shape still reads back as a subject, and a
+    report settling after it is a change to it.
     """
 
     pr_number: int | None
@@ -117,6 +125,29 @@ class ReviewSubject:
         )
 
     @classmethod
+    def widest(cls) -> ReviewSubject:
+        """The subject whose record is the widest either record can be written at.
+
+        For a measurement, never for a write: every member at the widest this
+        domain records it, so a comment with room for this record has room
+        for any subject a review hands over or approves. Written through
+        `recorded` like every real one, so a member added there moves it.
+        """
+        return cls(
+            pr_number=_record_values.MAX_RECORDED_NUMBER,
+            commit=_WIDEST_HEX,
+            requirements_revision=_WIDEST_HEX,
+            report=ReviewReport(
+                text="",
+                report_revision=_record_values.MAX_RECORDED_NUMBER,
+                content_revision=_WIDEST_HEX,
+                source_sha=_WIDEST_HEX,
+                requirements_revision=_WIDEST_HEX,
+                location=ReportLocation(pr_number=_record_values.MAX_RECORDED_NUMBER),
+            ),
+        )
+
+    @classmethod
     def identity_recorded_in(cls, recorded: object) -> tuple | None:
         """The pull request and report revision a `recorded` object names, or None.
 
@@ -127,6 +158,16 @@ class ReviewSubject:
         if whole is None:
             return None
         return (whole.pr_number, whole.report_revision, whole.content_revision)
+
+    @classmethod
+    def commit_recorded_in(cls, recorded: object) -> str | None:
+        """The head a `recorded` object names, or None.
+
+        None wherever `_RecordedSubject.read` refuses the record, so a head is
+        only ever read off a subject whose every member reads.
+        """
+        whole = _RecordedSubject.read(recorded)
+        return None if whole is None else whole.commit
 
     @classmethod
     def requirements_recorded_in(cls, recorded: object) -> str | None:

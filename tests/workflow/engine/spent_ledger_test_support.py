@@ -28,6 +28,8 @@ from tests.workflow.fixtures import (
     LABEL_IMPLEMENTING,
     LABEL_QUESTION,
     LABEL_VALIDATING,
+    _open_pr_for,
+    publishes_the_report,
 )
 
 RUN_AGENT = "run_agent"
@@ -138,4 +140,13 @@ def spent_issue(road: SpawningRoad):
             **road.seed,
         },
     )
+    # The pull request a seeded number names, and the report its delivery
+    # published there, since the reviewer's subject names both -- without
+    # them the road would hold on a read nobody could take, or refuse a pull
+    # request nobody reported on, rather than reach the charge this table is
+    # about.
+    pr_number = road.seed.get("pr_number")
+    if pr_number is not None:
+        _open_pr_for(gh, issue_number=road.number, pr_number=pr_number)
+        publishes_the_report(gh, issue)
     return gh, issue

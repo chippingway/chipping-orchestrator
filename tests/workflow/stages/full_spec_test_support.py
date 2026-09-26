@@ -40,6 +40,7 @@ _PatchedWorkflowMixin = fixtures._PatchedWorkflowMixin
 _TEST_SPEC = fixtures._TEST_SPEC
 _agent = fixtures._agent
 _issue_branch = fixtures._issue_branch
+_open_pr_for = fixtures._open_pr_for
 
 CODEX_SPEC = "codex -m gpt-5.5 -c 'model_reasoning_effort=\"xhigh\"'"
 CODEX_ARGS = (

@@ -151,9 +151,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             no label routes to any of them, are the stage owners a report record's own measurement
                             REPLAYS to size the writes that land behind it: the two code-publication receipt
                             owners, which the report evidence reads and whose gate write the record reserves; the
-                            stale-approval hand-back an `in_review` relabel writes; and the stamp a fixing
+                            stale-approval hand-back an `in_review` relabel writes; the stamp a fixing
                             hand-back leaves on the comment the settlement ahead of it left
-                            (`stages/fixing/round_marks.py`)
+                            (`stages/fixing/round_marks.py`); and the records a reviewer round writes onto that
+                            comment (`stages/validating/review_records.py`)
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption
     run_limit_dispatch.py   hold exhausted work, replay its owed notice, and admit grants or terminal cleanup;
@@ -433,6 +434,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             LABEL is reserved beside them at the longest spelling the vocabulary has, since which
                             one a settlement lands under depends on where the issue has got to by then -- a question
                             no record can answer for itself, and one the real write answers with something no wider.
+                            The reviewer round the settled report is handed to is reserved in the settled world
+                            too, since it writes onto this same comment -- its spec and subject, its launch
+                            charge, its session and return time, and its approval -- replayed through the
+                            validating stage's own writers at the widest each is written
+                            (`stages/validating/review_records.py`).
                             All of it is
                             replayed through the owners that perform those writes rather than allowed for by a
                             margin, so a field added to any of them moves this refusal with it. The two later
@@ -680,7 +686,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `carried_text` takes the same reading and returns the TEXT as well, the settled revision
                             alone -- a publication's words out of the very parse whose header the reading proved, a
                             verified location's whole body -- held to the digest once more, "" on every answer but
-                            PRESENT; it is dormant, since the validating stage hands its reviewer no report
+                            PRESENT; `stages/validating/review_report.py` asks it before a reviewer is handed the
+                            report
     report_binding.py       what a publication does with the report its run delivered once the push has landed:
                             the record bound to that repository, pull request, branch and commit in one write made
                             BEFORE anything is posted, then published. Both steps on every call, held to the
@@ -721,26 +728,28 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             metadata the orchestrator appends for the pull request and the tracked issue's number is
                             never one of them -- the developer report contract spelled from the report vocabulary with
                             its fresh-respawn counterpart, and the continuation notes for a session-limit retry
-    prompts.py              implementation, review, documentation, fixing, conflict-resolution, and fresh-session prompt
+    prompts.py              implementation, documentation, fixing, conflict-resolution, and fresh-session prompt
                             builders; each response marker agrees with the parser that settles its stage
-    review_prompts.py       a DORMANT fresh-reviewer prompt and the handover it is built over -- the backend that
-                            implemented the work and the subject its caller resolved -- with the developer report
-                            quoted whole between the issue and the inspection commands, named by revision and
+    review_prompts.py       the fresh reviewer's prompt and the handover it is built over -- the backend that
+                            implemented the work and the subject the validating stage resolved -- with the developer
+                            report quoted whole between the issue and the inspection commands, named by revision and
                             location, and a note where the requirements have moved on since it was written; a subject
-                            with no report says none is recorded. The validating stage spawns its reviewer over
-                            `prompts.py`'s builder, which quotes no report
-    review_subjects.py      DORMANT records of what one review is of -- pull request, head, requirements revision,
-                            and report revision and digest -- spelled as `review_subject` for the subject a reviewer
-                            is handed and as `review_approved_subject` for the one an approval covers, where
-                            recording the approval also retires the head-keyed `docs_verdict` and `ready_ping_sha`
-                            an earlier one left; and the question every reader of an approval would ask, whether the
-                            report recorded as current is the one it covered, compared on the pinned records alone.
-                            An approval with no record covers only an issue with no report either, and a record
-                            nobody can read covers nothing: it is read whole, exactly the five members its writer
-                            spells, each in its shape -- requirements that are a digest or "", both report members
-                            or neither, a whole commit id as the head wherever a pull request is named, and neither a
-                            head nor a report where none is -- or neither its identity nor its requirements are
-                            read. No stage writes or reads either record
+                            with no report says none is recorded
+    review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision
+                            and digest -- recorded as `review_subject` before the spawn and as
+                            `review_approved_subject` once an approval passes the verify gate, where recording the
+                            approval also retires the head-keyed `docs_verdict` and `ready_ping_sha` an earlier one
+                            left; the widest subject either record can be written at (`ReviewSubject.widest`),
+                            which the report settlement's measurement reserves; and the question every
+                            later reader of an approval asks, whether the report recorded as current is the one it
+                            covered, compared on the pinned records alone. An approval with no record covers only an
+                            issue with no report either -- one approved before the record existed over a pull
+                            request that has settled a report goes back for a fresh review -- and a record nobody
+                            can read covers nothing: it is read whole, exactly the five members its writer spells,
+                            each in its shape -- requirements that are a digest or "", both report members or
+                            neither, a whole commit id as the head wherever a pull request is named, and neither a
+                            head nor a report where none is -- or neither its identity, its head, nor its
+                            requirements are read
     conversation_prompts.py question, discussion, PR-feedback follow-up, and developer human-reply resume prompts;
                             discussion publication instructions describe the confirmed plan artifact and the commit
                             its stage verifies
@@ -2611,8 +2620,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             may lose
     in_review/              `in_review`
       handler.py            the order one tick asks its questions in, and the missing-`pr_number` park asked before
-                            the rest -- with an approval a requirements edit made stale asked right behind the
-                            terminals
+                            the rest -- with an approval that no longer covers the work, stale by a requirements
+                            edit or recorded against another developer report, asked right behind the terminals
       feedback.py           the four surfaces scanned before the drift check, their author filters (a bare
                             `/orchestrator add-agent-runs` is nobody's review), and the park that stays silent for
                             the base-sync retry loop
@@ -2640,7 +2649,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             move -- and the report bound only once the relabel is behind it; and the hand-back a
                             later tick gives an issue whose approval an edit made stale, read off a report it still
                             owes (a failed push, a held candidate, a tick that died mid-way) or off that marker,
-                            which is the only thing an `ACK:` and a resume that PARKED leave -- a question answers
+                            which is the only thing an `ACK:` and a resume that PARKED leave, or off an approval
+                            recorded against another report than the current one or of one since edited or
+                            removed at its location -- a location nobody could read holding the tick -- a question
+                            answers
                             the edit with nothing, so the move is owed from there too, and made ahead of the
                             feedback scan that would otherwise route the answer to `workflow:fixing` -- with the
                             comment a human wrote while the resume was out still unread beneath the carry, so the
@@ -2649,7 +2661,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             lands it on `workflow:validating` spends no round the edit has already paid for
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
                             round-trips ago -- and the one HITL ready-ping an approved, unvetoed head earns per head
-                            SHA, which is no park and carries no mark
+                            SHA, which is no park and carries no mark; a fresh approval retires the stamp, so a
+                            report re-reviewed on an unchanged head is pinged again, and the subject the approval
+                            covered is read again at the ping itself -- the report at its location, the requirements
+                            over the issue read afresh against the approval's revision and the baseline, the head
+                            over the pull request read afresh (`review_coverage.py`), and last the report records on
+                            the pinned comment -- since the requests before it are time another
+                            road can settle a later report in, a human edit the report or the issue in, or a push
+                            move the head in; refused or unread, nobody is pinged and nothing written. The park
+                            asks the pinned comment the same before it writes
       surfaces.py           the two reads the shared IssueComment id space is taken as -- the issue thread against
                             the delivery cursor an issue-only resume settled as well, the PR conversation against
                             neither -- and the raw merged read tagged by surface that the watermark walks consume.
@@ -2665,9 +2685,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             was built from -- what the issue may mark answered, and the revision its report is
                             stamped with, off the one read
       state.py              the issue-side watermark key they share, the marker saying this issue owes
-                            `workflow:validating` a label move its own relabel did not land, and the one staged
-                            write spelled here rather than at the owner that makes it: every field the hand-back
-                            puts down, asked by the report reservation so a field added moves it too
+                            `workflow:validating` a label move its own relabel did not land, the predicate reading
+                            that marker beside a report still owed, an approval of another report, and one of other
+                            requirements than `user_content_hash` holds -- whose own test is spelled here -- and the one
+                            staged write spelled here rather than at the owner that makes it: every field the
+                            hand-back puts down, asked by the report reservation so a field added moves it too
     question/               `question`
       handler.py            the order one tick asks its questions in, the closed-issue finalize that outranks them,
                             and both worktree teardowns
@@ -2694,7 +2716,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             outlived the tick that cleared it -- and about the note a deferral
                             left, which that round discharges -- and the verdict
                             fan-out, with the subject an approved verdict hands the squash tail built here over
-                            this run's own checkout
+                            this run's own checkout. The developer report is resolved through `review_report.py`
+                            ahead of the spawn and the subject it yields written beside the reviewer spec before
+                            the spawn, onto the comment as that resolution read it, through `review_records.py`; the
+                            pinned comment is read again through `review_comment.py` as the reviewer returns, before
+                            any park or record the run leaves is written, and an approval is acted on only while
+                            `review_coverage.py` finds that whole subject standing
       collapse.py           whether a squash this issue began and did not finish is answered before anything else
                             runs an agent, over the same tail the approval road runs -- what the branch is owed
                             does not depend on which reading sent the tick. Asked only from that road it would be
@@ -2715,9 +2742,22 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             decides over is built here, off that reading, rather than a layer down off the pieces.
                             The settled handoff is answered beside it and needs no checkout at all: the label
                             a finished squash never got to move is moved here, but only while the pull request is
-                            still standing on the commit that handoff named
+                            still standing on the commit that handoff named, the developer report recorded as
+                            current is the one its approval covered and still reads at its location as it settled,
+                            and the issue read afresh still carries the requirements the approval was given and the
+                            baseline holds -- a report settled on that same commit since, edited or removed in place,
+                            or an issue edited since, is work no reviewer has read, and the record goes for the round
+                            below to answer; a location, an issue, or a pull request nobody could read holds the tick
       approval.py           the verify gate and the squash-and-hand-off tail both roads run, over the subject,
-                            branch, and pull request number whichever road decided them hands in -- that number
+                            branch, and pull request number whichever road decided them hands in -- the review
+                            subject recorded as approved once the gate passes, riding whichever write the tail
+                            makes, and the relabel that tail owes held wherever that approval no longer covers the
+                            report the pull request carries, the requirements the issue carries, or the head the
+                            rewrite published (the approved head where it rewrote nothing), each read afresh, the
+                            rewrite finished either way -- the one check the recovery of a squash an earlier tick
+                            did not finish gets -- and nothing posted or written past a published rewrite, nor the
+                            label moved on either road, where the pinned comment no longer carries the report
+                            records in hand, so a report settled meanwhile is left for the next tick; that number
                             read as an identity before the squash subject may reference it: the optional squash,
                             the park each of its four readings earns, the notice its count is worded from --
                             posted ahead of the seed it orders, and the one failure that stops the road, since
@@ -2883,18 +2923,71 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             takes -- and a debt no record describes at all. Every one of those is something the
                             reconciliation stands down on rather than holding, so a silent hold there would
                             suppress every later reviewer with nobody told
-      review_comment.py     the DORMANT binding of a review to its pinned comment. A subject resolved from the state a
-                            tick read when it began is bound only to a comment read afresh that carries the same report
-                            records -- a later report settled in between, on the very head by another road, is there and
-                            nowhere in hand -- and a road about to act on an approval asks the same; where it does not,
-                            the comment will not read or parse, or the fresh reading is another comment than the one the
-                            state was read from -- replaced or gone, whose write would pin a second one -- the answer
-                            hands nothing over and writes nothing. Read against that binding again as a reviewer
-                            returns, records that moved refuse the verdict and everything the comment changed since is
-                            carried onto the state in hand, while another comment or an unread one carries nothing and
-                            writes nothing. Records are compared as the comment's JSON spells them, so one written
-                            `null` where there was none, or a revision `true` where it was `1`, is a move. Nothing here
-                            parks or posts, and no road in the stage asks it
+      review_report.py      the report a reviewer is handed once nothing is owed: the one last settled, re-read where it
+                            settled and quoted whole, and the pull request's head read with it for the subject. Refused
+                            rather than reviewed -- parked under `report_undeliverable` with the debt recorded, so the
+                            reply resumes the developer -- when no report is recorded at all, when the settled record
+                            will not read, is about another pull request, disagrees with the handoff that settled it, or
+                            reads ABSENT or CHANGED (removed, edited, cut short, or untrusted) -- and when a report that
+                            reads intact is STALE: about another commit than the pull request's head, or written against
+                            requirements the drift baseline has moved past, an `ACK:` of an edit included, which is the
+                            rule the hold holds an owed report to. The baseline rather than the reviewer's own read,
+                            since that read carries the reply that bought a retried or granted round -- while that read
+                            has to be the revision the round was due to hand over: the baseline, or on a round a
+                            control-only reply bought -- a bare grant or `/orchestrator continue` -- the thread through
+                            that reply (`validating_reviewer_round_requirements`); a reply carrying words is a
+                            requirements change, and records none. One that moved on after it is held, nothing parked,
+                            the owed round stood down, for the next tick's drift check to resume the developer on the
+                            new words. A reading nobody could take holds without a notice, and every hold writes what
+                            the tick staged -- a cleared park, a cap grant and its notice -- so none of it is answered
+                            twice. Nothing is decided or written until `review_comment.py` finds the pinned comment
+                            carrying the report records the subject was resolved from. The reading itself posts and
+                            parks nothing, so `review_coverage.py` takes it again
+      review_comment.py     the pinned comment a review is bound to. The subject is resolved from the state the tick
+                            read when it began, so the comment is read once it is resolved and has to carry the same
+                            report records: a later report settled in between -- on the very head, by another road --
+                            is there and nowhere in hand, while the report the tick resolved still reads intact. Where
+                            it does not, the comment will not read or parse, or the fresh reading is another comment
+                            than the one the state was read from -- replaced or gone, whose write would pin a second
+                            one -- nothing is handed over and the tick ends WITHOUT writing, since any write would put
+                            the replaced report back. The reading that agreed goes with the subject, and the comment
+                            is read against it again as the reviewer returns and once more after an approval is
+                            verified, before anything the run leaves is written: records that moved refuse the verdict
+                            and everything the comment changed since is carried onto the state in hand, so every write
+                            the run makes keeps that settlement current; another comment or an unread one carries
+                            nothing and the tick writes nothing. Records are compared as the comment's JSON spells
+                            them, so one written `null` where there was none, or a revision `true` where it was `1`,
+                            is a move. The later roads that act on an approval after requests long enough for a
+                            settlement -- the squash tail once its rewrite is published, and the in_review park and
+                            ready ping -- ask the comment the same before they write, and act on nothing where it
+                            moved. Nothing here parks or posts
+      review_coverage.py    whether an approval still covers the subject standing when it is acted on. When the reviewer
+                            returns -- approving or requesting changes -- and the report records on the pinned comment
+                            stand (`review_comment.py`), the whole subject is resolved again over the issue read afresh
+                            and has to EQUAL the one handed over -- pull request, head, requirements, and the report's
+                            revision, digest, location, and words -- or the verdict is not acted on and the next round
+                            resolves the subject for itself; asked again by `approval.py` once the verify gate has
+                            passed, since a verification can run long enough for the report to be edited or replaced
+                            under it. Later, once the pinned records agree the current report is the approved
+                            one and its settlement handoff still describes it -- the pair a reviewer spawn refuses
+                            otherwise -- the report is read at its location again, since no record sees a comment
+                            edited or deleted in place; the issue is read afresh against the approval's own requirements
+                            revision and the drift baseline both, since a baseline moved on to an edit says nothing
+                            about what the reviewer read; and the pull request is read afresh against the commit the
+                            move is owed over, since a push landing meanwhile is a commit nobody approved: the
+                            squash tail asks all of it before its relabel, on either road into it, the settled
+                            squash handoff before moving a label that tail left owed, and `in_review` before an
+                            approval may stand behind a ready ping. Nothing here parks or posts
+      review_records.py     what a reviewer round writes onto the pinned comment, through writers the round and the
+                            report settlement's measurement share: the spec and the subject it is handed, written
+                            ahead of the spawn -- onto the comment as `review_report.py` read it, since the launch
+                            charge writes only its own fields and the state in hand carries what only the round's
+                            own write may land -- and the session and return time it leaves; and the reservation of
+                            the whole round at its widest (spec, subject, launch charge, session, return time, and
+                            approval), so a report is never accepted into a comment its own reviewer cannot write
+                            to. The usage meters the return folds are left out: running totals every run folds,
+                            already on the comment from the developer run whose report it is wherever that run's
+                            usage parsed
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its

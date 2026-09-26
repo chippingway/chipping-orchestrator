@@ -60,7 +60,13 @@ published, and the reviewer below would be a second review of exactly that.
 The record left in the claim's place names the commit the move is owed over,
 and it is acted on only while the pull request is still standing on it --
 anything that moved the publication on has moved the work past the round this
-record was about, and it goes rather than sending the branch on unread.
+record was about, and it goes rather than sending the branch on unread. A
+commit is not the whole of what was approved, though: a developer report that
+changed on that same commit is work no reviewer has read, and so is an issue
+edited since, so the record is also acted on only while the report recorded
+as current is the one the approval covered and still reads, at its location,
+as it settled, and the issue read afresh still carries the requirements the
+approval was given.
 """
 from __future__ import annotations
 
@@ -87,6 +93,7 @@ from orchestrator.workflow.stages.implementing import (
 from orchestrator.workflow.stages.validating import (
     approval as _approval,
     models as _models,
+    review_coverage as _review_coverage,
     state as _state,
 )
 
@@ -244,6 +251,18 @@ def _finished_handoff(
     back to the same reading and answers it the same way. A pull request
     nobody could read decides neither way, and the tick is held for the next
     one to ask again.
+
+    The report and the requirements are asked before the pull request: a
+    developer report settled on this commit after the approval -- or one the
+    approval's record no longer agrees with, or the approved one edited or
+    removed at its location since -- is a subject nobody reviewed, and so is
+    an issue whose requirements are not the revision the approval was given
+    and the baseline holds. Either way the record goes on the same terms as a
+    moved head, and the round below answers it: the reviewer for a report,
+    the drift check for an edit. A location or an issue nobody could read
+    holds the tick, as an unread pull request does. The move itself is taken only where the pinned comment,
+    read again after every one of those requests, still carries the report
+    records in hand (`approval._hands_to_documenting`).
     """
     settled = _late_handoffs.read_settled_handoff(state)
     if not settled:
@@ -253,7 +272,7 @@ def _finished_handoff(
         # have caught. It goes, and the round below runs.
         _late_handoffs.clear_settled_handoff(state)
         return False
-    standing = _publication_stands_on(gh, issue, state, settled)
+    standing = _handoff_stands(gh, issue, state, settled)
     if standing is None:
         return True
     if not standing:
@@ -263,31 +282,21 @@ def _finished_handoff(
     return True
 
 
-def _publication_stands_on(
+def _handoff_stands(
     gh: GitHubClient, issue: Issue, state: PinnedState, settled: str,
 ) -> bool | None:
-    """Whether the pull request is still on the commit the handoff settled.
+    """Whether what the settled handoff was owed over still stands, None unread.
 
-    None where the pull request could not be read at all, which is neither
-    answer: a handoff moved on a reading nobody took would relabel over work
-    this route cannot see, and one dropped on it would send the branch to a
-    reviewer for the same reason. An issue with no pull request has nothing
-    that could have moved, so the label is owed as recorded.
-
-    The HEAD is read inside the same guard as the lookup, because a fetched
-    pull request is lazy: it asks GitHub nothing, and the request that can
-    fail is this attribute read. Left outside, the one failure this reading is
-    about would escape the route instead of holding the record.
+    The approval -- the report it covered still the current one, still
+    reading at its location as it settled, and the issue still carrying the
+    requirements it was given -- and the pull request, still standing on the
+    commit the handoff named (`review_coverage._approval_holds`).
     """
-    pr_number = state.get(_approval._PR_NUMBER)
-    if pr_number is None:
-        return True
-    try:
-        standing = gh.get_pr(int(pr_number)).head.sha
-    except Exception as error:  # noqa: BLE001 - a read nobody took is not a publication that moved
-        log.warning(
-            "issue=#%s could not read PR #%s to finish a settled squash "
-            "handoff: %s", issue.number, pr_number, error,
+    covered = _review_coverage._approval_holds(gh, issue, state, settled)
+    if covered is False:
+        log.info(
+            "issue=#%s carries a developer report, requirements, or a head its "
+            "approval did not cover; dropping the settled squash handoff for "
+            "the round below", issue.number,
         )
-        return None
-    return (standing or "") == settled
+    return covered

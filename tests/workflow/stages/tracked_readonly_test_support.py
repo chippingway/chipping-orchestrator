@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from orchestrator.workflow.stages.validating import handler as _validating
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.stages import tracked_repos_test_support as support
 
 
@@ -21,6 +22,12 @@ def _review_seed():
         codex_session_id=support._DEV_SESSION_ID,
         review_round=0,
     )
+    support._helpers._open_pr_for(
+        github,
+        issue_number=support._REVIEW_ISSUE_NUMBER,
+        pr_number=support._REVIEW_PR_NUMBER,
+    )
+    _published_reports.publishes_the_report(github, issue)
     return github, issue
 
 

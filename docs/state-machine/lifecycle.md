@@ -416,8 +416,29 @@ than a second source of truth: where the two disagree, the handler pages are aut
      a developer report still owed ─► no reviewer spawned; bound and
        settled where the receipt and checkout prove it, else parked
        report_undeliverable once no retry can settle it
-     workflow:validating --(APPROVED, verify ok, squash ok)──►
-       label=workflow:documenting (final-docs) ──► in_review
+     the settled report re-read and quoted whole in the reviewer's prompt
+       (review_subject); unreadable on the pinned comment, about another
+       PR, out of step with its handoff, removed, edited, cut short,
+       untrusted, about another commit than the head, or written against
+       requirements the baseline moved past ─► no reviewer spawned, parked
+       report_undeliverable; a thread that moved past what the round was due
+       to hand over (the baseline, or the thread through the control-only
+       reply that bought it; a worded reply moves it) ─► no reviewer spawned,
+       nothing parked, the owed round stood down,
+       and the next tick's drift check resumes the developer
+     workflow:validating --(APPROVED of the subject still standing, verify
+       ok, subject still standing, squash ok)──► review_approved_subject
+       recorded, docs_verdict and
+       ready_ping_sha retired, label=workflow:documenting (final-docs)
+       ──► in_review; a report or issue edited, a later report settled, or
+       the head pushed while the squash runs ─► rewrite finished, label
+       held, and the next tick hands the change to a fresh reviewer or the
+       drift check
+     in_review with a current report its approval did not cover (an
+       unrecorded approval covers none), or the approved one edited or
+       removed in place ─► review_round=0,
+       label=workflow:validating (fresh reviewer, same head); a location
+       nobody could read holds the tick with no ping
      MAX_REVIEW_ROUNDS exhausted ─► park HITL
      squash failure ─► park HITL on workflow:validating, no relabel
 

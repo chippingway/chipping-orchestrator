@@ -15,6 +15,7 @@ from orchestrator.workflow.stages.validating import (
     watermarks as _validating_watermarks,
 )
 from tests.support.fakes import FakeGitHubClient, FakeIssue, FakePR, make_issue
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.engine import usage_frames as _usage_frames, usage_test_support as support
 
 EVENT_AGENT_EXIT = support.EVENT_AGENT_EXIT
@@ -236,6 +237,7 @@ class AgentAnalyticsTest(unittest.TestCase, _PatchedWorkflowMixin):
             "_latest_pr_comment_ids",
             return_value=(None, None),
         ):
+            _published_reports.publishes_the_report(scenario.github, scenario.issue)
             self._run(
                 lambda: _validating._handle_validating(
                     scenario.github,

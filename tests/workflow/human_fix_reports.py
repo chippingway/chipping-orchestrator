@@ -24,7 +24,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from tests.support.fakes import FakeComment, FakeUser
-from tests.workflow import fix_reports as _fix_world
+from tests.workflow import fix_reports as _fix_world, published_reports as _published_reports
 from tests.workflow.fixtures import _agent
 
 # What a human writes on a pull request the reviewer has already approved, which
@@ -109,6 +109,11 @@ class _HumanFixReportMixin(_fix_world._FixReportMixin):
     checkout, the same push that moves what it lands on. Only the way in is
     this module's.
     """
+
+    def seeded(self, issue_number: int, pr_number: int, label: str, **extra) -> None:
+        """The reviewer's world, over a pull request its approval covers."""
+        super().seeded(issue_number, pr_number, label, **extra)
+        _published_reports.approves_the_report(self.github, self.issue)
 
     def rescanned(self):
         """One `in_review` tick over whatever the pull request now carries.

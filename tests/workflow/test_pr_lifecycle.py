@@ -109,6 +109,7 @@ class ParkAwaitingHumanEventEmissionTest(unittest.TestCase, support._PatchedWork
             base_branch=support.TEST_BASE_BRANCH, mergeable=True, check_state=support.CHECK_SUCCESS,
         )
         gh.add_pr(pr)
+        support.publishes_the_report(gh, issue)
         with patch.object(
             support.validating_watermarks,
             support.LATEST_PR_COMMENT_IDS,
@@ -185,6 +186,7 @@ class ParkAwaitingHumanEventEmissionTest(unittest.TestCase, support._PatchedWork
         )
         gh.add_pr(pr)
         gh.seed_state(9, pr_number=support._APPROVAL_PR_NUMBER, review_round=0)
+        support.publishes_the_report(gh, issue)
         with patch.object(
             support.validating_watermarks,
             support.LATEST_PR_COMMENT_IDS,

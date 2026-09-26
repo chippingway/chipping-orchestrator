@@ -29,7 +29,6 @@ from orchestrator.workflow.engine import (
     stage_targets as _stage_targets,
     usage as _usage,
 )
-from orchestrator.workflow.state import WorkflowLabel
 from tests.git.base_sync.gate_reads_support import _gate_base_reads
 from tests.git.base_sync.recovery_git_support import (
     _local_fetch,
@@ -37,12 +36,13 @@ from tests.git.base_sync.recovery_git_support import (
 )
 from tests.git.worktrees import real_git_test_support as _real_git
 from tests.support.fakes import FakeGitHubClient, FakePR, FakePRRef, make_issue
+from tests.workflow.fixtures import LABEL_VALIDATING, publishes_the_report
 
 ISSUE = 7
 
 PR_NUMBER = 42
 
-VALIDATING = WorkflowLabel.VALIDATING
+VALIDATING = LABEL_VALIDATING
 
 ANCHOR_KEY = "pending_auto_base_rebase_push_sha"
 
@@ -213,6 +213,7 @@ class WidenedReviewCapTest(_LostCheckoutCase):
         state.set("park_reason", REVIEW_CAP)
         self.gh.write_pinned_state(self.issue, state)
         self.gh.comment(self.issue, WIDEN_THE_CAP)
+        publishes_the_report(self.gh, self.issue)
 
 
 if __name__ == "__main__":

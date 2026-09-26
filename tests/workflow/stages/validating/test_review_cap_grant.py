@@ -54,9 +54,6 @@ OWES_A_ROUND = "validating_reviewer_owes_a_round"
 CAP_RESET_MESSAGE = "review-cap reset"
 RUN_AGENT = "run_agent"
 
-# Where the prompt sits in the intercepted agent call.
-PROMPT_ARGUMENT = 1
-
 # Guidance long enough that the round's own excerpt cannot carry its head,
 # with the grant written at the bottom of the very same comment.
 _PAST_THE_BOUND = 5000
@@ -93,24 +90,25 @@ class ReviewCapGrantInsideGuidanceTest(
 
     def test_guidance_is_left_to_the_round(self) -> None:
         # The comment is not the command, so it is guidance too and this road
-        # records none of it. The round the grant buys is what quotes the
-        # thread, under a bound that cannot reach the head -- so the mark it
-        # leaves stops below the comment it cut short, and those words stay
+        # records none of it. Guidance is requirements the settled report
+        # never saw, so the round the grant bought is held for the developer
+        # to answer them first -- with the grant written, so the cap stays
+        # widened, and the mark left below the comment, so those words stay
         # deliverable by the scan that owns the issue thread.
         github, _, mocks = self._capped_tick(
             _agent(last_message=REVIEW_APPROVED_MESSAGE),
         )
 
-        prompt = mocks[RUN_AGENT].call_args[0][PROMPT_ARGUMENT]
-        self.assertNotIn(MIXED_HEAD, prompt)
-        self.assertIn(GRANT_COMMAND, prompt)
-        self._assert_reviewer_spawn(github)
+        mocks[RUN_AGENT].assert_not_called()
         state = self._capped(github)
         self.assertEqual(state.get(REVIEW_ROUND), config.MAX_REVIEW_ROUNDS - 1)
         self.assertEqual(state.get(LAST_ACTION_COMMENT_ID), ACTION_COMMENT_ID)
+        self.assertEqual(state.get(USER_CONTENT_HASH), _before_the_comment())
 
     def test_a_refused_launch_replays_the_grant(self) -> None:
-        # A spent lifetime ledger. The circuit refuses the reviewer before a
+        # A spent lifetime ledger, and a bare grant -- which asks the
+        # developer for nothing, so the round it buys reaches the launch. The
+        # circuit refuses the reviewer before a
         # process exists, and the handler returns without writing -- so the
         # round reset this grant staged is discarded while the notice it
         # posted stays on the thread. The command is therefore still owed,
@@ -118,6 +116,7 @@ class ReviewCapGrantInsideGuidanceTest(
         # the very park it was written on, for it to be honored for real.
         github, issue, mocks = self._capped_tick(
             _agent(last_message=REVIEW_APPROVED_MESSAGE),
+            GRANT_COMMAND,
             **{
                 AGENT_RUN_ALLOWANCE: SPENT_ALLOWANCE,
                 AGENT_RUNS_USED: SPENT_ALLOWANCE,
@@ -172,10 +171,10 @@ class ReviewCapGrantInsideGuidanceTest(
             1,
         )
 
-    def _capped_tick(self, review, **seed):
-        """One `review_cap` tick answering the mixed grant comment."""
+    def _capped_tick(self, review, comment_body: str = MIXED_COMMAND, **seed):
+        """One `review_cap` tick answering the grant comment, mixed by default."""
         github, issue = self._seeded(
-            comment_body=MIXED_COMMAND,
+            comment_body=comment_body,
             user_content_hash=_before_the_comment(),
             **seed,
         )

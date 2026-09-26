@@ -16,6 +16,23 @@ commits off the tip and in the reflog behind a recorded head, the approved
 commits still in the branch's own history under work committed on top of them,
 or a reading that placed them nowhere at all.
 
+What the approval covers is recorded once the verify gate has passed, beside
+everything the handoff writes: the pull request, the head, the requirements,
+and the developer report the reviewer was handed. The subject is resolved and
+compared once more between the two, since a verification can run long enough
+for the report to be edited under it, and an approval of the earlier words is
+not one the squash may be taken under. The tail both roads share holds its
+relabel until the approval still covers the report, the requirements, and the
+head the rewrite published, each read afresh once it is published -- the only
+time any is asked on the road that finishes a squash an earlier tick began --
+and moves the label only while the pinned comment still carries the report
+records in hand. Every later reader that would act on this approval -- the
+settled handoff below, the in_review stage -- holds it to that report, so a
+report that changes on an unchanged commit is sent back to a reviewer rather
+than carried past one. The same record retires the final-docs verdict and the
+ready ping an earlier approval left, since each is keyed on a head this
+approval may share.
+
 The ordering inside the handoff matters too. The squash notice is posted
 BEFORE `handoff` is asked to seed the watermarks, so that its own id lands in
 the recorded orchestrator set and the seed walk steps past it; the reverse
@@ -58,7 +75,11 @@ from orchestrator.github import (
     client as _client,
     pinned_state as _pinned_state,
 )
-from orchestrator.workflow.engine import comments as _comments, guards as _guards
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    guards as _guards,
+    review_subjects as _review_subjects,
+)
 from orchestrator.workflow.late_split import (
     collapses as _collapses,
     handoffs as _late_handoffs,
@@ -67,6 +88,8 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.validating import (
     handoff as _handoff,
     models as _models,
+    review_comment as _review_comment,
+    review_coverage as _review_coverage,
     state as _state,
     verify as _verify,
 )
@@ -291,6 +314,16 @@ def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
         # every later tick re-runs the reviewer on.
         gh.write_pinned_state(issue, state)
         return
+    # The rewrite and its force-push are time another road can settle a later
+    # report in, and everything below writes the state in hand whole: over a
+    # comment that moved, the handoff would put the replaced report back and
+    # move the label under an approval of it. Nothing is posted or written,
+    # and the collapse the squash recorded is the next tick's recovery to
+    # finish -- under the later report, which that approval does not cover.
+    if not _review_comment._records_in_hand(
+        gh, issue, state, "finish its squash under the approval it holds",
+    ):
+        return
     if not squashed.success:
         _park_squash_failure(
             gh, issue, state, squashed.error, standing=squashed.standing,
@@ -322,6 +355,21 @@ def _persists_then_relabels(
 ) -> None:
     """Land everything this handoff owes durably, and only then move the label.
 
+    The label is moved only while the approval it is owed over still covers
+    the report the pull request carries and the requirements the issue
+    carries, read afresh, and while the pull request, read afresh, still
+    stands on `sha` -- the commit this tail published, or, where it rewrote
+    nothing and named none, the head the approval was given. The rewrite and
+    its force-push are time a human can edit the report or the issue in, or
+    push, and the recovery of a squash an earlier tick did not finish reaches
+    here with no reviewer behind it at all -- so the approval is asked again
+    here, on both roads, and a report, an issue, or a head moved in the
+    meantime is work nobody reviewed. The rewrite itself is finished either
+    way, since a branch may not be left standing mid-rewrite; what is held is
+    the move, and the settled record this write leaves is what the next tick
+    answers: dropping it for a fresh reviewer or for the drift check, or
+    moving the label once everything reads again.
+
     The rewrite is over and announced, so what stays on the comment is not a
     claim any more but the commit the move behind this write is owed over.
     Dropped outright, a relabel that does not land would leave an issue on
@@ -334,6 +382,17 @@ def _persists_then_relabels(
     """
     _collapses.settle_pending_collapse(state, sha)
     gh.write_pinned_state(issue, state)
+    published = sha or _review_subjects.ReviewSubject.commit_recorded_in(
+        state.get(_review_subjects.APPROVED_SUBJECT),
+    )
+    if not _review_coverage._approval_holds(gh, issue, state, published):
+        log.info(
+            "issue=#%s finished its squash under an approval that no longer "
+            "covers, or could not be read against, the report, requirements, "
+            "and head the issue carries; holding the move to documenting",
+            issue.number,
+        )
+        return
     _hands_to_documenting(gh, issue, state)
 
 
@@ -355,7 +414,20 @@ def _hands_to_documenting(
     of it, because it is the label that it is about. Nothing else reads it: an
     approval that collapsed nothing leaves none, and there is nothing to end
     or to write there.
+
+    Both callers asked GitHub several things before this -- the report at its
+    location, the issue, the pull request -- and another road can settle a
+    later report on this comment in that time. So the comment is read again
+    first and has to carry the report records in hand (`review_comment`):
+    where it does not, the label stays and nothing is written, since that
+    write would put the replaced report back and move the label under an
+    approval of it. The record left standing is the next tick's to answer,
+    under the later report, which that approval does not cover.
     """
+    if not _review_comment._records_in_hand(
+        gh, issue, state, "move its label past the approval it holds",
+    ):
+        return
     try:
         gh.set_workflow_label(issue, WorkflowLabel.DOCUMENTING)
     except Exception:
@@ -374,8 +446,9 @@ def _hands_to_documenting(
 def _finalize_validating_approval(
     gate, reviewer_run: _models._ReviewerRun, branch: str,
 ) -> None:
-    """Finalize an approved review: verify gate, approval comment, optional
-    squash, in_review handoff watermarks, then relabel to `documenting`.
+    """Finalize an approved review: verify gate, the approved subject, approval
+    comment, optional squash, in_review handoff watermarks, then relabel to
+    `documenting`.
 
     The verify gate is the first gate after the reviewer so an obviously-broken
     branch never reaches `in_review` (GitHub CI still runs against the PR for
@@ -400,9 +473,27 @@ def _finalize_validating_approval(
     verify = _verify_runner._run_verify_commands(
         reviewer_run.wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT,
     )
+    # The verification can outlast a report settling on the same head, an
+    # edit of the report, a push, or an edit of the issue, and nothing past
+    # this line asks again before the squash. What settled is carried before
+    # anything below writes, and a comment that will not read writes nothing.
+    records_stand = _review_comment._records_stand(
+        gh, issue, state, reviewer_run.resolved_over,
+    )
+    if records_stand is None:
+        return
     if verify.status not in ("ok", "not_run"):
         _verify._park_verify_failure(gh, issue, state, verify)
-        gh.write_pinned_state(issue, state)
+    elif records_stand and _review_coverage._subject_still_stands(
+        gh, issue, state, reviewer_run.subject,
+    ):
+        # Staged here and written by whichever write the squash road below
+        # makes, so an approval nothing recorded is never one a later tick
+        # acts on.
+        _review_subjects.record_approved(state, reviewer_run.subject)
+        _handoff._post_approval_comment(gh, issue, state, reviewer_run)
+        _squashed_and_handed_off(gate, branch, reviewer_run.pr_number)
         return
-    _handoff._post_approval_comment(gh, issue, state, reviewer_run)
-    _squashed_and_handed_off(gate, branch, reviewer_run.pr_number)
+    # A failed verification parks and an approval the subject moved out from
+    # under is dropped; either way what the run left is the write owed.
+    gh.write_pinned_state(issue, state)

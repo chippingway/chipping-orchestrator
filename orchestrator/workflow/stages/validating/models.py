@@ -5,7 +5,10 @@
 Each carries something the owner downstream cannot re-derive. `_ReviewerRun`
 holds the worktree the reviewer actually ran in and the round it ran as, so
 the approval gate verifies the same checkout that was reviewed and the
-feedback comment names the round the human sees on the PR. `_ReviewerDecision`
+feedback comment names the round the human sees on the PR -- and the subject
+it was handed, the report included, so an approval is recorded against what
+the reviewer read rather than against whatever is current once it returns.
+`_ReviewerDecision`
 folds the parsed verdict together with the run, and its `feedback` falls back
 to the agent's last message so a reviewer that put its reasoning above the
 VERDICT line still reaches the dev. `_DevFixRun` carries `before_sha` -- the
@@ -45,7 +48,11 @@ from github.Issue import Issue
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.github import client as _client, pinned_state as _pinned_state
-from orchestrator.workflow.engine import comments as _comments, prompt_delivery as _delivery
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    prompt_delivery as _delivery,
+    review_subjects as _review_subjects,
+)
 from orchestrator.workflow.stages.implementing import resume_batch as _resume_batch
 from orchestrator.workflow.stages.validating import state as _state
 from orchestrator.workflow.state import WorkflowLabel
@@ -63,6 +70,18 @@ class _ReviewerRun:
     # reads under different bounds, and a mark taken from the wider one
     # crosses words this reviewer's excerpt cut short.
     delivery: _delivery.PromptDeliverySnapshot
+    # The pull request, head, requirements, and report this round's prompt
+    # handed the reviewer, which is what an approval of it covers.
+    subject: _review_subjects.ReviewSubject
+    # The pinned comment as it was read once that subject was resolved, so a
+    # write another road took while the reviewer ran -- a report settling on
+    # the same head -- is told apart from what this tick staged and never
+    # wrote.
+    resolved_over: dict
+    # Whether the comment, read again as the reviewer returned, had moved a
+    # report record: carried onto the state in hand by then, and a verdict
+    # of a subject that no longer stands.
+    report_moved: bool = False
 
 
 @dataclass(frozen=True)
@@ -288,7 +307,7 @@ class _AwaitingValidation:
             seen.id in ours and seen.id > spoken for seen in self.batch.read
         )
 
-    def bought_a_round(self) -> None:
+    def bought_a_round(self, *, carries_requirements: bool) -> None:
         """Write down that this reply bought a reviewer round.
 
         The round may not run on this tick: a report still owed holds the
@@ -297,10 +316,22 @@ class _AwaitingValidation:
         issue whose requirements the reply itself has moved, and hands a
         reviewer's retry to the developer. It also names the reply as the
         round's to settle, wherever that round finally runs.
+
+        Where the reply is a control and nothing else, the thread through it
+        is what that round is due to hand its reviewer, and anything written
+        after it is requirements the report it reviews never saw. A reply
+        that `carries_requirements` is one of those itself: no reach is
+        recorded, so the round is due the drift baseline alone and is held
+        for the developer to answer the words first.
         """
         self.state.set(
             _state._REVIEWER_OWES_A_ROUND, _state._ROUND_BOUGHT_BY_A_REPLY,
         )
+        through = self.batch.delivery.requirements_revision
+        if through and not carries_requirements:
+            self.state.set(_state._ROUND_BOUGHT_THROUGH, through)
+        elif self.state.get(_state._ROUND_BOUGHT_THROUGH) is not None:
+            self.state.set(_state._ROUND_BOUGHT_THROUGH, None)
 
 
 @dataclass(frozen=True)

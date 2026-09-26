@@ -53,9 +53,18 @@ reviewer-requested round's, `report_settlement` binds either to the publication
 the code reached -- or, for a report needing no commit, to the publication the
 pull request already carries -- and settles it, and `report_hold` holds the
 reviewer, on every tick, until the pull request carries it, which is why
-`handler` asks that hold last, ahead of the spawn. `review_comment` holds the
-dormant check that would bind a reviewer's subject to the pinned comment
-carrying the report records it was resolved from; no road here asks it.
+`handler` asks that hold last, ahead of the spawn. Once nothing is owed,
+`review_report` hands the reviewer the report the pull request carries -- the
+one last settled, re-read and quoted whole -- or refuses the round over one
+the thread has moved out of reach, and `review_comment` binds that subject to
+the pinned comment carrying the report records it was resolved from.
+`review_records` writes what the round puts down -- the spec and subject ahead
+of the spawn, the session on its return -- and reserves the whole round, at
+its widest, in the measurement a developer report is accepted under.
+`review_coverage` holds every approval to the subject standing when it is
+acted on: resolved again whole before `approval` may take the verdict that
+comes back, and the approved report and the requirements read again before
+the squash tail, the settled squash handoff, or `in_review` relies on it.
 
 `models` and `state` carry the records and the wire keys the rest share.
 Callers import the owner they need, so this initializer binds nothing: the

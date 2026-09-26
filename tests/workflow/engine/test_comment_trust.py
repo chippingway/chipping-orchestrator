@@ -21,6 +21,7 @@ from orchestrator.workflow.engine import (
     decomposition_prompts as _decomposition_prompts,
     prompt_context as _prompt_context,
     prompts,
+    review_prompts as _review_prompts,
 )
 from tests.support.fakes import FakeComment, FakeUser, make_issue
 from tests.workflow.engine import comment_trust_test_support as trust
@@ -33,7 +34,7 @@ def _built_prompts(issue, comments_text: str) -> dict[str, str]:
         "implement": prompts._build_implement_prompt(
             _TEST_SPEC, issue, comments_text, specs,
         ),
-        "review": prompts._build_review_prompt(
+        "review": _review_prompts._build_review_prompt(
             _TEST_SPEC, issue, comments_text, specs,
         ),
         "documentation": prompts._build_documentation_prompt(

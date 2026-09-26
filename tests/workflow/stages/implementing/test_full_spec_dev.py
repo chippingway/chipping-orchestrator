@@ -7,7 +7,6 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.stages.implementing import resume as _implementing_resume, state as _implementing_state
-from orchestrator.workflow.stages.validating import handler as _validating
 from tests.workflow.stages import full_spec_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
@@ -45,6 +44,7 @@ _FullSpecFixtureMixin = support._FullSpecFixtureMixin
 _TEST_SPEC = support._TEST_SPEC
 _agent = support._agent
 _issue_branch = support._issue_branch
+_open_pr_for = support._open_pr_for
 make_issue = support.make_issue
 patch = support.patch
 _agent_runner = support.agent_runner
@@ -101,6 +101,7 @@ class FullSpecDevPersistenceTest(unittest.TestCase, _FullSpecFixtureMixin):
             dev_session_id="dev-67002",
             review_round=0,
         )
+        _open_pr_for(gh, issue_number=RESUMED_DEV_ISSUE, pr_number=RESUMED_DEV_ISSUE)
         # Config now points to plain claude (no args).
         self._enter(self._patch_dev_config(CLAUDE_SPEC, BACKEND_CLAUDE, CLAUDE_ARGS))
         # Reviewer too -- we just want the dev-fix call to use the stored spec.
@@ -112,8 +113,8 @@ class FullSpecDevPersistenceTest(unittest.TestCase, _FullSpecFixtureMixin):
         )
         dev_fix = _agent(session_id="dev-67002", last_message="fixed")
 
-        self._mocks = self._run(
-            lambda: _validating._handle_validating(gh, _TEST_SPEC, issue),
+        self._mocks = self._run_validating(
+            gh, issue,
             run_agent=[review, dev_fix],
             dirty_files=(),
             push_branch=True,
