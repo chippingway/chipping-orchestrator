@@ -93,12 +93,24 @@ def publication_verdict(
     The repository is asked through the client rather than compared here, so
     this reading inherits the case-insensitive rule GitHub itself applies.
     """
+    return subject_verdict(gh, pending.subject)
+
+
+def subject_verdict(
+    gh: GitHubClient, subject: _records.ReportSubject,
+) -> _evidence_models.ReportEvidence:
+    """The reading above, for any record bound to a report subject.
+
+    Public for the verification-evidence transaction, whose target is a
+    report subject about the head the evidence is written for: one reading,
+    under one boundary, proves both kinds of record against a pull request.
+    """
     try:
-        return _read_verdict(gh, pending.subject)
+        return _read_verdict(gh, subject)
     except Exception:
         log.exception(
-            "the pull request a developer report is recorded against (#%d) "
-            "could not be read; holding the tick", pending.subject.pr_number,
+            "the pull request a record is bound to (#%d) could not be read; "
+            "holding the tick", subject.pr_number,
         )
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.HOLD,
@@ -220,7 +232,7 @@ def _identified_verdict(
     if getattr(head, "sha", None) != subject.source_sha:
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.DEFER,
-            "the pull request has moved off the commit the report is about",
+            "the pull request has moved off the recorded commit",
         )
     return _evidence_models.ReportEvidence(
         _evidence_models.ReportEvidenceVerdict.PROVED,

@@ -92,6 +92,7 @@ GIT_SEAM_OWNERS = MappingProxyType({
     "_revision_contains_path": _verification_probes,
     "_run_verify_commands": _verify_runner,
     "_squash_and_force_push": _squash,
+    "_tree_sha": _verification_probes,
     "_worktree_dirty_files": _worktree_status,
     "_worktree_path": _worktree_paths,
     "_worktree_status": _worktree_status,

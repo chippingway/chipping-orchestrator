@@ -166,6 +166,12 @@ the pull request carries, and the receipt one finished transaction leaves. Its o
 fail-closed; the initial implementation delivery produces and settles one on the tick it publishes, and the
 dispatcher reconciles an outstanding transaction ahead of every handler
 ([the developer-report transaction](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch)).
+Beside it sits the additive `verification_evidence_*` group -- the pending evidence transaction, the evidence the
+pull request carries now, a bounded history of retired evidence, and the receipt of the last one settled -- which
+the dispatcher reconciles directly behind the report, publishing an artifact only once the pull request, trees,
+review subject, configuration, and requirements are proved, and carrying evidence to another head only on an equal
+full tree under the same context
+([evidence transaction](state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 Every key, what writes it, what spends it, and the legacy `codex_session_id` still honored on read are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
 

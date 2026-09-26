@@ -1724,6 +1724,44 @@ The keys that matter for the state machine fall into a few groups:
   included, covers nothing. That reader takes the record whole: exactly the five members its writer spells, each in
   that writer's shape -- a whole commit id as `sha` wherever `pr` names a pull request, and both report members or
   neither -- so a record short of its `sha` or its `requirements` is no approval either.
+- **Verification evidence.** Four additive records, the developer report's shape extended rather than forked
+  (`workflow/engine/verification_records.py`). `verification_evidence_pending` is one transaction, written BEFORE its
+  artifact is posted: a receipt (`issue-<n>-verification-<revision>-<nonce>`, the nonce because a record nobody could
+  read may already have used the revision) and a revision past every record the issue keeps; the report subject's own
+  `repo` / `pr` / `branch` / `sha` / `requirements` members, where `sha` is the head the evidence is written for; the
+  review subject exactly as `review_subject` spells it; the witness (`source`, `orchestrator-executed` or
+  `reviewer-reported`); the tested commit and its full tree (`tested`, `tree`); the verification context (`context`,
+  the verify runner's digest of `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`); and the commands that ran as
+  `[command, exit status, transcript]`. `verification_evidence_current` is the evidence the pull request carries now:
+  the same binding without the commands, plus the artifact's evidence digest (`content`), the comment it landed as
+  (`comment`), and whether every command exited 0 (`passed`); `null` once invalidated. `verification_evidence_history`
+  is the five most recent retired records, oldest first -- each by receipt, revision, tested commit and tree, target
+  head, context, digest, `passed`, `comment` (`null` for a transaction abandoned before any post was confirmed), and
+  `retired` (`superseded`, `invalidated`, or `abandoned`) -- an index of artifacts that all stay on the pull request.
+  `verification_evidence_handoff` is the receipt of the last finished transaction with its pull request, revision,
+  target head, and, where it could be read, the label the issue carried as it settled (`under`). An issue without any
+  of the keys owes, holds, and has retired nothing.
+  A record is accepted only where it reads back identically, its artifact renders, and the comment has room for it
+  and for its whole settling write; a later record abandons a readable earlier one into history in the same write.
+  The dispatcher reconciles the pending record directly behind the developer-report transaction and ahead of the reuse
+  guard and the handler (`workflow/engine/verification_transaction.py`), so it is behind every pause, terminal,
+  adjudication, outstanding-publication, lease, and auto-rebase-anchor guard, and stands aside -- publishing and
+  dropping nothing -- on an issue that is closed, labelled `done` or `rejected`, held by a hard-skip control label, or
+  unlabelled. It publishes only once it has PROVED the pull request open on the recorded branch and standing on the
+  target head, the branch and checkout standing there too, the tested commit, the target head, and the review
+  subject's head each a readable commit carrying the recorded tree, the configured context the recorded one, no
+  developer report still owed and the review subject naming the one `developer_report_current` records, and the
+  issue's requirements the bound revision. The post is scoped by the receipt, so an accepted write whose response was
+  lost is found rather than repeated; the pull request and requirements are proved again over fresh reads before ONE
+  write supersedes the earlier current record into history, installs the new one and the handoff, and drops the
+  pending record. A reading nobody could take holds the tick; anything a push, a drift resume, a fresh reviewer, or
+  fresher evidence answers stands down with the transaction owed. Nothing here parks: an unreadable record is dropped,
+  and one whose pull request ended or that settled evidence has overtaken is abandoned into history; a record its own
+  handoff already names is dropped without a second post. Evidence answers for another head only through a
+  carry-forward decision (`workflow/engine/verification_carry_forward.py`) exposed when that head's full tree, read
+  from the repository, is the tested tree and the configured context is the recorded one -- patch ids, contribution
+  fingerprints, topic diffs, and rewrite names are never consulted -- and the carried record keeps naming the commit
+  that was actually tested.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one

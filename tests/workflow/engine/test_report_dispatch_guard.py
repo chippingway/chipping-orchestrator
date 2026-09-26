@@ -15,6 +15,9 @@ behind it, it would publish onto a pull request carrying a replay no recovery
 has finalized; behind the reuse guard or the handler it would let a reviewer be
 spawned over a report nobody published. Every one of those failures leaves every
 other assertion in this file passing, so the order itself is what is asserted.
+The verification-evidence transaction is pinned in the same sequence, directly
+behind this one, since the evidence it settles answers for the report this one
+publishes.
 
 A PAUSED issue never reaches the guard at all: the hard-skip screen is one
 level up, in `_process_issue`, and returns before the routing that runs the
@@ -42,6 +45,7 @@ from orchestrator.workflow.engine import (
     report_records as _records,
     report_transaction as _report_transaction,
     stage_targets as _stage_targets,
+    verification_transaction as _verification_transaction,
 )
 from tests.support.github.models import FakeLabel
 from tests.workflow.engine import report_transaction_test_support as support
@@ -80,7 +84,8 @@ _RECOVERY = "recovery"
 # protects: each neighbour stands aside, so where each was called is all there
 # is left to observe.
 _REQUIRED_ORDER = (
-    "adjudication", _RECOVERY, "publication", _RECOVERY, "report", "reuse", "handler",
+    "adjudication", _RECOVERY, "publication", _RECOVERY, "report", "evidence",
+    "reuse", "handler",
 )
 
 
@@ -118,6 +123,10 @@ def _stood_aside(called: list[str]):
         chain.enter_context(patch.object(
             _report_transaction, "_reconciles_pending_report",
             _Recorder(called, "report"),
+        ))
+        chain.enter_context(patch.object(
+            _verification_transaction, "_reconciles_pending_evidence",
+            _Recorder(called, "evidence"),
         ))
         chain.enter_context(patch.object(
             _stage_targets, "_call_handler", _Recorder(called, "handler", None),

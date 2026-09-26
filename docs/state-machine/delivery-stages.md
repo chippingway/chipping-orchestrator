@@ -956,6 +956,32 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Output**: no label change, ever. This owner publishes a report and settles a record; which stage runs next is
   the handler's.
 
+## The verification-evidence transaction (every dispatch)
+- **Trigger**: `_record_stops_the_tick` on any issue whose pinned comment carries `verification_evidence_pending`,
+  directly behind the developer-report transaction and ahead of the reuse guard. The owner is
+  `workflow/engine/verification_transaction.py`; the four records are described under
+  [pinned state](labels-and-state.md#pinned-state).
+- **Why it is behind the report transaction**: evidence answers for a review subject that names the developer
+  report, so a report still owed is a subject about to move — the proof defers to it, and the report settles first.
+- **Stands aside**: a closed issue, a `done` or `rejected` label, a hard-skip control label, or no workflow label at
+  all. Nothing is published or dropped, so a reopen or a relabel finds the record as it was.
+- **Outcomes**:
+  - **Settled** → the pull request, branch, checkout, tested and target trees, review subject, configured context,
+    and requirements all PROVED; the artifact is posted (or found, by its receipt, where an earlier post's response
+    was lost), the pull request and requirements are proved again over fresh reads, and one write makes it current,
+    moves the earlier current evidence into history as superseded, and records the handoff.
+  - **Held** → a reading nobody could take: the pull request, the fetch, the divergence, the requirements, or an
+    unconfirmed post. The next tick asks again.
+  - **Stood down** → a moved head or branch, an absent checkout, an unreadable or different tree, a moved
+    configuration, a report still owed or superseded, edited requirements, an edited artifact, or a settlement the
+    comment no longer has room for. The transaction stays owed for the route that answers it.
+  - **Retired** → a replay its own handoff names is dropped; an unreadable record is dropped; a record whose pull
+    request ended, or that settled evidence has overtaken, is abandoned into history. It never parks.
+- **Carry-forward**: `workflow/engine/verification_carry_forward.py` decides whether current evidence answers for
+  another head, and only on the full tree identity of that head and an unchanged configured context. What it licenses
+  is a new transaction naming the tested commit unchanged and the new head as its target, which this reconciliation
+  proves whole before it is published or current.
+
 ## The reuse guard (every dispatch, ahead of every handler)
 - **Trigger**: `_route_issue_to_handler` on any issue whose pinned ancestry still names a snapshot ref. It shares its
   pinned read with the live-adjudication guard beside it, so it costs no extra comment walk. Both step aside for
