@@ -749,6 +749,69 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its shape -- requirements that are a digest or "", both report members or neither, a whole
                             commit id as the head wherever a pull request is named, and neither a head nor a report
                             where none is -- or neither its identity, its head, nor its requirements are read
+    verification_records.py the verification-evidence records and their pinned keys, all DORMANT -- complete and tested
+                            directly, reached by no stage, guard, or dispatch path yet: PENDING
+                            (`verification_evidence_pending`, the run and its binding, written before the artifact is
+                            posted), CURRENT (`verification_evidence_current`), HISTORY
+                            (`verification_evidence_history`, retired records with why -- superseded, invalidated, or
+                            abandoned -- each keeping its whole binding), HANDOFF (`verification_evidence_handoff`, the
+                            receipt of the last finished transaction), and the revision FLOOR
+                            (`verification_evidence_revision`, the highest revision any transaction was recorded under,
+                            which outlives a damaged, dropped, or evicted record); and the receipt spelling, which names
+                            the revision a transaction was minted under. A binding extends the report records rather
+                            than forking them: its target is a report `ReportSubject` about the head the evidence
+                            answers for, beside the review subject exactly as `review_subjects.py` records it, and the
+                            run adds the tested commit and full tree, the context revision, and the witness. The
+                            artifact a pending record publishes is built here from those members, and `retargeted` moves
+                            only the head a binding answers for, never the commit it tested
+    verification_record_fields.py
+                            the pinned object a binding and a pending transaction are written as: the publication half
+                            through `report_record_fields.py`'s own subject writer and reader, the review subject held
+                            to the binding's pull request and requirements and required to name a developer report,
+                            a pending receipt held to its own revision, and every command read back through the
+                            published format's own type, so a record the artifact would refuse reads as damage rather
+                            than as a refusal after the world was proved
+    verification_settled_fields.py
+                            the pinned objects current evidence and a handoff are written as, and the members every
+                            current and history record share (`record_members`); each reader refuses what its own
+                            writer would not produce, a receipt naming another revision than the record's included
+    verification_history_fields.py
+                            the pinned object one history entry is written as: the whole binding -- report revision and
+                            digest and the complete review subject included, since the artifact names only the subject's
+                            head -- beside an index of an artifact that stays on the pull request, whose comment is
+                            `null` exactly when the entry was abandoned, since only evidence that was current ever held
+                            one
+    verification_record_state.py
+                            the dormant pending transaction's round trip: presence and reading, minting (a revision past
+                            the floor and every readable record, and a receipt spelled from it and a fresh nonce), and
+                            recording -- refused unless its revision is past everything spent, it reads back
+                            identically, its artifact renders, and the comment has room for it AND for its whole
+                            settling write and the later invalidation of the evidence that installs (`settled_payload`),
+                            measured at the widest comment id and label with the ledger entry reserved. Each record
+                            raises the floor in its own write, and over a comment that did not parse, a floor present
+                            and unreadable (`null` included), or a floor missing beside any record, nothing is minted or
+                            recorded. A retry under the recorded receipt is accepted only identical and over an
+                            established floor, and a later record abandons a readable earlier one into history in the
+                            same write
+    verification_settlement_state.py
+                            dormant current evidence, its bounded history, and the handoff: read fail-closed, settled as
+                            ONE composed write on a copy, and only for the transaction the comment records (the earlier
+                            current superseded into history, this one current, the handoff, the pending record dropped),
+                            and retired -- current invalidated, or the pending record the comment stores, named whole,
+                            abandoned -- into history without ever relabelling a run, each retirement composed on a copy
+                            and refused, writing nothing, where the comment could not carry it. History keeps the five
+                            highest revisions in revision order, lowest out, and its reader refuses a `null`, a longer
+                            index, or revisions that do not strictly rise; the revision floor, not the index, keeps
+                            revisions monotonic
+    verification_local_runs.py
+                            what one local `VERIFY_COMMANDS` run is worth as evidence, which the verify gate does not
+                            ask yet: only a run `is_reusable` vouches for, on the head its target answers for, bound
+                            with exactly the commands that ran. A failed run binds nothing, since the runner proves no
+                            clean tree after a nonzero exit; nor do an empty configuration, a timeout, a dirty or moved
+                            tree, a run on another head (a carry-forward's decision, never a local run's), or a
+                            transcript the artifact would refuse, UTF-8 cannot carry, or could not fit in one comment at
+                            the widest receipt and revision a record carries; the room on the pinned comment is the
+                            recorder's question
     conversation_prompts.py question, discussion, PR-feedback follow-up, and developer human-reply resume prompts;
                             discussion publication instructions describe the confirmed plan artifact and the commit
                             its stage verifies
