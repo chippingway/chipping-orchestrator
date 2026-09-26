@@ -7,8 +7,9 @@ at three points. Before the spawn it writes the configured reviewer spec and
 the subject the reviewer is handed (`_records_the_launch`), durably and ahead
 of the launch, so a round that dies mid-review still says what it was shown.
 At the launch the circuit writes the lifetime run charge. On the return the
-round writes the usage the reviewer ran up, the session it ran as, and when it
-returned (`_records_the_return`), and, where it approves, the subject the
+round writes the usage the reviewer ran up, the session it ran as, when it
+returned, and the subject it was handed, again, as the one a reviewer really
+read (`_records_the_return`) -- and, where it approves, the subject the
 approval covers in that same write.
 
 A developer report is accepted only where the comment its settlement leaves
@@ -75,17 +76,24 @@ def _records_the_launch(
 
 
 def _records_the_return(
-    state: PinnedState, usage: UsageMetrics | None, session_id: str | None,
+    state: PinnedState,
+    usage: UsageMetrics | None,
+    session_id: str | None,
+    subject: _review_subjects.ReviewSubject,
 ) -> None:
-    """Stage what a returned reviewer leaves: its usage, its session, and when.
+    """Stage what a returned reviewer leaves: its usage, its session, when, and what it read.
 
-    A run that yielded no session id leaves the last one standing. The caller
-    writes.
+    The subject is the one the launch wrote, recorded again because only this
+    write says a reviewer was really handed it: the launch's own goes down
+    before the run budget is asked, so a launch that budget refused leaves it
+    beside a reviewer nobody invoked. A run that yielded no session id leaves
+    the last one standing. The caller writes.
     """
     _issue_usage._accumulate_issue_usage(state, usage)
     if session_id:
         state.set(_LAST_REVIEW_SESSION_ID, session_id)
     state.set(_LAST_REVIEW_AT, _usage._now_iso())
+    state.set(_review_subjects.RETURNED_SUBJECT, subject.recorded())
 
 
 def reserves_the_round(state: PinnedState) -> None:
@@ -104,5 +112,5 @@ def reserves_the_round(state: PinnedState) -> None:
         _run_ledger_values.AGENT_RUNS_USED, _record_values.MAX_RECORDED_NUMBER - 1,
     )
     _run_ledger._reserve_run(state, _WIDEST_FINGERPRINT)
-    _records_the_return(state, None, _WIDEST_SESSION_ID)
+    _records_the_return(state, None, _WIDEST_SESSION_ID, widest)
     state.set(_review_subjects.APPROVED_SUBJECT, widest.recorded())

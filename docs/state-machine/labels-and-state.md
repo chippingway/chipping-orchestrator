@@ -891,7 +891,8 @@ The keys that matter for the state machine fall into a few groups:
   nothing, while the publication lands under an id of its own and adds an entry anyway. The report's reviewer
   round writes past the settlement on the same comment too — `review_agent` and `review_subject` ahead of its spawn,
   the `agent_runs_used` / `agent_run_reservation` / `agent_run_fingerprint` charge its launch takes,
-  `last_review_session_id` and `last_review_at` on its return, and `review_approved_subject` when it approves — so the
+  `last_review_session_id`, `last_review_at` and `review_returned_subject` on its return, and `review_approved_subject`
+  when it approves — so the
   measurement replays that whole round through the validating stage's own writers, each at its widest
   (`stages/validating/review_records.py`), and a report is never accepted into a comment its own reviewer could not
   then write to. The usage meters that return folds are the one part left out: running totals every agent run
@@ -1689,6 +1690,10 @@ The keys that matter for the state machine fall into a few groups:
   (the fingerprint of the thread read the prompt quotes), and `report_revision` + `report_content` (the revision and
   digest of the developer report quoted whole in the prompt; both `null` is a subject with no report, a shape the
   reader accepts though no reviewer is spawned over a pull request with no report).
+  `review_returned_subject` is the same object again, written only in the write the round makes once its reviewer
+  RETURNS: `review_subject` goes down before the run budget is asked, so a launch that budget refused, or a process
+  that died before the spawn, leaves the report named there with no reviewer ever invoked, and this is the record
+  that says one really read it. Additive: an issue without it records no reviewer that returned under this build.
   `review_approved_subject` is the same object for the latest approval, staged once the verify gate passes and
   written by whichever write the squash tail makes. Every later reader that would act on an approval -- the settled
   squash handoff on `workflow:validating`, and the stale-approval hand-back on `in_review` -- holds it to the report
@@ -1781,7 +1786,11 @@ The keys that matter for the state machine fall into a few groups:
   the bookmarks and `review_round` while the issue is still sitting on `workflow:fixing`, and nothing else on the
   comment says the round is over — the settled report and the code-publication receipt are persistent, so a head a
   pull request stands on for reasons of its own proves nothing about this transaction. It may only ever be RAISED by
-  a record: what takes one down is the route that reads it. Before it is acted on it is CORRELATED against the
+  a record: what takes one down is the route that reads it. Two roads freeze it: every report-carrying round of the
+  fixing stage, and the reviewer-requested round `_handle_validating` runs inline under `workflow:fixing`. That one
+  relabels back to `workflow:validating` before its report is bound, so it ordinarily settles there, where no
+  correlation places the mark and the next fixing tick retires it unspent; bound by the fixing stage after a relabel
+  that never landed, the mark is what hands that round back. Before it is acted on it is CORRELATED against the
   handoff beside it (`workflow/stages/fixing/round_marks.py`) and refused on an outstanding report, a handoff this
   build cannot read, one settled under any label but `workflow:fixing`, or either route anchor standing — which says
   a newer round opened after the mark went up. Two owners read it, `reporting.py` for the hand-back every
@@ -1804,7 +1813,13 @@ The keys that matter for the state machine fall into a few groups:
   Additive: an issue without it has handed no round back under this record. Every road that can reach a relabel with
   the mark raised goes through that one hand-back: the round's own publication, the recovery's binding, the
   no-feedback bounce that republishes a stranded commit, the retry that lands a failed push, and the tick that finds
-  a round settled elsewhere.
+  a round settled elsewhere. The stamp is also what the relabel after that write is retaken on, since the relabel is
+  not atomic with it: a comment carrying the stamp for its own `workflow:fixing` handoff, with no mark, no route
+  anchor and no report owed, is a hand-back whose relabel may never have landed — or one that landed and a later
+  anchorless move back onto `workflow:fixing`. `review_returned_subject` tells them apart: while no reviewer has
+  returned over that handoff's report the round is still owed its review, and the fixing stage takes the relabel
+  again ahead of its scan; once one has, the move back is answered like any other. `review_subject` cannot say this,
+  since it names the report a launch the run budget refused as well as one a reviewer read.
 - **Crash-recovery anchors.** `discussion_round_branch` + `discussion_round_sha` — the branch a discussion round
   opened on and the SHA it was at, written BEFORE the spawn and surviving every exit the stage takes; a published plan
   moves the pair onto the tip it pushed (that commit is what the stage now vouches for) and only a

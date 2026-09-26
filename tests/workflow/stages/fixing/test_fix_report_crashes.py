@@ -28,12 +28,19 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator import config
+from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow import (
     drift_reports as _drift_world,
     fix_report_crashes as crashes,
     fix_reports as world,
+    reviewed_reports as _reviewed_reports,
 )
-from tests.workflow.fixtures import LABEL_DECOMPOSING, LABEL_VALIDATING
+from tests.workflow.fixtures import (
+    LABEL_DECOMPOSING,
+    LABEL_FIXING,
+    LABEL_VALIDATING,
+    REVIEW_APPROVED_MESSAGE,
+)
 
 ISSUE = 1_794
 
@@ -50,6 +57,26 @@ REVIEW_ROUND = "review_round"
 REVIEWER_ANCHOR = "pending_fix_reviewer_comment_id"
 
 PR_LAST_COMMENT_ID = "pr_last_comment_id"
+
+# A human's comment on the pull request after a round was handed back, which
+# the reviewer that round's report is owed has to see first.
+LATER_FEEDBACK = "Please mention the flaky retry in the report as well."
+
+# The lifetime run ledger a refused reviewer launch is spent on, the runs an
+# operator's grant hands back, and the subject that launch wrote regardless.
+RUNS_USED = "agent_runs_used"
+
+RUNS_ALLOWED = "agent_run_allowance"
+
+GRANTED_RUNS = 2
+
+LAUNCHED = "review_subject"
+
+# What a reviewer that returned wrote down, and the backend the developer that
+# answers a comment runs under -- which a second reviewer's would not be.
+RETURNED = "review_returned_subject"
+
+_DEVELOPER_BACKEND = "claude"
 
 # The seam a case reads to say whether this tick paid for a developer at all.
 RUN_AGENT = "run_agent"
@@ -91,13 +118,15 @@ class CrashedFixRoundTest(unittest.TestCase, world._FixReportMixin):
     def test_a_crash_before_relabel_resumes_nobody(self) -> None:
         # The window past the settlement, and the one only this stage can
         # answer: the report is published, the write that settled it applied
-        # the readers and the round the record froze, and the process ends
-        # before the label moves. What is left is `workflow:fixing`, nobody
-        # being waited for, and a round that is over -- which the scan would
-        # read as an issue with nothing to do and bounce, or, with a reply
-        # above it, resume a second developer over. Recognised instead, the
-        # mark that settlement raised hands the issue to `validating` with no
-        # developer run and no second report.
+        # the readers and the round the record froze, the hand-back's own
+        # write retired the mark and stamped the round handed back, and the
+        # process ends before the label moves. What is left is
+        # `workflow:fixing`, nobody being waited for, and a round that is over
+        # -- and a human commenting on the pull request after that is feedback
+        # the scan would resume a second developer over, ahead of the reviewer
+        # that round's report is owed. Recognised instead, the next tick takes
+        # the relabel again and nothing else: no developer run, no second
+        # report, and the comment left unread for the stage that owns it.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
         self.requested_fix(world.QUESTION_REPLY, committed=False)
         world.replied(self)
@@ -113,16 +142,76 @@ class CrashedFixRoundTest(unittest.TestCase, world._FixReportMixin):
              len(self.published_reports())),
             (False, answered, 1, 1),
         )
+        self.pull_request.issue_comments.append(FakeComment(
+            id=self.github.next_reply_id(self.issue),
+            body=LATER_FEEDBACK,
+            user=FakeUser("alice"),
+        ))
         handed = self.parked_resume(world.reported(), committed=False)
 
         handed[RUN_AGENT].assert_not_called()
         self.assertEqual(self.github.label_history[-1], (ISSUE, LABEL_VALIDATING))
-        # The hand-back consumed the mark, so nothing publishes a second
-        # report and no later round is handed back on this one's evidence.
+        # The hand-back's write already closed the round, so the retry adds no
+        # second report, spends no second round, and reads no later feedback.
         self.assertEqual(
-            (len(self.published_reports()), _round(self)), (1, 1),
+            (len(self.published_reports()), _round(self),
+             self.pinned().get(PR_LAST_COMMENT_ID)),
+            (1, 1, answered),
         )
 
+
+    def test_a_move_back_after_the_review_is_answered(self) -> None:
+        # The comment that hand-back leaves once its relabel DID land and a
+        # reviewer ran over the round's report and returned: the return's own
+        # write records the subject that reviewer read. Nothing is owed ahead
+        # of a human who then moves the issue back onto `workflow:fixing` with
+        # a comment of their own, so the tick answers that comment rather than
+        # sending the issue to a second review of the same report.
+        _handed_back(self)
+        reviewed = self.reviewed(REVIEW_APPROVED_MESSAGE)
+        self.assertEqual(
+            (reviewed[RUN_AGENT].call_count, self.pinned()[RETURNED]["report_revision"]),
+            (1, self.records()[CURRENT].report_revision),
+        )
+        _reopens(self)
+
+        answered = self.parked_resume(world.reported(), committed=False)
+
+        answered[RUN_AGENT].assert_called_once()
+        self.assertEqual(
+            (answered[RUN_AGENT].call_args.args[0],
+             LATER_FEEDBACK in answered[RUN_AGENT].call_args.args[1]),
+            (_DEVELOPER_BACKEND, True),
+        )
+
+    def test_a_refused_review_still_owes_the_round(self) -> None:
+        # The launch writes the subject it hands the reviewer BEFORE the run
+        # budget is asked, so a launch that budget refuses leaves the round's
+        # report named there with no reviewer ever invoked. An operator
+        # granting runs and moving the issue back onto `workflow:fixing` with a
+        # comment of their own is then still in front of a report nobody has
+        # read: the tick returns it to review rather than resuming a developer
+        # over the comment, which stays unread for the stage that owns it.
+        answered = _handed_back(self)
+        spent = self.pinned()[RUNS_USED]
+        _reviewed_reports.restate(self, **{RUNS_ALLOWED: spent})
+
+        refused = self.reviewed()
+
+        self.assertEqual(
+            (refused[RUN_AGENT].call_count, self.pinned()[LAUNCHED]["report_revision"]),
+            (0, self.records()[CURRENT].report_revision),
+        )
+        _reopens(self, **{
+            RUNS_ALLOWED: spent + GRANTED_RUNS, AWAITING_HUMAN: False, PARK_REASON: None,
+        })
+        handed = self.parked_resume(world.reported(), committed=False)
+
+        handed[RUN_AGENT].assert_not_called()
+        self.assertEqual(
+            (self.github.label_history[-1], self.pinned().get(PR_LAST_COMMENT_ID)),
+            ((ISSUE, LABEL_VALIDATING), answered),
+        )
 
     def test_a_crash_before_the_push_publishes_first(self) -> None:
         # The earlier window, where the report is recorded and the commit it
@@ -301,3 +390,33 @@ def _handover(case) -> tuple:
 def _round(case) -> int:
     """The reviewer round this issue's pinned comment says it has spent."""
     return case.pinned()[REVIEW_ROUND]
+
+
+def _handed_back(case) -> int:
+    """A parked round that reported and was handed back; the reply it answered.
+
+    The reviewer asked, the developer asked back, a human replied, and the
+    resume behind that reply published its report and moved the issue to
+    `workflow:validating` -- the round every case here reopens.
+    """
+    case.seeded(ISSUE, PR, LABEL_VALIDATING)
+    case.requested_fix(world.QUESTION_REPLY, committed=False)
+    world.replied(case)
+    case.parked_resume(world.reported(), committed=False)
+    return max(reply.id for reply in case.issue.comments)
+
+
+def _reopens(case, **restated) -> None:
+    """A human moves the issue back onto `workflow:fixing` with a comment.
+
+    `restated` is whatever else they change on the pinned comment first -- an
+    operator's grant of runs, and the park it answers taken down.
+    """
+    if restated:
+        _reviewed_reports.restate(case, **restated)
+    case.github.apply_foreign_label(case.issue, LABEL_FIXING)
+    case.pull_request.issue_comments.append(FakeComment(
+        id=case.github.next_reply_id(case.issue),
+        body=LATER_FEEDBACK,
+        user=FakeUser("alice"),
+    ))

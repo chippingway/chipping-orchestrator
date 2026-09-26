@@ -416,8 +416,11 @@ def _hands_the_round_back(ctx: _models._FixingContext) -> None:
     whole of what makes the pair safe. The mark is durable and the relabel is
     not atomic with it, so one of the two windows has to be chosen: retired
     first, a tick that dies before the label moves leaves a round whose mark is
-    down and whose issue is still on `workflow:fixing` -- and the no-feedback
-    bounce behind it hands the reviewer the head on the very next poll.
+    down and whose issue is still on `workflow:fixing` -- and the recovery ahead
+    of the next scan takes the relabel again, on the receipt this write stamps
+    beside a report no reviewer has returned over yet
+    (`round_marks._hand_back_left_unlanded`), before any feedback that landed
+    meanwhile can resume a developer.
     Relabelled first, that same death leaves a raised mark under a label that
     has moved on, and NOTHING later can tell it from a round that has just
     settled: a manual return to `workflow:fixing` carries no route anchor, owes

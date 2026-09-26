@@ -29,6 +29,17 @@ onto the comment afterwards would find that same handoff, recorded under
 a second hand-back over whatever arrived in between. The stamp is what ties a
 mark to ONE transaction instead of to any settlement whose handoff is still
 lying there.
+
+The relabel comes after that write, so the write can land and the relabel not
+-- a process dying between them, a label write GitHub refused. What is left is
+a comment saying the round was handed back and a label saying it never left,
+and only one reading tells that apart from a hand-back that landed and a later
+move back onto `workflow:fixing`: whether any reviewer has been handed the
+report that round settled -- a reviewer that RETURNED over it, since the
+subject a launch writes goes down before the run budget is asked. A round
+nobody has reviewed yet is still owed its review, so that reading licenses the
+relabel again -- and nothing else, since everything the hand-back wrote is
+already on the comment.
 """
 from __future__ import annotations
 
@@ -36,6 +47,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
     report_settlement_state as _settlement,
+    review_subjects as _review_subjects,
 )
 from orchestrator.workflow.stages.fixing import state as _state
 from orchestrator.workflow.state import WorkflowLabel
@@ -142,3 +154,45 @@ def _stamps_the_round_handed_back(state: PinnedState) -> None:
     handoff = _settlement.read_handoff(state)
     if handoff is not None:
         state.set(_state._HANDED_BACK_RECEIPT, handoff.receipt)
+
+
+def _hand_back_left_unlanded(state: PinnedState) -> bool:
+    """Whether a hand-back this stage wrote is still owed the relabel behind it.
+
+    Every reading a hand-back leaves has to hold: no mark standing, since a
+    raised one is the correlation above's to place; no report owed, since an
+    outstanding publication is not a round that closed; a handoff settled under
+    `workflow:fixing` whose receipt is the one the hand-back stamped; and
+    neither route anchor, since a newer round would have opened one. That
+    comment is also what a hand-back that DID land leaves once something moves
+    the issue back onto this label without a route of its own, so the last
+    reading is the one that decides: no reviewer has RETURNED over that
+    settlement's report. A round whose report the pull request carries and
+    nobody has reviewed is owed that review before any fix round answers what
+    arrived since, whichever of the two left it here -- and one a reviewer
+    returned over is not, which is what keeps a deliberate move back onto
+    `workflow:fixing` after the review from being bounced to a second one.
+
+    Returned, and not merely launched: `review_subject` goes down ahead of the
+    launch, before the run budget is asked, so a launch that budget refused
+    leaves the report named there with no reviewer ever invoked. Only the
+    subject a returned reviewer's round writes says one was really handed the
+    report. A subject nobody can read names no reviewer handed anything.
+    """
+    if state.get(_state._SETTLED_ROUND) or _report_delivery.owes_a_report(state):
+        return False
+    handoff = _settlement.read_handoff(state)
+    if handoff is None or handoff.settled_under is not WorkflowLabel.FIXING:
+        return False
+    if handoff.receipt != state.get(_state._HANDED_BACK_RECEIPT):
+        return False
+    if any(
+        state.get(recorded) is not None
+        for recorded in (_state._PENDING_FIX_AT, _REVIEWER_ANCHOR)
+    ):
+        return False
+    handed = _review_subjects.ReviewSubject.identity_recorded_in(
+        state.get(_review_subjects.RETURNED_SUBJECT),
+    )
+    settled = (handoff.pr_number, handoff.report_revision)
+    return handed is None or handed[:2] != settled

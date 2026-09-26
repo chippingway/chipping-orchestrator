@@ -401,6 +401,90 @@ an open pull request the review stages' own, which is also what binds a delivery
 the delivery for its transaction in one write before anything is posted, and taken again on every tick that
 republishes the same commit onto the same pull request until it lands.
 
+### The developer report lifecycle
+
+Read end to end rather than road by road, one report passes the same stations whichever road produced it, and the
+division of labour between the developer and the orchestrator never changes.
+
+- **Who owns what.** The developer writes the report, and the outcome it ends on is the whole of its part: it never
+  posts, edits, or asks permission to publish one. The orchestrator records the report, proves the world it describes,
+  publishes or re-reads it, recovers it after an interruption, and hands it to the next reviewer. A human may publish
+  or edit a report on the pull request themselves, and the developer's part is then to read it and verify it.
+- **What identifies a report.** A report is recorded with a *receipt* naming its publication transaction
+  (`issue-<n>-report-<revision>`), a *report revision* minted one past every report the issue has recorded, and the
+  *requirements revision* the developer run was handed. The *source commit* it describes joins them when the
+  delivery is bound to the publication carrying the code. The *content revision* — the SHA-256 of the report's exact
+  text — depends on the outcome: a `REPORT: READY` delivery and its pending transaction carry the text itself, its
+  digest is written into the published comment's header, and the settled `developer_report_current` records it
+  beside the exact location; a `REPORT: VERIFIED` outcome carries the location and the content revision it asserts
+  from the start. One developer result is one revision, so several reports can stand on one commit, while a retry
+  under the same receipt finds what an earlier attempt landed instead of posting again. The requirements revision is
+  the one the run was given and never the one current when publication finally lands, so a delayed report is not
+  stamped as answering an edit it never saw.
+- **Where it lives.** A published report is a comment of its own on the pull request, rendered under a header naming
+  that identity and ending on the orchestrator's comment marker; the pull-request description is never rewritten to
+  carry one. Its comment id joins `orchestrator_comment_ids` — including a post whose response was lost, once the
+  retry finds it — so no feedback reader takes it for a human's, while a human commenting from the same account
+  is still read. A verified report may sit in the description or in any comment on the pull request.
+  `developer_report_current` records the exact location either one settled at, and every later reader re-reads it
+  there.
+- **Ready versus verified.** `REPORT: READY` hands the orchestrator a report to publish. `REPORT: VERIFIED` names one
+  already on the pull request, which is re-read at that location, held to a trusted author and to the digest the
+  developer named, and settled with nothing posted; a location that changed, went missing, or could not be read is
+  not the verified revision. Neither is read out of a run that did not complete, and neither is an `ACK:`, a question,
+  or no-change prose, each of which keeps its own road.
+- **Evidence before anything goes out.** The report is recorded before the size gate and the push, and published
+  only over proof: a readable, clean worktree standing on the recorded commit; the pull request the record names,
+  open on the recorded branch of this repository and standing on that commit; a fetched branch with nothing
+  unpushed and a remote that has not moved; a code-publication receipt naming that commit and that pull request; and
+  requirements that still hash to the revision the run was handed. Nothing completes on an absence, and committed
+  work nobody published still passes the size gate whatever the latest run ended on.
+- **Recovery.** `developer_report_delivery` holds what the run wrote until a publication is bound to it,
+  `developer_report_pending` holds that transaction until it lands, and one write then settles the report, its
+  handoff receipt, the readers the run consumed, and the round its route owes. Each window an interruption can leave
+  is finished with no second developer run, no second report, and no round spent twice:
+  - a post GitHub refused or never confirmed, and one it accepted while the response was lost, by the
+    [developer-report transaction][report-transaction] ahead of every handler, which finds an accepted post by its
+    receipt rather than posting again;
+  - a report recorded and never bound — the process dying before the gate or before the binding, or the
+    reviewer-requested round's relabel to `workflow:validating`, which it takes before the binding, never landing —
+    by the stage that binds it: `workflow:validating`'s review hold, or `workflow:fixing`'s recovery, which hands the
+    round back on the `fixing_round_settled` mark the record carries;
+  - a round settled on `workflow:fixing` and never handed back, on that same mark; and one whose hand-back was
+    written and whose relabel never landed, by taking the relabel again while no reviewer has returned over that
+    round's report — `review_returned_subject`, which only a reviewer that ran writes, rather than the launch's
+    `review_subject`, which a launch the run budget refused writes too.
+
+  None of them reads feedback past the pairs the record froze, so a comment arriving in any of those windows is left
+  for the road that ordinarily answers it.
+- **Review-subject freshness.** No reviewer spawns while a report is owed. Each is handed the report the pull request
+  carries, re-read where it settled and quoted whole, and what it reviewed — pull request, head, requirements, and
+  the report's revision and digest — is recorded as `review_subject` at the launch and as `review_returned_subject`
+  once it returns, an approval's as `review_approved_subject`. A new
+  report on an unchanged head is a new subject, so it reaches a fresh reviewer rather than riding an earlier
+  approval, and the verify gate and final-docs pass still follow that approval in their usual order.
+- **Fix-round accounting.** What a handover spends depends on the road that earned it, and a replay applies the pair
+  the record froze rather than counting again:
+  - a requirements-drift resume on `workflow:validating` spends one round for a commit and nothing for a report
+    alone;
+  - a requirements-drift resume on `in_review` resets the review budget, since the approval was of requirements that
+    are gone, and its publication spends nothing of the fresh one;
+  - the automated `CHANGES_REQUESTED` round, direct or resumed after a park, spends one round — at the push's
+    receipt for a commit, at the settlement for a report alone — and has no `ACK:` completion: an `ACK:` there parks
+    for a human with the replay anchor intact;
+  - human feedback routed from `in_review` (`pending_fix_at` set) resets `review_round` to 0 on its handover, since
+    the approval was of the prior head, and its `ACK:` returns the pull request to `in_review`.
+
+  Agent runs are counted where they are spawned and nowhere else: each launch is charged once to `agent_runs_used`
+  and its usage folded once into the per-issue totals, and a recovery that finishes a result spawns nobody. Review
+  caps, `/orchestrator add-review-rounds`, and `/orchestrator add-agent-runs` bound the same counters on every road.
+
+`tests/workflow/test_report_lifecycle.py` walks this whole sequence through the dispatcher — a requirements edit, a
+drift commit whose report publication is interrupted, a reviewer asking for the report, a report-only round on the
+same commit interrupted on its own accepted post, on its relabel, or on that relabel and the recovery's hand-back
+relabel both, with a human commenting while it runs, and the fresh review, docs pass, and `in_review` round behind
+it — and holds every combination to the same end state.
+
 ## Foreground execution and asynchronous command guidance
 
 Every developer and commit-producing prompt — initial implementation, automated reviewer fixes, requirements drift,

@@ -75,6 +75,17 @@ from orchestrator.workflow.state import WorkflowLabel, stage_name
 
 log = logging.getLogger("orchestrator.workflow")
 
+# The mark a fixing round's settlement raises, carried on this route's record
+# as it is on the fixing stage's own. The relabel back to `validating` is taken
+# BEFORE the binding, so this record ordinarily settles under that label, where
+# the fixing stage retires the mark unplaced. A relabel that never landed -- a
+# process that died on it, a label write GitHub refused -- leaves the record
+# unbound on `workflow:fixing` instead, and the fixing stage's recovery binds it
+# there. Without the mark that settlement closes the round and hands nothing
+# back, so the next scan reads whatever arrived since under a route the
+# settlement has just cleared.
+_SETTLES_THE_ROUND = ((_records.SETTLED_ROUND, True),)
+
 
 def _reviewer_no_verdict_park(review) -> tuple[str, str]:
     """Name the park a verdict-less reviewer run earns, and what it is told.
@@ -234,7 +245,9 @@ def _finish_requested_fix(
     owed -- so the move hands the issue to the owner that finishes the
     transaction rather than presenting unconfirmed work to anybody. Moved after
     the binding instead, a settled report would stand beside a label still
-    claiming the round it closed.
+    claiming the round it closed. A move that never lands leaves the record
+    unbound on `fixing`, and the settled-round mark it carries is what lets the
+    fixing stage's recovery finish the hand-back there.
     """
     if attempt.paused:
         return
@@ -263,10 +276,13 @@ def _finish_requested_fix(
         # contract, and the same frozen pair above -- which on the road with no
         # code in it is the ONLY thing that carries the round, since the write
         # that settles the report is the first write a handover nothing
-        # published has earned. The revision is left to the pinned baseline: no
+        # published has earned. The mark rides beside it for the relabel below
+        # that may not land. The revision is left to the pinned baseline: no
         # drift check snapshotted one for this route, and the reviewer round
         # runs behind the one the tick's own drift check left.
-        handed=_records.HandedRun(WorkflowLabel.FIXING, spends=owed.fields),
+        handed=_records.HandedRun(
+            WorkflowLabel.FIXING, spends=owed.fields + _SETTLES_THE_ROUND,
+        ),
     )
     if outcome not in _state._REPORTING_OUTCOMES:
         if not _guards._ignore_if_interrupted(

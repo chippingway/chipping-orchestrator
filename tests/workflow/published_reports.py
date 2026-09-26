@@ -13,6 +13,8 @@ report can name -- is left exactly as it stands, and the tick answers for that.
 """
 from __future__ import annotations
 
+from functools import partial
+
 from orchestrator.github import developer_reports as _reports
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
@@ -95,16 +97,18 @@ def _publishes(github, issue, state, published: tuple[int, str]) -> None:
         github._pinned[issue.number].data.update(settled)
 
 
-def approves_the_report(github, issue) -> None:
-    """Record an approval of the report the pull request carries.
+def reviews_the_report(github, issue, *, approved: bool = False) -> None:
+    """Record a reviewer handed the report the pull request carries.
 
-    What the approval a case is set after left on the pinned comment: the
-    subject it covered, and the stamps an approval retires gone.
+    What the review a case is set after left on the pinned comment: the subject
+    a reviewer that returned was handed, as its launch and its return both
+    record it -- and, `approved`, the subject its approval covered, with the
+    stamps an approval retires gone.
     """
     publishes_the_report(github, issue)
     state = github.read_pinned_state(issue)
     current = _settlement.read_current_report(state)
-    approved = _review_subjects.ReviewSubject(
+    subject = _review_subjects.ReviewSubject(
         pr_number=current.subject.pr_number,
         commit=current.subject.source_sha,
         requirements_revision=current.subject.requirements_revision,
@@ -117,8 +121,15 @@ def approves_the_report(github, issue) -> None:
             location=current.location,
         ),
     )
-    _review_subjects.record_approved(state, approved)
+    _review_subjects.record_reviewed(state, subject)
+    state.set(_review_subjects.RETURNED_SUBJECT, subject.recorded())
+    if approved:
+        _review_subjects.record_approved(state, subject)
     github._pinned[issue.number].data.update(state.data)
+
+
+# The approval a case is set after, which is a review whose verdict was taken.
+approves_the_report = partial(reviews_the_report, approved=True)
 
 
 def _report_of(github, issue, state, pull, published) -> _reports.DeveloperReport | None:

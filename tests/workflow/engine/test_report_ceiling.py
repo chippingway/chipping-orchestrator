@@ -158,7 +158,8 @@ class CeilingTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         """One reviewer round, write by write, through the owners that make them.
 
         Its spec and subject ahead of the spawn, the run charge its launch
-        takes, its session and return time, and the approval: every one lands
+        takes, its session, return time and the subject it returned over, and
+        the approval: every one lands
         past the settlement on this same comment, so a record accepted at the
         ceiling has to have left room for all of them.
         """
@@ -180,7 +181,9 @@ class CeilingTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         _run_ledger._reserve_run(self.state, _LAUNCH_FINGERPRINT)
         self._assert_within_the_comment()
         _run_ledger._start_reserved_run(self.state)
-        _review_records._records_the_return(self.state, None, _REVIEWER_SESSION)
+        _review_records._records_the_return(
+            self.state, None, _REVIEWER_SESSION, reviewed,
+        )
         _review_subjects.record_approved(self.state, reviewed)
         self._assert_within_the_comment()
 
