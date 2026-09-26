@@ -23,9 +23,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from orchestrator.workflow.engine import review_subjects as _review_subjects
 from tests.support.fakes import FakeComment, FakeUser
-from tests.workflow import fix_reports as _fix_world
+from tests.workflow import fix_reports as _fix_world, published_reports as _published_reports
 from tests.workflow.fixtures import _agent
 
 # What a human writes on a pull request the reviewer has already approved, which
@@ -103,32 +102,6 @@ def shared_account_reply(case, body: str) -> FakeComment:
     return posted
 
 
-def approves_the_report(case) -> None:
-    """Record the approval the fresh review a report's hand-back earns gives.
-
-    What `in_review` holds an approval to is the report the pull request
-    carries: a case that puts a handed-back issue straight back on that label
-    records the approval of the report it carries, as the review in between
-    would have.
-    """
-    current = case.records()["current"]
-    state = case.github.read_pinned_state(case.issue)
-    _review_subjects.record_approved(state, _review_subjects.ReviewSubject(
-        pr_number=current.subject.pr_number,
-        commit=current.subject.source_sha,
-        requirements_revision=current.subject.requirements_revision,
-        report=_review_subjects.ReviewReport(
-            text="",
-            report_revision=current.report_revision,
-            content_revision=current.content_revision,
-            source_sha=current.subject.source_sha,
-            requirements_revision=current.subject.requirements_revision,
-            location=current.location,
-        ),
-    ))
-    case.github.write_pinned_state(case.issue, state)
-
-
 class _HumanFixReportMixin(_fix_world._FixReportMixin):
     """The fix loop as a human's comment on an approved pull request drives it.
 
@@ -136,6 +109,11 @@ class _HumanFixReportMixin(_fix_world._FixReportMixin):
     checkout, the same push that moves what it lands on. Only the way in is
     this module's.
     """
+
+    def seeded(self, issue_number: int, pr_number: int, label: str, **extra) -> None:
+        """The reviewer's world, over a pull request its approval covers."""
+        super().seeded(issue_number, pr_number, label, **extra)
+        _published_reports.approves_the_report(self.github, self.issue)
 
     def rescanned(self):
         """One `in_review` tick over whatever the pull request now carries.

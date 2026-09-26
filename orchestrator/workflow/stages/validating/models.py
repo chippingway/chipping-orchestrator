@@ -73,6 +73,10 @@ class _ReviewerRun:
     # The pull request, head, requirements, and report this round's prompt
     # handed the reviewer, which is what an approval of it covers.
     subject: _review_subjects.ReviewSubject
+    # The pinned comment as it was read just before the spawn, so a write
+    # another road took while the reviewer ran -- a report settling on the
+    # same head -- is told apart from what this tick staged and never wrote.
+    spawned_over: dict
 
 
 @dataclass(frozen=True)

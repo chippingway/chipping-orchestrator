@@ -5,11 +5,14 @@
 Each reviewer is handed the report the pull request carries when it spawns --
 re-read from the location it settled at and quoted whole -- and the subject it
 reviewed is recorded: pull request, head, requirements, and report revision. A
-report the thread has moved out of reach is refused rather than reviewed, and a
-reading nobody could take holds. An approval of words the pull request no
-longer carries is not acted on, and a settled squash handoff moves the label
-only while the report its approval covered is still the current one -- so a
-report changed on an unchanged commit always reaches a fresh reviewer.
+pull request carrying no report, or one the thread has moved out of reach, is
+refused rather than reviewed, and a reading nobody could take holds. An
+approval of words the pull request no longer carries is not acted on, nor is a
+verdict on a report another one settled over while the reviewer ran -- which
+the write recording that run keeps current -- and a settled squash handoff
+moves the label only while the report its approval covered is still the
+current one. So a report changed on an unchanged commit always reaches a fresh
+reviewer.
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ from orchestrator.workflow.stages.validating import (
 from tests.workflow import (
     drift_reports as _drift_world,
     fix_reports as _fix_world,
+    published_reports as _published_reports,
     reviewed_reports as world,
 )
 from tests.workflow.fixtures import (
@@ -51,14 +55,15 @@ RUN_AGENT = world.RUN_AGENT
 
 HANDOFF_SHA = _late_handoffs.LATE_COLLAPSE_HANDOFF
 
-NO_REPORT = "No developer report is recorded for this pull request"
-
 # A report a maintainer published on the pull request, which a round verifies.
 HUMAN_REPORT = "### Report\n\nRan the suite by hand; every check is green."
 
 HUMAN = "alice"
 
 LATE_REVIEWER = "late-reviewer"
+
+# Where the pinned comment records the reviewer session a round ran.
+LAST_REVIEWER = "last_review_session_id"
 
 # Where a human pushes the branch while a reviewer is out.
 MOVED_HEAD = "b0a7" * 10
@@ -107,16 +112,26 @@ class _DamagedReports(world._ReviewedReports):
 
     def unhands(self) -> None:
         handoff = dict(self.pinned()[_records.REPORT_HANDOFF])
-        world.restate(self, **{_records.REPORT_HANDOFF: {**handoff, "revision": 2}})
+        world.restate(self, **{
+            _records.REPORT_HANDOFF: {**handoff, "revision": handoff["revision"] + 1},
+        })
+
+    def unreports(self) -> None:
+        """Leave the pull request with no settled report on record at all."""
+        pinned = self.github._pinned[ISSUE].data
+        for record in (_records.CURRENT_REPORT, _records.REPORT_HANDOFF):
+            pinned.pop(record)
 
     def damages(self) -> None:
         world.restate(self, **{_records.CURRENT_REPORT: {"revision": "one"}})
 
 
-# Every settled report no reviewer may be handed: what happened to it, and what
-# the park says of it. The last two read intact and are stale against the
-# subject: a push onto the branch, and an edit the developer only acknowledged.
+# Every report no reviewer may be handed: what happened to it, and what the
+# park says of it. The first is none recorded at all; the last two read intact
+# and are stale against the subject: a push onto the branch, and an edit the
+# developer only acknowledged.
 REFUSED_REPORTS = (
+    ("unreported", _DamagedReports.unreports, _review_report._UNREPORTED),
     ("missing", world.deletes_report, _review_report._MISSING),
     ("edited", world.edits_report, _review_report._EDITED),
     ("truncated", _DamagedReports.truncates, _review_report._EDITED),
@@ -152,17 +167,18 @@ class HandedReportTest(unittest.TestCase, world._ReviewedReports):
     """What each reviewer is handed, under whatever allowlist is configured."""
 
     def test_each_reviewer_reads_the_current_report(self) -> None:
-        # Two report-only rounds on one commit: the first reviewer has no
-        # report, the second reads the first report, and the third reads the
-        # second and never the first -- whatever the pull request still holds
-        # as history. The approval records the subject it was given.
+        # Two report-only rounds on one commit: the first reviewer reads the
+        # report the pull request was opened with, the second reads the first
+        # round's, and the third reads the second round's and never the first
+        # -- whatever the pull request still holds as history. The approval
+        # records the subject it was given.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
 
         first = self.reported_round(world.FIRST_REPORT)
         second = self.reported_round(world.SECOND_REPORT)
         approved = self.reviewed(REVIEW_APPROVED_MESSAGE)
 
-        self.assertIn(NO_REPORT, world.prompt(first))
+        self.assertIn(f"> {_published_reports.DELIVERED_REPORT}", world.prompt(first))
         self.assertIn(f"> {world.FIRST_REPORT}", world.prompt(second))
         self.assertIn(f"> {world.SECOND_REPORT}", world.prompt(approved))
         self.assertNotIn(world.FIRST_REPORT, world.prompt(approved))
@@ -171,7 +187,7 @@ class HandedReportTest(unittest.TestCase, world._ReviewedReports):
             "pr": PR,
             "sha": _fix_world.PUBLISHED_HEAD,
             "requirements": pinned["user_content_hash"],
-            "report_revision": 2,
+            "report_revision": 3,
             "report_content": content_digest(world.SECOND_REPORT),
         }
         self.assertEqual(
@@ -327,7 +343,7 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
                 self.assertEqual(
                     (
                         ran[RUN_AGENT].call_count,
-                        self.pinned().get("last_review_session_id"),
+                        self.pinned().get(LAST_REVIEWER),
                         world.APPROVED in self.pinned(),
                         self.github.label_history[-1],
                         len(self.github.posted_pr_comments),
@@ -335,6 +351,37 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
                     (1, LATE_REVIEWER, False, (ISSUE, LABEL_VALIDATING), announced),
                 )
                 self.assert_refused(self.reviewed(), _review_report._EDITED)
+
+    def test_a_settlement_during_review_is_kept(self) -> None:
+        # A later report settles on the very head under review, by another
+        # road, while the reviewer is out or its approval is being verified.
+        # The report the reviewer was handed still reads where it was, so only
+        # the pinned comment says it is no longer current: the verdict is not
+        # acted on, the write that records the run keeps the later report
+        # current instead of putting back the one handed over, and the next
+        # reviewer is handed the later one.
+        for name, verdict, verified in (
+            ("approved", LATE_APPROVAL, False),
+            ("changes requested", LATE_CHANGE_REQUEST, False),
+            ("approved, then verified", LATE_APPROVAL, True),
+        ):
+            with self.subTest(name):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.reported_round(world.FIRST_REPORT)
+
+                ran = self._settles_while(verdict, verified=verified)
+
+                self.assertEqual(
+                    (
+                        ran[RUN_AGENT].call_count,
+                        self.records()["current"].report_revision,
+                        world.APPROVED in self.pinned(),
+                        self.github.label_history[-1],
+                        self.pinned().get(LAST_REVIEWER),
+                    ),
+                    (1, 3, False, (ISSUE, LABEL_VALIDATING), LATE_REVIEWER),
+                )
+                self.assertIn(f"> {world.SECOND_REPORT}", world.prompt(self.reviewed()))
 
     def test_an_edit_during_verify_voids_approval(self) -> None:
         # The report is edited while the local verification runs, after the
@@ -354,13 +401,34 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
 
         mocks["_squash_and_force_push"].assert_not_called()
         self.assertEqual(
-            (world.APPROVED in self.pinned(), self.pinned().get("last_review_session_id")),
+            (world.APPROVED in self.pinned(), self.pinned().get(LAST_REVIEWER)),
             (False, LATE_REVIEWER),
         )
         self.assertFalse(any(
             "review approved" in body for _, body in self.github.posted_pr_comments
         ))
         self.assert_refused(self.reviewed(), _review_report._EDITED)
+
+    def _settles_while(self, verdict, *, verified: bool):
+        """One reviewer round, while a later report settles on the same head.
+
+        During the reviewer's own run, or -- `verified` -- during the local
+        verification of the approval it came back with.
+        """
+        settles = partial(
+            _published_reports.republishes_the_report,
+            self.github, self.issue, world.SECOND_REPORT,
+        )
+        if verified:
+            return self._ticked(
+                self._run_validating, [verdict], committed=False,
+                verify_result=_ChangedMidway(settles, VerifyResult(status="not_run")),
+            )
+        return self._ticked(
+            self._run_validating,
+            MagicMock(side_effect=_ChangedMidway(settles, verdict)),
+            committed=False,
+        )
 
 
 class SquashHandoffTest(unittest.TestCase, world._ReviewedReports):
@@ -471,11 +539,11 @@ class SquashHandoffTest(unittest.TestCase, world._ReviewedReports):
 
 
 class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
-    """An approval covers the whole subject it was handed, report or none."""
+    """An approval covers the whole subject it was handed."""
 
     def test_a_pushed_head_voids_approval(self) -> None:
-        # The reviewer was handed no report at all, and still approved one
-        # head: a push landing while it ran is work it never read.
+        # The reviewer approved one head, beside the report of it: a push
+        # landing while it ran is work it never read.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
 
         self._approves_while(partial(setattr, self.pull_request.head, "sha", MOVED_HEAD))
@@ -502,11 +570,13 @@ class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
             )
             covers = [
                 _review_coverage._subject_still_stands(
-                    self.github, self.issue, state, subject,
+                    self.github, self.issue, state, subject, state.data,
                 )
                 for subject in (
                     handed,
-                    replace(handed, report=replace(handed.report, report_revision=2)),
+                    replace(handed, report=replace(
+                        handed.report, report_revision=handed.report.report_revision + 1,
+                    )),
                     replace(handed, report=None),
                 )
             ]
@@ -575,7 +645,7 @@ class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
         """The run is recorded, and nothing an approval does has happened."""
         pinned = self.pinned()
         self.assertEqual(
-            (pinned.get("last_review_session_id"), world.APPROVED in pinned),
+            (pinned.get(LAST_REVIEWER), world.APPROVED in pinned),
             (LATE_REVIEWER, False),
         )
         self.assertNotIn((ISSUE, LABEL_DOCUMENTING), self.github.label_history)

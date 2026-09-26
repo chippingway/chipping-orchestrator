@@ -19,6 +19,7 @@ from orchestrator.workflow.stages.implementing import handler as _implementing
 from orchestrator.workflow.stages.in_review import handler as _in_review
 from orchestrator.workflow.stages.validating import handler as _validating
 from tests.support.publication import LandingPush
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.patch_context import _patch_and_run
 from tests.workflow.patch_models import _WorkflowRunContext
 from tests.workflow.repo_values import _TEST_SPEC
@@ -86,6 +87,12 @@ def _lands_on_the_pull_request(github, issue, seed):
 
 
 class _ReviewWorkflowMixin:
+    # Whether a validating tick finds the report the pull request's delivery
+    # published, as every road into review leaves it. A world that keeps its
+    # own reports turns it off, and `reported=False` is the one case about a
+    # pull request that carries none.
+    delivers_a_report = True
+
     def _run_validating(
         self,
         github,
@@ -94,6 +101,8 @@ class _ReviewWorkflowMixin:
         run_agent,
         **run_options,
     ):
+        if run_options.pop("reported", self.delivers_a_report):
+            _published_reports.publishes_the_report(github, issue)
         return self._run(
             partial(
                 _validating._handle_validating,

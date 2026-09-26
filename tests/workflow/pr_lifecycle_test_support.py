@@ -10,7 +10,7 @@ from orchestrator.workflow.stages.validating import (
     watermarks as validating_watermarks,
 )
 from tests.support import fakes as _fakes
-from tests.workflow import fixtures as _helpers
+from tests.workflow import fixtures as _helpers, published_reports as _published_reports
 
 BACKEND_CLAUDE = _helpers.BACKEND_CLAUDE
 EVENT_AGENT_EXIT = _helpers.EVENT_AGENT_EXIT
@@ -39,6 +39,7 @@ FakeGitHubClient = _fakes.FakeGitHubClient
 FakePR = _fakes.FakePR
 FakePRRef = _fakes.FakePRRef
 make_issue = _fakes.make_issue
+publishes_the_report = _published_reports.publishes_the_report
 
 EVENT_MERGE_ATTEMPT = "merge_attempt"
 EVENT_PARK_AWAITING_HUMAN = "park_awaiting_human"
@@ -83,6 +84,7 @@ def _seeded_verdict(last_message: str):
     )
     github.add_pr(pull_request)
     github.seed_state(5, pr_number=_VERDICT_PR_NUMBER, review_round=0)
+    publishes_the_report(github, issue)
     return github, issue, pull_request, last_message
 
 

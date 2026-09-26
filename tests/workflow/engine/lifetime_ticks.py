@@ -9,12 +9,17 @@ from typing import Any
 from orchestrator.git.base_sync import refresh as _base_refresh
 from orchestrator.workflow.engine import (
     issue_processing as _issue_processing,
+    prompt_context as _prompt_context,
 )
 from tests.support.fakes import FakeGitHubClient
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.fixtures import (
     _FAKE_WT,
     _TEST_SPEC,
 )
+
+# The requirements baseline a settled round leaves on the pinned comment.
+_BASELINE = "user_content_hash"
 
 
 def dispatched_tick(github: FakeGitHubClient, issue) -> Callable[[], Any]:
@@ -22,6 +27,23 @@ def dispatched_tick(github: FakeGitHubClient, issue) -> Callable[[], Any]:
     return lambda: _issue_processing._route_issue_to_handler(
         github, _TEST_SPEC, issue, github.workflow_label(issue),
     )
+
+
+def reviewed_tick(github: FakeGitHubClient, issue) -> Callable[[], Any]:
+    """An ordinary tick, over a pull request carrying a report of where it stands.
+
+    Every round of these loops publishes its own report before a reviewer is
+    handed it. The fake remote never moves the pull request, so the report a
+    developer's push proved names a commit the pull request is not standing
+    on and is held: what the round's delivery published is put there instead,
+    in place of whatever report an earlier round left, written against the
+    thread the round answered -- which is the baseline its settlement leaves.
+    """
+    github._pinned[issue.number].data[_BASELINE] = _prompt_context._delivered_thread(
+        github, issue, github.read_pinned_state(issue),
+    ).requirements_revision
+    _published_reports.republishes_the_report(github, issue)
+    return dispatched_tick(github, issue)
 
 
 def refreshed_tick(github: FakeGitHubClient, issue) -> Callable[[], Any]:

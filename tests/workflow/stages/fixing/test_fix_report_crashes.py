@@ -59,8 +59,9 @@ CURRENT = "current"
 DELIVERED = "delivered"
 
 # The reviewer-feedback comment the direct round bookmarks as its lone replay
-# anchor, which a handover nothing confirmed may not drop.
-REVIEWER_COMMENT_ID = 1_002
+# anchor, which a handover nothing confirmed may not drop: the first posted
+# after the report the pull request was opened with.
+REVIEWER_COMMENT_ID = 1_003
 
 # What a branch nothing could place against its pull request is held under: the
 # park that waits for a READING, which the next quiet poll takes again.

@@ -16,6 +16,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.decomposition import blocked as _blocked
 from orchestrator.workflow.stages.in_review import handler as _in_review
 from orchestrator.workflow.stages.validating import handler as _validating
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.engine import drift_test_support as support
 
 
@@ -171,6 +172,7 @@ class BareAddAgentRunsIsNotDriftTest(
     def test_validating_runs_the_reviewer_not_the_dev(self) -> None:
         gh, issue = self._parked_and_bought()
 
+        _published_reports.publishes_the_report(gh, issue)
         mocks = self._run(
             lambda: _validating._handle_validating(
                 gh, support._TEST_SPEC, issue,

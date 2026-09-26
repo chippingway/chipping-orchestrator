@@ -31,7 +31,7 @@ from orchestrator import config
 from tests.workflow import fixtures as _support
 from tests.workflow.engine.lifetime_models import ALLOWANCE, REFUSED_TICKS, Journey, Leg
 from tests.workflow.engine.lifetime_test_support import BRANCH, DEV_SESSION, PR_NUMBER
-from tests.workflow.engine.lifetime_ticks import refreshed_tick
+from tests.workflow.engine.lifetime_ticks import refreshed_tick, reviewed_tick
 from tests.workflow.git_owners import seam_patch
 
 # The head a round opens on, and the commit the run leaves the checkout at.
@@ -157,6 +157,7 @@ REVIEWING_LEG = Leg(
     staged={**_DELIVERING, _KEY_REVIEW_ROUND: 1},
     world=_PUBLISHING,
     agent_result=_REVIEW_AND_FIX,
+    tick=reviewed_tick,
 )
 
 # The reviewer's round as the tick before it left the issue: the round
@@ -168,6 +169,7 @@ RESET_REVIEWING_LEG = Leg(
     staged=_DELIVERING,
     world=_PUBLISHING,
     agent_result=_REVIEW_AND_FIX,
+    tick=reviewed_tick,
 )
 
 CONFLICT_LEG = Leg(

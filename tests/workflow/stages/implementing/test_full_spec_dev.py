@@ -7,7 +7,6 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.stages.implementing import resume as _implementing_resume, state as _implementing_state
-from orchestrator.workflow.stages.validating import handler as _validating
 from tests.workflow.stages import full_spec_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
@@ -114,8 +113,8 @@ class FullSpecDevPersistenceTest(unittest.TestCase, _FullSpecFixtureMixin):
         )
         dev_fix = _agent(session_id="dev-67002", last_message="fixed")
 
-        self._mocks = self._run(
-            lambda: _validating._handle_validating(gh, _TEST_SPEC, issue),
+        self._mocks = self._run_validating(
+            gh, issue,
             run_agent=[review, dev_fix],
             dirty_files=(),
             push_branch=True,

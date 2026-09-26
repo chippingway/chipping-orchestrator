@@ -73,6 +73,7 @@ class RequestedFixReportTest(unittest.TestCase, world._FixReportMixin):
 
     def test_a_committed_fix_publishes_its_report(self) -> None:
         # The reviewer's feedback answered in code: the report the round wrote
+        # -- the revision after the one the pull request was opened with --
         # reaches the pull request beside the commit and about it, the round is
         # spent, the replay anchor is dropped, and the issue goes back for the
         # reviewer to read both.
@@ -85,7 +86,7 @@ class RequestedFixReportTest(unittest.TestCase, world._FixReportMixin):
         self.assertEqual(
             (current.subject.pr_number, current.subject.source_sha,
              current.report_revision, len(self.published_reports())),
-            (PR, world.FIXED_HEAD, 1, 1),
+            (PR, world.FIXED_HEAD, 2, 1),
         )
         self.assertEqual(
             (*_handover(self), self.pinned().get(REVIEWER_ANCHOR)),

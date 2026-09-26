@@ -26,7 +26,7 @@ from orchestrator import config
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github import developer_reports as _developer_reports
 from tests.support.fakes import FakeComment, FakeUser
-from tests.workflow import drift_reports as _drift_world
+from tests.workflow import drift_reports as _drift_world, published_reports as _published_reports
 from tests.workflow.fixtures import (
     LABEL_FIXING,
     REVIEW_CHANGES_REQUESTED_MESSAGE,
@@ -99,6 +99,11 @@ class _FixReportMixin(_drift_world._DriftReportMixin):
         state = self.github.read_pinned_state(self.issue)
         state.set("user_content_hash", _drift_world.handed_revision(self.issue))
         self.github.write_pinned_state(self.issue, state)
+        # And the report the pull request was opened with, which is what the
+        # first reviewer of the loop is handed.
+        _published_reports.publishes_the_report(self.github, self.issue)
+        self.opening_report = None
+        self.opening_report = self.records()["current"]
 
     def requested_fix(self, reply, **run_options):
         """One validating tick: the reviewer asks for changes, the dev answers.

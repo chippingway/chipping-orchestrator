@@ -34,6 +34,7 @@ from tests.workflow import (
     fix_report_crashes as crashes,
     fix_reports as world,
     human_fix_reports as human,
+    published_reports as _published_reports,
 )
 from tests.workflow.fixtures import (
     LABEL_FIXING,
@@ -220,7 +221,7 @@ class HumanFeedbackHandoverTest(unittest.TestCase, human._HumanFixReportMixin):
             "the reader stops below the comment no prompt carried",
         )
         self.github.apply_foreign_label(self.issue, LABEL_IN_REVIEW)
-        human.approves_the_report(self)
+        _published_reports.approves_the_report(self.github, self.issue)
 
         self.rescanned()
 

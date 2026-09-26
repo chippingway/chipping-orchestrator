@@ -96,9 +96,11 @@ class ReviewReport:
 class ReviewSubject:
     """The pull request, head, requirements, and report one review is of.
 
-    `report` is None for an issue that has never settled a developer report,
-    which is every pull request opened before reports were published; such a
-    subject is still a subject, and a report settling later is a change to it.
+    `report` is None for a subject with no developer report, which is what a
+    record an earlier build wrote says of a pull request it reviewed with none.
+    No reviewer is handed one any more -- `stages/validating/review_report.py`
+    refuses a pull request with no report -- but such a record is still a
+    subject, and a report settling after it is a change to it.
     """
 
     pr_number: int | None

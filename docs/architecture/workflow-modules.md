@@ -2898,34 +2898,36 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       review_report.py      the report a reviewer is handed once nothing is owed: the one last settled, re-read where it
                             settled and quoted whole, and the pull request's head read with it for the subject. Refused
                             rather than reviewed -- parked under `report_undeliverable` with the debt recorded, so the
-                            reply resumes the developer -- when the settled record will not read, is about another pull
-                            request, disagrees with the handoff that settled it, or reads ABSENT or CHANGED (removed,
-                            edited, cut short, or untrusted) -- and when a report that reads intact is STALE: about
-                            another commit than the pull request's head, or written against requirements the drift
-                            baseline has moved past, an `ACK:` of an edit included, which is the rule the hold holds an
-                            owed report to. The baseline rather than the reviewer's own read, since that read carries
-                            the reply that bought a retried or granted round -- while that read has to be the revision
-                            the round was due to hand over: the baseline, or on a round a control-only reply bought -- a
-                            bare grant or `/orchestrator continue` -- the thread through that reply
-                            (`validating_reviewer_round_requirements`); a reply carrying words is a requirements change,
-                            and records none. One that moved on after it is held, nothing parked, the owed round stood
-                            down, for the next tick's drift check to resume the developer on the new words. A reading
-                            nobody could take holds without a notice, and every hold writes what the tick staged -- a
-                            cleared park, a cap grant and its notice -- so none of it is answered twice. The reading
-                            itself posts and parks nothing, so `review_coverage.py` takes it again
-      review_coverage.py    whether an approval still covers the subject standing when it is acted on. When the
-                            reviewer returns -- approving or requesting changes -- the whole subject is resolved
-                            again over the issue read afresh and
-                            has to EQUAL the one handed over -- pull request, head, requirements, and the report's
-                            revision, digest, location, and words, a reviewer handed no report included -- or the
-                            approval is not acted on and the next round resolves the subject for itself; asked
-                            again by `approval.py` once the verify gate has passed, since a verification can run
-                            long enough for the report to be edited under it. Later,
-                            once the pinned records agree the current report is the approved one, the report is
-                            read at its location again, since no record sees a comment edited or deleted in place:
-                            the squash tail asks it before its relabel, on either road into it, the settled squash
-                            handoff before moving a label that tail left owed, and `in_review` before an approval
-                            may stand behind a ready ping. Nothing here parks or posts
+                            reply resumes the developer -- when no report is recorded at all, when the settled record
+                            will not read, is about another pull request, disagrees with the handoff that settled it, or
+                            reads ABSENT or CHANGED (removed, edited, cut short, or untrusted) -- and when a report that
+                            reads intact is STALE: about another commit than the pull request's head, or written against
+                            requirements the drift baseline has moved past, an `ACK:` of an edit included, which is the
+                            rule the hold holds an owed report to. The baseline rather than the reviewer's own read,
+                            since that read carries the reply that bought a retried or granted round -- while that read
+                            has to be the revision the round was due to hand over: the baseline, or on a round a
+                            control-only reply bought -- a bare grant or `/orchestrator continue` -- the thread through
+                            that reply (`validating_reviewer_round_requirements`); a reply carrying words is a
+                            requirements change, and records none. One that moved on after it is held, nothing parked,
+                            the owed round stood down, for the next tick's drift check to resume the developer on the
+                            new words. A reading nobody could take holds without a notice, and every hold writes what
+                            the tick staged -- a cleared park, a cap grant and its notice -- so none of it is answered
+                            twice. The reading itself posts and parks nothing, so `review_coverage.py` takes it again
+      review_coverage.py    whether an approval still covers the subject standing when it is acted on. When the reviewer
+                            returns -- approving or requesting changes -- the pinned comment is read again first,
+                            against the copy `reviewer.py` read of it as the reviewer went out: a report record it moved
+                            meanwhile, a later report settled on the same head, refuses the verdict, and everything the
+                            comment changed since the spawn is carried onto the state in hand so the write recording the
+                            run keeps that settlement current. Then the whole subject is resolved again over the issue
+                            read afresh and has to EQUAL the one handed over -- pull request, head, requirements, and
+                            the report's revision, digest, location, and words -- or the verdict is not acted on and the
+                            next round resolves the subject for itself; asked again by `approval.py` once the verify
+                            gate has passed, since a verification can run long enough for the report to be edited or
+                            replaced under it. Later, once the pinned records agree the current report is the approved
+                            one, the report is read at its location again, since no record sees a comment edited or
+                            deleted in place: the squash tail asks it before its relabel, on either road into it, the
+                            settled squash handoff before moving a label that tail left owed, and `in_review` before an
+                            approval may stand behind a ready ping. Nothing here parks or posts
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its

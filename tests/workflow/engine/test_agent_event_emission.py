@@ -12,6 +12,7 @@ from orchestrator.workflow.stages.validating import (
     handler as _validating,
     watermarks as _validating_watermarks,
 )
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.engine import event_emission_test_support as support
 
 
@@ -106,6 +107,7 @@ class AgentLifecycleEventEmissionTest(unittest.TestCase, support._PatchedWorkflo
             "_latest_pr_comment_ids",
             return_value=(None, None),
         ):
+            _published_reports.publishes_the_report(gh, issue)
             self._run(
                 lambda: _validating._handle_validating(gh, support._TEST_SPEC, issue),
                 run_agent=support._agent(

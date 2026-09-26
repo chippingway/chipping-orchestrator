@@ -49,8 +49,12 @@ Every hold writes what the tick staged before it: a park the awaiting branch
 cleared into this round, and a cap grant with the notice already announcing
 it, would otherwise be answered again on every poll the hold lasts.
 
-An issue that has never settled a report is reviewed with none, which is every
-pull request opened before reports were published.
+A pull request with no report recorded at all is refused on the same terms,
+since a reviewer handed none would be judging work nobody has described and a
+silent hold would wait on a report no road is writing: the park records the
+debt, so the reply resumes the developer for one. That is every pull request
+opened before reports were published, and any road that delivered code without
+a report.
 
 The reading itself posts nothing and parks nothing, so `review_coverage` takes
 it again once an approval comes back and wherever an approval is later acted
@@ -80,6 +84,11 @@ from orchestrator.workflow.stages.validating import (
 )
 
 log = logging.getLogger("orchestrator.workflow")
+
+_UNREPORTED = (
+    "no developer report is recorded for it, so a reviewer would be judging "
+    "work nobody has described"
+)
 
 _UNREADABLE = (
     "the report this pull request is recorded as carrying is written on the "
@@ -183,11 +192,11 @@ def _reads_the_subject(
     commit = _pull_request_head(gh, issue, number)
     if commit is None:
         return None, ""
-    report = None
-    if _settlement.carries_settled_record(state):
-        report, refusal = _settled_report(gh, state, number)
-        if report is None:
-            return None, refusal
+    if not _settlement.carries_settled_record(state):
+        return None, _UNREPORTED
+    report, refusal = _settled_report(gh, state, number)
+    if report is None:
+        return None, refusal
     return _review_subjects.ReviewSubject(
         pr_number=number,
         commit=commit,

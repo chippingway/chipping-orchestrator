@@ -7,6 +7,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.stages.validating import handler as _validating
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.stages.implementing import retry_test_support as support
 
 ACTION_COMMENT_ID = support.ACTION_COMMENT_ID
@@ -83,6 +84,7 @@ class ConfigurableBackendTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
         _open_pr_for(gh, issue_number=REVIEW_BACKEND_ISSUE, pr_number=REVIEW_BACKEND_ISSUE)
 
+        _published_reports.publishes_the_report(gh, issue)
         with patch.object(config, "REVIEW_AGENT", BACKEND_CODEX):
             mocks = self._run(
                 lambda: _validating._handle_validating(gh, _TEST_SPEC, issue),
@@ -116,6 +118,7 @@ class ConfigurableBackendTest(unittest.TestCase, _PatchedWorkflowMixin):
             patch.object(config, "DEV_AGENT", BACKEND_CLAUDE),
             patch.object(config, "REVIEW_AGENT", BACKEND_CLAUDE),
         ):
+            _published_reports.publishes_the_report(gh, issue)
             mocks = self._run(
                 lambda: _validating._handle_validating(gh, _TEST_SPEC, issue),
                 run_agent=[

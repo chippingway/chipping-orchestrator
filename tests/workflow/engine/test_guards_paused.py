@@ -23,7 +23,6 @@ from orchestrator.github.labels import PAUSED_LABEL
 from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.decomposition import run as _decomposing
 from orchestrator.workflow.stages.question import handler as _question
-from orchestrator.workflow.stages.validating import handler as _validating
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -140,8 +139,8 @@ class ReviewerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             ),
         )
         with patch.object(gh, _GET_ISSUE_METHOD, get_issue_mock):
-            mocks = self._run(
-                lambda: _validating._handle_validating(gh, _TEST_SPEC, issue),
+            mocks = self._run_validating(
+                gh, issue,
                 run_agent=_agent(
                     session_id="rev-sess",
                     last_message="1. Fix typo\n\nVERDICT: CHANGES_REQUESTED",

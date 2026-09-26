@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import content_hash as _content_hash
+from orchestrator.workflow.engine import content_hash as _content_hash, prompt_context as _prompt_context
 from orchestrator.workflow.stages.validating import (
     dev_fix as _dev_fix,
     drift_outcomes as _drift_outcomes,
@@ -52,6 +52,8 @@ HUMAN_COMMENT_ID = 1100
 UNREAD_GUIDANCE_ID = 1000
 UNREAD_GUIDANCE = "the cache key has to carry the locale"
 OWES_A_ROUND = "validating_reviewer_owes_a_round"
+# The bare control that retries a reviewer-side park, and says nothing else.
+RETRY_CONTROL = "/orchestrator continue"
 DRIFT_NOTICE = ":pencil2:"
 LATEST_COMMAND_ID = 1101
 FOLLOWUP_COMMENT_ID = 1200
@@ -212,14 +214,15 @@ class HandleValidatingReviewCapAddRoundsCommandTest(
 
     def test_a_round_owed_from_an_earlier_tick(self) -> None:
         # What a tick that cleared a park and ran no round leaves behind: the
-        # round the reply bought written down, and the reply itself unread.
-        # The requirements the thread carries have moved by now and no park
-        # says whose the tick is -- so read off the park alone this is a
-        # plain edit, and the DEVELOPER answers a request for a reviewer.
-        # Read off the note the reviewer runs, and what records those words
-        # is the read that round's own prompt was rendered from.
+        # round the reply bought written down, how far into the thread that
+        # control reached, and the reply itself unread. The requirements the
+        # thread carries have moved by now and no park says whose the tick is
+        # -- so read off the park alone this is a plain edit, and the
+        # DEVELOPER answers a request for a reviewer. Read off the note the
+        # reviewer runs, and what records those words is the read that
+        # round's own prompt was rendered from.
         gh, issue = self._seeded(
-            comment_body="retry the reviewer please",
+            comment_body=RETRY_CONTROL,
             awaiting_human=False,
             park_reason=None,
             review_round=0,
@@ -228,6 +231,11 @@ class HandleValidatingReviewCapAddRoundsCommandTest(
             ),
             **{OWES_A_ROUND: _state._ROUND_BOUGHT_BY_A_REPLY},
         )
+        state = gh.read_pinned_state(issue)
+        state.set(_state._ROUND_BOUGHT_THROUGH, _prompt_context._delivered_thread(
+            gh, issue, state,
+        ).requirements_revision)
+        gh.write_pinned_state(issue, state)
 
         mocks = self._run_validating(
             gh, issue, run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),

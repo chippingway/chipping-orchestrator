@@ -8,6 +8,7 @@ import unittest
 
 from orchestrator.workflow.engine import review_prompts as _review_prompts
 from orchestrator.workflow.stages.validating import handler as _validating
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.stages import full_spec_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
@@ -59,6 +60,7 @@ class FullSpecReviewerPersistenceTest(
             )
         )
 
+        _published_reports.publishes_the_report(gh, issue)
         mocks = self._run(
             lambda: _validating._handle_validating(gh, _TEST_SPEC, issue),
             run_agent=_agent(
@@ -96,6 +98,7 @@ class FullSpecReviewerPersistenceTest(
 
         self._enter(self._patch_review_config(BACKEND_CLAUDE, BACKEND_CLAUDE, ()))
 
+        _published_reports.publishes_the_report(gh, issue)
         self._run(
             lambda: _validating._handle_validating(gh, _TEST_SPEC, issue),
             run_agent=_agent(
@@ -131,6 +134,7 @@ class FullSpecReviewerPersistenceTest(
         )
         self._dev_fix = _agent(session_id="dev-67012", last_message="fixed")
 
+        _published_reports.publishes_the_report(gh, issue)
         self._run(
             lambda: _validating._handle_validating(gh, _TEST_SPEC, issue),
             run_agent=[self._review, self._dev_fix],

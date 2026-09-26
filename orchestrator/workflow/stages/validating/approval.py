@@ -442,7 +442,7 @@ def _finalize_validating_approval(
     # The verification can outlast an edit of the report, a push, or an edit
     # of the issue, and nothing past this line asks again before the squash.
     elif _review_coverage._subject_still_stands(
-        gh, issue, state, reviewer_run.subject,
+        gh, issue, state, reviewer_run.subject, reviewer_run.spawned_over,
     ):
         # Staged here and written by whichever write the squash road below
         # makes, so an approval nothing recorded is never one a later tick

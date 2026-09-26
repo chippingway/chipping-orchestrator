@@ -8,9 +8,9 @@ real counter reads past a small ceiling, and the ticks a journey drives over it
 are the production ones: the size gate, the adjudicator and the operator's
 command, the base refresh, and the reviewer.
 
-What is stood in for decides nothing: the agents' replies, the authenticated
-push and branch fetch, and the remote-side base freeze these fixtures have no
-token to take.
+What is stood in for decides nothing: the agents' replies, the report the
+delivery would have published, the authenticated push and branch fetch, and the
+remote-side base freeze these fixtures have no token to take.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ from tests.git.base_sync.real_git_test_support import (
     WORKTREES_DIR_NAME,
 )
 from tests.git.base_sync.recovery_git_support import _local_fetch
-from tests.workflow.fixtures import LABEL_VALIDATING, REVIEW_APPROVED_MESSAGE, _agent
+from tests.workflow.fixtures import LABEL_VALIDATING, REVIEW_APPROVED_MESSAGE, _agent, publishes_the_report
 
 # The ceiling the candidate is oversized against and the file that puts it
 # there: small enough to keep the real diff cheap, large enough that the real
@@ -100,7 +100,10 @@ class OversizedJourneyRealGitFixture(AdjudicatedRebaseRealGitFixture):
         The handler itself, with only the reviewer agent stood in for: the
         drift read, the round cap, the prompt, the verdict parse, and what an
         approval earns are the production ones, over the rewritten checkout.
+        The pull request carries a report of the head it stands on, since a
+        reviewer is refused one that carries none.
         """
+        publishes_the_report(self._gh, self._issue())
         spawn = MagicMock(return_value=_agent(last_message=REVIEW_APPROVED_MESSAGE))
         with patch.object(_agent_runner, "run_agent", spawn), patch.object(
             _branch_transport, PUSH_BRANCH, PublishesToThePullRequest(self._gh),

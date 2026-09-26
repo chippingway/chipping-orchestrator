@@ -34,14 +34,18 @@ read-only and starts over next tick.
 
 The verdict itself fans out to three owners: approved goes to the approval
 arc, a missing VERDICT line to the no-verdict park, and CHANGES_REQUESTED to
-the fix route. An approval and a change request alike are acted on only while
-the whole subject the reviewer was handed -- head, requirements, and report --
-still stands; otherwise the run is recorded and the next tick's reviewer is
-handed the subject as it stands. The event is emitted for all of them, before
-the fan-out, so the analytics record exists even for the paths that park.
-Failed-run parks (timeout and unknown verdict) enrich the shared park funnel
-with typed correlation fields (`agent_role`, `session_id`, `review_round`,
-`retry_count`, `pr_number`).
+the fix route. The event is emitted for all of them, before the fan-out, so
+the analytics record exists even for the paths that park. An approval and a
+change request alike are acted on only while the whole subject the reviewer
+was handed -- head, requirements, and report -- still stands; otherwise the
+run is recorded and the next tick's reviewer is handed the subject as it
+stands. The pinned comment is read once more just before the spawn for that
+reason: a report settling while the reviewer runs is recorded there and
+nowhere in the state this tick holds, and the write that records the run has
+to lay itself over that settlement rather than undo it. Failed-run parks
+(timeout and unknown verdict) enrich the shared park funnel with typed
+correlation fields (`agent_role`, `session_id`, `review_round`, `retry_count`,
+`pr_number`).
 """
 from __future__ import annotations
 
@@ -108,18 +112,29 @@ def _run_reviewer_round(
     # handed with it.
     state.set("review_agent", config.REVIEW_AGENT_SPEC)
     _review_subjects.record_reviewed(state, subject)
-    review = _usage._run_agent_tracked(
-        gh, _run_charge_state.AgentRunBudget(issue=issue, state=state),
-        agent_role="reviewer",
-        stage="validating",
-        backend=config.REVIEW_AGENT,
-        prompt=_review_prompt(spec, issue, state, delivered.rendered_text, subject),
-        cwd=wt,
-        agent_spec=config.REVIEW_AGENT_SPEC,
-        timeout=config.REVIEW_TIMEOUT,
-        extra_args=config.REVIEW_AGENT_ARGS,
-        review_round=round_n,
-        retry_count=state.get("retry_count"),
+    reviewer_run = _models._ReviewerRun(
+        wt=wt,
+        round_n=round_n,
+        pr_number=pr_number,
+        # Read ahead of the spawn on the next line -- keywords are evaluated
+        # in the order written -- so what the comment carried as the reviewer
+        # went out is what a write taken while it ran is measured against.
+        spawned_over=dict(gh.read_pinned_state(issue).data),
+        agent_result=_usage._run_agent_tracked(
+            gh, _run_charge_state.AgentRunBudget(issue=issue, state=state),
+            agent_role="reviewer",
+            stage="validating",
+            backend=config.REVIEW_AGENT,
+            prompt=_review_prompt(spec, issue, state, delivered.rendered_text, subject),
+            cwd=wt,
+            agent_spec=config.REVIEW_AGENT_SPEC,
+            timeout=config.REVIEW_TIMEOUT,
+            extra_args=config.REVIEW_AGENT_ARGS,
+            review_round=round_n,
+            retry_count=state.get("retry_count"),
+        ),
+        delivery=delivered,
+        subject=subject,
     )
     # Live pause: an operator applied `paused` / `backlog` while the reviewer
     # ran. Dispatch only saw the pre-run labels, so re-check a freshly fetched
@@ -130,9 +145,9 @@ def _run_reviewer_round(
     # fresh each round.
     if _guards._paused_during_agent_run(gh, issue):
         return None
-    _issue_usage._accumulate_issue_usage(state, review.usage)
-    if review.session_id:
-        state.set("last_review_session_id", review.session_id)
+    _issue_usage._accumulate_issue_usage(state, reviewer_run.agent_result.usage)
+    if reviewer_run.agent_result.session_id:
+        state.set("last_review_session_id", reviewer_run.agent_result.session_id)
     state.set("last_review_at", _usage._now_iso())
 
     # Shutdown-sweep interruption: a reviewer run the orchestrator killed
@@ -143,17 +158,9 @@ def _run_reviewer_round(
     # return WITHOUT writing so those in-memory mutations are discarded and the
     # next process re-spawns the reviewer. Must precede the timeout/verdict
     # branches.
-    if _guards._ignore_if_interrupted(issue, review):
+    if _guards._ignore_if_interrupted(issue, reviewer_run.agent_result):
         return None
-
-    return _models._ReviewerRun(
-        wt=wt,
-        round_n=round_n,
-        pr_number=pr_number,
-        agent_result=review,
-        delivery=delivered,
-        subject=subject,
-    )
+    return reviewer_run
 
 
 def _review_prompt(
@@ -266,13 +273,14 @@ def _dispatch_reviewer_result(
         return
 
     # A verdict of a subject that no longer stands as it was handed -- a head
-    # pushed, the issue edited, the report edited or removed while the
-    # reviewer ran -- is about work that is not there: an approval would hand
-    # it on, and a change request would pay a developer to answer a review of
-    # words the pull request no longer carries. The run is recorded, and the
+    # pushed, the issue edited, the report edited, removed, or replaced by a
+    # later settlement while the reviewer ran -- is about work that is not
+    # there: an approval would hand it on, and a change request would pay a
+    # developer to answer a review of words the pull request no longer
+    # carries. The run is recorded over whatever settled meanwhile, and the
     # next tick's reviewer is handed the subject as it stands, or refused.
     if not _review_coverage._subject_still_stands(
-        gh, issue, state, reviewer_run.subject,
+        gh, issue, state, reviewer_run.subject, reviewer_run.spawned_over,
     ):
         gh.write_pinned_state(issue, state)
         return
