@@ -81,6 +81,8 @@ PAST_THE_BOUND = 5000
 OVERSIZED_HEAD = "first, the cache key must carry the locale"
 OVERSIZED_TAIL = "and then retry the reviewer"
 OVERSIZED_RETRY = " ".join((OVERSIZED_HEAD, "x" * PAST_THE_BOUND, OVERSIZED_TAIL))
+# The bare control that retries a reviewer-side park and says nothing else.
+RETRY_CONTROL = "/orchestrator continue"
 REVIEW_CAP = "review_cap"
 INVALID_GRANT = "/orchestrator add-review-rounds 0"
 OWES_A_ROUND = "validating_reviewer_owes_a_round"
@@ -926,7 +928,12 @@ class ValidatingDriftDefersToReviewerRecoveryTest(
     comment must re-spawn the REVIEWER, not the dev session. The drift
     check fires first because the human's comment also flips the hash;
     the drift handler must defer to the awaiting-human branch in this
-    case so the reviewer re-runs naturally."""
+    case so the reviewer re-runs naturally.
+
+    The retry that buys the reviewer is the bare control. Words -- a reply
+    that says more, or an edit of the body -- are requirements the report
+    the reviewer would be handed never saw, so the round they reach is held
+    and the developer answers them first."""
 
     def test_timeout_drift_respawns_reviewer(
         self,
@@ -971,42 +978,46 @@ class ValidatingDriftDefersToReviewerRecoveryTest(
     def test_the_recovered_round_still_goes_first(self) -> None:
         # A body edit under a reviewer-side park nobody replied to. The first
         # tick is the silent recovery: it clears the park for the round the
-        # failure owes and runs nobody. The edit is still undelivered, so the
-        # tick that follows would take it down the developer's drift road --
-        # ahead of the very retry the park was taken for -- unless the
-        # deferral wrote down the round it stood down for.
+        # failure owes and runs nobody. The deferral wrote that round down, so
+        # the tick that follows asks the reviewer's road first rather than the
+        # developer's -- and that road holds, because the edit is requirements
+        # the report it would hand over never saw. The round is stood down
+        # there, with the edit still outstanding, and the tick after that is
+        # the developer's drift road answering it.
         github, issue = self._parked_reviewer_drift(said=None, edited=True)
-
-        recovered = self._run_validating(
-            github, issue, run_agent=_agent(), has_new_commits=False, head_shas=[UNMOVED_HEAD],
-        )
-        retried = self._run_validating(
-            github,
-            issue,
-            run_agent=_agent(session_id=REVIEW_SESSION, last_message="Looks fine."),
-            has_new_commits=False,
-            head_shas=[UNMOVED_HEAD],
-        )
-
-        recovered[RUN_AGENT].assert_not_called()
-        self.assertEqual(
-            retried[RUN_AGENT].call_args[0][0], config.REVIEW_AGENT,
-        )
-        self.assertIn("automated code reviewer", retried[RUN_AGENT].call_args[0][1])
-        self._assert_no_drift_notice(github)
-        # Nobody delivered the edit, so it is still outstanding for the road
-        # that finally does -- and the note the deferral left is discharged.
+        held = [
+            self._run_validating(
+                github, issue, run_agent=_agent(), has_new_commits=False,
+                head_shas=[UNMOVED_HEAD],
+            )[RUN_AGENT].call_count
+            for _tick in range(2)
+        ]
         pinned = github.pinned_data(REVIEWER_DRIFT_ISSUE)
-        self.assertEqual(pinned.get(USER_CONTENT_HASH), self.seeded_hash)
-        self.assertIsNone(pinned.get(OWES_A_ROUND))
+        self.assertEqual(
+            (held, pinned.get(USER_CONTENT_HASH), pinned.get(OWES_A_ROUND)),
+            ([0, 0], self.seeded_hash, None),
+        )
+
+        self.assertNotEqual(
+            self._run_validating(
+                github,
+                issue,
+                run_agent=_agent(session_id=DEV_SESSION, last_message=_reported("covered")),
+                has_new_commits=False,
+                head_shas=[UNMOVED_HEAD],
+            )[RUN_AGENT].call_args[0][0],
+            config.REVIEW_AGENT,
+        )
+        self.assertTrue(any(
+            ":pencil2:" in body for _, body in github.posted_comments
+        ))
 
     def test_only_a_round_that_ran_records_it(self) -> None:
         # The retry clears the park either way, but clearing a park acts on a
-        # reply rather than delivers it: what reads the words is the round,
+        # reply rather than delivers it: what reads the control is the round,
         # through the round's own prompt. A launch the run circuit turned away
-        # read nothing, so the words and the requirements standing beside them
-        # both stay exactly where they were, for the round a grant finally
-        # buys.
+        # read nothing, so the reply stays exactly where it was, for the round
+        # a grant finally buys.
         for described, invoked in (("a round that ran", True), ("a refusal", False)):
             with self.subTest(round=described):
                 github, issue = self._parked_reviewer_drift()
@@ -1020,12 +1031,9 @@ class ValidatingDriftDefersToReviewerRecoveryTest(
                 )
 
                 pinned = github.pinned_data(REVIEWER_DRIFT_ISSUE)
-                self.assertEqual(
-                    (
-                        pinned.get(LAST_ACTION_COMMENT_ID, 0) >= REVIEWER_RETRY_COMMENT_ID,
-                        pinned.get(USER_CONTENT_HASH) != self.seeded_hash,
-                    ),
-                    (invoked, invoked),
+                self.assertIs(
+                    pinned.get(LAST_ACTION_COMMENT_ID, 0) >= REVIEWER_RETRY_COMMENT_ID,
+                    invoked,
                 )
 
     def test_a_refused_grant_consumes_words(self) -> None:
@@ -1054,13 +1062,13 @@ class ValidatingDriftDefersToReviewerRecoveryTest(
         self.assertEqual(pinned.get(USER_CONTENT_HASH), self.seeded_hash)
 
     def test_an_oversized_retry_stays_unread(self) -> None:
-        # A reply too long for the reviewer excerpt's own bound. Its head
-        # reaches no prompt, so nothing may record it as read: recorded
+        # A reply too long for the reviewer excerpt's own bound, and words
+        # besides: the round it buys is held for the developer to answer them,
+        # so no reviewer reads it and nothing may record it as read. Recorded
         # instead from the batch a park froze -- unbounded, quoting every
-        # reply past the watermark -- the mark would cross a comment the round
-        # only half carried, and the words under the cut would be read by
-        # nobody ever again. Held below it, the scan that owns the issue
-        # thread still owes them to somebody.
+        # reply past the watermark -- the mark would cross a comment nobody
+        # was handed, and the words would be read by nobody ever again. Held
+        # below it, the developer's road still owes them to somebody.
         github, issue = self._parked_reviewer_drift(said=OVERSIZED_RETRY)
 
         mocks = self._run_validating(
@@ -1071,16 +1079,14 @@ class ValidatingDriftDefersToReviewerRecoveryTest(
             head_shas=[UNMOVED_HEAD],
         )
 
-        quoted = mocks[RUN_AGENT].call_args[0][1]
-        self.assertNotIn(OVERSIZED_HEAD, quoted)
-        self.assertIn(OVERSIZED_TAIL, quoted)
+        mocks[RUN_AGENT].assert_not_called()
         self.assertLess(
             github.pinned_data(REVIEWER_DRIFT_ISSUE).get(LAST_ACTION_COMMENT_ID, 0),
             REVIEWER_RETRY_COMMENT_ID,
         )
 
     def _parked_reviewer_drift(
-        self, *, said="retry the reviewer please", edited=False, park_reason=REVIEWER_TIMEOUT,
+        self, *, said=RETRY_CONTROL, edited=False, park_reason=REVIEWER_TIMEOUT,
     ):
         """A park whose requirements moved under it, by a reply or an edit.
 

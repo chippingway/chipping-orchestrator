@@ -32,6 +32,7 @@ _PoisonedThenFreshRun = support._PoisonedThenFreshRun
 _TEST_SPEC = support._TEST_SPEC
 _agent = support._agent
 _fake_worktree = support._fake_worktree
+_open_pr_for = support._open_pr_for
 
 
 _BACKEND_CLAUDE = "claude"
@@ -345,6 +346,9 @@ class ReviewerRunUsageAccumulationTest(unittest.TestCase, _PatchedWorkflowMixin)
             dev_agent=_BACKEND_CLAUDE,
             dev_session_id="dev-sess",
             review_round=0,
+        )
+        _open_pr_for(
+            gh, issue_number=_REVIEWER_ISSUE_NUMBER, pr_number=_REVIEWER_ISSUE_NUMBER,
         )
 
         with patch.object(config, "REVIEW_AGENT", "codex"):

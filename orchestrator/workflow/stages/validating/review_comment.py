@@ -9,30 +9,33 @@ hand, while the report the tick resolved still reads, exactly as it settled,
 where it was. Nothing at that report's own location tells the two apart; only
 the records on the comment do.
 
-So a resolved subject is bound only to a comment read afresh that carries the
-report records the state in hand carries (`_resolved_over`), and a road about
-to act on an approval after requests long enough for that to happen asks the
-same (`_records_in_hand`). Where the comment moved them, or will not read or
-parse, the answer is the one that hands nothing over and writes nothing: every
-write from there would be laid over records the tick never read, putting back
-the report they replaced. So is a fresh reading of another comment than the
-one the state in hand was read from -- the pinned comment replaced, or gone --
-since the tick's write goes to the comment it read and would pin a second one.
-The reading that agreed goes on with the subject.
+So `review_report` binds a resolved subject only to a comment read afresh that
+carries the report records the state in hand carries (`_resolved_over`), and
+every later road that acts on an approval after requests long enough for that
+to happen asks the same (`_records_in_hand`): the squash handoff once the
+rewrite is published, and the in_review ready ping and the unmergeable park
+beside it once mergeability is read. Where the comment moved them, or will not
+read or parse, the answer is the one that hands nothing over and writes
+nothing: every write from there would be laid over records the tick never
+read, putting back the report they replaced. So is a fresh reading of another
+comment than the one the state in hand was read from -- the pinned comment
+replaced, or gone -- since the tick's write goes to the comment it read and
+would pin a second one. The reading that agreed goes on with the subject.
 
-`_records_stand` reads the comment against that reading again, as a reviewer
-returns or an approval is verified. Records are compared as the comment's JSON
-spells them, so one written `null` where there was none, or a revision spelled
-`true` where it was `1`, is a move. Records that stand leave the state alone.
-Records that moved refuse the verdict, and everything the comment changed since
-the subject was resolved is carried onto the state in hand, so every write the
-run makes lays itself over the newer settlement. A comment that will not read
-or parse, or is no longer the one the state was read from, carries nothing, and
-the answer is the one that writes nothing.
+`_records_stand` reads the comment against that reading again, as the reviewer
+returns and once more after an approval is verified, before anything the run
+leaves is written -- a park for a timeout or a missing verdict as much as the
+record of a verdict. Records are compared as the comment's JSON spells them, so
+one written `null` where there was none, or a revision spelled `true` where it
+was `1`, is a move. Records that stand leave the state alone. Records that
+moved refuse the verdict, and everything the comment changed since the subject
+was resolved is carried onto the state in hand, so every write the run makes
+lays itself over the newer settlement. A comment that will not read or parse,
+or is no longer the one the state was read from, carries nothing, and the
+answer is the one that writes nothing: the run is charged, and the next tick
+spawns a reviewer over whatever the comment carries then.
 
-Nothing here parks or posts. These helpers are dormant: the validating stage
-hands its reviewer no subject, so nothing in production binds a review to the
-comment through them.
+Nothing here parks or posts.
 """
 from __future__ import annotations
 

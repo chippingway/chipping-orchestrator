@@ -1,13 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Implementation, review, documentation, fixing, and conflict-resolution prompts.
+"""Implementation, documentation, fixing, and conflict-resolution prompts.
 
 Trust-filtered thread and repository context comes from prompt_context. Shared
 placeholders and execution notes come from prompt_notes; every response marker
 matches the parser that decides the corresponding workflow outcome. Conversation
-and decomposition builders live beside these delivery-stage builders. The review
-builder here is the one the validating stage spawns with; the dormant one that
-quotes the developer report whole is `review_prompts`'."""
+and decomposition builders live beside these delivery-stage builders, and the
+reviewer's in `review_prompts`, since it is the one that quotes a pull request's
+own content."""
 from __future__ import annotations
 
 from github.Issue import Issue
@@ -84,40 +84,6 @@ def _build_fresh_respawn_preamble(
         f"{_prompt_notes._RESPAWN_REPORT_NOTE}\n\n"
         "Your immediate task follows.\n"
         "----------------------------------------"
-    )
-
-
-def _build_review_prompt(
-    spec: _config_models.RepoSpec,
-    issue: Issue,
-    comments_text: str,
-    specs: list[_config_models.RepoSpec],
-    dev_backend: str = "agent",
-) -> str:
-    body = issue.body or _prompt_notes._NO_BODY
-    convo = comments_text or _prompt_notes._NO_PRIOR_COMMENTS
-    base_ref = f"{spec.remote_name}/{spec.base_branch}"
-    tracked = _prompt_context._build_tracked_repos_context(spec, specs)
-    tracked_block = f"{tracked}\n\n" if tracked else ""
-    return (
-        f"You are an automated code reviewer for GitHub issue #{issue.number}: {issue.title!r}. "
-        f"A separate {dev_backend} session has implemented this issue and committed to the current "
-        f"branch. The base branch is `{base_ref}`.\n\n"
-        f"Issue body:\n{body}\n\n"
-        f"Conversation so far:\n{convo}\n\n"
-        f"{tracked_block}"
-        "Inspect the change with:\n"
-        f"  git log --oneline {base_ref}..HEAD\n"
-        f"  git diff {base_ref}...HEAD\n\n"
-        "Review the change against the issue requirements. Flag correctness bugs, missing "
-        "tests, scope creep, obvious style issues, and anything that would block a human "
-        "approver. Do NOT edit or commit anything -- you are a reviewer only.\n\n"
-        "Your final message MUST end with exactly one of these markers, alone on its own line:\n"
-        "  VERDICT: APPROVED\n"
-        "  VERDICT: CHANGES_REQUESTED\n\n"
-        "If CHANGES_REQUESTED, list the specific items above the verdict line as a numbered "
-        "list so the implementer can address them one by one. If the change is acceptable as "
-        "is, write VERDICT: APPROVED with a one-line justification above it."
     )
 
 

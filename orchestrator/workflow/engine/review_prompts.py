@@ -4,16 +4,12 @@
 
 The reviewer is the one agent whose prompt quotes a pull request's own content.
 The developer report it reviews beside the diff arrives in the handover's
-subject, already re-read where it settled, and is quoted here whole -- between
-the issue and the commands that inspect the branch -- because the thread
-excerpt above it is bounded and covers the issue thread alone, and a reviewer
-left to fetch the pull request reads whichever report it finds. Every marker it
-teaches is the one `completion_verdicts` parses; it teaches none of the
-developer's report outcomes.
-
-This builder is dormant: the validating stage spawns its reviewer over
-`prompts._build_review_prompt`, which quotes no report, so nothing in
-production builds this prompt.
+subject, resolved and re-read where it settled by the validating stage, and is
+quoted here whole -- between the issue and the commands that inspect the
+branch -- because the thread excerpt above it is bounded and covers the issue
+thread alone, and a reviewer left to fetch the pull request reads whichever
+report it finds. Every marker it teaches is the one `completion_verdicts`
+parses; it teaches none of the developer's report outcomes.
 """
 from __future__ import annotations
 

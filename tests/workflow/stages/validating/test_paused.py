@@ -133,12 +133,17 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
             )
 
     def _run_paused_fix(self, github, issue):
+        # One fetch per read the tick takes of the issue, in order: the
+        # reviewer's pause guard, the subject the verdict is held to -- the
+        # issue as it stands, so the change request is acted on -- and the
+        # dev resume's pause guard.
         issue_fetch = MagicMock(
             side_effect=[
                 make_issue(
                     CHANGES_REQUESTED_ISSUE,
                     label=LABEL_VALIDATING,
                 ),
+                issue,
                 _paused_view(CHANGES_REQUESTED_ISSUE),
             ],
         )
@@ -224,11 +229,12 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
             github.label_history,
         )
         mocks[PUSH_BRANCH].assert_not_called()
-        # The pre-spawn flip's own write, plus the charge each of the two
-        # runs took before it reached a process.
+        # The reviewer's spec and subject, written ahead of its spawn; the
+        # pre-spawn flip's own write; and the charge each of the two runs
+        # took before it reached a process.
         self.assertEqual(
             github.write_state_calls,
-            before_writes + 1 + 2 * AGENT_RUN_CHARGE_WRITES,
+            before_writes + 2 + 2 * AGENT_RUN_CHARGE_WRITES,
         )
         state = github.pinned_data(CHANGES_REQUESTED_ISSUE)
         self.assertEqual(state.get(REVIEW_ROUND), 0)

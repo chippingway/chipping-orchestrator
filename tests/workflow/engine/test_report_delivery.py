@@ -186,10 +186,13 @@ class DeliveredReportCapacityTest(unittest.TestCase):
         # room the record it replaces is holding. Measured over the comment as
         # it stands, the first is accepted and then refused with the code
         # already pushed, and the second is refused with room to spare.
-        tombstoned = delivery_support.crowded_comment(delivery_support.CROWDED_FOR_TOMBSTONE)
+        tombstoned = delivery_support.crowded_comment(
+            delivery_support.CROWDED_FOR_TOMBSTONE, reviewed=True,
+        )
         replaced = delivery_support.crowded_comment(
             delivery_support.CROWDED_FOR_REDELIVERY,
             {_records.DELIVERED_REPORT: delivery_support.delivered_object()},
+            reviewed=True,
         )
 
         self.assertFalse(
@@ -255,8 +258,12 @@ class DeliveredReportCapacityTest(unittest.TestCase):
         # to ask. It is reserved for the one route that makes that write:
         # the same comment takes an implementation's report, whose road
         # never hands an approval back and must not be charged for one.
-        crowded = delivery_support.crowded_comment(delivery_support.CROWDED_FOR_HAND_BACK)
-        ordinary = delivery_support.crowded_comment(delivery_support.CROWDED_FOR_HAND_BACK)
+        crowded = delivery_support.crowded_comment(
+            delivery_support.CROWDED_FOR_HAND_BACK, reviewed=True,
+        )
+        ordinary = delivery_support.crowded_comment(
+            delivery_support.CROWDED_FOR_HAND_BACK, reviewed=True,
+        )
         staged = {
             **crowded.data,
             _records.DELIVERED_REPORT: delivery_support.delivered_object(
@@ -290,8 +297,12 @@ class DeliveredReportCapacityTest(unittest.TestCase):
         # rendering charges, it is refused here instead, while the comment
         # that does have room for it binds that branch.
         wide = replace(delivery_support.WIDEST_SUBJECT, branch=delivery_support.WIDEST_BRANCH)
-        crowded = delivery_support.crowded_comment(delivery_support.CROWDED_FOR_ASCII_BRANCH)
-        roomy = delivery_support.crowded_comment(delivery_support.CROWDED_FOR_RESERVED_SUBJECT)
+        crowded = delivery_support.crowded_comment(
+            delivery_support.CROWDED_FOR_ASCII_BRANCH, reviewed=True,
+        )
+        roomy = delivery_support.crowded_comment(
+            delivery_support.CROWDED_FOR_RESERVED_SUBJECT, reviewed=True,
+        )
 
         self.assertFalse(
             _delivery_state.record_delivered_report(crowded, delivery_support.DELIVERED),

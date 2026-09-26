@@ -23,7 +23,6 @@ from orchestrator.github.labels import PAUSED_LABEL
 from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.decomposition import run as _decomposing
 from orchestrator.workflow.stages.question import handler as _question
-from orchestrator.workflow.stages.validating import handler as _validating
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -36,6 +35,7 @@ from tests.workflow.fixtures import (
     AGENT_RUN_CHARGE_WRITES,
     _agent,
     _manifest,
+    _open_pr_for,
     _PatchedWorkflowMixin,
 )
 
@@ -117,7 +117,9 @@ class ReviewerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
         # A CHANGES_REQUESTED verdict would post PR feedback, relabel to
         # `fixing`, and resume the dev (a SECOND agent run) absent the guard.
         # The guard stops right after the reviewer returns, so `run_agent` fires
-        # exactly once and no relabel / PR comment / pinned-state write lands.
+        # exactly once and no relabel / PR comment lands. The only durable
+        # writes are the ones ahead of the spawn: the reviewer's spec and
+        # subject, and the charge its launch took.
         gh = FakeGitHubClient()
         issue = make_issue(_REVIEWER_ISSUE_NUMBER, label=_VALIDATING_LABEL)
         gh.add_issue(issue)
@@ -129,6 +131,7 @@ class ReviewerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             review_round=0,
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
+        _open_pr_for(gh, issue_number=_REVIEWER_ISSUE_NUMBER, pr_number=_REVIEW_PR_NUMBER)
         before_writes = gh.write_state_calls
 
         get_issue_mock = MagicMock(
@@ -138,8 +141,8 @@ class ReviewerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             ),
         )
         with patch.object(gh, _GET_ISSUE_METHOD, get_issue_mock):
-            mocks = self._run(
-                lambda: _validating._handle_validating(gh, _TEST_SPEC, issue),
+            mocks = self._run_validating(
+                gh, issue,
                 run_agent=_agent(
                     session_id="rev-sess",
                     last_message="1. Fix typo\n\nVERDICT: CHANGES_REQUESTED",
@@ -153,7 +156,7 @@ class ReviewerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             ([], [], []),
         )
         self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
+            gh.write_state_calls, before_writes + 1 + AGENT_RUN_CHARGE_WRITES,
         )
         self.assertNotIn(
             "last_review_session_id",

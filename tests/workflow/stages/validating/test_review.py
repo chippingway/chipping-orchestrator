@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from contextlib import ExitStack
 
+from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.workflow.stages.validating import (
     validating_review_test_support as review_support,
 )
@@ -347,43 +348,26 @@ class HandleValidatingReviewerFailureTest(
         self.assertIsNone(failure_state.get(PARK_REASON))
         self._assert_reviewer_park_event(failure_github, REASON_REVIEWER_NO_VERDICT)
 
-    def test_malformed_context_parks_fail_open(self) -> None:
+    def test_malformed_context_refuses_the_round(self) -> None:
+        # A pull request number nothing can read names no pull request a
+        # report could be about: no reviewer is spawned over it, whatever it
+        # would have answered, and the round is refused for the report it
+        # lacks rather than reviewed with none.
         for pr_value in ("malformed-pr", 1e309, True):
-            with self.subTest(case="timeout", pr_number=pr_value):
+            with self.subTest(pr_number=pr_value):
                 failure_github, failure_issue = self._seeded(pr_number=pr_value)
-                self._run_validating(
+                mocks = self._run_validating(
                     failure_github,
                     failure_issue,
                     run_agent=_agent(timed_out=True),
                 )
 
+                mocks[RUN_AGENT].assert_not_called()
                 failure_state = failure_github.pinned_data(5)
                 self.assertTrue(failure_state.get(AWAITING_HUMAN))
-                self.assertEqual(failure_state.get(PARK_REASON), REASON_REVIEWER_TIMEOUT)
-                last_comment = failure_github.posted_comments[-1][1]
-                self.assertIn("reviewer timed out", last_comment)
-                self._assert_reviewer_park_event(
-                    failure_github,
-                    REASON_REVIEWER_TIMEOUT,
-                    expected_pr_number=None,
+                self.assertEqual(
+                    failure_state.get(PARK_REASON), _report_delivery.UNDELIVERABLE_REPORT,
                 )
-
-        with self.subTest(case="failed"):
-            failure_github, failure_issue = self._seeded(pr_number="malformed-pr")
-            self._run_validating(
-                failure_github,
-                failure_issue,
-                run_agent=_agent(last_message="", stderr="boom", exit_code=2),
-            )
-
-            failure_state = failure_github.pinned_data(5)
-            self.assertTrue(failure_state.get(AWAITING_HUMAN))
-            self.assertEqual(failure_state.get(PARK_REASON), REASON_REVIEWER_FAILED)
-            self._assert_reviewer_park_event(
-                failure_github,
-                REASON_REVIEWER_FAILED,
-                expected_pr_number=None,
-            )
 
     def _assert_reviewer_park_event(
         self,

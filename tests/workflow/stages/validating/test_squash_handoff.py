@@ -26,7 +26,9 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.support.fakes import LazyPullRequest
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.stages.validating import squash_approval_support as _support
 from tests.workflow.stages.validating.squash_approval_support import (
     _CollapseWorldMixin,
@@ -43,7 +45,7 @@ SQUASH_NOTICE = ":package: squashed"
 COUNT_KEY = "late_collapse_count"
 
 # A head somebody else put on the pull request while the handoff was owed.
-MOVED_HEAD = "movedaway01"
+MOVED_HEAD = "b0a7ed01" * 5
 
 # The lazy attribute read a pull request's head is, named as the double takes
 # it: past the lookup, which is where a guard around the lookup alone stops.
@@ -191,6 +193,7 @@ class RefusedRelabelTest(
         github, issue, pr = self._setup()
         self._refuses_the_relabel(github, issue)
         pr.head.sha = MOVED_HEAD
+        _published_reports.republishes_the_report(github, issue)
 
         mocks = self._lands_a_collapse(github, issue)
 
@@ -201,7 +204,8 @@ class RefusedRelabelTest(
         # request stands on, so a value that cannot name a commit is one no
         # comparison could be made over -- and an issue with no pull request
         # to read has nothing standing between such a value and a label moved
-        # past the reviewer. It goes, and the round runs.
+        # past the reviewer. It goes, and the round is taken: one that refuses
+        # the report, which is about a pull request this issue no longer names.
         github, issue = self._approved_issue()
         self._refuses_the_relabel(github, issue)
         self._pins(github, _support.HANDOFF_KEY, NOT_A_COMMIT)
@@ -209,9 +213,11 @@ class RefusedRelabelTest(
 
         mocks = self._run_squash_approval(github, issue, _RefusesTheCollapse())
 
-        mocks[_support.RUN_AGENT].assert_called_once()
+        pinned = github.pinned_data(_support.APPROVAL_ISSUE)
+        mocks[_support.RUN_AGENT].assert_not_called()
+        self.assertEqual(pinned[_support.PARK_REASON], _report_delivery.UNDELIVERABLE_REPORT)
         self.assertNotIn(HANDED_ON, github.label_history)
-        self.assertNotIn(_support.HANDOFF_KEY, github.pinned_data(_support.APPROVAL_ISSUE))
+        self.assertNotIn(_support.HANDOFF_KEY, pinned)
 
     def test_a_lazy_head_read_holds_the_handoff(self) -> None:
         # A fetched pull request asks GitHub nothing, so the request that can

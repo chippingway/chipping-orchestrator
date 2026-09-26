@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from orchestrator.github import comments as _trust
-from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState, pinned_state_body
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     report_delivery as _delivery,
@@ -22,6 +22,7 @@ from orchestrator.workflow.engine import (
     report_record_values as _record_values,
     report_records as _records,
 )
+from orchestrator.workflow.stages.validating import review_records as _review_records
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.engine import report_record_test_support as support
@@ -180,17 +181,26 @@ def outstanding_comment() -> dict:
     return dict(state.data)
 
 
-def crowded_comment(slack: int, carried: dict | None = None) -> PinnedState:
+def crowded_comment(
+    slack: int, carried: dict | None = None, *, reviewed: bool = False,
+) -> PinnedState:
     """One comment with `slack` characters left past the report's own length.
 
     Built from what the report itself takes rather than from a total, so a
     case says how much room its refusal is about instead of restating the
-    ceiling.
+    ceiling. `reviewed` leaves the room the reviewer's round takes beside
+    that slack, read off the owner every acceptance reserves it through, for
+    a case whose slack is measured against the settling write.
     """
+    crowded = PinnedState(state_data={**(carried or {}), CROWDING: ""})
+    if reviewed:
+        reserved = PinnedState(state_data=dict(crowded.data))
+        _review_records.reserves_the_round(reserved)
+        taken = pinned_state_body(reserved.data)
+        slack += len(taken) - len(pinned_state_body(crowded.data))
     room = MAX_PINNED_BODY - len(DELIVERED.report) - slack
-    return PinnedState(state_data={
-        **(carried or {}), CROWDING: FILLER * room,
-    })
+    crowded.set(CROWDING, FILLER * room)
+    return crowded
 
 
 def ready(report: str) -> str:

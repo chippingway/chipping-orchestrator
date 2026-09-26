@@ -394,14 +394,18 @@ descendant, a fix, the docs pass, a conflict resolution, and a heuristic match e
 ### `_handle_in_review` (label `in_review`)
 
 A PR is open and humans drive the merge — the orchestrator never merges from here, so any `merged` state it observes
-was produced externally. Behind the terminals, an issue whose approval a requirements edit made stale — one still
-owing a developer report one of its fix rounds recorded, or carrying the marker a hand-back whose relabel did not land
-leaves — goes straight back to `workflow:validating`, since only that stage binds the report and re-reviews. The
-handler scans four feedback surfaces over three id namespaces — the issue thread and the PR conversation share one,
-so each is read against its own cursors before the two merge — and routes to `workflow:fixing` without advancing the
-watermarks, falls back to the drift check, and otherwise posts the one-shot `:bell:` HITL ping when the head is
-mergeable, docs-complete or GitHub-approved, and carries no standing human CHANGES_REQUESTED. Full flow:
-[`state-machine/delivery-stages.md`][in-review].
+was produced externally. Behind the terminals, an issue whose approval no longer covers its work goes straight back
+to `workflow:validating`, since only that stage binds the report and re-reviews: one a requirements edit made stale —
+still owing a developer report one of its fix rounds recorded, carrying the marker a hand-back whose relabel did not
+land leaves, or approved against requirements other than the drift baseline holds — and one whose developer report
+changed on the same head, since the docs verdict and the ready ping are keyed on the head alone: a later revision
+recorded as current, the approved one edited or removed at its location, or a current report its settlement handoff
+no longer describes. The handler scans four feedback surfaces over three id namespaces — the issue thread and the PR
+conversation share one, so each is read against its own cursors before the two merge — and routes to
+`workflow:fixing` without advancing the watermarks, falls back to the drift check, and otherwise posts the one-shot
+`:bell:` HITL ping when the head is mergeable, docs-complete or GitHub-approved, and carries no standing human
+CHANGES_REQUESTED — and only while the approval, read again at the ping itself, still covers the report, the
+requirements, and the head standing then. Full flow: [`state-machine/delivery-stages.md`][in-review].
 
 ### `_handle_fixing` (label `workflow:fixing`)
 

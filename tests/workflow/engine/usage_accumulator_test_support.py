@@ -13,6 +13,7 @@ _PatchedWorkflowMixin = fixtures._PatchedWorkflowMixin
 _TEST_SPEC = fixtures._TEST_SPEC
 _agent = fixtures._agent
 _fake_worktree = fixtures._fake_worktree
+_open_pr_for = fixtures._open_pr_for
 
 
 class _PoisonedThenFreshRun:

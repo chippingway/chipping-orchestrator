@@ -22,6 +22,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     MEASURED_CANDIDATE_SHA,
@@ -53,7 +54,7 @@ BOT_LOGIN = "orchestrator"
 HUMAN_LOGIN = "alice"
 BACKEND_CLAUDE = "claude"
 DEV_SESSION = "dev-sess"
-REVIEWED_SHA = "cafe1234"
+REVIEWED_SHA = "cafe1234" * 5
 CHECKS_SUCCESS = "success"
 PR_LAST_COMMENT_ID = "pr_last_comment_id"
 DEBOUNCE_SETTING = "IN_REVIEW_DEBOUNCE_SECONDS"
@@ -458,6 +459,7 @@ class RunLimitToInReviewTest(unittest.TestCase, _PatchedWorkflowMixin):
             has_new_commits=True,
         )
         self.pr.head = FakePRRef(sha=MEASURED_CANDIDATE_SHA)
+        _published_reports.publishes_the_report(self.github, self.issue)
         self._polls(
             _agent(last_message=REVIEW_APPROVED_MESSAGE), (MEASURED_CANDIDATE_SHA,),
         )

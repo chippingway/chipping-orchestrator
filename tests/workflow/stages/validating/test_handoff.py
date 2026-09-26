@@ -362,7 +362,7 @@ class _ValidatingToInReviewFixtureMixin(_PatchedWorkflowMixin):
         pr = FakePR(
             number=HANDOFF_PR,
             head_branch=HANDOFF_BRANCH,
-            head=FakePRRef(sha="newhead42"),
+            head=FakePRRef(sha="0e1ead42" * 5),
         )
         gh.add_pr(pr)
         gh.seed_state(
@@ -436,7 +436,7 @@ class ValidatingToInReviewHandoffTest(
             gh,
             issue,
             run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
-            head_shas=("newhead42",),
+            head_shas=("0e1ead42" * 5,),
         )
         self.assertEqual(mocks_v["run_agent"].call_count, 1)
         self.assertIn((HANDOFF_ISSUE, LABEL_DOCUMENTING), gh.label_history)
@@ -492,7 +492,7 @@ class ValidatingToInReviewHandoffTest(
         pr = FakePR(
             number=SECOND_HANDOFF_PR,
             head_branch=SECOND_HANDOFF_BRANCH,
-            head=FakePRRef(sha="cafe9999"),
+            head=FakePRRef(sha="cafe9999" * 5),
             issue_comments=[
                 FakeComment(
                     id=CONSUMED_FEEDBACK_ID,

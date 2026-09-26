@@ -6,8 +6,8 @@ Each name below is defined by the leaf beside it -- the event names, the two
 label vocabularies, the repo spec and backend values, the pinned-state keys and
 role names, the verdict messages, the provider-failure messages, the
 recovery-follow-up wording, the pinned fields an authorized settlement leaves,
-the value builders, and the hermetic patch context a stage handler runs
-inside. This module is the one import site the tests that
+the value builders, the report a pull request's delivery published, and the
+hermetic patch context a stage handler runs inside. This module is the one import site the tests that
 span several of those leaves reach them through.
 """
 from __future__ import annotations
@@ -41,6 +41,7 @@ from tests.workflow.other_labels import (
 from tests.workflow.patch_models import DEFAULT_PR_HEAD_SHA as _DEFAULT_PR_HEAD_SHA, _agent as _agent_result
 from tests.workflow.patch_publication import _stand_opened_prs_on_the_push as _stood_on_the_push
 from tests.workflow.patch_runner import _PatchedWorkflowMixin as _WorkflowMixin
+from tests.workflow.published_reports import publishes_the_report as _publish_the_report
 from tests.workflow.report_values import (
     _named_description as _named_pr_description,
     _recovered_report as _recovered_report_state,
@@ -142,6 +143,7 @@ _iso_hours_ago = _value_helpers._iso_hours_ago
 _issue_branch = _value_helpers._issue_branch
 _manifest = _value_helpers._manifest
 _open_pr_for = _value_helpers._open_pr_for
+publishes_the_report = _publish_the_report
 _state_with_pr_number = _value_helpers._state_with_pr_number
 
 _authorize_command = _make_authorize_command

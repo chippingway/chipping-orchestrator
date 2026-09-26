@@ -7,7 +7,10 @@ anything it describes has happened. So the record is accepted only where the
 writes that FOLLOW it still fit beside it, and each of those is a write this
 guard cannot take back once it has been made.
 
-Two of them land between the record and the settlement. Publishing the report
+Two of them land between the record and the settlement, and a whole reviewer
+round after it: the spec and the subject the reviewer is handed, the run
+charge its launch takes, its session and return time, and the subject its
+approval covers. Publishing the report
 records the comment it landed as, so the drift hash and the feedback scans pass
 over this orchestrator's own text. And an issue whose commit is not published
 yet stands down to the publication gate, which pushes and writes the receipt
@@ -33,14 +36,18 @@ from orchestrator.github.pinned_state import (
     PinnedState,
     pinned_state_body,
 )
+from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     report_record_state as _record_state,
     report_record_values as _record_values,
+    review_subjects as _review_subjects,
+    run_ledger as _run_ledger,
 )
 from orchestrator.workflow.late_split import formats as _formats
 from orchestrator.workflow.stages.implementing import (
     late_publication_state as _publication_state,
 )
+from orchestrator.workflow.stages.validating import review_records as _review_records
 from tests.workflow.engine import report_transaction_test_support as support
 
 # What a crowding case fills the rest of the comment with.
@@ -69,6 +76,22 @@ _POSTED_ID = 9000000000000000001
 _WIDEST_COMMIT = "f" * max(_formats.COMMIT_LENGTHS)
 
 _WIDEST_IDENTITY = _record_values.MAX_RECORDED_NUMBER
+
+_WIDEST_DIGEST = "f" * max(_formats.DIGEST_LENGTHS)
+
+# Where the lifetime run count is recorded.
+_RUNS_USED = "agent_runs_used"
+
+# The runs an issue has spent before its report settles: one short of the
+# digit the reviewer's own charge then adds to the count.
+_PRIOR_RUNS = 9
+
+# A launch is charged under the SHA-256 hex digest of what it is, which is as
+# wide as this.
+_LAUNCH_FINGERPRINT = _WIDEST_DIGEST
+
+# The session a reviewer runs as, read off its output as a UUID.
+_REVIEWER_SESSION = "0b7c4d0e-5f1a-4c2b-9d3e-8a6f2b1c0d9e"
 
 # A receipt no writer here produces, past every spelling its readers accept and
 # so past everything the reservation can model. What a hand edit or an older
@@ -129,11 +152,43 @@ class CeilingTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         support.assert_one_report(self)
         self.assertIsNone(_record_state.read_pending_report(self.state))
         self._assert_within_the_comment()
+        self._reviews_it()
+
+    def _reviews_it(self) -> None:
+        """One reviewer round, write by write, through the owners that make them.
+
+        Its spec and subject ahead of the spawn, the run charge its launch
+        takes, its session and return time, and the approval: every one lands
+        past the settlement on this same comment, so a record accepted at the
+        ceiling has to have left room for all of them.
+        """
+        reviewed = _review_subjects.ReviewSubject(
+            pr_number=support.PR_NUMBER,
+            commit=support.SOURCE_SHA,
+            requirements_revision=_WIDEST_DIGEST,
+            report=_review_subjects.ReviewReport(
+                text=support.REPORT_TEXT,
+                report_revision=_WIDEST_IDENTITY,
+                content_revision=_WIDEST_DIGEST,
+                source_sha=support.SOURCE_SHA,
+                requirements_revision=_WIDEST_DIGEST,
+                location=ReportLocation(pr_number=support.PR_NUMBER),
+            ),
+        )
+        _review_records._records_the_launch(self.state, reviewed)
+        self._assert_within_the_comment()
+        _run_ledger._reserve_run(self.state, _LAUNCH_FINGERPRINT)
+        self._assert_within_the_comment()
+        _run_ledger._start_reserved_run(self.state)
+        _review_records._records_the_return(self.state, None, _REVIEWER_SESSION)
+        _review_subjects.record_approved(self.state, reviewed)
+        self._assert_within_the_comment()
 
     def _crowded_by(self, held: tuple, seed, owed) -> None:
         """Seed one world and record the largest transaction it will carry."""
         self.setUp()
         seed(self)
+        self.state.set(_RUNS_USED, _PRIOR_RUNS)
         self.state.set(support.LEDGER, list(held))
         self.state.set(_FILLER, "y" * _largest_filler(self, owed))
 
@@ -150,7 +205,6 @@ class CeilingTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         self.assertLessEqual(
             len(pinned_state_body(self.state.data)), MAX_PINNED_BODY,
         )
-
 
 
 def _seeds_no_receipt(case) -> None:

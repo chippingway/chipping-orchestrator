@@ -187,7 +187,14 @@ class _DriftReportMixin(_PatchedWorkflowMixin):
     `seeded` builds the world on the case -- `github`, `issue`, and the
     `pull_request` -- and every other method reads it from there, so a case
     that loops over subtests re-seeds it rather than threading it through.
+    `opening_report` is the report the pull request was opened with, where the
+    world carries one: this world keeps its reports itself, so no tick is
+    handed one it did not publish.
     """
+
+    opening_report = None
+
+    delivers_a_report = False
 
     def seeded(self, issue_number: int, pr_number: int, label: str, **extra) -> None:
         """The issue, its open pull request, and a baseline the edit moved off."""
@@ -273,12 +280,18 @@ class _DriftReportMixin(_PatchedWorkflowMixin):
         ]
 
     def records(self) -> dict:
-        """The delivered, pending, and current reports the pinned comment holds."""
+        """The delivered, pending, and current reports the pinned comment holds.
+
+        Past `opening_report`: a current report that is still the one the
+        pull request was opened with is one no tick of the case settled, and
+        reads as none.
+        """
         state = PinnedState(state_data=self.pinned())
+        current = _settlement.read_current_report(state)
         return {
             "delivered": _delivery_state.read_delivered_report(state),
             "pending": _record_state.read_pending_report(state),
-            "current": _settlement.read_current_report(state),
+            "current": None if current == self.opening_report else current,
         }
 
     def pinned(self) -> dict:

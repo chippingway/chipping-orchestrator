@@ -11,11 +11,10 @@ last before its handoff, for the report it settled and for the one a recovery
 would hand on.
 
 `carried_text` asks the same question and returns the answer's TEXT as well,
-for a reviewer that is handed the report it reviews rather than left to find
-one: what it would quote is exactly the revision the settlement recorded --
-the words re-read from the location, held to the digest once more, and nothing
-cut short. It is dormant: the validating stage hands its reviewer no report, so
-nothing in production asks it.
+for the validating stage's reviewer, which is handed the report it reviews
+rather than left to find one: what it quotes is exactly the revision the
+settlement recorded -- the words re-read from the location, held to the digest
+once more, and nothing cut short.
 """
 from __future__ import annotations
 

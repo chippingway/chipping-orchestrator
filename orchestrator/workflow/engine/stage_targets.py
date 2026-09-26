@@ -9,8 +9,9 @@ record's own measurement REPLAYS are named here for that reason as well, even
 though no label routes to any of them: the two code-publication receipt
 owners, which the report evidence reads and whose gate write that record
 reserves before it accepts one; the stale-approval hand-back an `in_review`
-relabel writes; and the stamp a fixing hand-back leaves on the comment the
-settlement ahead of it left. Each is replayed through the owner that performs
+relabel writes; the stamp a fixing hand-back leaves on the comment the
+settlement ahead of it left; and the records a reviewer round writes onto that
+same comment. Each is replayed through the owner that performs
 it rather than respelled here, so a member added there moves every reservation
 taken against it.
 """
@@ -77,6 +78,14 @@ _IN_REVIEW_PACKAGE = "orchestrator.workflow.stages.in_review"
 _IN_REVIEW_HANDOFF_OWNER = f"{_IN_REVIEW_PACKAGE}.state"
 _QUESTION_PACKAGE = "orchestrator.workflow.stages.question"
 _VALIDATING_PACKAGE = "orchestrator.workflow.stages.validating"
+
+# The owner of what a reviewer round writes onto the pinned comment -- its
+# spec and subject, its launch charge, its return, and its approval. Named here
+# and resolved when called for the reason the hand-back owners are: a report
+# is accepted only where the comment its settlement leaves has room for the
+# review it is handed to, and asking the stage directly would make the
+# engine's own import pull the handlers that import it back.
+_VALIDATING_REVIEW_RECORDS_OWNER = f"{_VALIDATING_PACKAGE}.review_records"
 
 # The one handler a label does not choose. It is reached by being closed on a
 # cleanup-swept label instead, and it is deliberately not in the table below:

@@ -31,8 +31,8 @@ CLOSED_ISSUE_BRANCH = "orchestrator/chippingway__orchestrator/issue-121"
 APPROVAL_ISSUE = 9
 APPROVAL_PR = 91
 APPROVAL_BRANCH = "orchestrator/chippingway__orchestrator/issue-9"
-REVIEWED_SHA = "rev91"
-SQUASHED_SHA = "sq91"
+REVIEWED_SHA = "ae91" * 10
+SQUASHED_SHA = "5091" * 10
 PICKUP_COMMENT_ID = 901
 PR_OPEN_COMMENT_ID = 902
 
@@ -50,7 +50,7 @@ class HandleValidatingExternalMergeTest(unittest.TestCase, _PatchedWorkflowMixin
         pr = FakePR(
             number=MERGED_PR,
             head_branch=MERGED_BRANCH,
-            head=FakePRRef(sha="cafe1234"),
+            head=FakePRRef(sha="cafe1234" * 5),
             merged=True,
             state="closed",
         )
@@ -99,7 +99,7 @@ class HandleValidatingClosedIssueTest(unittest.TestCase, _PatchedWorkflowMixin):
         pr = FakePR(
             number=OPEN_PR,
             head_branch=CLOSED_ISSUE_BRANCH,
-            head=FakePRRef(sha="cafe1234"),
+            head=FakePRRef(sha="cafe1234" * 5),
             merged=False,
             state="open",
         )

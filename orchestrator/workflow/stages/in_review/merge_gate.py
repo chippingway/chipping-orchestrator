@@ -7,13 +7,18 @@ An unmergeable PR -- branch protection, a real conflict, a base that moved --
 parks awaiting a human, because every automatic answer to it would be a guess
 about what the human wants merged.
 
-A mergeable PR earns one ping per head SHA, and each of the three gates in
+A mergeable PR earns one ping per head SHA, and each of the four gates in
 front of that ping protects the same claim. The ping says "ready for
 review/merge", so it may only fire for a head this orchestrator reviewed and
 documented (the final-docs marker) or that GitHub itself carries an APPROVED
 review for, and never over a standing CHANGES_REQUESTED veto. `ready_ping_sha`
 keys the de-duplication on the head that was pinged, so a new commit re-pings
-and a repeated tick on the same head stays silent.
+and a repeated tick on the same head stays silent. The last gate is the
+subject the approval covered, read again at the ping itself: the requests the
+gate makes before it are time in which another road can settle a later report,
+a human can edit that report or the issue, or a push can move the head the
+ping names. The park the gate takes is held to the first of those too, since
+it writes the state in hand.
 
 Both writes this stage makes to a thread are bounded by the same fact: the
 feedback scan that decided this tick ran several GitHub round-trips ago, and a
@@ -30,6 +35,10 @@ from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments, guards as _guards
 from orchestrator.workflow.stages.in_review import models as _models, watermarks as _watermarks
+from orchestrator.workflow.stages.validating import (
+    review_comment as _review_comment,
+    review_coverage as _review_coverage,
+)
 
 
 def _final_docs_handoff_completed_for_head(
@@ -74,6 +83,13 @@ def _handle_mergeable_gate(ctx: _models._InReviewContext) -> None:
     if mergeable is None:
         return  # GitHub still computing; try next tick
     if not mergeable:
+        # The mergeability request is time another road can settle a later
+        # report in, and the park below writes the state in hand whole: over
+        # a comment that moved, it would put the replaced report back.
+        if not _review_comment._records_in_hand(
+            ctx.gh, ctx.issue, ctx.state, "park its pull request as unmergeable",
+        ):
+            return
         # Bounded, because this refusal is not decided between two adjacent
         # steps: the feedback scan that let the tick get here ran several
         # GitHub round-trips ago, and a reply written since is numbered below
@@ -119,10 +135,44 @@ def _handle_mergeable_gate(ctx: _models._InReviewContext) -> None:
     # the earlier feedback scan and this point -- the next tick's
     # `comments_after` would skip it and the dev would never see the feedback.
     if ctx.state.get("ready_ping_sha") != head_sha:
-        _comments._post_issue_comment(
-            ctx.gh, ctx.issue, ctx.state,
-            f":bell: {config.HITL_MENTIONS} PR #{pr_number} is ready "
-            "for review/merge.",
-        )
-        ctx.state.set("ready_ping_sha", head_sha)
-        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+        _pings_ready(ctx, head_sha)
+
+
+def _pings_ready(ctx: _models._InReviewContext, head_sha: str) -> None:
+    """Ping a human that `head_sha` is ready, while the approval still covers it.
+
+    Refused or unread, nobody is pinged and nothing is written -- the state in
+    hand would put a replaced report back -- and the next tick's hand-back,
+    drift check, or ping over the new head answers it.
+    """
+    if not _still_ready(ctx, head_sha):
+        return
+    _comments._post_issue_comment(
+        ctx.gh, ctx.issue, ctx.state,
+        f":bell: {config.HITL_MENTIONS} PR #{ctx.pr_number} is ready "
+        "for review/merge.",
+    )
+    ctx.state.set("ready_ping_sha", head_sha)
+    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+
+
+def _still_ready(ctx: _models._InReviewContext, head_sha: str) -> bool:
+    """Whether everything the ping claims still stands, read at the ping itself.
+
+    The hand-back ahead of the feedback scan asked the approval too, but the
+    mergeability and review requests since then are round-trips in which
+    another road can settle a later report, a human can edit or delete the
+    report or edit the issue, or a push can move the pull request off the head
+    those requests approved -- and the ping is the one claim here that what
+    stands was reviewed. So the approval has to cover the report as it reads
+    at its location, the requirements over the issue read afresh, and
+    `head_sha` over the pull request read afresh
+    (`review_coverage._approval_holds`), and -- last, directly ahead of the
+    write -- the pinned comment has to carry the report records in hand.
+    """
+    return bool(
+        _review_coverage._approval_holds(ctx.gh, ctx.issue, ctx.state, head_sha)
+        and _review_comment._records_in_hand(
+            ctx.gh, ctx.issue, ctx.state, "ping a human over the approval it holds",
+        ),
+    )

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from unittest.mock import patch
 
 from orchestrator import config
@@ -153,10 +154,13 @@ class _ConsumptionFixtureMixin(_PatchedWorkflowMixin):
 
     def _run_dev_stage(self, label, gh, issue):
         """One tick of `label`'s handler, whose dev resume pushes a fix."""
+        # The validating tick resumes the developer and reaches no reviewer,
+        # so the pull request is left carrying no report: relabelled by hand,
+        # the issue is one nothing has reported or approved over.
         runners = {
             LABEL_IN_REVIEW: self._run_in_review,
             LABEL_FIXING: self._run_fixing,
-            LABEL_VALIDATING: self._run_validating,
+            LABEL_VALIDATING: partial(self._run_validating, reported=False),
         }
         with patch.object(config, DEBOUNCE_SETTING, DEBOUNCE_SECONDS):
             return runners[label](

@@ -888,7 +888,14 @@ The keys that matter for the state machine fall into a few groups:
   settles past the ceiling: the write that fails then fails after the report is already on the thread, and goes on
   failing identically for the rest of the issue's life. The entry is reserved under an id the ledger does not
   already hold, because the writer that records a comment is idempotent — reserving one already there reserves
-  nothing, while the publication lands under an id of its own and adds an entry anyway.
+  nothing, while the publication lands under an id of its own and adds an entry anyway. The report's reviewer
+  round writes past the settlement on the same comment too — `review_agent` and `review_subject` ahead of its spawn,
+  the `agent_runs_used` / `agent_run_reservation` / `agent_run_fingerprint` charge its launch takes,
+  `last_review_session_id` and `last_review_at` on its return, and `review_approved_subject` when it approves — so the
+  measurement replays that whole round through the validating stage's own writers, each at its widest
+  (`stages/validating/review_records.py`), and a report is never accepted into a comment its own reviewer could not
+  then write to. The usage meters that return folds are the one part left out: running totals every agent run
+  folds, already on the comment from the developer run whose report it is wherever that run's usage parsed.
 
   **The same measurement is taken again at publication**, against the comment as it stands then, and that is not
   belt-and-braces: it is the only one that can be right. A transaction the dispatcher's reconciliation cannot
@@ -1636,6 +1643,15 @@ The keys that matter for the state machine fall into a few groups:
   `"bought_by_a_reply"` names a human's retry or an operator's grant, whose words the round settles off its own
   prompt wherever it finally runs. A deferral never writes over a claim already standing, or the round would be
   left with nothing to record and the reply unread for good. An issue without the key owes no round.
+  `validating_reviewer_round_requirements` rides beside `"bought_by_a_reply"`: the requirements revision of the
+  thread through the reply that bought the round, which is what that round is due to hand its reviewer. The reply is
+  the reviewer's to read; anything written after it is a change the developer report never saw, so a reviewer read
+  that differs from it holds the round and drops both keys, and the next tick's drift check hands the new words to
+  the developer. Additive, written only where the buying reply is a control and nothing else — the bare cap grant,
+  or a bare `/orchestrator continue` — and dropped with the note it rides beside. A reply carrying words is itself a
+  requirements change (a reviewer-side park retries on its own, so a reply to one says something), so it records
+  none and the round is held for the developer; a round bought before the key existed is held to the drift baseline
+  too.
 - **The review-cap grant already honored.** `review_cap_granted_comment_id`, additive, holding the id of the
   comment the last `/orchestrator add-review-rounds` reset was written for. A grant may leave that command
   uncrossed — a bounded reviewer round records only what its own excerpt carried — so the batch a LATER cap
@@ -1666,6 +1682,43 @@ The keys that matter for the state machine fall into a few groups:
   rather than at the hand-back that makes it — a developer report recorded on THIS stage's drift road is accepted
   only where the comment has room for that whole write, so a field added to it moves that refusal too. A report
   recorded on any other route is not charged for it, since no other stage hands an approval back.
+- **Review subject.** `review_subject` is what the latest reviewer was handed, written beside `review_agent` ahead
+  of the spawn, in a write of its own onto the comment as the round just read it (the launch charge writes only its
+  own fields, and the state the tick holds carries what only the round's own write may land, such as a cap grant's
+  round reset): `pr`, `sha` (the head the pull request stood on), `requirements`
+  (the fingerprint of the thread read the prompt quotes), and `report_revision` + `report_content` (the revision and
+  digest of the developer report quoted whole in the prompt; both `null` is a subject with no report, a shape the
+  reader accepts though no reviewer is spawned over a pull request with no report).
+  `review_approved_subject` is the same object for the latest approval, staged once the verify gate passes and
+  written by whichever write the squash tail makes. Every later reader that would act on an approval -- the settled
+  squash handoff on `workflow:validating`, and the stale-approval hand-back on `in_review` -- holds it to the report
+  `developer_report_current` records now: another revision, other words, or a report where the approval saw none is
+  a subject nobody reviewed, and so is a current report `developer_report_handoff` no longer describes -- the pair a
+  settlement writes together, which a reviewer spawn refuses too -- so the handoff is dropped for a fresh reviewer
+  and the in_review issue is handed back.
+  Both also read that report at its location again, since no record sees its comment edited or removed in place,
+  and hold rather than act where the location could not be read. The in_review stage, which would advertise the
+  approval as ready to merge, also holds its `requirements` to `user_content_hash`, handing the issue back where they
+  differ, and at the ready ping reads the issue afresh against that baseline, the pull request afresh for the head
+  the ping names, and -- last -- the pinned comment for the report records in hand. The squash tail and the settled
+  handoff read the issue afresh too before moving the label to `workflow:documenting`, against that baseline and
+  against the approval's own `requirements` both (a baseline moved on to an edit since the approval says nothing
+  about what the reviewer read), and the pull request afresh against the commit the move is owed over -- the one the
+  squash published or the handoff recorded, or the approval's `sha` where the squash rewrote nothing -- holding the
+  move where any moved (the settled handoff is then dropped, for the drift check or a fresh review to answer), and
+  read the comment last, as does the squash tail once its rewrite is published. Where the comment moved them,
+  none of them acts or writes. `review_subject` is handed over only where the
+  pinned comment carries the report records the subject was resolved from, and the approval itself is taken only
+  where it still carries them when the reviewer returns and once the approval is verified -- a settlement that
+  landed meanwhile is kept, and the verdict dropped; a comment that will not read, or is no longer the pinned comment
+  the tick read, is written over by nothing -- and
+  the whole subject resolved again equals `review_subject`.
+  Both are additive: an issue without `review_approved_subject` was approved before it existed, and that approval
+  covers only an issue with no `developer_report_current` either — over a report, nothing says it was the one
+  approved, so the issue goes back for a fresh review — while one present in any shape its reader refuses, `null`
+  included, covers nothing. That reader takes the record whole: exactly the five members its writer spells, each in
+  that writer's shape -- a whole commit id as `sha` wherever `pr` names a pull request, and both report members or
+  neither -- so a record short of its `sha` or its `requirements` is no approval either.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one
@@ -1690,7 +1743,9 @@ The keys that matter for the state machine fall into a few groups:
   the docs pass it just bought. So the relabel window keeps no receipt, and it does not need one: what it leaves is
   the record a same-head approval leaves, and the next tick runs the pass rather than handing off on evidence that
   could belong to either.
-  `ready_ping_sha` records the head the in_review handler already posted a `:bell:` HITL ping for.
+  `ready_ping_sha` records the head the in_review handler already posted a `:bell:` HITL ping for. Both it and
+  `docs_verdict` are keyed on a head alone, so a recorded approval retires both (below): an approval of a new report
+  on the head they name would otherwise be read as documented before its docs pass ran, and pinged by nobody.
   `docs_drift_unwind_pending` is set while `_handle_documenting`'s drift block is reconciling and cleared only on the
   relabel back to `workflow:validating`. `docs_drift_unwind_asked_at` rides beside it on the failure road: the id of
   the notice a git step that could not be proved parked with. It is NOT a delivery cursor — no agent runs on that

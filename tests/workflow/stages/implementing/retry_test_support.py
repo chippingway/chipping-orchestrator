@@ -47,6 +47,7 @@ _TEST_SPEC = fixtures._TEST_SPEC
 _agent = fixtures._agent
 _reported = fixtures._reported
 _issue_branch = fixtures._issue_branch
+_open_pr_for = fixtures._open_pr_for
 _iso_hours_ago = fixtures._iso_hours_ago
 
 KEY_AWAITING_HUMAN = "awaiting_human"

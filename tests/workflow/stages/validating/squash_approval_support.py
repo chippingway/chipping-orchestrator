@@ -35,6 +35,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.fixtures import (
     REVIEW_APPROVED_MESSAGE,
     _agent,
@@ -54,7 +55,7 @@ APPROVAL_PR = 31
 # show the stage references nothing by a value that names no pull request.
 PR_NUMBER_KEY = "pr_number"
 APPROVAL_BRANCH = "orchestrator/chippingway__orchestrator/issue-5"
-REVIEWED_SHA = "reviewedAA"
+REVIEWED_SHA = "ae1eedaa" * 5
 # The commit a squash leaves behind, at the shape this domain holds every
 # recorded end to: a whole object id, since the handoff record is one and a
 # value that could not name a commit is one no later tick may act on.
@@ -329,8 +330,13 @@ class _CollapseWorldMixin:
         )
 
     def _records_a_collapse(self, github) -> None:
-        """Put the terms of an unfinished squash on the pinned comment."""
+        """Put the terms of an unfinished squash on the pinned comment.
+
+        Beside the approval that began it, of the report the pull request
+        carries: a squash is only ever begun under one.
+        """
         issue = github.get_issue(APPROVAL_ISSUE)
+        _published_reports.approves_the_report(github, issue)
         state = github.read_pinned_state(issue)
         _collapses.record_pending_collapse(
             state,

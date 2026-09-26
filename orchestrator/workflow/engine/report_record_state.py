@@ -304,6 +304,16 @@ def settled_payload(
     idempotent and one it already holds would reserve nothing while the real
     publication went on to add an entry of its own.
 
+    The reviewer the settled report is handed to writes onto this comment as
+    well -- its spec and the subject it was handed, before it spawns; the run
+    charge its launch takes; its session and return time; and the subject an
+    approval covers -- so every one of those is reserved here too, each at its
+    widest, through the validating stage's own writers
+    (`stages/validating/review_records.py`). Left out, a report accepted at
+    the ceiling is followed by a reviewer launch whose charge GitHub refuses
+    on every tick, or by an approval refused after the reviewer it cost has
+    run.
+
     The fixing HAND-BACK is the other write of that kind, and it is reserved
     the same way and for the same reason. A settlement whose record froze the
     fixing mark cannot move a label, so the round it closed is handed back by
@@ -327,6 +337,9 @@ def settled_payload(
     settled = _pinned_state.PinnedState(state_data=dict(state.data))
     if pending.mode is _records.ReportMode.PUBLISH:
         _comments._reserve_comment_slot(settled, _WIDEST_IDENTITY)
+    importlib.import_module(
+        _stage_targets._VALIDATING_REVIEW_RECORDS_OWNER,
+    ).reserves_the_round(settled)
     _consumed.advance_consumed(settled, pending.watermarks)
     _consumed.close_bookkeeping(settled, pending.spends)
     recorded = _settlement.record_current_report(settled, _records.CurrentReport(

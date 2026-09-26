@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.workflow.stages.validating import squash_approval_support as _support
 from tests.workflow.stages.validating.squash_approval_support import (
     _CollapseWorldMixin,
@@ -34,6 +35,9 @@ from tests.workflow.stages.validating.squash_approval_support import (
 LABEL_FIXING = "workflow:fixing"
 
 HANDED_ON = (_support.APPROVAL_ISSUE, _support.LABEL_DOCUMENTING)
+
+# The developer session the fixture seeds, which a drift resume continues.
+DEV_SESSION = "dev-sess"
 
 
 class PendingCollapseRouteTest(
@@ -78,16 +82,30 @@ class PendingCollapseRouteTest(
         # Ahead of the drift route as well as of the reviewer: resumed on an
         # edited body, the dev is pointed at a branch standing on a commit
         # nothing has accounted for -- and past the refusal that would take,
-        # an ordinary tick never reaches the recovery again.
+        # an ordinary tick never reaches the recovery again. The rewrite is
+        # finished, but the edit is requirements the approval was never
+        # given, so the move to documenting is held; the handoff that leaves
+        # goes on the next tick, and the drift route answers the edit.
         github, issue = self._approved_issue()
         self._records_a_collapse(github)
         self._edits_the_body(github)
 
         mocks = self._lands_a_collapse(github, issue)
+        held = github.pinned_data(_support.APPROVAL_ISSUE).get(_support.HANDOFF_KEY)
+        resumed = self._lands_a_collapse(github, issue)[_support.RUN_AGENT]
 
         mocks[_support.RUN_AGENT].assert_not_called()
         mocks[_support.SQUASH_SEAM].assert_called_once()
-        self.assertIn(HANDED_ON, github.label_history)
+        self.assertEqual(
+            (held, github.pinned_data(_support.APPROVAL_ISSUE).get(_support.HANDOFF_KEY)),
+            (_support.SQUASHED_SHA, None),
+        )
+        # The developer's own session, resumed on the edit -- not a reviewer.
+        self.assertEqual(
+            (resumed.call_count, resumed.call_args.kwargs.get("resume_session_id")),
+            (1, DEV_SESSION),
+        )
+        self.assertNotIn(HANDED_ON, github.label_history)
 
     def test_a_gate_park_is_left_alone(self) -> None:
         # The size gate posts a fresh notice for every reading it cannot take,
@@ -120,18 +138,29 @@ class PendingCollapseRouteTest(
 
     def test_a_human_reply_retries_the_collapse(self) -> None:
         # And the reply is the answer that park asked for -- a branch
-        # reconciled, a comment repaired -- so it is spent on the recovery.
+        # reconciled, a comment repaired -- so it is spent on the recovery,
+        # which finishes the collapse and ends the park. The reply is words
+        # on the thread the approval was never given, though, so the move to
+        # documenting is held; the next tick drops the handoff for the round
+        # below, which refuses the report written before that reply, so the
+        # developer answers it ahead of any reviewer.
         github, issue = self._approved_issue()
         self._records_a_collapse(github)
         self._parks(github)
         self._human_replies(issue)
 
         mocks = self._lands_a_collapse(github, issue)
+        cleared = github.pinned_data(_support.APPROVAL_ISSUE)[_support.AWAITING_HUMAN]
+        self._lands_a_collapse(github, issue)[_support.RUN_AGENT].assert_not_called()
 
         mocks[_support.RUN_AGENT].assert_not_called()
         mocks[_support.SQUASH_SEAM].assert_called_once()
-        self.assertFalse(github.pinned_data(_support.APPROVAL_ISSUE)[_support.AWAITING_HUMAN])
-        self.assertIn(HANDED_ON, github.label_history)
+        pinned = github.pinned_data(_support.APPROVAL_ISSUE)
+        self.assertEqual(
+            (cleared, pinned.get(_support.HANDOFF_KEY), pinned.get(_support.PARK_REASON)),
+            (False, None, _report_delivery.UNDELIVERABLE_REPORT),
+        )
+        self.assertNotIn(HANDED_ON, github.label_history)
 
 
 if __name__ == "__main__":
