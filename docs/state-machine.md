@@ -326,14 +326,15 @@ finished by `workflow:fixing`'s recovery on the settled-round mark the round's r
 parks with the `/orchestrator add-review-rounds N` escape hatch. No reviewer spawns while a developer report this
 issue recorded is still owed to the pull request.
 
-Each reviewer is handed the developer report the pull request carries, re-read where it settled and quoted whole in
-its prompt. A report that is missing, moved, edited, cut short, untrusted, out of step with its settlement, or stale
-against the head or the requirements parks `report_undeliverable` for the developer instead, and one nobody could
-read holds the tick. What the reviewer was handed — pull request, head, requirements, and report — is written to
-`review_subject` before the spawn, and an approval's subject to `review_approved_subject` once the verify gate
-passes, retiring the head-keyed docs verdict and ready ping an earlier approval left. That approval is acted on only
-while its subject still stands: rechecked as the reviewer returns, after verification, and before the squash tail or
-a settled squash handoff moves the label, so a new report on an unchanged head always reaches a fresh reviewer.
+Each reviewer is handed the developer report the pull request carries, re-read where it settled and quoted whole in its
+prompt. A report that is missing, moved, edited, cut short, untrusted, out of step with its settlement, or stale against
+the head or the requirements parks `report_undeliverable` for the developer instead, and one nobody could read holds the
+tick. What the reviewer was handed — pull request, head, requirements, and report — is written to `review_subject`
+before the spawn and again to `review_returned_subject` once that reviewer returns (a launch the run budget refuses
+leaves only the first), and an approval's subject to `review_approved_subject` once the verify gate passes, retiring the
+head-keyed docs verdict and ready ping an earlier approval left. That approval is acted on only while its subject still
+stands: rechecked as the reviewer returns, after verification, and before the squash tail or a settled squash handoff
+moves the label, so a new report on an unchanged head always reaches a fresh reviewer.
 
 A squash this issue began and did not finish is answered ahead of all of that, behind only the terminals and ahead of
 every route that could point an agent at the branch: a branch mid-rewrite is not one a reviewer or a body-edit resume
