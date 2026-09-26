@@ -21,10 +21,11 @@ the handler, so a reviewer or a readiness decision behind it reads evidence
 that is either settled or honestly still owed.
 
 It also stands aside on its own for everything the dispatcher would hand it
-that is not live work: an issue closed, labelled `done` or `rejected`, carrying
-a hard-skip control label, or carrying no workflow label at all. Nothing is
-published or dropped on any of those, so a reopen or a relabel finds the
-record exactly as it was.
+that is not live work (`verification_live_work`): an issue closed, labelled
+`done` or `rejected`, carrying a hard-skip control label, or carrying no
+workflow label at all. Nothing is published or dropped on any of those, so a
+reopen or a relabel finds the record exactly as it was -- and the settlement
+asks the same again of the issue read afresh after the post.
 
 Unlike the report transaction it never parks. Evidence is reproducible and
 fails closed -- an issue with no current evidence is one every consumer asks
@@ -46,25 +47,19 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.issues import issue_is_closed
-from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
     report_publication_evidence as _publication,
+    verification_live_work as _live_work,
     verification_proof as _proof,
     verification_publishing as _publishing,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
-
-# The labels whose whole meaning is that the issue is over. A terminal label
-# resolves to no handler, so the no-op behind this guard protects nothing.
-_TERMINAL_LABELS = (WorkflowLabel.DONE, WorkflowLabel.REJECTED)
 
 
 def _reconciles_pending_evidence(
@@ -82,7 +77,7 @@ def _reconciles_pending_evidence(
     """
     if not _record_state.carries_pending_evidence(state):
         return False
-    if _stands_aside(issue, label):
+    if _live_work.stands_aside(issue, label):
         log.info(
             "issue=#%d is not live work (label=%r); leaving the verification "
             "evidence it owes where it stands", issue.number, label,
@@ -97,13 +92,6 @@ def _reconciles_pending_evidence(
         )
         return _retires(gh, issue, state, None)
     return _answers_what_is_owed(gh, spec, issue, state, pending)
-
-
-def _stands_aside(issue: Issue, label: str | None) -> bool:
-    """Whether this issue is anything but live work the dispatcher will act on."""
-    if label is None or label in _TERMINAL_LABELS:
-        return True
-    return hard_skip_control_label(issue) is not None or issue_is_closed(issue)
 
 
 def _answers_what_is_owed(

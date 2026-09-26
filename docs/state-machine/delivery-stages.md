@@ -964,22 +964,25 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Why it is behind the report transaction**: evidence answers for a review subject that names the developer
   report, so a report still owed is a subject about to move — the proof defers to it, and the report settles first.
 - **Stands aside**: a closed issue, a `done` or `rejected` label, a hard-skip control label, or no workflow label at
-  all. Nothing is published or dropped, so a reopen or a relabel finds the record as it was.
+  all. Nothing is published or dropped, so a reopen or a relabel finds the record as it was. The settlement asks the
+  same again of the issue read afresh after the post, and writes nothing at all where it no longer holds.
 - **Outcomes**:
-  - **Settled** → the pull request, branch, checkout, tested and target trees, configured context, the recorded
-    review subject (`review_returned_subject` for a reviewer's account, `review_subject` otherwise), the settled
-    report re-read at its location as a reviewer is handed it, and the requirements all PROVED; the artifact is
+  - **Settled** → the pull request (the one `pr_number` pins), branch, checkout, tested and target trees, configured
+    context, the recorded review subject (`review_returned_subject` for a reviewer's account, `review_subject`
+    otherwise), the settled report re-read at its location as a reviewer is handed it and not stale against that
+    subject, and the requirements all PROVED; the artifact is
     posted (or found, by its receipt, where an earlier post's response was lost); the issue and the pinned comment
     are read afresh, the comment has to carry every bound record as the tick held it, and the whole proof is taken
     again over them; then one write, composed over that fresh comment, makes it current, moves the earlier current
     evidence into history as superseded, and records the handoff.
   - **Held** → a reading nobody could take: the pull request, the fetch, the divergence, the report's location, the
     requirements, or an unconfirmed post. The next tick asks again.
-  - **Stood down** → a moved head or branch, an absent checkout, an unreadable or different tree, a moved
-    configuration, a report still owed, a review subject absent or replaced, a report settled after the review or
-    deleted, edited, or out of step with its handoff, edited requirements, an edited artifact, a bound record that
-    moved on the pinned comment while the artifact was posted, or a settlement the comment no longer has room for.
-    The transaction stays owed for the route that answers it.
+  - **Stood down** → a moved head or branch, an absent checkout, an unreadable or different tree, a moved configuration,
+    a pinned `pr_number` naming another pull request, a report still owed, a review subject absent or replaced, a report
+    settled after the review, stale against the subject, or deleted, edited, or out of step with its handoff, an issue
+    that stopped being live work during the post, edited requirements, an edited artifact, a bound record that moved on
+    the pinned comment while the artifact was posted, or a settlement the comment no longer has room for. The
+    transaction stays owed for the route that answers it.
   - **Retired** → a replay its own handoff names is dropped; an unreadable record is dropped; a record whose pull
     request ended, or that settled evidence has overtaken, is abandoned into history. It never parks.
 - **Relying on it later**: `current_evidence_verdict` proves the current record again for a reader -- its handoff,

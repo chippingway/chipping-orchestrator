@@ -1748,15 +1748,17 @@ The keys that matter for the state machine fall into a few groups:
   and the handler (`workflow/engine/verification_transaction.py`), so it is behind every pause, terminal, adjudication,
   outstanding-publication, lease, and auto-rebase-anchor guard, and stands aside -- publishing and dropping nothing --
   on an issue that is closed, labelled `done` or `rejected`, held by a hard-skip control label, or unlabelled. It
-  publishes only once it has PROVED the pull request open on the recorded branch and standing on the target head, the
-  branch and checkout standing there too, the tested commit, the target head, and the review subject's head each a
-  readable commit carrying the recorded tree, the configured context the recorded one, no developer report still owed,
-  the bound review subject equal to the applicable record (`review_returned_subject` for reviewer-reported evidence,
-  `review_subject` for orchestrator-executed), the settled report re-read exactly as a reviewer is handed it --
-  `developer_report_current` and `developer_report_handoff` agreeing, and the report at its recorded location unchanged
-  under its author -- and named by that subject, and the issue's requirements the bound revision. The post is scoped by
-  the receipt, so an accepted write whose response was lost is found rather than repeated. Before the settlement the
-  issue and the pinned comment are read afresh: the comment has to carry every bound record -- `pr_number`, the
+  publishes only once it has PROVED the pull request -- the one `pr_number` pins -- open on the recorded branch and
+  standing on the target head, the branch and checkout standing there too, the tested commit, the target head, and the
+  review subject's head each a readable commit carrying the recorded tree, the configured context the recorded one, no
+  developer report still owed, the bound review subject equal to the applicable record (`review_returned_subject` for
+  reviewer-reported evidence, `review_subject` for orchestrator-executed), the settled report re-read exactly as a
+  reviewer is handed it -- `developer_report_current` and `developer_report_handoff` agreeing, and the report at its
+  recorded location unchanged under its author -- named by that subject and not stale against it by that reader's own
+  rule (about the subject's head, written against `user_content_hash`), and the issue's requirements the bound revision.
+  The post is scoped by the receipt, so an accepted write whose response was lost is found rather than repeated. Before
+  the settlement the issue and the pinned comment are read afresh: the issue has to be live work still, by the same rule
+  as above, or nothing at all is written; the comment has to carry every bound record -- `pr_number`, the
   `developer_report_*` group, `review_subject`, `review_returned_subject`, and the four evidence records -- exactly as
   the tick held them, and the whole proof above is taken again over it (`workflow/engine/verification_settling.py`).
   Only then does ONE write, composed over that fresh comment, supersede the earlier current record into history, install

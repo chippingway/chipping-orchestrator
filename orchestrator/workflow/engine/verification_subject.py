@@ -6,7 +6,11 @@ Evidence is written for a review subject in `review_subjects`' own shape, and
 it is current only while that subject is still the authoritative one, which is
 asked three ways.
 
-The RECORDED subject first. Which record is applicable follows the witness: a
+The pull request comes first: the evidence has to name the one this issue
+records as its own (`pr_number`), since evidence about any other thread is
+evidence about somewhere else, however open and well-proved that thread is.
+
+The RECORDED subject next. Which record is applicable follows the witness: a
 reviewer's own account answers for the subject the reviewer that RETURNED was
 handed (`review_returned_subject`), and a run this orchestrator executed
 answers for the subject the latest reviewer was handed (`review_subject`),
@@ -22,7 +26,9 @@ The SETTLED REPORT second, read exactly as a reviewer is handed it
 report and the handoff that settled it held to each other, and the report
 re-read at its recorded location, published or verified, under an author this
 deployment trusts, and still hashing to its digest. The bound subject has to
-name that report's revision and digest. A report gone, edited, or out of step
+name that report's revision and digest, and the report may not be stale against
+it by that reader's own rule: about the subject's very head, and written
+against the requirements baseline the issue is held to. A report gone, edited, or out of step
 with its handoff is a subject nobody can hand a reviewer, and one nobody could
 re-read holds.
 
@@ -54,8 +60,13 @@ from orchestrator.workflow.engine import (
     stage_targets as _stage_targets,
     verification_records as _records,
 )
+from orchestrator.workflow.late_split import payloads as _payloads
 
 log = logging.getLogger("orchestrator.workflow")
+
+# The pull request this issue records as its own, the canonical identity every
+# piece of evidence has to name.
+_PR_NUMBER = "pr_number"
 
 # The recorded review subject each witness's evidence answers for.
 _APPLICABLE_SUBJECT = MappingProxyType({
@@ -71,7 +82,9 @@ def subject_verdict(
     applicable = _APPLICABLE_SUBJECT[binding.source]
     recorded = state.get(applicable)
     refusal = ""
-    if _report_record_state.carries_pending_report(state):
+    if _payloads.as_identity(state.get(_PR_NUMBER)) != binding.target.publication.pr_number:
+        refusal = "the evidence names another pull request than the one this issue records"
+    elif _report_record_state.carries_pending_report(state):
         refusal = "a developer report the review subject would describe is still owed"
     elif _review_subjects.ReviewSubject.identity_recorded_in(recorded) is None:
         refusal = f"no readable {applicable} is recorded for the evidence to answer for"
@@ -87,10 +100,17 @@ def subject_verdict(
 def report_verdict(
     gh: GitHubClient, state: PinnedState, target: _records.EvidenceTarget,
 ) -> _evidence_models.ReportEvidence | None:
-    """Refuse a subject that is not about the settled report as re-read now, or None."""
-    report, refusal = importlib.import_module(
-        _stage_targets._VALIDATING_REVIEW_REPORT_OWNER,
-    )._settled_report(gh, state, target.publication.pr_number)
+    """Refuse a subject that is not about the settled report as re-read now, or None.
+
+    The report has to be the revision and words the subject names, and not
+    stale against that subject by the validating reader's own rule
+    (`review_report._stale_refusal`): about the very commit the subject's head
+    is, and written against the requirements baseline the drift check holds
+    the issue to. A report about another commit on the same tree is one no
+    reviewer would be handed with this subject.
+    """
+    review_report = importlib.import_module(_stage_targets._VALIDATING_REVIEW_REPORT_OWNER)
+    report, refusal = review_report._settled_report(gh, state, target.publication.pr_number)
     if report is None and not refusal:
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.HOLD,
@@ -100,6 +120,13 @@ def report_verdict(
         target.publication.pr_number, report.report_revision, report.content_revision,
     ):
         refusal = "the review subject is not about the report the pull request carries"
+    elif report is not None:
+        refusal = review_report._stale_refusal(state, _review_subjects.ReviewSubject(
+            pr_number=target.publication.pr_number,
+            commit=target.subject_commit,
+            requirements_revision=target.subject_requirements,
+            report=report,
+        ))
     if not refusal:
         return None
     return _evidence_models.ReportEvidence(

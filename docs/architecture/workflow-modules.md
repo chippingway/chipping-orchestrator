@@ -804,12 +804,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             held by `report_remote_evidence.py` to the target head, and the tested commit, the
                             target head, and the review subject's head each read as a commit carrying the one tree
                             the run recorded (`tree_of`)
-    verification_subject.py the subject half: no developer report still owed; the bound review subject equal to the
-                            applicable record (`review_returned_subject` for a reviewer's account, `review_subject`
-                            for a run this orchestrator executed); the settled report re-read exactly as a reviewer
-                            is handed it -- the settled pair held to each other and the report read at its location,
-                            through `stages/validating/review_report.py` resolved when called -- and named by that
-                            subject; and the requirements the evidence was bound to still the issue's own
+    verification_subject.py the subject half: the evidence's pull request the one this issue pins as `pr_number`; no
+                            developer report still owed; the bound review subject equal to the applicable record
+                            (`review_returned_subject` for a reviewer's account, `review_subject` for a run this
+                            orchestrator executed); the settled report re-read exactly as a reviewer is handed it --
+                            the settled pair held to each other and the report read at its location, through
+                            `stages/validating/review_report.py` resolved when called -- named by that subject and
+                            not stale against it by that reader's own rule (about the subject's head, written
+                            against the drift baseline); and the requirements the evidence was bound to still the
+                            issue's own
     verification_proof.py   the whole proof, pull request first through `report_publication_evidence.py` and then
                             cheapest first -- the context against `configured_context_revision` (the verify runner's
                             own over the configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, for both witnesses), the
@@ -832,10 +835,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its receipt: the room re-proved before the post, UNCONFIRMED held, any other reading
                             short of PRESENT stood down, and a landed post handed to the settlement
     verification_settling.py
-                            the settlement of a landed post: the issue and the pinned comment read afresh, the
-                            comment held to the state in hand on every bound record, the whole proof taken again
-                            over them, and ONE write composed over that fresh comment, stamped with the label the
-                            issue carries then; a refusal writes only the artifact's ledger entry onto it
+                            the settlement of a landed post: the issue read afresh and still live work -- where it
+                            is not, nothing is written -- the pinned comment read afresh and held to the state in
+                            hand on every bound record, the whole proof taken again over them, and ONE write
+                            composed over that fresh comment, stamped with the label the issue carries then; any
+                            other refusal writes only the artifact's ledger entry onto it
+    verification_live_work.py
+                            whether an issue is live work evidence may settle for -- not closed, not `done` or
+                            `rejected`, not held by a hard-skip control label, and wearing a workflow label --
+                            asked by the reconciliation of the issue it routed and by the settlement of the issue
+                            read afresh after the post
     verification_durable.py the pinned comment read afresh before a settlement: the comment this tick read, parsed,
                             and carrying `pr_number`, the developer report's records, both review subjects, and the
                             four evidence records exactly as the state in hand spells them, or the field that moved

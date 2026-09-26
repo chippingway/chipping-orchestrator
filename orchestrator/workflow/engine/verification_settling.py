@@ -5,7 +5,9 @@
 The settlement proves the whole binding once more before it declares anything
 current, because a post is long enough for any of it to move: another road can
 settle a later report or record another review subject on the pinned comment
-meanwhile. So the issue and the pinned comment are read afresh, the comment has
+meanwhile, and a human can close, pause, or end the issue. So the issue is read
+afresh and has to be live work still (`verification_live_work`) -- where it is
+not, nothing at all is written -- and the pinned comment is read afresh and has
 to carry every bound record exactly as the state in hand does
 (`verification_durable`), and the whole proof -- pull request, checkout and
 trees, context, recorded review subject, settled report at its location,
@@ -30,6 +32,7 @@ from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
     report_publication_evidence as _publication,
     verification_durable as _durable,
+    verification_live_work as _live_work,
     verification_proof as _proof,
     verification_records as _records,
     verification_settlement_state as _settlement,
@@ -103,18 +106,46 @@ def _fresh_world(
             _evidence_models.ReportEvidenceVerdict.HOLD,
             "the issue could not be re-read before the settlement",
         )
+    aside = _liveness_refusal(fresh)
+    if aside is not None:
+        return None, fresh, aside
     durable, moved = _durable.durable_comment(reading.gh, fresh, reading.state)
     if durable is not None:
         _comments._track_orchestrator_comment(durable, comment_id)
     if moved is not None:
         return durable, fresh, moved
-    publication = pending.binding.target.publication
     proved = _proof.rest_verdict(
         _proof.ProofReading(reading.gh, reading.spec, fresh, durable),
         pending.binding,
-        _publication.subject_verdict(reading.gh, publication),
+        _publication.subject_verdict(reading.gh, pending.binding.target.publication),
     )
     return durable, fresh, None if proved.proved else proved
+
+
+def _liveness_refusal(fresh: Issue) -> _evidence_models.ReportEvidence | None:
+    """Refuse an issue read afresh that is no longer live work, or None.
+
+    Asked before the pinned comment is read, and a refusal comes back with no
+    comment at all, so nothing -- not even the artifact's ledger entry -- is
+    written onto an issue somebody has closed, paused, or ended meanwhile.
+    """
+    try:
+        aside = _live_work.stands_aside(fresh, _labels.workflow_label(fresh))
+    except Exception:
+        log.exception(
+            "issue=#%d could not be read again for its labels and state before "
+            "settling its verification evidence", fresh.number,
+        )
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.HOLD,
+            "the issue's labels and state could not be re-read before the settlement",
+        )
+    if not aside:
+        return None
+    return _evidence_models.ReportEvidence(
+        _evidence_models.ReportEvidenceVerdict.DEFER,
+        "the issue stopped being live work while the artifact was posted",
+    )
 
 
 def _label_of(fresh: Issue) -> WorkflowLabel | None:

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.github.verification_evidence import EvidenceSource
 from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
     verification_proof as _proof,
@@ -50,6 +51,11 @@ _REFUSALS = (
         "the thread would not read",
         lambda case: case.gh.report_failures.unreadable.add(support.PR_NUMBER),
         _HOLD, "artifact could not be re-read",
+    ),
+    (
+        "the issue records another pull request",
+        lambda case: case.state.set("pr_number", support.PR_NUMBER + 1),
+        _DEFER, "another pull request than the one this issue records",
     ),
     (
         "the head moved",
@@ -106,12 +112,11 @@ class CurrentEvidenceVerdictTest(unittest.TestCase, support.VerificationEvidence
                 self.assertIs(refused.verdict, verdict)
                 self.assertIn(refusal, refused.refusal)
 
-
     def test_a_pass_flag_its_artifact_contradicts(self) -> None:
-        # A failed run settles as failing evidence and is proved as such; the
-        # pinned flag rewritten to claim it passed no longer describes the
-        # artifact, whose commands say one exited 1.
-        self.record(exit_status=1)
+        # A reviewer's account of a failed command settles as failing evidence
+        # and is proved as such; the pinned flag rewritten to claim it passed
+        # no longer describes the artifact, whose commands say one exited 1.
+        self.record(self.binding(source=EvidenceSource.REVIEWER_REPORTED), exit_status=1)
         self.reconcile()
         failing = self.verdict()
         claimed = dict(self.state.get(_records.CURRENT_EVIDENCE), passed=True)

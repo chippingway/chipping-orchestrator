@@ -28,6 +28,8 @@ LATER_REPORT_TEXT = "Implemented the change and covered the empty configuration.
 
 _RECEIPT = "issue-{issue}-report-{revision}"
 
+BASELINE = "user_content_hash"
+
 
 def settles_report(
     case, revision: int, text: str = REPORT_TEXT, *, reviewed: bool = True,
@@ -39,6 +41,9 @@ def settles_report(
     review records where they stood: a report that settled after the review.
     """
     report = _published(case, revision, text)
+    # The drift baseline the report was written against, which the validating
+    # reader holds a settled report to.
+    case.state.set(BASELINE, report.requirements_revision)
     location = _pr_reports.ReportLocation(
         pr_number=case.pull_request.number,
         comment_id=_comments._publish_developer_report(

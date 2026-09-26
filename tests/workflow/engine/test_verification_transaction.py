@@ -15,6 +15,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+from orchestrator.github.verification_evidence import EvidenceSource
 from orchestrator.workflow.engine import (
     verification_record_fields as _fields,
     verification_record_state as _record_state,
@@ -82,11 +83,14 @@ class SettledEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
         self.assertEqual(self.gh.write_state_calls, writes)
 
     def test_later_evidence_supersedes(self) -> None:
-        # A failing run is evidence too, and stays actionable as the current
-        # record; the passing run before it is history, not relabelled.
+        # A reviewer's account of a failed command is evidence too, and stays
+        # actionable as the current record; the passing run before it is
+        # history, not relabelled.
         first = self.record()
         self.reconcile()
-        second = self.record(exit_status=_FAILED)
+        second = self.record(
+            self.binding(source=EvidenceSource.REVIEWER_REPORTED), exit_status=_FAILED,
+        )
 
         self.reconcile()
 

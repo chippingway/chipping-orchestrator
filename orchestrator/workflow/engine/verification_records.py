@@ -153,6 +153,11 @@ class PendingEvidence:
     `revision` orders artifacts on one pull request. `commands` are the run's
     own transcript, in the order the commands ran, and nothing is counted or
     inferred from them beyond whether every one of them exited 0.
+
+    A failing transcript is a transaction like any other: a reviewer's account
+    of a command that failed is evidence that it failed, and `passed` says so.
+    Which runs a producer may bind is the producer's rule -- a local
+    `VERIFY_COMMANDS` run binds only when it passed (`verification_local_runs`).
     """
 
     receipt: str

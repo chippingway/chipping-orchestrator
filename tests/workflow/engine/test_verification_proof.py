@@ -36,11 +36,13 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
+from tests.support.github.models import FakeLabel
 from tests.workflow.engine import (
     verification_evidence_test_support as support,
     verification_report_fixture as _report,
     verification_world_fixture as _world,
 )
+from tests.workflow.fixtures import LABEL_DONE
 
 _ABSENT_CHECKOUT = Path("/nonexistent/orchestrator/issue-7")
 
@@ -140,6 +142,16 @@ _REFUSALS = (
         True, "would not say how it stands",
     ),
     (
+        "the issue records another pull request",
+        lambda case: case.persists("pr_number", support.PR_NUMBER + 1),
+        False, "another pull request than the one this issue records",
+    ),
+    (
+        "the drift baseline moved past the report",
+        lambda case: case.persists(_report.BASELINE, "a later baseline"),
+        False, "written against requirements the issue has since moved past",
+    ),
+    (
         "the pull request would not read",
         lambda case: case.enterContext(patch.object(
             case.gh, "get_pr", side_effect=RuntimeError("GitHub did not answer"),
@@ -189,25 +201,30 @@ class UnprovedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
                 )
                 self.assertIsNone(_settlement.read_current_evidence(self.state))
 
-    def test_a_subject_about_another_tree(self) -> None:
+    def test_a_subject_about_another_head(self) -> None:
         # Even a subject a reviewer really was handed never makes evidence
-        # current where its head is not the tested tree: the evidence would be
-        # answering for a review of different content.
-        target = self.binding().target
-        subject = dict(target.subject, sha=support.REBASED_SHA)
-        self.state.set(_review_subjects.REVIEW_SUBJECT, subject)
-        pending = self.record(self.binding(
-            target=_records.EvidenceTarget(target.publication, subject),
-        ))
+        # current where it is not about what the report and the run are: a
+        # head carrying another tree is a review of different content, and a
+        # head carrying the same tree is still not the commit the settled
+        # report describes -- which the validating reader refuses as stale.
+        for head, refusal in (
+            (support.REBASED_SHA, "review subject's head does not carry"),
+            (support.SQUASHED_SHA, "the report this issue last settled is about commit"),
+        ):
+            with self.subTest(head=head):
+                self.setUp()
+                subject = dict(self.subject.recorded(), sha=head)
+                self.state.set(_review_subjects.REVIEW_SUBJECT, subject)
+                pending = self.record(self.binding(
+                    target=_records.EvidenceTarget(self.binding().target.publication, subject),
+                ))
 
-        with self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
-            self.assertFalse(self.reconcile())
-            self.assertIn(
-                "review subject's head does not carry", support.logged_refusal(logged),
-            )
+                with self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
+                    self.assertFalse(self.reconcile())
+                    self.assertIn(refusal, support.logged_refusal(logged))
 
-        self.assertEqual(self.artifacts(), [])
-        self.assertEqual(_record_state.read_pending_evidence(self.state), pending)
+                self.assertEqual(self.artifacts(), [])
+                self.assertEqual(_record_state.read_pending_evidence(self.state), pending)
 
 
 class ReviewerReportedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
@@ -301,11 +318,43 @@ class MovedDuringPublicationTest(unittest.TestCase, support.VerificationEvidence
                     2 if persisted_first else 1,
                 )
 
+    def test_the_issue_ending_during_the_post(self) -> None:
+        # Closed, paused, or relabelled `done` while the artifact was posted:
+        # nothing is declared current, and nothing at all is written onto an
+        # issue somebody has just stopped.
+        for ends in ("closed", "paused", "done"):
+            with self.subTest(ends=ends):
+                self.setUp()
+                self.meanwhile = functools.partial(self.ends_the_issue, ends)
+                writes = self.gh.write_state_calls
+                with patch.object(
+                    self.gh, "_post_verification_artifact", self.posts_then_moves,
+                ), self.assertLogs(support.WORKFLOW_LOG, _LEVEL):
+                    self.assertFalse(self.reconcile())
+
+                persisted = self.gh.read_pinned_state(self.issue)
+                self.assertEqual(len(self.artifacts()), 1)
+                self.assertEqual(self.gh.write_state_calls, writes)
+                self.assertIsNone(_settlement.read_current_evidence(persisted))
+                self.assertEqual(
+                    _record_state.read_pending_evidence(persisted), self.pending,
+                )
+
     def settles_later(self, *, persisted: bool) -> None:
         """Settle and review report revision 2, and write it where `persisted` says."""
         _report.settles_report(self, 2, _report.LATER_REPORT_TEXT)
         if persisted:
             self.gh.write_pinned_state(self.issue, self.state)
+
+    def ends_the_issue(self, ends: str) -> None:
+        """Close the issue, pause it, or relabel it `done`, as a human would."""
+        if ends == "closed":
+            self.issue.closed = True
+        elif ends == "paused":
+            self.issue.labels.append(FakeLabel("paused"))
+        else:
+            self.issue.labels = [FakeLabel(LABEL_DONE)]
+
 
 if __name__ == "__main__":
     unittest.main()
