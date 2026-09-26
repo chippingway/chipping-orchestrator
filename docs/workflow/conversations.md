@@ -103,9 +103,11 @@ Shape of the block:
 
 Delivery builders live in `workflow/engine/prompts.py`, question/discussion, PR-follow-up, and human-reply resume
 builders in `workflow/engine/conversation_prompts.py`, and the decomposition builder in
-`workflow/engine/decomposition_prompts.py`. Their use of the awareness block is:
+`workflow/engine/decomposition_prompts.py`. `workflow/engine/review_prompts.py` holds a second, dormant
+`_build_review_prompt` that quotes the developer report whole beside the issue; the validating stage spawns its
+reviewer over the one in `prompts.py`. Their use of the awareness block is:
 
-- **Embedded** in `_build_implement_prompt`, `_build_documentation_prompt`, `_build_review_prompt`,
+- **Embedded** in `_build_implement_prompt`, `_build_documentation_prompt`, both `_build_review_prompt` builders,
   `_build_decompose_prompt`, `_build_question_prompt`, `_build_discussion_prompt`, and
   `_build_fresh_respawn_preamble`. The fresh-respawn preamble matters because a transcript-less respawn (proactive
   `DEV_SESSION_MAX_RESUMES` rotation, the consecutive-silent-park fallback, poisoned-session recovery, or an operator
