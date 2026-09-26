@@ -795,14 +795,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             same write
     verification_settlement_state.py
                             dormant current evidence, its bounded history, and the handoff: read fail-closed, settled as
-                            ONE composed write on a copy, and only for the transaction the comment records (the earlier
-                            current superseded into history, this one current, the handoff, the pending record dropped),
-                            and retired -- current invalidated, or the pending record the comment stores, named whole,
-                            abandoned -- into history without ever relabelling a run, each retirement composed on a copy
-                            and refused, writing nothing, where the comment could not carry it. History keeps the five
-                            highest revisions in revision order, lowest out, and its reader refuses a `null`, a longer
-                            index, or revisions that do not strictly rise; the revision floor, not the index, keeps
-                            revisions monotonic
+                            ONE composed write on a copy that keeps the comment it was read from, so writing it rewrites
+                            that comment rather than posting a second, and only for the transaction the comment records
+                            (the earlier current superseded into history, this one current, the handoff, the pending
+                            record dropped), and retired -- current invalidated, or the pending record the comment
+                            stores, named whole, abandoned -- into history without ever relabelling a run, each
+                            retirement composed on a copy and refused, writing nothing, where the comment could not
+                            carry it. History keeps the five highest revisions in revision order, lowest out, and its
+                            reader refuses a `null`, a longer index, or revisions that do not strictly rise; the
+                            revision floor, not the index, keeps revisions monotonic
     verification_local_runs.py
                             what one local `VERIFY_COMMANDS` run is worth as evidence, which the verify gate does not
                             ask yet: only a run `is_reusable` vouches for, on the head its target answers for, bound
