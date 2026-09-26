@@ -111,6 +111,13 @@ _ENGINE_OWNERS = (
     "terminals",
     _TICK,
     "usage",
+    "verification_records",
+    "verification_record_fields",
+    "verification_settled_fields",
+    "verification_history_fields",
+    "verification_settlement_state",
+    "verification_record_state",
+    "verification_local_runs",
 )
 
 # The late-split domain's owners. They sit beside the engine rather than under
