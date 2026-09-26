@@ -1724,6 +1724,52 @@ The keys that matter for the state machine fall into a few groups:
   included, covers nothing. That reader takes the record whole: exactly the five members its writer spells, each in
   that writer's shape -- a whole commit id as `sha` wherever `pr` names a pull request, and both report members or
   neither -- so a record short of its `sha` or its `requirements` is no approval either.
+- **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
+  than forked (`workflow/engine/verification_records.py`), and all DORMANT: their owners are complete and tested
+  directly, but no stage, guard, or dispatch path records, settles, or reads them yet, so no issue carries any of these
+  keys until an evidence transaction is wired in. `verification_evidence_pending` is one transaction, written BEFORE its
+  artifact is posted: a receipt (`issue-<n>-verification-<revision>-<nonce>`, which every record's reader holds to that
+  record's own revision) and a revision past every one the issue has spent; the report subject's own `repo` / `pr` /
+  `branch` / `sha` / `requirements` members, where `sha` is the head the evidence is written for; the review subject
+  exactly as `review_subject` spells it (`subject`), about that same pull request and requirements and naming a
+  developer report, since evidence answers for the report a reviewer was handed; the witness (`source`,
+  `orchestrator-executed` or `reviewer-reported`); the tested commit and its full tree (`tested`, `tree`), which stay
+  the commit that actually ran when evidence is carried to another head; the verification context (`context`, the verify
+  runner's digest of `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`); and the commands that ran as `[command, exit status,
+  transcript]`, each one the artifact would publish. `verification_evidence_current` is the evidence the pull request
+  carries: the same binding without the commands, plus the artifact's evidence digest (`content`), the comment it landed
+  as (`comment`), and whether at least one command ran and every one exited 0 (`passed`); `null` once invalidated.
+  `verification_evidence_history` is the five highest-revision retired records, in revision order rather than the order
+  they retired -- each with its receipt, revision, whole binding (the report revision and digest and the complete review
+  subject included, since the artifact names only the subject's head), digest, `passed`, `comment` (`null` exactly for
+  an abandoned transaction, which never held one), and `retired` (`superseded`, `invalidated`, or `abandoned`) -- an
+  index of artifacts that all stay on the pull request. `verification_evidence_handoff` is the receipt of the last
+  settled transaction with its pull request (`pr`), revision, target head (`head`), and, where it could be read, the
+  label the issue carried as it settled (`under`). `verification_evidence_revision` is the highest revision any
+  transaction on the issue was recorded under, raised in the same write as each record, so a revision whose artifact may
+  already be on the pull request stays spent after its record is damaged, dropped, or evicted from the history.
+  An issue without any of the keys owes, holds, and has spent nothing, and every reader is fail-closed: a record short
+  of any member, or holding a value its writer never spells (a receipt naming another revision than its own included),
+  reads as none, a history that is `null`, longer than five, or whose revisions do not strictly rise reads as none, and
+  an unreadable history is replaced by the next write that indexes a retired record. What an issue has spent is the
+  floor raised to any readable record's revision; over a comment that did not parse, a floor present and unreadable
+  (`null` included), or a floor missing beside any record (`null` ones included), nobody can say, and nothing is minted
+  or recorded. Recording under the receipt already recorded is a retry, accepted as it stands only where it is identical
+  and the floor can be read, since its artifact may already be on the thread under that receipt. Any other record is
+  accepted only as a new transaction -- a revision past everything spent, so a mint another settlement overtook is
+  refused -- that reads back identically, whose artifact renders, and the comment has room for it AND for its whole
+  settling write and the later invalidation of the evidence that installs, measured at the widest comment id and label
+  with the artifact's ledger entry reserved; a later record abandons a readable earlier one into history in the same
+  write, and drops one nobody can read. A settlement is ONE composed write onto the comment the transaction was recorded
+  on, and only of the transaction that comment records -- the earlier current record superseded into history, the new
+  one and the handoff installed, and the pending record set to `null` -- and a comment id past what the records carry
+  settles nothing. A retirement (the current record invalidated, or the stored pending record, named whole, abandoned)
+  is composed on a copy and writes nothing where the comment could not carry it; a transaction minted and never
+  recorded, or one a later record replaced, is never abandoned. A local `VERIFY_COMMANDS` run binds
+  (`workflow/engine/verification_local_runs.py`) only where `is_reusable` vouches for it, it ran on the head its target
+  answers for, and its transcript is one the artifact would publish in one comment, measured at the widest receipt and
+  revision a record carries -- the room on the pinned comment is left to the recorder; a failed, empty, timed-out,
+  dirty, or moved run, or one on another head, binds nothing.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one
