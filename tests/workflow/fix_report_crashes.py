@@ -18,6 +18,11 @@ recognise rather than resume a developer over. The fourth is behind a park's
 own write, which is where a park that left its feedback unread would have the
 next tick resume the developer over it again.
 
+The DIRECT round orders its last two windows the other way round: it relabels
+to `validating` before the binding, so the relabel it dies on leaves the
+report recorded and unbound on `workflow:fixing` -- the second window's shape,
+with the round's own mark riding the record for the tick that binds it there.
+
 A process ending is spelled as a raise the case swallows, so what a test reads
 afterwards is exactly the durable state a crash would have left.
 """
@@ -31,6 +36,7 @@ from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
 )
 from orchestrator.workflow.stages.validating import dev_fix as _dev_fix
+from orchestrator.workflow.state import WorkflowLabel
 
 # The reason the park a report this workflow cannot deliver is filed under.
 _UNDELIVERABLE = _report_delivery.UNDELIVERABLE_REPORT
@@ -47,23 +53,30 @@ def dying_before_the_publication():
     afterwards is a report about work the pull request has not got.
     """
     with patch.object(
-        _dev_fix, "_publish_dev_fix", _Dies(),
+        _dev_fix, "_publish_dev_fix", side_effect=_Crashed,
     ), contextlib.suppress(_Crashed):
         yield
 
 
 @contextlib.contextmanager
 def dying_before_the_relabel(case):
-    """A process that ends between the report's settlement and the relabel.
+    """A process that ends on the relabel that hands a round back for review.
 
-    The window past the publication: the report is on the pull request and the
-    write that settled it applied the readers and the round the record froze,
-    leaving the mark that says so. Raised from the relabel itself, so
-    everything the round made durable before it stands exactly as a crash
-    would have left it -- a settled round under `workflow:fixing`.
+    On the parked resume that is the window past the publication: the report
+    is on the pull request and the write that settled it applied the readers
+    and the round the record froze, leaving the mark that says so. Raised from
+    the relabel itself, so everything the round made durable before it stands
+    exactly as a crash would have left it -- a settled round under
+    `workflow:fixing`.
+
+    Armed on the label rather than on the call, because the direct round
+    relabels twice: the flip to `fixing` it opens on has to land for the
+    developer to run at all, and the move back to `validating` is the one it
+    takes ahead of the binding.
     """
+    relabels = case.github.set_workflow_label
     with patch.object(
-        case.github, "set_workflow_label", _Dies(),
+        case.github, "set_workflow_label", _DiesOnTheHandBack(relabels),
     ), contextlib.suppress(_Crashed):
         yield
 
@@ -80,7 +93,7 @@ def dying_before_the_binding():
     exactly as a crash would have left it.
     """
     with patch.object(
-        _report_binding, "binds_and_publishes", _Dies(),
+        _report_binding, "binds_and_publishes", side_effect=_Crashed,
     ), contextlib.suppress(_Crashed):
         yield
 
@@ -104,11 +117,16 @@ class _Crashed(RuntimeError):
     """The process ending where a case says it ends."""
 
 
-class _Dies:
-    """A step that never runs, because the process ended before it."""
+class _DiesOnTheHandBack:
+    """The relabels a tick makes, ending on the one back to `validating`."""
 
-    def __call__(self, *_args, **_kwargs):
-        raise _Crashed
+    def __init__(self, relabels) -> None:
+        self._relabels = relabels
+
+    def __call__(self, issue, label, **options):
+        if label == WorkflowLabel.VALIDATING:
+            raise _Crashed
+        return self._relabels(issue, label, **options)
 
 
 class _DiesBehindTheReportPark:

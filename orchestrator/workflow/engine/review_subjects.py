@@ -10,15 +10,18 @@ approved -- so a verdict is recorded against all four, and nothing keyed on a
 commit alone may stand in for a review of a report that commit has since
 acquired.
 
-Two records, written by the validating stage and read wherever an approval is
-about to be acted on. `review_subject` is the subject a reviewer was handed,
-written beside the reviewer spec before the spawn so an operator can read which
-report a round saw. `review_approved_subject` is the subject an approval
-covers, written once the local verify gate has passed, and recording it
-RETIRES the ready ping and the final-docs verdict an earlier approval left:
-both are keyed on the head alone, so on an unchanged commit they would
-advertise the new report as already reviewed, documented, and announced.
-`ReviewSubject.widest` is the subject either record is at its widest, which a
+Three records, written by the validating stage and read wherever a review or an
+approval is about to be acted on. `review_subject` is the subject a reviewer
+was handed, written beside the reviewer spec before the spawn so an operator
+can read which report a round saw. `review_returned_subject` is the same
+subject written again in the write a reviewer that RETURNED makes, which is the
+one of the two a refused launch or a death before the spawn never leaves.
+`review_approved_subject` is the subject an approval covers, written once the
+local verify gate has passed, and recording it RETIRES the ready ping and the
+final-docs verdict an earlier approval left: both are keyed on the head alone,
+so on an unchanged commit they would advertise the new report as already
+reviewed, documented, and announced.
+`ReviewSubject.widest` is the subject any of them is at its widest, which a
 developer report's acceptance leaves room for
 (`stages/validating/review_records.py`).
 
@@ -53,6 +56,12 @@ REVIEW_SUBJECT = "review_subject"
 
 # The subject the latest approval covers.
 APPROVED_SUBJECT = "review_approved_subject"
+
+# The subject the latest reviewer that RETURNED was handed. `review_subject`
+# goes down ahead of the launch, so a launch the run budget refused, or a
+# process that died before the spawn, leaves one no reviewer ever read; this
+# one goes down only in the write a returned reviewer's round makes.
+RETURNED_SUBJECT = "review_returned_subject"
 
 _PR = "pr"
 
@@ -126,12 +135,13 @@ class ReviewSubject:
 
     @classmethod
     def widest(cls) -> ReviewSubject:
-        """The subject whose record is the widest either record can be written at.
+        """The subject whose record is the widest any of the three can be written at.
 
         For a measurement, never for a write: every member at the widest this
         domain records it, so a comment with room for this record has room
-        for any subject a review hands over or approves. Written through
-        `recorded` like every real one, so a member added there moves it.
+        for any subject a review hands over, returns over, or approves.
+        Written through `recorded` like every real one, so a member added
+        there moves it.
         """
         return cls(
             pr_number=_record_values.MAX_RECORDED_NUMBER,

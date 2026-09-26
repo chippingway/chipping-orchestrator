@@ -20,6 +20,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.github.pinned_state import PinnedState
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.stages.fixing import (
     fixing_test_support as fixing,
     published_gate_support as support,
@@ -111,8 +112,11 @@ class _GrownPullRequestMixin(support._SizeGateFixtureMixin):
         The reviewer read the head the round before published and asked for
         another change, which is a `validating` tick ending on the `fixing`
         label. Written onto the issue rather than through the client, so the
-        label history this scenario reads is the fixing stage's own.
+        label history this scenario reads is the fixing stage's own -- beside
+        the subject that reviewer was handed, which that tick records before
+        it spawns and which says the round the last one handed back was read.
         """
+        _published_reports.reviews_the_report(scenario.github, scenario.issue)
         scenario.issue.labels = [FakeLabel(FIXING)]
         # Minted through the client rather than hand-numbered: the rounds
         # before this one posted the reports they published, which came out of

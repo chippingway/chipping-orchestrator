@@ -190,6 +190,34 @@ class RequestedFixReportTest(unittest.TestCase, world._FixReportMixin):
             (world.FIXED_HEAD, 1, 1),
         )
 
+    def test_an_unlanded_hand_back_is_finished(self) -> None:
+        # The round relabels to `validating` BEFORE its report is bound, so a
+        # relabel that never lands -- a process dying on it, a label write
+        # GitHub refused -- leaves the report recorded and unbound on
+        # `workflow:fixing`, whatever the round answered in. The fixing tick
+        # that binds it there hands the round back as the live road would
+        # have: no developer, one report, the round spent once. Left on
+        # `fixing` instead, the scan behind it would read whatever a human
+        # wrote meanwhile under a route the settlement has just closed.
+        for committed in (True, False):
+            with self.subTest(committed=committed):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+
+                with crashes.dying_before_the_relabel(self):
+                    self.requested_fix(world.reported(), committed=committed)
+
+                recovered = self.parked_resume(world.reported(), committed=False)
+
+                recovered[RUN_AGENT].assert_not_called()
+                self.assertEqual(
+                    (self.github.label_history[-1],
+                     len(self.published_reports()),
+                     *_handover(self),
+                     self.pinned().get(REVIEWER_ANCHOR)),
+                    ((ISSUE, LABEL_VALIDATING), 1, 1, False, None),
+                )
+
+
 class RequestedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
     """The rounds that publish nothing, and what each of them leaves."""
 

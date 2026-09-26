@@ -735,21 +735,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report quoted whole between the issue and the inspection commands, named by revision and
                             location, and a note where the requirements have moved on since it was written; a subject
                             with no report says none is recorded
-    review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision
-                            and digest -- recorded as `review_subject` before the spawn and as
-                            `review_approved_subject` once an approval passes the verify gate, where recording the
-                            approval also retires the head-keyed `docs_verdict` and `ready_ping_sha` an earlier one
-                            left; the widest subject either record can be written at (`ReviewSubject.widest`),
-                            which the report settlement's measurement reserves; and the question every
-                            later reader of an approval asks, whether the report recorded as current is the one it
-                            covered, compared on the pinned records alone. An approval with no record covers only an
-                            issue with no report either -- one approved before the record existed over a pull
-                            request that has settled a report goes back for a fresh review -- and a record nobody
-                            can read covers nothing: it is read whole, exactly the five members its writer spells,
-                            each in its shape -- requirements that are a digest or "", both report members or
-                            neither, a whole commit id as the head wherever a pull request is named, and neither a
-                            head nor a report where none is -- or neither its identity, its head, nor its
-                            requirements are read
+    review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
+                            digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
+                            reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,
+                            where recording the approval also retires the head-keyed `docs_verdict` and `ready_ping_sha`
+                            an earlier one left; the widest subject any of the three can be written at
+                            (`ReviewSubject.widest`), which the report settlement's measurement reserves; and the
+                            question every later reader of an approval asks, whether the report recorded as current is
+                            the one it covered, compared on the pinned records alone. An approval with no record covers
+                            only an issue with no report either -- one approved before the record existed over a pull
+                            request that has settled a report goes back for a fresh review -- and a record nobody can
+                            read covers nothing: it is read whole, exactly the five members its writer spells, each in
+                            its shape -- requirements that are a digest or "", both report members or neither, a whole
+                            commit id as the head wherever a pull request is named, and neither a head nor a report
+                            where none is -- or neither its identity, its head, nor its requirements are read
     conversation_prompts.py question, discussion, PR-feedback follow-up, and developer human-reply resume prompts;
                             discussion publication instructions describe the confirmed plan artifact and the commit
                             its stage verifies
@@ -1782,31 +1781,31 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             ref, the head repository, the sha and the body are each a request of their own, and the
                             client resolves its repository lazily too -- left outside, any one of them leaves the
                             reading by an exception rather than by an answer
-      report_recovery.py    the other end of that contract, reached by the handler ahead of its scan and by the
-                            parked dispatch behind it: what a tick coming back to one
-                            of those windows owes, written for the position ahead of a scan because a scan is what
-                            the damage runs through -- the input a dead tick consumed rides the same record, so a
-                            scan running past it reads that feedback as unread and pays a second developer to
-                            answer it. A round whose report SETTLED while nobody was looking is handed back on the
-                            mark that settlement raised, never on the settling itself: a delivery is claimed by one
-                            key whoever wrote it, so the record settling there can be an implementing candidate's
-                            or a drift resume's, closing THAT route's bookkeeping and raising no mark of this
-                            stage's. A record a crash left unbound is answered off its own pairs, and whether the
-                            code went out is RE-PROVED against the checkout rather than remembered off the
-                            persistent receipt -- a tree provably clean and a head it could name, with where that
-                            head stands left to the binding, which reads the pull request afresh. A record nobody
-                            can READ parks with the record untouched, since the debt is claimed by the key alone
-                            and reading it as an absence would let the scan behind it through. The two refusals no
-                            later poll takes back, a worktree that is GONE and a tree this host proved DIRTY,
-                            announce once and RELEASE the record as they park -- left there, restoring or cleaning
-                            the checkout would be enough on its own to publish the report and send the issue to
-                            review, which is the decision the notice exists to put in front of a human. What that
-                            record SUPERSEDED is released with it, held to the revision that says the two are one
-                            lineage: a delivery recorded over an outstanding transaction carries its frozen pairs
-                            forward and the binding behind it is what would have dropped it, so a transaction left
-                            standing is one the reconciliation proves, settles and publishes over report text this
-                            issue has already replaced. The debt outlives both, and a reading nobody could take is
-                            neither refusal and buys nothing at all
+      report_recovery.py    the other end of that contract, reached by the handler ahead of its scan and by the parked
+                            dispatch behind it: what a tick coming back to one of those windows owes, written for the
+                            position ahead of a scan because a scan is what the damage runs through -- the input a dead
+                            tick consumed rides the same record, so a scan running past it reads that feedback as unread
+                            and pays a second developer to answer it. A round whose hand-back was WRITTEN and whose
+                            relabel never landed is relabelled again and nothing more, ahead of everything else, on the
+                            reading `round_marks.py` gives it. A round whose report SETTLED while nobody was looking is
+                            handed back on the mark that settlement raised, never on the settling itself: a delivery is
+                            claimed by one key whoever wrote it, so the record settling there can be an implementing
+                            candidate's or a drift resume's, closing THAT route's bookkeeping and raising no mark of
+                            this stage's. A record a crash left unbound is answered off its own pairs, and whether the
+                            code went out is RE-PROVED against the checkout rather than remembered off the persistent
+                            receipt -- a tree provably clean and a head it could name, with where that head stands left
+                            to the binding, which reads the pull request afresh. A record nobody can READ parks with the
+                            record untouched, since the debt is claimed by the key alone and reading it as an absence
+                            would let the scan behind it through. The two refusals no later poll takes back, a worktree
+                            that is GONE and a tree this host proved DIRTY, announce once and RELEASE the record as they
+                            park -- left there, restoring or cleaning the checkout would be enough on its own to publish
+                            the report and send the issue to review, which is the decision the notice exists to put in
+                            front of a human. What that record SUPERSEDED is released with it, held to the revision that
+                            says the two are one lineage: a delivery recorded over an outstanding transaction carries
+                            its frozen pairs forward and the binding behind it is what would have dropped it, so a
+                            transaction left standing is one the reconciliation proves, settles and publishes over
+                            report text this issue has already replaced. The debt outlives both, and a reading nobody
+                            could take is neither refusal and buys nothing at all
       round_marks.py        whether the mark a settlement raised still places the round in hand, which is the one
                             reading the two owners that could relabel over one share. No mark is asked nothing. A mark
                             is correlated against the handoff beside it and refused on any of four: an outstanding
@@ -1823,7 +1822,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             closes no transaction to record. Either
                             owner CONSUMES the mark it asks about: one it may not place is the mark of a round
                             that is over either way, and left standing it would be waiting for whichever fixing
-                            round came next
+                            round came next. The same stamp answers the one question left once the mark is down:
+                            whether a hand-back's write landed and its relabel did not. That comment reads the
+                            same after a relabel that landed and a later anchorless move back, so what decides is
+                            `review_returned_subject` -- a round whose report no reviewer has returned over is still
+                            owed that review, and one a reviewer read is not
       parked.py             the five answers an `awaiting_human` tick can reach and the order they are asked in.
                             What counts as a reply is the reading the readers cannot give while a report is owed,
                             so the record's own frozen pairs decide it: a rescan with nothing above them clears
@@ -2777,8 +2780,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       watermarks.py         the seed walk past leading orchestrator comments and a bare `/orchestrator
                             add-agent-runs` a grant left unread, and the ratchet that never regresses one
       requested_changes.py  the PR feedback and `workflow:fixing`-labeled dev fix, its report disposed of through
-                            `fix_reports.py` and bound behind the round and the relabel, plus the no-VERDICT park
-                            and the split that tells a provider's failure from a reviewer's
+                            `fix_reports.py` and bound behind the round and the relabel -- its record carrying the
+                            fixing stage's settled-round mark for a relabel that never lands -- plus the
+                            no-VERDICT park and the split that tells a provider's failure from a reviewer's
       dev_fix.py            what a finished dev fix leaves behind: the publishable reading and the proved remote
                             head it carries on as the lease, taken for a run that committed as well as for one
                             that did not -- a tick committing over work an earlier one stranded begins at a
@@ -2979,15 +2983,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             squash handoff before moving a label that tail left owed, and `in_review` before an
                             approval may stand behind a ready ping. Nothing here parks or posts
       review_records.py     what a reviewer round writes onto the pinned comment, through writers the round and the
-                            report settlement's measurement share: the spec and the subject it is handed, written
-                            ahead of the spawn -- onto the comment as `review_report.py` read it, since the launch
-                            charge writes only its own fields and the state in hand carries what only the round's
-                            own write may land -- and the session and return time it leaves; and the reservation of
-                            the whole round at its widest (spec, subject, launch charge, session, return time, and
-                            approval), so a report is never accepted into a comment its own reviewer cannot write
-                            to. The usage meters the return folds are left out: running totals every run folds,
-                            already on the comment from the developer run whose report it is wherever that run's
-                            usage parsed
+                            report settlement's measurement share: the spec and the subject it is handed, written ahead
+                            of the spawn -- onto the comment as `review_report.py` read it, since the launch charge
+                            writes only its own fields and the state in hand carries what only the round's own write may
+                            land -- and the session, return time and returned subject it leaves; and the reservation of
+                            the whole round at its widest (spec, subject, launch charge, session, return time, returned
+                            subject, and approval), so a report is never accepted into a comment its own reviewer cannot
+                            write to. The usage meters the return folds are left out: running totals every run folds,
+                            already on the comment from the developer run whose report it is wherever that run's usage
+                            parsed
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its

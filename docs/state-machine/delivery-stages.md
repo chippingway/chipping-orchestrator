@@ -753,6 +753,10 @@ because there it is the claim that this stage has already rerouted rather than a
   nowhere else — `discussion` itself drains that same pull request through its own terminal.
 
 ## The developer-report transaction (every dispatch)
+- **Where it sits in a report's life**: the stations every road's report passes — who writes and who publishes it,
+  its identity and location, ready versus verified, the evidence, this recovery, review-subject freshness, and the
+  round each road spends — are laid out end to end in
+  [the developer report lifecycle](../workflow/conversations.md#the-developer-report-lifecycle).
 - **Trigger**: `_record_stops_the_tick` on any issue whose pinned comment carries `developer_report_pending`. The
   owner is `workflow/engine/report_transaction.py`; the record it reads is described under
   [pinned state](labels-and-state.md#pinned-state).
@@ -3234,6 +3238,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check
      (`_paused_during_agent_run`) right after the reviewer returns short-circuits BEFORE the usage fold, session record,
      verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state.
+     A reviewer that returns has the subject it was handed staged again as `review_returned_subject` beside its
+     session and return time, for the round's own write: the launch's `review_subject` went down before the run
+     budget was asked, so only this one says a reviewer really read the report.
      Past it, and before the timeout park, the no-verdict park, or anything a verdict earns is written, the pinned
      comment is read again against the reading the subject was bound to (`review_comment._records_stand`): a report
      record it moved since — a later report settled on the same head by another road — is carried onto the state in
@@ -3366,7 +3373,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        anchor intact for the round to be finished again. The label moves before the binding either way, and it is the
        only road to confirmation: the review hold on `workflow:validating` is what binds a delivery and settles it, and
        it refuses every reviewer while the report is owed — so a replayed publication or handoff counts no second
-       round and no reviewer reads unconfirmed work. The dev spawn records `stage="fixing"` for analytics.
+       round and no reviewer reads unconfirmed work. The record freezes the `fixing_round_settled` mark beside that
+       pair, as `_handle_fixing`'s own rounds do. Settled under `workflow:validating` it is a mark no correlation
+       places, and the next fixing tick retires it unspent; but a relabel that never lands — a process dying on it, a
+       label write GitHub refused — leaves the delivery unbound on `workflow:fixing`, where `_handle_fixing` step 4
+       binds it and hands the round back on that mark, rather than letting its scan read whatever arrived since
+       under a route the settlement has just closed. The dev spawn records `stage="fixing"` for analytics.
        On any park (timeout, no-commit, dirty, push-fail) the label STAYS `workflow:fixing` with
        `awaiting_human=True` and `_handle_fixing` owns the awaiting-human cycle thereafter. A run that COMMITTED and
        handed over no usable report — including one that did not finish, which the engine exempts from the contract
@@ -3659,15 +3671,26 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      record, so a scan running past it reads that feedback as unread, pays a second developer to answer it, and
      replaces the first developer's report with the second's.
 
-     Two questions, in the order they can be asked. A round whose report **SETTLED** while nobody was looking is
+     Three questions, in the order they can be asked. A round whose **hand-back was written and whose relabel never
+     landed** is relabelled to `workflow:validating` and nothing more: the hand-back's own write already retired the
+     mark, took down the parks a publication answers, and stamped `fixing_round_handed_back`, so the move is all it
+     still owes -- and scanned past instead, feedback that landed meanwhile would resume a developer ahead of the
+     reviewer that round's report is owed. That comment reads the same after a relabel that DID land and an
+     anchorless move back onto this label, so what decides is `review_returned_subject`: a round whose report no
+     reviewer has returned over is still owed that review, while one a reviewer read is not, and a deliberate move back
+     after the review is answered as usual (`round_marks.py`). `review_subject` would not do, since a launch the run
+     budget refused writes it too. A round whose report **SETTLED** while nobody was looking is
      finished and handed back: that settlement closed this route's bookkeeping -- `pending_fix_at`, the bookmarks and
      `review_round` -- while the issue stayed on `workflow:fixing`, so a scan running on past it would answer an
      in_review batch as a validating one. What licenses the hand-back is the `fixing_round_settled` MARK that
      settlement raised and nothing weaker: the settled report and the code-publication receipt both outlive the
      transaction that made them, and a delivery is claimed by one key whoever wrote it, so the record settling there
      can be an implementing candidate's or a drift resume's -- closing THAT route's bookkeeping and raising no mark of
-     this stage's. The mark is placed through `round_marks.py` before it is acted on and CONSUMED either way, since a
-     mark this stage may not place is the mark of a round that is over regardless and only the relabel is withheld.
+     this stage's. The reviewer-requested round `_handle_validating` runs inline under this label freezes the mark on
+     its record too, so the delivery it leaves unbound here when its relabel back to `workflow:validating` never
+     lands is handed back by the binding below exactly as one of this stage's own rounds would be. The mark is placed
+     through `round_marks.py` before it is acted on and CONSUMED either way, since a mark this stage may not place is
+     the mark of a round that is over regardless and only the relabel is withheld.
 
      A record a crash left **UNBOUND** is answered next. Whether the code went out is RE-PROVED against the checkout
      rather than remembered off the persistent receipt -- a tree provably clean and a head it could name -- while
@@ -3945,14 +3968,16 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        publication is the answer to — that one and no other, since an `agent_timeout` park belongs to whichever round
        left it and a LATER round can leave one over feedback this report says nothing about — and only then flips to
        `workflow:validating`: a tick dying between the two has to leave a round nothing can mistake for one that just
-       settled. On a round that PUSHED and owes no report, the round and the
+       settled. What such a tick does leave -- the mark down, the round stamped handed back, the label unmoved -- is
+       the first thing step 4 asks about on the next poll, which takes the relabel again while no reviewer has
+       returned over that round's report. On a round that PUSHED and owes no report, the round and the
        bookmarks were already closed by the size gate's own receipt write and this exit re-applies the identical
        frozen pair, which is a no-op rather than a second count. Re-applying is what makes a replayed publication or
        handoff safe. Docs do not run on this exit.
 - **Output**: terminal `done` / `rejected`, OR label flipped to `workflow:validating` (a published report, a pushed
   fix owing none, the hand-back a round whose report settled earns -- its own, the recovery's (step 4), or the retry
-  that landed a failed push -- OR no-new-feedback bounce), OR label flipped to `workflow:resolving_conflict`
-  (stuck validating-route transient park while the worktree
+  that landed a failed push -- the relabel a written hand-back never landed (step 4), OR no-new-feedback bounce),
+  OR label flipped to `workflow:resolving_conflict` (stuck validating-route transient park while the worktree
   is out of sync with the PR — behind base or an unpushed local rebase), OR label flipped to `workflow:decomposing`
   (the size gate held a fix, a stranded-fix bounce, a transient-park recovery push, or a candidate that recovery
   published), OR label flipped to

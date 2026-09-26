@@ -145,6 +145,7 @@ def _run_reviewer_round(
         state,
         reviewer_run.agent_result.usage,
         reviewer_run.agent_result.session_id,
+        reviewer_run.subject,
     )
 
     # Shutdown-sweep interruption: a reviewer run the orchestrator killed

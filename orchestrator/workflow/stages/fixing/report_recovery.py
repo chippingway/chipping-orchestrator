@@ -48,17 +48,21 @@ outlive this tick.
 
 Every round handed back here is handed back on the strength of the mark that
 settlement raised, and on nothing weaker -- the one a settlement finished
-ELSEWHERE (the reconciliation ahead of this handler, or a tick that died between
-that write and its own relabel) and equally the one settled by the binding just
-above. A settled report and a publication receipt both outlive the transaction
-that made them, so a pull request standing on the commit one names is no
-evidence that this round just closed; taken for it, a manual relabel would be
-bounced back to the reviewer with its feedback unread. Nor is the settling
-itself evidence: a delivery is claimed by one key whoever wrote it, and an
-implementing candidate and the validating drift route each write one too, so a
-record this stage never wrote can be the one that settles here -- closing ITS
-route's bookkeeping, raising no mark of this stage's, and bouncing a reviewer's
-own change request back unread if the relabel were taken from it.
+ELSEWHERE (the reconciliation ahead of this handler, or a tick that died
+between that write and its own hand-back) and equally the one settled by the
+binding just above. The one relabel taken without a mark is the hand-back's
+own, where its write landed and the move did not: that write retired the mark
+and stamped the round handed back, and what licenses the move again is that
+stamp beside a report no reviewer has returned over yet (`round_marks.py`). A
+settled report and a publication receipt both outlive the transaction that made
+them, so a pull request standing on the commit one names is no evidence that
+this round just closed; taken for it, a manual relabel would be bounced back to
+the reviewer with its feedback unread. Nor is the settling itself evidence: a
+delivery is claimed by one key whoever wrote it, and an implementing candidate
+and the validating drift route each write one too, so a record this stage never
+wrote can be the one that settles here -- closing ITS route's bookkeeping,
+raising no mark of this stage's, and bouncing a reviewer's own change request
+back unread if the relabel were taken from it.
 
 That mark is CONSUMED here rather than merely read, and it is PLACED before it
 is acted on -- by `round_marks`, which the relabel itself goes through, so this
@@ -97,6 +101,7 @@ from orchestrator.workflow.stages.fixing import (
     round_marks as _round_marks,
     state as _state,
 )
+from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -140,14 +145,22 @@ _UNPUBLISHABLE_PARK = (
 def _answers_a_report_first(ctx: _models._FixingContext) -> bool:
     """Everything this issue's report obligation owes, before anything scans.
 
-    Two questions in the order they can be asked. A round whose report has
-    SETTLED is finished and handed back, because the write that settled it
-    closed this route's bookkeeping and a scan running past that reads whatever
-    landed since under a route that no longer exists. A report still owed and
-    never BOUND is answered next, off the record the dead tick left.
+    Three questions in the order they can be asked. A round whose hand-back was
+    WRITTEN and whose relabel never landed is owed that relabel and nothing
+    more, since the write behind it already closed the round, retired its mark
+    and took down the parks it answers -- and scanned past instead, whatever
+    arrived since resumes a developer ahead of the reviewer that round's report
+    is owed. A round whose report has SETTLED is finished and handed back,
+    because the write that settled it closed this route's bookkeeping and a
+    scan running past that reads whatever landed since under a route that no
+    longer exists. A report still owed and never BOUND is answered last, off
+    the record the dead tick left.
 
     True is a tick this call ended.
     """
+    if _round_marks._hand_back_left_unlanded(ctx.state):
+        ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
+        return True
     return (
         _finishes_a_settled_round(ctx)
         or _recovers_an_unbound_delivery(ctx)
