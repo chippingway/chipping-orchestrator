@@ -24,7 +24,12 @@ the record and are closed by the write that settles the report.
 
 The reviewer-feedback comment's id is recorded because a session-failure park
 on this route has to be retryable by `/orchestrator continue`, and the fixing
-handler replays that exact comment to reconstruct the batch. It is a
+handler replays that exact comment to reconstruct the batch. It is the one
+durable copy of the feedback once a persisted verdict is handed on
+(`review_verdicts`), so that handoff waits for it: a post that failed, or
+landed with no id to record, relabels and launches nothing, and the verdict
+still waiting posts again on the next tick. A change request nothing persisted
+has no later tick to post from, so it goes on without the anchor. It is a
 standalone key rather than part of the in_review bookmark pair, since
 `pending_fix_at` is what tells that route's round RESET from this route's
 bump.
@@ -68,6 +73,7 @@ from orchestrator.workflow.stages.validating import (
     fix_reports as _fix_reports,
     models as _models,
     report_settlement as _report_settlement,
+    review_verdicts as _verdicts,
     rounds as _rounds,
     state as _state,
 )
@@ -169,10 +175,18 @@ def _park_reviewer_no_verdict(
     gh.write_pinned_state(issue, state)
 
 
-def _post_reviewer_feedback(context: _models._RequestedChanges) -> None:
+def _post_reviewer_feedback(context: _models._RequestedChanges) -> bool:
+    """Post the reviewer's feedback on the PR and record its id; False where it did not land.
+
+    The id is the replay anchor a `/orchestrator continue` on a later park of
+    this route hands to a fresh developer, so a post that failed, or whose id
+    could not be read, is no post a persisted verdict's handoff may proceed
+    behind. An issue with no pull request has nowhere to post and nothing to
+    hold.
+    """
     reviewer_run = context.decision.run
     if reviewer_run.pr_number is None:
-        return
+        return True
     round_display = reviewer_run.round_n + 1
     feedback = context.decision.feedback
     try:
@@ -191,10 +205,12 @@ def _post_reviewer_feedback(context: _models._RequestedChanges) -> None:
             context.issue.number,
             reviewer_run.pr_number,
         )
-        return
+        return False
     anchor_id = getattr(reviewer_comment, "id", None)
-    if anchor_id is not None:
-        context.state.set("pending_fix_reviewer_comment_id", int(anchor_id))
+    if anchor_id is None:
+        return False
+    context.state.set("pending_fix_reviewer_comment_id", int(anchor_id))
+    return True
 
 
 def _run_requested_fix(context: _models._RequestedChanges) -> _models._AwaitingDevAttempt:
@@ -334,9 +350,22 @@ def _handle_validating_changes_requested(
     `_clear_pending_fix_bookmarks`.
     """
     context = _models._RequestedChanges(gh, spec, issue, state, decision)
-    _post_reviewer_feedback(context)
+    if not _post_reviewer_feedback(context) and _verdicts.read_returned_verdict(state) is not None:
+        # Nothing is relabelled, launched, or written: the persisted verdict
+        # is still waiting, and the next tick posts again rather than handing
+        # a developer feedback no later retry could replay.
+        log.warning(
+            "issue=#%s holding its reviewer's change request until the "
+            "feedback is posted on the PR", issue.number,
+        )
+        return
     gh.set_workflow_label(issue, WorkflowLabel.FIXING)
     gh.write_pinned_state(issue, state)
+    # A persisted verdict rode that write as handed over, and stays on the
+    # comment until the developer is launched: only the writes after the run
+    # drop it, so a tick that dies before the launch leaves `fixing` the
+    # feedback to hand over rather than a round to spend on a second reviewer.
+    _verdicts.drops_the_verdict(state)
     _finish_requested_fix(context, _run_requested_fix(context))
 
 

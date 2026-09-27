@@ -136,6 +136,8 @@ def _defer_validating_drift(state: PinnedState) -> bool:
         in (
             _state._REASON_REVIEWER_TIMEOUT,
             _state._REASON_REVIEWER_FAILED,
+            _state._REASON_REVIEWER_UNVERIFIED,
+            _state._REASON_REVIEWER_UNRECORDED,
             _state._REASON_REVIEW_CAP,
         )
     )
@@ -201,11 +203,13 @@ def _resume_dev_on_validating_drift(
 
     Returns True when a drift was detected and fully handled (caller must
     return). Returns False when there is no drift, or when the issue is parked
-    with a reviewer-side reason (`reviewer_timeout` / `reviewer_failed`) or on
-    the review-round cap (`review_cap`) -- those defer to the awaiting-human
-    branch. A human "retry" comment on a reviewer-side park must re-spawn the
-    REVIEWER, not the dev: the failure produced no review output for the dev to
-    act on, and the reviewer re-reads the updated `issue.body` + comments via
+    with a reviewer-side reason (`reviewer_timeout` / `reviewer_failed` /
+    `reviewer_unverified` / `reviewer_unrecorded`) or on the review-round cap
+    (`review_cap`) -- those defer to the awaiting-human branch. A human "retry"
+    comment on a reviewer-side park must re-spawn the REVIEWER, not the dev:
+    the failure produced no review output for the dev to act on -- an approval
+    without its verification evidence is the reviewer's to redo -- and the
+    reviewer re-reads the updated `issue.body` + comments via
     `_build_review_prompt` when it runs. For `review_cap`, the cap has consumed
     every round, so resuming the dev would re-park on the cap next tick; the
     operator's `/orchestrator add-review-rounds` command lives in the

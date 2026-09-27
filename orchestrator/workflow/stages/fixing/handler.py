@@ -19,7 +19,13 @@ tick re-fetches and picks up exactly where this one stopped.
 A report this issue recorded and never bound is answered ahead of all of it,
 because the scan is what the damage runs through: the input that run consumed
 rides the same record, and until something applies it the scan reads the same
-feedback as unread and pays a second developer to answer it.
+feedback as unread and pays a second developer to answer it. A reviewer's
+change request whose relabel landed here and whose developer was never launched
+is answered right behind it (`validating/review_resume.py`), since its feedback
+is the orchestrator's own comment the scan filters out: left to the bounce, a
+second reviewer would be spent on a round already reviewed. No live reviewer
+round persists that request yet, so the hook answers only a record an issue
+already carries.
 
 Then the rescan, the parked dispatch, and the resume. The nothing-to-act-on
 exit between them is the one that is easy to miss, and it answers to two
@@ -89,7 +95,7 @@ from orchestrator.workflow.stages.implementing import (
     late_reconcile as _late_reconcile,
     late_records as _late_records,
 )
-from orchestrator.workflow.stages.validating import stranded as _stranded
+from orchestrator.workflow.stages.validating import review_resume as _review_resume, stranded as _stranded
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -529,9 +535,15 @@ def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue
     # binding whose post did not land leaves a transaction the reconciliation
     # ahead of the next handler owns, which the no-feedback bounce below would
     # otherwise relabel straight past.
+    #
+    # A reviewer's change request whose relabel landed here and whose
+    # developer was never launched is handed over right behind it, before the
+    # scan: its feedback is a comment this orchestrator posted, which the scan
+    # filters out, so the bounce below would spend a second reviewer on a round
+    # already reviewed.
     if _report_recovery._answers_a_report_first(
         _models._FixingContext(gh, spec, issue, state, pr),
-    ):
+    ) or _review_resume.finishes_a_handed_request(gh, spec, issue, state):
         return
 
     feedback = _feedback._rescan_fixing_feedback(gh, issue, pr, state)

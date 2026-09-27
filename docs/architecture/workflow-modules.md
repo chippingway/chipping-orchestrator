@@ -1803,9 +1803,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             handed back, and a record a crash left unbound is re-proved and bound. That position
                             is the point -- the input a dead tick consumed rides the same record, so a scan
                             running past it reads that feedback as unread and pays a second developer to answer
-                            it. The nothing-to-act-on exit behind the scan answers to two readings for the same
-                            reason: watermarks that already cover the batch, and a report the issue OWES whose
-                            own frozen pairs cover everything the scan found. Either way the bounce publishes
+                            it. Right behind it, a persisted change request handed here and never answered is
+                            handed to its one developer (`validating/review_resume.py`), since its feedback is a
+                            comment the scan filters out. The nothing-to-act-on exit behind the scan answers to
+                            two readings for the same reason: watermarks that already cover the batch, and a
+                            report the issue OWES whose own frozen pairs cover everything the scan found. Either
+                            way the bounce publishes
                             whatever is stranded, BINDS the report that push is the publication for -- on the
                             commit the receipt of that attempt names, never the standing value -- and hands the
                             round back; while a report is still owed over a branch PROVED to be carrying nothing
@@ -2864,7 +2867,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded-collapse route it asks behind only those, ahead of every route that could
                             point an agent at the branch -- and the report hold it asks last, behind the drift
                             resume that would supersede a stale report and ahead of the reviewer spawn, writing
-                            a park the awaiting-human branch cleared into a round the hold then stops
+                            a park the awaiting-human branch cleared into a round the hold then stops -- and,
+                            behind that hold, a persisted reviewer verdict finished through `review_resume.py`
+                            in place of a new round
       reviewer.py           the round cap, the tracked reviewer spawn and its two refusals, what a round that
                             RAN records about the reply or grant that bought it -- taken from the one read its
                             OWN prompt was rendered from, under that prompt's bound, never from the unbounded
@@ -2935,7 +2940,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       requested_changes.py  the PR feedback and `workflow:fixing`-labeled dev fix, its report disposed of through
                             `fix_reports.py` and bound behind the round and the relabel -- its record carrying the
                             fixing stage's settled-round mark for a relabel that never lands -- plus the
-                            no-VERDICT park and the split that tells a provider's failure from a reviewer's
+                            no-VERDICT park and the split that tells a provider's failure from a reviewer's. A
+                            feedback post that fails, or lands with no id to replay, holds a persisted verdict's
+                            handoff for the next tick rather than relabelling; the relabel's write carries that
+                            verdict as handed, and the writes behind the launch drop it
       dev_fix.py            what a finished dev fix leaves behind: the publishable reading and the proved remote
                             head it carries on as the lease, taken for a run that committed as well as for one
                             that did not -- a tick committing over work an earlier one stranded begins at a
@@ -3134,7 +3142,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             move is owed over, since a push landing meanwhile is a commit nobody approved: the
                             squash tail asks all of it before its relabel, on either road into it, the settled
                             squash handoff before moving a label that tail left owed, and `in_review` before an
-                            approval may stand behind a ready ping. Nothing here parks or posts
+                            approval may stand behind a ready ping. A persisted verdict is held to its subject
+                            once more after its evidence is published (`_verdict_still_stands`), over the comment
+                            read again first. Nothing here parks or posts
       review_records.py     what a reviewer round writes onto the pinned comment, through writers the round and the
                             report settlement's measurement share: the spec and the subject it is handed, written ahead
                             of the spawn -- onto the comment as `review_report.py` read it, since the launch charge
@@ -3152,6 +3162,34 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             held to the record again, so the words quoted are the ones the revision names; anything
                             short of that, a reading nobody could take included, hands nothing and logs why, and the
                             reviewer runs the verification itself
+      review_verdicts.py    the `review_returned_verdict` record a returned reviewer's verdict waits in: its round,
+                            verdict, subject, feedback, the one evidence claim it relies on, and the agent-run count a
+                            change request was handed to `workflow:fixing` on. Read whole or not at all, staged only
+                            where the comment has room, and dropped only where it stands
+      review_claims.py      what a returned reviewer's verification declaration earns: commands it ran minted as a
+                            reviewer-reported transaction bound to the handed subject and the reviewed head's tree, a
+                            reuse of the current evidence it was handed named exactly, or the reason it earns none;
+                            whether a claim covers every configured command, and where its evidence stands (settled,
+                            owed, or lost). Nothing is written here
+      review_disposition.py the order a returned verdict is settled in, which no live round calls yet: held to the
+                            subject standing, persisted with its minted transaction in one write, the evidence
+                            published through the dispatcher's own reconciliation, the subject held again, and only
+                            then acted on -- an owed transaction holds the verdict, a lost one drops it, and a
+                            comment with no room for either parks it
+      unverified_approvals.py
+                            whether an approval rests on the current evidence exactly as it claims -- settled,
+                            passing, covering the configuration, and proved current again; why not, for the park; or
+                            a hold where the proof could not be read
+      review_parks.py       the two parks a verdict takes instead of being acted on, `reviewer_unverified` and
+                            `reviewer_unrecorded`, each dropping the verdict in its own write and answered by a
+                            fresh reviewer
+      review_resume.py      the recovery hooks, live over a record an issue already carries: `workflow:validating`
+                            finishes a waiting verdict ahead of the round cap with no reviewer run, usage fold, or
+                            round spent, while its subject still resolves to the one recorded, and
+                            `workflow:fixing` launches the one developer a handed change request never reached
+      review_handoffs.py    whether a handed change request's developer is owed, launched, or unfinished -- read off
+                            the lifetime ledger past the handed count and, for a `started` charge, the branch --
+                            and the `agent_execution_failed` park an unfinished launch takes
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its
@@ -3199,8 +3237,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             ONE control comment the orchestrator answered rather than delivered, with every other
                             comment held in as an omission so no mark crosses words nobody read -- the record
                             that such an answer already stands on the thread, and the note a reply's round is
-                            owed by
-      state.py              the pinned-state keys, park reasons, and outcome tokens they share, including the
+                            owed by; a reviewer run carries the evidence its prompt handed as current, the only
+                            evidence a reuse may name, and a resumed one carries no delivery
+      state.py              the pinned-state keys, park reasons -- `reviewer_unverified` and `reviewer_unrecorded`
+                            among the reviewer-side ones a bare continue answers with a fresh reviewer -- and
+                            outcome tokens they share, including the
                             three that outlive their own tick: the claim that a requirements edit this stage's
                             resume ended without answering is still outstanding, the note left for a reviewer
                             round still owed -- the park it was written beside is gone before that round runs

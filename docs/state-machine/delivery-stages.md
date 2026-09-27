@@ -327,12 +327,13 @@ Per-stage specifics:
   standing for any OTHER reason hears the refusal, which supersedes it: what the issue waits on now is a decision
   about the commits.
 - For **`workflow:validating`** drift, the handler defers to the awaiting-human branch when `park_reason` is
-  reviewer-side (`reviewer_timeout` / `reviewer_failed`): a "retry" reply after a reviewer failure must re-spawn the
-  reviewer, not the dev. A deferral delivers the edit to nobody, so it records nothing about it — no watermark and
-  no baseline. What it does record is `validating_reviewer_owes_a_round`, because the park is gone before that
-  round runs: the silent recovery clears the flags and ends its tick, a report still owed holds the reviewer behind
-  a clear already written, and without the note the edit would take a later tick down the developer's road ahead of
-  the retry the park was taken for. The road that clears such a park into a round writes the same note, with the
+  reviewer-side (`reviewer_timeout` / `reviewer_failed` / `reviewer_unverified` / `reviewer_unrecorded`): a "retry"
+  reply after a reviewer failure must re-spawn the reviewer, not the dev. A deferral delivers the edit to nobody, so it
+  records nothing about it — no watermark and no baseline. What it does record is `validating_reviewer_owes_a_round`,
+  because the park is gone before that round runs: the silent recovery clears the flags and ends its tick, a report
+  still owed holds the reviewer behind a clear already written, and without the note the edit would take a later tick
+  down the developer's road ahead of the retry the park was taken for. The road that clears such a park into a round
+  writes the same note, with the
   value saying a REPLY bought the round rather than a recovery releasing one — and a deferral never writes over a
   claim already standing, or the round would be left with nothing to record. The round that runs drops the note and
   records what bought it — the retry reply or the operator's grant — off the one read its OWN prompt was

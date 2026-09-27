@@ -7,7 +7,10 @@ holds the worktree the reviewer actually ran in and the round it ran as, so
 the approval gate verifies the same checkout that was reviewed and the
 feedback comment names the round the human sees on the PR -- and the subject
 it was handed, the report included, so an approval is recorded against what
-the reviewer read rather than against whatever is current once it returns.
+the reviewer read rather than against whatever is current once it returns --
+and the verification evidence its prompt handed as current for that subject,
+which is the only evidence a reviewer's reuse may name. A result a later tick
+resumes carries no delivery, since its round recorded what it read.
 `_ReviewerDecision`
 folds the parsed verdict together with the run, and its `feedback` falls back
 to the agent's last message so a reviewer that put its reasoning above the
@@ -51,7 +54,9 @@ from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     comments as _comments,
     prompt_delivery as _delivery,
+    review_evidence_prompts as _evidence_prompts,
     review_subjects as _review_subjects,
+    review_verification_models as _verification_models,
 )
 from orchestrator.workflow.stages.implementing import resume_batch as _resume_batch
 from orchestrator.workflow.stages.validating import state as _state
@@ -68,8 +73,9 @@ class _ReviewerRun:
     # reply that bought the round is recorded as read from THIS, never from
     # the batch a park froze for a developer prompt: the two are different
     # reads under different bounds, and a mark taken from the wider one
-    # crosses words this reviewer's excerpt cut short.
-    delivery: _delivery.PromptDeliverySnapshot
+    # crosses words this reviewer's excerpt cut short. None for a result a
+    # later tick resumes, whose round recorded what it read when it returned.
+    delivery: _delivery.PromptDeliverySnapshot | None
     # The pull request, head, requirements, and report this round's prompt
     # handed the reviewer, which is what an approval of it covers.
     subject: _review_subjects.ReviewSubject
@@ -82,6 +88,19 @@ class _ReviewerRun:
     # report record: carried onto the state in hand by then, and a verdict
     # of a subject that no longer stands.
     report_moved: bool = False
+    # The workflow verification evidence this round's prompt handed the
+    # reviewer as current for its subject, which is the only evidence a
+    # reuse may name.
+    evidence: _evidence_prompts.HandedEvidence | None = None
+
+    @property
+    def verification_subject(self) -> _verification_models._VerificationSubject:
+        """What a verification declaration of this run has to be about."""
+        handed = self.evidence
+        return _verification_models._VerificationSubject(
+            commit=self.subject.commit,
+            evidence_revision=None if handed is None else handed.revision,
+        )
 
 
 @dataclass(frozen=True)

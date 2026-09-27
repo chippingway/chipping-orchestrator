@@ -1724,10 +1724,36 @@ The keys that matter for the state machine fall into a few groups:
   included, covers nothing. That reader takes the record whole: exactly the five members its writer spells, each in
   that writer's shape -- a whole commit id as `sha` wherever `pr` names a pull request, and both report members or
   neither -- so a record short of its `sha` or its `requirements` is no approval either.
+- **Returned reviewer verdict.** `review_returned_verdict` is the verdict a returned reviewer left and nothing has
+  disposed of yet (`stages/validating/review_verdicts.py`): `round` (the round it ran as), `verdict` (`approved` or
+  `changes_requested`), `subject` (exactly as `review_subject` spells it), `feedback` (the words a change request
+  hands the developer, `""` for an approval), `evidence` -- `null` where the declaration earned none, otherwise the
+  `use` (`published` for a transaction recording the commands the reviewer ran, `reused` for the current evidence it
+  named instead), and that record's `receipt`, `revision`, evidence `digest`, `passed`, and `covers` (every
+  configured `VERIFY_COMMANDS` command among its commands, exactly as configured, exiting 0) -- and `handed`, `null`
+  until a change request is handed to `workflow:fixing` and then the `agent_runs_used` count as that handoff was
+  written. The disposition service (`review_disposition.py`) writes it in one write with the returned run's own
+  records, BEFORE its evidence is published or the verdict acted on, beside the transaction it claims; the approval
+  arc's write and each park's set it to `null`, and a change request keeps it, `handed` set, through the relabel to
+  `workflow:fixing` until the writes after the developer launch set it to `null`. No live reviewer round hands its
+  result to that service yet, so no issue carries the key until one does. The recovery hooks are live and answer only
+  a record already present: `workflow:validating` finishes one ahead of the round cap and the spawn -- no reviewer
+  run, usage fold, run charge, or round spent -- while its subject still resolves to the one recorded, and
+  `workflow:fixing` launches the one developer a handed request's ledger shows unlaunched (nothing charged past
+  `handed`, or a charge still `reserved`) instead of the no-feedback bounce spending a second reviewer. A charge
+  `started` with no commit on the branch to show a run did anything parks under `agent_execution_failed`, where
+  `/orchestrator continue` replays the posted feedback to a fresh developer session. A subject that moved, a park a
+  reply cleared into a fresh round, a developer already launched, or a record in any shape its reader refuses drops
+  it. Additive: an issue without it has no verdict waiting. It is measured before it is staged -- a change request's
+  feedback has no bound -- and a verdict the comment has no room for, or whose transaction it has no room for, is not
+  acted on: it parks under `reviewer_unrecorded`. An approval not resting on settled, passing, current evidence that
+  covers the configuration parks under `reviewer_unverified`; a bare `/orchestrator continue` on either buys a fresh
+  reviewer.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
-  producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one -- so no
-  issue carries these keys until one does. `verification_evidence_pending` is one transaction, written BEFORE its
+  live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the
+  returned-verdict disposition that records a reviewer's declared commands is dormant -- so no issue carries these
+  keys until one does. `verification_evidence_pending` is one transaction, written BEFORE its
   artifact is posted: a receipt (`issue-<n>-verification-<revision>-<nonce>`, which every record's reader holds to that
   record's own revision) and a revision past every one the issue has spent; the report subject's own `repo` / `pr` /
   `branch` / `sha` / `requirements` members, where `sha` is the head the evidence is written for; the review subject
