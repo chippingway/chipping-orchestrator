@@ -139,8 +139,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             labeled reviewer-reported, with every command, exit status, and output kept as written;
                             and the closed refusals: five for a run that did not complete, three for a completed
                             run's message whose declaration is missing, malformed, or stale
-    review_verification.py  the strict reader of that declaration, which nothing calls until the reviewer round asks
-                            for it. A run never invoked, interrupted, timed out, refused by its provider, or exited
+    review_verification.py  the strict reader of that declaration, asked only by the dormant claim reader
+                            (`stages/validating/review_claims.py`) until the reviewer round asks for it. A run
+                            never invoked, interrupted, timed out, refused by its provider, or exited
                             nonzero is refused before its message is read; the declaration has to be the message's
                             only marker use, outside any code block, and a RUN block has to be closed, list at least
                             one command with one POSIX exit status right below it, and hold no verdict the verdict
@@ -765,7 +766,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             commit id as the head wherever a pull request is named, and neither a head nor a report
                             where none is -- or neither its identity, its head, nor its requirements are read
     verification_records.py the verification-evidence records and their pinned keys, reconciled by the dispatcher
-                            (`verification_transaction.py`) though no producer records one yet: PENDING
+                            (`verification_transaction.py`) though no live producer records one yet: PENDING
                             (`verification_evidence_pending`, the run and its binding, written before the artifact is
                             posted), CURRENT (`verification_evidence_current`), HISTORY
                             (`verification_evidence_history`, retired records with why -- superseded, invalidated, or
@@ -3152,6 +3153,23 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             held to the record again, so the words quoted are the ones the revision names; anything
                             short of that, a reading nobody could take included, hands nothing and logs why, and the
                             reviewer runs the verification itself
+      review_verdicts.py    the `review_returned_verdict` record a returned reviewer's verdict is to wait in, which no
+                            round writes yet: its round, verdict, subject, feedback, the one evidence claim it relies
+                            on, and the agent-run count a change request was handed to `workflow:fixing` on -- an
+                            approval handed nothing and carrying no feedback. Read whole or not at all, and staged
+                            only where it reads back exactly and the comment has room for it at its widest write -- a
+                            change request's handoff, with the count, anchor, and ledger entry it adds and the
+                            developer launch's run-ledger charge composed over it -- with exactly the transaction a
+                            published claim names staged in the same write and measured with its settlement beside
+                            that reservation, a retry of one already recorded included, a reuse or no claim beside
+                            none, or neither; marked handed, or dropped, only where it stands
+      review_claims.py      what a returned reviewer's verification declaration earns, which no round asks yet:
+                            commands it ran minted, not recorded, as a reviewer-reported transaction past every spent
+                            revision, bound to the handed subject, the reviewed head and its tree, and the configured
+                            context, its whole artifact rendering as one comment; a reuse of exactly the current
+                            evidence it was handed; or the reason it earns none. Also whether a claim's commands
+                            cover every configured command exactly, and where its evidence stands -- settled or owed
+                            under the configured context, or lost
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its
@@ -3199,7 +3217,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             ONE control comment the orchestrator answered rather than delivered, with every other
                             comment held in as an omission so no mark crosses words nobody read -- the record
                             that such an answer already stands on the thread, and the note a reply's round is
-                            owed by
+                            owed by; a reviewer run carries the evidence its prompt handed as current, the only
+                            evidence a reuse may name
       state.py              the pinned-state keys, park reasons, and outcome tokens they share, including the
                             three that outlive their own tick: the claim that a requirements edit this stage's
                             resume ended without answering is still outstanding, the note left for a reviewer

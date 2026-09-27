@@ -6,9 +6,10 @@
 that never started, was interrupted, timed out, was refused by its provider, or
 exited nonzero before it looks at the message at all, so a partial transcript
 or a provider's error text is never read as verification anybody finished.
-`_parse_verification_outcome` is the message half alone. Nothing calls either
-yet: the reviewer round keeps deciding on its `VERDICT:` line alone until its
-integration asks for this reading too.
+`_parse_verification_outcome` is the message half alone. The claim reader
+(`stages/validating/review_claims.py`) asks the first, beside the `VERDICT:`
+line and never in place of it, but no live reviewer round asks that reader
+yet: the round keeps deciding on its `VERDICT:` line alone.
 
 The declaration is read apart from the verdict and as strictly as the
 developer report beside it. Its marker lines are uppercase and whole-line as

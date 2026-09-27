@@ -1724,9 +1724,34 @@ The keys that matter for the state machine fall into a few groups:
   included, covers nothing. That reader takes the record whole: exactly the five members its writer spells, each in
   that writer's shape -- a whole commit id as `sha` wherever `pr` names a pull request, and both report members or
   neither -- so a record short of its `sha` or its `requirements` is no approval either.
+- **Returned reviewer verdict.** `review_returned_verdict` is the verdict a returned reviewer left and nothing has
+  disposed of yet (`stages/validating/review_verdicts.py`): `round` (the round it ran as), `verdict` (`approved` or
+  `changes_requested`), `subject` (exactly as `review_subject` spells it), `feedback` (the words a change request hands
+  the developer; `""` for an approval, and neither an approval carrying any nor words UTF-8 cannot carry read),
+  `evidence`, and `handed`. `evidence` is `null` where the reviewer's declaration earned none, and otherwise the one
+  claim the verdict relies on (`review_claims.py`): its `use` -- `published` for a reviewer-reported transaction
+  minted from the commands the reviewer ran, bound to the subject, head, and tree it was handed and the configured
+  verification context, whose artifact has to render as one comment, or `reused` for the current evidence it was
+  handed and named, never any other -- and that record's `receipt`, `revision`, evidence `digest`, `passed`, and
+  `covers` (every configured `VERIFY_COMMANDS` command among its commands, exactly as configured, exiting 0). A
+  claim's evidence is settled while `verification_evidence_current` names its receipt, revision, and digest, owed
+  while `verification_evidence_pending` does, either bound under the configured verification context, and lost
+  otherwise. `handed` is `null` until a change request is handed to `workflow:fixing`, and then the `agent_runs_used`
+  count as that handoff was written, no wider than the count its room is reserved at; an approval carrying one does
+  not read. The reader takes the record whole -- exactly those six members, a claim of exactly its six, each in its
+  writer's shape -- or reads no verdict at all, and nothing that reader refuses is staged. It is staged only where
+  the comment has room for it at the widest write it is part of: a change request's handoff, with its count, the
+  `pending_fix_reviewer_comment_id` anchor, and that comment's ledger entry, and the developer launch's
+  `agent_runs_used` / `agent_run_reservation` / `agent_run_fingerprint` charge composed over it, each reserved at the
+  widest a recorded number or fingerprint is spelled. A `published` claim is staged only in the same write as exactly
+  the transaction it names -- its receipt, revision, digest, and `passed` -- measured with its settlement beside that
+  reservation, a retry of the one the comment already carries included, and a `reused` claim or none only beside no
+  transaction; where the pair does not match or either has no room, neither is staged. Additive and dormant: no live
+  reviewer round writes it yet, so no issue carries the key, and an issue without it has no verdict waiting.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
-  producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one -- so no
+  live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the
+  returned-verdict record that would stage a reviewer's declared commands beside its verdict is dormant -- so no
   issue carries these keys until one does. `verification_evidence_pending` is one transaction, written BEFORE its
   artifact is posted: a receipt (`issue-<n>-verification-<revision>-<nonce>`, which every record's reader holds to that
   record's own revision) and a revision past every one the issue has spent; the report subject's own `repo` / `pr` /

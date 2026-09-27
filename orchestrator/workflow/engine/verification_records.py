@@ -49,8 +49,10 @@ developer report's (`verification_transaction`): it proves the whole binding
 to rely on current evidence proves it and its artifact again
 (`verification_proof.current_evidence_verdict`), and evidence reaches another
 head only through a carry-forward decision (`verification_carry_forward`). No
-producer records a transaction yet -- the verify gate does not hand its run to
-`verification_local_runs`, and no stage records a carry-forward -- so no issue
+live producer records a transaction yet -- the verify gate does not hand its
+run to `verification_local_runs`, no stage records a carry-forward, and the
+returned-verdict record that stages a reviewer's declared commands
+(`stages/validating/review_verdicts.py`) is written by no round -- so no issue
 carries any of these keys until one does.
 """
 from __future__ import annotations
