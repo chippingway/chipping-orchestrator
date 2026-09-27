@@ -744,8 +744,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     review_evidence_prompts.py
                             what a reviewer is to be told about verification, which nothing renders yet: the current
                             evidence handed for its subject (`HandedEvidence`, the settled record and its artifact
-                            re-read), quoted whole -- preamble and every command with its status and output -- under
-                            the `sha256:` revision a reuse names, naming each listed command that did not exit 0 (a
+                            re-read), quoted whole -- preamble and every command with its status and output, every
+                            line quoted whatever ends it, a bare carriage return included -- under the `sha256:`
+                            revision a reuse names, naming each listed command that did not exit 0 (a
                             status about those commands alone, not the configured ones), or the note that none covers
                             the subject; then the configured `VERIFY_COMMANDS` in order, or that none are configured
                             and nothing the orchestrator runs is evidence that any check passed

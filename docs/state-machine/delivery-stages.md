@@ -1003,8 +1003,10 @@ because there it is the claim that this stage has already rerouted rather than a
   contradicts is not reported as current. Its one reader, `stages/validating/review_evidence.py`, hands a reviewer the
   current evidence only where the record is bound to exactly the subject that reviewer is handed -- pull request,
   head, requirements, and the complete report by revision and digest -- and it proves current, then re-reads the
-  artifact for the prompt and holds it to the record again, so an edit between the two reads hands nothing. No round
-  asks that reader yet.
+  artifact for the prompt and holds it to the record again, so an edit between the two reads hands nothing. Anything
+  short of that, a reading nobody could take included, hands nothing and holds no round, logged with its own reason --
+  no record or one that will not read, another subject, the proof's refusal, or a prompt read that could not be taken
+  or found the artifact gone or changed. No round asks that reader yet.
 - **Carry-forward**: `workflow/engine/verification_carry_forward.py` decides whether current evidence answers for
   another head -- never the one it already answers for -- and only on the full tree identity of that head and an
   unchanged configured context, while the evidence being carried is still the latest and published (re-read as above, on
