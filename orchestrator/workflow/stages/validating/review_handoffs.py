@@ -9,15 +9,20 @@ and this: feedback posted and handed on over it is about words the pull request
 no longer carries, and the handoff's write would put the older report records
 back over the newer. The feedback is posted next, and the one durable copy of
 it is the id it lands as, so a post that failed or left no id relabels and
-launches nothing and the verdict still waiting posts again on the next tick.
-The whole subject is held to what stands once more behind that post, the one
-request between the recheck and the write -- a push landing during it is as
-much a subject nobody reviewed -- and only then is the verdict written as
-handed at the lifetime agent-run count (`review_verdicts`), with the anchor,
-and the issue relabelled to `workflow:fixing` -- so whichever request fails
-leaves a verdict the next tick hands over without posting twice
-(`review_resume`). The room that write and the launch's charge need was
-reserved when the verdict was recorded.
+launches nothing and the verdict still waiting posts again on the next tick. A
+post GitHub accepted and whose response was lost reads the same way, since a
+feedback post carries no receipt to find it by, so that retry leaves the
+feedback on the pull request twice. The whole subject is held to what stands
+once more behind that post, the one request between the recheck and the write
+-- a push landing during it is as much a subject nobody reviewed -- and only
+then is the verdict written as handed at the lifetime agent-run count
+(`review_verdicts`), with the anchor, and the issue relabelled to
+`workflow:fixing` -- so whichever request fails leaves a verdict the next tick
+hands over without posting twice (`review_resume`). The relabel is a request
+too, so the subject is held once more right before the developer is launched
+(`launches_the_developer`), on this road and every recovery's, and a moved one
+drops the verdict and its anchor. The room that write and the launch's charge
+need was reserved when the verdict was recorded.
 
 Only the writes behind the developer's run retire the verdict, so a handed one
 still standing is a handoff whose developer's run wrote nothing, and what that
@@ -125,17 +130,40 @@ def hands_the_request_over(
     _verdicts.hands_off(state, _run_ledger_values._runs_used(state))
     gh.write_pinned_state(issue, state)
     gh.set_workflow_label(issue, WorkflowLabel.FIXING)
-    # Staged for the writes behind the run, never for the launch's charge,
-    # which writes only its own fields.
+    launches_the_developer(context)
+
+
+def launches_the_developer(context: _models._RequestedChanges) -> None:
+    """Launch the developer a handed change request owes, over the subject standing as it is launched.
+
+    Every request before this one -- a relabel above all -- is long enough for
+    another road to push or to settle a later report, and the run's own writes
+    are composed over the state in hand: launched over the older records, the
+    developer would answer words the pull request no longer carries and its
+    writes would put those records back over the newer. So the subject is held
+    to what stands once more, the comment read again behind it, and a moved one
+    drops the request -- its anchor with it -- in a write that keeps the newer
+    records, launching nothing. Otherwise the drop is staged ahead of the
+    launch, whose charge writes only its own fields, so only the writes behind
+    the run retire the verdict.
+    """
+    gh, issue, state = context.gh, context.issue, context.state
+    stands = _review_coverage._verdict_still_stands(gh, issue, state, context.decision.run.subject)
+    if not stands:
+        _drops_what_moved(gh, issue, state, stands)
+        return
     _verdicts.drops_the_verdict(state)
     _requested_changes._finish_requested_fix(context, _requested_changes._run_requested_fix(context))
 
 
 def _drops_what_moved(gh: GitHubClient, issue: Issue, state: PinnedState, stood: bool | None) -> None:
-    """Drop a verdict whose subject moved, over what the comment carries now; nothing where it will not read.
+    """Drop a request whose subject moved, over what the comment carries now; nothing where it will not read.
 
     A False reading has carried every record the comment moved onto `state`,
     so the write keeps the newer report rather than the one the verdict read.
+    The feedback's anchor goes with the verdict: it names words about a
+    subject nobody is handing on, and a later park's retry replaying them would
+    hand a developer a review of work the pull request no longer carries.
     """
     if stood is None:
         return
@@ -144,6 +172,8 @@ def _drops_what_moved(gh: GitHubClient, issue: Issue, state: PinnedState, stood:
         "before it was handed over; dropping the verdict", issue.number,
     )
     _verdicts.drops_the_verdict(state)
+    if state.carries(_verdicts._FEEDBACK_ANCHOR):
+        state.set(_verdicts._FEEDBACK_ANCHOR, None)
     gh.write_pinned_state(issue, state)
 
 

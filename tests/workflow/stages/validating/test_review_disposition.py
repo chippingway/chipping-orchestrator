@@ -31,7 +31,11 @@ UNRECORDED = "reviewer_unrecorded"
 
 DOCUMENTING = (_world.ISSUE, LABEL_DOCUMENTING)
 
-HANDED_BACK = ((_world.ISSUE, LABEL_FIXING), (_world.ISSUE, LABEL_VALIDATING))
+FIXING = (_world.ISSUE, LABEL_FIXING)
+
+HANDED_BACK = (FIXING, (_world.ISSUE, LABEL_VALIDATING))
+
+ANCHOR = "pending_fix_reviewer_comment_id"
 
 LATER_REPORT = "Covered the empty configuration as well; the suite passes."
 
@@ -60,8 +64,7 @@ _BEFORE_THE_HANDOFF = (
         # subject check, behind the one the round resolved its subject with.
         "a report behind the subject check",
         ("reread_report_location", lambda _location: True, _settles_a_later_report, 2),
-        0,
-        2,
+        (0, 2, ()),
     ),
     (
         "a report behind the verdict's write",
@@ -70,20 +73,22 @@ _BEFORE_THE_HANDOFF = (
             lambda state: state.get(_world.RETURNED_VERDICT) is not None,
             _settles_a_later_report,
         ),
-        0,
-        2,
+        (0, 2, ()),
     ),
     (
         "a report behind the feedback post",
         ("pr_comment", lambda body: _read.FEEDBACK_NOTICE in body, _settles_a_later_report),
-        1,
-        2,
+        (1, 2, ()),
     ),
     (
         "a push behind the feedback post",
         ("pr_comment", lambda body: _read.FEEDBACK_NOTICE in body, _world.pushes),
-        1,
-        1,
+        (1, 1, ()),
+    ),
+    (
+        "a report behind the relabel",
+        ("set_workflow_label", lambda label: label == LABEL_FIXING, _settles_a_later_report),
+        (1, 2, (FIXING,)),
     ),
 )
 
@@ -347,23 +352,31 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
     def test_a_move_before_the_handoff_drops_it(self) -> None:
         # Nothing declared, so nothing is published: the request is held to
         # what the comment carries before its own write, to the subject after
-        # it, and again behind its feedback post, and a later report is kept
-        # rather than written back over.
-        for name, behind, posts, revision in _BEFORE_THE_HANDOFF:
+        # it, behind its feedback post, and behind the relabel ahead of the
+        # launch. No developer is launched, a later report is kept rather than
+        # written back over, and no anchor is left for a retry to replay.
+        for name, behind, expected in _BEFORE_THE_HANDOFF:
             with self.subTest(name):
                 self.setUp()
 
                 ran = _world.AnotherRoadBehind(self, *behind).returning(UNDECLARED_REQUEST)
 
+                pinned = self.pinned()
                 self.assertEqual(
                     (
                         ran[_world.RUN_AGENT].call_count,
-                        len(_read.feedback_posts(self)),
-                        self.pinned().get(_world.RETURNED_VERDICT),
-                        self.github.label_history,
-                        _read.current_report_revision(self),
+                        pinned.get(_world.RETURNED_VERDICT),
+                        pinned.get(ANCHOR),
                     ),
-                    (0, posts, None, [], revision),
+                    (0, None, None),
+                )
+                self.assertEqual(
+                    (
+                        len(_read.feedback_posts(self)),
+                        _read.current_report_revision(self),
+                        tuple(self.github.label_history),
+                    ),
+                    expected,
                 )
 
     def test_a_refused_feedback_post_holds_it(self) -> None:

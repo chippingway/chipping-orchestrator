@@ -3203,8 +3203,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it first, so a later retry has something to replay
       review_handoffs.py    a persisted change request's handoff: held to the subject standing, the pinned comment
                             read first, then the feedback posted, the whole subject held again behind that post,
-                            the verdict written as handed with the anchor, and only then the relabel and the launch
-                            -- a moved subject drops the verdict over the newer records. Also whether a handed
+                            the verdict written as handed with the anchor, the relabel, and the launch, held to the
+                            subject once more right before it on every road that launches one
+                            (`launches_the_developer`) -- a moved subject drops the verdict and its anchor over the
+                            newer records. Also whether a handed
                             request's developer is owed, launched, or unfinished -- read off the lifetime ledger
                             past the handed count, only where its fingerprint names that developer's own launch,
                             with the latest charge ruling the developer out only where it is the one charge past

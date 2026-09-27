@@ -177,9 +177,10 @@ def _hands_over(
 ) -> None:
     """Launch the developer a handed change request owes, on the feedback already posted.
 
-    Only over feedback a later retry can replay (`_anchors_the_feedback`).
-    The drop is staged ahead of the launch, whose charge writes only its own
-    fields, so only the writes behind the run retire the verdict.
+    Only over feedback a later retry can replay (`_anchors_the_feedback`), and
+    over the subject standing as the developer is launched
+    (`review_handoffs.launches_the_developer`) -- a relabel just taken is a
+    request another road can settle a later report during.
     """
     context = _models._RequestedChanges(gh, spec, issue, state, decision)
     if not _anchors_the_feedback(context):
@@ -188,10 +189,7 @@ def _hands_over(
         "issue=#%d hands the change request its handoff never delivered to "
         "the developer, without a second reviewer", issue.number,
     )
-    _verdicts.drops_the_verdict(state)
-    _requested_changes._finish_requested_fix(
-        context, _requested_changes._run_requested_fix(context),
-    )
+    _handoffs.launches_the_developer(context)
 
 
 def _anchors_the_feedback(context: _models._RequestedChanges) -> bool:
@@ -247,6 +245,10 @@ def _resumed_run(
             "longer stands; dropping it for a fresh review", issue.number,
         )
         _verdicts.drops_the_verdict(state)
+        if returned.handed is not None and state.carries(_verdicts._FEEDBACK_ANCHOR):
+            # The feedback it was handed with is about the subject that moved;
+            # no later retry may replay it.
+            state.set(_verdicts._FEEDBACK_ANCHOR, None)
         return False, None
     resolved_over = _review_comment._resolved_over(gh, issue, state)
     if resolved_over is None:

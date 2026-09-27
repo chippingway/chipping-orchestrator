@@ -19,6 +19,7 @@ import unittest
 from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING
 from tests.workflow.stages.validating import review_verdict_readings as _read, review_verdict_test_support as _world
 from tests.workflow.stages.validating.validating_review_test_support import FIX_HEAD_SHAS
@@ -29,6 +30,10 @@ REQUESTING = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
 RESERVATION = "agent_run_reservation"
 
 ANCHOR = "pending_fix_reviewer_comment_id"
+
+RELABEL = "set_workflow_label"
+
+LATER_REPORT = "Covered the empty configuration as well; the suite passes."
 
 FINGERPRINT = "agent_run_fingerprint"
 
@@ -78,7 +83,7 @@ def _hands_the_verdict_over(state) -> bool:
 # the request over: feedback whose anchor never landed is posted again.
 _UNLANDED = (
     ("the handoff's write", ("write_pinned_state", _hands_the_verdict_over), 2),
-    ("its relabel", ("set_workflow_label", lambda label: label == LABEL_FIXING), 1),
+    ("its relabel", (RELABEL, lambda label: label == LABEL_FIXING), 1),
 )
 
 
@@ -139,6 +144,33 @@ class UnlandedHandoffTest(_world.ReviewVerdictWorld, unittest.TestCase):
                     ),
                     (1, True, posts, HANDED_BACK, None),
                 )
+
+    def test_a_report_behind_a_recovered_relabel(self) -> None:
+        # The relabel failed, and a later report settles while the next tick's
+        # recovery takes it: the request is about words the pull request no
+        # longer carries, so no developer is launched, the later report is
+        # kept rather than written back over, and no anchor is left to replay.
+        self._fails_the_handoff(RELABEL, lambda label: label == LABEL_FIXING)
+        relabelling = _world.AnotherRoadBehind(
+            self,
+            RELABEL,
+            lambda label: label == LABEL_FIXING,
+            lambda case: _published_reports.republishes_the_report(case.github, case.issue, LATER_REPORT),
+        )
+
+        with patch.object(self.github, RELABEL, relabelling):
+            ran = self.dispatched(_world.developer())
+
+        pinned = self.pinned()
+        self.assertEqual(
+            (
+                ran[_world.RUN_AGENT].call_count,
+                pinned[_world.RETURNED_VERDICT],
+                pinned.get(ANCHOR),
+                _read.current_report_revision(self),
+            ),
+            (0, None, None, 2),
+        )
 
     def _fails_the_handoff(self, request: str, fails) -> None:
         """Return the change request over a client whose `request` fails once, where `fails` says."""
