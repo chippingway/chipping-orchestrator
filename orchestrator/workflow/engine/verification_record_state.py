@@ -40,11 +40,12 @@ a transaction is never accepted into a comment its own settlement would push
 past what GitHub accepts. That settlement happens after the artifact is posted,
 where a refused write would leave the evidence on the thread and the
 transaction claiming it forever. The measurement is public (`settled_payload`)
-so a publication can take it again on the tick it would settle, since writes
+so the publication takes it again on the tick it would settle
+(`verification_publishing`), since writes
 landing between the two ticks can spend the room a record was accepted with.
 
-Dormant, like the records it writes: nothing in production mints or records a
-transaction yet (`verification_records`).
+Nothing in production mints or records a transaction yet: the dispatcher
+reconciles whatever a producer records (`verification_records`).
 """
 from __future__ import annotations
 

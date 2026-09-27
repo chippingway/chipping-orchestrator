@@ -11,8 +11,6 @@ carries no commands, because the artifact stays on the pull request and the
 entry is an index of it. The members it shares with current evidence are read
 by `verification_settled_fields.record_members`, so the two records cannot come
 to spell them differently.
-
-Dormant, like the records it spells (`verification_records`).
 """
 from __future__ import annotations
 

@@ -37,8 +37,10 @@ nothing and the artifacts it pointed at are still on the thread; an unreadable
 current record reads as no current evidence, which is what every consumer then
 fails closed on.
 
-Dormant, like the records it composes: nothing in production settles, retires,
-or reads evidence yet (`verification_records`).
+The evidence transaction settles and abandons through here
+(`verification_settling`, `verification_transaction`), and a reader relying on
+current evidence reads it here first (`verification_proof`); nothing
+invalidates current evidence yet.
 """
 from __future__ import annotations
 

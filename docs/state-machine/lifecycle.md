@@ -679,8 +679,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
    the same dispatch, on the same pinned read (the pair below is asked
        AHEAD of the reuse guard above, since both RUN rather than merely
        answer; the agent-run-limit hold sits between them and the reuse
-       guard, the developer-report reconciliation sits between that hold
-       and the reuse guard, and the greeting refusal is asked behind it):
+       guard, the developer-report reconciliation and the verification-
+       evidence reconciliation behind it sit between that hold and the
+       reuse guard, and the greeting refusal is asked behind it):
      late cycle a close ended, ─► the closed-owner ending below, run from
        cleanup unfinished          wherever the owner was left: reaches no
                                    handler, and writes that cycle's rejected
@@ -783,6 +784,22 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    that bound its run's report and could not
                                    put it on the thread, so reaching this
                                    guard is the retry, not the first attempt
+     verification_evidence_    ─► the EVIDENCE reconciliation, directly
+       pending on the pinned       behind the report's, whose report its
+       comment                     review subject names: prove the pull
+                                   request, branch, checkout, tested and
+                                   target trees, review subject, configured
+                                   context, and requirements, then post the
+                                   artifact (idempotent by its receipt) and
+                                   settle current, history, and handoff in
+                                   ONE write. A read nobody could take HOLDS;
+                                   anything a push, a drift resume, a fresh
+                                   reviewer, or fresher evidence answers
+                                   stands DOWN; an unreadable, replayed,
+                                   overtaken, or ended record is RETIRED; it
+                                   never parks. Closed, done|rejected,
+                                   hard-skipped, and unlabelled issues are
+                                   left exactly as they stand
      no workflow label, a      ─► nothing, logged once a tick. Pickup GREETS
        pinned comment already      an issue and mints its pinned comment, so a
        on the issue, and no        second greeting writes a second one every

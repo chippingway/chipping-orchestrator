@@ -27,6 +27,10 @@ strand the issue behind the very handler that fixes them.
 ENDED is the pull request being over. A report published onto a merged or closed
 thread is a comment nobody reads, so the transaction is retired rather than
 retried.
+
+The verification-evidence transaction answers in the same four words and means
+the same by each (`verification_proof`), so one reading of a pull request can
+prove either kind of record.
 """
 from __future__ import annotations
 
@@ -66,3 +70,8 @@ class ReportEvidence:
     def holds(self) -> bool:
         """Whether this reading stops the tick rather than letting it carry on."""
         return self.verdict is ReportEvidenceVerdict.HOLD
+
+    @property
+    def ended(self) -> bool:
+        """Whether this reading found the pull request over."""
+        return self.verdict is ReportEvidenceVerdict.ENDED

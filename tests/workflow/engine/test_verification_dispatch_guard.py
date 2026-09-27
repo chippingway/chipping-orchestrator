@@ -1,0 +1,119 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""The evidence reconciliation behind the guards every dispatch already passes.
+
+Its place in the chain -- directly behind the developer-report transaction and
+ahead of the reuse guard and the handler -- is pinned with the rest of that
+chain in `test_report_dispatch_guard.py`. What is pinned here is what it does
+from there. Reached through the real chain on a live issue, it settles. And it
+stands aside, publishing and dropping nothing, on every issue the dispatcher
+would hand it that is not live work: closed, labelled `done` or `rejected`,
+held by a hard-skip control label, or carrying no workflow label at all -- so a
+reopen or a relabel finds the record exactly as it was. An issue carrying none
+of the records -- every issue that predates them -- is dispatched as before,
+with nothing read beyond the comment and nothing written.
+"""
+from __future__ import annotations
+
+import unittest
+from unittest.mock import patch
+
+from orchestrator.workflow.engine import (
+    dispatch_guards as _dispatch_guards,
+    verification_record_state as _record_state,
+    verification_settlement_state as _settlement,
+)
+from tests.support.github.models import FakeLabel
+from tests.workflow.engine import verification_evidence_test_support as support
+from tests.workflow.fixtures import _TEST_SPEC, LABEL_DONE, LABEL_REJECTED
+
+_PAUSED = "paused"
+
+
+def _closes(case) -> None:
+    case.issue.closed = True
+
+
+def _labels_done(case) -> None:
+    case.issue.labels = [FakeLabel(LABEL_DONE)]
+
+
+def _labels_rejected(case) -> None:
+    case.issue.labels = [FakeLabel(LABEL_REJECTED)]
+
+
+def _pauses(case) -> None:
+    case.issue.labels.append(FakeLabel(_PAUSED))
+
+
+def _unlabels(case) -> None:
+    case.issue.labels.clear()
+
+
+class EvidenceDispatchTest(unittest.TestCase, support.VerificationEvidenceCase):
+    """Live work settles through the chain; anything else is left as it stands."""
+
+    def setUp(self) -> None:
+        support.VerificationEvidenceCase.setUp(self)
+        self.pending = self.record()
+
+    def test_the_real_chain_settles_live_work(self) -> None:
+        with self.seams():
+            refused = _dispatch_guards._pinned_state_refuses(
+                self.gh, _TEST_SPEC, self.issue, self.gh.workflow_label(self.issue),
+            )
+
+        persisted = self.gh.read_pinned_state(self.issue)
+        self.assertFalse(refused)
+        self.assertEqual(len(self.artifacts()), 1)
+        self.assertEqual(
+            _settlement.read_current_evidence(persisted).receipt, self.pending.receipt,
+        )
+
+    def test_work_that_is_not_live_is_left_alone(self) -> None:
+        for moves in (_closes, _labels_done, _labels_rejected, _pauses, _unlabels):
+            with self.subTest(move=moves.__name__):
+                self.setUp()
+                moves(self)
+                writes = self.gh.write_state_calls
+
+                with self.assertLogs(support.WORKFLOW_LOG, "INFO"):
+                    self.assertFalse(self.reconcile())
+
+                self.assertEqual(self.artifacts(), [])
+                self.assertEqual(self.gh.write_state_calls, writes)
+                self.assertEqual(
+                    _record_state.read_pending_evidence(self.state), self.pending,
+                )
+
+
+class LegacyDispatchTest(unittest.TestCase, support.VerificationEvidenceCase):
+    """An issue carrying no evidence record dispatches exactly as it did before."""
+
+    def setUp(self) -> None:
+        support.VerificationEvidenceCase.setUp(self)
+
+    def test_nothing_owed_reads_and_writes_nothing(self) -> None:
+        # Every issue that predates the records: the reconciliation asks the
+        # comment the chain already read, and reads no pull request or branch.
+        self.gh.write_pinned_state(self.issue, self.state)
+        before = self.gh.pinned_data(support.ISSUE_NUMBER)
+        writes = self.gh.write_state_calls
+
+        with patch.object(
+            self.gh, "get_pr", side_effect=AssertionError("a pull request was read"),
+        ), patch.object(
+            self.world, "fetch", side_effect=AssertionError("a branch was fetched"),
+        ), self.seams():
+            refused = _dispatch_guards._pinned_state_refuses(
+                self.gh, _TEST_SPEC, self.issue, self.gh.workflow_label(self.issue),
+            )
+
+        self.assertFalse(refused)
+        self.assertEqual(self.gh.write_state_calls, writes)
+        self.assertEqual(self.gh.pinned_data(support.ISSUE_NUMBER), before)
+        self.assertEqual(self.artifacts(), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

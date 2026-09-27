@@ -87,7 +87,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             since a post whose response was lost hands back none. Both halves are needed: the
                             marker in the artifact's own rendering says the comment is ours once its id ages out
                             of the ledger, and the id says so once somebody edits the marker away -- without
-                            which a feedback scan reads this orchestrator's own evidence as a human's request
+                            which a feedback scan reads this orchestrator's own evidence as a human's request.
+                            The evidence transaction publishes through it (`verification_publishing.py`)
     prompt_context.py       trusted-author thread reads, retained orchestrator comment ids, quoted comment lines, and
                             bounded tracked-repository awareness for agent prompts; marker text alone cannot admit a
                             comment, and a delivery snapshot over a read taken by the pinned comment's id is handed
@@ -146,7 +147,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reader would accept. Shape is settled before truth: a well-formed declaration naming
                             another commit, or any revision but the current one, is stale. Nothing is counted or
                             inferred from what the reviewer wrote
-    stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call;
+    stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call
+                            (the settled-report reader the verification-evidence proof reuses among them);
                             the unlabeled target reaches pickup through the same resolver. Named here too, though
                             no label routes to any of them, are the stage owners a report record's own measurement
                             REPLAYS to size the writes that land behind it: the two code-publication receipt
@@ -168,7 +170,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             behind the reconciliation itself -- and ahead of the reuse guard: its own evidence asks
                             whether the commit the report is about reached the pull request, which is the question
                             the publication reconciliation settles and which a pair it leaves on a still-pinned
-                            anchor would answer soundly over work no recovery has finalized
+                            anchor would answer soundly over work no recovery has finalized. The
+                            verification-evidence transaction is answered directly behind it and ahead of the reuse
+                            guard, since the evidence answers for a review subject that names the report
     poll_reading.py         classify labels and hard-skip controls while admitting observed-close cleanup; drop open
                             blocked/umbrella dependency walks on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` skips;
                             a failed label read reaches per-issue exception isolation through the family bucket
@@ -602,7 +606,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             one divergence reading decides all three of unpushed commits, a remote that moved on,
                             and a tip that is not the commit the report is about. The branch asked for is the one
                             the record FROZE, since the whole point of freezing it was that a later tick's answer
-                            can differ
+                            can differ. `subject_remote_verdict` is the same reading over a bare report subject,
+                            which is how the verification-evidence proof holds its branch to the same answer
     report_publication_evidence.py the pull-request half: the repository, then ONE pull request read by the number
                             the record froze, still open, on the recorded branch, with a head in this repository
                             and STANDING on the recorded commit. Selected by number rather than searched for by
@@ -614,7 +619,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             beside all of it, as one group through the receipt's own damage reader and then on both
                             of its members, since standing on a commit says it is there and nothing about how it
                             got there. Both those owners are reached through `stage_targets.py`, resolved when
-                            called
+                            called. `subject_verdict` is the pull-request reading alone over a bare report subject,
+                            under the same boundary, and is what the verification-evidence proof reads first
     report_replay_guards.py whether a record and the settlement beside it are about one thing. Either settled record
                             CLAIMED and unreadable stops the tick before anything is proved, since both are records
                             a settlement writes over. Two READABLE settled records are then held to each other,
@@ -749,8 +755,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its shape -- requirements that are a digest or "", both report members or neither, a whole
                             commit id as the head wherever a pull request is named, and neither a head nor a report
                             where none is -- or neither its identity, its head, nor its requirements are read
-    verification_records.py the verification-evidence records and their pinned keys, all DORMANT -- complete and tested
-                            directly, reached by no stage, guard, or dispatch path yet: PENDING
+    verification_records.py the verification-evidence records and their pinned keys, reconciled by the dispatcher
+                            (`verification_transaction.py`) though no producer records one yet: PENDING
                             (`verification_evidence_pending`, the run and its binding, written before the artifact is
                             posted), CURRENT (`verification_evidence_current`), HISTORY
                             (`verification_evidence_history`, retired records with why -- superseded, invalidated, or
@@ -782,7 +788,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `null` exactly when the entry was abandoned, since only evidence that was current ever held
                             one
     verification_record_state.py
-                            the dormant pending transaction's round trip: presence and reading, minting (a revision past
+                            the pending transaction's round trip: presence and reading, minting (a revision past
                             the floor and every readable record, and a receipt spelled from it and a fresh nonce), and
                             recording -- refused unless its revision is past everything spent, it reads back
                             identically, its artifact renders, and the comment has room for it AND for its whole
@@ -794,7 +800,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             established floor, and a later record abandons a readable earlier one into history in the
                             same write
     verification_settlement_state.py
-                            dormant current evidence, its bounded history, and the handoff: read fail-closed, settled as
+                            current evidence, its bounded history, and the handoff: read fail-closed, settled as
                             ONE composed write on a copy that keeps the comment it was read from, so writing it rewrites
                             that comment rather than posting a second, and only for the transaction the comment records
                             (the earlier current superseded into history, this one current, the handoff, the pending
@@ -813,6 +819,76 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transcript the artifact would refuse, UTF-8 cannot carry, or could not fit in one comment at
                             the widest receipt and revision a record carries; the room on the pinned comment is the
                             recorder's question
+    verification_world.py   the branch and object half of the evidence proof: a checkout on this host, the branch
+                            held by `report_remote_evidence.py` to the target head, and the tested commit and the
+                            target head each read as a commit in its own right -- never a tag peeling to one --
+                            carrying the one tree the run recorded (`tree_of`)
+    verification_subject.py the subject half: the evidence's pull request the one this issue pins as `pr_number`; no
+                            developer report still owed (`report_delivery.owes_a_report`, the validating hold's
+                            rule); the bound review subject about the target head and equal to the applicable record
+                            (`applicable_subject`)
+                            (`review_returned_subject` for a reviewer's account, `review_subject` for a run this
+                            orchestrator executed); the settled report re-read exactly as a reviewer is handed it --
+                            the settled pair held to each other and the report read at its location, through
+                            `stages/validating/review_report.py` resolved when called -- named by that subject, which
+                            passes that reader's own rules in its order (requirements the round was due, then a
+                            report not stale: about the subject's head, written against the drift baseline); and
+                            the requirements the evidence was bound to still the issue's own
+    verification_proof.py   the whole proof, pull request first through `report_publication_evidence.py` and then
+                            cheapest first -- the context against `configured_context_revision` (the verify runner's
+                            own over the configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, for both witnesses), the
+                            recorded subject, the world, the settled report, the requirements -- in the report
+                            transaction's verdict vocabulary; and `current_evidence_verdict`, for a reader about to
+                            rely on the current record: its publication first (`verification_current.py`), then the
+                            same proof. No production reader asks it yet
+    verification_current.py whether the current record is still what the pull request carries: no revision past it
+                            spent (a newer transaction, its artifact posted or not, supersedes it), the handoff
+                            describing it, and the comment it recorded, re-read, our artifact with every binding
+                            member the artifact encodes (not the branch or the report revision and digest, which
+                            the proof holds), the evidence digest, and a pass flag its commands earn; anything else
+                            defers, and a thread nobody could read holds
+    verification_carry_forward.py
+                            the carry-forward decision, exposed only when the target head's full tree, read from this
+                            repository, is the tested tree and the configured context is the recorded one -- no patch
+                            id, fingerprint, topic diff, or rewrite name is consulted -- and only for a head other than
+                            the one it answers for, while the source is still the latest and published
+                            (`verification_current.py`, read on the pull request standing on the new head) and a review
+                            subject about the new head is recorded. It licenses recording a transaction whose binding
+                            keeps the tested run and answers for the new head and that subject, which the reconciliation
+                            then proves whole; no stage asks for one yet
+    verification_publishing.py
+                            posting a proved transaction's artifact through `verification_comments.py`, scoped by
+                            its receipt: the room re-proved before the post, UNCONFIRMED held, any other reading
+                            short of PRESENT stood down, and a landed post handed to the settlement
+    verification_settling.py
+                            the settlement of a landed post: the issue read afresh and still live work -- where it
+                            is not, nothing is written -- the pinned comment read afresh and held to the state in
+                            hand on every bound record, the whole proof taken again over them, the artifact re-read
+                            at the comment it landed as and held to exactly this transaction's, and ONE write
+                            composed over that fresh comment, stamped with the label the issue carries then. Every
+                            write is measured against the comment limit first: a settlement a comment filled during
+                            the post no longer fits stands down with the transaction owed, and any refusal writes
+                            only the artifact's ledger entry onto the fresh comment, where that fits
+    verification_live_work.py
+                            whether an issue is live work evidence may settle for -- not closed, not `done` or
+                            `rejected`, not held by a hard-skip control label, and wearing a workflow label --
+                            asked by the reconciliation of the issue it routed and by the settlement of the issue
+                            read afresh after the post
+    verification_durable.py the pinned comment read afresh before a settlement or a retirement: the comment this tick
+                            read, parsed, and carrying `pr_number`, the developer report's records, both review
+                            subjects, and the evidence records and revision floor exactly as the state in hand
+                            spells them, or the field that moved
+    verification_transaction.py
+                            the evidence reconciliation the dispatcher runs directly behind the report
+                            transaction: stands aside on work that is not live (closed, `done`/`rejected`, a
+                            hard-skip control label, or no workflow label); drops a record whose revision a settled
+                            or retired record already carries (a replay, or a restored comment) and an unreadable
+                            one; abandons one whose pull request ENDED, or past which a revision was spent or
+                            nobody can say what was -- every retirement composed over the comment read afresh
+                            (`verification_durable.py`), and nothing written where it moved or has no room; holds
+                            over a reading nobody could take, stands down on everything a route behind it answers,
+                            and otherwise publishes and settles. It never parks: evidence is reproducible and every
+                            consumer fails closed on its absence
     conversation_prompts.py question, discussion, PR-feedback follow-up, and developer human-reply resume prompts;
                             discussion publication instructions describe the confirmed plan artifact and the commit
                             its stage verifies

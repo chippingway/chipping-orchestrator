@@ -47,8 +47,22 @@ def remote_verdict(
     this checkout last heard: the counts below are taken against the tip it
     resolves, so a ref nobody could refresh is a reading that did not happen.
     """
+    return subject_remote_verdict(spec, issue, pending.subject)
+
+
+def subject_remote_verdict(
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    subject: _records.ReportSubject,
+) -> _evidence_models.ReportEvidence | None:
+    """The reading above, for any record bound to a report subject.
+
+    Public for the verification-evidence transaction, whose target is a report
+    subject about the head the evidence is written for, so both records hold
+    the branch and the checkout to the same answer.
+    """
     worktree = _worktree_paths._worktree_path(spec, issue.number)
-    branch = pending.subject.branch
+    branch = subject.branch
     fetched = _branch_transport._authed_fetch(
         spec,
         f"+refs/heads/{branch}:refs/remotes/{spec.remote_name}/{branch}",
@@ -61,7 +75,7 @@ def remote_verdict(
         )
     return _divergence_verdict(
         _publication_probes._branch_divergence(spec, worktree, branch),
-        pending.subject.source_sha,
+        subject.source_sha,
     )
 
 
@@ -88,11 +102,11 @@ def _divergence_verdict(
     if divergence.behind:
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.DEFER,
-            "the remote branch has moved on since the report was written",
+            "the remote branch has moved on since the record was written",
         )
     if divergence.tip != source_sha:
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.DEFER,
-            "the remote branch is not standing on the commit the report is about",
+            "the remote branch is not standing on the recorded commit",
         )
     return None

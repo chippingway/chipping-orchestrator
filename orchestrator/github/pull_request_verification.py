@@ -8,15 +8,20 @@ a post. That is what keeps publication idempotent and append-only -- a retry
 finds what an earlier attempt landed instead of repeating it, an artifact once
 posted is never edited, and the description is never written at all.
 
+`reread_verification_artifact` is the reading a caller relying on a settled
+artifact takes: this owner's own thread read, scanned for the one comment the
+settlement recorded, and answered with the artifact of ours it still is -- our
+author and our exact rendering -- or why it is not. It does not go through the
+report owner's `reread_report_location`, which proves a report by the digest
+of its body: an artifact is ours only as a byte-for-byte rendering, and what it
+is about is read off that rendering rather than off a digest.
+
 The readings themselves are `pull_request_reports`' own types rather than a
 second vocabulary saying the same thing. A reading is one moment on one pull
 request's conversation, and the identity of what it found is resolved once
 when it is taken, for a reason that does not change with what the comment
 carries: the id is a member of an object GitHub handed back, so it is a
-request that can fail once and succeed the next time it is made. Rereading a
-published artifact is that owner's `reread_report_location` for the same
-reason -- a location is a pull request and a comment id, and what proves it
-unchanged is the digest of the body sitting there NOW.
+request that can fail once and succeed the next time it is made.
 
 What is separate is the thread request and the post, which are this owner's
 own seams: the shared in-memory double answers them for artifacts without
@@ -111,6 +116,36 @@ class GitHubPullRequestVerification:
             return ReportLookup(ReportPresence.UNCONFIRMED)
         return ReportLookup(ReportPresence.PRESENT, posted)
 
+    def reread_verification_artifact(
+        self, pr: PullRequest, comment_id: int,
+    ) -> tuple[ReportPresence, _artifacts.VerificationArtifact | None]:
+        """The artifact of ours one comment on this pull request carries NOW.
+
+        For a reader relying on evidence a settlement recorded at that comment:
+        PRESENT, with the artifact, where the comment is on the thread and
+        reads back as one of ours byte for byte; ABSENT where the thread no
+        longer carries it; CHANGED where it does and it is no artifact of ours
+        any more -- edited, or never one. What the artifact says it is about
+        is the caller's to compare with what was recorded. UNCONFIRMED is a
+        thread, or an author on it, nobody could read. Posts nothing.
+        """
+        bot_login = getattr(self, "_bot_login", None)
+        try:
+            found, artifact = _artifact_at(
+                self._verification_thread(pr), comment_id, bot_login=bot_login,
+            )
+        except Exception:
+            log.warning(
+                "could not re-read comment %s on PR #%s for a verification artifact",
+                comment_id, getattr(pr, "number", None), exc_info=True,
+            )
+            return ReportPresence.UNCONFIRMED, None
+        if found is None:
+            return ReportPresence.ABSENT, None
+        if artifact is None:
+            return ReportPresence.CHANGED, None
+        return ReportPresence.PRESENT, artifact
+
     def _verification_thread(self, pr: PullRequest) -> list[IssueComment]:
         """Every conversation comment on one pull request, read in full."""
         return list(pr.get_issue_comments())
@@ -158,3 +193,18 @@ def _artifact_on_thread(
     if claimants:
         return ReportLookup(ReportPresence.CHANGED, claimants[0])
     return ReportLookup(ReportPresence.ABSENT)
+
+
+def _artifact_at(
+    thread: Iterable[Any], comment_id: int, *, bot_login: str | None,
+) -> tuple[Any, _artifacts.VerificationArtifact | None]:
+    """The comment `comment_id` names on one read thread, and the artifact it is.
+
+    `(None, None)` where the thread carries no such comment, and the comment
+    with None where it is no artifact of ours. The ids and the author are lazy
+    reads, so the caller holds this under its boundary.
+    """
+    found = next((posted for posted in thread if posted.id == comment_id), None)
+    if found is None:
+        return None, None
+    return found, _artifacts.verification_artifact_from_comment(found, bot_login=bot_login)

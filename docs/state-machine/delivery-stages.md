@@ -956,6 +956,56 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Output**: no label change, ever. This owner publishes a report and settles a record; which stage runs next is
   the handler's.
 
+## The verification-evidence transaction (every dispatch)
+- **Trigger**: `_record_stops_the_tick` on any issue whose pinned comment carries `verification_evidence_pending`,
+  directly behind the developer-report transaction and ahead of the reuse guard. The owner is
+  `workflow/engine/verification_transaction.py`; the four records and the revision floor are described under
+  [pinned state](labels-and-state.md#pinned-state). No producer records a transaction yet, so an issue without the
+  record -- every issue today -- passes through reading nothing and writing nothing.
+- **Why it is behind the report transaction**: evidence answers for a review subject that names the developer
+  report, so a report still owed is a subject about to move — the proof defers to it, and the report settles first.
+- **Stands aside**: a closed issue, a `done` or `rejected` label, a hard-skip control label, or no workflow label at
+  all. Nothing is published or dropped, so a reopen or a relabel finds the record as it was. The settlement asks the
+  same again of the issue read afresh after the post, and writes nothing at all where it no longer holds.
+- **Outcomes**:
+  - **Settled** → the pull request (the one `pr_number` pins), branch, checkout, tested and target trees, configured
+    context, the recorded review subject (`review_returned_subject` for a reviewer's account, `review_subject`
+    otherwise), the settled report re-read at its location as a reviewer is handed it, the subject passing that reader's
+    own rules (requirements the round was due, a report not stale against it), and the requirements all PROVED; the
+    artifact is posted (or found, by its receipt, where an earlier post's response was lost); the issue and the pinned
+    comment are read afresh, the comment has to carry every bound record as the tick held it, the whole proof is taken
+    again over them, and the artifact re-read at the comment it landed as has to be exactly this transaction's (edited
+    or deleted meanwhile, it stands down); then one write, composed over that fresh comment, makes it current, moves the
+    earlier current evidence into history as superseded, and records the handoff.
+  - **Held** → a reading nobody could take: the pull request, the fetch, the divergence, the report's location, the
+    requirements, or an unconfirmed post. The next tick asks again.
+  - **Stood down** → a moved head or branch, an absent checkout, an id that is not a commit itself, an unreadable or
+    different tree, a moved configuration, a pinned `pr_number` naming another pull request, a report still owed (a
+    delivery, a transaction, or an undeliverable park), a review subject absent, replaced, about another head than the
+    target, or carrying requirements its round was not due, a report settled after the review, stale against the
+    subject, or deleted, edited, or out of step with its handoff, an issue that stopped being live work during the post,
+    edited requirements, an edited artifact, a bound record that moved on the pinned comment while the artifact was
+    posted, or a settlement the comment no longer has room for. The transaction stays owed for the route that answers
+    it.
+  - **Retired** → a record whose revision a settled or retired record already carries (a replay its own handoff
+    names, or one a restored comment brought back) is dropped without a second post or history entry; an unreadable
+    record is dropped; a record whose pull request ended, past which a revision was spent, or beside a revision floor
+    nobody can read is abandoned into history. Every retirement is composed over the pinned comment read afresh, which
+    has to carry every bound record as the tick held it, so a transaction recorded meanwhile is never written away: a
+    comment that moved stands down and one that will not read holds. A retirement the comment has no room for writes
+    nothing and leaves the record owed. It never parks.
+- **Relying on it later**: `current_evidence_verdict` proves the current record again for a reader -- no revision
+  past it spent, its handoff, its artifact re-read at the recorded comment with the pass flag its commands earn, and
+  then the whole proof above -- so newer evidence posted and never settled, a deleted or edited artifact, or a flag it
+  contradicts is not reported as current. No reader asks it yet.
+- **Carry-forward**: `workflow/engine/verification_carry_forward.py` decides whether current evidence answers for
+  another head -- never the one it already answers for -- and only on the full tree identity of that head and an
+  unchanged configured context, while the evidence being carried is still the latest and published (re-read as above, on
+  the pull request standing on the new head) and a review subject about the new head is recorded, since the proof holds
+  every binding to a review of the head it answers for. What it licenses is a new transaction naming the tested commit
+  unchanged and the new head and its review as its target, which this reconciliation proves whole before it is published
+  or current. No stage asks for a decision yet.
+
 ## The reuse guard (every dispatch, ahead of every handler)
 - **Trigger**: `_route_issue_to_handler` on any issue whose pinned ancestry still names a snapshot ref. It shares its
   pinned read with the live-adjudication guard beside it, so it costs no extra comment walk. Both step aside for
