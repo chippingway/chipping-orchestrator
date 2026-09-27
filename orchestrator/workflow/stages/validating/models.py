@@ -83,8 +83,9 @@ class _ReviewerRun:
     # wrote.
     resolved_over: dict
     # Whether the comment, read again as the reviewer returned, had moved a
-    # report record: carried onto the state in hand by then, and a verdict
-    # of a subject that no longer stands.
+    # report, verification evidence, or returned-verdict record: carried onto
+    # the state in hand by then, and a verdict of a subject that no longer
+    # stands.
     report_moved: bool = False
     # The workflow verification evidence this round's prompt handed the
     # reviewer as current for its subject, which is the only evidence a

@@ -1764,8 +1764,10 @@ The keys that matter for the state machine fall into a few groups:
   replays feedback about a subject nobody is handing on; a pull request, issue, or comment that would not read holds it
   instead, the approval arc's write included, which keeps the record where the subject behind its verify gate would not
   read and sets it to `null` otherwise. Every such recheck reads the comment again behind the subject's resolution and
-  watches the `verification_evidence_*` records beside the report's, carrying whatever another road moved, so no write
-  puts older records back. An approval of the subject still standing parks under `reviewer_unverified`
+  watches the `verification_evidence_*` records beside the report's, and the record itself, carrying whatever another
+  road moved, so no write puts older records back -- and a verdict the state in hand no longer carries as persisted, or
+  one another road dropped or replaced since, is not acted on at all. An approval of the subject still standing parks
+  under `reviewer_unverified`
   (`unverified_approvals.py`) unless its claim names the current evidence exactly and that evidence proves current, its
   re-read artifact still the one that settled, and passes and covers the configuration by the artifact's own commands
   rather than by the claim's copied `passed` and `covers`, with the pinned `verification_evidence_*` records read again

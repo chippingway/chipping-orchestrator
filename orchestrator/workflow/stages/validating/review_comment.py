@@ -12,9 +12,11 @@ the records on the comment do.
 So `review_report` binds a resolved subject only to a comment read afresh that
 carries the report records the state in hand carries (`_resolved_over`), and
 every later road that acts on an approval after requests long enough for that
-to happen asks the same (`_records_in_hand`): the squash handoff once the
-rewrite is published, and the in_review ready ping and the unmergeable park
-beside it once mergeability is read. Where the comment moved them, or will not
+to happen asks the same (`_records_in_hand`): the approval between its
+comment and the squash, and the squash handoff once the rewrite is published --
+both watching the verification evidence records beside the report's -- and the
+in_review ready ping and the unmergeable park beside it once mergeability is
+read. Where the comment moved them, or will not
 read or parse, the answer is the one that hands nothing over and writes
 nothing: every write from there would be laid over records the tick never
 read, putting back the report they replaced. So is a fresh reading of another
@@ -28,7 +30,9 @@ leaves is written -- a park for a timeout or a missing verdict as much as the
 record of a verdict. It watches the workflow verification evidence records
 beside the report's, since an approval rests on that evidence as much as on the
 report, and a write laid over evidence another road recorded or settled would
-put the superseded revision back. Records are compared as the comment's JSON
+put the superseded revision back -- and the returned verdict a disposition
+persisted (`review_verdicts`), since a verdict another road dropped or replaced
+since is no longer the one any write behind this may act on. Records are compared as the comment's JSON
 spells them, so one written `null` where there was none, or a revision spelled
 `true` where it was `1`, is a move. Records that stand leave the state alone.
 Records that moved refuse the verdict, and everything the comment changed since
@@ -56,6 +60,7 @@ from orchestrator.workflow.engine import (
     review_subjects as _review_subjects,
     verification_records as _evidence_records,
 )
+from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -79,6 +84,10 @@ _STANDING_RECORDS = (
     _evidence_records.EVIDENCE_HANDOFF,
     _evidence_records.REVISION_FLOOR,
 )
+
+# What the comment has to carry as it did for a verdict to be acted on: those
+# records, and the returned verdict itself.
+_VERDICT_RECORDS = (*_STANDING_RECORDS, _verdicts.RETURNED_VERDICT)
 
 # What a field the comment does not carry reads as, apart from one it carries
 # as `null`.
@@ -110,19 +119,24 @@ def _resolved_over(
 
 
 def _records_in_hand(
-    gh: GitHubClient, issue: Issue, state: PinnedState, purpose: str,
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    purpose: str,
+    watched: tuple[str, ...] = _REPORT_RECORDS,
 ) -> bool:
-    """Whether the comment still carries the report records `state` carries.
+    """Whether the comment still carries the `watched` records `state` carries, the report's by default.
 
     Asked by a road about to act on an approval of the report `state` records
     as current, and to write `state` beside it, after requests long enough for
-    another road to settle a later report. False where it moved them, will
+    another road to settle a later report -- or, `watched` naming them too,
+    to record or settle verification evidence. False where it moved them, will
     not read or parse, or is no longer the comment `state` was read from; the
     caller then acts on nothing and writes nothing, so the next tick reads
     what the issue carries then and answers it. `purpose` is what the road was
     about to do, for the log.
     """
-    return _in_hand(gh, issue, state, purpose) is not None
+    return _in_hand(gh, issue, state, purpose, watched) is not None
 
 
 def _records_stand(
@@ -142,7 +156,7 @@ def _records_stand(
     )
     if durable is None:
         return None
-    if not _moved(durable.data, resolved_over, _STANDING_RECORDS):
+    if not _moved(durable.data, resolved_over, _VERDICT_RECORDS):
         return True
     # Every field the comment changed since `resolved_over`, as `_moved`
     # spells a change: a field Python calls equal -- `true` over `1` -- is
@@ -154,25 +168,29 @@ def _records_stand(
         else:
             state.set(field, written)
     log.warning(
-        "issue=#%d its developer report or verification evidence records "
-        "moved on the pinned comment while the reviewer's verdict waited; "
-        "keeping them and not acting on the verdict",
+        "issue=#%d its developer report, verification evidence, or returned "
+        "verdict records moved on the pinned comment while the reviewer's "
+        "verdict waited; keeping them and not acting on the verdict",
         issue.number,
     )
     return False
 
 
 def _in_hand(
-    gh: GitHubClient, issue: Issue, state: PinnedState, purpose: str,
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    purpose: str,
+    watched: tuple[str, ...] = _REPORT_RECORDS,
 ) -> PinnedState | None:
-    """The comment read afresh where it carries the report records `state` does."""
+    """The comment read afresh where it carries the `watched` records `state` does."""
     durable = _read(gh, issue, state, purpose)
-    if durable is None or not _moved(durable.data, state.data, _REPORT_RECORDS):
+    if durable is None or not _moved(durable.data, state.data, watched):
         return durable
     log.warning(
-        "issue=#%d its pinned comment does not carry the developer report "
-        "records this tick holds, so it will not %s; writing nothing this "
-        "tick", issue.number, purpose,
+        "issue=#%d its pinned comment does not carry the developer report or "
+        "verification evidence records this tick holds, so it will not %s; "
+        "writing nothing this tick", issue.number, purpose,
     )
     return None
 

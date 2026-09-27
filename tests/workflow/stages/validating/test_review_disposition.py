@@ -51,6 +51,16 @@ VERDICT = "verdict"
 
 LATER_REPORT = "Covered the empty configuration as well; the suite passes."
 
+# What the approval comment an approval posts says about itself.
+APPROVAL_NOTICE = "review approved"
+
+# The client request a pull-request comment goes out through.
+PR_COMMENT = "pr_comment"
+
+# A reviewer approving over the evidence revision `digest` names, running
+# nothing of its own.
+REUSING = "Covered.\n\nVERIFICATION: REUSED sha256:{digest}\n\nVERDICT: APPROVED"
+
 # An evidence digest nothing in the world names.
 OTHER_DIGEST = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
@@ -102,12 +112,12 @@ _BEFORE_THE_HANDOFF = (
     ),
     (
         "a report behind the feedback post",
-        ("pr_comment", lambda body: _read.FEEDBACK_NOTICE in body, _settles_a_later_report),
+        (PR_COMMENT, lambda body: _read.FEEDBACK_NOTICE in body, _settles_a_later_report),
         (1, 2, ()),
     ),
     (
         "a push behind the feedback post",
-        ("pr_comment", lambda body: _read.FEEDBACK_NOTICE in body, _world.pushes),
+        (PR_COMMENT, lambda body: _read.FEEDBACK_NOTICE in body, _world.pushes),
         (1, 1, ()),
     ),
     (
@@ -190,6 +200,17 @@ _PARKS = (
 # whether the verdict is held for a later tick: a later report settling -- and
 # spending its round -- or a push proves the subject moved, and a report
 # nobody could read proves nothing either way.
+# Each verdict another road drops right behind the write that persisted it, as
+# the reply that verdict's reviewer returned -- an approval whose evidence is
+# published before it is acted on, one reusing settled evidence, and a change
+# request relying on none -- and the pull-request comments that tick posts:
+# the published approval's artifact alone.
+_CLEARED = (
+    ("a published approval", lambda _case: _world.declared_run(), 1),
+    ("a reused approval", lambda case: REUSING.format(digest=_read.settles_evidence(case).content_revision), 0),
+    ("a change request", lambda _case: UNDECLARED_REQUEST, 0),
+)
+
 _MOVES = (
     ("a later report", _settles_a_later_report, (2, 1), False),
     ("a push", _world.pushes, (1, 0), False),
@@ -230,19 +251,6 @@ _UNDER_A_FAILED_GATE = (
 )
 
 
-class _ReadsTheCommentAtThePost:
-    """Artifact posts that record what the pinned comment carried as each was made."""
-
-    def __init__(self, case) -> None:
-        self._case = case
-        self._post = case.github._post_verification_artifact
-        self.seen: list[dict] = []
-
-    def __call__(self, pull_request, body):
-        self.seen.append(self._case.pinned())
-        return self._post(pull_request, body)
-
-
 class _RefusesTheFeedback:
     """A pull request that fails the reviewer's feedback post once, and takes every other comment.
 
@@ -269,20 +277,23 @@ class DisposedApprovalTest(_world.ReviewVerdictWorld, unittest.TestCase):
     """An approval acts only over settled, passing evidence covering the configuration."""
 
     def test_the_verdict_is_written_before_publishing(self) -> None:
-        posting = _ReadsTheCommentAtThePost(self)
-        with patch.object(self.github, "_post_verification_artifact", posting):
-            self.returns(_world.declared_run())
+        # What the pinned comment carries as the artifact is posted, which the
+        # post itself leaves untouched.
+        seen: list[dict] = []
+        posting = _world.AnotherRoadBehind(
+            self, "_post_verification_artifact", bool, lambda case: seen.append(case.pinned()),
+        )
 
-        seen = posting.seen[-1]
-        claim = seen[_world.RETURNED_VERDICT]["evidence"]
+        posting.returning(_world.declared_run())
+
+        claim = seen[0][_world.RETURNED_VERDICT]["evidence"]
         self.assertEqual(
             (
-                len(posting.seen),
                 claim["use"],
                 claim["passed"] and claim["covers"],
-                seen[_world.PENDING_EVIDENCE]["receipt"],
+                seen[0][_world.PENDING_EVIDENCE]["receipt"],
             ),
-            (1, "published", True, claim["receipt"]),
+            ("published", True, claim["receipt"]),
         )
         self.assertEqual(
             (
@@ -545,7 +556,7 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
         for name, lands, posts in (("refused", False, 1), ("landed with no id", True, 2)):
             with self.subTest(name):
                 self.setUp()
-                with patch.object(self.github, "pr_comment", _RefusesTheFeedback(self.github, lands=lands)):
+                with patch.object(self.github, PR_COMMENT, _RefusesTheFeedback(self.github, lands=lands)):
                     held = self.returns(REQUESTING)
                 self.assertEqual(
                     (
@@ -852,6 +863,81 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
     def _after_the_gate(self, _location) -> bool:
         """Whether a reread is one behind a verify gate `_gate` answered with nobody else's work."""
         return self._verified
+
+
+class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
+    """A verdict is acted on only while the comment carries it and the records it was proved over."""
+
+    def test_a_settlement_behind_the_approval_comment(self) -> None:
+        # Evidence settles while the approval comment is posted, a request long
+        # enough for another road: no rewrite goes out over it and nothing is
+        # written, so the newer records stand. The verdict left waiting names
+        # evidence the later revision superseded, and the next tick drops it
+        # for a fresh reviewer rather than moving the issue on.
+        digest = _read.settles_evidence(self).content_revision
+        behind = _world.AnotherRoadBehind(
+            self, PR_COMMENT, lambda body: APPROVAL_NOTICE in body, _read.settles_evidence,
+        )
+
+        ran = behind.returning(REUSING.format(digest=digest))
+
+        self.assertEqual(
+            (
+                ran["_squash_and_force_push"].call_count,
+                _read.current_evidence_revision(self),
+                self.pinned().get(_world.RETURNED_VERDICT, {}).get(VERDICT),
+                self.github.label_history,
+            ),
+            (0, 2, APPROVED, []),
+        )
+
+        self.finishes()
+
+        after = self.pinned()
+        self.assertEqual(
+            (after.get(_world.RETURNED_VERDICT), after.get(_world.PARK_REASON), self.github.label_history),
+            (None, None, []),
+        )
+
+    def test_a_cleared_verdict_is_not_acted_on(self) -> None:
+        # Another road drops the verdict right behind the write that persisted
+        # it -- a reply that bought a fresh round, say. Whichever the verdict,
+        # and whether or not its evidence is published first, nothing is
+        # verified, approved, parked, handed over, or relabelled over a verdict
+        # the comment no longer carries.
+        for name, reply, posts in _CLEARED:
+            with self.subTest(name):
+                self.assertEqual(self._cleared_behind_its_write(reply), (0, None, None, posts, []))
+
+    def _cleared_behind_its_write(self, reply) -> tuple:
+        """What returning `reply` leaves where another road clears the verdict behind the write persisting it.
+
+        The verify gate's runs, the verdict and park the comment carries, the
+        pull-request comments the tick posted, and every relabel.
+        """
+        self.setUp()
+        message = reply(self)
+        posted = len(self.github.posted_pr_comments)
+        behind = _world.AnotherRoadBehind(self, "write_pinned_state", self._carries_a_verdict, self._clears)
+        ran = behind.returning(message)
+        left = self.pinned()
+        return (
+            ran[VERIFY].call_count,
+            left.get(_world.RETURNED_VERDICT),
+            left.get(_world.PARK_REASON),
+            len(self.github.posted_pr_comments) - posted,
+            self.github.label_history,
+        )
+
+    def _carries_a_verdict(self, state) -> bool:
+        """Whether a pinned write carries a verdict waiting."""
+        return state.get(_world.RETURNED_VERDICT) is not None
+
+    def _clears(self, _case) -> None:
+        """Another road's write dropping the verdict the comment carries."""
+        state = self.github.read_pinned_state(self.issue)
+        state.set(_world.RETURNED_VERDICT, None)
+        self.github.write_pinned_state(self.issue, state)
 
 
 if __name__ == "__main__":

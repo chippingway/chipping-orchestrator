@@ -2910,7 +2910,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             resolved again once the gate has run, whatever it answered, and the pinned comment read
                             behind it, carrying report or evidence records settled meanwhile, a failed gate parking
                             only over the subject still standing, a persisted verdict retired by whichever write
-                            follows and held where the subject would not read; the review
+                            follows and held where the subject would not read, and the report and evidence records
+                            held in hand again behind the approval comment, ahead of the squash; the review
                             subject recorded as approved once the gate passes, riding whichever write the tail
                             makes, and the relabel that tail owes held wherever that approval no longer covers the
                             report the pull request carries, the requirements the issue carries, or the head the
@@ -3121,15 +3122,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the replaced report back. The reading that agreed goes with the subject, and the comment
                             is read against it again as the reviewer returns and once more after an approval is
                             verified, before anything the run leaves is written -- the verification evidence records
-                            watched beside the report's, since an approval rests on both: records that moved refuse the
+                            watched beside the report's, since an approval rests on both, and the returned verdict a
+                            disposition persisted, which no write may act on once another road dropped or replaced
+                            it: records that moved refuse the
                             verdict and everything the comment changed since is carried onto the state in hand, so every
                             write the run makes keeps that settlement current; another comment or an unread one carries
                             nothing and the tick writes nothing. Records are compared as the comment's JSON spells
                             them, so one written `null` where there was none, or a revision `true` where it was `1`,
                             is a move. The later roads that act on an approval after requests long enough for a
-                            settlement -- the squash tail once its rewrite is published, and the in_review park and
-                            ready ping -- ask the comment the same before they write, and act on nothing where it
-                            moved. Nothing here parks or posts
+                            settlement -- the approval ahead of its squash and the squash tail once its rewrite is
+                            published, both over the evidence records too, and the in_review park and ready ping --
+                            ask the comment the same before they write, and act on nothing where it moved. Nothing
+                            here parks or posts
       review_coverage.py    whether an approval still covers the subject standing when it is acted on. When the reviewer
                             returns -- approving or requesting changes -- and the report records on the pinned comment
                             stand (`review_comment.py`), the whole subject is resolved again over the issue read afresh

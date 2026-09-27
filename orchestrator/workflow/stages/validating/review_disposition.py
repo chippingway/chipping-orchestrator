@@ -118,6 +118,17 @@ class VerdictInHand:
     refusal: str = ""
     pending: _records.PendingEvidence | None = None
 
+    def returned(self) -> _verdicts.ReturnedVerdict:
+        """The record this verdict is persisted as, ahead of any handoff."""
+        decision = self.decision
+        return _verdicts.ReturnedVerdict(
+            round_n=decision.run.round_n,
+            verdict=decision.verdict,
+            subject=decision.run.subject.recorded(),
+            feedback=decision.feedback if decision.verdict == _verdicts.CHANGES_REQUESTED else "",
+            evidence=self.claim,
+        )
+
 
 def disposes_of_the_verdict(
     gh: GitHubClient,
@@ -183,7 +194,21 @@ def acts_on_the_verdict(
     state: PinnedState,
     in_hand: VerdictInHand,
 ) -> None:
-    """Carry out a persisted verdict once the evidence it declared is published."""
+    """Carry out a persisted verdict once the evidence it declared is published.
+
+    Only the verdict the pinned comment carries, as the state in hand read or
+    wrote it last: one another road dropped or replaced since -- a reply that
+    bought a fresh round, a recovery that finished it -- is no verdict this
+    tick may act on, nor drop over whatever took its place. Every comment
+    read behind this, ahead of each post, write, and launch, holds the record
+    to the same (`review_comment._records_stand`).
+    """
+    if _verdicts.read_returned_verdict(state) != in_hand.returned():
+        log.info(
+            "issue=#%d its pinned comment no longer carries the reviewer "
+            "verdict this tick holds; acting on nothing", issue.number,
+        )
+        return
     if _waits_on_its_evidence(gh, issue, state, in_hand):
         return
     decision = in_hand.decision
@@ -315,17 +340,10 @@ def _persists(
     acted on without its transaction, what the reviewer reported -- a failed
     check included -- would never reach the pull request.
     """
-    feedback = decision.feedback if decision.verdict == _verdicts.CHANGES_REQUESTED else ""
-    returned = _verdicts.ReturnedVerdict(
-        round_n=decision.run.round_n,
-        verdict=decision.verdict,
-        subject=decision.run.subject.recorded(),
-        feedback=feedback,
-        evidence=claimed.claim,
-    )
-    if not _verdicts.records_the_verdict(state, returned, claimed.pending):
+    in_hand = VerdictInHand(decision, claimed.claim, claimed.refusal, claimed.pending)
+    if not _verdicts.records_the_verdict(state, in_hand.returned(), claimed.pending):
         return None
-    return VerdictInHand(decision, claimed.claim, claimed.refusal, claimed.pending)
+    return in_hand
 
 
 def _publication_holds(

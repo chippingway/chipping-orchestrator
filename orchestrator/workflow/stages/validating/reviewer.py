@@ -41,8 +41,9 @@ change request alike are acted on only while the whole subject the reviewer
 was handed -- head, requirements, and report -- still stands; otherwise the
 run is recorded and the next tick's reviewer is handed the subject as it
 stands. The pinned comment is read again as the reviewer returns, before any
-of that is written, for that reason: a report settling while the reviewer
-runs is recorded there and nowhere in the state this tick holds, and every
+of that is written, for that reason: a report or verification evidence
+settling while the reviewer runs is recorded there and nowhere in the state
+this tick holds, and every
 write the run makes has to lay itself over that settlement rather than undo
 it -- where the comment will not read, nothing is written at all. Failed-run
 parks
@@ -202,10 +203,12 @@ def _read_again_on_return(
 
     Read before anything the run leaves is written -- a park for a timeout or
     a missing verdict as much as the record of a verdict -- since each of
-    those writes goes out from the state in hand, and a report that settled
-    while the reviewer ran is on the comment and nowhere in it. What moved is
+    those writes goes out from the state in hand, and a report or
+    verification evidence that settled while the reviewer ran is on the
+    comment and nowhere in it (`review_comment._records_stand`). What moved is
     carried onto that state first, and marks the verdict as one of a subject
-    that no longer stands. A comment that will not read or parse ends the tick
+    that no longer stands (`report_moved`, which names the report records and
+    the evidence records beside them alike). A comment that will not read or parse ends the tick
     with nothing written, as an interrupted run does: the next tick spawns a
     reviewer over whatever the comment carries then.
     """

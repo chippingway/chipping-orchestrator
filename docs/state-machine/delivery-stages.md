@@ -3371,12 +3371,13 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        The record, the checkout's own head, the recorded head as an OBJECT, and the ancestry between the two are
        all read, since an outstanding record is not proof the rewrite happened, a recorded head this host does not
        hold is a reflog entry nobody could look in, and one still reachable from HEAD was never rewritten at all.
-       Before that park and before anything below, the pinned comment is read again and has to carry the report
-       records the state in hand carries (`review_comment._records_in_hand`): the rewrite and its force-push are time
-       another road can settle a later report in, and every write below lays the state in hand over the comment.
-       Where it moved them or will not read, nothing is posted or written and the label stays — the collapse the
-       squash recorded is the next tick's recovery to finish, under the later report, which the approval does not
-       cover. (4) On success,
+       Before that park and before anything below, the pinned comment is read again and has to carry the report and
+       verification evidence records the state in hand carries (`review_comment._records_in_hand`) — asked on the
+       approval road between its approval comment and the squash as well, so no rewrite goes out over records the
+       approval was not proved on: the comment and the rewrite with its force-push are time another road can settle a
+       later report or evidence revision in, and every write below lays the state in hand over the comment. Where it
+       moved them or will not read, nothing is posted or written and the label stays — the collapse the squash recorded
+       is the next tick's recovery to finish, over the records the comment carries then. (4) On success,
        if `squashed_count > 1` post `:package: squashed N commits to 1` — a count of 0 or 1 replaced no history and
        posts nothing — seed the in_review watermarks (inside the
        `gh.get_pr()` try so a snapshot failure leaves them untouched; the walk advances through the leading run of

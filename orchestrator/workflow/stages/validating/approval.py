@@ -319,13 +319,14 @@ def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
         gh.write_pinned_state(issue, state)
         return
     # The rewrite and its force-push are time another road can settle a later
-    # report in, and everything below writes the state in hand whole: over a
-    # comment that moved, the handoff would put the replaced report back and
-    # move the label under an approval of it. Nothing is posted or written,
-    # and the collapse the squash recorded is the next tick's recovery to
-    # finish -- under the later report, which that approval does not cover.
+    # report or evidence revision in, and everything below writes the state
+    # in hand whole: over a comment that moved, the handoff would put the
+    # replaced records back and move the label under an approval of them.
+    # Nothing is posted or written, and the collapse the squash recorded is
+    # the next tick's recovery to finish -- over the records the comment
+    # carries then.
     if not _review_comment._records_in_hand(
-        gh, issue, state, "finish its squash under the approval it holds",
+        gh, issue, state, "finish its squash under the approval it holds", _review_comment._STANDING_RECORDS,
     ):
         return
     if not squashed.success:
@@ -498,6 +499,13 @@ def _finalize_validating_approval(
         _verdicts.drops_the_verdict(state)
         _review_subjects.record_approved(state, reviewer_run.subject)
         _handoff._post_approval_comment(gh, issue, state, reviewer_run)
+        # The comment is a request of its own, long enough for another road to
+        # settle a later report or evidence revision the approval was not
+        # proved over: no rewrite goes out over it, and nothing is written.
+        if not _review_comment._records_in_hand(
+            gh, issue, state, "squash under the approval it posted", _review_comment._STANDING_RECORDS,
+        ):
+            return
         _squashed_and_handed_off(gate, branch, reviewer_run.pr_number)
         return
     if stands:
