@@ -2036,7 +2036,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             prompt, whose re-grounding conversation is the caller's frozen read wherever it holds
                             one and its own read otherwise. The budget that retirement answers to is
                             `engine/retry_budget.py`'s entire, gate and park alike, and the spawn road calls it
-                            there
+                            there. The session a resume plans is also read without retiring anything
+                            (`_planned_dev_session`), for a reader asking which launch a resume would be
       session_read.py       the locked session read plus the stale / overflow / quota classifiers and the blockquote
                             they quote with
       resume.py             the two resume entry points and the historical call shape they keep. The
@@ -2076,7 +2077,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             since that retry is a SECOND agent -- and what each attempt is allowed to persist; the
                             bounded AGY command-recovery coordinator (`_coordinate_developer_run`) that recognizes
                             incomplete command outcomes and permits at most one immediate tracked continuation for
-                            both fresh spawns and resumes
+                            both fresh spawns and resumes; and the identity an attempt is charged under, one
+                            owner for the launch and for the fingerprint its first attempt would carry
+                            (`_first_launch_fingerprint`), which a handed change request's recovery reads
       worktree.py           the checkout a resume runs in, restored when reaped
       disposition.py        run-output attribution, inherited floors, timeout parks and their recovery, and agent-result
                             settlement; both heads must be readable and the run must leave commits above its floor --
@@ -3199,8 +3202,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the verdict written as handed with the anchor, and only then the relabel and the launch
                             -- a moved subject drops the verdict over the newer records. Also whether a handed
                             request's developer is owed, launched, or unfinished -- read off the lifetime ledger
-                            past the handed count and, for a `started` charge, the branch -- and the
-                            `agent_execution_failed` park an unfinished launch takes
+                            past the handed count, only where its fingerprint names that developer's own launch,
+                            and, for a `started` charge, the branch -- and the `agent_execution_failed` park an
+                            unfinished launch takes
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its

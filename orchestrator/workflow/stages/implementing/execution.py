@@ -39,6 +39,7 @@ from orchestrator.workflow.engine import (
     observations as _observations,
     prompt_notes as _prompt_notes,
     run_charge_state as _run_charge_state,
+    run_requests as _run_requests,
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -50,6 +51,10 @@ from orchestrator.workflow.stages.implementing import (
 )
 
 log = logging.getLogger("orchestrator.workflow")
+
+# The round a developer attempt is charged at, as the pinned state and the
+# launch both name it.
+_REVIEW_ROUND = "review_round"
 
 
 @dataclass(frozen=True)
@@ -124,9 +129,6 @@ class _DevResumeContext:
             _run_charge_state.AgentRunBudget(
                 issue=self.issue, state=self.state,
             ),
-            agent_role="developer",
-            stage=self.stage,
-            backend=session.backend,
             prompt=_session._build_dev_spawn_prompt(
                 self.spec,
                 self.issue,
@@ -135,11 +137,8 @@ class _DevResumeContext:
                 fresh=fresh,
             ),
             cwd=self.worktree,
-            agent_spec=session.spec,
-            resume_session_id=session_id,
             extra_args=session.extra_args,
-            review_round=self.state.get("review_round", 0),
-            retry_count=self.state.get(_state._RETRY_COUNT),
+            **_launch_identity(self.state, self.stage, session, session_id),
         )
         _issue_usage._accumulate_issue_usage(self.state, agent_result.usage)
         paused = (
@@ -176,6 +175,33 @@ class _DevResumeContext:
             "fresh spawn", self.spec.slug, self.issue.number,
         )
         return False
+
+
+def _launch_identity(
+    state: PinnedState, stage: str, session: _models._DevSession, session_id: str | None,
+) -> dict:
+    """What one developer attempt is charged under: every field its launch is fingerprinted by."""
+    return {
+        "agent_role": "developer",
+        "stage": stage,
+        "backend": session.backend,
+        "agent_spec": session.spec,
+        "resume_session_id": session_id,
+        _REVIEW_ROUND: state.get(_REVIEW_ROUND, 0),
+        "retry_count": state.get(_state._RETRY_COUNT),
+    }
+
+
+def _first_launch_fingerprint(state: PinnedState, stage: str) -> str:
+    """The fingerprint a resume over `state` would charge its first attempt under, read without resuming.
+
+    The session is the one that resume would open with, retired where its
+    budget or silent streak is spent (`session._planned_dev_session`), so a
+    reader can tell the charge that launch took from another road's.
+    """
+    session, retired = _session._planned_dev_session(state)
+    identity = _launch_identity(state, stage, session, None if retired else session.session_id)
+    return _run_requests._AgentRunRequest(prompt="", cwd=Path(), **identity).fingerprint
 
 
 def _is_incomplete_agy_result(backend: str, agent_result: AgentResult) -> bool:

@@ -6,14 +6,18 @@ The handoff's write records the persisted verdict as handed, ahead of the
 relabel, and only the writes behind the developer's run drop it. A tick that
 stops anywhere in between leaves the next one the feedback to hand over: the
 developer is launched once and no second reviewer is spent, and only feedback
-whose anchor never landed is posted again. A launch the ledger shows settled
-is not run again, and one that started and left no trace parks for the
-operator's retry, which replays the posted feedback to one developer.
+whose anchor never landed is posted again. What the launch left is read off
+the ledger's charge of that very launch: a reservation that never spawned is
+spent by the one developer it was taken for, a started launch whose commit is
+on the branch is not run again, one that left no trace parks for the
+operator's retry -- which replays the posted feedback to one developer -- and
+another road's charge is no launch of this developer at all.
 """
 from __future__ import annotations
 
 import unittest
-from unittest.mock import patch
+from types import MappingProxyType
+from unittest.mock import MagicMock, patch
 
 from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING
 from tests.workflow.stages.validating import review_verdict_readings as _read, review_verdict_test_support as _world
@@ -23,6 +27,26 @@ from tests.workflow.stages.validating.validating_review_test_support import FIX_
 REQUESTING = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
 
 RESERVATION = "agent_run_reservation"
+
+FINGERPRINT = "agent_run_fingerprint"
+
+STARTED = "started"
+
+# A launch no road of this issue's handoff names: another role's, run by an
+# operator who moved the issue off `fixing` and back.
+ANOTHER_LAUNCH = "0123456789abcdef" * 4
+
+# A developer process that stopped mid-run, leaving nothing written behind it.
+DIED = RuntimeError("the developer process died")
+
+# A commit the developer made that the pull request has not got, and the
+# publication that carries it there.
+STRANDED = MappingProxyType({
+    "branch_ahead_behind": (1, 0),
+    "head_shas": FIX_HEAD_SHAS[-1:],
+})
+
+PUSH = "_push_branch"
 
 EXECUTION_FAILED = "agent_execution_failed"
 
@@ -111,8 +135,22 @@ class UnlandedHandoffTest(_world.ReviewVerdictWorld, unittest.TestCase):
             self.returns(REQUESTING)
 
 
-class HandedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
-    """A handed change request stays owed to its one developer until that developer is launched."""
+class _FixingTicks(_world.ReviewVerdictWorld):
+    """`fixing` ticks over a change request handed there, whose developer launch stopped somewhere."""
+
+    def _fixing(self, *agents, **run_options) -> dict:
+        """One `fixing` tick, whose spawns return `agents`."""
+        run_options.setdefault("dirty_files", ())
+        run_options.setdefault("head_shas", FIX_HEAD_SHAS)
+        return self._run_fixing(self.github, self.issue, run_agent=list(agents), **run_options)
+
+    def _charged(self) -> int:
+        """The lifetime agent-run count the issue carries now."""
+        return self.pinned()[_world.AGENT_RUNS_USED]
+
+
+class HandedChangeRequestTest(_FixingTicks, unittest.TestCase):
+    """A change request relabelled to `fixing` whose developer was never charged."""
 
     def setUp(self) -> None:
         super().setUp()
@@ -123,7 +161,7 @@ class HandedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
         pinned = self.pinned()
         self.assertEqual(
             (self.github.workflow_label(self.issue), pinned[_world.RETURNED_VERDICT]["handed"]),
-            (LABEL_FIXING, pinned[_world.AGENT_RUNS_USED]),
+            (LABEL_FIXING, self._charged()),
         )
 
         fixed = self._fixing(_world.developer())
@@ -139,15 +177,82 @@ class HandedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
             (1, True, 1, None, (_world.ISSUE, LABEL_VALIDATING)),
         )
 
-    def test_a_launched_developer_is_not_rerun(self) -> None:
-        # A charge past the handoff whose phase a returned run's write settled.
-        self._charges_a_launch(phase=None)
+    def test_another_roads_charge_is_no_launch(self) -> None:
+        # The one charge past the handoff names another role's launch and
+        # started: it says nothing about this developer, who is still owed
+        # and launched once, rather than parked as a launch that never ended.
+        handed = self._charged()
+        state = self.github.read_pinned_state(self.issue)
+        state.set(_world.AGENT_RUNS_USED, handed + 1)
+        state.set(RESERVATION, STARTED)
+        state.set(FINGERPRINT, ANOTHER_LAUNCH)
+        self.github.write_pinned_state(self.issue, state)
 
-        fixed = self._fixing()
+        fixed = self._fixing(_world.developer())
 
         self.assertEqual(
-            (fixed[_world.RUN_AGENT].call_count, self.pinned()[_world.RETURNED_VERDICT]),
-            (0, None),
+            (
+                fixed[_world.RUN_AGENT].call_count,
+                _read.spawned_roles(self),
+                self.pinned().get(_world.PARK_REASON),
+                self.pinned()[_world.RETURNED_VERDICT],
+                self.github.label_history[-1],
+            ),
+            (1, ["developer"], None, None, (_world.ISSUE, LABEL_VALIDATING)),
+        )
+
+
+class InterruptedLaunchTest(_FixingTicks, unittest.TestCase):
+    """A change request whose developer launch was charged and never reported back."""
+
+    def test_a_reserved_charge_is_spent_once(self) -> None:
+        # The charge's STARTED write was refused, so the launch reserved its
+        # run and spawned nothing. The next tick's developer is that very
+        # launch, spawned under the reservation rather than charged again.
+        refusing = _FailsOnce(
+            self.github.write_pinned_state, lambda state: state.get(RESERVATION) == STARTED,
+        )
+        with patch.object(self.github, "write_pinned_state", refusing):
+            self.returns(REQUESTING)
+        charged = self._charged()
+        self.assertEqual(
+            (self.pinned()[RESERVATION], _read.spawned_roles(self)),
+            ("reserved", []),
+        )
+
+        fixed = self._fixing(_world.developer())
+
+        self.assertEqual(
+            (
+                fixed[_world.RUN_AGENT].call_count,
+                _read.spawned_roles(self),
+                self._charged(),
+                self.pinned()[_world.RETURNED_VERDICT],
+            ),
+            (1, ["developer"], charged, None),
+        )
+
+    def test_a_started_launch_that_committed_stands(self) -> None:
+        # The developer ran and committed, and the process died before
+        # anything was written behind it: the commit the pull request has not
+        # got is that run's work, which the stage's own bounce publishes, and
+        # no second developer is paid for.
+        with self.assertRaises(RuntimeError):
+            self.returns(REQUESTING, run_agent=MagicMock(side_effect=DIED))
+        charged = self._charged()
+
+        bounced = self._fixing(**STRANDED)
+
+        self.assertEqual(
+            (
+                bounced[_world.RUN_AGENT].call_count,
+                _read.spawned_roles(self),
+                self._charged(),
+                self.pinned()[_world.RETURNED_VERDICT],
+                bounced[PUSH].call_count,
+                self.github.label_history[-1],
+            ),
+            (0, ["developer"], charged, None, 1, (_world.ISSUE, LABEL_VALIDATING)),
         )
 
     def test_an_unfinished_launch_parks_for_one_retry(self) -> None:
@@ -155,7 +260,8 @@ class HandedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # developer ran: nothing is paid for twice, and the issue is not
         # bounced to a second reviewer. The operator's retry replays the
         # posted feedback to one fresh developer session.
-        self._charges_a_launch(phase="started")
+        with self.assertRaises(RuntimeError):
+            self.returns(REQUESTING, run_agent=MagicMock(side_effect=DIED))
 
         quiet = [self._fixing() for _ in range(QUIET_TICKS)]
         pinned = self.pinned()
@@ -177,19 +283,6 @@ class HandedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
             (spawned.call_count, _world.REQUESTED in spawned.call_args.args[1]),
             (1, True),
         )
-
-    def _fixing(self, *agents) -> dict:
-        """One `fixing` tick, whose spawns return `agents`."""
-        return self._run_fixing(
-            self.github, self.issue, run_agent=list(agents), dirty_files=(), head_shas=FIX_HEAD_SHAS,
-        )
-
-    def _charges_a_launch(self, *, phase: str | None) -> None:
-        """Charge one launch past the handoff, its reservation left at `phase`."""
-        state = self.github.read_pinned_state(self.issue)
-        state.set(_world.AGENT_RUNS_USED, state.get(_world.AGENT_RUNS_USED) + 1)
-        state.set(RESERVATION, phase)
-        self.github.write_pinned_state(self.issue, state)
 
 
 if __name__ == "__main__":

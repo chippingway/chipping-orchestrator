@@ -25,8 +25,9 @@ verification command. A declaration that earned no evidence leaves
 `workflow:fixing`, and then the lifetime agent-run count as that handoff was
 written: the handoff goes down before the relabel and the developer launch, so
 a tick that finds the record with no launch charged past that count -- or one
-charged and never started -- still owes the developer the feedback, and hands it
-over instead of a fresh reviewer taking the round (`review_resume`). An
+charged and never started, or a charge another road took -- still owes the
+developer the feedback, and hands it over instead of a fresh reviewer taking the
+round (`review_resume`, `review_handoffs`). An
 approval is never handed, so a record saying otherwise does not read.
 
 The record is additive and fail-closed: an issue without it has no verdict

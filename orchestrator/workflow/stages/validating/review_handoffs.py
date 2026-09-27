@@ -26,14 +26,22 @@ means is read off the ledger the launch charges before it spawns
 
 Nothing charged past the handed count, or a charge still RESERVED, is a launch
 that never spawned: the developer is OWED, and the same logical launch reuses
-that reservation rather than paying twice. A charge whose phase is gone was
-settled by a write behind a run that returned: the developer was LAUNCHED. A
-charge STARTED is the one reading the ledger cannot settle, because the phase
-goes down before the spawn: the process may have stopped short of it, or a
-developer may have run and had its result discarded unwritten -- a live pause
-does exactly that. The branch tells the two apart where the run committed: a
-commit the pull request has not got is work a developer did, which the stage's
-own bounce publishes, so that too is LAUNCHED. Anything else is UNFINISHED.
+that reservation rather than paying twice -- the circuit reuses one only for
+the launch it was taken for, and charges anew over anybody else's. Any other
+charge past the count is read as the developer's only where the ledger names
+the launch it would be (`implementing/execution._first_launch_fingerprint`):
+one charge past the handoff that names another road's launch -- an operator
+who moved the issue and ran another role before bringing it back -- says the
+developer never launched, so it is OWED; more than one says nothing about
+where the developer's own went, so it is UNFINISHED. A charge of this launch
+whose phase is gone was settled by a write behind a run that returned: the
+developer was LAUNCHED. One STARTED is the reading the ledger cannot settle,
+because the phase goes down before the spawn: the process may have stopped
+short of it, or a developer may have run and had its result discarded
+unwritten -- a live pause does exactly that. The branch tells the two apart
+where the run committed: a commit the pull request has not got is work a
+developer did, which the stage's own bounce publishes, so that too is
+LAUNCHED. Anything else is UNFINISHED.
 
 An unfinished launch is neither retried nor walked past. Handed to the
 developer again it may pay for a second run over feedback one already
@@ -60,7 +68,7 @@ from orchestrator.workflow.engine import (
     run_ledger_models as _run_ledger_models,
     run_ledger_values as _run_ledger_values,
 )
-from orchestrator.workflow.stages.implementing import parks as _implementing_parks
+from orchestrator.workflow.stages.implementing import execution as _execution, parks as _implementing_parks
 from orchestrator.workflow.stages.validating import (
     models as _models,
     requested_changes as _requested_changes,
@@ -69,7 +77,7 @@ from orchestrator.workflow.stages.validating import (
     state as _state,
     stranded as _stranded,
 )
-from orchestrator.workflow.state import WorkflowLabel
+from orchestrator.workflow.state import WorkflowLabel, stage_name
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -154,16 +162,28 @@ def handoff_launch(
 ) -> HandoffLaunch:
     """Whether `returned`'s developer is owed, was launched, or left nothing to say either way.
 
-    A verdict never handed over is owed by definition. The branch is read only
-    for a STARTED charge, the one reading the ledger cannot settle.
+    A verdict never handed over is owed by definition, and a charge standing
+    RESERVED is a launch nobody spawned, whoever took it.
     """
     handed = returned.handed
-    if handed is None or _run_ledger_values._runs_used(state) <= handed:
+    runs_used = _run_ledger_values._runs_used(state)
+    if handed is None or runs_used <= handed or (
+        _run_ledger_values._reservation(state) is _run_ledger_models.RunPhase.RESERVED
+    ):
         return HandoffLaunch.OWED
-    phase = _run_ledger_values._reservation(state)
-    if phase is _run_ledger_models.RunPhase.RESERVED:
-        return HandoffLaunch.OWED
-    if phase is not _run_ledger_models.RunPhase.STARTED:
+    this_launch = _execution._first_launch_fingerprint(state, stage_name(WorkflowLabel.FIXING))
+    if _run_ledger_values._fingerprint(state) != this_launch:
+        return HandoffLaunch.OWED if runs_used == handed + 1 else HandoffLaunch.UNFINISHED
+    return _where_the_launch_went(spec, issue, state)
+
+
+def _where_the_launch_went(spec: config.RepoSpec, issue: Issue, state: PinnedState) -> HandoffLaunch:
+    """What the ledger's charge of the developer's own launch says, read off the branch where it cannot.
+
+    The branch is read only for a STARTED charge, the one reading the ledger
+    cannot settle.
+    """
+    if _run_ledger_values._reservation(state) is not _run_ledger_models.RunPhase.STARTED:
         return HandoffLaunch.LAUNCHED
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if _stranded._stranded_evidence(spec, worktree, state, issue).stranded:
