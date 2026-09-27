@@ -52,6 +52,11 @@ def current_report_revision(case) -> int:
     return _report_settlement.read_current_report(case.github.read_pinned_state(case.issue)).report_revision
 
 
+def current_evidence_revision(case) -> int:
+    """The revision of the verification evidence `case`'s pinned comment records as current."""
+    return case.pinned()["verification_evidence_current"]["revision"]
+
+
 def feedback_posts(case) -> list[str]:
     """Every reviewer-feedback comment posted on `case`'s pull request."""
     return [body for _, body in case.github.posted_pr_comments if FEEDBACK_NOTICE in body]

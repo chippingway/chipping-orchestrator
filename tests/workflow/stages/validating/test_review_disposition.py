@@ -22,7 +22,7 @@ from unittest.mock import patch
 
 from orchestrator import config as _config
 from orchestrator.git.verification.models import VerifyResult
-from orchestrator.github.pinned_state import MAX_PINNED_BODY
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from tests.workflow import published_reports as _published_reports
 from tests.workflow.fixtures import LABEL_DOCUMENTING, LABEL_FIXING, LABEL_VALIDATING
 from tests.workflow.stages.validating import review_verdict_readings as _read, review_verdict_test_support as _world
@@ -137,6 +137,10 @@ _ONE_DEVELOPER = (1, 1, 0, 1)
 # leaves room for the round's own records and not for the verdict, or for the
 # verdict and not its transaction.
 _LONG = "12 passed, 1 failed " * 1000
+
+# What a comment a park cannot fit on has left: a few characters, fewer than
+# the park's own flags take.
+_SPARE = 8
 
 _NO_ROOM = (
     ("for the verdict", f"{_LONG}\n\nVERDICT: CHANGES_REQUESTED", MAX_PINNED_BODY - len(_LONG)),
@@ -304,23 +308,29 @@ class DisposedApprovalTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # The approval waits on its publication, and the verification context
         # its transaction was bound under moves: that evidence can never settle,
         # so the verdict is dropped for a fresh reviewer rather than waiting on
-        # it forever, and is neither acted on nor parked for a human.
-        self._held(_world.declared_run())
+        # it forever, and is neither acted on nor parked for a human. A later
+        # report another road settles once the tick has read the comment is
+        # kept rather than written back over by that drop.
+        for name, meanwhile, revision in (("alone", None, 1), ("beside a later report", _settles_a_later_report, 2)):
+            with self.subTest(name):
+                self.setUp()
+                self._held(_world.declared_run())
 
-        with patch.object(_config, "VERIFY_TIMEOUT", _config.VERIFY_TIMEOUT + 1):
-            ran = self.finishes()
+                with patch.object(_config, "VERIFY_TIMEOUT", _config.VERIFY_TIMEOUT + 1):
+                    ran = self.finishes(meanwhile=meanwhile)
 
-        pinned = self.pinned()
-        self.assertEqual(
-            (
-                ran[_world.RUN_AGENT].call_count,
-                ran[VERIFY].call_count,
-                pinned[_world.RETURNED_VERDICT],
-                pinned.get(_world.PARK_REASON),
-                self.github.label_history,
-            ),
-            (0, 0, None, None, []),
-        )
+                pinned = self.pinned()
+                self.assertEqual(
+                    (
+                        ran[_world.RUN_AGENT].call_count,
+                        ran[VERIFY].call_count,
+                        pinned[_world.RETURNED_VERDICT],
+                        pinned.get(_world.PARK_REASON),
+                        _read.current_report_revision(self),
+                        self.github.label_history,
+                    ),
+                    (0, 0, None, None, revision, []),
+                )
 
     def _held(self, message: str) -> None:
         """Return `message` over a pull request that lands the artifact and loses the response."""
@@ -488,11 +498,15 @@ class ParkedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 )
 
     def test_no_room_even_for_the_park_writes_nothing(self) -> None:
-        # A comment already at its ceiling has room for no park either: a
-        # notice posted over a write GitHub then refuses would leave neither a
-        # verdict nor a park durable, so nothing is posted or written at all.
-        self._fills(MAX_PINNED_BODY)
+        # A comment GitHub accepts, a few characters short of its ceiling, has
+        # room for no park either: a notice posted over a write GitHub then
+        # refuses would leave neither a verdict nor a park durable, so nothing
+        # is posted or written at all.
+        self._fills(0)
+        spare = MAX_PINNED_BODY - len(pinned_state_body(self.pinned()))
+        self._fills(spare - _SPARE)
         before = (self.pinned(), len(self.github.posted_comments))
+        self.assertEqual(len(pinned_state_body(before[0])), MAX_PINNED_BODY - _SPARE)
 
         ran = self.returns(UNDECLARED_REQUEST)
 
@@ -573,11 +587,35 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 self.assertEqual(
                     (
                         self.github.label_history,
-                        self._current_evidence_revision(),
+                        _read.current_evidence_revision(self),
                         pinned["verification_evidence_revision"],
                         pinned[_world.RETURNED_VERDICT],
                     ),
                     ([], 2, 2, None),
+                )
+
+    def test_a_report_settling_during_minting(self) -> None:
+        # Reading the reviewed tree its declared commands are minted over is a
+        # request of its own: a later report settling during it is a subject
+        # nobody reviewed, so nothing is persisted, published, or acted on,
+        # whichever the verdict, and the later report is kept rather than
+        # written back over.
+        for message in (_world.declared_run(), REQUESTING):
+            with self.subTest(message=message.splitlines()[-1]):
+                self.setUp()
+
+                _world.AnotherRoadBehind(self, "_tree_sha", bool, _settles_a_later_report).returning(message)
+
+                pinned = self.pinned()
+                self.assertEqual(
+                    (
+                        pinned.get(_world.RETURNED_VERDICT),
+                        pinned.get(_world.PENDING_EVIDENCE),
+                        _read.artifacts(self),
+                        _read.current_report_revision(self),
+                        self.github.label_history,
+                    ),
+                    (None, None, [], 2, []),
                 )
 
     def test_a_settlement_behind_a_park_notice(self) -> None:
@@ -593,7 +631,7 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
         self.assertEqual(
             (
                 pinned[_world.PARK_REASON],
-                self._current_evidence_revision(),
+                _read.current_evidence_revision(self),
                 pinned[_world.RETURNED_VERDICT],
             ),
             (UNVERIFIED, 1, None),
@@ -614,7 +652,7 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
         self.assertEqual(
             (
                 self.github.label_history,
-                self._current_evidence_revision(),
+                _read.current_evidence_revision(self),
                 pinned[_world.RETURNED_VERDICT],
                 pinned.get(_world.PARK_REASON),
             ),
@@ -638,16 +676,12 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
         self.assertEqual(
             (
                 self.github.label_history,
-                self._current_evidence_revision(),
+                _read.current_evidence_revision(self),
                 pinned["verification_evidence_revision"],
                 pinned.get(_world.PARK_REASON),
             ),
             ([], 2, 2, UNVERIFIED),
         )
-
-    def _current_evidence_revision(self) -> int:
-        """The revision of the evidence the pinned comment records as current."""
-        return self.pinned()["verification_evidence_current"]["revision"]
 
     def _passes(self, *_args, settles: bool = False, **_kw) -> VerifyResult:
         """A verify gate that passes, during which another road settles newer evidence, or behind which it may."""

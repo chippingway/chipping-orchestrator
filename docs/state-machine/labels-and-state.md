@@ -1734,10 +1734,11 @@ The keys that matter for the state machine fall into a few groups:
   verification context, whose artifact has to render as one comment, or `reused` for the current evidence it was
   handed and named, never any other -- and that record's `receipt`, `revision`, evidence `digest`, `passed`, and
   `covers` (every configured `VERIFY_COMMANDS` command among its commands, exactly as configured, exiting 0). A
-  claim's evidence is settled while `verification_evidence_current` names its receipt, revision, and digest, owed
-  while `verification_evidence_pending` does, either bound under the configured verification context, and lost
-  otherwise. `handed` is `null` until a change request is handed to `workflow:fixing`, and then the `agent_runs_used`
-  count as that handoff was written, no wider than the count its room is reserved at; an approval carrying one does
+  claim's evidence is settled while `verification_evidence_current` names its receipt, revision, and digest, owed while
+  `verification_evidence_pending` does, either bound under the configured verification context and at the latest
+  revision the issue has spent, and lost otherwise -- a later transaction, settled or not, supersedes it. `handed` is
+  `null` until a change request is handed to `workflow:fixing`, and then the `agent_runs_used` count as that handoff was
+  written, no wider than the count its room is reserved at; an approval carrying one does
   not read. The reader takes the record whole -- exactly those six members, a claim of exactly its six, each in its
   writer's shape -- or reads no verdict at all, and nothing that reader refuses is staged. It is staged only where
   the comment has room for it at the widest write it is part of: a change request's handoff, with its count, the
@@ -1747,10 +1748,12 @@ The keys that matter for the state machine fall into a few groups:
   the transaction it names -- its receipt, revision, digest, and `passed` -- measured with its settlement beside that
   reservation, a retry of the one the comment already carries included, and a `reused` claim or none only beside no
   transaction; where the pair does not match or either has no room, neither is staged. Its writer is the disposition
-  service (`review_disposition.py`): the record and the transaction it claims go down in one write with the returned
-  run's own records, over the pinned comment read again once the subject has been resolved, BEFORE the evidence is
+  service (`review_disposition.py`): the transaction is minted first, since reading the reviewed tree is a request of
+  its own, and the record and that transaction go down in one write with the returned run's own records, over the pinned
+  comment read again once the subject has been resolved -- the last requests before that write -- BEFORE the evidence is
   published or the verdict acted on, and neither verdict is acted on until that evidence settles -- an owed transaction
-  holds the record for a later tick, and a lost one sets it to `null` for a fresh reviewer. A change request is handed
+  holds the record for a later tick, and a lost one sets it to `null` for a fresh reviewer, in a write composed over the
+  comment read again. A change request is handed
   over only while its subject still stands (`review_handoffs.py`): its feedback is posted first, and a post that failed
   or left no id relabels and launches nothing and leaves `handed` `null`; the whole subject is held again behind that
   post, the record written with `handed` set and the `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to

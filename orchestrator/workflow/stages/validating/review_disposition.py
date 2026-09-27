@@ -125,22 +125,26 @@ def disposes_of_the_verdict(
 ) -> None:
     """Persist a returned reviewer's verdict, publish its evidence, and act on it.
 
-    The subject check is requests of its own, long enough for another road to
-    settle a later report the state in hand does not carry, so the comment is
-    read again against what the run was resolved over before anything is
-    written, carrying whatever moved: a write composed over the older records
-    would put them back over the newer, and the verdict it persists would be
-    handed on as though nothing had. A comment or a subject that will not
-    read writes nothing: no verdict is persisted over a reading nobody took.
+    The evidence is minted first, since reading the reviewed tree is a request
+    of its own. Then the subject is held to what stands, which is requests of
+    its own too, long enough for another road to settle a later report the
+    state in hand does not carry, so the comment is read again against what
+    the run was resolved over, carrying whatever moved -- the last requests
+    before the write that persists the verdict: a write composed over the
+    older records would put them back over the newer, and the verdict it
+    persists would be handed on as though nothing had. A comment or a subject
+    that will not read writes nothing: no verdict is persisted over a reading
+    nobody took.
     """
     run = decision.run
+    claimed = _claims.claimed_evidence(issue, state, run)
     stands = _review_coverage._verdict_still_stands(gh, issue, state, run.subject, run.resolved_over)
     if stands is None:
         return
     if run.report_moved or not stands:
         gh.write_pinned_state(issue, state)
         return
-    in_hand = _persists(state, decision, _claims.claimed_evidence(issue, state, run))
+    in_hand = _persists(state, decision, claimed)
     if in_hand is None:
         log.warning(
             "issue=#%d could not persist its reviewer's verdict and evidence "
@@ -221,9 +225,11 @@ def _waits_on_its_evidence(
     settle. So a transaction still owed -- a publication that stood down --
     holds the verdict, written nowhere, for the reconciliation ahead of the
     next tick to publish and the tick behind it to finish. One that can never
-    settle -- retired, or recorded under a verification context that has since
-    moved -- drops the verdict instead, for a fresh reviewer, rather than
-    waiting on it forever.
+    settle -- retired, superseded by a later revision, or recorded under a
+    verification context that has since moved -- drops the verdict instead,
+    for a fresh reviewer, rather than waiting on it forever, in a write
+    composed over the comment read again, so a report or evidence another road
+    settled meanwhile is kept; a comment that will not read writes nothing.
     """
     if claim is None or claim.use is not _verdicts.EvidenceUse.PUBLISHED:
         return False
@@ -241,7 +247,8 @@ def _waits_on_its_evidence(
         "declared can no longer be published", issue.number,
     )
     _verdicts.drops_the_verdict(state)
-    gh.write_pinned_state(issue, state)
+    if _parks.carries_the_standing_records(gh, issue, state) is not None:
+        gh.write_pinned_state(issue, state)
     return True
 
 

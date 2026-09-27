@@ -3458,10 +3458,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      - **the returned-verdict disposition** (`validating/review_disposition.py`), which no live round calls yet, is the
        road an approval or change request of a standing subject is to take instead: persisted as
        `review_returned_verdict` with the reviewer-reported transaction its declared commands are minted as, in ONE
-       write before anything is published; that transaction published through the
+       write before anything is published, the subject held to what stands and the comment read again after the
+       minting and ahead of that write; that transaction published through the
        [evidence reconciliation](#the-verification-evidence-transaction-every-dispatch) and the subject held again
        behind it; and the verdict acted on only once the evidence it declared settled — an owed transaction holds it
-       for a later tick, a lost one drops it for a fresh reviewer. A change request's handoff
+       for a later tick, a lost one — superseded by a later revision included — drops it for a fresh reviewer over the
+       comment read again. A change request's handoff
        (`validating/review_handoffs.py`) posts the feedback, holding the verdict unhanded where the post failed or left
        no id, holds the subject again behind that post, writes the verdict as `handed` with its
        `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to `workflow:fixing`, and holds the subject once more

@@ -3186,12 +3186,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             context, its whole artifact rendering as one comment; a reuse of exactly the current
                             evidence it was handed; or the reason it earns none. Also whether a claim's commands
                             cover every configured command exactly, and where its evidence stands -- settled or owed
-                            under the configured context, or lost
-      review_disposition.py the order a returned verdict is settled in, which no live round calls yet: held to the
-                            subject standing, the pinned comment read again behind that resolution, persisted with
-                            its minted transaction in one write, the evidence published through the dispatcher's
+                            under the configured context at the latest revision spent, or lost
+      review_disposition.py the order a returned verdict is settled in, which no live round calls yet: its evidence
+                            minted, then held to the subject standing and the pinned comment read again behind that
+                            resolution, the last requests before it is persisted with its minted transaction in one
+                            write, the evidence published through the dispatcher's
                             own reconciliation, the subject held again, and only then acted on -- an owed
-                            transaction holds the verdict, a lost one drops it, a refused approval parks only while
+                            transaction holds the verdict, a lost one drops it over the comment read again, a refused approval parks only while
                             its subject still stands and is dropped otherwise, and a comment with no room for either
                             parks it. `acts_on_the_verdict` is the half behind the persisted write, the entry a
                             later tick finishing a waiting verdict is to take

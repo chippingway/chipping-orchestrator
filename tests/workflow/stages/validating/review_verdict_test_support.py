@@ -45,7 +45,7 @@ from orchestrator.workflow.stages.validating import (
 )
 from tests.support.fakes import DEFAULT_PR_HEAD_SHA, FakeGitHubClient, make_issue
 from tests.workflow.fixtures import LABEL_VALIDATING, _agent, _PatchedWorkflowMixin, _reported, publishes_the_report
-from tests.workflow.git_owners import seam_patch
+from tests.workflow.git_owners import GIT_SEAM_OWNERS, seam_patch
 from tests.workflow.repo_values import _FAKE_WT, _TEST_SPEC
 from tests.workflow.value_helpers import _issue_branch, _open_pr_for
 
@@ -140,16 +140,20 @@ def reconciles(case) -> bool:
 
 
 class AnotherRoadBehind:
-    """A client request behind which, the `times`-th time `when` says, `road` does another road's work.
+    """A request behind which, the `times`-th time `when` says, `road` does another road's work.
 
-    `when` is asked about the request's last positional argument: the state a
-    write carries, the body a post carries, the location a reread asks about.
+    The request is the client's where the client carries one of that name, and
+    otherwise the git seam of that name on the owner defining it -- the tree
+    read evidence is minted over, say. `when` is asked about the request's last
+    positional argument: the state a write carries, the body a post carries,
+    the location a reread asks about, the commit a tree read names.
     """
 
     def __init__(self, case, request: str, when, road, times: int = 1) -> None:
         self._case = case
         self._name = request
-        self._request = getattr(case.github, request)
+        self._owner = case.github if hasattr(case.github, request) else GIT_SEAM_OWNERS[request]
+        self._request = getattr(self._owner, request)
         self._when = when
         self._road = road
         self._left = times
@@ -164,7 +168,7 @@ class AnotherRoadBehind:
 
     def returning(self, message: str) -> dict:
         """The tick in which a reviewer returned `message`, over a client carrying this request."""
-        with patch.object(self._case.github, self._name, self):
+        with patch.object(self._owner, self._name, self):
             return self._case.returns(message)
 
 
@@ -194,10 +198,14 @@ class ReviewVerdictWorld(_PatchedWorkflowMixin):
         run_options.setdefault(RUN_AGENT, [])
         return self._run(lambda: self._disposes(message), **run_options)
 
-    def finishes(self, *agents, **run_options) -> dict:
-        """One later tick: the evidence reconciliation, then the waiting verdict acted on where it does not hold."""
+    def finishes(self, *agents, meanwhile=None, **run_options) -> dict:
+        """One later tick: the evidence reconciliation, then the waiting verdict acted on where it does not hold.
+
+        `meanwhile` is another road's work once the tick has read the comment
+        it acts over.
+        """
         run_options.setdefault(RUN_AGENT, list(agents))
-        return self._run(self._finishes, **run_options)
+        return self._run(lambda: self._finishes(meanwhile), **run_options)
 
     def pinned(self) -> dict:
         """The pinned comment as the next tick reads it."""
@@ -224,11 +232,13 @@ class ReviewVerdictWorld(_PatchedWorkflowMixin):
         self.decision = _models._ReviewerDecision(run, verdict, body)
         _disposition.disposes_of_the_verdict(self.github, _TEST_SPEC, self.issue, state, self.decision)
 
-    def _finishes(self) -> None:
+    def _finishes(self, meanwhile) -> None:
         """The verdict the comment carries, acted on over the run it was returned from."""
         if reconciles(self):
             return
         state = self.github.read_pinned_state(self.issue)
+        if meanwhile is not None:
+            meanwhile(self)
         waiting = _verdicts.read_returned_verdict(state)
         run = replace(self.decision.run, resolved_over=dict(state.data))
         decision = _models._ReviewerDecision(run, waiting.verdict, waiting.feedback)
