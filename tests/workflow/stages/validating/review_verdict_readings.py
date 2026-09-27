@@ -53,11 +53,11 @@ def current_report_revision(case) -> int:
     return _report_settlement.read_current_report(case.github.read_pinned_state(case.issue)).report_revision
 
 
-def spawned_roles(case) -> list[str]:
+def spawned_roles(case) -> tuple[str, ...]:
     """The role of every agent `case`'s issue has spawned through the tracked runner, in order."""
-    return [
+    return tuple(
         event.get("agent_role") for event in case.github.recorded_events if event["event"] == EVENT_AGENT_SPAWN
-    ]
+    )
 
 
 def feedback_posts(case) -> list[str]:

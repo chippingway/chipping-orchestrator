@@ -1743,21 +1743,22 @@ The keys that matter for the state machine fall into a few groups:
   record already present: `workflow:validating` finishes one ahead of the round cap and the spawn -- no reviewer run,
   usage fold, run charge, or round spent -- while its subject still resolves to the one recorded, moving the label and
   launching the developer without a second post where a handed request's relabel never landed; `workflow:fixing`
-  launches the one developer a handed request's ledger shows unlaunched (nothing charged past `handed`, a charge still
-  `reserved`, which that launch spends rather than charging again, or the one charge past `handed` naming another
+  launches the one developer a handed request's ledger shows unlaunched (nothing charged past `handed`, or the ONE
+  charge past it either still `reserved` -- which that launch spends rather than charging again -- or naming another
   launch's `agent_run_fingerprint`) instead of the no-feedback bounce spending a second reviewer. A charge `started`
   under the developer's own fingerprint with no commit on the branch to show a run did anything -- or more than one
-  charge past `handed`, the latest another's -- parks under `agent_execution_failed`, where `/orchestrator continue`
-  replays the posted feedback to a fresh developer session. A subject that moved, a park a reply cleared into a fresh
-  round, a developer already launched, or a record in any shape its reader refuses drops it. Additive: an issue without
-  it has no verdict waiting. It is measured before it is staged -- a change request's feedback has no bound -- at the
-  widest write it is part of: a change request's handoff, with its count, anchor, and that comment's ledger entry, and
-  the developer launch's `agent_runs_used` / `agent_run_reservation` / `agent_run_fingerprint` charge composed over it
-  while the record still stands, each reserved at the widest a recorded number or fingerprint is spelled, and the
-  claimed transaction and its settlement measured beside that. A verdict the comment has no room for, or whose
-  transaction it has no room for, is not acted on: it parks under `reviewer_unrecorded`. An approval of the subject
-  still standing -- one a push or a later report moved since its write is dropped for a fresh reviewer instead -- parks
-  under `reviewer_unverified` unless its claim names the current evidence exactly and that evidence proves current, its
+  charge past `handed` whose latest is not the developer's own spawned launch, `reserved` included, since it rules out
+  none of the charges before it -- parks under `agent_execution_failed`, where `/orchestrator continue` replays the
+  posted feedback to a fresh developer session. A subject that moved, a park a reply cleared into a fresh round, a
+  developer already launched, or a record in any shape its reader refuses drops it. Additive: an issue without it has no
+  verdict waiting. It is measured before it is staged -- a change request's feedback has no bound -- at the widest write
+  it is part of: a change request's handoff, with its count, anchor, and that comment's ledger entry, and the developer
+  launch's `agent_runs_used` / `agent_run_reservation` / `agent_run_fingerprint` charge composed over it while the
+  record still stands, each reserved at the widest a recorded number or fingerprint is spelled, and the claimed
+  transaction and its settlement measured beside that. A verdict the comment has no room for, or whose transaction it
+  has no room for, is not acted on: it parks under `reviewer_unrecorded`. An approval of the subject still standing --
+  one a push or a later report moved since its write is dropped for a fresh reviewer instead -- parks under
+  `reviewer_unverified` unless its claim names the current evidence exactly and that evidence proves current, its
   re-read artifact still the one that settled, and passes and covers the configuration by the artifact's own commands
   rather than by the claim's copied `passed` and `covers`; a bare `/orchestrator continue` on either park buys a fresh
   reviewer.

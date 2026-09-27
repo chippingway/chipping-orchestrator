@@ -88,7 +88,7 @@ class VerdictRecoveryTest(_world.ReviewVerdictWorld, unittest.TestCase):
 
                 self.assertEqual(
                     (ran[_world.RUN_AGENT].call_count, _read.spawned_roles(self)),
-                    (1, ["reviewer"]),
+                    (1, ("reviewer",)),
                 )
 
     def test_a_lost_claim_drops_its_waiting_verdict(self) -> None:
@@ -113,7 +113,7 @@ class VerdictRecoveryTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 reviewed[_world.RUN_AGENT].call_count,
                 _read.spawned_roles(self),
             ),
-            (0, None, [], 1, ["reviewer"]),
+            (0, None, [], 1, ("reviewer",)),
         )
 
     def _notes(self, text: str) -> None:

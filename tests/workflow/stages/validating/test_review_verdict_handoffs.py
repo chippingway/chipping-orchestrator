@@ -48,6 +48,16 @@ STRANDED = MappingProxyType({
 
 PUSH = "_push_branch"
 
+# The one agent a handed change request is owed, as its spawn names it.
+DEVELOPER = ("developer",)
+
+# Who took a reservation standing behind the developer's own launch: another
+# road, or a retry under this launch's own fingerprint.
+_LATER_RESERVATIONS = (
+    ("another road's", lambda _case: ANOTHER_LAUNCH),
+    ("this launch's own", lambda case: case.pinned()[FINGERPRINT]),
+)
+
 EXECUTION_FAILED = "agent_execution_failed"
 
 # Ticks on `fixing` with nothing new on the thread, which a park waits through.
@@ -148,6 +158,14 @@ class _FixingTicks(_world.ReviewVerdictWorld):
         """The lifetime agent-run count the issue carries now."""
         return self.pinned()[_world.AGENT_RUNS_USED]
 
+    def _charges(self, fingerprint: str, phase: str) -> None:
+        """One more charge on the ledger, under `fingerprint`, standing at `phase`."""
+        state = self.github.read_pinned_state(self.issue)
+        state.set(_world.AGENT_RUNS_USED, self._charged() + 1)
+        state.set(RESERVATION, phase)
+        state.set(FINGERPRINT, fingerprint)
+        self.github.write_pinned_state(self.issue, state)
+
 
 class HandedChangeRequestTest(_FixingTicks, unittest.TestCase):
     """A change request relabelled to `fixing` whose developer was never charged."""
@@ -181,12 +199,7 @@ class HandedChangeRequestTest(_FixingTicks, unittest.TestCase):
         # The one charge past the handoff names another role's launch and
         # started: it says nothing about this developer, who is still owed
         # and launched once, rather than parked as a launch that never ended.
-        handed = self._charged()
-        state = self.github.read_pinned_state(self.issue)
-        state.set(_world.AGENT_RUNS_USED, handed + 1)
-        state.set(RESERVATION, STARTED)
-        state.set(FINGERPRINT, ANOTHER_LAUNCH)
-        self.github.write_pinned_state(self.issue, state)
+        self._charges(ANOTHER_LAUNCH, STARTED)
 
         fixed = self._fixing(_world.developer())
 
@@ -198,7 +211,7 @@ class HandedChangeRequestTest(_FixingTicks, unittest.TestCase):
                 self.pinned()[_world.RETURNED_VERDICT],
                 self.github.label_history[-1],
             ),
-            (1, ["developer"], None, None, (_world.ISSUE, LABEL_VALIDATING)),
+            (1, DEVELOPER, None, None, (_world.ISSUE, LABEL_VALIDATING)),
         )
 
 
@@ -217,7 +230,7 @@ class InterruptedLaunchTest(_FixingTicks, unittest.TestCase):
         charged = self._charged()
         self.assertEqual(
             (self.pinned()[RESERVATION], _read.spawned_roles(self)),
-            ("reserved", []),
+            ("reserved", ()),
         )
 
         fixed = self._fixing(_world.developer())
@@ -229,7 +242,7 @@ class InterruptedLaunchTest(_FixingTicks, unittest.TestCase):
                 self._charged(),
                 self.pinned()[_world.RETURNED_VERDICT],
             ),
-            (1, ["developer"], charged, None),
+            (1, DEVELOPER, charged, None),
         )
 
     def test_a_started_launch_that_committed_stands(self) -> None:
@@ -252,8 +265,34 @@ class InterruptedLaunchTest(_FixingTicks, unittest.TestCase):
                 bounced[PUSH].call_count,
                 self.github.label_history[-1],
             ),
-            (0, ["developer"], charged, None, 1, (_world.ISSUE, LABEL_VALIDATING)),
+            (0, DEVELOPER, charged, None, 1, (_world.ISSUE, LABEL_VALIDATING)),
         )
+
+    def test_a_later_reservation_parks_the_handoff(self) -> None:
+        # The developer's launch started and died, and a later charge stands
+        # reserved behind it: that reservation says nothing about the run
+        # before it, so no second developer is launched or charged, and the
+        # handoff parks for the operator.
+        for name, fingerprint in _LATER_RESERVATIONS:
+            with self.subTest(name):
+                self.setUp()
+                with self.assertRaises(RuntimeError):
+                    self.returns(REQUESTING, run_agent=MagicMock(side_effect=DIED))
+                self._charges(fingerprint(self), "reserved")
+                charged = self._charged()
+
+                parked = self._fixing(_world.developer())
+
+                self.assertEqual(
+                    (
+                        parked[_world.RUN_AGENT].call_count,
+                        _read.spawned_roles(self),
+                        self._charged(),
+                        self.pinned()[_world.PARK_REASON],
+                        self.pinned()[_world.RETURNED_VERDICT],
+                    ),
+                    (0, DEVELOPER, charged, EXECUTION_FAILED, None),
+                )
 
     def test_an_unfinished_launch_parks_for_one_retry(self) -> None:
         # STARTED goes down before the spawn, and nothing on the branch says a

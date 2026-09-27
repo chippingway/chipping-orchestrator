@@ -24,18 +24,19 @@ still standing is a handoff whose developer's run wrote nothing, and what that
 means is read off the ledger the launch charges before it spawns
 (`run_circuit`), which records two phases durably and the end of neither.
 
-Nothing charged past the handed count, or a charge still RESERVED, is a launch
-that never spawned: the developer is OWED, and the same logical launch reuses
-that reservation rather than paying twice -- the circuit reuses one only for
-the launch it was taken for, and charges anew over anybody else's. Any other
-charge past the count is read as the developer's only where the ledger names
-the launch it would be (`implementing/execution._first_launch_fingerprint`):
-one charge past the handoff that names another road's launch -- an operator
-who moved the issue and ran another role before bringing it back -- says the
-developer never launched, so it is OWED; more than one says nothing about
-where the developer's own went, so it is UNFINISHED. A charge of this launch
-whose phase is gone was settled by a write behind a run that returned: the
-developer was LAUNCHED. One STARTED is the reading the ledger cannot settle,
+Nothing charged past the handed count is a launch that never happened: the
+developer is OWED. So is the ONE charge past it where it rules the developer's
+launch out -- still RESERVED, a launch nobody spawned, which the same logical
+launch reuses rather than paying twice (the circuit reuses one only for the
+launch it was taken for, and charges anew over anybody else's); or naming
+another road's launch, an operator who moved the issue and ran another role
+before bringing it back. A charge is read as the developer's only where the
+ledger names the launch it would be (`implementing/execution._first_launch_fingerprint`).
+Past one charge the latest rules nothing out about the ones before it -- any of
+them may have been the developer's, run to completion or not -- so unless the
+latest is the developer's own launch, spawned, it is UNFINISHED, whatever its
+phase. A charge of this launch whose phase is gone was settled by a write
+behind a run that returned: the developer was LAUNCHED. One STARTED is the reading the ledger cannot settle,
 because the phase goes down before the spawn: the process may have stopped
 short of it, or a developer may have run and had its result discarded
 unwritten -- a live pause does exactly that. The branch tells the two apart
@@ -162,19 +163,22 @@ def handoff_launch(
 ) -> HandoffLaunch:
     """Whether `returned`'s developer is owed, was launched, or left nothing to say either way.
 
-    A verdict never handed over is owed by definition, and a charge standing
-    RESERVED is a launch nobody spawned, whoever took it.
+    A verdict never handed over is owed by definition. The latest charge
+    speaks for the whole ledger past the handoff only where it is the one
+    charge there: a reservation nobody spawned, or another road's launch.
     """
     handed = returned.handed
     runs_used = _run_ledger_values._runs_used(state)
-    if handed is None or runs_used <= handed or (
-        _run_ledger_values._reservation(state) is _run_ledger_models.RunPhase.RESERVED
-    ):
+    if handed is None or runs_used <= handed:
         return HandoffLaunch.OWED
+    reserved = _run_ledger_values._reservation(state) is _run_ledger_models.RunPhase.RESERVED
     this_launch = _execution._first_launch_fingerprint(state, stage_name(WorkflowLabel.FIXING))
-    if _run_ledger_values._fingerprint(state) != this_launch:
-        return HandoffLaunch.OWED if runs_used == handed + 1 else HandoffLaunch.UNFINISHED
-    return _where_the_launch_went(spec, issue, state)
+    ours = _run_ledger_values._fingerprint(state) == this_launch
+    if runs_used == handed + 1 and (reserved or not ours):
+        return HandoffLaunch.OWED
+    if ours and not reserved:
+        return _where_the_launch_went(spec, issue, state)
+    return HandoffLaunch.UNFINISHED
 
 
 def _where_the_launch_went(spec: config.RepoSpec, issue: Issue, state: PinnedState) -> HandoffLaunch:

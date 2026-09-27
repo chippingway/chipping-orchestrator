@@ -3203,8 +3203,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             -- a moved subject drops the verdict over the newer records. Also whether a handed
                             request's developer is owed, launched, or unfinished -- read off the lifetime ledger
                             past the handed count, only where its fingerprint names that developer's own launch,
-                            and, for a `started` charge, the branch -- and the `agent_execution_failed` park an
-                            unfinished launch takes
+                            with the latest charge ruling the developer out only where it is the one charge past
+                            the handoff, and, for a `started` charge, the branch -- and the
+                            `agent_execution_failed` park an unfinished launch takes
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its
