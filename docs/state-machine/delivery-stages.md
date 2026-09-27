@@ -327,12 +327,13 @@ Per-stage specifics:
   standing for any OTHER reason hears the refusal, which supersedes it: what the issue waits on now is a decision
   about the commits.
 - For **`workflow:validating`** drift, the handler defers to the awaiting-human branch when `park_reason` is
-  reviewer-side (`reviewer_timeout` / `reviewer_failed`): a "retry" reply after a reviewer failure must re-spawn the
-  reviewer, not the dev. A deferral delivers the edit to nobody, so it records nothing about it — no watermark and
-  no baseline. What it does record is `validating_reviewer_owes_a_round`, because the park is gone before that
-  round runs: the silent recovery clears the flags and ends its tick, a report still owed holds the reviewer behind
-  a clear already written, and without the note the edit would take a later tick down the developer's road ahead of
-  the retry the park was taken for. The road that clears such a park into a round writes the same note, with the
+  reviewer-side (`reviewer_timeout` / `reviewer_failed` / `reviewer_unverified` / `reviewer_unrecorded`): a "retry"
+  reply after a reviewer failure must re-spawn the reviewer, not the dev. A deferral delivers the edit to nobody, so it
+  records nothing about it — no watermark and no baseline. What it does record is `validating_reviewer_owes_a_round`,
+  because the park is gone before that round runs: the silent recovery clears the flags and ends its tick, a report
+  still owed holds the reviewer behind a clear already written, and without the note the edit would take a later tick
+  down the developer's road ahead of the retry the park was taken for. The road that clears such a park into a round
+  writes the same note, with the
   value saying a REPLY bought the round rather than a recovery releasing one — and a deferral never writes over a
   claim already standing, or the round would be left with nothing to record. The round that runs drops the note and
   records what bought it — the retry reply or the operator's grant — off the one read its OWN prompt was
@@ -3303,11 +3304,11 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      session and return time, for the round's own write: the launch's `review_subject` went down before the run
      budget was asked, so only this one says a reviewer really read the report.
      Past it, and before the timeout park, the no-verdict park, or anything a verdict earns is written, the pinned
-     comment is read again against the reading the subject was bound to (`review_comment._records_stand`): a report
-     record it moved since — a later report settled on the same head by another road — is carried onto the state in
-     hand with everything else the comment changed since, so every write the run makes keeps that settlement current
-     instead of putting back the report the reviewer was handed, and the verdict is not acted on; a comment that will
-     not read or parse carries nothing, and the tick ends with nothing written.
+     comment is read again against the reading the subject was bound to (`review_comment._records_stand`): a report or
+     verification evidence record it moved since — a later report settled on the same head by another road — is
+     carried onto the state in hand with everything else the comment changed since, so every write the run makes keeps
+     that settlement current instead of putting back the report the reviewer was handed, and the verdict is not acted
+     on; a comment that will not read or parse carries nothing, and the tick ends with nothing written.
   6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
      - **approved** → unless the report records moved above, the whole subject is resolved again
        (`review_coverage._subject_still_stands`), over the issue read afresh, and has to equal the one the reviewer
@@ -3315,16 +3316,17 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        an issue edit, or a report edited or removed while the reviewer ran, or a reading nobody could take, means the
        approval is not acted on: the run is recorded and the next tick resolves the subject as it stands. Then, in
        order: (1) run the local verify gate
-       (`_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`) and read the pinned comment again
-       as on the reviewer's return, before anything below is written — a comment that will not read ends the tick with
-       nothing written, and report records that moved are carried first; an empty command tuple returns `not_run`,
-       which advances without being evidence that anything passed, and any other non-ok result parks via
-       `_park_verify_failure` with a typed `park_reason`
+       (`_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`); where it passed, resolve and
+       compare the subject once more, since a verification can run long enough for the report to be edited or
+       replaced under it; then read the pinned comment again as on the reviewer's return, last, before anything below
+       is written — a comment that will not read ends the tick with nothing written, and report or verification
+       evidence records that moved during the gate or that resolution are carried first and refuse the approval. An
+       empty command tuple returns `not_run`, which advances without being evidence that anything passed, and any
+       other non-ok result parks via `_park_verify_failure` with a typed `park_reason`
        (`verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`) and the
        approval / squash / handoff do NOT fire (see
-       [`configuration.md#local-verification-gate`](../configuration.md#local-verification-gate)); otherwise, where the
-       records stood, resolve and compare the subject once more, since a verification can run long enough for the
-       report to be edited or replaced under it, and act on the approval only if it still stands; then stage the
+       [`configuration.md#local-verification-gate`](../configuration.md#local-verification-gate)); otherwise the
+       approval is acted on only where the records stood and the subject still stands; then stage the
        subject as `review_approved_subject`, retiring the `docs_verdict` and `ready_ping_sha` an earlier approval left,
        since both are keyed on a head this approval may share; (2) post `:white_check_mark: codex review approved.`;
        (3) when `SQUASH_ON_APPROVAL` is on (default), call
@@ -3453,6 +3455,22 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        the post-spawn state (no resume-budget charge, no watermark, no park), so the pre-spawn `workflow:fixing` flip
        stands and the next tick re-runs the cycle; any commit the killed run left is republished later via the
        stranded-fix tail, not this run.
+     - **the returned-verdict disposition** (`validating/review_disposition.py`), which no live round calls yet, is the
+       road an approval or change request of a standing subject is to take instead: persisted as
+       `review_returned_verdict` with the reviewer-reported transaction its declared commands are minted as, in ONE
+       write before anything is published; that transaction published through the
+       [evidence reconciliation](#the-verification-evidence-transaction-every-dispatch) and the subject held again
+       behind it; and the verdict acted on only once the evidence it declared settled — an owed transaction holds it
+       for a later tick, a lost one drops it for a fresh reviewer. A change request's handoff
+       (`validating/review_handoffs.py`) posts the feedback, holding the verdict unhanded where the post failed or left
+       no id, holds the subject again behind that post, writes the verdict as `handed` with its
+       `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to `workflow:fixing`, and holds the subject once more
+       before the developer launch. An approval parks under `reviewer_unverified` unless the evidence it names is
+       settled, proved current, passing, and covering `VERIFY_COMMANDS` by its own artifact
+       (`validating/unverified_approvals.py`), and a verdict the comment has no room to persist parks under
+       `reviewer_unrecorded` with nothing acted on (`validating/review_parks.py`). A subject that moved behind any of
+       those requests drops the verdict over the newer records; one nobody could read holds it. The record and both
+       parks are described under [pinned state](labels-and-state.md#pinned-state).
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.
      On a hit the handler returns WITHOUT running its result handler (`_post_user_content_change_result` /

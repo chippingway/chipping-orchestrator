@@ -24,7 +24,10 @@ the record and are closed by the write that settles the report.
 
 The reviewer-feedback comment's id is recorded because a session-failure park
 on this route has to be retryable by `/orchestrator continue`, and the fixing
-handler replays that exact comment to reconstruct the batch. It is a
+handler replays that exact comment to reconstruct the batch. It is the one
+durable copy of the feedback once a persisted verdict is handed on, so that
+handoff (`review_handoffs`) waits for it, while a change request nothing
+persisted has no later tick to post from and goes on without it. It is a
 standalone key rather than part of the in_review bookmark pair, since
 `pending_fix_at` is what tells that route's round RESET from this route's
 bump.
@@ -169,10 +172,18 @@ def _park_reviewer_no_verdict(
     gh.write_pinned_state(issue, state)
 
 
-def _post_reviewer_feedback(context: _models._RequestedChanges) -> None:
+def _post_reviewer_feedback(context: _models._RequestedChanges) -> bool:
+    """Post the reviewer's feedback on the PR and record its id; False where it did not land.
+
+    The id is the replay anchor a `/orchestrator continue` on a later park of
+    this route hands to a fresh developer, so a post that failed, or whose id
+    could not be read, is no post a persisted verdict's handoff may proceed
+    behind. An issue with no pull request has nowhere to post and nothing to
+    hold.
+    """
     reviewer_run = context.decision.run
     if reviewer_run.pr_number is None:
-        return
+        return True
     round_display = reviewer_run.round_n + 1
     feedback = context.decision.feedback
     try:
@@ -191,10 +202,12 @@ def _post_reviewer_feedback(context: _models._RequestedChanges) -> None:
             context.issue.number,
             reviewer_run.pr_number,
         )
-        return
+        return False
     anchor_id = getattr(reviewer_comment, "id", None)
-    if anchor_id is not None:
-        context.state.set("pending_fix_reviewer_comment_id", int(anchor_id))
+    if anchor_id is None:
+        return False
+    context.state.set("pending_fix_reviewer_comment_id", int(anchor_id))
+    return True
 
 
 def _run_requested_fix(context: _models._RequestedChanges) -> _models._AwaitingDevAttempt:

@@ -9,13 +9,16 @@ moment the approval is acted on, and the head is the one thing the stamps an
 approval leaves behind are keyed on. So an approval is held to the subject
 standing NOW wherever it is about to be relied on.
 
-When the reviewer returns, and again once its approval is verified, the
-report records on the pinned comment are asked first (`review_comment`): a
-report settling on the same head while the reviewer ran is a subject the
-records in hand cannot see, and refuses the verdict. Only where they stand is
-the whole subject resolved again the way `review_report` resolved it before
-the spawn -- over the issue read afresh -- and has to equal the one handed
-over. Later, the approval is held to the
+When the reviewer returns, the report records on the pinned comment are asked
+first (`review_comment`): a report settling on the same head while the
+reviewer ran is a subject the records in hand cannot see, and refuses the
+verdict. Only where they stand is the whole subject resolved again the way
+`review_report` resolved it before the spawn -- over the issue read afresh --
+and has to equal the one handed over. Once the approval is verified the order
+is the other way round: the subject is resolved first and the comment read
+behind it, the last request before the approval writes, so report or
+evidence records settling during that resolution are carried rather than
+written back over. Later, the approval is held to the
 report recorded as current -- the pinned records have to agree it is the one
 approved, and the report is read at its location once more, since no pinned
 record sees a human editing or deleting the comment in place -- to the
@@ -29,6 +32,12 @@ reviewer, whether an approval or the recovery of a squash an earlier tick did
 not finish sent it there; the settled handoff asks it before moving a label
 that tail left owed; and `in_review` asks it before the approval may stand
 behind a ready ping.
+
+A persisted verdict is held to its subject again behind every request that
+could let it move (`_verdict_still_stands`) -- its evidence's publication, its
+own write, a change request's feedback post -- ahead of the change request or
+the approval it carries: a push or a report settling in between is a subject
+nobody reviewed.
 
 Nothing here parks or posts. What a refusal owes is the next reviewer
 round's to decide, and that round resolves the subject for itself.
@@ -49,7 +58,7 @@ from orchestrator.workflow.engine import (
     review_subjects as _review_subjects,
 )
 from orchestrator.workflow.late_split import payloads as _payloads
-from orchestrator.workflow.stages.validating import review_report as _review_report
+from orchestrator.workflow.stages.validating import review_comment as _review_comment, review_report as _review_report
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -64,8 +73,8 @@ def _subject_still_stands(
     issue: Issue,
     state: PinnedState,
     subject: _review_subjects.ReviewSubject,
-) -> bool:
-    """Whether a verdict that just came back is of the subject standing now.
+) -> bool | None:
+    """Whether a verdict that just came back is of the subject standing now; None where nobody could read it.
 
     Asked once `review_comment` has found the report records where they were.
     The whole subject is resolved again, exactly as it was before the spawn,
@@ -74,24 +83,59 @@ def _subject_still_stands(
     report -- revision, digest, location, and words. The reviewer ran for
     minutes, and a push, an edit of the issue, or a human editing or removing
     the report in that time is a subject nobody reviewed. A reading nobody
-    could take is no proof either. Nothing is parked here: the next tick
-    resolves the subject for a reviewer of its own, and refuses it there if it
-    has to.
+    could take is no proof either way, and is told apart as None: a caller
+    that acts only on a proved subject reads it as not standing, and one
+    holding a persisted verdict holds it rather than dropping it as stale.
+    Nothing is parked here: the next tick resolves the subject for a reviewer
+    of its own, and refuses it there if it has to.
     """
     requirements = _fresh_requirements(gh, issue, state)
-    standing = None
-    if requirements is not None:
-        standing, _ = _review_report._reads_the_subject(
-            gh, issue, state, subject.pr_number, requirements,
-        )
+    if requirements is None:
+        return None
+    standing, refusal = _review_report._reads_the_subject(
+        gh, issue, state, subject.pr_number, requirements,
+    )
     if standing == subject:
         return True
+    if standing is None and not refusal:
+        return None
     log.warning(
         "issue=#%d reviewer approved a subject PR #%s no longer stands on as "
         "it was handed; not acting on the approval", issue.number,
         subject.pr_number,
     )
     return False
+
+
+def _verdict_still_stands(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    subject: _review_subjects.ReviewSubject,
+    resolved_over: dict | None = None,
+) -> bool | None:
+    """Whether a verdict of `subject` still stands once the requests since it was last held to it are over.
+
+    A publication, a verdict's own write, or a feedback post is a request
+    long enough for another road to push or to settle a later report, which
+    is on the pinned comment and nowhere in hand while the earlier report
+    still reads where it was. So the whole subject is resolved again, and
+    then -- since that resolution is requests of its own -- the comment is
+    read again against `resolved_over`, the state in hand by default
+    (`review_comment._records_stand`), carrying whatever it moved onto that
+    state: a write behind this keeps a report that settled at any point
+    before it rather than putting the older records back. False only where
+    something is proved to have moved -- the records, or a subject read whole
+    that is another -- and None where the comment or the subject would not
+    read: a persisted verdict is held for the next tick to ask again, never
+    dropped as stale over a reading nobody could take.
+    """
+    baseline = dict(state.data) if resolved_over is None else resolved_over
+    stands = _subject_still_stands(gh, issue, state, subject)
+    stood = _review_comment._records_stand(gh, issue, state, baseline)
+    if stood is None:
+        return None
+    return stands if stood else False
 
 
 def _approval_stands(gh: GitHubClient, state: PinnedState) -> bool | None:

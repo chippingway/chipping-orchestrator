@@ -11,9 +11,10 @@ which would spend another run, fold its usage again, and could say something
 else about the same subject. So the verdict is to be written onto the pinned
 comment in the write that records the returned reviewer's run, before the
 evidence is published or the verdict disposed of, and dropped by whichever
-write disposes of it. No live reviewer round writes it yet: the round keeps
-acting on its verdict in the tick it returns, and this owner is the record
-alone -- its shape, its reader, its measurement, and its writers.
+write disposes of it (`review_disposition`). No live reviewer round calls that
+service yet: the round keeps acting on its verdict in the tick it returns, and
+this owner is the record alone -- its shape, its reader, its measurement, and
+its writers.
 
 `review_returned_verdict` holds the round the reviewer ran as, its verdict,
 the subject it was handed exactly as `review_subjects` records one, the

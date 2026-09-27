@@ -26,7 +26,7 @@ already held the named revision to that evidence's digest; what it earns is a
 claim on that record exactly, receipt, revision, and digest, and on nothing
 else -- a reviewer handed no evidence has nothing it may reuse, so a reuse it
 declares anyway is stale. Whoever relies on the claim later proves that
-evidence current again first.
+evidence current again first (`unverified_approvals`).
 
 Either claim also says whether its commands cover the repository's own
 verification: every configured `VERIFY_COMMANDS` command, exactly as
@@ -45,7 +45,7 @@ read. A change request stands without evidence; an approval does not.
 Nothing is written here: the transaction is minted, not recorded, because its
 record has to be measured beside the verdict it is persisted with
 (`review_verdicts.records_the_verdict`). No live reviewer round asks for a
-claim yet.
+claim yet; only the dormant disposition service does (`review_disposition`).
 """
 from __future__ import annotations
 
