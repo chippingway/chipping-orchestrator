@@ -59,7 +59,11 @@ one last settled, re-read and quoted whole -- or refuses the round over one
 the thread has moved out of reach, and `review_comment` binds that subject to
 the pinned comment carrying the report records it was resolved from.
 `review_evidence` is the reader of the verification evidence current for that
-very subject, which no round asks yet.
+very subject, which no round asks yet. What a returned reviewer's verification
+declaration earns is decided in `review_claims` -- a transaction minted from
+the commands it ran, a claim on the evidence it was handed, or nothing -- and
+`review_verdicts` owns the record a verdict is to be persisted in beside that
+claim before anything acts on it; no round asks either yet.
 `review_records` writes what the round puts down -- the spec and subject ahead
 of the spawn, the session on its return -- and reserves the whole round, at
 its widest, in the measurement a developer report is accepted under.
