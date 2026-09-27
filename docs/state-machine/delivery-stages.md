@@ -978,7 +978,8 @@ because there it is the claim that this stage has already rerouted rather than a
     or deleted meanwhile, it stands down); then one write, composed over that fresh comment, makes it current, moves the
     earlier current evidence into history as superseded, and records the handoff.
   - **Held** → a reading nobody could take: the pull request, the fetch, the divergence, the report's location, the
-    requirements, or an unconfirmed post. The next tick asks again.
+    requirements, an unconfirmed post, or the issue, the pinned comment, or the artifact re-read before a settling or
+    retiring write. The next tick asks again.
   - **Stood down** → a moved head or branch, an absent checkout, an id that is not a commit itself, an unreadable or
     different tree, a moved configuration, a pinned `pr_number` naming another pull request, a report still owed (a
     delivery, a transaction, or an undeliverable park), a review subject absent, replaced, about another head than the
