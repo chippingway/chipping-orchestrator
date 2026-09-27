@@ -36,9 +36,11 @@ name that report's revision and digest, and pass every rule that reader holds
 a subject read whole to before it hands one over: requirements that are the
 revision the round was due -- the drift baseline, or the thread through the
 reply that bought the round -- and a report not stale against the subject,
-about its very head and written against that baseline. A report gone, edited,
-or out of step with its handoff is a subject nobody can hand a reviewer, and
-one nobody could re-read holds.
+about its very head and written against that baseline -- or older than a
+baseline that is the subject's own requirements, which is the settlement of the
+reply that bought the reviewer's round rather than an edit anybody owes. A
+report gone, edited, or out of step with its handoff is a subject nobody can
+hand a reviewer, and one nobody could re-read holds.
 
 The REQUIREMENTS last: the issue still has to carry the revision the evidence
 was bound to, read by the fingerprint the drift owner and every report
@@ -75,6 +77,9 @@ log = logging.getLogger("orchestrator.workflow")
 # The pull request this issue records as its own, the canonical identity every
 # piece of evidence has to name.
 _PR_NUMBER = "pr_number"
+
+# The requirements baseline the drift check holds the issue to.
+_BASELINE = "user_content_hash"
 
 # The recorded review subject each witness's evidence answers for.
 _APPLICABLE_SUBJECT = MappingProxyType({
@@ -134,8 +139,11 @@ def report_verdict(
     requirements the round was due (`review_report._outran_the_drift_check`),
     then staleness (`review_report._stale_refusal`) -- about the very commit
     the subject's head is, and written against the requirements baseline the
-    drift check holds the issue to. A report about another commit on the same
-    tree is one no reviewer would be handed with this subject.
+    drift check holds the issue to, or older than a baseline that is the
+    subject's own requirements, which only the settlement of the reply that
+    bought the round leaves (`_handing_refusal`). A report about another
+    commit on the same tree is one no reviewer would be handed with this
+    subject.
     """
     review_report = importlib.import_module(_stage_targets._VALIDATING_REVIEW_REPORT_OWNER)
     report, refusal = review_report._settled_report(gh, state, target.publication.pr_number)
@@ -163,11 +171,24 @@ def report_verdict(
 
 
 def _handing_refusal(state: PinnedState, subject: _review_subjects.ReviewSubject) -> str:
-    """Why the validating reader would not hand `subject` to a reviewer now, or ""."""
+    """Why the validating reader would not hand `subject` to a reviewer now, or "".
+
+    Asked after the round that was handed `subject` has returned, and a round
+    a reply bought settles that reply as it returns, moving the drift baseline
+    onto the requirements its reviewer read -- past the report, which the
+    reader handed over as written against the baseline before that. A report
+    older than a baseline that is the subject's own requirements is that
+    round's own settlement rather than an edit the developer owes an answer:
+    the reader cannot hand over requirements past the report any other way.
+    """
     review_report = importlib.import_module(_stage_targets._VALIDATING_REVIEW_REPORT_OWNER)
     if review_report._outran_the_drift_check(state, subject):
         return "the review subject's requirements are not the revision its reviewer was due"
-    return review_report._stale_refusal(state, subject)
+    refusal = review_report._stale_refusal(state, subject)
+    settled_onto = subject.requirements_revision == state.get(_BASELINE)
+    if refusal == review_report._MOVED_REQUIREMENTS and settled_onto:
+        return ""
+    return refusal
 
 
 def requirements_verdict(

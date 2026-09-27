@@ -39,6 +39,7 @@ _OWNERS = (
     "report_hold",
     "report_settlement",
     "requested_changes",
+    "review_evidence",
     "reviewer",
     "state",
     "stranded",

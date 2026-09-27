@@ -741,6 +741,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report quoted whole between the issue and the inspection commands, named by revision and
                             location, and a note where the requirements have moved on since it was written; a subject
                             with no report says none is recorded
+    review_evidence_prompts.py
+                            what a reviewer is to be told about verification, which nothing renders yet: the current
+                            evidence handed for its subject (`HandedEvidence`, the settled record and its artifact
+                            re-read), quoted whole -- preamble and every command with its status and output -- under
+                            the `sha256:` revision a reuse names, naming each listed command that did not exit 0 (a
+                            status about those commands alone, not the configured ones), or the note that none covers
+                            the subject; then the configured `VERIFY_COMMANDS` in order, or that none are configured
+                            and nothing the orchestrator runs is evidence that any check passed
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,
@@ -831,8 +839,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             handed it -- the settled pair held to each other and the report read at its location,
                             through `stages/validating/review_report.py` resolved when called -- named by that subject,
                             which passes that reader's own rules in its order (requirements the round was due, then a
-                            report not stale: about the subject's head, written against the drift baseline); and the
-                            requirements the evidence was bound to still the issue's own
+                            report not stale: about the subject's head, written against the drift baseline -- or older
+                            than a baseline that is the subject's own requirements, which only the settlement of the
+                            reply that bought the round leaves); and the requirements the evidence was bound to still
+                            the issue's own
     verification_proof.py   the whole proof, pull request first through `report_publication_evidence.py` and then
                             cheapest first (`rest_verdict`) -- the context against `configured_context_revision` (the
                             verify runner's own over the configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, for both
@@ -841,7 +851,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             which the settlement takes again over the comment it re-read. `current_evidence_verdict`
                             is for a reader about to rely on the current record: the pull request, then its
                             publication (`verification_current.py` -- the latest record, its handoff, its artifact),
-                            then the same proof. No production reader asks it yet
+                            then the same proof. Its one reader, `stages/validating/review_evidence.py`, is not asked
+                            by any round yet
     verification_current.py whether the current record is still what the pull request carries: no revision past it
                             spent (a newer transaction, its artifact posted or not, supersedes it), the handoff
                             describing it, and the comment it recorded, re-read, our artifact with every binding
@@ -3133,6 +3144,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             write to. The usage meters the return folds are left out: running totals every run folds,
                             already on the comment from the developer run whose report it is wherever that run's usage
                             parsed
+      review_evidence.py    the current verification evidence a reviewer is to be handed, which no round asks for yet:
+                            only a record bound to exactly the subject it is about to review -- pull request, head,
+                            requirements, and the report's revision and digest, compared whole -- proved current again
+                            (`current_evidence_verdict`), and its artifact re-read at the comment it settled as and
+                            held to the record again, so the words quoted are the ones the revision names; anything
+                            short of that, a reading nobody could take included, hands nothing and logs why, and the
+                            reviewer runs the verification itself
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its
