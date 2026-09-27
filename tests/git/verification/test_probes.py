@@ -288,6 +288,25 @@ class WorktreeDirtyFilesHardeningTest(unittest.TestCase):
         self.assertEqual(unhardened.stdout.strip(), tree2)
         self.assertEqual(probes._tree_sha(self.work, head1), tree1)
 
+    def test_an_annotated_tag_is_a_commit_only_peeled(self) -> None:
+        # Peeled, a tag answers for the commit it points at, and its tree reads
+        # as that commit's; unpeeled, only the commit itself is a commit.
+        head = probes._head_sha(self.work)
+        tree = probes._tree_sha(self.work, head)
+        tag = self._tags_head()
+
+        self.assertNotIn(tag, ("", head))
+        self.assertEqual(probes._tree_sha(self.work, tag), tree)
+        self.assertTrue(probes._commit_present(self.work, tag))
+        for named, is_commit in ((head, True), (tag, False), (tree, False)):
+            with self.subTest(named=named):
+                self.assertIs(probes._commit_present(self.work, named, peeled=False), is_commit)
+
+    def _tags_head(self) -> str:
+        """Tag HEAD with an annotated tag, and hand back the tag object's own id."""
+        _run_git("-c", "tag.gpgsign=false", "tag", "-a", "-m", SEED_FILE, SEED_FILE, cwd=self.work)
+        listed = commands._git("for-each-ref", "--format=%(objectname)", "refs/tags", cwd=self.work)
+        return listed.stdout.strip()
 
 if __name__ == "__main__":
     unittest.main()

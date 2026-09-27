@@ -4,9 +4,10 @@
 
 Restart and cancellation precede ordinary stage routing. Stage-owned
 reconciliation remains lazily resolved, and a pinned but unlabeled issue
-is not greeted again. The developer-report transaction is the one
-reconciliation here that belongs to no stage, so it is bound at module scope
-rather than resolved through `stage_targets.py`.
+is not greeted again. The developer-report transaction and the
+verification-evidence transaction behind it are the reconciliations here that
+belong to no stage, so they are bound at module scope rather than resolved
+through `stage_targets.py`.
 """
 from __future__ import annotations
 
@@ -25,6 +26,7 @@ from orchestrator.workflow.engine import (
     report_transaction as _report_transaction,
     run_limit_dispatch as _run_limit_dispatch,
     stage_targets as _stage_targets,
+    verification_transaction as _verification_transaction,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -132,8 +134,10 @@ def _pinned_state_refuses(
     finished publishing, which belongs to no one stage for the same reason:
     the record outlives the run that wrote it, and the handler about to run
     would spawn a reviewer over a report nobody put on the pull request.
-    Where it sits among the reconciliations above it, and why, is on
-    `_record_stops_the_tick` below, which is where the two are ordered.
+    Verification evidence recorded and never made current is answered right
+    behind it, for the same reason and about the report it names. Where both
+    sit among the reconciliations above them, and why, is on
+    `_record_stops_the_tick` below, which is where they are ordered.
 
     The spent agent-run ledger is asked between those two groups, and the
     place is the whole point of it. Behind the pair that RUN, because a
@@ -229,6 +233,13 @@ def _record_stops_the_tick(
     It stays ahead of the reuse guard and the handler, because both are roads
     that carry on over a report nobody published -- and the reviewer at the end
     of them is the reader the report was written for.
+
+    Verification evidence this issue recorded and has not made current is
+    answered directly behind it, and for the same reason one step further on:
+    evidence answers for a review subject naming the developer report, so a
+    report still owed is a subject about to move and must settle first. It
+    stays ahead of the reuse guard and the handler too, so whatever reads the
+    evidence behind them reads it settled or honestly still owed.
     """
     late_relabel = importlib.import_module(_stage_targets._LATE_RELABEL_OWNER)
     if late_relabel._holds_the_label(gh, issue, state):
@@ -246,6 +257,8 @@ def _record_stops_the_tick(
     ) or _anchor_holds_the_tick(gh, spec, issue, label, state):
         return True
     if _report_transaction._reconciles_pending_report(
+        gh, spec, issue, label, state,
+    ) or _verification_transaction._reconciles_pending_evidence(
         gh, spec, issue, label, state,
     ):
         return True

@@ -1725,9 +1725,9 @@ The keys that matter for the state machine fall into a few groups:
   that writer's shape -- a whole commit id as `sha` wherever `pr` names a pull request, and both report members or
   neither -- so a record short of its `sha` or its `requirements` is no approval either.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
-  than forked (`workflow/engine/verification_records.py`), and all DORMANT: their owners are complete and tested
-  directly, but no stage, guard, or dispatch path records, settles, or reads them yet, so no issue carries any of these
-  keys until an evidence transaction is wired in. `verification_evidence_pending` is one transaction, written BEFORE its
+  than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
+  producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one -- so no
+  issue carries these keys until one does. `verification_evidence_pending` is one transaction, written BEFORE its
   artifact is posted: a receipt (`issue-<n>-verification-<revision>-<nonce>`, which every record's reader holds to that
   record's own revision) and a revision past every one the issue has spent; the report subject's own `repo` / `pr` /
   `branch` / `sha` / `requirements` members, where `sha` is the head the evidence is written for; the review subject
@@ -1770,6 +1770,44 @@ The keys that matter for the state machine fall into a few groups:
   answers for, and its transcript is one the artifact would publish in one comment, measured at the widest receipt and
   revision a record carries -- the room on the pinned comment is left to the recorder; a failed, empty, timed-out,
   dirty, or moved run, or one on another head, binds nothing.
+  The dispatcher reconciles the pending record directly behind the developer-report transaction and ahead of the reuse
+  guard and the handler (`workflow/engine/verification_transaction.py`), so it is behind every pause, terminal,
+  adjudication, outstanding-publication, lease, and auto-rebase-anchor guard, and stands aside -- publishing and
+  dropping nothing -- on an issue that is closed, labelled `done` or `rejected`, held by a hard-skip control label, or
+  unlabelled. It publishes only once it has PROVED the pull request -- the one `pr_number` pins -- open on the recorded
+  branch and standing on the target head, the branch and checkout standing there too, the tested commit and the target
+  head each a readable commit in its own right (never an annotated tag peeling to one) carrying the recorded tree, the
+  configured context the recorded one, no developer report still owed (by the validating hold's own rule), the bound
+  review subject about the target head and equal to the applicable record (`review_returned_subject` for
+  reviewer-reported evidence, `review_subject` for orchestrator-executed), the settled report re-read exactly as a
+  reviewer is handed it -- `developer_report_current` and `developer_report_handoff` agreeing, and the report at its
+  recorded location unchanged under its author -- named by that subject, which passes that reader's own rules
+  (requirements the round was due, and a report about the subject's head written against `user_content_hash`), and the
+  issue's requirements the bound revision. The post is scoped by the receipt, so an accepted write whose response was
+  lost is found rather than repeated. Before the settlement the issue and the pinned comment are read afresh: the issue
+  has to be live work still, by the same rule as above, or nothing at all is written; the comment has to carry every
+  bound record -- `pr_number`, the `developer_report_*` group, `review_subject`, `review_returned_subject`, the four
+  evidence records, and `verification_evidence_revision` -- exactly as the tick held them, the whole proof above is
+  taken again over it, and the artifact re-read at the comment it landed as has to be exactly this transaction's, not
+  edited or deleted since (`workflow/engine/verification_settling.py`). Only then is the settlement written, composed
+  over that fresh comment and measured against what the comment can carry; a refusal there -- a settlement that no
+  longer fits included -- writes nothing but the artifact's ledger entry onto it, where that fits. A reading nobody
+  could take holds the tick; anything a push, a drift resume, a fresh reviewer, or fresher evidence answers stands down
+  with the transaction owed. Nothing here parks: a record whose revision a settled or retired record already carries --
+  a replay its own handoff names, or one a restored comment brought back -- is dropped without a second post or history
+  entry, an unreadable record is dropped, and one whose pull request ended, past which a revision was spent, or beside a
+  floor nobody can read is abandoned into history. Every retirement is composed over the pinned comment read afresh and
+  held to the same bound records, so a transaction recorded meanwhile is never erased nor the floor lowered under it; a
+  retirement the comment has no room for writes nothing and leaves the record owed. A reader relying on the current
+  record re-proves all of that and its publication besides: no revision past it spent (`verification_evidence_revision`
+  at its own), so a newer artifact posted and never settled supersedes it; the handoff describing it; and the comment it
+  recorded still our artifact with every binding member the artifact encodes, the digest, and a `passed` its commands
+  earn (`workflow/engine/verification_current.py`). Evidence answers for another head only through a carry-forward
+  decision (`workflow/engine/verification_carry_forward.py`) exposed for a head other than the one it answers for when
+  that head's full tree, read from the repository, is the tested tree and the configured context is the recorded one --
+  patch ids, contribution fingerprints, topic diffs, and rewrite names are never consulted -- while the evidence carried
+  is still the latest and published and a review subject about the new head is recorded; the carried record keeps naming
+  the commit that was actually tested and answers for that review.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one

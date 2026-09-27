@@ -22,8 +22,6 @@ Commands are read back through the published format's own type, so a record
 holding a command the artifact would refuse -- a backtick, a line ending, a
 closing fence in a transcript, a receipt marker of ours -- reads as damage here
 rather than as an artifact refused after a tick has already proved the world.
-
-Dormant, like the records it spells (`verification_records`).
 """
 from __future__ import annotations
 

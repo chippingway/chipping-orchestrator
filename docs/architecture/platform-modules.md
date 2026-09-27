@@ -296,10 +296,12 @@ orchestrator/
                         receipt, so a retry finds the exact comment GitHub already accepted and a later artifact
                         on the same commit is a comment of its own. A pasted copy is not ours; a post whose
                         response was lost stays unconfirmed until a read settles it; an artifact for another pull
-                        request is refused before any request is made. Rereading a published artifact is the
-                        report owner's `reread_report_location`, since a location is a pull request and a comment
-                        id either way. The thread read and the post are this owner's own seams, so the in-memory
-                        double answers them for artifacts without inheriting whatever a case arranged for reports.
+                        request is refused before any request is made. `reread_verification_artifact` scans this
+                        owner's own thread read for the one comment an evidence settlement recorded and answers
+                        with the artifact of ours it still is -- our author and our exact rendering -- or why it
+                        is not; it does not go through the report owner's digest-based `reread_report_location`.
+                        The thread read and the post are this owner's own seams, so the in-memory double answers
+                        them for artifacts without inheriting whatever a case arranged for reports.
                         Recording the comment an artifact landed as belongs above this layer, since the ledger of
                         this orchestrator's own comments is pinned state: a caller publishes through
                         `workflow/engine/verification_comments.py`, which takes that id off the reading returned
@@ -819,7 +821,9 @@ orchestrator/
                         and never inside a character
       probes.py         HEAD, branch, and tree identity, committed-path and regular-file reads, object presence
                         and ancestry. Object presence accepts caller-owned environment pins so a partial clone
-                        can distinguish objects already in its store from those a promisor remote could supply
+                        can distinguish objects already in its store from those a promisor remote could supply,
+                        and is peeled unless asked not to be: unpeeled, only an id that is itself a commit
+                        answers yes, never an annotated tag pointing at one
       status.py         the porcelain status in both its answers (the paths, whether git could be
                         asked, and the `is_clean` a caller whose next step is a push asks instead of truth-testing
                         the list) -- taken without optional locks, so asking what a tree holds does not refresh

@@ -15,8 +15,6 @@ Every reader here refuses what its own writer would not have produced, and
 answers None for it. The state owner above decides what a refusal means for
 each record, which differs: an unreadable current record is no current
 evidence, and an unreadable handoff proves no transaction finished.
-
-Dormant, like the records it spells (`verification_records`).
 """
 from __future__ import annotations
 

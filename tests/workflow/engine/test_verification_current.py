@@ -1,0 +1,120 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""A reader relying on current evidence proves it, and its publication, first.
+
+The current record says what a settlement put on the pull request once. A
+reader about to rely on it -- a reviewer handed it, a readiness decision -- is
+told PROVED only while the world still matches the binding AND the pull request
+still carries the very artifact that settled, under the handoff that settled
+it, with the pass flag its commands earn. A deleted or edited artifact, a
+handoff describing other evidence, a pass flag the artifact contradicts, and a
+moved head each refuse it; a thread nobody could read holds.
+"""
+from __future__ import annotations
+
+import unittest
+
+from orchestrator.github.verification_evidence import EvidenceSource
+from orchestrator.workflow.engine import (
+    report_evidence_models as _evidence_models,
+    verification_records as _records,
+)
+from tests.workflow.engine import verification_evidence_test_support as support
+
+_DEFER = _evidence_models.ReportEvidenceVerdict.DEFER
+
+_HOLD = _evidence_models.ReportEvidenceVerdict.HOLD
+
+# Every move after settlement, the verdict it earns, and the refusal it names.
+_REFUSALS = (
+    (
+        "the artifact was deleted",
+        lambda case: case.pull_request.issue_comments.remove(support.artifact_comment(case)),
+        _DEFER, "artifact is gone or no longer the one that settled",
+    ),
+    (
+        "the artifact was edited",
+        lambda case: setattr(support.artifact_comment(case), "body", "Tests passed, trust me."),
+        _DEFER, "artifact is gone or no longer the one that settled",
+    ),
+    (
+        "the handoff names other evidence",
+        lambda case: case.state.set(_records.EVIDENCE_HANDOFF, dict(
+            case.state.get(_records.EVIDENCE_HANDOFF), receipt="issue-7-verification-9",
+        )),
+        _DEFER, "handoff does not describe the current evidence",
+    ),
+    (
+        "a newer revision was posted and never settled",
+        support.posts_unsettled,
+        _DEFER, "newer than the current record",
+    ),
+    (
+        "the thread would not read",
+        lambda case: case.gh.report_failures.unreadable.add(support.PR_NUMBER),
+        _HOLD, "artifact could not be re-read",
+    ),
+    (
+        "the issue records another pull request",
+        lambda case: case.state.set("pr_number", support.PR_NUMBER + 1),
+        _DEFER, "another pull request than the one this issue records",
+    ),
+    (
+        "the head moved",
+        lambda case: case.moves_the_head(support.REBASED_SHA),
+        _DEFER, "moved off the recorded commit",
+    ),
+)
+
+
+class CurrentEvidenceVerdictTest(unittest.TestCase, support.VerificationEvidenceCase):
+    """PROVED only while the evidence is still true and still published."""
+
+    def setUp(self) -> None:
+        support.VerificationEvidenceCase.setUp(self)
+
+    def test_only_settled_evidence_is_proved(self) -> None:
+        absent = support.current_verdict(self)
+        self.record()
+        self.reconcile()
+
+        standing = support.current_verdict(self)
+
+        self.assertEqual(
+            (absent.verdict, standing.verdict),
+            (_DEFER, _evidence_models.ReportEvidenceVerdict.PROVED),
+        )
+        self.assertIs(standing.pull_request, self.pull_request)
+
+    def test_every_move_refuses_the_current_evidence(self) -> None:
+        for moved, moves, verdict, refusal in _REFUSALS:
+            with self.subTest(moved=moved):
+                self.setUp()
+                self.record()
+                self.reconcile()
+                moves(self)
+
+                refused = support.current_verdict(self)
+
+                self.assertIs(refused.verdict, verdict)
+                self.assertIn(refusal, refused.refusal)
+
+    def test_a_pass_flag_its_artifact_contradicts(self) -> None:
+        # A reviewer's account of a failed command settles as failing evidence
+        # and is proved as such; the pinned flag rewritten to claim it passed
+        # no longer describes the artifact, whose commands say one exited 1.
+        self.record(self.binding(source=EvidenceSource.REVIEWER_REPORTED), exit_status=1)
+        self.reconcile()
+        failing = support.current_verdict(self)
+        claimed = dict(self.state.get(_records.CURRENT_EVIDENCE), passed=True)
+        self.state.set(_records.CURRENT_EVIDENCE, claimed)
+
+        refused = support.current_verdict(self)
+
+        self.assertIs(failing.verdict, _evidence_models.ReportEvidenceVerdict.PROVED)
+        self.assertIs(refused.verdict, _DEFER)
+        self.assertIn("no longer the one that settled", refused.refusal)
+
+
+if __name__ == "__main__":
+    unittest.main()

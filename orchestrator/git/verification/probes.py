@@ -32,6 +32,9 @@ _NUL_SEPARATOR = "\0"
 # same path that are not the file anybody would read there.
 _BLOB_TYPE = "blob"
 
+# What git names an object that is a commit in its own right.
+_COMMIT_TYPE = "commit"
+
 _REGULAR_FILE_MODES = frozenset(("100644", "100755"))
 
 
@@ -158,6 +161,8 @@ def _commit_present(
     worktree: Path,
     revision: str,
     env_extra: Mapping[str, str] | None = None,
+    *,
+    peeled: bool = True,
 ) -> bool:
     """True when `revision` names a commit this repository can actually read.
 
@@ -191,7 +196,18 @@ def _commit_present(
     ITSELF wants that read left alone; one that has to say whether the store
     already held it states so here, and the pins it passes are the ones the
     rest of its reading is taken under.
+
+    `peeled` False asks the stricter question, for a caller that recorded an id
+    AS a commit: whether the object the id names is a commit in its own right.
+    Peeled, an annotated tag answers for the commit it points at -- an object
+    that is not the one recorded -- and `^{tree}` then reads that commit's tree
+    under the tag's id. Unpeeled, a tag answers no.
     """
+    if not peeled:
+        typed = _commands._git_hardened(
+            "cat-file", "-t", revision, cwd=worktree, env_extra=env_extra,
+        )
+        return typed.returncode == 0 and (typed.stdout or "").strip() == _COMMIT_TYPE
     object_result = _commands._git_hardened(
         "cat-file", "-e", f"{revision}^{{commit}}",
         cwd=worktree,

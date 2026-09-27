@@ -43,13 +43,15 @@ Every record is additive. An issue carrying none of these keys has no pending
 transaction, no current evidence, no history, and no handoff, which is what
 every issue that predates them says without a migration having reached it.
 
-The records are DORMANT. Their owners -- the types here, the pinned fields
-beside them, the pending round trip (`verification_record_state`), the
-settlement and retirement (`verification_settlement_state`), and the
-local-run binding (`verification_local_runs`) -- are complete and exercised
-directly, but no stage, guard, or dispatch path records, settles, or reads
-them yet. No issue carries any of these keys until an evidence transaction
-that proves and publishes them calls into these owners.
+The dispatcher reconciles a recorded transaction directly behind the
+developer report's (`verification_transaction`): it proves the whole binding
+(`verification_proof`), publishes the artifact, and settles it. A reader about
+to rely on current evidence proves it and its artifact again
+(`verification_proof.current_evidence_verdict`), and evidence reaches another
+head only through a carry-forward decision (`verification_carry_forward`). No
+producer records a transaction yet -- the verify gate does not hand its run to
+`verification_local_runs`, and no stage records a carry-forward -- so no issue
+carries any of these keys until one does.
 """
 from __future__ import annotations
 

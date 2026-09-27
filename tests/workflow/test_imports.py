@@ -118,6 +118,16 @@ _ENGINE_OWNERS = (
     "verification_settlement_state",
     "verification_record_state",
     "verification_local_runs",
+    "verification_world",
+    "verification_subject",
+    "verification_current",
+    "verification_proof",
+    "verification_carry_forward",
+    "verification_durable",
+    "verification_live_work",
+    "verification_settling",
+    "verification_publishing",
+    "verification_transaction",
 )
 
 # The late-split domain's owners. They sit beside the engine rather than under
