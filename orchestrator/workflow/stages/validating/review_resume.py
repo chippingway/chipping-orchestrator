@@ -143,16 +143,17 @@ def finishes_a_handed_request(
     launch nobody can account for was parked (`review_handoffs`), or a reading
     could not be taken. False where there is nothing to hand -- no verdict, one
     never handed, or one whose developer was launched, which is dropped -- and
-    where its subject moved, dropping it for the round that reviews the
-    subject as it stands; the stage's own road runs then.
+    where its subject moved, dropping it and the feedback's anchor for the
+    round that reviews the subject as it stands; the stage's own road runs
+    then. The subject is resolved before an unfinished launch parks, since the
+    park keeps that anchor for `/orchestrator continue` to replay: parked over
+    a subject that moved -- a push since the launch -- it would hand a
+    developer feedback about a head the pull request no longer carries.
     """
     returned = _verdicts.read_returned_verdict(state)
     if returned is None or returned.handed is None:
         return False
     launch = _handoffs.handoff_launch(spec, issue, state, returned)
-    if launch is _handoffs.HandoffLaunch.UNFINISHED:
-        _handoffs.parks_an_unfinished_launch(gh, issue, state, returned)
-        return True
     if launch is _handoffs.HandoffLaunch.LAUNCHED:
         _verdicts.drops_the_verdict(state)
         gh.write_pinned_state(issue, state)
@@ -162,6 +163,9 @@ def finishes_a_handed_request(
         if not held:
             gh.write_pinned_state(issue, state)
         return held
+    if launch is _handoffs.HandoffLaunch.UNFINISHED:
+        _handoffs.parks_an_unfinished_launch(gh, issue, state, returned)
+        return True
     _hands_over(gh, spec, issue, state, _models._ReviewerDecision(
         run, returned.verdict, returned.feedback,
     ))

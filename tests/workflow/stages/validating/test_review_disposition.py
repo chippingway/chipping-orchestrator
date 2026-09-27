@@ -438,5 +438,33 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
         self.github.write_pinned_state(self.issue, state)
 
 
+class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
+    """An approval never writes back evidence records a later settlement replaced."""
+
+    def test_a_later_settlement_stops_the_approval(self) -> None:
+        # A second transaction settles behind the approval's last read of its
+        # artifact -- the fourth, behind the two the round's handover took and
+        # the proof's own: the approval rests on evidence no longer current,
+        # so it is not acted on, and the newer records are kept rather than
+        # written back over.
+        digest = _read.settles_evidence(self).content_revision
+        behind = _world.AnotherRoadBehind(
+            self, "reread_verification_artifact", lambda _comment: True, _read.settles_evidence, 4,
+        )
+
+        behind.returning(f"Covered.\n\nVERIFICATION: REUSED sha256:{digest}\n\nVERDICT: APPROVED")
+
+        pinned = self.pinned()
+        self.assertEqual(
+            (
+                self.github.label_history,
+                pinned["verification_evidence_current"]["revision"],
+                pinned["verification_evidence_revision"],
+                pinned.get(_world.PARK_REASON),
+            ),
+            ([], 2, 2, UNVERIFIED),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

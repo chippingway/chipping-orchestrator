@@ -37,7 +37,10 @@ is held to the same record, since it is only as good as the evidence it names.
 
 Anything short of that refuses the approval, with the reason the park is worded
 from (`review_parks`); a proof that could not be read holds instead, for the
-next tick to ask again.
+next tick to ask again. Last, the pinned comment is read again: evidence
+another road recorded or settled while all of that was read is carried onto
+the state in hand, so no write behind this puts the older records back, and
+refuses the approval, which no longer rests on the current evidence.
 """
 from __future__ import annotations
 
@@ -55,7 +58,11 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.stages.validating import review_claims as _claims, review_verdicts as _verdicts
+from orchestrator.workflow.stages.validating import (
+    review_claims as _claims,
+    review_comment as _review_comment,
+    review_verdicts as _verdicts,
+)
 
 _FAILED = "a command its verification lists did not exit 0"
 
@@ -69,6 +76,21 @@ _UNPUBLISHED = "its verification evidence could not be published on the pull req
 _REUSE_MOVED = "the evidence it relies on is no longer this issue's current evidence"
 
 _ARTIFACT_MOVED = "its artifact is gone or no longer the one that settled"
+
+_EVIDENCE_MOVED = "other verification evidence was recorded while it was proved"
+
+# What a record the comment does not carry reads as, apart from one it carries
+# as `null`.
+_ABSENT = object()
+
+# Every pinned record a settlement, a retirement, or a new transaction writes.
+_EVIDENCE_RECORDS = (
+    _records.CURRENT_EVIDENCE,
+    _records.PENDING_EVIDENCE,
+    _records.EVIDENCE_HISTORY,
+    _records.EVIDENCE_HANDOFF,
+    _records.REVISION_FLOOR,
+)
 
 
 def approval_refusal(
@@ -92,7 +114,8 @@ def approval_refusal(
         return None
     if not proved.proved:
         return f"{_REUSE_MOVED}: {proved.refusal}"
-    return _evidence_refusal(gh, proved.pull_request, current)
+    refusal = _evidence_refusal(gh, proved.pull_request, current)
+    return _held_to_the_comment(gh, issue, state) if refusal == "" else refusal
 
 
 def _evidence_refusal(
@@ -112,6 +135,30 @@ def _evidence_refusal(
     if not current.passed:
         return _FAILED
     return "" if _claims.covers_the_configuration(found.commands) else _uncovered()
+
+
+def _held_to_the_comment(gh: GitHubClient, issue: Issue, state: PinnedState) -> str | None:
+    """Whether the comment still carries the evidence records the approval was proved over; None unread.
+
+    The proof and the artifact's reread are requests long enough for another
+    road to record or settle other evidence, which is on the comment and
+    nowhere in hand -- and the approval arc writes the state in hand, which
+    would put the older records back over it. So the comment is read again,
+    and evidence that moved is carried onto the state in hand and refuses the
+    approval, which no longer rests on this issue's current evidence; the park
+    it takes then keeps the newer records.
+    """
+    durable = _review_comment._read(gh, issue, state, "hold an approval to the evidence it was proved over")
+    if durable is None:
+        return None
+    moved = _review_comment._moved(durable.data, state.data, _EVIDENCE_RECORDS)
+    for field in moved:
+        written = durable.data.get(field, _ABSENT)
+        if written is _ABSENT:
+            state.data.pop(field, None)
+        else:
+            state.set(field, written)
+    return f"{_REUSE_MOVED}: {_EVIDENCE_MOVED}" if moved else ""
 
 
 def _claimed_refusal(claim: _verdicts.EvidenceClaim | None) -> str:

@@ -3190,8 +3190,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       unverified_approvals.py
                             whether an approval rests on the current evidence exactly as it claims -- settled and
                             proved current again, then passing and covering the configuration by that evidence's
-                            own pass flag and re-read artifact rather than the claim's copies; why not, for the
-                            park; or a hold where a reading could not be taken
+                            own pass flag and re-read artifact rather than the claim's copies, and still the
+                            evidence the pinned comment carries once read again, moved records carried onto the
+                            state; why not, for the park; or a hold where a reading could not be taken
       review_parks.py       the two parks a verdict takes instead of being acted on, `reviewer_unverified` and
                             `reviewer_unrecorded`, each dropping the verdict in its own write and answered by a
                             fresh reviewer; measured at its widest before the notice is posted, and taken over the
@@ -3200,7 +3201,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             finishes a waiting verdict ahead of the round cap with no reviewer run, usage fold, or
                             round spent, while its subject still resolves to the one recorded -- relabelling and
                             launching a handed change request whose relabel never landed, posting nothing twice --
-                            and `workflow:fixing` launches the one developer a handed change request never reached;
+                            and `workflow:fixing` launches the one developer a handed change request never reached,
+                            parking an unfinished launch only over a subject that still stands;
                             a handed record that lost its feedback's anchor posts the feedback again and records
                             it first, so a later retry has something to replay
       review_handoffs.py    a persisted change request's handoff: held to the subject standing, the pinned comment

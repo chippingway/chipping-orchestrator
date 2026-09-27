@@ -357,6 +357,25 @@ class InterruptedLaunchTest(_FixingTicks, unittest.TestCase):
                     (0, DEVELOPER, charged, EXECUTION_FAILED, None),
                 )
 
+    def test_a_push_behind_an_unfinished_launch(self) -> None:
+        # The launch started and died, and a push moved the head since: the
+        # feedback is about a head the pull request no longer carries, so no
+        # park keeps it for a retry to replay -- the verdict and its anchor
+        # are dropped, no developer is launched on it, and whatever the
+        # stage's own road makes of the moved checkout is its own.
+        with self.assertRaises(RuntimeError):
+            self.returns(REQUESTING, run_agent=MagicMock(side_effect=DIED))
+        _world.pushes(self)
+
+        ran = self._fixing()
+
+        pinned = self.pinned()
+        self.assertEqual(
+            (ran[_world.RUN_AGENT].call_count, pinned[_world.RETURNED_VERDICT], pinned.get(ANCHOR)),
+            (0, None, None),
+        )
+        self.assertNotEqual(pinned.get(_world.PARK_REASON), EXECUTION_FAILED)
+
     def test_an_unfinished_launch_parks_for_one_retry(self) -> None:
         # STARTED goes down before the spawn, and nothing on the branch says a
         # developer ran: nothing is paid for twice, and the issue is not
