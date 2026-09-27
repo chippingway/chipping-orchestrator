@@ -56,6 +56,14 @@ def _settles_a_later_report(case) -> None:
 # report revision the pinned comment records then.
 _BEFORE_THE_HANDOFF = (
     (
+        # The second reread of the settled report is the disposition's own
+        # subject check, behind the one the round resolved its subject with.
+        "a report behind the subject check",
+        ("reread_report_location", lambda _location: True, _settles_a_later_report, 2),
+        0,
+        2,
+    ),
+    (
         "a report behind the verdict's write",
         (
             "write_pinned_state",
@@ -338,8 +346,9 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
 
     def test_a_move_before_the_handoff_drops_it(self) -> None:
         # Nothing declared, so nothing is published: the request is held to
-        # the subject after its own write and again behind its feedback post,
-        # and a later report is kept rather than written back over.
+        # what the comment carries before its own write, to the subject after
+        # it, and again behind its feedback post, and a later report is kept
+        # rather than written back over.
         for name, behind, posts, revision in _BEFORE_THE_HANDOFF:
             with self.subTest(name):
                 self.setUp()
@@ -350,7 +359,7 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
                     (
                         ran[_world.RUN_AGENT].call_count,
                         len(_read.feedback_posts(self)),
-                        self.pinned()[_world.RETURNED_VERDICT],
+                        self.pinned().get(_world.RETURNED_VERDICT),
                         self.github.label_history,
                         _read.current_report_revision(self),
                     ),

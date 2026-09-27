@@ -121,21 +121,26 @@ def pushes(case) -> None:
 
 
 class AnotherRoadBehind:
-    """A client request behind which, the first time `when` says, `road` does another road's work."""
+    """A client request behind which, the `times`-th time `when` says, `road` does another road's work.
 
-    def __init__(self, case, request: str, when, road) -> None:
+    `when` is asked about the request's last positional argument: the state a
+    write carries, the body a post carries, the location a reread asks about.
+    """
+
+    def __init__(self, case, request: str, when, road, times: int = 1) -> None:
         self._case = case
         self._name = request
         self._request = getattr(case.github, request)
         self._when = when
         self._road = road
-        self._done = False
+        self._left = times
 
-    def __call__(self, target, asked):
-        answered = self._request(target, asked)
-        if not self._done and self._when(asked):
-            self._done = True
-            self._road(self._case)
+    def __call__(self, *asked, **named):
+        answered = self._request(*asked, **named)
+        if self._left and self._when(asked[-1]):
+            self._left -= 1
+            if not self._left:
+                self._road(self._case)
         return answered
 
     def returning(self, message: str) -> dict:

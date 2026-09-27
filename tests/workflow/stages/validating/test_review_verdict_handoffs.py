@@ -28,6 +28,8 @@ REQUESTING = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
 
 RESERVATION = "agent_run_reservation"
 
+ANCHOR = "pending_fix_reviewer_comment_id"
+
 FINGERPRINT = "agent_run_fingerprint"
 
 STARTED = "started"
@@ -149,10 +151,11 @@ class _FixingTicks(_world.ReviewVerdictWorld):
     """`fixing` ticks over a change request handed there, whose developer launch stopped somewhere."""
 
     def _fixing(self, *agents, **run_options) -> dict:
-        """One `fixing` tick, whose spawns return `agents`."""
+        """One `fixing` tick, whose spawns return `agents` unless a `run_agent` says otherwise."""
+        run_options.setdefault("run_agent", list(agents))
         run_options.setdefault("dirty_files", ())
         run_options.setdefault("head_shas", FIX_HEAD_SHAS)
-        return self._run_fixing(self.github, self.issue, run_agent=list(agents), **run_options)
+        return self._run_fixing(self.github, self.issue, **run_options)
 
     def _charged(self) -> int:
         """The lifetime agent-run count the issue carries now."""
@@ -193,6 +196,34 @@ class HandedChangeRequestTest(_FixingTicks, unittest.TestCase):
                 self.github.label_history[-1],
             ),
             (1, True, 1, None, (_world.ISSUE, LABEL_VALIDATING)),
+        )
+
+    def test_an_unanchored_request_is_anchored_again(self) -> None:
+        # The anchor the handoff wrote is gone, so nothing could replay the
+        # feedback to a retry: it is posted again and recorded before the
+        # developer is launched, and when that launch dies the operator's
+        # retry replays it to one developer.
+        state = self.github.read_pinned_state(self.issue)
+        state.data.pop(ANCHOR)
+        self.github.write_pinned_state(self.issue, state)
+
+        with self.assertRaises(RuntimeError):
+            self._fixing(run_agent=MagicMock(side_effect=DIED))
+        anchored = self.pinned().get(ANCHOR)
+        parked = self._fixing()
+        _world.replies(self, "/orchestrator continue")
+        fixed = self._fixing(_world.developer())
+
+        spawned = fixed[_world.RUN_AGENT]
+        self.assertEqual(
+            (
+                len(_read.feedback_posts(self)),
+                anchored is not None,
+                parked[_world.RUN_AGENT].call_count,
+                spawned.call_count,
+                _world.REQUESTED in spawned.call_args.args[1],
+            ),
+            (2, True, 0, 1, True),
         )
 
     def test_another_roads_charge_is_no_launch(self) -> None:

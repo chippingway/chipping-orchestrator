@@ -11,8 +11,9 @@ head, requirements, and report -- still stands. A verdict of a subject that
 moved while the reviewer ran is about work that is not there: an approval
 would hand it on, and a change request would pay a developer to answer a
 review of words the pull request no longer carries. The run is recorded over
-whatever settled meanwhile, and the next tick's reviewer is handed the subject
-as it stands, or refused.
+whatever settled meanwhile -- the pinned comment read again once the subject
+has been resolved, since that resolution is requests of its own -- and the next
+tick's reviewer is handed the subject as it stands, or refused.
 
 A verdict of the subject that stands is persisted first, before anything is
 published or acted on (`review_verdicts`): the round, verdict, subject, the
@@ -118,11 +119,21 @@ def disposes_of_the_verdict(
     state: PinnedState,
     decision: _models._ReviewerDecision,
 ) -> None:
-    """Persist a returned reviewer's verdict, publish its evidence, and act on it."""
+    """Persist a returned reviewer's verdict, publish its evidence, and act on it.
+
+    The subject check is requests of its own, long enough for another road to
+    settle a later report the state in hand does not carry, so the comment is
+    read again against what the run was resolved over before anything is
+    written, carrying whatever moved: a write composed over the older records
+    would put them back over the newer, and the verdict it persists would be
+    handed on as though nothing had. A comment that will not read writes
+    nothing.
+    """
     run = decision.run
-    if run.report_moved or not _review_coverage._subject_still_stands(
-        gh, issue, state, run.subject,
-    ):
+    stands = _review_coverage._verdict_still_stands(gh, issue, state, run.subject, run.resolved_over)
+    if stands is None:
+        return
+    if run.report_moved or not stands:
         gh.write_pinned_state(issue, state)
         return
     in_hand = _persists(state, decision, _claims.claimed_evidence(issue, state, run))

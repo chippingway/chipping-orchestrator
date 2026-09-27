@@ -3168,7 +3168,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reviewer runs the verification itself
       review_verdicts.py    the `review_returned_verdict` record a returned reviewer's verdict waits in: its round,
                             verdict, subject, feedback, the one evidence claim it relies on, and the agent-run count a
-                            change request was handed to `workflow:fixing` on. Read whole or not at all, staged only
+                            change request was handed to `workflow:fixing` on -- an approval handed nothing and
+                            carrying no feedback. Read whole or not at all, staged only
                             where the comment has room for it at its widest write -- a change request's handoff,
                             reserved with the count, anchor, and ledger entry it adds and the developer launch's
                             run-ledger charge composed over it, and the claimed transaction measured beside that
@@ -3179,7 +3180,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             whether a claim covers every configured command, and where its evidence stands (settled,
                             owed, or lost). Nothing is written here
       review_disposition.py the order a returned verdict is settled in, which no live round calls yet: held to the
-                            subject standing, persisted with its minted transaction in one write, the evidence
+                            subject standing, the pinned comment read again behind that resolution, persisted with
+                            its minted transaction in one write, the evidence
                             published through the dispatcher's own reconciliation, the subject held again, and only
                             then acted on -- an owed transaction holds the verdict, a lost one drops it, a refused
                             approval parks only while its subject still stands and is dropped otherwise, and a
@@ -3196,7 +3198,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             finishes a waiting verdict ahead of the round cap with no reviewer run, usage fold, or
                             round spent, while its subject still resolves to the one recorded -- relabelling and
                             launching a handed change request whose relabel never landed, posting nothing twice --
-                            and `workflow:fixing` launches the one developer a handed change request never reached
+                            and `workflow:fixing` launches the one developer a handed change request never reached;
+                            a handed record that lost its feedback's anchor posts the feedback again and records
+                            it first, so a later retry has something to replay
       review_handoffs.py    a persisted change request's handoff: held to the subject standing, the pinned comment
                             read first, then the feedback posted, the whole subject held again behind that post,
                             the verdict written as handed with the anchor, and only then the relabel and the launch

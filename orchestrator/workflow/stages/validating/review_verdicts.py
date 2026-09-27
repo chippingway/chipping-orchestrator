@@ -27,8 +27,8 @@ written: the handoff goes down before the relabel and the developer launch, so
 a tick that finds the record with no launch charged past that count -- or one
 charged and never started, or a charge another road took -- still owes the
 developer the feedback, and hands it over instead of a fresh reviewer taking the
-round (`review_resume`, `review_handoffs`). An
-approval is never handed, so a record saying otherwise does not read.
+round (`review_resume`, `review_handoffs`). An approval is never handed and hands
+nobody words, so a record saying it was, or carrying feedback, does not read.
 
 The record is additive and fail-closed: an issue without it has no verdict
 waiting, and one in any shape this reader refuses is dropped rather than acted
@@ -211,8 +211,10 @@ class ReturnedVerdict:
         read_whole = (
             returned.round_n is not None,
             returned.handed is not None or recorded[_HANDED] is None,
-            # Only a change request is ever handed to a developer.
+            # Only a change request is ever handed to a developer, or hands
+            # it words: an approval's feedback is written empty.
             recorded[_HANDED] is None or returned.verdict == CHANGES_REQUESTED,
+            returned.verdict == CHANGES_REQUESTED or returned.feedback == "",
             returned.verdict in (APPROVED, CHANGES_REQUESTED),
             _review_subjects.ReviewSubject.identity_recorded_in(returned.subject) is not None,
             isinstance(returned.feedback, str),

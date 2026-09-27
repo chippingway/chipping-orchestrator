@@ -58,6 +58,7 @@ from orchestrator.git.worktrees import creation as _worktree_creation, naming as
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import review_subjects as _review_subjects
+from orchestrator.workflow.late_split import payloads as _payloads
 from orchestrator.workflow.stages.validating import (
     models as _models,
     requested_changes as _requested_changes,
@@ -176,18 +177,52 @@ def _hands_over(
 ) -> None:
     """Launch the developer a handed change request owes, on the feedback already posted.
 
+    Only over feedback a later retry can replay (`_anchors_the_feedback`).
     The drop is staged ahead of the launch, whose charge writes only its own
     fields, so only the writes behind the run retire the verdict.
     """
+    context = _models._RequestedChanges(gh, spec, issue, state, decision)
+    if not _anchors_the_feedback(context):
+        return
     log.info(
         "issue=#%d hands the change request its handoff never delivered to "
         "the developer, without a second reviewer", issue.number,
     )
-    context = _models._RequestedChanges(gh, spec, issue, state, decision)
     _verdicts.drops_the_verdict(state)
     _requested_changes._finish_requested_fix(
         context, _requested_changes._run_requested_fix(context),
     )
+
+
+def _anchors_the_feedback(context: _models._RequestedChanges) -> bool:
+    """Whether a handed request's feedback is anchored for a later retry, posting it again where not.
+
+    The handoff's own write records the anchor beside the verdict, so a handed
+    verdict without one is a record something cleared or damaged since -- and a
+    developer launched over it would leave a session-failure park whose
+    `/orchestrator continue` has no feedback to replay. So the feedback is
+    posted again, held to the subject once more behind that post, and its
+    anchor written down beside the verdict still handed, ahead of the launch.
+    False where the tick ends instead: a post that did not land, a subject that
+    moved -- the verdict dropped over the newer records -- or a comment that
+    will not read.
+    """
+    gh, issue, state = context.gh, context.issue, context.state
+    if _payloads.as_identity(state.get(_verdicts._FEEDBACK_ANCHOR)) is not None:
+        return True
+    posted_over = dict(state.data)
+    if not _requested_changes._post_reviewer_feedback(context):
+        log.warning(
+            "issue=#%s holding its handed change request until its feedback is "
+            "posted again with an anchor to replay", issue.number,
+        )
+        return False
+    stood = _review_coverage._verdict_still_stands(gh, issue, state, context.decision.run.subject, posted_over)
+    if not stood:
+        _handoffs._drops_what_moved(gh, issue, state, stood)
+        return False
+    gh.write_pinned_state(issue, state)
+    return True
 
 
 def _resumed_run(

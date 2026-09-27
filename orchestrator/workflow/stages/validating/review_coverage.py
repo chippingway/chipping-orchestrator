@@ -112,17 +112,20 @@ def _verdict_still_stands(
     A publication, a verdict's own write, or a feedback post is a request
     long enough for another road to push or to settle a later report, which
     is on the pinned comment and nowhere in hand while the earlier report
-    still reads where it was -- so the comment is read again against
-    `resolved_over` first, the state in hand by default
+    still reads where it was. So the whole subject is resolved again, and
+    then -- since that resolution is requests of its own -- the comment is
+    read again against `resolved_over`, the state in hand by default
     (`review_comment._records_stand`), carrying whatever it moved onto that
-    state, and only then is the whole subject resolved again. None where the
+    state: a write behind this keeps a report that settled at any point
+    before it rather than putting the older records back. None where the
     comment will not read, which writes nothing.
     """
     baseline = dict(state.data) if resolved_over is None else resolved_over
+    stands = _subject_still_stands(gh, issue, state, subject)
     stood = _review_comment._records_stand(gh, issue, state, baseline)
     if stood is None:
         return None
-    return stood and _subject_still_stands(gh, issue, state, subject)
+    return stands and stood
 
 
 def _approval_stands(gh: GitHubClient, state: PinnedState) -> bool | None:
