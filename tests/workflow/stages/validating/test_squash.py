@@ -9,7 +9,6 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.git.publication import models as _publication
 from orchestrator.git.publication.models import _SquashOutcome
-from tests.support.fakes import FakePRRef
 from tests.workflow.fixtures import _agent, approved_on
 from tests.workflow.stages.validating import squash_approval_support as _support
 from tests.workflow.stages.validating.squash_approval_support import (
@@ -137,7 +136,7 @@ class SquashOnApprovalTest(
         # Make pr.head.sha match REVIEWED_SHA -- legacy path: the local
         # HEAD the reviewer saw is what the remote PR points at, since no
         # force-push happened.
-        pr.head = FakePRRef(sha=_support.REVIEWED_SHA)
+        pr.head.sha = _support.REVIEWED_SHA
 
         with patch.object(config, _support.SQUASH_ON_APPROVAL, False):
             mocks = self._run_validating(
@@ -166,7 +165,7 @@ class SquashOnApprovalTest(
         for squashed_count in (0, 1):
             with self.subTest(squashed_count=squashed_count):
                 gh, issue, pr = self._setup()
-                pr.head = FakePRRef(sha=_support.REVIEWED_SHA)
+                pr.head.sha = _support.REVIEWED_SHA
 
                 with patch.object(config, _support.SQUASH_ON_APPROVAL, True):
                     self._run_validating(

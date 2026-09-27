@@ -1727,17 +1727,22 @@ The keys that matter for the state machine fall into a few groups:
 - **Returned reviewer verdict.** `review_returned_verdict` is the verdict a returned reviewer left and nothing has
   disposed of yet (`stages/validating/review_verdicts.py`): `round` (the round it ran as), `verdict` (`approved` or
   `changes_requested`), `subject` (exactly as `review_subject` spells it), `feedback` (the words a change request
-  hands the developer, `""` for an approval), and `evidence` -- `null` where the declaration earned none, otherwise the
+  hands the developer, `""` for an approval), `evidence` -- `null` where the declaration earned none, otherwise the
   `use` (`published` for a transaction recording the commands the reviewer ran, `reused` for the current evidence it
-  named instead), and that record's `receipt`, `revision`, evidence `digest`, and `passed`. It is written in the one
-  write a returned reviewer's verdict of a subject that still stands makes, BEFORE its evidence is published or the
-  verdict acted on, beside the transaction it claims, and set to `null` by the write every disposition makes: the
-  relabel to `workflow:fixing`, whichever write the approval arc makes, or the `reviewer_unverified` park. A later tick
-  finishes one still standing ahead of the round cap and the spawn, with no reviewer run, usage fold, run charge, or
-  round spent, while its subject still resolves to the one recorded; a subject that moved, a park a reply cleared into
-  a fresh round, or a record in any shape its reader refuses drops it for a fresh reviewer. Additive: an issue without
-  it has no verdict waiting. It is measured before it is staged -- a change request's feedback has no bound -- and a
-  comment with no room goes without it, the verdict then acted on in the tick that returned it.
+  named instead), and that record's `receipt`, revision, evidence `digest`, and `passed` -- and `handed`, `null` until
+  a change request is handed to `workflow:fixing` and then the `agent_runs_used` count as that handoff was written. It
+  is written in the one write a returned reviewer's verdict of a subject that still stands makes, BEFORE its evidence
+  is published or the verdict acted on, beside the transaction it claims. The approval arc's write and the
+  `reviewer_unverified` park's set it to `null`; a change request keeps it, `handed` set, through the relabel to
+  `workflow:fixing`, and the writes after the developer launch set it to `null`. A later tick finishes one still
+  standing ahead of the round cap and the spawn, with no reviewer run, usage fold, run charge, or round spent, while
+  its subject still resolves to the one recorded; on `workflow:fixing` a handed one whose developer the ledger shows
+  unlaunched -- nothing charged past `handed`, or a charge still `reserved` -- launches that developer on its feedback
+  instead of the no-feedback bounce spending a second reviewer. A subject that moved, a park a reply cleared into a
+  fresh round, a developer already launched, or a record in any shape its reader refuses drops it. Additive: an issue
+  without it has no verdict waiting. It is measured before it is staged -- a change request's feedback has no bound --
+  and a verdict the comment has no room for is not acted on at all: it parks under `reviewer_unrecorded`, since a
+  disposition nothing durable backs would be answered again by a second reviewer.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, and the
   validating reviewer round is the one producer: the commands a returned reviewer declares are recorded as a
@@ -1798,8 +1803,10 @@ The keys that matter for the state machine fall into a few groups:
   reviewer-reported evidence, `review_subject` for orchestrator-executed), the settled report re-read exactly as a
   reviewer is handed it -- `developer_report_current` and `developer_report_handoff` agreeing, and the report at its
   recorded location unchanged under its author -- named by that subject, which passes that reader's own rules
-  (requirements the round was due, and a report about the subject's head written against `user_content_hash`), and the
-  issue's requirements the bound revision. The post is scoped by the receipt, so an accepted write whose response was
+  (requirements the round was due, and a report about the subject's head written against `user_content_hash` -- or
+  older than a `user_content_hash` that is the subject's own requirements, which only the settlement of the reply that
+  bought the round can leave), and the issue's requirements the bound revision. The post is scoped by the receipt, so
+  an accepted write whose response was
   lost is found rather than repeated. Before the settlement the issue and the pinned comment are read afresh: the issue
   has to be live work still, by the same rule as above, or nothing at all is written; the comment has to carry every
   bound record -- `pr_number`, the `developer_report_*` group, `review_subject`, `review_returned_subject`, the four

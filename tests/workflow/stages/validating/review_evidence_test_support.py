@@ -25,7 +25,7 @@ from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import verification_transaction as _transaction
 from orchestrator.workflow.stages.validating import handler as _validating
 from tests.support.fakes import DEFAULT_PR_HEAD_SHA, FakeGitHubClient, make_issue
-from tests.workflow.fixtures import LABEL_VALIDATING, _agent, _PatchedWorkflowMixin, publishes_the_report
+from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING, _agent, _PatchedWorkflowMixin, publishes_the_report
 from tests.workflow.repo_values import _TEST_SPEC
 from tests.workflow.value_helpers import _issue_branch, _open_pr_for
 
@@ -157,6 +157,26 @@ class ReviewEvidenceWorld(_PatchedWorkflowMixin):
     def pinned(self) -> dict:
         """The pinned comment as the next tick reads it."""
         return self.github.pinned_data(ISSUE)
+
+
+class RefusesTheLaunchRead:
+    """A pinned-comment read that fails once the issue carries `workflow:fixing`.
+
+    The first read past that relabel is the developer launch's charge, so
+    failing it is a process stopping between the relabel's write and the spawn:
+    the launch is refused, and nothing past the relabel is written.
+    """
+
+    def __init__(self, case) -> None:
+        self._case = case
+        self._read = case.github.read_pinned_state
+        self._failed = False
+
+    def __call__(self, issue):
+        if not self._failed and self._case.github.workflow_label(issue) == LABEL_FIXING:
+            self._failed = True
+            raise ConnectionError("the pinned comment could not be read")
+        return self._read(issue)
 
 
 def configured(*commands: str):

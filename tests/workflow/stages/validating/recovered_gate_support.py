@@ -256,6 +256,9 @@ class _RecoveredPublicationMixin(
         """
         run_options.setdefault("head_shas", (STRANDED_CANDIDATE,) * 6)
         run_options.setdefault(BRANCH_DIVERGENCE, STRANDED_DIVERGENCE)
+        # The remote branch reads as the publication, whatever a case has
+        # since done to the pull request itself.
+        run_options.setdefault("fetched_branch_tip", PUBLICATION_HEAD)
         with patch.object(
             _worktree_paths, WORKTREE_PATH, return_value=worktree,
         ), patch.object(config, DECOMPOSE, True):

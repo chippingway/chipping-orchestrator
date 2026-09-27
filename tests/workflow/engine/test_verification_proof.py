@@ -29,6 +29,7 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.github.verification_evidence import EvidenceSource
 from orchestrator.workflow.engine import (
+    content_hash as _content_hash,
     report_delivery as _report_delivery,
     report_records as _report_records,
     report_settlement_state as _report_settlement,
@@ -38,7 +39,7 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.stages.validating import state as _validating_state
-from tests.support.github.models import FakeLabel
+from tests.support.github.models import FakeComment, FakeLabel, FakeUser
 from tests.workflow.engine import (
     verification_evidence_test_support as support,
     verification_report_fixture as _report,
@@ -47,6 +48,9 @@ from tests.workflow.engine import (
 from tests.workflow.fixtures import LABEL_DONE
 
 _LEVEL = "INFO"
+
+# A reply on the issue thread, past every comment the case seeds.
+_REPLY_ID = 9_999_999
 
 # Why an issue is parked, which names an undeliverable report as a debt.
 _PARK_REASON = "park_reason"
@@ -288,6 +292,44 @@ class ReviewerReportedEvidenceTest(unittest.TestCase, support.VerificationEviden
             )
 
         self.assertEqual(self.artifacts(), [])
+
+
+class SettledReplyRoundTest(unittest.TestCase, support.VerificationEvidenceCase):
+    """Evidence of a round a reply bought answers for the requirements that round read."""
+
+    def setUp(self) -> None:
+        support.VerificationEvidenceCase.setUp(self)
+
+    def test_its_own_settlement_is_no_staleness(self) -> None:
+        # The reply is settled as the round returns, moving the drift
+        # baseline onto the requirements its reviewer read -- past the report,
+        # which the reader handed over as written against the baseline before.
+        # That is the round's own settlement, not an edit anybody owes, so the
+        # reviewer's evidence of that subject settles.
+        self.issue.comments.append(FakeComment(
+            id=_REPLY_ID, body="Please also check the empty case.", user=FakeUser(self.issue.user.login),
+        ))
+        requirements = _content_hash._compute_user_content_hash(self.issue, set())
+        subject = replace(self.subject, requirements_revision=requirements)
+        self.state.set(_review_subjects.RETURNED_SUBJECT, subject.recorded())
+        self.state.set(_report.BASELINE, requirements)
+        publication = replace(
+            self.binding().target.publication, requirements_revision=requirements,
+        )
+        pending = self.record(self.binding(
+            source=EvidenceSource.REVIEWER_REPORTED,
+            target=_records.EvidenceTarget(publication, subject.recorded()),
+        ))
+
+        self.assertFalse(self.reconcile())
+
+        self.assertEqual(
+            (
+                _settlement.read_current_evidence(self.state).receipt,
+                subject.report.requirements_revision == requirements,
+            ),
+            (pending.receipt, False),
+        )
 
 
 class MovedDuringPublicationTest(unittest.TestCase, support.VerificationEvidenceCase):

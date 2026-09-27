@@ -113,6 +113,10 @@ class _WorkflowRunContext:
     # ordinary world, since a hermetic run never reaches git; a case whose
     # answer comes from real objects names the repository it built instead.
     issue_worktree: Any = _FAKE_WT
+    # Where `_worktree_path` says this issue's checkout lives, for the proofs
+    # that ask whether it is on this host at all -- a reviewer's published
+    # evidence among them. None leaves the real path, which nothing here holds.
+    issue_checkout: Any = None
     # What the size gate reads about the candidate a publication is about to
     # push. The default world is the ordinary one -- a commit this host holds,
     # a base the remote named, and a diff well under any ceiling -- so a test

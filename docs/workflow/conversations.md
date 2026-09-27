@@ -514,17 +514,20 @@ it ran become a reviewer-reported transaction bound to the subject it was handed
 published through the dispatcher's own evidence reconciliation before the verdict is acted on
 (`stages/validating/review_disposition.py`). A publication that holds ends the tick with the verdict waiting; the next
 tick finds an accepted post by its receipt, and finishes the verdict from the record
-(`stages/validating/review_resume.py`) with no second reviewer, usage fold, run charge, or round, handing a change
-request to exactly one developer. A waiting verdict whose subject moved is dropped, and a fresh reviewer is handed the
-subject as it stands.
+(`stages/validating/review_resume.py`) with no second reviewer, usage fold, run charge, or round. A change request
+keeps its record through the relabel to `workflow:fixing`, marked with the agent-run count its developer's launch
+charges past, so a tick that stops between that relabel and the launch leaves `fixing` the feedback to hand exactly one
+developer rather than a round for a second reviewer. A waiting verdict whose subject moved is dropped, and a fresh
+reviewer is handed the subject as it stands; one the pinned comment has no room to persist is acted on not at all and
+parks under `reviewer_unrecorded`.
 
-A change request stands without evidence. An approval reaches the approval arc only on evidence that passed — its own
-recorded run with every command exiting 0, or the exact current evidence it reused, proved current again
-(`stages/validating/unverified_approvals.py`). A missing, malformed, or stale declaration, a failed command, or a reuse
-the evidence no longer vouches for parks under `reviewer_unverified` before the verify gate, the approval record, or the
-squash; a bare `/orchestrator continue` buys a fresh reviewer, since the reviewer owes the evidence. The review caps,
-configured-author filtering, report freshness, and the approved versus changes-requested routing are those of every
-other round.
+A change request stands without evidence. An approval reaches the approval arc only on evidence that passed and is
+current — its own recorded run with every command exiting 0, once that transaction has settled on the pull request, or
+the exact current evidence it reused — either way proved current again (`stages/validating/unverified_approvals.py`).
+A missing, malformed, or stale declaration, a failed command, a publication that stood down, or a reuse the evidence no
+longer vouches for parks under `reviewer_unverified` before the verify gate, the approval record, or the squash; a bare
+`/orchestrator continue` buys a fresh reviewer, since the reviewer owes the evidence. The review caps, configured-author
+filtering, report freshness, and the approved versus changes-requested routing are those of every other round.
 
 ## Foreground execution and asynchronous command guidance
 

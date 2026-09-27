@@ -19,7 +19,12 @@ relies on: the receipt, revision, and evidence digest of the transaction the
 reviewer's own commands were recorded as (`published`), or of the current
 evidence it named instead of running anything (`reused`), with whether every
 command it lists exited 0. A declaration that earned no evidence leaves
-`evidence` `null`.
+`evidence` `null`. `handed` is `null` until a change request is handed to
+`workflow:fixing`, and then the lifetime agent-run count as that handoff was
+written: the relabel goes down before the developer is launched, so a tick that
+finds the record on `fixing` with no launch charged past that count -- or one
+charged and never started -- still owes the developer the feedback, and hands it
+over instead of a fresh reviewer taking the round (`review_resume`).
 
 The record is additive and fail-closed: an issue without it has no verdict
 waiting, and one in any shape this reader refuses is dropped rather than acted
@@ -30,7 +35,7 @@ rather than past what GitHub accepts.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from orchestrator.github.pinned_state import PinnedState
@@ -71,7 +76,9 @@ _DIGEST = "digest"
 
 _PASSED = "passed"
 
-_VERDICT_MEMBERS = frozenset((_ROUND, _VERDICT, _SUBJECT, _FEEDBACK, _EVIDENCE))
+_HANDED = "handed"
+
+_VERDICT_MEMBERS = frozenset((_ROUND, _VERDICT, _SUBJECT, _FEEDBACK, _EVIDENCE, _HANDED))
 
 _CLAIM_MEMBERS = frozenset((_USE, _RECEIPT, _REVISION, _DIGEST, _PASSED))
 
@@ -139,7 +146,8 @@ class EvidenceClaim:
 class ReturnedVerdict:
     """What one returned reviewer decided, and the evidence its verdict relies on.
 
-    `subject` is the review subject exactly as `review_subjects` records it.
+    `subject` is the review subject exactly as `review_subjects` records it,
+    and `handed` the agent-run count a change request was handed on, or None.
     """
 
     round_n: int
@@ -147,6 +155,7 @@ class ReturnedVerdict:
     subject: dict
     feedback: str = ""
     evidence: EvidenceClaim | None = None
+    handed: int | None = None
 
     def recorded(self) -> dict:
         """The pinned object this verdict is written as."""
@@ -156,6 +165,7 @@ class ReturnedVerdict:
             _SUBJECT: self.subject,
             _FEEDBACK: self.feedback,
             _EVIDENCE: None if self.evidence is None else self.evidence.recorded(),
+            _HANDED: self.handed,
         }
 
     @classmethod
@@ -171,9 +181,11 @@ class ReturnedVerdict:
             subject=recorded[_SUBJECT],
             feedback=recorded[_FEEDBACK],
             evidence=evidence,
+            handed=_payloads.as_count(recorded[_HANDED]),
         )
         read_whole = (
             returned.round_n is not None,
+            returned.handed is not None or recorded[_HANDED] is None,
             returned.verdict in (APPROVED, CHANGES_REQUESTED),
             _review_subjects.ReviewSubject.identity_recorded_in(returned.subject) is not None,
             isinstance(returned.feedback, str),
@@ -197,6 +209,18 @@ def records_the_verdict(state: PinnedState, returned: ReturnedVerdict) -> bool:
         return False
     state.set(RETURNED_VERDICT, returned.recorded())
     return True
+
+
+def hands_off(state: PinnedState, runs_used: int) -> None:
+    """Stage the waiting verdict as handed to `workflow:fixing` at `runs_used`, where it waits.
+
+    Written by the relabel's own write and kept past it, so the developer
+    launch that write precedes is the only thing that can retire it. The
+    caller writes.
+    """
+    waiting = read_returned_verdict(state)
+    if waiting is not None:
+        state.set(RETURNED_VERDICT, replace(waiting, handed=runs_used).recorded())
 
 
 def drops_the_verdict(state: PinnedState) -> None:

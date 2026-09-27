@@ -55,6 +55,7 @@ REQUESTING = _world.declared_run(exit_status=1, verdict="CHANGES_REQUESTED").rep
 DOCUMENTING = (_world.ISSUE, LABEL_DOCUMENTING)
 
 
+
 def _spent(case) -> tuple:
     """What the issue has spent so far: runs charged, usage folded, rounds."""
     pinned = case.pinned()

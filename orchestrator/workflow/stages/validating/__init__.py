@@ -14,9 +14,11 @@ is settled in: a verdict of the subject that still stands is persisted first as
 the record `review_verdicts` owns, beside the evidence transaction
 `review_claims` mints from what the reviewer declared, that evidence is
 published, and only then is the verdict acted on; `review_resume` finishes one
-an earlier tick left waiting without a second reviewer, and
-`unverified_approvals` parks an approval that relies on no evidence that
-passed. `approval` owns the approved arc, and the
+an earlier tick left waiting without a second reviewer -- on `fixing` too, for
+a change request whose developer was never launched. `unverified_approvals`
+decides whether an approval relies on settled, passing evidence, and
+`review_parks` holds the parks a verdict takes instead of being acted on.
+`approval` owns the approved arc, and the
 local verify gate at the head of it is the last thing standing between a
 branch that does not build and `in_review`; the optional squash, the notice
 its count is worded from, the end of the collapse record, and the relabel to

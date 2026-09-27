@@ -9,6 +9,7 @@ import unittest
 from orchestrator.workflow.engine import review_prompts as _review_prompts
 from orchestrator.workflow.stages.validating import handler as _validating
 from tests.workflow import published_reports as _published_reports
+from tests.workflow.repo_values import EXISTING_CHECKOUT
 from tests.workflow.stages import full_spec_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
@@ -105,6 +106,9 @@ class FullSpecReviewerPersistenceTest(
                 session_id="rev-67011",
                 last_message=REVIEW_APPROVED_MESSAGE,
             ),
+            # The approval's evidence is published, over a checkout on this
+            # host, before the approval is acted on.
+            issue_checkout=EXISTING_CHECKOUT,
         )
 
         approval_comments = [body for (_, body) in gh.posted_pr_comments if "review approved" in body]

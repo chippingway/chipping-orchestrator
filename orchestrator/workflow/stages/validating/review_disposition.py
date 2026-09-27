@@ -22,23 +22,29 @@ dispatcher's own reconciliation (`verification_transaction`), and every step
 behind it is finished from the persisted verdict by `review_resume` -- so a
 retry reruns no reviewer, folds no usage twice, spends no round, and launches a
 developer only where the change request it finishes was never handed to one.
+A verdict the comment has no room to persist is not acted on at all: it parks
+under `reviewer_unrecorded` (`review_parks`), since a disposition nothing
+durable backs is one a second reviewer would answer again.
 
 The evidence is published before the verdict is acted on, on the tick it
 returns, and a publication that holds ends that tick with the verdict waiting.
-Anything else the publication answers lets the verdict go on: the transaction
-is recorded and owed to the pull request until the reconciliation settles or
-retires it, and a subject that moved is answered by the approval's own
-re-checks rather than here.
+A publication that stood down leaves the transaction owed, which a change
+request goes on without and an approval does not.
 
 A change request stands without evidence -- a reviewer may find a bug without
 running anything -- and goes to the developer as it always has. An approval
-does not: it reaches the approval arc only on evidence that passed, and parks
-for a human otherwise (`unverified_approvals`).
+does not: it reaches the approval arc only once the evidence it relies on is
+settled, passing, and proved current (`unverified_approvals`), and parks for a
+human otherwise.
 
-Every disposition drops the verdict in the write it makes: the change request
-in the relabel to `workflow:fixing` ahead of the developer, the approval arc in
-whichever write its road makes, and the park in its own. A disposition that
-ends its tick writing nothing leaves the verdict for the next tick to finish.
+Every disposition retires the verdict in the write it makes: the approval arc
+in whichever write its road makes, and each park in its own. A change request
+keeps it through the relabel to `workflow:fixing`, marked as handed with the
+agent-run count the developer's launch will charge past, and the writes after
+that launch drop it -- so a tick that dies between the relabel and the launch
+leaves `fixing` the feedback to hand over (`review_resume`) rather than a round
+to spend on a second reviewer. A disposition that ends its tick writing
+nothing leaves the verdict for the next tick to finish.
 """
 from __future__ import annotations
 
@@ -52,6 +58,7 @@ from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    run_ledger_values as _run_ledger_values,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_transaction as _transaction,
@@ -63,6 +70,7 @@ from orchestrator.workflow.stages.validating import (
     requested_changes as _requested_changes,
     review_claims as _claims,
     review_coverage as _review_coverage,
+    review_parks as _parks,
     review_verdicts as _verdicts,
     unverified_approvals as _unverified,
 )
@@ -106,11 +114,16 @@ def disposes_of_the_verdict(
     ):
         gh.write_pinned_state(issue, state)
         return
-    in_hand, persisted = _persists(
-        issue, state, decision, _claims.claimed_evidence(issue, state, run),
-    )
+    in_hand = _persists(state, decision, _claims.claimed_evidence(issue, state, run))
+    if in_hand is None:
+        log.warning(
+            "issue=#%d has no room on its pinned comment to persist its "
+            "reviewer's verdict; parking rather than acting on it", issue.number,
+        )
+        _parks.parks_unrecorded(gh, issue, state, run)
+        return
     gh.write_pinned_state(issue, state)
-    if _publication_holds(gh, spec, issue, state, in_hand) and persisted:
+    if _publication_holds(gh, spec, issue, state, in_hand):
         log.info(
             "issue=#%d holds its reviewer's verdict until the verification "
             "evidence it declared is confirmed on PR #%s", issue.number, run.pr_number,
@@ -137,7 +150,9 @@ def acts_on_the_verdict(
     """Carry out a persisted verdict whose evidence no longer owes a post this tick."""
     decision = in_hand.decision
     if decision.verdict == _verdicts.CHANGES_REQUESTED:
-        _verdicts.drops_the_verdict(state)
+        # Kept through the relabel, marked with the count the developer's
+        # launch will charge past, rather than dropped ahead of it.
+        _verdicts.hands_off(state, _run_ledger_values._runs_used(state))
         _requested_changes._handle_validating_changes_requested(
             gh, spec, issue, state, decision,
         )
@@ -151,7 +166,7 @@ def acts_on_the_verdict(
             "holding the approval for the next tick", issue.number,
         )
     elif refusal:
-        _unverified.parks_unverified(gh, issue, state, decision.run, refusal)
+        _parks.parks_unverified(gh, issue, state, decision.run, refusal)
     else:
         _verdicts.drops_the_verdict(state)
         _approval._finalize_validating_approval(
@@ -162,19 +177,18 @@ def acts_on_the_verdict(
 
 
 def _persists(
-    issue: Issue,
     state: PinnedState,
     decision: _models._ReviewerDecision,
     claimed: _claims.ClaimedEvidence,
-) -> tuple[VerdictInHand, bool]:
-    """Stage the verdict and the transaction it claims, measured together.
+) -> VerdictInHand | None:
+    """Stage the verdict and the transaction it claims, measured together; None where it cannot be.
 
     The verdict goes first so the transaction is measured beside it: its
     settlement lands while the verdict is still waiting. A transaction the
     comment has no room for is not recorded and the verdict relies on no
-    evidence. A verdict with no room goes unrecorded, which the second answer
-    says: nothing would finish it on a later tick, so it is acted on this one
-    whatever its publication answers.
+    evidence. A verdict with no room is None, and nothing is staged: acted on
+    with nothing durable behind it, it would be answered again by a second
+    reviewer the moment the tick died.
     """
     feedback = decision.feedback if decision.verdict == _verdicts.CHANGES_REQUESTED else ""
     returned = _verdicts.ReturnedVerdict(
@@ -184,18 +198,13 @@ def _persists(
         feedback=feedback,
         evidence=claimed.claim,
     )
-    staged = _verdicts.records_the_verdict(state, returned)
-    if not staged:
-        log.warning(
-            "issue=#%d has no room on its pinned comment to persist its "
-            "reviewer's verdict; acting on it without one", issue.number,
-        )
+    if not _verdicts.records_the_verdict(state, returned):
+        return None
     pending = claimed.pending
     if pending is None or _record_state.record_pending_evidence(state, pending):
-        return VerdictInHand(decision, claimed.claim, claimed.refusal, pending), staged
-    if staged:
-        _verdicts.records_the_verdict(state, replace(returned, evidence=None))
-    return VerdictInHand(decision, refusal=_UNRECORDED), staged
+        return VerdictInHand(decision, claimed.claim, claimed.refusal, pending)
+    _verdicts.records_the_verdict(state, replace(returned, evidence=None))
+    return VerdictInHand(decision, refusal=_UNRECORDED)
 
 
 def _publication_holds(

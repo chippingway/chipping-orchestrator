@@ -157,7 +157,8 @@ def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: I
     # branches: a body edit mid-review must resume the dev on the new body
     # rather than re-review stale work. Returns True when it fully handled the
     # tick; a reviewer-side (`reviewer_timeout` / `reviewer_failed` /
-    # `reviewer_unverified`) or `review_cap` park defers to the awaiting-human
+    # `reviewer_unverified` / `reviewer_unrecorded`) or `review_cap` park
+    # defers to the awaiting-human
     # branch below (that branch owns the human's "retry" /
     # `/orchestrator add-review-rounds` comment), recording the round it stood
     # down for so the edit stays behind that round even once the park is

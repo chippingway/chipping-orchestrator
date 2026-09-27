@@ -11,6 +11,7 @@ where the comment has room for it, and dropped only where it stands.
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState
 from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
@@ -34,6 +35,9 @@ CLAIM = _verdicts.EvidenceClaim(
     passed=True,
 )
 
+# The lifetime agent-run count a change request was handed to `fixing` on.
+HANDED_AT = 4
+
 RETURNED = _verdicts.ReturnedVerdict(
     round_n=0,
     verdict=_verdicts.CHANGES_REQUESTED,
@@ -56,6 +60,7 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
         for returned in (
             RETURNED,
             _verdicts.ReturnedVerdict(0, _verdicts.APPROVED, RETURNED.subject),
+            replace(RETURNED, handed=HANDED_AT),
             _verdicts.ReturnedVerdict(
                 2, _verdicts.APPROVED, RETURNED.subject,
                 evidence=_verdicts.EvidenceClaim(
@@ -79,6 +84,7 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
             ("a verdict nobody acts on", _with(recorded, verdict="unknown")),
             ("a round below zero", _with(recorded, round=-1)),
             ("a round that is a flag", _with(recorded, round=True)),
+            ("a handoff below zero", _with(recorded, handed=-1)),
             ("a subject short of its head", _with(recorded, subject=_with(RETURNED.subject, sha=...))),
             ("feedback that is no text", _with(recorded, feedback=["1."])),
             ("a claim of another revision", _with(recorded, evidence=_with(claim, revision=4))),
@@ -99,6 +105,20 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
         full = PinnedState(comment_id=1, state_data={"filler": _PAST_THE_CEILING})
         self.assertFalse(_verdicts.records_the_verdict(full, RETURNED))
         self.assertFalse(full.carries(_verdicts.RETURNED_VERDICT))
+
+    def test_a_handoff_marks_the_waiting_one(self) -> None:
+        carried = PinnedState(
+            comment_id=1, state_data={_verdicts.RETURNED_VERDICT: RETURNED.recorded()},
+        )
+        untouched = PinnedState(comment_id=1, state_data={})
+
+        _verdicts.hands_off(carried, HANDED_AT)
+        _verdicts.hands_off(untouched, HANDED_AT)
+
+        self.assertEqual(
+            (_verdicts.read_returned_verdict(carried), untouched.data),
+            (replace(RETURNED, handed=HANDED_AT), {}),
+        )
 
     def test_a_drop_touches_only_a_carried_one(self) -> None:
         carried = PinnedState(

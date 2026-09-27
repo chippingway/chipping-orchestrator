@@ -30,6 +30,7 @@ from tests.workflow.fixtures import (
     _PatchedWorkflowMixin,
     approved_on,
 )
+from tests.workflow.repo_values import EXISTING_CHECKOUT
 
 HUMAN_FEEDBACK_ISSUE = 15
 HUMAN_FEEDBACK_PR = 22
@@ -458,10 +459,14 @@ class RunLimitToInReviewTest(unittest.TestCase, _PatchedWorkflowMixin):
             (DEFAULT_PR_HEAD_SHA, MEASURED_CANDIDATE_SHA),
             has_new_commits=True,
         )
-        self.pr.head = FakePRRef(sha=MEASURED_CANDIDATE_SHA)
+        self.pr.head.sha = MEASURED_CANDIDATE_SHA
         _published_reports.publishes_the_report(self.github, self.issue)
         self._polls(
             _agent(last_message=approved_on(MEASURED_CANDIDATE_SHA)), (MEASURED_CANDIDATE_SHA,),
+            # Where the approval's evidence is proved before it is acted on:
+            # a checkout on this host, fetched standing on the approved head.
+            issue_checkout=EXISTING_CHECKOUT,
+            fetched_branch_tip=MEASURED_CANDIDATE_SHA,
         )
         return commanded
 

@@ -13,6 +13,7 @@ before the verify gate, the approval record, or the squash is reached.
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 from orchestrator import config
 from orchestrator.git.verification import models as _verify_models
@@ -39,6 +40,11 @@ UNDECLARED = "LGTM\n\nVERDICT: APPROVED"
 LATER_REPORT = "Covered the empty configuration as well; the suite passes."
 
 REUSE_MOVED = "no longer this issue's current evidence"
+
+UNPUBLISHED = "could not be published on the pull request"
+
+# A checkout path nothing on this host holds.
+GONE_CHECKOUT = Path("/tmp/orchestrator-test-no-such-checkout")
 
 DOCUMENTING = (_world.ISSUE, LABEL_DOCUMENTING)
 
@@ -171,6 +177,49 @@ class UnverifiedApprovalTest(_world.ReviewEvidenceWorld, unittest.TestCase):
             pinned.get(_world.APPROVED_SUBJECT),
             pinned[_world.RETURNED_VERDICT],
             ran[_world.VERIFY].call_count,
+        )
+
+
+class DeclinedPublicationTest(_world.ReviewEvidenceWorld, unittest.TestCase):
+    """An approval whose evidence the reconciliation will not publish is not acted on."""
+
+    def test_a_declined_post_parks_the_approval(self) -> None:
+        # The checkout the evidence names is not on this host, so the proof
+        # stands the publication down with the transaction still owed: the run
+        # is recorded and nothing is posted, and an approval relying on it
+        # parks rather than carrying the pull request on with no evidence.
+        ran = self.dispatched(self.reviewer(_world.declared_run()), issue_checkout=GONE_CHECKOUT)
+
+        self._assert_declined(ran)
+
+    def test_a_declined_retry_parks_the_approval(self) -> None:
+        # The first post went unconfirmed and held the verdict; by the retry
+        # the checkout is gone, so the reconciliation stands down and the
+        # waiting approval is refused on the same terms, with no reviewer run.
+        self.github.report_failures.refused.add(_world.PR)
+        self.dispatched(self.reviewer(_world.declared_run()))
+        self.github.report_failures.refused.discard(_world.PR)
+        self.assertIsNotNone(self.pinned()[_world.RETURNED_VERDICT])
+
+        ran = self.dispatched(issue_checkout=GONE_CHECKOUT)
+
+        self.assertEqual(ran[_world.RUN_AGENT].call_count, 0)
+        self._assert_declined(ran)
+
+    def _assert_declined(self, ran) -> None:
+        """The park a declined publication leaves, with the transaction still owed."""
+        pinned = self.pinned()
+        self.assertEqual(
+            (
+                pinned[_world.PARK_REASON],
+                pinned.get(_world.APPROVED_SUBJECT),
+                pinned[_world.PENDING_EVIDENCE] is not None,
+                _read.artifacts(self),
+                ran[_world.VERIFY].call_count,
+                DOCUMENTING in self.github.label_history,
+                _read.issue_notices(self, UNPUBLISHED),
+            ),
+            (_world.REASON_UNVERIFIED, None, True, [], 0, False, 1),
         )
 
 

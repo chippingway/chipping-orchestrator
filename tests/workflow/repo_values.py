@@ -63,6 +63,9 @@ _FAKE_WT = Path("/tmp/orchestrator-test-wt-doesnt-matter")
 # The full tree every commit in the fake checkout reads as: a returned
 # reviewer's declared commands are bound to the tree of the head it reviewed.
 _FAKE_TREE_SHA = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+# A checkout path this host does hold, for the proofs that ask whether the
+# issue's checkout is here at all before evidence about it is published.
+EXISTING_CHECKOUT = Path("/tmp")
 _TEST_SPEC = _config_models.RepoSpec(
     slug=TEST_REPO_SLUG,
     target_root=Path("/tmp/orchestrator-test-target-root"),

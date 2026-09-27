@@ -45,7 +45,11 @@ def _execution_mocks(context: _WorkflowRunContext) -> dict[str, object]:
 
 
 def _worktree_mocks(context: _WorkflowRunContext) -> dict[str, object]:
+    checkout = {}
+    if context.issue_checkout is not None:
+        checkout["_worktree_path"] = MagicMock(return_value=context.issue_checkout)
     return {
+        **checkout,
         # The handoff's own move of the branch onto a plan PR's live head,
         # answering with the tip it landed on: the head that was asked for by
         # default, and whatever a test about a deleted branch or a move that

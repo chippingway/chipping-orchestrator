@@ -68,6 +68,7 @@ from orchestrator.workflow.stages.validating import (
     fix_reports as _fix_reports,
     models as _models,
     report_settlement as _report_settlement,
+    review_verdicts as _verdicts,
     rounds as _rounds,
     state as _state,
 )
@@ -337,6 +338,11 @@ def _handle_validating_changes_requested(
     _post_reviewer_feedback(context)
     gh.set_workflow_label(issue, WorkflowLabel.FIXING)
     gh.write_pinned_state(issue, state)
+    # The reviewer's verdict rode that write as handed over, and stays on the
+    # comment until the developer is launched: only the writes after the run
+    # drop it, so a tick that dies before the launch leaves `fixing` the
+    # feedback to hand over rather than a round to spend on a second reviewer.
+    _verdicts.drops_the_verdict(state)
     _finish_requested_fix(context, _run_requested_fix(context))
 
 

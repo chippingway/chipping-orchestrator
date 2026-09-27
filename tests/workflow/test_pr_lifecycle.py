@@ -11,6 +11,7 @@ from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.implementing import handler as _implementing
 from orchestrator.workflow.stages.validating import handler as _validating
 from tests.workflow import pr_lifecycle_test_support as support
+from tests.workflow.repo_values import EXISTING_CHECKOUT
 
 _KEY_ROUTE = "route"
 _KEY_AGENT_ROLE = "agent_role"
@@ -198,5 +199,8 @@ class ParkAwaitingHumanEventEmissionTest(unittest.TestCase, support._PatchedWork
                     session_id="sess-r", last_message=support.REVIEW_APPROVED_MESSAGE,
                 ),
                 head_shas=[pr.head.sha, pr.head.sha],
+                # The approval's evidence is published, over a checkout on
+                # this host, before the approval is acted on.
+                issue_checkout=EXISTING_CHECKOUT,
             )
         self.assertEqual(support._events_of(gh, support.EVENT_PARK_AWAITING_HUMAN), [])

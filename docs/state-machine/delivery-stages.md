@@ -3316,18 +3316,22 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      [verification-evidence transaction](#the-verification-evidence-transaction-every-dispatch); a publication that
      holds ends the tick with the verdict waiting, and the next tick's reconciliation and `review_resume` finish it
      with no second reviewer, usage fold, run charge, or round. A waiting verdict whose subject moved meanwhile is
-     dropped, and that tick hands a fresh reviewer the subject as it stands. Every disposition drops the record in the
-     write it makes.
+     dropped, and that tick hands a fresh reviewer the subject as it stands. A verdict the comment has no room to
+     persist is not acted on at all and parks under `reviewer_unrecorded`. The approval arc's write and each park drop
+     the record; a change request keeps it, marked `handed` with the `agent_runs_used` count, through its relabel to
+     `workflow:fixing`, and only the writes after the developer launch drop it.
      - **approved** → unless the report records moved above, the whole subject is resolved again
        (`review_coverage._subject_still_stands`), over the issue read afresh, and has to equal the one the reviewer
        was handed — pull request, head, requirements, and the report's revision, digest, location, and words. A push,
        an issue edit, or a report edited or removed while the reviewer ran, or a reading nobody could take, means the
        approval is not acted on: the run is recorded and the next tick resolves the subject as it stands. Only an
-       approval relying on evidence that passed goes on — its own declared run on the reviewed head, every command
-       exiting 0 and recorded as a transaction, or the exact current-evidence revision it was handed, proved current
-       again (`unverified_approvals`). A missing, malformed, or stale declaration, a failed command, or a reuse the
-       evidence no longer vouches for parks under `reviewer_unverified` before the verify gate, the approval record, or
-       the squash; a bare `/orchestrator continue` on it buys a fresh reviewer. Then, in
+       approval relying on evidence that passed and is current goes on — its own declared run on the reviewed head,
+       every command exiting 0, once that transaction has SETTLED on the pull request, or the exact current-evidence
+       revision it was handed — either way proved current again (`unverified_approvals`). A missing, malformed, or
+       stale declaration, a failed command, a publication the reconciliation stood down with the transaction still
+       owed, or a reuse the evidence no longer vouches for parks under `reviewer_unverified` before the verify gate, the
+       approval record, or the squash (`review_parks`); a bare `/orchestrator continue` on it buys a fresh reviewer.
+       Then, in
        order: (1) run the local verify gate
        (`_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`) and read the pinned comment again
        as on the reviewer's return, before anything below is written — a comment that will not read ends the tick with
@@ -3780,6 +3784,14 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      cleaning the checkout would publish the report and send the issue to review, which is the decision the notice
      exists to put in front of a human. A reading nobody could TAKE is neither, and buys nothing at all: nothing
      published, nothing released, no notice, and the poll behind it asks again.
+     Right behind it, a reviewer's change request whose relabel to `workflow:fixing` landed and whose developer was
+     never launched is handed over (`validating/review_resume.finishes_a_handed_request`): `review_returned_verdict`
+     rode that relabel's write with `handed` set to the `agent_runs_used` count, and where nothing was charged past it
+     -- or the charge is still `reserved`, which the same logical launch reuses -- the developer is resumed on the
+     verdict's feedback exactly as the validating round would have, with nothing posted twice. Left to the scan, that
+     feedback is a comment this orchestrator posted, the no-feedback bounce would follow, and a second reviewer would
+     be spent on a round already reviewed. A launch that got further, or a subject that moved, drops the record and the
+     steps below run as usual.
   5. Rescan unread feedback across all four surfaces, each past the reader or readers it answers to, reading the two
      IssueComment-space surfaces through the same per-surface cursors `_handle_in_review` uses — the issue thread
      past `pr_last_comment_id` with everything at or below `last_action_comment_id` dropped, the PR conversation past
