@@ -78,14 +78,20 @@ ARTIFACT_HEADING = "verification artifact"
 _EXISTING_WORKTREE = Path("/tmp")
 
 
-def declared_run(head: str = HEAD, *, exit_status: int = 0, verdict: str = "APPROVED") -> str:
+def declared_run(
+    head: str = HEAD,
+    *,
+    exit_status: int = 0,
+    verdict: str = "APPROVED",
+    output: str = SUITE_OUTPUT,
+) -> str:
     """A reviewer's final message declaring one run of the suite on `head`."""
     return (
         "Reviewed the diff and the report.\n\n"
         f"VERIFICATION: RUN {head}\n"
         f"COMMAND: {SUITE}\n"
         f"EXIT: {exit_status}\n"
-        f"{SUITE_OUTPUT}\n"
+        f"{output}\n"
         "VERIFICATION: END\n\n"
         f"VERDICT: {verdict}"
     )

@@ -6,7 +6,8 @@ Two refusals stop a verdict of a subject that still stands, and both are the
 reviewer's round to redo rather than a developer's to answer. An approval that
 relies on no evidence that passed and is current (`unverified_approvals`)
 parks under `reviewer_unverified` before the verify gate, the approval record,
-or the squash. A verdict the pinned comment has no room to persist parks under
+or the squash. A verdict the pinned comment has no room to persist, with the
+evidence transaction its commands were minted as, parks under
 `reviewer_unrecorded` before anything is published or acted on: a disposition
 nothing durable backs would be answered again by a second reviewer the moment
 the tick died, which is the rerun the persisted verdict exists to prevent.
@@ -33,9 +34,9 @@ from orchestrator.workflow.stages.validating import (
 _RETRY = "reply `/orchestrator continue` to run a fresh reviewer."
 
 _UNRECORDED = (
-    "the reviewer's verdict could not be recorded on the pinned comment, which "
-    "has no room for it, so neither it nor its verification evidence was acted "
-    f"on. Free room on the pinned comment, then {_RETRY}"
+    "the reviewer's verdict, or the verification evidence it reported, could "
+    "not be recorded on the pinned comment, which has no room for it, so "
+    f"neither was acted on. Free room on the pinned comment, then {_RETRY}"
 )
 
 _LAST_REVIEW_SESSION_ID = "last_review_session_id"

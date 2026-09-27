@@ -1741,8 +1741,10 @@ The keys that matter for the state machine fall into a few groups:
   instead of the no-feedback bounce spending a second reviewer. A subject that moved, a park a reply cleared into a
   fresh round, a developer already launched, or a record in any shape its reader refuses drops it. Additive: an issue
   without it has no verdict waiting. It is measured before it is staged -- a change request's feedback has no bound --
-  and a verdict the comment has no room for is not acted on at all: it parks under `reviewer_unrecorded`, since a
-  disposition nothing durable backs would be answered again by a second reviewer.
+  and a verdict the comment has no room for, or whose reviewer-reported transaction it has no room for, is not acted
+  on at all: it parks under `reviewer_unrecorded`, since a disposition nothing durable backs would be answered again by
+  a second reviewer, and one acted on without its transaction would leave what the reviewer reported off the pull
+  request.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, and the
   validating reviewer round is the one producer: the commands a returned reviewer declares are recorded as a

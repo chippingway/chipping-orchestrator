@@ -46,6 +46,13 @@ FILLER = "operator_notes"
 
 FILLED = "x" * (MAX_PINNED_BODY - len(LONG_REQUEST))
 
+# A failed run's quoted output the verdict carries in its feedback and the
+# transaction again in its transcript, and filler that leaves room for one
+# copy and not two.
+LONG_OUTPUT = "12 passed, 1 failed " * 1000
+
+FILLED_FOR_EVIDENCE = "x" * (MAX_PINNED_BODY - len(LONG_OUTPUT) * 3 // 2)
+
 
 def _spawned(case) -> tuple:
     """How many reviewers and developers the issue has spawned."""
@@ -135,6 +142,31 @@ class UnrecordedVerdictTest(_world.ReviewEvidenceWorld, unittest.TestCase):
                 self.github.label_history,
             ),
             (True, UNRECORDED, None, (1, 0), [], []),
+        )
+
+    def test_evidence_with_no_room_parks_the_verdict(self) -> None:
+        # The verdict fits and the failed run it reports does not: acted on
+        # without it, the change request would reach a developer with the
+        # failure never published, so nothing is acted on and nothing posted.
+        state = self.github.read_pinned_state(self.issue)
+        state.set(FILLER, FILLED_FOR_EVIDENCE)
+        self.github.write_pinned_state(self.issue, state)
+
+        self.dispatched(self.reviewer(_world.declared_run(
+            exit_status=1, verdict="CHANGES_REQUESTED", output=LONG_OUTPUT,
+        )))
+
+        pinned = self.pinned()
+        self.assertEqual(
+            (
+                pinned[_world.PARK_REASON],
+                pinned.get(_world.RETURNED_VERDICT),
+                pinned.get(_world.PENDING_EVIDENCE),
+                _read.artifacts(self),
+                _spawned(self),
+                _read.pr_comments(self, "requested changes"),
+            ),
+            (UNRECORDED, None, None, [], (1, 0), []),
         )
 
 

@@ -22,9 +22,18 @@ dispatcher's own reconciliation (`verification_transaction`), and every step
 behind it is finished from the persisted verdict by `review_resume` -- so a
 retry reruns no reviewer, folds no usage twice, spends no round, and launches a
 developer only where the change request it finishes was never handed to one.
-A verdict the comment has no room to persist is not acted on at all: it parks
-under `reviewer_unrecorded` (`review_parks`), since a disposition nothing
-durable backs is one a second reviewer would answer again.
+A verdict the comment has no room to persist -- or whose reviewer-reported
+transaction it has no room for -- is not acted on at all: it parks under
+`reviewer_unrecorded` (`review_parks`), since a disposition nothing durable
+backs is one a second reviewer would answer again, and evidence dropped for
+room would leave what the reviewer reported, a failed check included, off the
+pull request.
+
+Once the publication's requests are over, the subject is held to what stands
+again (`review_coverage._verdict_still_stands`): a later report settling on the
+same head while the artifact was posted is on the pinned comment and nowhere in
+hand, and a verdict acted on over it would post feedback about, and launch a
+developer on, words the pull request no longer carries.
 
 The evidence is published before the verdict is acted on, on the tick it
 returns, and a publication that holds ends that tick with the verdict waiting.
@@ -78,12 +87,6 @@ from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
-_UNRECORDED = (
-    "its verification evidence could not be recorded on the pinned comment, "
-    "which has no room for it"
-)
-
-
 @dataclass(frozen=True)
 class VerdictInHand:
     """A verdict and the evidence it relies on, ready to be acted on.
@@ -118,7 +121,8 @@ def disposes_of_the_verdict(
     if in_hand is None:
         log.warning(
             "issue=#%d has no room on its pinned comment to persist its "
-            "reviewer's verdict; parking rather than acting on it", issue.number,
+            "reviewer's verdict and evidence; parking rather than acting on "
+            "them", issue.number,
         )
         _parks.parks_unrecorded(gh, issue, state, run)
         return
@@ -128,6 +132,8 @@ def disposes_of_the_verdict(
             "issue=#%d holds its reviewer's verdict until the verification "
             "evidence it declared is confirmed on PR #%s", issue.number, run.pr_number,
         )
+        return
+    if in_hand.pending is not None and not _stood_through_the_publication(gh, issue, state, run):
         return
     # What this tick wrote -- the verdict, and the settlement behind it -- is
     # what every later re-read of the comment is measured against, as the
@@ -176,19 +182,49 @@ def acts_on_the_verdict(
         )
 
 
+def _stood_through_the_publication(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    run: _models._ReviewerRun,
+) -> bool:
+    """Whether the verdict's subject still stands after its evidence's publication.
+
+    Asked only where this tick published something: the subject was held to
+    what stands just before the verdict was persisted, and only the
+    publication's requests are long enough to move it again. A later report
+    settling while the artifact was posted is a subject nobody reviewed: a
+    change request acted on over it would post feedback about words the pull
+    request no longer carries and launch a developer on it. Such a verdict is
+    dropped in a write composed over what the comment carries now, for the
+    next tick's reviewer; a comment that will not read writes nothing, and the
+    verdict waits for the next tick to resolve again.
+    """
+    stands = _review_coverage._verdict_still_stands(gh, issue, state, run.subject)
+    if stands is False:
+        log.info(
+            "issue=#%d the subject its reviewer's verdict is about moved while "
+            "the evidence was published; dropping the verdict", issue.number,
+        )
+        _verdicts.drops_the_verdict(state)
+        gh.write_pinned_state(issue, state)
+    return bool(stands)
+
+
 def _persists(
     state: PinnedState,
     decision: _models._ReviewerDecision,
     claimed: _claims.ClaimedEvidence,
 ) -> VerdictInHand | None:
-    """Stage the verdict and the transaction it claims, measured together; None where it cannot be.
+    """Stage the verdict and the transaction it claims, measured together; None where they cannot be.
 
     The verdict goes first so the transaction is measured beside it: its
-    settlement lands while the verdict is still waiting. A transaction the
-    comment has no room for is not recorded and the verdict relies on no
-    evidence. A verdict with no room is None, and nothing is staged: acted on
-    with nothing durable behind it, it would be answered again by a second
-    reviewer the moment the tick died.
+    settlement lands while the verdict is still waiting. None where the
+    comment has no room for the verdict, or for the transaction the
+    reviewer's commands were minted as: acted on with nothing durable behind
+    it, the verdict would be answered again by a second reviewer the moment
+    the tick died, and acted on without its transaction, what the reviewer
+    reported -- a failed check included -- would never reach the pull request.
     """
     feedback = decision.feedback if decision.verdict == _verdicts.CHANGES_REQUESTED else ""
     returned = _verdicts.ReturnedVerdict(
@@ -201,10 +237,9 @@ def _persists(
     if not _verdicts.records_the_verdict(state, returned):
         return None
     pending = claimed.pending
-    if pending is None or _record_state.record_pending_evidence(state, pending):
-        return VerdictInHand(decision, claimed.claim, claimed.refusal, pending)
-    _verdicts.records_the_verdict(state, replace(returned, evidence=None))
-    return VerdictInHand(decision, refusal=_UNRECORDED)
+    if pending is not None and not _record_state.record_pending_evidence(state, pending):
+        return None
+    return VerdictInHand(decision, claimed.claim, claimed.refusal, pending)
 
 
 def _publication_holds(

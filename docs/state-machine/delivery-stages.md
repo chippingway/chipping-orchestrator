@@ -3292,7 +3292,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      that report whole between the issue and the inspection commands (must end with `VERDICT: APPROVED` or
      `VERDICT: CHANGES_REQUESTED`). Once the launch is written, the current verification evidence is handed over too
      where it answers for exactly that subject and proves current again (`review_evidence`): the artifact re-read at its
-     comment and quoted whole under the revision a `VERIFICATION: REUSED` line names. The prompt names the configured
+     comment, held once more to the settled record, and quoted whole under the revision a `VERIFICATION: REUSED` line
+     names. The prompt names the configured
      `VERIFY_COMMANDS` (or says none are configured) and teaches the declaration the reviewer closes on, above its
      verdict: the commands it ran on the reviewed head, or the exact evidence revision it reused. A verdict an earlier
      tick persisted and never disposed of is finished instead of all of this, behind the report hold and ahead of the
@@ -3316,8 +3317,11 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      [verification-evidence transaction](#the-verification-evidence-transaction-every-dispatch); a publication that
      holds ends the tick with the verdict waiting, and the next tick's reconciliation and `review_resume` finish it
      with no second reviewer, usage fold, run charge, or round. A waiting verdict whose subject moved meanwhile is
-     dropped, and that tick hands a fresh reviewer the subject as it stands. A verdict the comment has no room to
-     persist is not acted on at all and parks under `reviewer_unrecorded`. The approval arc's write and each park drop
+     dropped, and that tick hands a fresh reviewer the subject as it stands; so is one whose subject moved while its
+     evidence was posted, which the pinned comment and the subject are read again for once the publication is over
+     (`review_coverage._verdict_still_stands`), before any feedback is posted or developer launched. A verdict the
+     comment has no room to persist, or whose reviewer-reported transaction it has no room for, is not acted on at all
+     and parks under `reviewer_unrecorded`. The approval arc's write and each park drop
      the record; a change request keeps it, marked `handed` with the `agent_runs_used` count, through its relabel to
      `workflow:fixing`, and only the writes after the developer launch drop it.
      - **approved** → unless the report records moved above, the whole subject is resolved again

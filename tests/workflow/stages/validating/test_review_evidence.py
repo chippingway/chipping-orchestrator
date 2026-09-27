@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.git.verification import models as _verify_models
@@ -22,6 +23,7 @@ from tests.workflow import published_reports as _published_reports
 from tests.workflow.fixtures import LABEL_DOCUMENTING, ROLE_DEVELOPER, ROLE_REVIEWER
 from tests.workflow.repo_values import _FAKE_TREE_SHA
 from tests.workflow.stages.validating import (
+    review_evidence_races as _races,
     review_evidence_readings as _read,
     review_evidence_test_support as _world,
     settled_evidence_support as _settled,
@@ -40,6 +42,8 @@ UNDECLARED = "LGTM\n\nVERDICT: APPROVED"
 LATER_REPORT = "Covered the empty configuration as well; the suite passes."
 
 REUSE_MOVED = "no longer this issue's current evidence"
+
+NOTHING_HANDED = "No current workflow verification evidence covers this subject"
 
 UNPUBLISHED = "could not be published on the pull request"
 
@@ -246,6 +250,25 @@ class HandedEvidenceTest(_world.ReviewEvidenceWorld, unittest.TestCase):
             (1, current, DOCUMENTING),
         )
 
+    def test_an_edit_between_the_reads_hands_none(self) -> None:
+        # The evidence proves current, and its artifact is rewritten into
+        # another valid one before the prompt's own read: what the prompt
+        # would quote is not what the revision names, so nothing is handed.
+        current = _settled.settles_current_evidence(self)
+        rereads = _races.EditsTheArtifactOnReread(self, current)
+        with patch.object(self.github, "reread_verification_artifact", rereads):
+            ran = self.dispatched(self.reviewer(_world.declared_run()))
+
+        handed = _read.prompt(ran)
+        self.assertEqual(
+            (
+                _races.EDITED_OUTPUT in handed,
+                current.content_revision in handed,
+                NOTHING_HANDED in handed,
+            ),
+            (False, False, True),
+        )
+
     def test_another_report_is_handed_none(self) -> None:
         # A later report on the same head is a new subject, and evidence about
         # the earlier one answers for a review nobody is asking for: it is not
@@ -257,7 +280,7 @@ class HandedEvidenceTest(_world.ReviewEvidenceWorld, unittest.TestCase):
 
         handed = _read.prompt(ran)
         self.assertIn(f"> {LATER_REPORT}", handed)
-        self.assertIn("No current workflow verification evidence covers this subject", handed)
+        self.assertIn(NOTHING_HANDED, handed)
         self.assertNotIn("VERIFICATION: REUSED sha256:", handed)
         self.assertEqual(
             (self.pinned()[_world.PARK_REASON], DOCUMENTING in self.github.label_history),

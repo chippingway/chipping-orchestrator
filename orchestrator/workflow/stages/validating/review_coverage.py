@@ -30,6 +30,11 @@ not finish sent it there; the settled handoff asks it before moving a label
 that tail left owed; and `in_review` asks it before the approval may stand
 behind a ready ping.
 
+A returned verdict is held to its subject once more after the evidence it
+declared is published (`_verdict_still_stands`), ahead of the change request
+or the approval it carries: a report settling during that publication is a
+subject nobody reviewed.
+
 Nothing here parks or posts. What a refusal owes is the next reviewer
 round's to decide, and that round resolves the subject for itself.
 """
@@ -49,7 +54,7 @@ from orchestrator.workflow.engine import (
     review_subjects as _review_subjects,
 )
 from orchestrator.workflow.late_split import payloads as _payloads
-from orchestrator.workflow.stages.validating import review_report as _review_report
+from orchestrator.workflow.stages.validating import review_comment as _review_comment, review_report as _review_report
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -92,6 +97,28 @@ def _subject_still_stands(
         subject.pr_number,
     )
     return False
+
+
+def _verdict_still_stands(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    subject: _review_subjects.ReviewSubject,
+) -> bool | None:
+    """Whether a verdict of `subject` still stands once its evidence's publication is over.
+
+    The publication is requests long enough for another road to settle a
+    later report, which is on the pinned comment and nowhere in hand while
+    the earlier report still reads where it was -- so the comment is read
+    again against the state in hand first (`review_comment._records_stand`),
+    carrying whatever it moved onto that state, and only then is the whole
+    subject resolved again. None where the comment will not read, which
+    writes nothing.
+    """
+    stood = _review_comment._records_stand(gh, issue, state, dict(state.data))
+    if stood is None:
+        return None
+    return stood and _subject_still_stands(gh, issue, state, subject)
 
 
 def _approval_stands(gh: GitHubClient, state: PinnedState) -> bool | None:

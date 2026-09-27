@@ -3128,9 +3128,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             stand (`review_comment.py`), the whole subject is resolved again over the issue read afresh
                             and has to EQUAL the one handed over -- pull request, head, requirements, and the report's
                             revision, digest, location, and words -- or the verdict is not acted on and the next round
-                            resolves the subject for itself; asked again by `approval.py` once the verify gate has
-                            passed, since a verification can run long enough for the report to be edited or replaced
-                            under it. Later, once the pinned records agree the current report is the approved
+                            resolves the subject for itself; asked again, with the pinned comment read first
+                            (`_verdict_still_stands`), once the verdict's evidence has been published, and by
+                            `approval.py` once the verify gate has passed, since a publication or a verification can
+                            run long enough for the report to be edited or replaced under it. Later, once the
+                            pinned records agree the current report is the approved
                             one and its settlement handoff still describes it -- the pair a reviewer spawn refuses
                             otherwise -- the report is read at its location again, since no record sees a comment
                             edited or deleted in place; the issue is read afresh against the approval's own requirements
@@ -3153,8 +3155,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       review_evidence.py    the current verification evidence a reviewer is handed: only a record bound to exactly
                             the subject it is about to review, proved current again
                             (`current_evidence_verdict`) once the launch has recorded that subject, and its artifact
-                            re-read at the comment it settled as; anything short of that hands nothing, and the
-                            reviewer runs the verification itself
+                            re-read at the comment it settled as and held to the record again, so the words quoted
+                            are the ones the revision names; anything short of that hands nothing, and the reviewer
+                            runs the verification itself
       review_claims.py      what a returned reviewer's declaration earns its verdict: commands it ran minted as a
                             reviewer-reported transaction bound to the subject it was handed -- the settled report's
                             repository, pull request, and branch at the reviewed head and requirements, the full tree
@@ -3168,10 +3171,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       review_disposition.py a returned verdict in the order it is settled: the subject still standing, the verdict and
                             the transaction it claims persisted in one write, that transaction published through the
                             dispatcher's own reconciliation before anything is acted on -- a publication that holds
-                            ends the tick with the verdict waiting -- and then the fix route for a change request,
-                            which keeps the record through its relabel marked as handed, or, for an approval relying
-                            on settled, passing evidence, the approval arc; a verdict with no room on the comment is
-                            not acted on and parks instead
+                            ends the tick with the verdict waiting -- then the subject held to what stands once
+                            more, and only then the fix route for a change request, which keeps the record through
+                            its relabel marked as handed, or, for an approval relying on settled, passing evidence,
+                            the approval arc; a verdict or transaction with no room on the comment is not acted on
+                            and parks instead
       review_resume.py      a verdict an earlier tick persisted and never disposed of, finished behind the report hold
                             with no reviewer spawned, no usage folded, no run charged, and no round spent, while its
                             subject resolves again to the one recorded; one whose subject moved, one a reply bought a

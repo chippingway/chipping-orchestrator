@@ -493,8 +493,9 @@ The reviewer prompt (`workflow/engine/review_prompts.py`, with its verification 
 - **The current evidence for its subject, or the note that there is none.** Only evidence recorded as current and bound
   to exactly the pull request, head, requirements, and report the reviewer is handed is quoted, and only once it
   proves current again — still the latest revision, its handoff and artifact standing, the whole binding proved
-  (`stages/validating/review_evidence.py`). The artifact is re-read at its comment and quoted whole, witness and
-  commands included, under the `sha256:` revision a reuse names. Evidence about an earlier report, another head, or
+  (`stages/validating/review_evidence.py`). The artifact is re-read at its comment, held once more to the settled
+  record, and quoted whole, witness and commands included, under the `sha256:` revision a reuse names. Evidence about
+  an earlier report, another head, or
   requirements the issue has moved past is never handed over.
 - **What the repository configures.** The configured `VERIFY_COMMANDS` are listed; an empty setting is said to be
   one, and not evidence that any check passed, so the reviewer runs what the repository's own documentation requires.
@@ -517,9 +518,10 @@ tick finds an accepted post by its receipt, and finishes the verdict from the re
 (`stages/validating/review_resume.py`) with no second reviewer, usage fold, run charge, or round. A change request
 keeps its record through the relabel to `workflow:fixing`, marked with the agent-run count its developer's launch
 charges past, so a tick that stops between that relabel and the launch leaves `fixing` the feedback to hand exactly one
-developer rather than a round for a second reviewer. A waiting verdict whose subject moved is dropped, and a fresh
-reviewer is handed the subject as it stands; one the pinned comment has no room to persist is acted on not at all and
-parks under `reviewer_unrecorded`.
+developer rather than a round for a second reviewer. A verdict whose subject moved — while it waited, or while its
+evidence was being posted — is dropped, and a fresh reviewer is handed the subject as it stands; one the pinned comment
+has no room to persist, with the transaction its commands were minted as, is acted on not at all and parks under
+`reviewer_unrecorded`.
 
 A change request stands without evidence. An approval reaches the approval arc only on evidence that passed and is
 current — its own recorded run with every command exiting 0, once that transaction has settled on the pull request, or

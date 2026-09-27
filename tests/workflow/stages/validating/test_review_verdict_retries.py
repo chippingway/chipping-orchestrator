@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import unittest
 from dataclasses import replace
+from unittest.mock import patch
 
 from tests.workflow import published_reports as _published_reports
 from tests.workflow.engine import usage_frames as _usage_frames
@@ -28,6 +29,7 @@ from tests.workflow.fixtures import (
     _reported,
 )
 from tests.workflow.stages.validating import (
+    review_evidence_races as _races,
     review_evidence_readings as _read,
     review_evidence_test_support as _world,
 )
@@ -215,6 +217,27 @@ class MovedSubjectTest(_HeldPublication, unittest.TestCase):
             ),
             (False, 1, DOCUMENTING),
         )
+
+    def test_a_report_settling_during_the_post(self) -> None:
+        # A later report settles on the same head while the change request's
+        # evidence is being posted: the request is about words the pull
+        # request no longer carries, so no feedback is posted and no developer
+        # launched, and the next tick's reviewer is handed the later report.
+        posting = _races.SettlesALaterReport(self, LATER_REPORT)
+        with patch.object(self.github, "_post_verification_artifact", posting):
+            self.dispatched(self.reviewer(REQUESTING))
+
+        self.assertEqual(
+            (
+                _spawned(self),
+                _read.pr_comments(self, "requested changes"),
+                self.pinned()[_world.RETURNED_VERDICT],
+                self.github.label_history,
+            ),
+            ((1, 0), [], None, []),
+        )
+        ran = self.dispatched(self.reviewer(_world.declared_run()))
+        self.assertIn(f"> {LATER_REPORT}", _read.prompt(ran))
 
 
 if __name__ == "__main__":
