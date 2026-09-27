@@ -824,23 +824,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             target head each read as a commit in its own right -- never a tag peeling to one --
                             carrying the one tree the run recorded (`tree_of`)
     verification_subject.py the subject half: the evidence's pull request the one this issue pins as `pr_number`; no
-                            developer report still owed (`report_delivery.owes_a_report`, the validating hold's
-                            rule); the bound review subject about the target head and equal to the applicable record
-                            (`applicable_subject`)
-                            (`review_returned_subject` for a reviewer's account, `review_subject` for a run this
-                            orchestrator executed); the settled report re-read exactly as a reviewer is handed it --
-                            the settled pair held to each other and the report read at its location, through
-                            `stages/validating/review_report.py` resolved when called -- named by that subject, which
-                            passes that reader's own rules in its order (requirements the round was due, then a
-                            report not stale: about the subject's head, written against the drift baseline); and
-                            the requirements the evidence was bound to still the issue's own
+                            developer report still owed (`report_delivery.owes_a_report`, the validating hold's rule);
+                            the bound review subject about the target head and equal to the applicable record
+                            (`applicable_subject`: `review_returned_subject` for a reviewer's account, `review_subject`
+                            for a run this orchestrator executed); the settled report re-read exactly as a reviewer is
+                            handed it -- the settled pair held to each other and the report read at its location,
+                            through `stages/validating/review_report.py` resolved when called -- named by that subject,
+                            which passes that reader's own rules in its order (requirements the round was due, then a
+                            report not stale: about the subject's head, written against the drift baseline); and the
+                            requirements the evidence was bound to still the issue's own
     verification_proof.py   the whole proof, pull request first through `report_publication_evidence.py` and then
-                            cheapest first -- the context against `configured_context_revision` (the verify runner's
-                            own over the configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, for both witnesses), the
-                            recorded subject, the world, the settled report, the requirements -- in the report
-                            transaction's verdict vocabulary; and `current_evidence_verdict`, for a reader about to
-                            rely on the current record: its publication first (`verification_current.py`), then the
-                            same proof. No production reader asks it yet
+                            cheapest first (`rest_verdict`) -- the context against `configured_context_revision` (the
+                            verify runner's own over the configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, for both
+                            witnesses), the recorded subject, the world, the settled report, the requirements -- in
+                            the report transaction's verdict vocabulary; `binding_verdict` is both halves in one call,
+                            which the settlement takes again over the comment it re-read. `current_evidence_verdict`
+                            is for a reader about to rely on the current record: the pull request, then its
+                            publication (`verification_current.py` -- the latest record, its handoff, its artifact),
+                            then the same proof. No production reader asks it yet
     verification_current.py whether the current record is still what the pull request carries: no revision past it
                             spent (a newer transaction, its artifact posted or not, supersedes it), the handoff
                             describing it, and the comment it recorded, re-read, our artifact with every binding

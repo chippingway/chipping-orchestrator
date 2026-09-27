@@ -790,16 +790,19 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    request, branch, checkout, tested and
                                    target trees, review subject, configured
                                    context, and requirements, then post the
-                                   artifact (idempotent by its receipt) and
-                                   settle current, history, and handoff in
-                                   ONE write. A read nobody could take HOLDS;
-                                   anything a push, a drift resume, a fresh
-                                   reviewer, or fresher evidence answers
-                                   stands DOWN; an unreadable, replayed,
-                                   overtaken, or ended record is RETIRED; it
-                                   never parks. Closed, done|rejected,
-                                   hard-skipped, and unlabelled issues are
-                                   left exactly as they stand
+                                   artifact (idempotent by its receipt),
+                                   re-read the issue, the pinned comment,
+                                   and the artifact, prove it all again,
+                                   and settle current, history, and handoff
+                                   in ONE write. A read nobody could take
+                                   HOLDS; anything a push, a drift resume,
+                                   a fresh reviewer, or fresher evidence
+                                   answers stands DOWN; an unreadable,
+                                   replayed, overtaken, or ended record is
+                                   RETIRED; it never parks. Closed,
+                                   done|rejected, hard-skipped, and
+                                   unlabelled issues are left exactly as
+                                   they stand
      no workflow label, a      ─► nothing, logged once a tick. Pickup GREETS
        pinned comment already      an issue and mints its pinned comment, so a
        on the issue, and no        second greeting writes a second one every

@@ -119,8 +119,10 @@ def current_evidence_verdict(reading: ProofReading) -> _evidence_models.ReportEv
     a readiness decision -- rather than for the reconciliation that settled
     it: a head, a context, a report, a review subject, or requirements can
     each move after the settlement, and the artifact can be deleted or edited,
-    and the record alone sees none of it. So its handoff and its artifact are
-    read again (`verification_current`) behind the pull request, and then the
+    and the record alone sees none of it -- and a newer transaction can be
+    recorded, its artifact superseding this one's on the thread. So behind the
+    pull request it has to still be the latest evidence recorded, its handoff
+    and its artifact are read again (`verification_current`), and then the
     whole proof a settlement takes. An issue with no current evidence defers,
     since nothing on this road can produce some.
     """
