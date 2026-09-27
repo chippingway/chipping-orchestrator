@@ -2907,9 +2907,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             below to answer; a location, an issue, or a pull request nobody could read holds the tick
       approval.py           the verify gate and the squash-and-hand-off tail both roads run, over the subject,
                             branch, and pull request number whichever road decided them hands in -- the subject
-                            resolved again once the gate has passed and the pinned comment read behind it, carrying
-                            report or evidence records settled meanwhile, a persisted verdict retired by whichever
-                            write follows and held where the subject would not read; the review
+                            resolved again once the gate has run, whatever it answered, and the pinned comment read
+                            behind it, carrying report or evidence records settled meanwhile, a failed gate parking
+                            only over the subject still standing, a persisted verdict retired by whichever write
+                            follows and held where the subject would not read; the review
                             subject recorded as approved once the gate passes, riding whichever write the tail
                             makes, and the relabel that tail owes held wherever that approval no longer covers the
                             report the pull request carries, the requirements the issue carries, or the head the
@@ -3209,7 +3210,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             held behind the notice to the subject resolved again and then to the comment read
                             last, the report and evidence records it moved carried onto the write
                             (`carries_the_standing_records`, which the approval check shares) -- a push or a
-                            report record moved meanwhile lands no park, the write dropping the verdict alone
+                            report record moved meanwhile lands no park, the write dropping the verdict alone, and
+                            a subject that would not read lands none either, the verdict written back as it waited
       review_handoffs.py    a persisted change request's handoff: held to the subject standing, the pinned comment
                             read behind it, then the feedback posted -- a post that failed or left no id holds the
                             verdict unhanded -- the whole subject held again behind that post, the verdict written

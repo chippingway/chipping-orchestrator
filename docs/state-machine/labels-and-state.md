@@ -1776,7 +1776,9 @@ The keys that matter for the state machine fall into a few groups:
   nothing is posted or written at all where there is room for no park. Each park sets the record to `null` in its own
   write, with the report and evidence records the comment carries once read again behind its notice; the subject is
   resolved again behind that notice too, and a push or a report record moved meanwhile lands no park, the write setting
-  the record to `null` alone for a fresh reviewer. A bare `/orchestrator continue` on either park buys a fresh reviewer,
+  the record to `null` alone for a fresh reviewer, while a subject that would not read lands none either and writes the
+  record back as it waited. A failed verify gate likewise parks only over the subject still standing behind it. A bare
+  `/orchestrator continue` on either park buys a fresh reviewer,
   and an edit under one nobody replied to waits for that reviewer rather than resuming the developer. Additive and
   dormant: no live reviewer round hands its result to that service yet, and nothing finishes a record a tick left
   waiting, so no issue carries the key, and an issue without it has no verdict waiting.

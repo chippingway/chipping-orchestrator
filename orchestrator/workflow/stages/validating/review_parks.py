@@ -35,8 +35,10 @@ back over. A subject that moved -- a head read whole that is another, or a
 report record the comment moved -- lands no park: the write drops the verdict
 and keeps the notice recorded as the orchestrator's own, the park's flags put
 back as they were, and the next tick's reviewer is handed the subject as it
-stands. A subject nobody could read is no proof it moved, and the park lands;
-a comment that will not read writes nothing.
+stands. A subject nobody could read is no proof it moved, nor that it still
+stands, and a park is only for a verdict of the subject standing: it lands no
+park either, and whatever the verdict left waiting is written back for a later
+tick to resolve again. A comment that will not read writes nothing.
 """
 from __future__ import annotations
 
@@ -80,7 +82,7 @@ _LAST_REVIEW_SESSION_ID = "last_review_session_id"
 _ABSENT = object()
 
 # What a park stages beside its notice's ledger entry, put back as it was where
-# the subject moved behind that notice.
+# no park lands behind that notice.
 _PARK_FIELDS = ("awaiting_human", _state._PARK_REASON, "last_action_comment_id")
 
 
@@ -118,6 +120,7 @@ def _parks(
 ) -> None:
     """File one reviewer-side park under `park`'s reason and words, in one write, where it fits."""
     reason, words = park
+    waiting = state.data.get(_verdicts.RETURNED_VERDICT, _ABSENT)
     parked = _room_for_the_park(gh, issue, state, reason)
     if parked is None:
         log.error(
@@ -126,6 +129,7 @@ def _parks(
         )
         return
     unparked = {field: parked.data.get(field, _ABSENT) for field in _PARK_FIELDS}
+    unparked[_verdicts.RETURNED_VERDICT] = waiting
     _guards._park_awaiting_human(
         gh,
         issue,
@@ -180,7 +184,8 @@ def _behind_the_notice(
     The subject is resolved first and the comment read last, so a report
     settling during either is carried rather than written back over. Where
     the subject moved, the park's flags go back to `unparked` and the write
-    drops the verdict alone.
+    drops the verdict alone; where it would not read, the verdict it dropped
+    goes back as well, waiting for a later tick to resolve it again.
     """
     stands = _review_coverage._subject_still_stands(gh, issue, parked, subject)
     moved = carries_the_standing_records(gh, issue, parked)
@@ -192,11 +197,22 @@ def _behind_the_notice(
             "its park notice was posted; dropping the verdict for a fresh "
             "reviewer rather than parking", issue.number,
         )
-        for field, was in unparked.items():
-            if was is _ABSENT:
-                parked.data.pop(field, None)
-            else:
-                parked.set(field, was)
+        restored = dict(unparked)
+        restored.pop(_verdicts.RETURNED_VERDICT)
+    elif stands is None:
+        log.info(
+            "issue=#%d could not read the subject its reviewer's verdict is "
+            "about behind its park notice; keeping what the verdict left "
+            "waiting rather than parking", issue.number,
+        )
+        restored = unparked
+    else:
+        return True
+    for field, was in restored.items():
+        if was is _ABSENT:
+            parked.data.pop(field, None)
+        else:
+            parked.set(field, was)
     return True
 
 

@@ -23,19 +23,21 @@ compared once more between the two, since a verification can run long enough
 for the report to be edited under it, and an approval of the earlier words is
 not one the squash may be taken under -- and the pinned comment is read behind
 that resolution, its last request, so report or evidence records another road
-settled during it are carried rather than written back over. A subject nobody
-could read holds a verdict a disposition persisted instead of retiring it,
-while every write the approval makes past that retires it. The tail both roads
-share holds its relabel until the approval still covers the report, the
-requirements, and the head the rewrite published, each read afresh once it is
-published -- the only time any is asked on the road that finishes a squash an
-earlier tick began -- and moves the label only while the pinned comment still
-carries the report records in hand. Every later reader that would act on this
-approval -- the settled handoff below, the in_review stage -- holds it to that
-report, so a report that changes on an unchanged commit is sent back to a
-reviewer rather than carried past one. The same record retires the final-docs
-verdict and the ready ping an earlier approval left, since each is keyed on a
-head this approval may share.
+settled during it are carried rather than written back over. A failed
+verification is held to the same resolution before it parks, since a failure
+over a head nobody reviewed is a fresh reviewer's to answer rather than a
+human's. A subject nobody could read holds a verdict a disposition persisted
+instead of retiring it, while every write the approval makes past that retires
+it. The tail both roads share holds its relabel until the approval still covers
+the report, the requirements, and the head the rewrite published, each read
+afresh once it is published -- the only time any is asked on the road that
+finishes a squash an earlier tick began -- and moves the label only while the
+pinned comment still carries the report records in hand. Every later reader
+that would act on this approval -- the settled handoff below, the in_review
+stage -- holds it to that report, so a report that changes on an unchanged
+commit is sent back to a reviewer rather than carried past one. The same record
+retires the final-docs verdict and the ready ping an earlier approval left,
+since each is keyed on a head this approval may share.
 
 The ordering inside the handoff matters too. The squash notice is posted
 BEFORE `handoff` is asked to seed the watermarks, so that its own id lands in
@@ -464,11 +466,15 @@ def _finalize_validating_approval(
     pass before in_review picks up; the watermarks, approval, and squash
     comment seeded here are preserved across the documenting hop.
 
-    A persisted verdict (`review_verdicts`) is retired by whichever write this
-    makes -- the park, the drop, or the squash road's -- except where the
-    subject could not be read: that is no proof the approval stands or fell,
-    so the write keeps the verdict for the next tick to finish, and no second
-    reviewer is spent answering a round already reviewed.
+    The subject is resolved again behind the gate whatever it said, so a
+    failed verification parks only over the subject the reviewer approved: a
+    push, an edit, or a later report meanwhile is work nobody reviewed, which
+    a fresh reviewer answers rather than a human. A persisted verdict
+    (`review_verdicts`) is retired by whichever write this makes -- the park,
+    the drop, or the squash road's -- except where the subject could not be
+    read: that is no proof the approval stands or fell, so the write keeps the
+    verdict for the next tick to finish, and no second reviewer is spent
+    answering a round already reviewed.
 
     The squash and everything behind it are the tail beside this one, because
     a collapse an earlier tick did not finish owes the same steps with no
@@ -480,10 +486,10 @@ def _finalize_validating_approval(
     verify = _verify_runner._run_verify_commands(
         reviewer_run.wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT,
     )
-    acts = _acts_behind_the_gate(gh, issue, state, reviewer_run, verify)
-    if acts is None:
+    stands = _stands_behind_the_gate(gh, issue, state, reviewer_run)
+    if stands is None:
         return
-    if acts:
+    if stands and verify.status in _VERIFIED:
         # Staged here and written by whichever write the squash road below
         # makes, so an approval nothing recorded is never one a later tick
         # acts on.
@@ -491,35 +497,37 @@ def _finalize_validating_approval(
         _handoff._post_approval_comment(gh, issue, state, reviewer_run)
         _squashed_and_handed_off(gate, branch, reviewer_run.pr_number)
         return
-    if verify.status not in _VERIFIED:
+    if stands:
         _verify._park_verify_failure(gh, issue, state, verify)
-    # A failed verification parks, an approval the subject moved out from
-    # under is dropped, and one whose subject would not read is held; each
-    # way what the run left is the write owed.
+    # A failed verification of the subject standing parks, an approval the
+    # subject moved out from under is dropped, and one whose subject would
+    # not read is held; each way what the run left is the write owed.
     gh.write_pinned_state(issue, state)
 
 
-def _acts_behind_the_gate(
+def _stands_behind_the_gate(
     gh: _client.GitHubClient,
     issue: Issue,
     state: _pinned_state.PinnedState,
     reviewer_run: _models._ReviewerRun,
-    verify,
 ) -> bool | None:
-    """Whether an approval is acted on once its verify gate has run; None where nothing may be written.
+    """Whether an approval's subject still stands once its verify gate has run; None where nothing may be written.
 
     The verification can outlast a report or evidence settling on the same
     head, an edit of the report, a push, or an edit of the issue, and nothing
-    past this asks again before the squash. So a passed gate's subject is
-    resolved again first and the comment read behind it, the last of these
-    requests, and what settled during either is carried before anything
-    writes; a comment that will not read is None. A subject nobody could read
-    is no proof either way: nothing is acted on, and the verdict a disposition
-    persisted is left for the caller's write to keep for the next tick rather
-    than retired for a second reviewer. Every other answer retires it.
+    past this asks again before the squash -- or before the park a failed
+    gate takes, since a failure over a head nobody reviewed is no failure of
+    the approval, and a fresh reviewer answers the head as it stands without
+    anybody's reply. So the subject is resolved again first, whatever the
+    gate said, and the comment read behind it, the last of these requests,
+    and what settled during either is carried before anything writes; a
+    comment that will not read is None. A subject nobody could read is no
+    proof either way: nothing is acted on or parked, and the verdict a
+    disposition persisted is left for the caller's write to keep for the next
+    tick rather than retired for a second reviewer. Every other answer
+    retires it.
     """
-    verified = verify.status in _VERIFIED
-    stands = verified and _review_coverage._subject_still_stands(
+    stands = _review_coverage._subject_still_stands(
         gh, issue, state, reviewer_run.subject,
     )
     records_stand = _review_comment._records_stand(
@@ -527,7 +535,6 @@ def _acts_behind_the_gate(
     )
     if records_stand is None:
         return None
-    held = records_stand and stands is None
-    if not held:
+    if not (records_stand and stands is None):
         _verdicts.drops_the_verdict(state)
     return bool(records_stand and stands)

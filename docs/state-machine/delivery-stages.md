@@ -3316,15 +3316,16 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        an issue edit, or a report edited or removed while the reviewer ran, or a reading nobody could take, means the
        approval is not acted on: the run is recorded and the next tick resolves the subject as it stands. Then, in
        order: (1) run the local verify gate
-       (`_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`); where it passed, resolve and
-       compare the subject once more, since a verification can run long enough for the report to be edited or
-       replaced under it; then read the pinned comment again as on the reviewer's return, last, before anything below
-       is written — a comment that will not read ends the tick with nothing written, and report or verification
-       evidence records that moved during the gate or that resolution are carried first and refuse the approval. An
-       empty command tuple returns `not_run`, which advances without being evidence that anything passed, and any
-       other non-ok result parks via `_park_verify_failure` with a typed `park_reason`
-       (`verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`) and the
-       approval / squash / handoff do NOT fire (see
+       (`_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`); whatever it answered, resolve and
+       compare the subject once more, since a verification can run long enough for the report to be edited or replaced,
+       or the head pushed, under it; then read the pinned comment again as on the reviewer's return, last, before
+       anything below is written — a comment that will not read ends the tick with nothing written, and report or
+       verification evidence records that moved during the gate or that resolution are carried first and refuse the
+       approval. An empty command tuple returns `not_run`, which advances without being evidence that anything passed,
+       and any other non-ok result parks — only where the records stood and the subject still stands, since a failure
+       over work nobody reviewed is a fresh reviewer's to answer and one over a subject nobody could read holds — via
+       `_park_verify_failure` with a typed `park_reason` (`verify_failed` / `verify_timeout` / `verify_dirty` /
+       `verify_head_changed` / `verify_tree_changed`) and the approval / squash / handoff do NOT fire (see
        [`configuration.md#local-verification-gate`](../configuration.md#local-verification-gate)); otherwise the
        approval is acted on only where the records stood and the subject still stands; then stage the
        subject as `review_approved_subject`, retiring the `docs_verdict` and `ready_ping_sha` an earlier approval left,
