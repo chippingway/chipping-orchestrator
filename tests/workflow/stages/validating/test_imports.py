@@ -42,6 +42,7 @@ _OWNERS = (
     "review_claims",
     "review_disposition",
     "review_evidence",
+    "review_handoffs",
     "review_parks",
     "review_resume",
     "review_verdicts",

@@ -27,9 +27,13 @@ A change request handed to `workflow:fixing` is finished there instead
 (`finishes_a_handed_request`), where the relabel that handed it landed and the
 developer launch behind it did not: the feedback is already on the pull
 request, so the developer is launched on it and nothing is posted twice. The
-lifetime ledger says whether that launch happened -- a charge past the count
-the handoff recorded that got past RESERVED -- and a verdict whose developer
-was launched is dropped wherever it is found, since the run it owed happened.
+lifetime ledger and the branch say whether that launch happened
+(`review_handoffs`): a verdict whose developer was launched is dropped wherever
+it is found, since the run it owed happened, and one whose launch STARTED and
+left nothing to account for parks on `fixing` rather than paying for a second
+developer or a second reviewer. On `workflow:validating`, where only a relabel
+from outside brings a handed verdict back, an unfinished launch is dropped like
+a finished one and the round runs.
 
 Nor is a verdict finished on a tick an awaiting-human park was cleared into:
 that reply bought a fresh round of its own, and the round's writes drop the
@@ -47,17 +51,14 @@ from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import (
-    review_subjects as _review_subjects,
-    run_ledger_models as _run_ledger_models,
-    run_ledger_values as _run_ledger_values,
-)
+from orchestrator.workflow.engine import review_subjects as _review_subjects
 from orchestrator.workflow.stages.validating import (
     models as _models,
     requested_changes as _requested_changes,
     review_comment as _review_comment,
     review_coverage as _review_coverage,
     review_disposition as _disposition,
+    review_handoffs as _handoffs,
     review_report as _review_report,
     review_verdicts as _verdicts,
 )
@@ -95,7 +96,9 @@ def resumes_a_returned_verdict(
     if state.get(_verdicts.RETURNED_VERDICT) is None:
         return False
     returned = _verdicts.read_returned_verdict(state)
-    if parked is not None or returned is None or _developer_launched(state, returned):
+    if parked is not None or returned is None or _handoffs.handoff_launch(
+        spec, issue, state, returned,
+    ) is not _handoffs.HandoffLaunch.OWED:
         log.info(
             "issue=#%d drops the reviewer verdict it had waiting: it will not "
             "read, a reply bought a fresh round, or its developer was launched",
@@ -121,16 +124,21 @@ def finishes_a_handed_request(
 ) -> bool:
     """On `workflow:fixing`, launch the developer a handed change request never reached.
 
-    True where this tick is over: the developer was handed the feedback, or a
-    reading could not be taken. False where there is nothing to hand -- no
-    verdict, one never handed, or one whose developer was launched, which is
-    dropped -- and where its subject moved, dropping it for the round that
-    reviews the subject as it stands; the stage's own road runs then.
+    True where this tick is over: the developer was handed the feedback, a
+    launch nobody can account for was parked (`review_handoffs`), or a reading
+    could not be taken. False where there is nothing to hand -- no verdict, one
+    never handed, or one whose developer was launched, which is dropped -- and
+    where its subject moved, dropping it for the round that reviews the
+    subject as it stands; the stage's own road runs then.
     """
     returned = _verdicts.read_returned_verdict(state)
     if returned is None or returned.handed is None:
         return False
-    if _developer_launched(state, returned):
+    launch = _handoffs.handoff_launch(spec, issue, state, returned)
+    if launch is _handoffs.HandoffLaunch.UNFINISHED:
+        _handoffs.parks_an_unfinished_launch(gh, issue, state, returned)
+        return True
+    if launch is _handoffs.HandoffLaunch.LAUNCHED:
         _verdicts.drops_the_verdict(state)
         gh.write_pinned_state(issue, state)
         return False
@@ -151,20 +159,6 @@ def finishes_a_handed_request(
         context, _requested_changes._run_requested_fix(context),
     )
     return True
-
-
-def _developer_launched(state: PinnedState, returned: _verdicts.ReturnedVerdict) -> bool:
-    """Whether the developer a handed change request owes has been launched.
-
-    Read off the lifetime ledger the launch charges before it spawns: nothing
-    charged past the count the handoff recorded is no launch, and a charge
-    still RESERVED is one whose spawn never started -- which the same logical
-    launch reuses rather than charging again. Only a charge past that count
-    that got further says a developer was handed the feedback.
-    """
-    if returned.handed is None or _run_ledger_values._runs_used(state) <= returned.handed:
-        return False
-    return _run_ledger_values._reservation(state) is not _run_ledger_models.RunPhase.RESERVED
 
 
 def _resumed_run(

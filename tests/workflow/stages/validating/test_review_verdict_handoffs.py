@@ -36,6 +36,18 @@ REQUESTING = f"{REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
 
 RESERVATION = "agent_run_reservation"
 
+STARTED = "started"
+
+EXECUTION_FAILED = "agent_execution_failed"
+
+CONTINUE = "/orchestrator continue"
+
+# Ticks on `fixing` with nothing new on the thread, which a park waits through.
+QUIET_TICKS = 2
+
+# A reviewer that names no verdict, for a tick about what it was handed.
+UNDECIDED = "Still reading the change."
+
 UNRECORDED = "reviewer_unrecorded"
 
 # A change request's feedback longer than most of what the pinned comment
@@ -96,14 +108,12 @@ class HandedChangeRequestTest(_world.ReviewEvidenceWorld, unittest.TestCase):
         )
 
     def test_a_launched_developer_is_not_rerun(self) -> None:
-        # The ledger says a developer launch got past its charge after the
-        # handoff: the run the verdict owed happened, so the verdict is
-        # dropped and the stage's own road answers what that run left.
+        # The ledger says a developer launch past the handoff was charged and
+        # settled, which only a write behind a run that returned does: the
+        # run the verdict owed happened, so the verdict is dropped and the
+        # stage's own road answers what that run left.
         self._handed_and_stopped()
-        state = self.github.read_pinned_state(self.issue)
-        state.set(_world.AGENT_RUNS_USED, state.get(_world.AGENT_RUNS_USED) + 1)
-        state.set(RESERVATION, "started")
-        self.github.write_pinned_state(self.issue, state)
+        self._charges_a_launch(phase=None)
 
         self._run_fixing(self.github, self.issue, run_agent=[], dirty_files=())
 
@@ -111,6 +121,57 @@ class HandedChangeRequestTest(_world.ReviewEvidenceWorld, unittest.TestCase):
             (_spawned(self), self.pinned()[_world.RETURNED_VERDICT]),
             ((1, 0), None),
         )
+
+    def test_an_unfinished_launch_parks(self) -> None:
+        # The launch past the handoff reached STARTED -- which goes down
+        # before the spawn -- and left nothing: no result, and no commit on
+        # the branch. Nobody can say a developer ran, so nothing is paid for
+        # twice: no developer is relaunched, and the issue is not bounced to a
+        # second reviewer over the head already reviewed. It parks on
+        # `fixing`, stays there on a quiet tick, and the operator's retry
+        # hands the reviewer's feedback to one fresh developer session, whose
+        # fix is the next head a reviewer is handed.
+        self._handed_and_stopped()
+        self._charges_a_launch(phase=STARTED)
+
+        for _ in range(QUIET_TICKS):
+            self._run_fixing(self.github, self.issue, run_agent=[], dirty_files=())
+        self.assertEqual(
+            (
+                _spawned(self),
+                self.pinned()[_world.PARK_REASON],
+                self.pinned()[_world.RETURNED_VERDICT],
+                self.github.workflow_label(self.issue),
+            ),
+            ((1, 0), EXECUTION_FAILED, None, LABEL_FIXING),
+        )
+
+        _read.replies(self, CONTINUE)
+        fixed = self._run_fixing(
+            self.github, self.issue,
+            run_agent=[_agent(session_id=_world.DEV_SESSION, last_message=_reported("fixed"))],
+            dirty_files=(),
+            head_shas=FIX_HEAD_SHAS,
+        )
+        reviewed = self.dispatched(self.reviewer(UNDECIDED))
+
+        fixed_head = self.pull_request.head.sha
+        self.assertEqual(
+            (
+                _spawned(self),
+                REQUESTED in fixed[_world.RUN_AGENT].call_args.args[1],
+                f"VERIFICATION: RUN {fixed_head}" in _read.prompt(reviewed),
+                fixed_head == _world.HEAD,
+            ),
+            ((2, 1), True, True, False),
+        )
+
+    def _charges_a_launch(self, *, phase: str | None) -> None:
+        """Charge one launch past the handoff, its reservation left at `phase`."""
+        state = self.github.read_pinned_state(self.issue)
+        state.set(_world.AGENT_RUNS_USED, state.get(_world.AGENT_RUNS_USED) + 1)
+        state.set(RESERVATION, phase)
+        self.github.write_pinned_state(self.issue, state)
 
     def _handed_and_stopped(self) -> None:
         """A change request handed to `fixing`, and a tick that stopped before the launch."""

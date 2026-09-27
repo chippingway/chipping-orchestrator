@@ -3794,8 +3794,12 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      -- or the charge is still `reserved`, which the same logical launch reuses -- the developer is resumed on the
      verdict's feedback exactly as the validating round would have, with nothing posted twice. Left to the scan, that
      feedback is a comment this orchestrator posted, the no-feedback bounce would follow, and a second reviewer would
-     be spent on a round already reviewed. A launch that got further, or a subject that moved, drops the record and the
-     steps below run as usual.
+     be spent on a round already reviewed. A charge `started` -- which goes down before the spawn -- says nothing
+     settled either way: where the branch carries a commit the pull request has not got, a developer ran and the
+     record is dropped for the bounce below to publish it; otherwise nobody can say a developer ran, so the issue parks
+     under `agent_execution_failed` with the record dropped and nothing relabelled, and `/orchestrator continue`
+     replays the reviewer's feedback to a fresh developer session (`validating/review_handoffs.py`). A launch that was
+     settled, or a subject that moved, drops the record and the steps below run as usual.
   5. Rescan unread feedback across all four surfaces, each past the reader or readers it answers to, reading the two
      IssueComment-space surfaces through the same per-surface cursors `_handle_in_review` uses — the issue thread
      past `pr_last_comment_id` with everything at or below `last_action_comment_id` dropped, the PR conversation past

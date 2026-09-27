@@ -15,7 +15,8 @@ the record `review_verdicts` owns, beside the evidence transaction
 `review_claims` mints from what the reviewer declared, that evidence is
 published, and only then is the verdict acted on; `review_resume` finishes one
 an earlier tick left waiting without a second reviewer -- on `fixing` too, for
-a change request whose developer was never launched. `unverified_approvals`
+a change request whose developer was never launched, as `review_handoffs`
+reads that launch off the ledger and the branch. `unverified_approvals`
 decides whether an approval relies on settled, passing evidence, and
 `review_parks` holds the parks a verdict takes instead of being acted on.
 `approval` owns the approved arc, and the

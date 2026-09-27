@@ -3181,8 +3181,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             subject resolves again to the one recorded; one whose subject moved, one a reply bought a
                             fresh round past, one whose developer the ledger shows launched, or one nobody can read is
                             dropped and that tick's round runs instead. On `workflow:fixing`, a handed change request
-                            with no developer launch charged past its count -- or one still RESERVED -- launches that
-                            developer on its feedback, nothing posted twice (`finishes_a_handed_request`)
+                            whose developer is owed launches that developer on its feedback, nothing posted twice,
+                            and one whose launch nobody can account for parks (`finishes_a_handed_request`)
+      review_handoffs.py    whether the developer a handed change request owes was launched, read off the ledger
+                            and the branch: nothing charged past the handed count, or a charge still RESERVED, is
+                            owed; a settled charge, or a STARTED one beside a commit the pull request has not got, is
+                            launched; any other STARTED charge is unfinished, since that phase goes down before the
+                            spawn -- and the `agent_execution_failed` park it takes, whose `/orchestrator continue`
+                            replays the reviewer's feedback to a fresh developer session
       unverified_approvals.py whether an approval relies on evidence that passed and is current -- its own run, every
                             command exiting 0, once its transaction SETTLED on the pull request, or the exact current
                             evidence it reused -- either way proved current again; a transaction still owed is a

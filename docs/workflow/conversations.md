@@ -518,7 +518,9 @@ tick finds an accepted post by its receipt, and finishes the verdict from the re
 (`stages/validating/review_resume.py`) with no second reviewer, usage fold, run charge, or round. A change request
 keeps its record through the relabel to `workflow:fixing`, marked with the agent-run count its developer's launch
 charges past, so a tick that stops between that relabel and the launch leaves `fixing` the feedback to hand exactly one
-developer rather than a round for a second reviewer. A verdict whose subject moved — while it waited, or while its
+developer rather than a round for a second reviewer; a launch that reached `started` and left no trace parks there
+instead, for `/orchestrator continue` to replay the feedback to a fresh developer session
+(`stages/validating/review_handoffs.py`). A verdict whose subject moved — while it waited, or while its
 evidence was being posted — is dropped, and a fresh reviewer is handed the subject as it stands; one the pinned comment
 has no room to persist, with the transaction its commands were minted as, is acted on not at all and parks under
 `reviewer_unrecorded`.
