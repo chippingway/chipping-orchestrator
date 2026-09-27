@@ -104,9 +104,9 @@ def hands_the_request_over(
 ) -> None:
     """Hand a persisted change request to its developer, over the subject standing now.
 
-    A subject that moved drops the verdict in a write composed over what the
-    comment carries now, and a comment that will not read writes nothing, for
-    the next tick to resolve again.
+    A subject proved to have moved drops the verdict in a write composed over
+    what the comment carries now; a comment or a subject that will not read
+    writes nothing, holding the verdict for the next tick to resolve again.
     """
     stands = _review_coverage._verdict_still_stands(gh, issue, state, decision.run.subject)
     if not stands:

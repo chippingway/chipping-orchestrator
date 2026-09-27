@@ -3147,8 +3147,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             approval may stand behind a ready ping. A persisted verdict is held to its subject
                             again behind each request that could move it -- its evidence's publication, a change
                             request's feedback post, whatever a refused approval was read over
-                            (`_verdict_still_stands`) -- over the comment read again first. Nothing here parks or
-                            posts
+                            (`_verdict_still_stands`) -- the subject resolved and then the comment read again
+                            behind it, a reading nobody could take told apart from a subject that moved so a
+                            persisted verdict is held rather than dropped. Nothing here parks or posts
       review_records.py     what a reviewer round writes onto the pinned comment, through writers the round and the
                             report settlement's measurement share: the spec and the subject it is handed, written ahead
                             of the spawn -- onto the comment as `review_report.py` read it, since the launch charge
@@ -3193,7 +3194,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             park; or a hold where a reading could not be taken
       review_parks.py       the two parks a verdict takes instead of being acted on, `reviewer_unverified` and
                             `reviewer_unrecorded`, each dropping the verdict in its own write and answered by a
-                            fresh reviewer
+                            fresh reviewer; measured at its widest before the notice is posted, and taken over the
+                            comment as it stands where it has no room beside what the returned run staged
       review_resume.py      the recovery hooks, live over a record an issue already carries: `workflow:validating`
                             finishes a waiting verdict ahead of the round cap with no reviewer run, usage fold, or
                             round spent, while its subject still resolves to the one recorded -- relabelling and

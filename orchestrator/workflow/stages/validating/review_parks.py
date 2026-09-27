@@ -16,20 +16,39 @@ Neither retries itself. A bare `/orchestrator continue` buys a fresh reviewer
 (`awaiting._reviewer_retry_awaiting_action`), and a reply with words in it is
 requirements the report never saw, which reach the developer first as on every
 reviewer-side park. Each park drops the verdict it refuses in its own write.
+
+A park is measured before its notice is posted, at the widest it writes -- the
+notice's ledger entry and the watermark it stamps at the widest id, beside the
+flags -- since a notice posted over a write GitHub then refuses leaves neither
+a verdict nor a park durable, and the next tick's reviewer answers the round
+again. A comment with no room for the park beside what the returned run staged
+takes it over the comment as it stands instead: the run's usage and session go
+unrecorded, a smaller loss than a park that never lands. One with no room even
+for that posts and writes nothing, and says so.
 """
 from __future__ import annotations
+
+import logging
 
 from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import guards as _guards
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    guards as _guards,
+    report_record_state as _report_record_state,
+    report_record_values as _record_values,
+)
 from orchestrator.workflow.stages.validating import (
     models as _models,
+    review_comment as _review_comment,
     review_verdicts as _verdicts,
     state as _state,
 )
+
+log = logging.getLogger("orchestrator.workflow")
 
 _RETRY = "reply `/orchestrator continue` to run a fresh reviewer."
 
@@ -74,13 +93,19 @@ def _parks(
     run: _models._ReviewerRun,
     park: tuple[str, str],
 ) -> None:
-    """File one reviewer-side park under `park`'s reason and words, in one write."""
+    """File one reviewer-side park under `park`'s reason and words, in one write, where it fits."""
     reason, words = park
-    _verdicts.drops_the_verdict(state)
+    parked = _room_for_the_park(gh, issue, state, reason)
+    if parked is None:
+        log.error(
+            "issue=#%d has no room on its pinned comment even for the %s park; "
+            "posting and writing nothing", issue.number, reason,
+        )
+        return
     _guards._park_awaiting_human(
         gh,
         issue,
-        state,
+        parked,
         f"{config.HITL_MENTIONS} {words}",
         reason=reason,
         agent_role="reviewer",
@@ -92,5 +117,31 @@ def _parks(
     )
     # Re-set behind the guard, which clears whatever reason it found: the
     # awaiting-human branch reads it to hand the retry to a fresh reviewer.
-    state.set(_state._PARK_REASON, reason)
-    gh.write_pinned_state(issue, state)
+    parked.set(_state._PARK_REASON, reason)
+    gh.write_pinned_state(issue, parked)
+
+
+def _room_for_the_park(gh: GitHubClient, issue: Issue, state: PinnedState, reason: str) -> PinnedState | None:
+    """The state the park goes down on: the one in hand, else the comment as it stands; None for neither.
+
+    Either with the verdict's drop staged, which is part of the park's write.
+    """
+    _verdicts.drops_the_verdict(state)
+    if _park_fits(state, reason):
+        return state
+    durable = _review_comment._read(gh, issue, state, "park a verdict with no room for what its run staged")
+    if durable is None:
+        return None
+    _verdicts.drops_the_verdict(durable)
+    return durable if _park_fits(durable, reason) else None
+
+
+def _park_fits(state: PinnedState, reason: str) -> bool:
+    """Whether the comment has room for a park on `state`, measured at its widest."""
+    widest = _record_values.MAX_RECORDED_NUMBER
+    reserved = PinnedState(comment_id=state.comment_id, state_data=dict(state.data))
+    _comments._reserve_comment_slot(reserved, widest)
+    reserved.set("awaiting_human", True)
+    reserved.set(_state._PARK_REASON, reason)
+    reserved.set("last_action_comment_id", widest)
+    return _report_record_state.fits_the_comment(reserved.data)

@@ -70,8 +70,8 @@ def _subject_still_stands(
     issue: Issue,
     state: PinnedState,
     subject: _review_subjects.ReviewSubject,
-) -> bool:
-    """Whether a verdict that just came back is of the subject standing now.
+) -> bool | None:
+    """Whether a verdict that just came back is of the subject standing now; None where nobody could read it.
 
     Asked once `review_comment` has found the report records where they were.
     The whole subject is resolved again, exactly as it was before the spawn,
@@ -80,18 +80,22 @@ def _subject_still_stands(
     report -- revision, digest, location, and words. The reviewer ran for
     minutes, and a push, an edit of the issue, or a human editing or removing
     the report in that time is a subject nobody reviewed. A reading nobody
-    could take is no proof either. Nothing is parked here: the next tick
-    resolves the subject for a reviewer of its own, and refuses it there if it
-    has to.
+    could take is no proof either way, and is told apart as None: a caller
+    that acts only on a proved subject reads it as not standing, and one
+    holding a persisted verdict holds it rather than dropping it as stale.
+    Nothing is parked here: the next tick resolves the subject for a reviewer
+    of its own, and refuses it there if it has to.
     """
     requirements = _fresh_requirements(gh, issue, state)
-    standing = None
-    if requirements is not None:
-        standing, _ = _review_report._reads_the_subject(
-            gh, issue, state, subject.pr_number, requirements,
-        )
+    if requirements is None:
+        return None
+    standing, refusal = _review_report._reads_the_subject(
+        gh, issue, state, subject.pr_number, requirements,
+    )
     if standing == subject:
         return True
+    if standing is None and not refusal:
+        return None
     log.warning(
         "issue=#%d reviewer approved a subject PR #%s no longer stands on as "
         "it was handed; not acting on the approval", issue.number,
@@ -117,15 +121,18 @@ def _verdict_still_stands(
     read again against `resolved_over`, the state in hand by default
     (`review_comment._records_stand`), carrying whatever it moved onto that
     state: a write behind this keeps a report that settled at any point
-    before it rather than putting the older records back. None where the
-    comment will not read, which writes nothing.
+    before it rather than putting the older records back. False only where
+    something is proved to have moved -- the records, or a subject read whole
+    that is another -- and None where the comment or the subject would not
+    read: a persisted verdict is held for the next tick to ask again, never
+    dropped as stale over a reading nobody could take.
     """
     baseline = dict(state.data) if resolved_over is None else resolved_over
     stands = _subject_still_stands(gh, issue, state, subject)
     stood = _review_comment._records_stand(gh, issue, state, baseline)
     if stood is None:
         return None
-    return stands and stood
+    return stands if stood else False
 
 
 def _approval_stands(gh: GitHubClient, state: PinnedState) -> bool | None:

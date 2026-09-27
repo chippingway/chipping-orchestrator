@@ -126,8 +126,8 @@ def disposes_of_the_verdict(
     read again against what the run was resolved over before anything is
     written, carrying whatever moved: a write composed over the older records
     would put them back over the newer, and the verdict it persists would be
-    handed on as though nothing had. A comment that will not read writes
-    nothing.
+    handed on as though nothing had. A comment or a subject that will not
+    read writes nothing: no verdict is persisted over a reading nobody took.
     """
     run = decision.run
     stands = _review_coverage._verdict_still_stands(gh, issue, state, run.subject, run.resolved_over)
@@ -258,8 +258,9 @@ def _still_stands(
     carries and launch a developer on it, and a refused approval would park
     for a human over a review nobody needs. Such a verdict is dropped in a
     write composed over what the comment carries now, for the next tick's
-    reviewer; a comment that will not read writes nothing, and the verdict
-    waits for the next tick to resolve again.
+    reviewer. A comment or a subject that will not read writes nothing, and
+    the verdict waits for the next tick to resolve again rather than being
+    dropped as stale over a reading nobody could take.
     """
     stands = _review_coverage._verdict_still_stands(gh, issue, state, run.subject)
     if stands is False:
