@@ -10,7 +10,7 @@ from orchestrator import config
 from orchestrator.git.publication import models as _publication
 from orchestrator.git.publication.models import _SquashOutcome
 from tests.support.fakes import FakePRRef
-from tests.workflow.fixtures import REVIEW_APPROVED_MESSAGE, _agent
+from tests.workflow.fixtures import _agent, approved_on
 from tests.workflow.stages.validating import squash_approval_support as _support
 from tests.workflow.stages.validating.squash_approval_support import (
     _CollapseWorldMixin,
@@ -143,7 +143,7 @@ class SquashOnApprovalTest(
             mocks = self._run_validating(
                 gh,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                run_agent=_agent(last_message=approved_on(_support.REVIEWED_SHA)),
                 head_shas=(_support.REVIEWED_SHA,),
                 squash_result=(True, _support.REVIEWED_SHA, 0, None),
             )
@@ -172,7 +172,7 @@ class SquashOnApprovalTest(
                     self._run_validating(
                         gh,
                         issue,
-                        run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                        run_agent=_agent(last_message=approved_on(_support.REVIEWED_SHA)),
                         head_shas=(_support.REVIEWED_SHA,),
                         squash_result=(
                             True, _support.REVIEWED_SHA, squashed_count, None,

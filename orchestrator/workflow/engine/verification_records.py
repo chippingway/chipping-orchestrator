@@ -48,10 +48,13 @@ developer report's (`verification_transaction`): it proves the whole binding
 (`verification_proof`), publishes the artifact, and settles it. A reader about
 to rely on current evidence proves it and its artifact again
 (`verification_proof.current_evidence_verdict`), and evidence reaches another
-head only through a carry-forward decision (`verification_carry_forward`). No
-producer records a transaction yet -- the verify gate does not hand its run to
-`verification_local_runs`, and no stage records a carry-forward -- so no issue
-carries any of these keys until one does.
+head only through a carry-forward decision (`verification_carry_forward`).
+The one producer is the validating reviewer round, which records the commands
+a returned reviewer declares as a reviewer-reported transaction
+(`stages/validating/review_disposition.py`) and hands the next reviewer the
+evidence current for its subject. The verify gate does not hand its run to
+`verification_local_runs` yet, and no stage records a carry-forward, so an
+issue carries these keys only once a reviewer has declared a run.
 """
 from __future__ import annotations
 

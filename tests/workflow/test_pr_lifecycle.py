@@ -195,7 +195,7 @@ class ParkAwaitingHumanEventEmissionTest(unittest.TestCase, support._PatchedWork
             self._run(
                 lambda: _validating._handle_validating(gh, support._TEST_SPEC, issue),
                 run_agent=support._agent(
-                    session_id="sess-r", last_message="ok\n\nVERDICT: APPROVED",
+                    session_id="sess-r", last_message=support.REVIEW_APPROVED_MESSAGE,
                 ),
                 head_shas=[pr.head.sha, pr.head.sha],
             )

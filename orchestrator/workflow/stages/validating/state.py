@@ -91,6 +91,12 @@ _REASON_REVIEWER_FAILED = "reviewer_failed"
 
 _REASON_REVIEW_CAP = "review_cap"
 
+# What an approval that relies on no valid verification evidence parks under.
+# Durable rather than transient: a reviewer that approved without the evidence
+# will not produce it by being spawned again unasked, so the park waits for a
+# human, and the reply to it buys the fresh reviewer that owes the evidence.
+_REASON_REVIEWER_UNVERIFIED = "reviewer_unverified"
+
 # What a squash that could not be finished is filed under. Durable rather than
 # event-only, because the recovery ahead of the reviewer retries it on every
 # tick -- a human told to reconcile the branch or repair the comment is

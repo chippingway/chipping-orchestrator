@@ -373,8 +373,9 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
         # is no longer current: the verdict is not acted on -- no squash is
         # handed on to `documenting` -- the later report stays current, and the
         # next reviewer is handed it. The write recording the run lays itself
-        # over the later report; where the comment will not read as the
-        # verdict is taken, or once the squash is published, nothing is
+        # over the later report, and it is made as the reviewer returns, with
+        # its result and before the approval is verified or squashed; only
+        # where the comment will not read as the verdict comes back is nothing
         # written at all.
         for name, verdict, during, unread in (
             ("approved", LATE_APPROVAL, REVIEWING, False),
@@ -398,7 +399,7 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
                         self.github.label_history[-1],
                         self.pinned().get(LAST_REVIEWER) == LATE_REVIEWER,
                     ),
-                    (1, 3, False, (ISSUE, LABEL_VALIDATING), not (unread or during == SQUASHING)),
+                    (1, 3, False, (ISSUE, LABEL_VALIDATING), not (unread and during == REVIEWING)),
                 )
                 self.assertIn(f"> {world.SECOND_REPORT}", world.prompt(self.reviewed()))
 

@@ -253,11 +253,15 @@ def _reviewer_retry_awaiting_action(
     context: _models._AwaitingValidation,
 ) -> str | None:
     if not context.comments or context.park_reason not in (
-        _state._REASON_REVIEWER_TIMEOUT, _state._REASON_REVIEWER_FAILED,
+        _state._REASON_REVIEWER_TIMEOUT,
+        _state._REASON_REVIEWER_FAILED,
+        _state._REASON_REVIEWER_UNVERIFIED,
     ):
         return None
-    # A reviewer-side park retries itself with nobody replying, so a reply to
-    # one says something -- short of a bare `/orchestrator continue`.
+    # A reviewer-side park either retries itself with nobody replying or, for
+    # an approval that came back without its evidence, waits on exactly this
+    # reply -- so a reply to one says something, short of a bare
+    # `/orchestrator continue`.
     context.bought_a_round(carries_requirements=not all(
         _messages._is_bare_orchestrator_continue(seen) for seen in context.comments
     ))

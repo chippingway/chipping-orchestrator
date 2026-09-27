@@ -485,6 +485,47 @@ same commit interrupted on its own accepted post, on its relabel, or on that rel
 relabel both, with a human commenting while it runs, and the fresh review, docs pass, and `in_review` round behind
 it — and holds every combination to the same end state.
 
+## The reviewer verification contract
+
+The reviewer prompt (`workflow/engine/review_prompts.py`, with its verification block in
+`workflow/engine/review_evidence_prompts.py`) hands every reviewer, beside the complete current developer report:
+
+- **The current evidence for its subject, or the note that there is none.** Only evidence recorded as current and bound
+  to exactly the pull request, head, requirements, and report the reviewer is handed is quoted, and only once it
+  proves current again — still the latest revision, its handoff and artifact standing, the whole binding proved
+  (`stages/validating/review_evidence.py`). The artifact is re-read at its comment and quoted whole, witness and
+  commands included, under the `sha256:` revision a reuse names. Evidence about an earlier report, another head, or
+  requirements the issue has moved past is never handed over.
+- **What the repository configures.** The configured `VERIFY_COMMANDS` are listed; an empty setting is said to be
+  one, and not evidence that any check passed, so the reviewer runs what the repository's own documentation requires.
+- **The declaration it closes with**, above its `VERDICT:` line, every marker alone on its line and outside any code
+  block, spelled from `workflow/engine/review_verification_models.py`, the vocabulary
+  `workflow/engine/review_verification.py` reads: a `VERIFICATION: RUN <head>` … `VERIFICATION: END` block listing
+  each `COMMAND:` it ran with the `EXIT:` status it returned and any output as plain lines, or — only where evidence
+  was handed — `VERIFICATION: REUSED sha256:<revision>`.
+- **What is no change to request.** The orchestrator publishes what the reviewer declares on the pull request itself,
+  so a reviewer holding valid evidence for the commit it reviews does not ask a developer or a human to copy a commit
+  SHA, a test count, or a command into the description or the report. A failed check, verification the change still
+  needs, a report claiming what did not happen, and evidence about another commit or subject remain changes to request.
+
+What the returned run declared is read only out of a run that completed, and never in place of its verdict. Commands
+it ran become a reviewer-reported transaction bound to the subject it was handed and the full tree of the reviewed head
+(`stages/validating/review_claims.py`), persisted with the verdict as `review_returned_verdict` in one write and
+published through the dispatcher's own evidence reconciliation before the verdict is acted on
+(`stages/validating/review_disposition.py`). A publication that holds ends the tick with the verdict waiting; the next
+tick finds an accepted post by its receipt, and finishes the verdict from the record
+(`stages/validating/review_resume.py`) with no second reviewer, usage fold, run charge, or round, handing a change
+request to exactly one developer. A waiting verdict whose subject moved is dropped, and a fresh reviewer is handed the
+subject as it stands.
+
+A change request stands without evidence. An approval reaches the approval arc only on evidence that passed — its own
+recorded run with every command exiting 0, or the exact current evidence it reused, proved current again
+(`stages/validating/unverified_approvals.py`). A missing, malformed, or stale declaration, a failed command, or a reuse
+the evidence no longer vouches for parks under `reviewer_unverified` before the verify gate, the approval record, or the
+squash; a bare `/orchestrator continue` buys a fresh reviewer, since the reviewer owes the evidence. The review caps,
+configured-author filtering, report freshness, and the approved versus changes-requested routing are those of every
+other round.
+
 ## Foreground execution and asynchronous command guidance
 
 Every developer and commit-producing prompt — initial implementation, automated reviewer fixes, requirements drift,

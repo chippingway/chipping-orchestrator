@@ -44,6 +44,12 @@ resume answering an edit is what supersedes a report written against the old
 requirements; ahead of the spawn, because a reviewer handed work whose report
 nothing on the pull request carries is the review the report exists to
 prevent.
+
+A reviewer verdict an earlier tick persisted and never disposed of is finished
+behind all of those and ahead of the round-cap check and the spawn
+(`review_resume`): the evidence it declared was published by the dispatcher's
+reconciliation ahead of this handler, and what is left is the verdict, which a
+second reviewer would only pay for again.
 """
 from __future__ import annotations
 
@@ -59,6 +65,7 @@ from orchestrator.workflow.stages.validating import (
     drift as _drift,
     models as _models,
     report_hold as _report_hold,
+    review_resume as _review_resume,
     reviewer as _reviewer,
     state as _state,
 )
@@ -96,7 +103,7 @@ def _ends_before_review(
     state: PinnedState,
     parked: _models._AwaitingValidation | None,
 ) -> bool:
-    """The last two answers a tick can take before the reviewer; True where one did.
+    """The last three answers a tick can take before the reviewer; True where one did.
 
     Awaiting-human path: human replied after a park (or a transient condition
     self-resolved), read off the context the caller built with its one frozen
@@ -109,13 +116,20 @@ def _ends_before_review(
     pull request. A park the branch above cleared into this round is staged
     and not yet written -- the reviewer's own write carries it otherwise -- so
     a held tick writes it, or the next one answers the same reply again.
+
+    Last, a verdict an earlier tick's reviewer returned and nobody disposed of
+    is finished in place of a new round (`review_resume`), behind the hold,
+    since its disposition acts on the report that hold keeps a reviewer from.
     """
     if parked is not None and _awaiting_resume._handle_validating_awaiting_human(
         parked,
     ) == _state._OUTCOME_RETURN:
         return True
     if not _report_hold._report_holds_the_review(gh, spec, issue, state):
-        return False
+        # A reviewer that returned on an earlier tick and whose verdict was
+        # never disposed of is finished before a round is spent on a second
+        # one: its run, usage, and round are already on the comment with it.
+        return _review_resume.resumes_a_returned_verdict(gh, spec, issue, state, parked)
     if parked is not None:
         gh.write_pinned_state(issue, state)
     return True
@@ -142,11 +156,12 @@ def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: I
     # User-content drift resume runs before the awaiting-human and reviewer
     # branches: a body edit mid-review must resume the dev on the new body
     # rather than re-review stale work. Returns True when it fully handled the
-    # tick; a reviewer-side (`reviewer_timeout` / `reviewer_failed`) or
-    # `review_cap` park defers to the awaiting-human branch below (that branch
-    # owns the human's "retry" / `/orchestrator add-review-rounds` comment),
-    # recording the round it stood down for so the edit stays behind that
-    # round even once the park is cleared.
+    # tick; a reviewer-side (`reviewer_timeout` / `reviewer_failed` /
+    # `reviewer_unverified`) or `review_cap` park defers to the awaiting-human
+    # branch below (that branch owns the human's "retry" /
+    # `/orchestrator add-review-rounds` comment), recording the round it stood
+    # down for so the edit stays behind that round even once the park is
+    # cleared.
     parked = (
         _models._AwaitingValidation.build(gh, spec, issue, state)
         if state.get("awaiting_human") else None

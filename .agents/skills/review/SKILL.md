@@ -22,12 +22,30 @@ Reject (or request fixes) if any of these are red:
   refactoring, and OOP findings are rejection criteria.
 - `git diff --check origin/main...HEAD` — trailing whitespace and blank lines at EOF. Check it even
   if everything else looks clean.
-- Full `pytest` run is referenced in the PR description and passes end-to-end. Reject "known failure"
-  hand-waves; if the PR claims a baseline failure, the description must include a reproduction on
+- The full `pytest` run passes end-to-end on the commit under review — run it, or rely on current verification
+  evidence the orchestrator handed you for exactly this subject (see [Verification evidence](#verification-evidence)).
+  Reject "known failure" hand-waves; if the PR claims a baseline failure, the report must include a reproduction on
   `origin/main` at the branch point. Otherwise the developer must fix it.
 - Every source file the PR adds (`*.py`, `*.sh`, `pyproject.toml`) places the `# Copyright 2026 Geser Dugarov` /
   `# SPDX-License-Identifier: Apache-2.0` header pair immediately after any shebang, or at the beginning of the file
   when there is no shebang.
+
+## Verification evidence
+
+The orchestrator hands you the workflow verification evidence current for exactly the head, requirements, and report
+you are reviewing, when there is any, and publishes the evidence you declare on the pull request itself.
+
+- End your final message with the verification declaration the prompt teaches, above the `VERDICT:` line: the
+  `VERIFICATION: RUN <head>` block listing every command you ran with the exit status it returned, or
+  `VERIFICATION: REUSED sha256:<revision>` naming the evidence you were handed. List only commands you actually ran,
+  quote output as plain lines, and never infer a count or a result. An approval without evidence that passed is not
+  acted on.
+- Do not request changes merely so a developer or a human copies a commit SHA, a test count, or a command into the PR
+  description or the report, while valid evidence covers the current tree and verification context. The orchestrator
+  publishes that evidence with its provenance; a report describing an earlier run truthfully is not inaccurate.
+- These remain actionable: a check that failed, verification the change needs and nobody ran, a report claiming
+  something that did not happen or a result it did not observe, and evidence about another commit, report, or
+  requirements revision than the one under review.
 
 ## Behavior preservation
 

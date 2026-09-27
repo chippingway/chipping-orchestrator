@@ -960,8 +960,10 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Trigger**: `_record_stops_the_tick` on any issue whose pinned comment carries `verification_evidence_pending`,
   directly behind the developer-report transaction and ahead of the reuse guard. The owner is
   `workflow/engine/verification_transaction.py`; the four records and the revision floor are described under
-  [pinned state](labels-and-state.md#pinned-state). No producer records a transaction yet, so an issue without the
-  record -- every issue today -- passes through reading nothing and writing nothing.
+  [pinned state](labels-and-state.md#pinned-state). The one producer is the validating reviewer round, which records
+  the commands a returned reviewer declares (`stages/validating/review_disposition.py`) and publishes them through this
+  same reconciliation before acting on the verdict; an issue without the record passes through reading nothing and
+  writing nothing.
 - **Why it is behind the report transaction**: evidence answers for a review subject that names the developer
   report, so a report still owed is a subject about to move — the proof defers to it, and the report settles first.
 - **Stands aside**: a closed issue, a `done` or `rejected` label, a hard-skip control label, or no workflow label at
@@ -998,7 +1000,9 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Relying on it later**: `current_evidence_verdict` proves the current record again for a reader -- no revision
   past it spent, its handoff, its artifact re-read at the recorded comment with the pass flag its commands earn, and
   then the whole proof above -- so newer evidence posted and never settled, a deleted or edited artifact, or a flag it
-  contradicts is not reported as current. No reader asks it yet.
+  contradicts is not reported as current. The reviewer round asks it before handing a reviewer the current evidence
+  (`stages/validating/review_evidence.py`) and before an approval relies on a reuse of it
+  (`stages/validating/unverified_approvals.py`).
 - **Carry-forward**: `workflow/engine/verification_carry_forward.py` decides whether current evidence answers for
   another head -- never the one it already answers for -- and only on the full tree identity of that head and an
   unchanged configured context, while the evidence being carried is still the latest and published (re-read as above, on
@@ -3286,7 +3290,13 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      carries what only the round's own write may land, a cap grant's round reset among them, which a launch the run
      circuit refuses has to discard — and run the reviewer with the read-only prompt, which quotes
      that report whole between the issue and the inspection commands (must end with `VERDICT: APPROVED` or
-     `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check
+     `VERDICT: CHANGES_REQUESTED`). Once the launch is written, the current verification evidence is handed over too
+     where it answers for exactly that subject and proves current again (`review_evidence`): the artifact re-read at its
+     comment and quoted whole under the revision a `VERIFICATION: REUSED` line names. The prompt names the configured
+     `VERIFY_COMMANDS` (or says none are configured) and teaches the declaration the reviewer closes on, above its
+     verdict: the commands it ran on the reviewed head, or the exact evidence revision it reused. A verdict an earlier
+     tick persisted and never disposed of is finished instead of all of this, behind the report hold and ahead of the
+     round cap (`review_resume`), with no reviewer spawned. A mid-run `paused` / `backlog` re-check
      (`_paused_during_agent_run`) right after the reviewer returns short-circuits BEFORE the usage fold, session record,
      verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state.
      A reviewer that returns has the subject it was handed staged again as `review_returned_subject` beside its
@@ -3298,12 +3308,26 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      hand with everything else the comment changed since, so every write the run makes keeps that settlement current
      instead of putting back the report the reviewer was handed, and the verdict is not acted on; a comment that will
      not read or parse carries nothing, and the tick ends with nothing written.
-  6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
+  6. Parse the last `VERDICT:` marker (`_parse_review_verdict`). An `APPROVED` or `CHANGES_REQUESTED` verdict of the
+     subject that still stands is persisted before anything is published or acted on (`review_disposition`): one
+     write lands `review_returned_verdict` beside everything the returned run staged, and, where the reviewer declared
+     commands it ran (`review_verification`), a reviewer-reported evidence transaction bound to the subject it was
+     handed (`review_claims`). That transaction is published right away through the
+     [verification-evidence transaction](#the-verification-evidence-transaction-every-dispatch); a publication that
+     holds ends the tick with the verdict waiting, and the next tick's reconciliation and `review_resume` finish it
+     with no second reviewer, usage fold, run charge, or round. A waiting verdict whose subject moved meanwhile is
+     dropped, and that tick hands a fresh reviewer the subject as it stands. Every disposition drops the record in the
+     write it makes.
      - **approved** → unless the report records moved above, the whole subject is resolved again
        (`review_coverage._subject_still_stands`), over the issue read afresh, and has to equal the one the reviewer
        was handed — pull request, head, requirements, and the report's revision, digest, location, and words. A push,
        an issue edit, or a report edited or removed while the reviewer ran, or a reading nobody could take, means the
-       approval is not acted on: the run is recorded and the next tick resolves the subject as it stands. Then, in
+       approval is not acted on: the run is recorded and the next tick resolves the subject as it stands. Only an
+       approval relying on evidence that passed goes on — its own declared run on the reviewed head, every command
+       exiting 0 and recorded as a transaction, or the exact current-evidence revision it was handed, proved current
+       again (`unverified_approvals`). A missing, malformed, or stale declaration, a failed command, or a reuse the
+       evidence no longer vouches for parks under `reviewer_unverified` before the verify gate, the approval record, or
+       the squash; a bare `/orchestrator continue` on it buys a fresh reviewer. Then, in
        order: (1) run the local verify gate
        (`_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`) and read the pinned comment again
        as on the reviewer's return, before anything below is written — a comment that will not read ends the tick with

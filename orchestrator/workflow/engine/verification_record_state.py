@@ -44,8 +44,10 @@ so the publication takes it again on the tick it would settle
 (`verification_publishing`), since writes
 landing between the two ticks can spend the room a record was accepted with.
 
-Nothing in production mints or records a transaction yet: the dispatcher
-reconciles whatever a producer records (`verification_records`).
+The validating reviewer round mints and records the one transaction
+production writes -- the commands a returned reviewer declares
+(`stages/validating/review_claims.py`, `review_disposition.py`) -- and the
+dispatcher reconciles it like any other (`verification_records`).
 """
 from __future__ import annotations
 

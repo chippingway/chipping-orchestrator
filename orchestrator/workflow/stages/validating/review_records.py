@@ -9,8 +9,10 @@ of the launch, so a round that dies mid-review still says what it was shown.
 At the launch the circuit writes the lifetime run charge. On the return the
 round writes the usage the reviewer ran up, the session it ran as, when it
 returned, and the subject it was handed, again, as the one a reviewer really
-read (`_records_the_return`) -- and, where it approves, the subject the
-approval covers in that same write.
+read (`_records_the_return`) -- in the one write that also persists the
+verdict and the evidence transaction it claims, ahead of anything that verdict
+earns (`review_disposition`) -- and, where it approves, the subject the
+approval covers in a write of the approval arc's own.
 
 A developer report is accepted only where the comment its settlement leaves
 has room for every one of those (`reserves_the_round`). Otherwise a report
@@ -23,7 +25,12 @@ and the session at the width of the UUID every session id is read as. Each
 REPLACES what stands under its key, so the widest of each bounds what any
 number of later rounds leaves.
 
-The usage meters are the one part of the return not reserved. They are running
+The persisted verdict and the evidence transaction are not reserved either:
+a change request's feedback and a reviewer's quoted output have no bound, so
+each is measured where it is staged and left off a comment with no room for
+it.
+
+The usage meters are the other part of the return not reserved. They are running
 totals every agent run on the issue folds, put down by the developer run whose
 report this is wherever its usage parsed, and a fold grows them by digits
 rather than by a record -- which no measurement in this repository models for

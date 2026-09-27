@@ -83,7 +83,8 @@ file is the durable record.
   `unreadable_head` (nothing could name a commit a `resolving_conflict` round turns on — the head a
   clean rebase left, the head it started from, the head a body-edit resume begins at, or the head recovered commits
   leave the branch on — so the push behind it would carry neither a lease nor a named candidate),
-  `reviewer_timeout`, `reviewer_failed`, `reviewer_no_verdict`, `decomposer_timeout`, `decomposer_silent`,
+  `reviewer_timeout`, `reviewer_failed`, `reviewer_no_verdict`, `reviewer_unverified` (an approval that relies on
+  no valid verification evidence, held before the verify gate), `decomposer_timeout`, `decomposer_silent`,
   `decomposer_question`, `decomposer_invalid_manifest`, `decomposer_dirty`, `verify_failed` / `verify_timeout` /
   `verify_dirty` / `verify_head_changed` / `verify_tree_changed`, `agent_run_limit` (the issue has spent every agent
   run its lifetime ceiling allows), `question_*`, `discussion_*`, ...). Failed-run parks in validating and decomposing

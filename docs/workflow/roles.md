@@ -82,7 +82,12 @@ per-stage behavior is in
   [`review_approved_subject`][review-subject]). Nor does an approval of requirements the issue has moved past, or of a
   head a push has replaced: the squash handoff reads the issue and the pull request's head afresh against what the
   approval was given before it moves the label to `workflow:documenting`, and `in_review` hands such an approval back
-  and reads both afresh before its ready ping.
+  and reads both afresh before its ready ping. Beside the report, a reviewer is handed the workflow verification
+  evidence current for exactly its subject, quoted whole under the revision a reuse names, and nothing about another
+  head, report, or requirements revision; it declares the verification it relies on (see
+  [the reviewer verification contract](conversations.md#the-reviewer-verification-contract)), and what it returns is
+  persisted as `review_returned_verdict` before that evidence is published or the verdict acted on, so a publication
+  or handoff retry finishes the verdict without a second reviewer, usage fold, run charge, round, or developer run.
 - **Decomposer reuse.** `_handle_decomposing` spawns the decomposer once and resumes it on every awaiting-human
   reply — with one park excepted. An issue stopped on its spent spawn budget (`retry_cap`) is waiting on a human
   deciding to spend more of this issue's day on it rather than on words for the agent, so a reply resumes nothing
@@ -2180,9 +2185,12 @@ remote is still owed.
 
 ## Local verify gate (not an agent)
 
-After the reviewer emits `VERDICT: APPROVED` — and the whole subject it was handed still stands —
-`_handle_validating` runs the configured `VERIFY_COMMANDS` directly in the per-issue worktree — these are plain shell
-commands, not an agent role, so no `*_AGENT` env var applies. The gate runs before the approval record, the approval
+After the reviewer emits `VERDICT: APPROVED` — the whole subject it was handed still stands, and the approval relies
+on verification evidence that passed: its own declared run on the reviewed head, published as reviewer-reported
+evidence, or the exact current evidence it reused, proved current again; an approval without either parks under
+`reviewer_unverified` and never reaches this gate — `_handle_validating` runs the configured `VERIFY_COMMANDS`
+directly in the per-issue worktree — these are plain shell commands, not an agent role, so no `*_AGENT` env var
+applies. The gate runs before the approval record, the approval
 comment, the squash, the watermark seeding, and the `workflow:documenting` (final-docs) label flip. A clean run
 advances the issue, and so does an empty `VERIFY_COMMANDS`, whose `not_run` result is not evidence that anything
 passed; any failure parks on `workflow:validating` with a typed `park_reason` (`verify_failed` / `verify_timeout` /

@@ -33,22 +33,28 @@ it would park the issue as a reviewer failure AND persist the counters just
 folded. Both return without writing, and nothing is stranded -- the reviewer is
 read-only and starts over next tick.
 
-The verdict itself fans out to three owners: approved goes to the approval
-arc, a missing VERDICT line to the no-verdict park, and CHANGES_REQUESTED to
-the fix route. The event is emitted for all of them, before the fan-out, so
-the analytics record exists even for the paths that park. An approval and a
-change request alike are acted on only while the whole subject the reviewer
-was handed -- head, requirements, and report -- still stands; otherwise the
-run is recorded and the next tick's reviewer is handed the subject as it
-stands. The pinned comment is read again as the reviewer returns, before any
-of that is written, for that reason: a report settling while the reviewer
-runs is recorded there and nowhere in the state this tick holds, and every
-write the run makes has to lay itself over that settlement rather than undo
-it -- where the comment will not read, nothing is written at all. Failed-run
-parks
-(timeout and unknown verdict) enrich the shared park funnel with typed
-correlation fields (`agent_role`, `session_id`, `review_round`, `retry_count`,
-`pr_number`).
+The workflow verification evidence current for the subject is handed over
+beside the report (`review_evidence`), asked once the launch has recorded the
+subject, and the prompt teaches the declaration the reviewer closes on: the
+commands it ran on the reviewed head, or the exact revision of that evidence
+it reused.
+
+The verdict itself fans out to two owners: a missing VERDICT line goes to the
+no-verdict park, and an approval or a change request to `review_disposition`,
+which persists the verdict before its evidence is published or the verdict
+acted on, and lets an approval reach the approval arc only on valid evidence.
+The event is emitted for all of them, before the fan-out, so the analytics
+record exists even for the paths that park. An approval and a change request
+alike are acted on only while the whole subject the reviewer was handed --
+head, requirements, and report -- still stands; otherwise the run is recorded
+and the next tick's reviewer is handed the subject as it stands. The pinned
+comment is read again as the reviewer returns, before any of that is written,
+for that reason: a report settling while the reviewer runs is recorded there
+and nowhere in the state this tick holds, and every write the run makes has
+to lay itself over that settlement rather than undo it -- where the comment
+will not read, nothing is written at all. Failed-run parks (timeout and
+unknown verdict) enrich the shared park funnel with typed correlation fields
+(`agent_role`, `session_id`, `review_round`, `retry_count`, `pr_number`).
 """
 from __future__ import annotations
 
@@ -66,20 +72,16 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     prompt_context as _prompt_context,
     review_prompts as _review_prompts,
-    review_subjects as _review_subjects,
     run_charge_state as _run_charge_state,
     usage as _usage,
 )
-from orchestrator.workflow.stages.implementing import (
-    late_records as _late_records,
-    session_read as _dev_session_read,
-)
+from orchestrator.workflow.stages.implementing import session_read as _dev_session_read
 from orchestrator.workflow.stages.validating import (
-    approval as _approval,
     models as _models,
     requested_changes as _requested_changes,
     review_comment as _review_comment,
-    review_coverage as _review_coverage,
+    review_disposition as _review_disposition,
+    review_evidence as _review_evidence,
     review_records as _review_records,
     review_report as _review_report,
     state as _state,
@@ -109,6 +111,11 @@ def _run_reviewer_round(
     if handover is None:
         return None
     handover = _persists_the_launch(gh, issue, state, handover)
+    # Asked once the launch has recorded this round's subject, which is the
+    # record evidence this orchestrator executed is held to.
+    handover = replace(handover, evidence=_review_evidence.handed_evidence(
+        gh, spec, issue, state, handover.subject,
+    ))
     reviewer_run = _models._ReviewerRun(
         wt=wt,
         round_n=round_n,
@@ -119,7 +126,7 @@ def _run_reviewer_round(
             stage="validating",
             backend=config.REVIEW_AGENT,
             prompt=_review_prompt(
-                spec, issue, state, delivered.rendered_text, handover.subject,
+                spec, issue, state, delivered.rendered_text, handover,
             ),
             cwd=wt,
             agent_spec=config.REVIEW_AGENT_SPEC,
@@ -131,6 +138,7 @@ def _run_reviewer_round(
         delivery=delivered,
         subject=handover.subject,
         resolved_over=handover.resolved_over,
+        evidence=handover.evidence,
     )
     # Live pause: an operator applied `paused` / `backlog` while the reviewer
     # ran. Dispatch only saw the pre-run labels, so re-check a freshly fetched
@@ -222,13 +230,17 @@ def _review_prompt(
     issue: Issue,
     state: PinnedState,
     thread_text: str,
-    subject: _review_subjects.ReviewSubject,
+    handover: _review_comment._ResolvedSubject,
 ) -> str:
     """The prompt one round's reviewer is handed, over what the round resolved."""
     _, dev_backend, _, _ = _dev_session_read._read_dev_session(state)
     return _review_prompts._build_review_prompt(
         spec, issue, thread_text, config.default_repo_specs(),
-        _review_prompts.ReviewHandover(dev_backend=dev_backend, subject=subject),
+        _review_prompts.ReviewHandover(
+            dev_backend=dev_backend,
+            subject=handover.subject,
+            evidence=handover.evidence,
+        ),
     )
 
 
@@ -326,35 +338,9 @@ def _dispatch_reviewer_result(
         )
         return
 
-    # A verdict of a subject that no longer stands as it was handed -- a head
-    # pushed, the issue edited, the report edited, removed, or replaced by a
-    # later settlement while the reviewer ran -- is about work that is not
-    # there: an approval would hand it on, and a change request would pay a
-    # developer to answer a review of words the pull request no longer
-    # carries. The run is recorded over whatever settled meanwhile, and the
-    # next tick's reviewer is handed the subject as it stands, or refused.
-    if reviewer_run.report_moved or not _review_coverage._subject_still_stands(
-        gh, issue, state, reviewer_run.subject,
-    ):
-        gh.write_pinned_state(issue, state)
-        return
-
-    if decision.verdict == "approved":
-        # The subject the size gate decides about is built on the road that
-        # holds every part of it -- this run's checkout included -- rather
-        # than rebuilt a layer down from the pieces.
-        _approval._finalize_validating_approval(
-            _late_records._gate(gh, spec, issue, state, reviewer_run.wt),
-            reviewer_run,
-            _naming._resolve_branch_name(state, spec, issue.number),
-        )
-        return
-
-    # CHANGES_REQUESTED: post the reviewer feedback, flip to `fixing`, and
-    # resume the dev. On a pushed fix the handler bumps `review_round` and
-    # relabels back to `validating` so the reviewer re-evaluates the new head;
-    # on any park the issue stays on `fixing` and the fixing handler owns the
-    # awaiting-human rescan.
-    _requested_changes._handle_validating_changes_requested(
-        gh, spec, issue, state, decision,
-    )
+    # A verdict of a subject that still stands is persisted, its evidence
+    # published, and only then acted on: an approval through the approval arc
+    # once the evidence it relies on is valid, a change request through the
+    # fix route. One of a subject that moved while the reviewer ran is recorded
+    # and not acted on.
+    _review_disposition.disposes_of_the_verdict(gh, spec, issue, state, decision)

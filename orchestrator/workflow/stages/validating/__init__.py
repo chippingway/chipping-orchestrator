@@ -9,7 +9,14 @@ tick on, a body edit, a park a human replied to, and only then a reviewer
 round -- and it is the order that carries the safety: each check ahead of the
 spawn is one the reviewer's own output would make unanswerable.
 
-One verdict fans out three ways. `approval` owns the approved arc, and the
+One verdict fans out three ways, and `review_disposition` owns the order it
+is settled in: a verdict of the subject that still stands is persisted first as
+the record `review_verdicts` owns, beside the evidence transaction
+`review_claims` mints from what the reviewer declared, that evidence is
+published, and only then is the verdict acted on; `review_resume` finishes one
+an earlier tick left waiting without a second reviewer, and
+`unverified_approvals` parks an approval that relies on no evidence that
+passed. `approval` owns the approved arc, and the
 local verify gate at the head of it is the last thing standing between a
 branch that does not build and `in_review`; the optional squash, the notice
 its count is worded from, the end of the collapse record, and the relabel to
@@ -57,8 +64,9 @@ reviewer, on every tick, until the pull request carries it, which is why
 `review_report` hands the reviewer the report the pull request carries -- the
 one last settled, re-read and quoted whole -- or refuses the round over one
 the thread has moved out of reach, and `review_comment` binds that subject to
-the pinned comment carrying the report records it was resolved from.
-`review_records` writes what the round puts down -- the spec and subject ahead
+the pinned comment carrying the report records it was resolved from, and
+`review_evidence` hands the reviewer the verification evidence current for that
+very subject. `review_records` writes what the round puts down -- the spec and subject ahead
 of the spawn, the session on its return -- and reserves the whole round, at
 its widest, in the measurement a developer report is accepted under.
 `review_coverage` holds every approval to the subject standing when it is

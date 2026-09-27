@@ -50,6 +50,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_records as _records,
+    review_evidence_prompts as _evidence_prompts,
     review_subjects as _review_subjects,
 )
 
@@ -79,6 +80,9 @@ class _ResolvedSubject:
     # carries the very report records the subject was resolved from: what
     # the verdict's return measures the comment against.
     resolved_over: dict
+    # The workflow verification evidence proved current for that subject,
+    # handed over beside it once the launch is recorded; None for none.
+    evidence: _evidence_prompts.HandedEvidence | None = None
 
 
 def _resolved_over(

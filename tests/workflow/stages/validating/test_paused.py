@@ -229,12 +229,13 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
             github.label_history,
         )
         mocks[PUSH_BRANCH].assert_not_called()
-        # The reviewer's spec and subject, written ahead of its spawn; the
+        # The reviewer's spec and subject, written ahead of its spawn; its
+        # result, persisted before the change request is acted on; the
         # pre-spawn flip's own write; and the charge each of the two runs
         # took before it reached a process.
         self.assertEqual(
             github.write_state_calls,
-            before_writes + 2 + 2 * AGENT_RUN_CHARGE_WRITES,
+            before_writes + 3 + 2 * AGENT_RUN_CHARGE_WRITES,
         )
         state = github.pinned_data(CHANGES_REQUESTED_ISSUE)
         self.assertEqual(state.get(REVIEW_ROUND), 0)

@@ -25,10 +25,10 @@ from tests.support.fakes import (
 from tests.workflow.fixtures import (
     LABEL_FIXING,
     LABEL_IN_REVIEW,
-    REVIEW_APPROVED_MESSAGE,
     _agent,
     _issue_branch,
     _PatchedWorkflowMixin,
+    approved_on,
 )
 
 SAME_ACCOUNT_ISSUE = 100
@@ -192,7 +192,7 @@ class SameAccountHumanFeedbackTest(unittest.TestCase, _DebouncedInReviewMixin):
         self._run_validating(
             gh,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on(REVIEWED_SHA)),
         )
         last_comment_id = gh.pinned_data(HANDOFF_ISSUE).get("pr_last_comment_id")
         self.assertIsNotNone(last_comment_id)

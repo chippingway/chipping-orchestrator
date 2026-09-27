@@ -170,8 +170,11 @@ Beside it sits the additive `verification_evidence_*` group -- the pending evide
 pull request carries now, a bounded history of retired evidence, the receipt of the last one settled, and the highest
 revision spent -- which the dispatcher reconciles directly behind the report, publishing an artifact only once the
 pull request, trees, review subject, configuration, and requirements are proved, and carrying evidence to another
-head only on an equal full tree under the same context; no producer records a transaction yet
+head only on an equal full tree under the same context; the validating reviewer round records the one kind of
+transaction produced today, the commands a returned reviewer declares
 ([evidence transaction](state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
+A returned reviewer's verdict waits as `review_returned_verdict` from that write until it is disposed of, so a
+publication retry finishes it without a second reviewer.
 Every key, what writes it, what spends it, and the legacy `codex_session_id` still honored on read are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
 

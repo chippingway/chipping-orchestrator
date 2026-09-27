@@ -12,7 +12,7 @@ from tests.workflow import patch_models as _support, patch_publication as _patch
 from tests.workflow.patch_measurement import _measurement_mocks
 from tests.workflow.patch_models import _WorkflowRunContext
 from tests.workflow.patch_readings import _AnchorAnswers, _ForkPoints, _HeadReadings, _RemoteTipAnswers, _TreeReadings
-from tests.workflow.repo_values import _FAKE_WT
+from tests.workflow.repo_values import _FAKE_TREE_SHA, _FAKE_WT
 
 
 def _execution_mocks(context: _WorkflowRunContext) -> dict[str, object]:
@@ -96,6 +96,9 @@ def _publication_mocks(context: _WorkflowRunContext) -> dict[str, object]:
         # seeded with; what happens when the store really lacks one is pinned
         # against real repositories in the discussion stage's own tests.
         "_commit_present": MagicMock(return_value=True),
+        # The tree a commit carries, which is what a reviewer's declared
+        # commands are bound to as the tested tree.
+        "_tree_sha": MagicMock(return_value=_FAKE_TREE_SHA),
         # Whether one commit's history contains another. A bool answers both
         # directions the same, which is the ordinary branch a plan sits on top
         # of; a test about a branch somebody pushed to has to tell them apart,

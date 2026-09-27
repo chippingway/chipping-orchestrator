@@ -26,9 +26,9 @@ from tests.workflow import published_reports as _published_reports
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     MEASURED_CANDIDATE_SHA,
-    REVIEW_APPROVED_MESSAGE,
     _agent,
     _PatchedWorkflowMixin,
+    approved_on,
 )
 
 HUMAN_FEEDBACK_ISSUE = 15
@@ -149,7 +149,7 @@ class ValidatingHandoffPreservesHumanFeedbackTest(
         self._run_validating(
             gh,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on(REVIEWED_SHA)),
         )
         # Validating's approval flips through `documenting` first (the
         # final-docs hop); the watermark must already be seeded past the
@@ -297,7 +297,7 @@ class PrePickupChatterHandoffTest(
         self._run_validating(
             gh,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on(REVIEWED_SHA)),
             head_shas=(REVIEWED_SHA,),
         )
         watermark = gh.pinned_data(PRE_PICKUP_ISSUE).get(PR_LAST_COMMENT_ID)
@@ -346,7 +346,7 @@ class PrePickupPrCommentHandoffTest(
         self._run_validating(
             gh,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on(REVIEWED_SHA)),
             head_shas=(REVIEWED_SHA,),
         )
 
@@ -461,7 +461,7 @@ class RunLimitToInReviewTest(unittest.TestCase, _PatchedWorkflowMixin):
         self.pr.head = FakePRRef(sha=MEASURED_CANDIDATE_SHA)
         _published_reports.publishes_the_report(self.github, self.issue)
         self._polls(
-            _agent(last_message=REVIEW_APPROVED_MESSAGE), (MEASURED_CANDIDATE_SHA,),
+            _agent(last_message=approved_on(MEASURED_CANDIDATE_SHA)), (MEASURED_CANDIDATE_SHA,),
         )
         return commanded
 

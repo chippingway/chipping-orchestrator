@@ -1724,10 +1724,26 @@ The keys that matter for the state machine fall into a few groups:
   included, covers nothing. That reader takes the record whole: exactly the five members its writer spells, each in
   that writer's shape -- a whole commit id as `sha` wherever `pr` names a pull request, and both report members or
   neither -- so a record short of its `sha` or its `requirements` is no approval either.
+- **Returned reviewer verdict.** `review_returned_verdict` is the verdict a returned reviewer left and nothing has
+  disposed of yet (`stages/validating/review_verdicts.py`): `round` (the round it ran as), `verdict` (`approved` or
+  `changes_requested`), `subject` (exactly as `review_subject` spells it), `feedback` (the words a change request
+  hands the developer, `""` for an approval), and `evidence` -- `null` where the declaration earned none, otherwise the
+  `use` (`published` for a transaction recording the commands the reviewer ran, `reused` for the current evidence it
+  named instead), and that record's `receipt`, `revision`, evidence `digest`, and `passed`. It is written in the one
+  write a returned reviewer's verdict of a subject that still stands makes, BEFORE its evidence is published or the
+  verdict acted on, beside the transaction it claims, and set to `null` by the write every disposition makes: the
+  relabel to `workflow:fixing`, whichever write the approval arc makes, or the `reviewer_unverified` park. A later tick
+  finishes one still standing ahead of the round cap and the spawn, with no reviewer run, usage fold, run charge, or
+  round spent, while its subject still resolves to the one recorded; a subject that moved, a park a reply cleared into
+  a fresh round, or a record in any shape its reader refuses drops it for a fresh reviewer. Additive: an issue without
+  it has no verdict waiting. It is measured before it is staged -- a change request's feedback has no bound -- and a
+  comment with no room goes without it, the verdict then acted on in the tick that returned it.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
-  than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
-  producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one -- so no
-  issue carries these keys until one does. `verification_evidence_pending` is one transaction, written BEFORE its
+  than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, and the
+  validating reviewer round is the one producer: the commands a returned reviewer declares are recorded as a
+  reviewer-reported transaction in the write that persists its verdict, bound to the subject it was handed and the
+  full tree of the head it reviewed, and published before the verdict is acted on. Neither the verify gate nor a
+  stage carrying evidence forward records one. `verification_evidence_pending` is one transaction, written BEFORE its
   artifact is posted: a receipt (`issue-<n>-verification-<revision>-<nonce>`, which every record's reader holds to that
   record's own revision) and a revision past every one the issue has spent; the report subject's own `repo` / `pr` /
   `branch` / `sha` / `requirements` members, where `sha` is the head the evidence is written for; the review subject

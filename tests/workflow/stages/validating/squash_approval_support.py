@@ -37,9 +37,9 @@ from tests.support.fakes import (
 )
 from tests.workflow import published_reports as _published_reports
 from tests.workflow.fixtures import (
-    REVIEW_APPROVED_MESSAGE,
     _agent,
     _PatchedWorkflowMixin,
+    approved_on,
 )
 
 APPROVAL_ISSUE = 5
@@ -217,7 +217,9 @@ class _SquashApprovalFixtureMixin(_PatchedWorkflowMixin):
             return self._run_validating(
                 github,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                # The reviewer is handed the head the pull request stands on,
+                # and declares its verification about that head.
+                run_agent=_agent(last_message=approved_on(SQUASHED_SHA)),
                 head_shas=(REVIEWED_SHA,),
                 squash_result=squash_result,
             )
