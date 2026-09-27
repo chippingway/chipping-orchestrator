@@ -258,6 +258,33 @@ class HandedChangeRequestTest(_FixingTicks, unittest.TestCase):
             (2, True, 0, 1, True),
         )
 
+    def test_a_stale_request_keeps_a_later_report(self) -> None:
+        # The head was pushed, and a later report settles while recovery reads
+        # the subject: the request is dropped, but over the comment read again,
+        # so the drop's write keeps the later report rather than restoring the
+        # one the request was about.
+        _world.pushes(self)
+        behind = _world.AnotherRoadBehind(
+            self,
+            "reread_report_location",
+            lambda _location: True,
+            lambda case: _published_reports.republishes_the_report(case.github, case.issue, LATER_REPORT),
+        )
+
+        with patch.object(self.github, "reread_report_location", behind):
+            ran = self._fixing()
+
+        pinned = self.pinned()
+        self.assertEqual(
+            (
+                ran[_world.RUN_AGENT].call_count,
+                pinned[_world.RETURNED_VERDICT],
+                pinned.get(ANCHOR),
+                _read.current_report_revision(self),
+            ),
+            (0, None, None, 2),
+        )
+
     def test_another_roads_charge_is_no_launch(self) -> None:
         # The one charge past the handoff names another role's launch and
         # started: it says nothing about this developer, who is still owed

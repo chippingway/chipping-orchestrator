@@ -1755,23 +1755,26 @@ The keys that matter for the state machine fall into a few groups:
   `reserved` included, since it rules out none of the charges before it -- parks under `agent_execution_failed` -- only
   once the subject is resolved and still stands, since the park keeps the anchor for a retry to replay, and a moved one
   drops the verdict and that anchor instead -- where `/orchestrator continue` replays the posted feedback to a fresh
-  developer session. A subject proved to have moved, a park a reply cleared into a fresh round, a developer already
-  launched, or a record in any shape its reader refuses drops it; a pull request, issue, or comment that would not read
-  holds it for the next tick instead. Additive: an issue without it has no verdict waiting. It is measured before it is
-  staged -- a change request's feedback has no bound -- at the widest write it is part of: a change request's handoff,
-  with its count, anchor, and that comment's ledger entry, and the developer launch's `agent_runs_used` /
-  `agent_run_reservation` / `agent_run_fingerprint` charge composed over it while the record still stands, each reserved
-  at the widest a recorded number or fingerprint is spelled, and the claimed transaction and its settlement measured
-  beside that. A verdict the comment has no room for, or whose transaction it has no room for, is not acted on: it parks
-  under `reviewer_unrecorded`, the park measured at its widest before its notice is posted and taken over the comment as
-  it stands -- the returned run's usage and session unrecorded -- where it has no room beside what that run staged, and
-  nothing posted at all where there is room for no park. An approval of the subject still standing -- one a push or a
-  later report moved since its write is dropped for a fresh reviewer instead -- parks under `reviewer_unverified` unless
-  its claim names the current evidence exactly and that evidence proves current, its re-read artifact still the one that
-  settled, and passes and covers the configuration by the artifact's own commands rather than by the claim's copied
-  `passed` and `covers`, with the pinned `verification_evidence_*` records read again last and, where another road moved
-  them meanwhile, carried onto the state and the approval refused; a bare `/orchestrator continue` on either park buys a
-  fresh reviewer.
+  developer session. Every recheck reads the comment again behind the subject's resolution and watches the
+  `verification_evidence_*` records beside the report's, carrying whatever another road moved so no write puts older
+  records back -- the approval arc's own recheck after its verify gate included. A subject proved to have moved, a park
+  a reply cleared into a fresh round, a developer already launched, or a record in any shape its reader refuses drops
+  it; a pull request, issue, or comment that would not read holds it for the next tick instead. Additive: an issue
+  without it has no verdict waiting. It is measured before it is staged -- a change request's feedback has no bound --
+  at the widest write it is part of: a change request's handoff, with its count, anchor, and that comment's ledger
+  entry, and the developer launch's `agent_runs_used` / `agent_run_reservation` / `agent_run_fingerprint` charge
+  composed over it while the record still stands, each reserved at the widest a recorded number or fingerprint is
+  spelled, and the claimed transaction and its settlement measured beside that. A verdict the comment has no room for,
+  or whose transaction it has no room for, is not acted on: it parks under `reviewer_unrecorded`, the park measured at
+  its widest before its notice is posted and taken over the comment as it stands -- the returned run's usage and session
+  unrecorded -- where it has no room beside what that run staged, and nothing posted at all where there is room for no
+  park; every park is written with the report and evidence records the comment carries once read again behind its
+  notice. An approval of the subject still standing -- one a push or a later report moved since its write is dropped for
+  a fresh reviewer instead -- parks under `reviewer_unverified` unless its claim names the current evidence exactly and
+  that evidence proves current, its re-read artifact still the one that settled, and passes and covers the configuration
+  by the artifact's own commands rather than by the claim's copied `passed` and `covers`, with the pinned
+  `verification_evidence_*` records read again last and, where another road moved them meanwhile, carried onto the state
+  and the approval refused; a bare `/orchestrator continue` on either park buys a fresh reviewer.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
   live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the

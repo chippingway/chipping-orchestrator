@@ -238,12 +238,17 @@ def _resumed_run(
 
     `(False, run)` where the subject stands; `(True, None)` where a reading
     could not be taken, which holds the tick; `(False, None)` where the
-    subject moved, with the verdict's drop staged.
+    subject moved, with the verdict's drop staged over the comment read again.
     """
     readable, subject = _standing_subject(gh, issue, state)
     if not readable:
         return True, None
     if subject is None or subject.recorded() != returned.subject:
+        # The subject read is requests of its own, and a report settling
+        # during them is on the comment and nowhere in hand: the comment is
+        # read again first, carrying what moved, so the drop's write keeps it.
+        if _review_comment._records_stand(gh, issue, state, dict(state.data)) is None:
+            return True, None
         log.info(
             "issue=#%d the subject its waiting reviewer verdict is about no "
             "longer stands; dropping it for a fresh review", issue.number,

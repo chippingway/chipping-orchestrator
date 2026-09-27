@@ -24,7 +24,10 @@ a verdict nor a park durable, and the next tick's reviewer answers the round
 again. A comment with no room for the park beside what the returned run staged
 takes it over the comment as it stands instead: the run's usage and session go
 unrecorded, a smaller loss than a park that never lands. One with no room even
-for that posts and writes nothing, and says so.
+for that posts and writes nothing, and says so. The comment is read once more
+behind the notice, the park's last request, and whatever report or evidence
+records another road moved meanwhile are carried onto the park's write rather
+than written back over.
 """
 from __future__ import annotations
 
@@ -59,6 +62,10 @@ _UNRECORDED = (
 )
 
 _LAST_REVIEW_SESSION_ID = "last_review_session_id"
+
+# What a record the comment does not carry reads as, apart from one it carries
+# as `null`.
+_ABSENT = object()
 
 
 def parks_unverified(
@@ -118,7 +125,33 @@ def _parks(
     # Re-set behind the guard, which clears whatever reason it found: the
     # awaiting-human branch reads it to hand the retry to a fresh reviewer.
     parked.set(_state._PARK_REASON, reason)
+    # The notice is a request of its own; a report or evidence another road
+    # settled during it is carried onto the park, whose write keeps it.
+    if keeps_the_standing_records(gh, issue, parked) is None:
+        return
     gh.write_pinned_state(issue, parked)
+
+
+def keeps_the_standing_records(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool | None:
+    """Carry onto `state` every report and evidence record the comment moved; False where one did, None unread.
+
+    For a write about to go down over records another road may have recorded
+    or settled since they were read -- a park's, or an approval's. Only those
+    records are carried: nothing this road stages writes them, so any that
+    differ are another road's, while what it did stage -- a verdict dropped,
+    the park's own fields -- is left as staged.
+    """
+    durable = _review_comment._read(gh, issue, state, "keep the records another road settled")
+    if durable is None:
+        return None
+    moved = _review_comment._moved(durable.data, state.data, _review_comment._STANDING_RECORDS)
+    for field in moved:
+        written = durable.data.get(field, _ABSENT)
+        if written is _ABSENT:
+            state.data.pop(field, None)
+        else:
+            state.set(field, written)
+    return not moved
 
 
 def _room_for_the_park(gh: GitHubClient, issue: Issue, state: PinnedState, reason: str) -> PinnedState | None:

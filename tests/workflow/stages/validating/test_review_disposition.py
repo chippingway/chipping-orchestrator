@@ -17,6 +17,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+from orchestrator.git.verification.models import VerifyResult
 from orchestrator.github.pinned_state import MAX_PINNED_BODY
 from tests.workflow import published_reports as _published_reports
 from tests.workflow.fixtures import LABEL_DOCUMENTING, LABEL_FIXING, LABEL_VALIDATING, _agent
@@ -28,6 +29,8 @@ VERIFY = "_run_verify_commands"
 UNVERIFIED = "reviewer_unverified"
 
 UNRECORDED = "reviewer_unrecorded"
+
+UNVERIFIED_NOTICE = "approved without the verification evidence"
 
 DOCUMENTING = (_world.ISSUE, LABEL_DOCUMENTING)
 
@@ -441,6 +444,68 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
 class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
     """An approval never writes back evidence records a later settlement replaced."""
 
+    def test_a_settlement_during_the_verify_gate(self) -> None:
+        # A second transaction settles while the approval's verify gate runs:
+        # the approval is of evidence no longer current, so the issue does not
+        # move on, and the newer records are kept rather than written back.
+        digest = _read.settles_evidence(self).content_revision
+
+        self.returns(
+            f"Covered.\n\nVERIFICATION: REUSED sha256:{digest}\n\nVERDICT: APPROVED",
+            verify_result=self._settles_and_passes,
+        )
+
+        pinned = self.pinned()
+        self.assertEqual(
+            (
+                self.github.label_history,
+                self._current_evidence_revision(),
+                pinned["verification_evidence_revision"],
+                pinned[_world.RETURNED_VERDICT],
+            ),
+            ([], 2, 2, None),
+        )
+
+    def test_a_settlement_behind_a_park_notice(self) -> None:
+        # Evidence settles while the refused approval's park notice is posted,
+        # the park's last request: the park lands and keeps the settlement.
+        behind = _world.AnotherRoadBehind(
+            self, "comment", lambda body: UNVERIFIED_NOTICE in body, _read.settles_evidence,
+        )
+
+        behind.returning("LGTM\n\nVERDICT: APPROVED")
+
+        pinned = self.pinned()
+        self.assertEqual(
+            (
+                pinned[_world.PARK_REASON],
+                self._current_evidence_revision(),
+                pinned[_world.RETURNED_VERDICT],
+            ),
+            (UNVERIFIED, 1, None),
+        )
+
+    def test_a_settlement_behind_a_refusals_recheck(self) -> None:
+        # An approval declaring nothing is refused, and evidence settles while
+        # its subject is resolved once more before the park -- the third
+        # reread of the report, behind the round's and the verdict's write's:
+        # the settlement is carried rather than written away.
+        behind = _world.AnotherRoadBehind(
+            self, "reread_report_location", lambda _location: True, _read.settles_evidence, 3,
+        )
+
+        behind.returning("LGTM\n\nVERDICT: APPROVED")
+
+        pinned = self.pinned()
+        self.assertEqual(
+            (
+                self.github.label_history,
+                self._current_evidence_revision(),
+                pinned[_world.RETURNED_VERDICT],
+            ),
+            ([], 1, None),
+        )
+
     def test_a_later_settlement_stops_the_approval(self) -> None:
         # A second transaction settles behind the approval's last read of its
         # artifact -- the fourth, behind the two the round's handover took and
@@ -458,12 +523,21 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
         self.assertEqual(
             (
                 self.github.label_history,
-                pinned["verification_evidence_current"]["revision"],
+                self._current_evidence_revision(),
                 pinned["verification_evidence_revision"],
                 pinned.get(_world.PARK_REASON),
             ),
             ([], 2, 2, UNVERIFIED),
         )
+
+    def _current_evidence_revision(self) -> int:
+        """The revision of the evidence the pinned comment records as current."""
+        return self.pinned()["verification_evidence_current"]["revision"]
+
+    def _settles_and_passes(self, *_args, **_kw) -> VerifyResult:
+        """A verify gate during whose run another road settles newer evidence, and which passes."""
+        _read.settles_evidence(self)
+        return VerifyResult(status="ok")
 
 
 if __name__ == "__main__":

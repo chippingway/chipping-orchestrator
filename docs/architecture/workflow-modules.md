@@ -3119,9 +3119,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             one -- nothing is handed over and the tick ends WITHOUT writing, since any write would put
                             the replaced report back. The reading that agreed goes with the subject, and the comment
                             is read against it again as the reviewer returns and once more after an approval is
-                            verified, before anything the run leaves is written: records that moved refuse the verdict
-                            and everything the comment changed since is carried onto the state in hand, so every write
-                            the run makes keeps that settlement current; another comment or an unread one carries
+                            verified, before anything the run leaves is written -- the verification evidence records
+                            watched beside the report's, since an approval rests on both: records that moved refuse the
+                            verdict and everything the comment changed since is carried onto the state in hand, so every
+                            write the run makes keeps that settlement current; another comment or an unread one carries
                             nothing and the tick writes nothing. Records are compared as the comment's JSON spells
                             them, so one written `null` where there was none, or a revision `true` where it was `1`,
                             is a move. The later roads that act on an approval after requests long enough for a
@@ -3195,8 +3196,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             state; why not, for the park; or a hold where a reading could not be taken
       review_parks.py       the two parks a verdict takes instead of being acted on, `reviewer_unverified` and
                             `reviewer_unrecorded`, each dropping the verdict in its own write and answered by a
-                            fresh reviewer; measured at its widest before the notice is posted, and taken over the
-                            comment as it stands where it has no room beside what the returned run staged
+                            fresh reviewer; measured at its widest before the notice is posted, taken over the
+                            comment as it stands where it has no room beside what the returned run staged, and
+                            written with the report and evidence records the comment carries once read again
+                            behind the notice (`keeps_the_standing_records`, which the approval check shares)
       review_resume.py      the recovery hooks, live over a record an issue already carries: `workflow:validating`
                             finishes a waiting verdict ahead of the round cap with no reviewer run, usage fold, or
                             round spent, while its subject still resolves to the one recorded -- relabelling and

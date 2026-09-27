@@ -60,7 +60,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.validating import (
     review_claims as _claims,
-    review_comment as _review_comment,
+    review_parks as _parks,
     review_verdicts as _verdicts,
 )
 
@@ -77,20 +77,13 @@ _REUSE_MOVED = "the evidence it relies on is no longer this issue's current evid
 
 _ARTIFACT_MOVED = "its artifact is gone or no longer the one that settled"
 
-_EVIDENCE_MOVED = "other verification evidence was recorded while it was proved"
+_EVIDENCE_MOVED = "the report or evidence records on the pinned comment moved while it was proved"
+
+_EVIDENCE_MOVED = "the report or evidence records on the pinned comment moved while it was proved"
 
 # What a record the comment does not carry reads as, apart from one it carries
 # as `null`.
 _ABSENT = object()
-
-# Every pinned record a settlement, a retirement, or a new transaction writes.
-_EVIDENCE_RECORDS = (
-    _records.CURRENT_EVIDENCE,
-    _records.PENDING_EVIDENCE,
-    _records.EVIDENCE_HISTORY,
-    _records.EVIDENCE_HANDOFF,
-    _records.REVISION_FLOOR,
-)
 
 
 def approval_refusal(
@@ -148,17 +141,10 @@ def _held_to_the_comment(gh: GitHubClient, issue: Issue, state: PinnedState) -> 
     approval, which no longer rests on this issue's current evidence; the park
     it takes then keeps the newer records.
     """
-    durable = _review_comment._read(gh, issue, state, "hold an approval to the evidence it was proved over")
-    if durable is None:
+    stood = _parks.keeps_the_standing_records(gh, issue, state)
+    if stood is None:
         return None
-    moved = _review_comment._moved(durable.data, state.data, _EVIDENCE_RECORDS)
-    for field in moved:
-        written = durable.data.get(field, _ABSENT)
-        if written is _ABSENT:
-            state.data.pop(field, None)
-        else:
-            state.set(field, written)
-    return f"{_REUSE_MOVED}: {_EVIDENCE_MOVED}" if moved else ""
+    return "" if stood else f"{_REUSE_MOVED}: {_EVIDENCE_MOVED}"
 
 
 def _claimed_refusal(claim: _verdicts.EvidenceClaim | None) -> str:

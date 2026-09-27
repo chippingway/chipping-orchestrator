@@ -25,15 +25,18 @@ would pin a second one. The reading that agreed goes on with the subject.
 `_records_stand` reads the comment against that reading again, as the reviewer
 returns and once more after an approval is verified, before anything the run
 leaves is written -- a park for a timeout or a missing verdict as much as the
-record of a verdict. Records are compared as the comment's JSON spells them, so
-one written `null` where there was none, or a revision spelled `true` where it
-was `1`, is a move. Records that stand leave the state alone. Records that
-moved refuse the verdict, and everything the comment changed since the subject
-was resolved is carried onto the state in hand, so every write the run makes
-lays itself over the newer settlement. A comment that will not read or parse,
-or is no longer the one the state was read from, carries nothing, and the
-answer is the one that writes nothing: the run is charged, and the next tick
-spawns a reviewer over whatever the comment carries then.
+record of a verdict. It watches the workflow verification evidence records
+beside the report's, since an approval rests on that evidence as much as on the
+report, and a write laid over evidence another road recorded or settled would
+put the superseded revision back. Records are compared as the comment's JSON
+spells them, so one written `null` where there was none, or a revision spelled
+`true` where it was `1`, is a move. Records that stand leave the state alone.
+Records that moved refuse the verdict, and everything the comment changed since
+the subject was resolved is carried onto the state in hand, so every write the
+run makes lays itself over the newer settlement. A comment that will not read
+or parse, or is no longer the one the state was read from, carries nothing, and
+the answer is the one that writes nothing: the run is charged, and the next
+tick spawns a reviewer over whatever the comment carries then.
 
 Nothing here parks or posts.
 """
@@ -51,6 +54,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_records as _records,
     review_subjects as _review_subjects,
+    verification_records as _evidence_records,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -63,6 +67,17 @@ _REPORT_RECORDS = (
     _records.DELIVERED_REPORT,
     _records.CURRENT_REPORT,
     _records.REPORT_HANDOFF,
+)
+
+# What a verdict stands on beyond the report: every record a verification
+# transaction, its settlement, or its retirement writes.
+_STANDING_RECORDS = (
+    *_REPORT_RECORDS,
+    _evidence_records.CURRENT_EVIDENCE,
+    _evidence_records.PENDING_EVIDENCE,
+    _evidence_records.EVIDENCE_HISTORY,
+    _evidence_records.EVIDENCE_HANDOFF,
+    _evidence_records.REVISION_FLOOR,
 )
 
 # What a field the comment does not carry reads as, apart from one it carries
@@ -113,7 +128,7 @@ def _records_in_hand(
 def _records_stand(
     gh: GitHubClient, issue: Issue, state: PinnedState, resolved_over: dict,
 ) -> bool | None:
-    """Whether the comment still carries the report records the subject had.
+    """Whether the comment still carries the report and evidence records the subject had.
 
     True where they stand. False where they moved: everything the comment
     changed since `resolved_over` is carried onto `state`, and the verdict is
@@ -127,7 +142,7 @@ def _records_stand(
     )
     if durable is None:
         return None
-    if not _moved(durable.data, resolved_over, _REPORT_RECORDS):
+    if not _moved(durable.data, resolved_over, _STANDING_RECORDS):
         return True
     # Every field the comment changed since `resolved_over`, as `_moved`
     # spells a change: a field Python calls equal -- `true` over `1` -- is
