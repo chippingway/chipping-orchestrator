@@ -2914,7 +2914,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             records held in hand again behind the approval comment, behind the squash, ahead of every
                             write the tail makes behind a request of its own, and ahead of the relabel, the verdict
                             retired only by a write that finds it as it was, and the handoff record behind the label
-                            ended over the comment read afresh; the review
+                            ended over the comment read afresh -- the tail retires only the verdict the approval
+                            behind it hands in, none on the recovery road, and a verdict still waiting holds the
+                            relabel; the review
                             subject recorded as approved once the gate passes, riding whichever write the tail
                             makes, and the relabel that tail owes held wherever that approval no longer covers the
                             report the pull request carries, the requirements the issue carries, or the head the

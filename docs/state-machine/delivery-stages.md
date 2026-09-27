@@ -3396,8 +3396,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        afresh — the commit the rewrite published, or the head the approval was given where it rewrote nothing
        (`review_coverage._approval_holds`); an edit or a push during the squash is work nobody reviewed — and unless
        the pinned comment, read last, still carries the report, evidence, and returned-verdict records in hand — a
-       verdict persisted meanwhile holds the move; the next tick answers
-       whatever moved, through step 1's handoff reading. A relabel that does not land is not raised past the
+       verdict persisted meanwhile holds the move, and so does one still waiting on the recovery road, whose squash
+       retires only the verdict of the approval behind it and there holds none; the next tick answers whatever moved,
+       through step 1's handoff reading. A relabel that does not land is not raised past the
        handoff: everything it owed is durable, and step 1 moves the label on the next tick instead of a second
        reviewer being run over a branch already published.
      - **unknown** (no marker) → park, split by whose failure it was

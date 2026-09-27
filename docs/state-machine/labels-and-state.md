@@ -1769,7 +1769,9 @@ The keys that matter for the state machine fall into a few groups:
   one another road dropped or replaced since, is not acted on at all. Whatever sets the record to `null` names the
   verdict it holds, so a verdict another road put in its place, carried onto the state by one of those rechecks, is
   never the one dropped; the approval's squash is held to the exact record in hand before and after its rewrite, and
-  retires it only then. An approval of the subject still standing parks under `reviewer_unverified`
+  retires it only then -- and the recovery of a squash an earlier tick did not finish holds no verdict at all, so a
+  later round's verdict found beside it is left waiting and holds the move to `documenting`. An approval of the subject
+  still standing parks under `reviewer_unverified`
   (`unverified_approvals.py`) unless its claim names the current evidence exactly and that evidence proves current, its
   re-read artifact still the one that settled, and passes and covers the configuration by the artifact's own commands
   rather than by the claim's copied `passed` and `covers`, with the pinned `verification_evidence_*` records read again
