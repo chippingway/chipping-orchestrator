@@ -244,17 +244,25 @@ class _ReadsTheCommentAtThePost:
 
 
 class _RefusesTheFeedback:
-    """A pull request that refuses the reviewer's feedback post once, and takes every other comment."""
+    """A pull request that fails the reviewer's feedback post once, and takes every other comment.
 
-    def __init__(self, github) -> None:
+    Refused outright, or -- where it `lands` -- taken with an answer that
+    names no comment, so nothing reads its id back.
+    """
+
+    def __init__(self, github, *, lands: bool = False) -> None:
         self._posts = github.pr_comment
-        self._refused = False
+        self._lands = lands
+        self._failed = False
 
     def __call__(self, pr_number, body):
-        if not self._refused and _read.FEEDBACK_NOTICE in body:
-            self._refused = True
+        if self._failed or _read.FEEDBACK_NOTICE not in body:
+            return self._posts(pr_number, body)
+        self._failed = True
+        if not self._lands:
             raise RuntimeError("pull request comment rejected")
-        return self._posts(pr_number, body)
+        self._posts(pr_number, body)
+        return None
 
 
 class DisposedApprovalTest(_world.ReviewVerdictWorld, unittest.TestCase):
@@ -285,26 +293,6 @@ class DisposedApprovalTest(_world.ReviewVerdictWorld, unittest.TestCase):
             ([DOCUMENTING], None, 1),
         )
 
-    def test_an_approval_without_valid_evidence_parks(self) -> None:
-        for name, message, refusal in _UNVERIFIED_APPROVALS:
-            with self.subTest(name):
-                self.setUp()
-
-                ran = self.returns(message)
-
-                pinned = self.pinned()
-                self.assertEqual(
-                    (
-                        pinned[_world.PARK_REASON],
-                        pinned[_world.RETURNED_VERDICT],
-                        ran[VERIFY].call_count,
-                        [event.get("reason") for event in self.github.recorded_events if event["event"] == PARK_EVENT],
-                    ),
-                    (UNVERIFIED, None, 0, [UNVERIFIED]),
-                )
-                self.assertEqual(self.github.label_history, [])
-                self.assertIn(refusal, self.github.posted_comments[-1][1])
-
     def test_a_reuse_counts_only_for_handed_evidence(self) -> None:
         for name, named, outcome in _REUSES:
             with self.subTest(name):
@@ -324,7 +312,7 @@ class DisposedApprovalTest(_world.ReviewVerdictWorld, unittest.TestCase):
         for name, settled, refusal in _MISDESCRIBED:
             with self.subTest(name):
                 self.setUp()
-                _read.seeds_an_approval(self, _read.settles_evidence(self, **settled))
+                _read.seeds_a_verdict(self, _read.settles_evidence(self, **settled))
 
                 ran = self.finishes()
 
@@ -340,6 +328,42 @@ class DisposedApprovalTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 )
                 self.assertEqual(self.github.label_history, [])
                 self.assertIn(refusal, self.github.posted_comments[-1][1])
+
+    def test_a_superseded_reuse_drops_either_verdict(self) -> None:
+        # The evidence a waiting verdict's reuse named is superseded by a later
+        # revision before the verdict is finished: the reviewer judged the
+        # branch beside evidence the pull request no longer carries as
+        # current, so the verdict is dropped for a fresh reviewer handed the
+        # later one -- an approval is not parked for a human, and a change
+        # request posts no feedback and launches no developer: nothing is
+        # spent or posted.
+        for verdict in (APPROVED, "changes_requested"):
+            with self.subTest(verdict):
+                self.setUp()
+                _read.seeds_a_verdict(self, _read.settles_evidence(self), verdict, reused=True)
+                _read.settles_evidence(self)
+                before = (
+                    _read.spent(self),
+                    len(self.github.posted_pr_comments),
+                    len(self.github.posted_comments),
+                )
+
+                self.finishes(_world.developer())
+
+                pinned = self.pinned()
+                self.assertEqual(
+                    (
+                        (
+                            _read.spent(self),
+                            len(self.github.posted_pr_comments),
+                            len(self.github.posted_comments),
+                        ),
+                        pinned.get(_world.RETURNED_VERDICT),
+                        pinned.get(_world.PARK_REASON),
+                        self.github.label_history,
+                    ),
+                    (before, None, None, []),
+                )
 
     def test_a_held_publication_needs_no_reviewer(self) -> None:
         # The post lands and its response is lost: the tick holds with the
@@ -510,31 +534,40 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
             (("changes_requested", None), 0, posted, []),
         )
 
-    def test_a_refused_feedback_post_holds_it(self) -> None:
-        # The post is the one durable copy of the feedback a later park's
-        # retry replays, so nothing is relabelled or launched without it; the
-        # verdict, never handed, posts again on the next tick.
-        with patch.object(self.github, "pr_comment", _RefusesTheFeedback(self.github)):
-            held = self.returns(REQUESTING)
-        self.assertEqual(
-            (self.pinned()[_world.RETURNED_VERDICT]["handed"], self.github.label_history),
-            (None, []),
-        )
+    def test_a_feedback_post_with_no_id_holds_it(self) -> None:
+        # The post's id is the one durable copy of the feedback a later park's
+        # retry replays, so nothing is relabelled or launched without it --
+        # whether GitHub refused the post, or took it with an answer naming no
+        # comment to read an id from. The verdict, never handed, posts again
+        # on the next tick, and reaches one developer: twice over on the pull
+        # request where the first post landed, since a feedback post carries
+        # no receipt to find it by.
+        for name, lands, posts in (("refused", False, 1), ("landed with no id", True, 2)):
+            with self.subTest(name):
+                self.setUp()
+                with patch.object(self.github, "pr_comment", _RefusesTheFeedback(self.github, lands=lands)):
+                    held = self.returns(REQUESTING)
+                self.assertEqual(
+                    (
+                        held[_world.RUN_AGENT].call_count,
+                        self.pinned()[_world.RETURNED_VERDICT]["handed"],
+                        self.pinned().get(ANCHOR),
+                        self.github.label_history,
+                    ),
+                    (0, None, None, []),
+                )
 
-        fixed = self._fixed()
+                fixed = self._fixed()
 
-        self.assertEqual(
-            (held[_world.RUN_AGENT].call_count, fixed[_world.RUN_AGENT].call_count),
-            (0, 1),
-        )
-        self.assertEqual(
-            (
-                len(_read.feedback_posts(self)),
-                tuple(self.github.label_history),
-                self.pinned()[_world.RETURNED_VERDICT],
-            ),
-            (1, HANDED_BACK, None),
-        )
+                self.assertEqual(
+                    (
+                        fixed[_world.RUN_AGENT].call_count,
+                        len(_read.feedback_posts(self)),
+                        tuple(self.github.label_history),
+                        self.pinned()[_world.RETURNED_VERDICT],
+                    ),
+                    (1, posts, HANDED_BACK, None),
+                )
 
     def _fixed(self) -> dict:
         """The next tick, in which one developer answers the request and pushes."""
@@ -543,6 +576,26 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
 
 class ParkedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
     """A verdict that may not be acted on parks for a human, and only over the subject it is about."""
+
+    def test_an_approval_without_valid_evidence_parks(self) -> None:
+        for name, message, refusal in _UNVERIFIED_APPROVALS:
+            with self.subTest(name):
+                self.setUp()
+
+                ran = self.returns(message)
+
+                pinned = self.pinned()
+                self.assertEqual(
+                    (
+                        pinned[_world.PARK_REASON],
+                        pinned[_world.RETURNED_VERDICT],
+                        ran[VERIFY].call_count,
+                        [event.get("reason") for event in self.github.recorded_events if event["event"] == PARK_EVENT],
+                    ),
+                    (UNVERIFIED, None, 0, [UNVERIFIED]),
+                )
+                self.assertEqual(self.github.label_history, [])
+                self.assertIn(refusal, self.github.posted_comments[-1][1])
 
     def test_no_room_parks_the_verdict_unacted(self) -> None:
         for name, message, filled in _NO_ROOM:

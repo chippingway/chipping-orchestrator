@@ -94,24 +94,31 @@ def settles_evidence(
     return pending
 
 
-def seeds_an_approval(case, settled: _records.PendingEvidence) -> None:
-    """Leave waiting an approval of the standing subject whose claim names `settled` and says it passed and covers.
+def seeds_a_verdict(
+    case, settled: _records.PendingEvidence, verdict: str = _verdicts.APPROVED, *, reused: bool = False,
+) -> None:
+    """Leave waiting `verdict` of the standing subject, whose claim names `settled` and says it passed and covers.
 
-    Whatever the evidence itself shows: the record a tick finishes an approval
+    The claim is the transaction's own publication, or a reuse of it where
+    `reused` says so.
+
+    Whatever the evidence itself shows: the record a tick finishes a verdict
     from, written as nothing but the reviewer's own copy of what it relied on,
-    and returned by a reviewer handed that subject.
+    and returned by a reviewer handed that subject -- a change request with
+    the feedback the world's reviewer asks for.
     """
     state = case.github.read_pinned_state(case.issue)
     claim = _verdicts.EvidenceClaim(
-        use=_verdicts.EvidenceUse.PUBLISHED,
+        use=_verdicts.EvidenceUse.REUSED if reused else _verdicts.EvidenceUse.PUBLISHED,
         receipt=settled.receipt,
         revision=settled.revision,
         digest=settled.content_revision,
         passed=True,
         covers=True,
     )
-    run = _world.returned_run(case, state, "Covered.\n\nVERDICT: APPROVED")
-    returned = _verdicts.ReturnedVerdict(0, _verdicts.APPROVED, run.subject.recorded(), evidence=claim)
+    feedback = _world.REQUESTED if verdict == _verdicts.CHANGES_REQUESTED else ""
+    run = _world.returned_run(case, state, f"{feedback}\n\nVERDICT: {verdict.upper()}")
+    returned = _verdicts.ReturnedVerdict(0, verdict, run.subject.recorded(), feedback, claim)
     state.set(_verdicts.RETURNED_VERDICT, returned.recorded())
     case.github.write_pinned_state(case.issue, state)
-    case.decision = _models._ReviewerDecision(run, _verdicts.APPROVED, "")
+    case.decision = _models._ReviewerDecision(run, verdict, feedback)

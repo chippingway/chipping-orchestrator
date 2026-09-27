@@ -51,7 +51,10 @@ returns, and neither verdict is acted on until it is: a publication that holds
 or stands down ends the tick with the verdict waiting and the transaction owed,
 for the reconciliation ahead of a later tick to publish, and a transaction that
 can never settle -- retired, or bound to a verification context that has since
-moved -- drops the verdict for a fresh reviewer instead of waiting forever.
+moved -- drops the verdict for a fresh reviewer instead of waiting forever. So
+does a reuse of evidence a later revision has superseded since, whichever the
+verdict: the reviewer judged the branch beside evidence that is no longer the
+pull request's current evidence.
 
 A change request stands without evidence -- a reviewer may find a bug without
 running anything -- and goes to the developer as it always has. An approval
@@ -224,18 +227,22 @@ def _waits_on_its_evidence(
     it, and either leaves a transaction about the old head that can never
     settle. So a transaction still owed -- a publication that stood down --
     holds the verdict, written nowhere, for the reconciliation ahead of the
-    next tick to publish and the tick behind it to finish. One that can never
-    settle -- retired, superseded by a later revision, or recorded under a
-    verification context that has since moved -- drops the verdict instead,
-    for a fresh reviewer, rather than waiting on it forever, in a write
-    composed over the comment read again against what the verdict's run read
+    next tick to publish and the tick behind it to finish. Evidence that can
+    never be relied on drops the verdict instead, whichever the verdict, for
+    a fresh reviewer handed the evidence current then: a transaction retired,
+    superseded by a later revision, or recorded under a verification context
+    that has since moved, rather than waited on forever -- and the evidence a
+    reuse named, once a later revision has superseded it, since that
+    reviewer judged the branch beside evidence the pull request no longer
+    carries as current. The drop goes down in a write composed over the
+    comment read again against what the verdict's run read
     (`review_coverage._verdict_still_stands`): a report or evidence another
     road settled meanwhile is kept, with the round and whatever else that
     settlement wrote beside it. A reading nobody could take writes nothing,
     and the next tick finds the evidence lost again.
     """
     claim = in_hand.claim
-    if claim is None or claim.use is not _verdicts.EvidenceUse.PUBLISHED:
+    if claim is None:
         return False
     standing = _claims.claim_standing(state, claim)
     if standing is _claims.ClaimStanding.SETTLED:
@@ -248,7 +255,7 @@ def _waits_on_its_evidence(
         return True
     log.info(
         "issue=#%d drops its reviewer's verdict: the verification evidence it "
-        "declared can no longer be published", issue.number,
+        "declared can no longer be published or relied on", issue.number,
     )
     run = in_hand.decision.run
     if _review_coverage._verdict_still_stands(gh, issue, state, run.subject, run.resolved_over) is not None:

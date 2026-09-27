@@ -3192,11 +3192,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       review_disposition.py the order a returned verdict is settled in, which no live round calls yet: its evidence
                             minted, then held to the subject standing and the pinned comment read again behind that
                             resolution, the last requests before it is persisted with its minted transaction in one
-                            write, the evidence published through the dispatcher's
-                            own reconciliation, the subject held again, and only then acted on -- an owed
-                            transaction holds the verdict, a lost one drops it over the comment read again, a refused approval parks only while
-                            its subject still stands and is dropped otherwise, and a comment with no room for either
-                            parks it. `acts_on_the_verdict` is the half behind the persisted write, the entry a
+                            write, the evidence published through the dispatcher's own reconciliation, the subject held
+                            again, and only then acted on -- an owed transaction holds the verdict, a lost claim --
+                            published or reused -- drops it over the comment read again, a refused approval parks only
+                            while its subject still stands and is dropped otherwise, and a comment with no room for
+                            either parks it. `acts_on_the_verdict` is the half behind the persisted write, the entry a
                             later tick finishing a waiting verdict is to take
       unverified_approvals.py
                             whether an approval rests on the current evidence exactly as it claims -- settled and

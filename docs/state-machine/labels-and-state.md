@@ -1752,8 +1752,9 @@ The keys that matter for the state machine fall into a few groups:
   its own, and the record and that transaction go down in one write with the returned run's own records, over the pinned
   comment read again once the subject has been resolved -- the last requests before that write -- BEFORE the evidence is
   published or the verdict acted on, and neither verdict is acted on until that evidence settles -- an owed transaction
-  holds the record for a later tick, and a lost one sets it to `null` for a fresh reviewer, in a write composed over the
-  comment read again. A change request is handed
+  holds the record for a later tick, and a lost claim, whichever the verdict -- a transaction that can never settle, or
+  the reused evidence a later revision has superseded since -- sets it to `null` for a fresh reviewer, in a write
+  composed over the comment read again. A change request is handed
   over only while its subject still stands (`review_handoffs.py`): its feedback is posted first, and a post that failed
   or left no id relabels and launches nothing and leaves `handed` `null`; the whole subject is held again behind that
   post, the record written with `handed` set and the `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to
