@@ -52,6 +52,7 @@ _ENGINE_OWNERS = (
     "prompt_notes",
     "conversation_prompts",
     "decomposition_prompts",
+    "review_evidence_prompts",
     "run_requests",
     "run_reporting",
     "issue_usage",

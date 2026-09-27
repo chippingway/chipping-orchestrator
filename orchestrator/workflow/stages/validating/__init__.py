@@ -58,6 +58,8 @@ reviewer, on every tick, until the pull request carries it, which is why
 one last settled, re-read and quoted whole -- or refuses the round over one
 the thread has moved out of reach, and `review_comment` binds that subject to
 the pinned comment carrying the report records it was resolved from.
+`review_evidence` is the reader of the verification evidence current for that
+very subject, which no round asks yet.
 `review_records` writes what the round puts down -- the spec and subject ahead
 of the spawn, the session on its return -- and reserves the whole round, at
 its widest, in the measurement a developer report is accepted under.

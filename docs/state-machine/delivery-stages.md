@@ -971,7 +971,9 @@ because there it is the claim that this stage has already rerouted rather than a
   - **Settled** → the pull request (the one `pr_number` pins), branch, checkout, tested and target trees, configured
     context, the recorded review subject (`review_returned_subject` for a reviewer's account, `review_subject`
     otherwise), the settled report re-read at its location as a reviewer is handed it, the subject passing that reader's
-    own rules (requirements the round was due, a report not stale against it), and the requirements all PROVED; the
+    own rules (requirements the round was due, a report not stale against it -- a report older than a baseline that is
+    the subject's own requirements is not stale, since only settling the reply that bought the round leaves one), and
+    the requirements all PROVED; the
     artifact is posted (or found, by its receipt, where an earlier post's response was lost); the issue and the pinned
     comment are read afresh, the comment has to carry every bound record as the tick held it, the whole proof is taken
     again over them, and the artifact re-read at the comment it landed as has to be exactly this transaction's (edited
@@ -998,7 +1000,11 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Relying on it later**: `current_evidence_verdict` proves the current record again for a reader -- no revision
   past it spent, its handoff, its artifact re-read at the recorded comment with the pass flag its commands earn, and
   then the whole proof above -- so newer evidence posted and never settled, a deleted or edited artifact, or a flag it
-  contradicts is not reported as current. No reader asks it yet.
+  contradicts is not reported as current. Its one reader, `stages/validating/review_evidence.py`, hands a reviewer the
+  current evidence only where the record is bound to exactly the subject that reviewer is handed -- pull request,
+  head, requirements, and the complete report by revision and digest -- and it proves current, then re-reads the
+  artifact for the prompt and holds it to the record again, so an edit between the two reads hands nothing. No round
+  asks that reader yet.
 - **Carry-forward**: `workflow/engine/verification_carry_forward.py` decides whether current evidence answers for
   another head -- never the one it already answers for -- and only on the full tree identity of that head and an
   unchanged configured context, while the evidence being carried is still the latest and published (re-read as above, on

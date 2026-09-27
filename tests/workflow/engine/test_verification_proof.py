@@ -13,7 +13,9 @@ The review subject is held to the records a reviewer actually wrote, and the
 report it names is re-read where its settlement put it, exactly as a reviewer
 is handed it: a subject nobody recorded, one a later review replaced, a report
 settled after the review, and a report deleted, edited, out of step with its
-handoff, or unreadable are each refused.
+handoff, or unreadable are each refused. A report older than a baseline that is
+the subject's own requirements -- a bare review-cap grant that bought the
+round, settled as the round returned -- is no staleness.
 
 The settlement proves the pull request and the requirements once more after the
 post, since a push can land while the artifact is being written: evidence is
@@ -41,6 +43,7 @@ from orchestrator.workflow.stages.validating import state as _validating_state
 from tests.support.github.models import FakeLabel
 from tests.workflow.engine import (
     verification_evidence_test_support as support,
+    verification_reply_round_fixture as _reply_round,
     verification_report_fixture as _report,
     verification_world_fixture as _world,
 )
@@ -288,6 +291,42 @@ class ReviewerReportedEvidenceTest(unittest.TestCase, support.VerificationEviden
             )
 
         self.assertEqual(self.artifacts(), [])
+
+
+class SettledReplyRoundTest(unittest.TestCase, support.VerificationEvidenceCase):
+    """Evidence of a round a reply bought answers for the requirements that round read."""
+
+    def setUp(self) -> None:
+        support.VerificationEvidenceCase.setUp(self)
+
+    def test_its_own_settlement_is_no_staleness(self) -> None:
+        # A bare review-cap grant buys a round due the thread through it, past
+        # the baseline the report was written against, and the round's return
+        # settles that reply -- moving the baseline onto the requirements its
+        # reviewer read, past the report. That is the round's own settlement,
+        # not an edit anybody owes, so the reviewer's evidence of that subject
+        # settles.
+        written_against = self.state.get(_report.BASELINE)
+        subject = _reply_round.settles_a_granted_round(self)
+        publication = replace(
+            self.binding().target.publication, requirements_revision=subject.requirements_revision,
+        )
+        pending = self.record(self.binding(
+            source=EvidenceSource.REVIEWER_REPORTED,
+            target=_records.EvidenceTarget(publication, subject.recorded()),
+        ))
+
+        self.assertFalse(self.reconcile())
+
+        self.assertNotEqual(subject.requirements_revision, written_against)
+        self.assertEqual(
+            (
+                subject.report.requirements_revision,
+                self.state.get(_report.BASELINE),
+                getattr(_settlement.read_current_evidence(self.state), "receipt", None),
+            ),
+            (written_against, subject.requirements_revision, pending.receipt),
+        )
 
 
 class MovedDuringPublicationTest(unittest.TestCase, support.VerificationEvidenceCase):
