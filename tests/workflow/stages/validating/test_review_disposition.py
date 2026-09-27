@@ -54,8 +54,11 @@ LATER_REPORT = "Covered the empty configuration as well; the suite passes."
 # What the approval comment an approval posts says about itself.
 APPROVAL_NOTICE = "review approved"
 
-# The client request a pull-request comment goes out through.
+# The client requests a pull-request comment and a pinned-comment write go
+# out through.
 PR_COMMENT = "pr_comment"
+
+PINNED_WRITE = "write_pinned_state"
 
 # A reviewer approving over the evidence revision `digest` names, running
 # nothing of its own.
@@ -104,7 +107,7 @@ _BEFORE_THE_HANDOFF = (
     (
         "a report behind the verdict's write",
         (
-            "write_pinned_state",
+            PINNED_WRITE,
             lambda state: state.get(_world.RETURNED_VERDICT) is not None,
             _settles_a_later_report,
         ),
@@ -211,25 +214,34 @@ _CLEARED = (
     ("a change request", lambda _case: UNDECLARED_REQUEST, 0),
 )
 
-# Where another road replaces a persisted verdict with one of its own -- a
-# later round's, beside the round it spent -- while this tick is acting on
-# it: the reply that earned the verdict, and the request behind which the
-# replacement lands, with how many of those requests go first.
+# Where another road puts a verdict of its own -- a later round's change
+# request, beside the round it spent -- in place of the one this tick is
+# acting on: the reply that earned this tick's verdict, the request behind
+# which the other lands with how many of those requests go first, how the
+# tick runs, and how many squashes it takes. Behind the squash notice and
+# behind the write that settles the squash, the approval is finishing a
+# rewrite already made.
 _REPLACED = (
     (
         "behind the approval comment",
         lambda case: REUSING.format(digest=_read.settles_evidence(case).content_revision),
         (PR_COMMENT, lambda body: APPROVAL_NOTICE in body, 1),
+        {},
+        0,
     ),
     (
         "behind the feedback post",
         lambda _case: UNDECLARED_REQUEST,
         (PR_COMMENT, lambda body: _read.FEEDBACK_NOTICE in body, 1),
+        {},
+        0,
     ),
     (
         "behind the park notice",
         lambda _case: UNDECLARED_APPROVAL,
         ("comment", lambda body: UNVERIFIED_NOTICE in body, 1),
+        {},
+        0,
     ),
     (
         # The fourth artifact reread, behind the two the round's handover
@@ -238,6 +250,22 @@ _REPLACED = (
         "behind the approval's proof",
         lambda case: REUSING.format(digest=_read.settles_evidence(case).content_revision),
         ("reread_verification_artifact", bool, 4),
+        {},
+        0,
+    ),
+    (
+        "behind the squash notice",
+        lambda case: REUSING.format(digest=_read.settles_evidence(case).content_revision),
+        (PR_COMMENT, lambda body: "squashed 2 commits" in body, 1),
+        {"squash_result": (True, _world.HEAD, 2, None)},
+        1,
+    ),
+    (
+        "behind the squash's own write",
+        lambda case: REUSING.format(digest=_read.settles_evidence(case).content_revision),
+        (PINNED_WRITE, lambda state: state.get("review_approved_subject") is not None, 1),
+        {},
+        1,
     ),
 )
 
@@ -557,7 +585,7 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # no proof the subject moved, so the verdict waits, unhanded, for a
         # later tick to resolve again rather than being dropped as stale.
         behind = _world.AnotherRoadBehind(
-            self, "write_pinned_state", lambda state: state.get(_world.RETURNED_VERDICT) is not None,
+            self, PINNED_WRITE, lambda state: state.get(_world.RETURNED_VERDICT) is not None,
             lambda case: case.github.report_failures.unreadable.add(_world.PR),
         )
         posted = list(self.github.posted_pr_comments)
@@ -945,27 +973,15 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
     def test_a_replaced_verdict_is_left_standing(self) -> None:
         # Another road puts a verdict of its own in place of the one this tick
         # persisted and is acting on, and spends a round beside it: whichever
-        # request it lands behind, this tick squashes, relabels, parks, and
-        # hands over nothing, and drops nothing but its own verdict -- the
-        # replacement and its round stand for that road to finish.
-        for name, reply, behind in _REPLACED:
+        # request it lands behind, this tick squashes no further, relabels,
+        # parks, and hands over nothing, and drops nothing but its own verdict
+        # -- the other verdict and its round stand for that road to finish,
+        # and no write this tick makes after them lays itself over them.
+        for name, reply, behind, options, squashed in _REPLACED:
             with self.subTest(name):
-                self.setUp()
-
-                ran = _world.AnotherRoadBehind(
-                    self, behind[0], behind[1], self._replaces, behind[2],
-                ).returning(reply(self))
-
-                standing = self.pinned()
                 self.assertEqual(
-                    (
-                        ran["_squash_and_force_push"].call_count,
-                        standing.get(_world.RETURNED_VERDICT) == self.replacement,
-                        standing.get(REVIEW_ROUND),
-                        standing.get(_world.PARK_REASON),
-                        self.github.label_history,
-                    ),
-                    (0, True, 1, None, []),
+                    self._replaced_behind(reply, behind, **options),
+                    (squashed, True, 1, None, []),
                 )
 
     def _cleared_behind_its_write(self, reply) -> tuple:
@@ -977,7 +993,9 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
         self.setUp()
         message = reply(self)
         posted = len(self.github.posted_pr_comments)
-        behind = _world.AnotherRoadBehind(self, "write_pinned_state", self._carries_a_verdict, self._clears)
+        behind = _world.AnotherRoadBehind(
+            self, PINNED_WRITE, lambda state: state.get(_world.RETURNED_VERDICT) is not None, self._clears,
+        )
         ran = behind.returning(message)
         left = self.pinned()
         return (
@@ -988,17 +1006,39 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
             self.github.label_history,
         )
 
+    def _replaced_behind(self, reply, behind: tuple, **options) -> tuple:
+        """What returning `reply` leaves where another road puts its own verdict in place behind `behind`'s request.
+
+        The squashes taken, whether that road's verdict stands, the review
+        round, the park, and every relabel.
+        """
+        self.setUp()
+        ran = _world.AnotherRoadBehind(
+            self, behind[0], behind[1], self._replaces, behind[2],
+        ).returning(reply(self), **options)
+        standing = self.pinned()
+        return (
+            ran["_squash_and_force_push"].call_count,
+            standing.get(_world.RETURNED_VERDICT) == self.replacement,
+            standing.get(REVIEW_ROUND),
+            standing.get(_world.PARK_REASON),
+            self.github.label_history,
+        )
+
     def _replaces(self, _case) -> None:
-        """Another road's write putting a later round's verdict in place of the one waiting, and spending a round."""
+        """Another road's write putting a later round's change request in place of the verdict, spending a round."""
         state = self.github.read_pinned_state(self.issue)
-        self.replacement = {**state.get(_world.RETURNED_VERDICT), "round": 1}
+        self.replacement = {
+            "round": 1,
+            "verdict": "changes_requested",
+            "subject": state.get("review_subject"),
+            "feedback": "A later round's feedback.",
+            "evidence": None,
+            "handed": None,
+        }
         state.set(_world.RETURNED_VERDICT, self.replacement)
         state.set(REVIEW_ROUND, 1)
         self.github.write_pinned_state(self.issue, state)
-
-    def _carries_a_verdict(self, state) -> bool:
-        """Whether a pinned write carries a verdict waiting."""
-        return state.get(_world.RETURNED_VERDICT) is not None
 
     def _clears(self, _case) -> None:
         """Another road's write dropping the verdict the comment carries."""

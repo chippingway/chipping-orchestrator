@@ -3371,13 +3371,16 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        The record, the checkout's own head, the recorded head as an OBJECT, and the ancestry between the two are
        all read, since an outstanding record is not proof the rewrite happened, a recorded head this host does not
        hold is a reflog entry nobody could look in, and one still reachable from HEAD was never rewritten at all.
-       Before that park and before anything below, the pinned comment is read again and has to carry the report and
-       verification evidence records the state in hand carries (`review_comment._records_in_hand`) — asked on the
-       approval road between its approval comment and the squash as well, so no rewrite goes out over records the
-       approval was not proved on: the comment and the rewrite with its force-push are time another road can settle a
-       later report or evidence revision in, and every write below lays the state in hand over the comment. Where it
-       moved them or will not read, nothing is posted or written and the label stays — the collapse the squash recorded
-       is the next tick's recovery to finish, over the records the comment carries then. (4) On success,
+       Before that park and before anything below, the pinned comment is read again and has to carry the report,
+       verification evidence, and returned-verdict records the state in hand carries (`review_comment._records_in_hand`)
+       — asked on the approval road between its approval comment and the squash as well, so no rewrite goes out over
+       records the approval was not proved on: the comment and the rewrite with its force-push are time another road can
+       settle a later report or evidence revision in, or persist a later verdict, and every write below lays the state
+       in hand over the comment — so each write the tail makes behind a request of its own (the squash park behind its
+       notice, the write a failed squash notice leaves, the settled handoff behind the notice and the watermark reads)
+       is held to the same records again first and retires the approval's verdict only then. Where it moved them or will
+       not read, nothing is posted or written and the label stays — the collapse the squash recorded is the next tick's
+       recovery to finish, over the records the comment carries then. (4) On success,
        if `squashed_count > 1` post `:package: squashed N commits to 1` — a count of 0 or 1 replaced no history and
        posts nothing — seed the in_review watermarks (inside the
        `gh.get_pr()` try so a snapshot failure leaves them untouched; the walk advances through the leading run of
@@ -3391,7 +3394,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        afresh (the approval's own revision and the baseline both), and the head over the pull request read afresh —
        the commit the rewrite published, or the head the approval was given where it rewrote nothing
        (`review_coverage._approval_holds`); an edit or a push during the squash is work nobody reviewed — and unless
-       the pinned comment, read last, still carries the report records in hand; the next tick answers
+       the pinned comment, read last, still carries the report, evidence, and returned-verdict records in hand — a
+       verdict persisted meanwhile holds the move; the next tick answers
        whatever moved, through step 1's handoff reading. A relabel that does not land is not raised past the
        handoff: everything it owed is durable, and step 1 moves the label on the next tick instead of a second
        reviewer being run over a branch already published.

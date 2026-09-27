@@ -2911,8 +2911,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             behind it, carrying report or evidence records settled meanwhile, a failed gate parking
                             only over the subject still standing, a persisted verdict retired by whichever write
                             follows and held where the subject would not read, and the report, evidence, and verdict
-                            records held in hand again behind the approval comment and behind the squash, the verdict
-                            retired only once both find it as it was; the review
+                            records held in hand again behind the approval comment, behind the squash, ahead of every
+                            write the tail makes behind a request of its own, and ahead of the relabel, the verdict
+                            retired only by a write that finds it as it was; the review
                             subject recorded as approved once the gate passes, riding whichever write the tail
                             makes, and the relabel that tail owes held wherever that approval no longer covers the
                             report the pull request carries, the requirements the issue carries, or the head the

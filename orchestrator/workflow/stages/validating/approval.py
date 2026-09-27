@@ -111,6 +111,10 @@ log = logging.getLogger("orchestrator.workflow")
 # thing each road hands its own number to, beside the gate and the branch.
 _PR_NUMBER = "pr_number"
 
+# What a write the squash tail makes is about to do, for the log where the
+# comment moved under the requests ahead of it and nothing is written.
+_HELD = "write what its squash left over the records it holds"
+
 # What a verify gate reports where the approval may go on: its commands
 # passed, or none are configured to run.
 _VERIFIED = frozenset(("ok", "not_run"))
@@ -237,6 +241,7 @@ def _park_squash_failure(
         # thread and the condition behind it is one only a human ends. The
         # recovery retries every tick, so a fresh mention here would be one
         # per poll for an answer nobody can give any faster.
+        _verdicts.drops_the_verdict(state)
         gh.write_pinned_state(issue, state)
         return
     left = _LEFT[standing]
@@ -251,7 +256,12 @@ def _park_squash_failure(
     # Re-set behind the guard, which clears whatever reason it found: this one
     # is durable, and it is what a later tick's re-entry is recognized by.
     state.set(_state._PARK_REASON, _state._REASON_SQUASH_FAILED)
-    gh.write_pinned_state(issue, state)
+    # The notice is a request of its own: the park goes down only over the
+    # records it was decided on, retiring the verdict of the approval whose
+    # squash failed; the recovery retries a squash whose park did not land.
+    if _review_comment._records_in_hand(gh, issue, state, _HELD, _review_comment._VERDICT_RECORDS):
+        _verdicts.drops_the_verdict(state)
+        gh.write_pinned_state(issue, state)
 
 
 def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
@@ -304,7 +314,6 @@ def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
         gate, branch, _payloads.as_identity(pr_number),
     )
     if squashed.held:
-        _verdicts.drops_the_verdict(state)
         # The gate owns the issue from here, and it owns it in one of two
         # shapes. Routed, the squashed commit is on the branch, the label is
         # the adjudication's, and an authorized settlement publishes it -- so a
@@ -316,8 +325,11 @@ def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
         # and this one changes nothing, while the park has nothing behind it
         # to carry the flags to the pinned comment -- and an issue left with a
         # frozen candidate, no `awaiting_human`, and no `park_reason` is one
-        # every later tick re-runs the reviewer on.
-        gh.write_pinned_state(issue, state)
+        # every later tick re-runs the reviewer on -- unless the comment moved
+        # under the rewrite, which no write lays itself over.
+        if _review_comment._records_in_hand(gh, issue, state, _HELD, _review_comment._VERDICT_RECORDS):
+            _verdicts.drops_the_verdict(state)
+            gh.write_pinned_state(issue, state)
         return
     # The rewrite and its force-push are time another road can settle a later
     # report or evidence revision in, or replace the verdict this approval
@@ -325,14 +337,13 @@ def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
     # comment that moved, the handoff would put the replaced records back and
     # move the label under an approval of them. Nothing is posted or written,
     # and the collapse the squash recorded is the next tick's recovery to
-    # finish -- over the records the comment carries then.
+    # finish -- over the records the comment carries then. Each write below
+    # follows requests of its own, and is held to the same records again
+    # before it goes out, the verdict retired only then.
     if not _review_comment._records_in_hand(
         gh, issue, state, "finish its squash under the approval it holds", _review_comment._VERDICT_RECORDS,
     ):
         return
-    # The comment carries exactly the verdict in hand, which is the one this
-    # handoff finishes, so every write below retires it.
-    _verdicts.drops_the_verdict(state)
     if not squashed.success:
         _park_squash_failure(
             gh, issue, state, squashed.error, standing=squashed.standing,
@@ -344,7 +355,9 @@ def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
         # it is on the record the next tick would drop. Keep it, persist what
         # did land, and leave the label here: the recovery republishes the
         # commit the remote already carries and words the notice again.
-        gh.write_pinned_state(issue, state)
+        if _review_comment._records_in_hand(gh, issue, state, _HELD, _review_comment._VERDICT_RECORDS):
+            _verdicts.drops_the_verdict(state)
+            gh.write_pinned_state(issue, state)
         return
     # Behind the notice on purpose: the snapshot the seed is read off carries
     # the notice's own id, so the walk steps past it. Seeded ahead of the post
@@ -380,6 +393,11 @@ def _persists_then_relabels(
     `validating` with nothing saying a squash ever ran -- and the next tick
     spawns a second reviewer over a branch this stage already published.
 
+    That write follows requests of its own -- the notice, the watermarks'
+    reads -- so it goes out only while the comment still carries the report,
+    evidence, and returned-verdict records in hand, and writes nothing
+    otherwise.
+
     Everything the caller staged rides the same write: the watermarks seeded
     behind the notice, and the verdict the approval finishes retired. So does
     the end of a park this recovery may have taken over an earlier attempt:
@@ -390,6 +408,9 @@ def _persists_then_relabels(
     state.set(_AWAITING_HUMAN, False)
     state.set(_state._PARK_REASON, None)
     _collapses.settle_pending_collapse(state, sha)
+    if not _review_comment._records_in_hand(gh, issue, state, _HELD, _review_comment._VERDICT_RECORDS):
+        return
+    _verdicts.drops_the_verdict(state)
     gh.write_pinned_state(issue, state)
     published = sha or _review_subjects.ReviewSubject.commit_recorded_in(
         state.get(_review_subjects.APPROVED_SUBJECT),
@@ -426,15 +447,17 @@ def _hands_to_documenting(
 
     Both callers asked GitHub several things before this -- the report at its
     location, the issue, the pull request -- and another road can settle a
-    later report on this comment in that time. So the comment is read again
-    first and has to carry the report records in hand (`review_comment`):
-    where it does not, the label stays and nothing is written, since that
-    write would put the replaced report back and move the label under an
-    approval of it. The record left standing is the next tick's to answer,
-    under the later report, which that approval does not cover.
+    later report or evidence revision on this comment in that time, or
+    persist a later verdict. So the comment is read again first and has to
+    carry the report, evidence, and returned-verdict records in hand
+    (`review_comment`): where it does not, the label stays and nothing is
+    written, since that write would put the replaced records back and move
+    the label under an approval of them -- or past a verdict still waiting.
+    The record left standing is the next tick's to answer, over what the
+    comment carries then.
     """
     if not _review_comment._records_in_hand(
-        gh, issue, state, "move its label past the approval it holds",
+        gh, issue, state, "move its label past the approval it holds", _review_comment._VERDICT_RECORDS,
     ):
         return
     try:
