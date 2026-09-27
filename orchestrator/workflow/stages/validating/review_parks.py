@@ -21,13 +21,14 @@ Both, and the park a failed verify gate takes over an approval (`approval`,
 `verify`), go down through `parks_over_the_subject`, since each is a park of a
 reviewed subject that only means anything while that subject stands. A park is
 measured before its notice is posted, at the widest it writes -- the notice's
-ledger entry and the watermark it stamps at the widest id, beside the flags --
-since a notice posted over a write GitHub then refuses leaves neither a verdict
-nor a park durable, and the next tick's reviewer answers the round again. A
-comment with no room for the park beside what the returned run staged takes it
-over the comment as it stands instead: the run's usage and session go
-unrecorded, a smaller loss than a park that never lands. One with no room even
-for that posts and writes nothing, and says so.
+ledger entry and the watermark it stamps at the widest id, beside the flags or
+beside the verdict an unread subject leaves waiting -- since a notice posted
+over a write GitHub then refuses leaves neither a verdict nor a park durable,
+and the next tick's reviewer answers the round again. A comment with no room
+for the park beside what the returned run staged takes it over the comment as
+it stands instead: the run's usage and session go unrecorded, a smaller loss
+than a park that never lands. One with no room even for that posts and writes
+nothing, and says so.
 
 The notice is a request of its own, long enough for a push or another road's
 settlement to land, and a park over either is a human asked to answer for a
@@ -227,12 +228,19 @@ def _room_for_the_park(gh: GitHubClient, issue: Issue, state: PinnedState, reaso
 
 
 def _park_fits(state: PinnedState, reason: str) -> bool:
-    """Whether the comment has room for a park on `state`, measured at its widest, with the verdict it drops."""
+    """Whether the comment has room for whichever write a park on `state` ends in, measured at its widest.
+
+    Its notice's ledger entry and the watermark it stamps go down either way:
+    beside the park's flags with the verdict it drops, where the park lands,
+    and beside the verdict kept as it waited, where the subject behind the
+    notice would not read.
+    """
     widest = _record_values.MAX_RECORDED_NUMBER
-    reserved = PinnedState(comment_id=state.comment_id, state_data=dict(state.data))
-    _verdicts.drops_the_verdict(reserved)
-    _comments._reserve_comment_slot(reserved, widest)
-    reserved.set(_AWAITING_HUMAN, True)
-    reserved.set(_state._PARK_REASON, reason)
-    reserved.set("last_action_comment_id", widest)
-    return _report_record_state.fits_the_comment(reserved.data)
+    kept = PinnedState(comment_id=state.comment_id, state_data=dict(state.data))
+    _comments._reserve_comment_slot(kept, widest)
+    kept.set("last_action_comment_id", widest)
+    landed = PinnedState(comment_id=state.comment_id, state_data=dict(kept.data))
+    _verdicts.drops_the_verdict(landed)
+    landed.set(_AWAITING_HUMAN, True)
+    landed.set(_state._PARK_REASON, reason)
+    return all(_report_record_state.fits_the_comment(written.data) for written in (kept, landed))

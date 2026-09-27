@@ -3388,11 +3388,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        delivered, and stops at the first unseen human comment on EITHER surface, so a PR-conversation comment
        numbered below a consumed reply holds the seed back rather than being swallowed by it — the scan that
        follows drops the consumed reply on its own), then end the collapse record and persist —
-       leaving `late_collapse_handoff_sha` in its place — and only then relabel to `workflow:documenting`, dropping
-       that record in a write of its own behind the label. The relabel is held, with the rewrite already finished,
-       unless the approval still covers the report as it reads at its location, the requirements over the issue read
-       afresh (the approval's own revision and the baseline both), and the head over the pull request read afresh —
-       the commit the rewrite published, or the head the approval was given where it rewrote nothing
+       leaving `late_collapse_handoff_sha` in its place — and only then relabel to `workflow:documenting`, dropping that
+       record in a write of its own behind the label, composed over the pinned comment read again once the label has
+       moved so it puts nothing another road wrote meanwhile back. The relabel is held, with the rewrite already
+       finished, unless the approval still covers the report as it reads at its location, the requirements over the
+       issue read afresh (the approval's own revision and the baseline both), and the head over the pull request read
+       afresh — the commit the rewrite published, or the head the approval was given where it rewrote nothing
        (`review_coverage._approval_holds`); an edit or a push during the squash is work nobody reviewed — and unless
        the pinned comment, read last, still carries the report, evidence, and returned-verdict records in hand — a
        verdict persisted meanwhile holds the move; the next tick answers

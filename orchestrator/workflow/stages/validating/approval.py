@@ -441,9 +441,10 @@ def _hands_to_documenting(
     be the reviewer's.
 
     The record goes in a write of its own, BEHIND the label rather than ahead
-    of it, because it is the label that it is about. Nothing else reads it: an
-    approval that collapsed nothing leaves none, and there is nothing to end
-    or to write there.
+    of it, because it is the label that it is about -- composed over the
+    comment read again once the label has moved, so that write ends the record
+    and nothing else. Nothing else reads it: an approval that collapsed
+    nothing leaves none, and there is nothing to end or to write there.
 
     Both callers asked GitHub several things before this -- the report at its
     location, the issue, the pull request -- and another road can settle a
@@ -471,8 +472,16 @@ def _hands_to_documenting(
         return
     if not _late_handoffs.read_settled_handoff(state):
         return
-    _late_handoffs.clear_settled_handoff(state)
-    gh.write_pinned_state(issue, state)
+    # The relabel is a request of its own, long enough for another road to
+    # write this comment, so the record is ended over the comment read afresh
+    # rather than the state in hand: that write would put back whatever the
+    # other road wrote. One that will not read keeps the record, which the
+    # next reading answers.
+    durable = _review_comment._read(gh, issue, state, "end the handoff behind the label it moved")
+    if durable is None:
+        return
+    _late_handoffs.clear_settled_handoff(durable)
+    gh.write_pinned_state(issue, durable)
 
 
 def _finalize_validating_approval(

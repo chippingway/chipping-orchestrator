@@ -2913,7 +2913,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             follows and held where the subject would not read, and the report, evidence, and verdict
                             records held in hand again behind the approval comment, behind the squash, ahead of every
                             write the tail makes behind a request of its own, and ahead of the relabel, the verdict
-                            retired only by a write that finds it as it was; the review
+                            retired only by a write that finds it as it was, and the handoff record behind the label
+                            ended over the comment read afresh; the review
                             subject recorded as approved once the gate passes, riding whichever write the tail
                             makes, and the relabel that tail owes held wherever that approval no longer covers the
                             report the pull request carries, the requirements the issue carries, or the head the
@@ -3214,7 +3215,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       review_parks.py       the two parks a verdict takes instead of being acted on, `reviewer_unverified` and
                             `reviewer_unrecorded`, each answered by a fresh reviewer, and the funnel they and a
                             failed verify gate's park take (`parks_over_the_subject`): measured at its widest before
-                            the notice is posted, taken over the comment as it stands where it has no room beside
+                            the notice is posted, for the park's own write and for the one keeping the verdict beside
+                            the notice where the subject would not read, taken over the comment as it stands where it
+                            has no room beside
                             what the returned run staged, and held behind the notice to the subject resolved again
                             and then to the comment read against the run's reading -- a report or evidence record
                             moved there carries everything the comment changed since, a settlement's spent round

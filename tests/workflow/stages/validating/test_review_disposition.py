@@ -201,8 +201,9 @@ _PARKS = (
 # What another road does to a verdict's subject behind one of its requests,
 # the report revision and review round the pinned comment records then, and
 # whether the verdict is held for a later tick: a later report settling -- and
-# spending its round -- or a push proves the subject moved, and a report
-# nobody could read proves nothing either way.
+# spending its round -- evidence settling, or a push proves what the verdict
+# was decided over moved, and a report nobody could read proves nothing either
+# way.
 # Each verdict another road drops right behind the write that persisted it, as
 # the reply that verdict's reviewer returned -- an approval whose evidence is
 # published before it is acted on, one reusing settled evidence, and a change
@@ -271,6 +272,7 @@ _REPLACED = (
 
 _MOVES = (
     ("a later report", _settles_a_later_report, (2, 1), False),
+    ("an evidence settlement", _read.settles_evidence, (1, 0), False),
     ("a push", _world.pushes, (1, 0), False),
     (
         "an unread report",
@@ -722,26 +724,24 @@ class ParkedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
             with self.subTest(park=park, move=move):
                 self.assertEqual(self._moved_behind_the_notice(*case, **options), expected)
 
-    def test_a_settlement_behind_a_park_notice(self) -> None:
-        # Evidence settles while the refused approval's park notice is posted,
-        # the park's last request: the refusal was read over evidence records
-        # that no longer stand, so no park lands to ask a human about it. The
-        # settlement is kept, and the verdict dropped for a fresh reviewer
-        # handed that evidence.
-        behind = _world.AnotherRoadBehind(
-            self, "comment", lambda body: UNVERIFIED_NOTICE in body, _read.settles_evidence,
-        )
+    def test_a_park_measures_the_verdict_it_may_keep(self) -> None:
+        # A report nobody could read behind the notice lands no park and keeps
+        # the verdict waiting beside the notice's ledger entry, the wider of
+        # the two writes a park may end in. Measured from that write with
+        # nothing filled, a comment with one character too few for it is not
+        # posted on, and never written past its ceiling.
+        unread = _MOVES[-1][1]
+        self._moved_behind_the_notice(UNDECLARED_APPROVAL, 0, UNVERIFIED_NOTICE, unread)
+        kept = len(pinned_state_body(self.pinned()))
 
-        behind.returning(UNDECLARED_APPROVAL)
+        filled = MAX_PINNED_BODY - kept + 1
 
-        pinned = self.pinned()
+        left = self._moved_behind_the_notice(UNDECLARED_APPROVAL, filled, UNVERIFIED_NOTICE, unread)
+
+        written = len(pinned_state_body(self.pinned()))
         self.assertEqual(
-            (
-                pinned.get(_world.PARK_REASON),
-                _read.current_evidence_revision(self),
-                pinned[_world.RETURNED_VERDICT],
-            ),
-            (None, 1, None),
+            (left[1], left[2], written <= MAX_PINNED_BODY),
+            (APPROVED, False, True),
         )
 
     def _moved_behind_the_notice(self, message: str, filled: int, notice: str, road, **options) -> tuple:

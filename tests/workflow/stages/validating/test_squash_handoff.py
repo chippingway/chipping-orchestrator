@@ -26,7 +26,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import report_delivery as _report_delivery
+from orchestrator.workflow.engine import report_delivery as _report_delivery, report_settlement_state as _settlement
 from tests.support.fakes import LazyPullRequest
 from tests.workflow import published_reports as _published_reports
 from tests.workflow.stages.validating import squash_approval_support as _support
@@ -68,6 +68,20 @@ class _RefusesTheNotice:
         if SQUASH_NOTICE in body:
             raise RuntimeError("pull request comment rejected")
         return self._posts(pr_number, body)
+
+
+class _SettlesAReportBehindTheRelabel:
+    """A relabel to `documenting` behind which another road settles a later report."""
+
+    def __init__(self, github) -> None:
+        self._github = github
+        self._relabels = github.set_workflow_label
+
+    def __call__(self, issue, label):
+        answered = self._relabels(issue, label)
+        if (issue.number, label) == HANDED_ON:
+            _published_reports.republishes_the_report(self._github, issue, "A later report.")
+        return answered
 
 
 class _RecordsTheLabelAtEachWrite:
@@ -130,6 +144,26 @@ class SquashHandoffTest(
         self.assertEqual(writes.labels_when(_support.HANDOFF_KEY), [0])
         self.assertEqual(writes.writes[-1][0], 1)
         self.assertNotIn(_support.HANDOFF_KEY, github.pinned_data(_support.APPROVAL_ISSUE))
+
+    def test_a_report_behind_the_relabel_is_kept(self) -> None:
+        # The relabel is a request of its own, long enough for another road to
+        # settle a later report: the write that ends the record behind it is
+        # composed over the comment as it stands then, so it ends the record
+        # and puts nothing older back.
+        github, issue, _pr = self._setup()
+
+        with patch.object(github, _support.SET_LABEL, _SettlesAReportBehindTheRelabel(github)):
+            self._lands_a_collapse(github, issue)
+
+        written = github.read_pinned_state(issue)
+        self.assertEqual(
+            (
+                _settlement.read_current_report(written).report_revision,
+                _support.HANDOFF_KEY in written.data,
+                HANDED_ON in github.label_history,
+            ),
+            (2, False, True),
+        )
 
     def test_a_refused_notice_keeps_the_record(self) -> None:
         # The count the notice is worded from is on that record and nowhere
