@@ -25,7 +25,7 @@ to ask again.
 
 A change request is handed over by a write that records it as handed, with
 the feedback's anchor, and only then by the relabel to `workflow:fixing`
-(`requested_changes`). Once that write landed the feedback is on the pull
+(`review_handoffs`). Once that write landed the feedback is on the pull
 request, so a handed verdict is finished by launching the developer on it and
 nothing is posted twice: on `fixing` (`finishes_a_handed_request`), where the
 relabel landed and the launch did not, and on `workflow:validating`, where the

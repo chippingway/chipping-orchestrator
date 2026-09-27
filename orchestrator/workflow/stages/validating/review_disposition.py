@@ -73,8 +73,6 @@ from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    run_ledger_values as _run_ledger_values,
-    verification_record_state as _record_state,
     verification_records as _records,
     verification_transaction as _transaction,
 )
@@ -82,9 +80,9 @@ from orchestrator.workflow.stages.implementing import late_records as _late_reco
 from orchestrator.workflow.stages.validating import (
     approval as _approval,
     models as _models,
-    requested_changes as _requested_changes,
     review_claims as _claims,
     review_coverage as _review_coverage,
+    review_handoffs as _handoffs,
     review_parks as _parks,
     review_verdicts as _verdicts,
     unverified_approvals as _unverified,
@@ -164,13 +162,7 @@ def acts_on_the_verdict(
         return
     decision = in_hand.decision
     if decision.verdict == _verdicts.CHANGES_REQUESTED:
-        # Kept through the handoff's write and the relabel, marked with the
-        # count the developer's launch will charge past, rather than dropped
-        # ahead of it.
-        _verdicts.hands_off(state, _run_ledger_values._runs_used(state))
-        _requested_changes._handle_validating_changes_requested(
-            gh, spec, issue, state, decision,
-        )
+        _handoffs.hands_the_request_over(gh, spec, issue, state, decision)
         return
     refusal = in_hand.refusal or _unverified.approval_refusal(
         gh, spec, issue, state, in_hand.claim,
@@ -265,9 +257,10 @@ def _persists(
 ) -> VerdictInHand | None:
     """Stage the verdict and the transaction it claims, measured together; None where they cannot be.
 
-    The verdict goes first so the transaction is measured beside it: its
-    settlement lands while the verdict is still waiting. None where the
-    comment has no room for the verdict, or for the transaction the
+    The transaction is measured beside the verdict at its handoff
+    (`review_verdicts.records_the_verdict`): its settlement lands while the
+    verdict is still waiting, and a change request's handoff behind both. None
+    where the comment has no room for the verdict, or for the transaction the
     reviewer's commands were minted as: acted on with nothing durable behind
     it, the verdict would be answered again by a second reviewer the moment
     the tick died, and acted on without its transaction, what the reviewer
@@ -281,12 +274,9 @@ def _persists(
         feedback=feedback,
         evidence=claimed.claim,
     )
-    if not _verdicts.records_the_verdict(state, returned):
+    if not _verdicts.records_the_verdict(state, returned, claimed.pending):
         return None
-    pending = claimed.pending
-    if pending is not None and not _record_state.record_pending_evidence(state, pending):
-        return None
-    return VerdictInHand(decision, claimed.claim, claimed.refusal, pending)
+    return VerdictInHand(decision, claimed.claim, claimed.refusal, claimed.pending)
 
 
 def _publication_holds(

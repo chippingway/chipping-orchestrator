@@ -67,12 +67,13 @@ verdict of the subject that still stands is persisted first as the record
 `review_verdicts` owns, beside the evidence transaction `review_claims` mints
 from what the reviewer declared; that evidence is published, and only then is
 the verdict acted on. `unverified_approvals` decides whether an approval rests
-on settled, passing evidence, and `review_parks` holds the parks a verdict
-takes instead. The recovery hooks are live over a record an issue already
-carries: `review_resume` finishes one an earlier tick left waiting without a
-second reviewer -- on `fixing` too, for a change request whose developer was
-never launched, as `review_handoffs` reads that launch off the ledger and the
-branch.
+on settled, passing evidence, `review_handoffs` hands a change request to its
+developer over the subject standing then, and `review_parks` holds the parks a
+verdict takes instead. The recovery hooks are live over a record an issue
+already carries: `review_resume` finishes one an earlier tick left waiting
+without a second reviewer -- on `fixing` too, for a change request whose
+developer was never launched, as `review_handoffs` reads that launch off the
+ledger and the branch.
 `review_records` writes what the round puts down -- the spec and subject ahead
 of the spawn, the session on its return -- and reserves the whole round, at
 its widest, in the measurement a developer report is accepted under.

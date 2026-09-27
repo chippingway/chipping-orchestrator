@@ -1,14 +1,26 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Whether the developer a handed change request owes was launched, and the park where nobody can say.
+"""A persisted change request's handoff, whether its developer was launched, and the park where nobody can say.
 
-A reviewer's change request is handed to `workflow:fixing` by a write that
-records the verdict as handed at the lifetime agent-run count
-(`review_verdicts`), ahead of the relabel, and only the writes behind the
-developer's run retire it. A handed verdict still standing is therefore a
-handoff whose developer's run wrote nothing, and what that means is read off the ledger the launch charges
-before it spawns (`run_circuit`), which records two phases durably and the end
-of neither.
+The handoff (`hands_the_request_over`) is taken only while the subject the
+verdict is about still stands, resolved again with the pinned comment read
+first, since another road can settle a later report between the verdict's
+write and this: feedback posted and handed on over it is about words the pull
+request no longer carries, and the handoff's write would put the older report
+records back over the newer. The feedback is posted next, and the one durable
+copy of it is the id it lands as, so a post that failed or left no id relabels
+and launches nothing and the verdict still waiting posts again on the next
+tick. The records are read once more behind that post, the one request between
+the recheck and the write, and only then is the verdict written as handed at
+the lifetime agent-run count (`review_verdicts`), with the anchor, and the
+issue relabelled to `workflow:fixing` -- so whichever request fails leaves a
+verdict the next tick hands over without posting twice (`review_resume`). The
+room that write needs was reserved when the verdict was recorded.
+
+Only the writes behind the developer's run retire the verdict, so a handed one
+still standing is a handoff whose developer's run wrote nothing, and what that
+means is read off the ledger the launch charges before it spawns
+(`run_circuit`), which records two phases durably and the end of neither.
 
 Nothing charged past the handed count, or a charge still RESERVED, is a launch
 that never spawned: the developer is OWED, and the same logical launch reuses
@@ -32,12 +44,12 @@ through the stage's own replay anchor (`pending_fix_reviewer_comment_id`).
 """
 from __future__ import annotations
 
+import logging
 from enum import StrEnum
 
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -48,10 +60,17 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.implementing import parks as _implementing_parks
 from orchestrator.workflow.stages.validating import (
+    models as _models,
+    requested_changes as _requested_changes,
+    review_comment as _review_comment,
+    review_coverage as _review_coverage,
     review_verdicts as _verdicts,
     state as _state,
     stranded as _stranded,
 )
+from orchestrator.workflow.state import WorkflowLabel
+
+log = logging.getLogger("orchestrator.workflow")
 
 _UNFINISHED_NOTICE = (
     "the developer launch this reviewer's change request was handed to "
@@ -59,6 +78,60 @@ _UNFINISHED_NOTICE = (
     "reviewer's feedback was not handed on a second time. Reply `/orchestrator "
     "continue` to hand that feedback to a fresh developer session."
 )
+
+
+def hands_the_request_over(
+    gh: GitHubClient,
+    spec: config.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    decision: _models._ReviewerDecision,
+) -> None:
+    """Hand a persisted change request to its developer, over the subject standing now.
+
+    A subject that moved drops the verdict in a write composed over what the
+    comment carries now, and a comment that will not read writes nothing, for
+    the next tick to resolve again.
+    """
+    stands = _review_coverage._verdict_still_stands(gh, issue, state, decision.run.subject)
+    if not stands:
+        _drops_what_moved(gh, issue, state, stands)
+        return
+    context = _models._RequestedChanges(gh, spec, issue, state, decision)
+    posted_over = dict(state.data)
+    if not _requested_changes._post_reviewer_feedback(context):
+        log.warning(
+            "issue=#%s holding its reviewer's change request until the "
+            "feedback is posted on the PR", issue.number,
+        )
+        return
+    stood = _review_comment._records_stand(gh, issue, state, posted_over)
+    if not stood:
+        _drops_what_moved(gh, issue, state, stood)
+        return
+    _verdicts.hands_off(state, _run_ledger_values._runs_used(state))
+    gh.write_pinned_state(issue, state)
+    gh.set_workflow_label(issue, WorkflowLabel.FIXING)
+    # Staged for the writes behind the run, never for the launch's charge,
+    # which writes only its own fields.
+    _verdicts.drops_the_verdict(state)
+    _requested_changes._finish_requested_fix(context, _requested_changes._run_requested_fix(context))
+
+
+def _drops_what_moved(gh: GitHubClient, issue: Issue, state: PinnedState, stood: bool | None) -> None:
+    """Drop a verdict whose subject moved, over what the comment carries now; nothing where it will not read.
+
+    A False reading has carried every record the comment moved onto `state`,
+    so the write keeps the newer report rather than the one the verdict read.
+    """
+    if stood is None:
+        return
+    log.info(
+        "issue=#%d the subject its reviewer's change request is about moved "
+        "before it was handed over; dropping the verdict", issue.number,
+    )
+    _verdicts.drops_the_verdict(state)
+    gh.write_pinned_state(issue, state)
 
 
 class HandoffLaunch(StrEnum):
@@ -70,7 +143,7 @@ class HandoffLaunch(StrEnum):
 
 
 def handoff_launch(
-    spec: _config_models.RepoSpec,
+    spec: config.RepoSpec,
     issue: Issue,
     state: PinnedState,
     returned: _verdicts.ReturnedVerdict,

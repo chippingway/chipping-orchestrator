@@ -13,7 +13,7 @@ from __future__ import annotations
 import unittest
 from dataclasses import replace
 
-from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState, pinned_state_body
 from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
 from tests.workflow.engine import verification_record_test_support as _record_support
 
@@ -45,6 +45,17 @@ RETURNED = _verdicts.ReturnedVerdict(
     feedback="1. Handle the empty configuration.",
     evidence=CLAIM,
 )
+
+
+APPROVED = replace(RETURNED, verdict=_verdicts.APPROVED, feedback="")
+
+FILLER = "operator_notes"
+
+
+def _filled_to(returned: _verdicts.ReturnedVerdict) -> PinnedState:
+    """A comment filled so that `returned`, as first written, would be its last character."""
+    bare = len(pinned_state_body({FILLER: "", _verdicts.RETURNED_VERDICT: returned.recorded()}))
+    return PinnedState(comment_id=1, state_data={FILLER: "x" * (MAX_PINNED_BODY - bare)})
 
 
 def _with(record: dict, **members) -> dict:
@@ -107,6 +118,20 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
         full = PinnedState(comment_id=1, state_data={"filler": _PAST_THE_CEILING})
         self.assertFalse(_verdicts.records_the_verdict(full, RETURNED))
         self.assertFalse(full.carries(_verdicts.RETURNED_VERDICT))
+
+    def test_a_change_request_reserves_its_handoff(self) -> None:
+        # Where the record as first written is the comment's last character, a
+        # change request is refused -- its handoff writes the handed count,
+        # the feedback's anchor, and that comment's ledger entry beside it --
+        # and an approval, never handed, is not.
+        for returned, accepted in ((RETURNED, False), (APPROVED, True)):
+            with self.subTest(verdict=returned.verdict):
+                state = _filled_to(returned)
+
+                self.assertEqual(
+                    (_verdicts.records_the_verdict(state, returned), state.carries(_verdicts.RETURNED_VERDICT)),
+                    (accepted, accepted),
+                )
 
     def test_a_handoff_marks_the_waiting_one(self) -> None:
         carried = PinnedState(

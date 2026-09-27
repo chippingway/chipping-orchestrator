@@ -40,8 +40,22 @@ OTHER_HEAD = "0123456789abcdef0123456789abcdef01234567"
 
 OTHER_DIGEST = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
-# A reviewer asking for that change beside its declared run, which failed.
+# A reviewer asking for that change beside its declared run, which failed,
+# and with nothing declared beside it.
 REQUESTING = _world.declared_run(exit_status=1, verdict="CHANGES_REQUESTED")
+
+UNDECLARED_REQUEST = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
+
+# The requests between a change request's verdict and its handoff behind
+# which a later report settles, and how many feedback posts that leaves.
+_BEFORE_THE_HANDOFF = (
+    (
+        "the verdict's write",
+        ("write_pinned_state", lambda state: state.get(_world.RETURNED_VERDICT) is not None),
+        0,
+    ),
+    ("the feedback post", ("pr_comment", lambda body: _read.FEEDBACK_NOTICE in body), 1),
+)
 
 # Approvals that rely on no evidence an approval may rest on, and the words
 # the park names each for.
@@ -110,16 +124,27 @@ class _ReadsTheCommentAtThePost:
         return self._post(pull_request, body)
 
 
-class _SettlesALaterReport:
-    """An artifact post during which a later report settles on the same head."""
+class _SettlesALaterReportBehind:
+    """A client request behind which, the first time `when` says, a later report settles on the same head."""
 
-    def __init__(self, case) -> None:
+    def __init__(self, case, request: str, when) -> None:
         self._case = case
-        self._post = case.github._post_verification_artifact
+        self._name = request
+        self._request = getattr(case.github, request)
+        self._when = when
+        self._settled = False
 
-    def __call__(self, pull_request, body):
-        _published_reports.republishes_the_report(self._case.github, self._case.issue, LATER_REPORT)
-        return self._post(pull_request, body)
+    def __call__(self, target, asked):
+        answered = self._request(target, asked)
+        if not self._settled and self._when(asked):
+            self._settled = True
+            _published_reports.republishes_the_report(self._case.github, self._case.issue, LATER_REPORT)
+        return answered
+
+    def returning(self, message: str) -> dict:
+        """The tick in which a reviewer returned `message`, over a client carrying this request."""
+        with patch.object(self._case.github, self._name, self):
+            return self._case.returns(message)
 
 
 class _RefusesTheFeedback:
@@ -302,8 +327,8 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
         self.assertEqual(_read.spent(self), charged)
 
     def test_a_report_settling_mid_post_drops_it(self) -> None:
-        with patch.object(self.github, "_post_verification_artifact", _SettlesALaterReport(self)):
-            ran = self.returns(REQUESTING)
+        posting = _SettlesALaterReportBehind(self, "_post_verification_artifact", lambda _body: True)
+        ran = posting.returning(REQUESTING)
 
         self.assertEqual(
             (
@@ -314,6 +339,27 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
             ),
             (0, [], None, []),
         )
+
+    def test_a_report_before_the_handoff_drops_it(self) -> None:
+        # Nothing declared, so nothing is published: the request is held to
+        # the subject after its own write and again behind its feedback post,
+        # and the later report is kept rather than written back over.
+        for name, settles_behind, posts in _BEFORE_THE_HANDOFF:
+            with self.subTest(name):
+                self.setUp()
+
+                ran = _SettlesALaterReportBehind(self, *settles_behind).returning(UNDECLARED_REQUEST)
+
+                self.assertEqual(
+                    (
+                        ran[_world.RUN_AGENT].call_count,
+                        len(_read.feedback_posts(self)),
+                        self.pinned()[_world.RETURNED_VERDICT],
+                        self.github.label_history,
+                        _read.current_report_revision(self),
+                    ),
+                    (0, posts, None, [], 2),
+                )
 
     def test_a_refused_feedback_post_holds_it(self) -> None:
         # The post is the one durable copy of the feedback a later park's

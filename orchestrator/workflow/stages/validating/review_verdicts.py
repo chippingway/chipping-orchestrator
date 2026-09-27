@@ -34,7 +34,11 @@ waiting, and one in any shape this reader refuses is dropped rather than acted
 on, so a fresh reviewer is handed the subject as it stands. It is measured
 before it is staged -- a change request's feedback is the reviewer's own words
 and has no bound -- and a comment with no room for it goes without the record
-rather than past what GitHub accepts.
+rather than past what GitHub accepts. It is measured at the widest write it is
+ever part of: a change request is written again as handed, beside the anchor
+of the feedback it posted and that comment's ledger entry, so that handoff is
+reserved here, and the transaction the verdict claims is measured beside the
+reservation rather than beside the narrower record.
 """
 from __future__ import annotations
 
@@ -43,9 +47,11 @@ from enum import StrEnum
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    comments as _comments,
     report_record_state as _report_record_state,
     report_record_values as _record_values,
     review_subjects as _review_subjects,
+    verification_record_state as _record_state,
     verification_records as _records,
 )
 from orchestrator.workflow.late_split import formats as _formats, payloads as _payloads
@@ -82,6 +88,9 @@ _PASSED = "passed"
 _COVERS = "covers"
 
 _HANDED = "handed"
+
+# The replay anchor a change request's handoff records beside it.
+_FEEDBACK_ANCHOR = "pending_fix_reviewer_comment_id"
 
 _VERDICT_MEMBERS = frozenset((_ROUND, _VERDICT, _SUBJECT, _FEEDBACK, _EVIDENCE, _HANDED))
 
@@ -206,19 +215,47 @@ class ReturnedVerdict:
         )
         return returned if all(read_whole) else None
 
+    def at_its_handoff(self, state: PinnedState) -> PinnedState:
+        """A copy of `state` carrying this verdict as the widest write it is part of; never written.
+
+        A change request goes down again as handed -- at an agent-run count,
+        beside the anchor of the feedback it posted, which the comment's ledger
+        records too -- each reserved at the widest a recorded number is
+        spelled. An approval is never handed, and is measured as it is.
+        """
+        reserved = PinnedState(comment_id=state.comment_id, state_data=dict(state.data))
+        written = self
+        if self.verdict == CHANGES_REQUESTED:
+            written = replace(self, handed=_record_values.MAX_RECORDED_NUMBER)
+            reserved.set(_FEEDBACK_ANCHOR, _record_values.MAX_RECORDED_NUMBER)
+            _comments._reserve_comment_slot(reserved, _record_values.MAX_RECORDED_NUMBER)
+        reserved.set(RETURNED_VERDICT, written.recorded())
+        return reserved
+
 
 def read_returned_verdict(state: PinnedState) -> ReturnedVerdict | None:
     """The verdict this issue has waiting, or None for none readable."""
     return ReturnedVerdict.read(state.get(RETURNED_VERDICT))
 
 
-def records_the_verdict(state: PinnedState, returned: ReturnedVerdict) -> bool:
-    """Stage `returned` where the comment has room for it; False, untouched, where not.
+def records_the_verdict(
+    state: PinnedState,
+    returned: ReturnedVerdict,
+    pending: _records.PendingEvidence | None = None,
+) -> bool:
+    """Stage `returned` and the transaction `pending` it claims where they fit; False, untouched, where not.
 
-    The caller writes.
+    Measured at the verdict's handoff (`ReturnedVerdict.at_its_handoff`), and
+    the transaction over that -- its own record and the write that settles it
+    (`verification_record_state`) -- so neither the settlement nor the handoff
+    is the write GitHub refuses. The caller writes.
     """
-    staged = {**state.data, RETURNED_VERDICT: returned.recorded()}
-    if not _report_record_state.fits_the_comment(staged):
+    reserved = returned.at_its_handoff(state)
+    if pending is None:
+        fits = _report_record_state.fits_the_comment(reserved.data)
+    else:
+        fits = _record_state.record_pending_evidence(reserved, pending)
+    if not fits or (pending is not None and not _record_state.record_pending_evidence(state, pending)):
         return False
     state.set(RETURNED_VERDICT, returned.recorded())
     return True

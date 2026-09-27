@@ -47,6 +47,11 @@ def artifacts(case) -> list:
     return [found for found in readings if found is not None]
 
 
+def current_report_revision(case) -> int:
+    """The revision of the developer report `case`'s pinned comment records as current."""
+    return _report_settlement.read_current_report(case.github.read_pinned_state(case.issue)).report_revision
+
+
 def feedback_posts(case) -> list[str]:
     """Every reviewer-feedback comment posted on `case`'s pull request."""
     return [body for _, body in case.github.posted_pr_comments if FEEDBACK_NOTICE in body]

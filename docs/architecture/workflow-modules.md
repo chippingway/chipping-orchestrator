@@ -2940,11 +2940,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       requested_changes.py  the PR feedback and `workflow:fixing`-labeled dev fix, its report disposed of through
                             `fix_reports.py` and bound behind the round and the relabel -- its record carrying the
                             fixing stage's settled-round mark for a relabel that never lands -- plus the
-                            no-VERDICT park and the split that tells a provider's failure from a reviewer's. A
-                            feedback post that fails, or lands with no id to replay, holds a persisted verdict's
-                            handoff for the next tick rather than relabelling; otherwise that handoff is written,
-                            the verdict marked handed beside the anchor, BEFORE the relabel, and the writes behind
-                            the launch drop it
+                            no-VERDICT park and the split that tells a provider's failure from a reviewer's; its
+                            feedback post says whether it landed with an id to replay, which a persisted verdict's
+                            handoff waits on (`review_handoffs.py`)
       dev_fix.py            what a finished dev fix leaves behind: the publishable reading and the proved remote
                             head it carries on as the lease, taken for a run that committed as well as for one
                             that did not -- a tick committing over work an earlier one stranded begins at a
@@ -3166,7 +3164,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       review_verdicts.py    the `review_returned_verdict` record a returned reviewer's verdict waits in: its round,
                             verdict, subject, feedback, the one evidence claim it relies on, and the agent-run count a
                             change request was handed to `workflow:fixing` on. Read whole or not at all, staged only
-                            where the comment has room, and dropped only where it stands
+                            where the comment has room for it at its widest write -- a change request's handoff,
+                            reserved with the count, anchor, and ledger entry it adds, and the claimed transaction
+                            measured beside that -- and dropped only where it stands
       review_claims.py      what a returned reviewer's verification declaration earns: commands it ran minted as a
                             reviewer-reported transaction bound to the handed subject and the reviewed head's tree, a
                             reuse of the current evidence it was handed named exactly, or the reason it earns none;
@@ -3190,9 +3190,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             round spent, while its subject still resolves to the one recorded -- relabelling and
                             launching a handed change request whose relabel never landed, posting nothing twice --
                             and `workflow:fixing` launches the one developer a handed change request never reached
-      review_handoffs.py    whether a handed change request's developer is owed, launched, or unfinished -- read off
-                            the lifetime ledger past the handed count and, for a `started` charge, the branch --
-                            and the `agent_execution_failed` park an unfinished launch takes
+      review_handoffs.py    a persisted change request's handoff: held to the subject standing, the pinned comment
+                            read first, then the feedback posted, the records read again behind that post, the
+                            verdict written as handed with the anchor, and only then the relabel and the launch --
+                            a moved subject drops the verdict over the newer records. Also whether a handed
+                            request's developer is owed, launched, or unfinished -- read off the lifetime ledger
+                            past the handed count and, for a `started` charge, the branch -- and the
+                            `agent_execution_failed` park an unfinished launch takes
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its
