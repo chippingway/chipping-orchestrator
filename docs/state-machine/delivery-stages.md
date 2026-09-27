@@ -960,8 +960,10 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Trigger**: `_record_stops_the_tick` on any issue whose pinned comment carries `verification_evidence_pending`,
   directly behind the developer-report transaction and ahead of the reuse guard. The owner is
   `workflow/engine/verification_transaction.py`; the four records and the revision floor are described under
-  [pinned state](labels-and-state.md#pinned-state). No producer records a transaction yet, so an issue without the
-  record -- every issue today -- passes through reading nothing and writing nothing.
+  [pinned state](labels-and-state.md#pinned-state). No live producer records a transaction yet -- the
+  returned-verdict record (`stages/validating/review_verdicts.py`) that would stage the transaction `review_claims.py`
+  mints from a reviewer's declared commands is dormant -- so an issue without the record (every issue today) passes
+  through reading nothing and writing nothing.
 - **Why it is behind the report transaction**: evidence answers for a review subject that names the developer
   report, so a report still owed is a subject about to move — the proof defers to it, and the report settles first.
 - **Stands aside**: a closed issue, a `done` or `rejected` label, a hard-skip control label, or no workflow label at
