@@ -1771,10 +1771,12 @@ The keys that matter for the state machine fall into a few groups:
   (`review_parks.py`): the park is measured at its widest before its notice is posted and taken over the comment as it
   stands -- the returned run's usage and session unrecorded -- where it has no room beside what that run staged, and
   nothing is posted or written at all where there is room for no park. Each park sets the record to `null` in its own
-  write, with the report and evidence records the comment carries once read again behind its notice, and a bare
-  `/orchestrator continue` on either buys a fresh reviewer. Additive and dormant: no live reviewer round hands its
-  result to that service yet, and nothing finishes a record a tick left waiting, so no issue carries the key, and an
-  issue without it has no verdict waiting.
+  write, with the report and evidence records the comment carries once read again behind its notice; the subject is
+  resolved again behind that notice too, and a push or a report record moved meanwhile lands no park, the write setting
+  the record to `null` alone for a fresh reviewer. A bare `/orchestrator continue` on either park buys a fresh reviewer,
+  and an edit under one nobody replied to waits for that reviewer rather than resuming the developer. Additive and
+  dormant: no live reviewer round hands its result to that service yet, and nothing finishes a record a tick left
+  waiting, so no issue carries the key, and an issue without it has no verdict waiting.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
   live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the

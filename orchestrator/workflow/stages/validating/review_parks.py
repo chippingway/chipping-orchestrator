@@ -24,10 +24,19 @@ a verdict nor a park durable, and the next tick's reviewer answers the round
 again. A comment with no room for the park beside what the returned run staged
 takes it over the comment as it stands instead: the run's usage and session go
 unrecorded, a smaller loss than a park that never lands. One with no room even
-for that posts and writes nothing, and says so. The comment is read once more
-behind the notice, the park's last request, and whatever report or evidence
-records another road moved meanwhile are carried onto the park's write rather
-than written back over.
+for that posts and writes nothing, and says so.
+
+The notice is a request of its own, long enough for a push or a later report
+to land, and a park over either is a human asked to answer for a review of
+work the pull request no longer carries. So the subject is resolved again
+behind it, and the comment read last, carrying whatever report or evidence
+records another road moved meanwhile onto the write rather than writing them
+back over. A subject that moved -- a head read whole that is another, or a
+report record the comment moved -- lands no park: the write drops the verdict
+and keeps the notice recorded as the orchestrator's own, the park's flags put
+back as they were, and the next tick's reviewer is handed the subject as it
+stands. A subject nobody could read is no proof it moved, and the park lands;
+a comment that will not read writes nothing.
 """
 from __future__ import annotations
 
@@ -43,10 +52,12 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     report_record_state as _report_record_state,
     report_record_values as _record_values,
+    review_subjects as _review_subjects,
 )
 from orchestrator.workflow.stages.validating import (
     models as _models,
     review_comment as _review_comment,
+    review_coverage as _review_coverage,
     review_verdicts as _verdicts,
     state as _state,
 )
@@ -67,6 +78,10 @@ _LAST_REVIEW_SESSION_ID = "last_review_session_id"
 # What a record the comment does not carry reads as, apart from one it carries
 # as `null`.
 _ABSENT = object()
+
+# What a park stages beside its notice's ledger entry, put back as it was where
+# the subject moved behind that notice.
+_PARK_FIELDS = ("awaiting_human", _state._PARK_REASON, "last_action_comment_id")
 
 
 def parks_unverified(
@@ -110,6 +125,7 @@ def _parks(
             "posting and writing nothing", issue.number, reason,
         )
         return
+    unparked = {field: parked.data.get(field, _ABSENT) for field in _PARK_FIELDS}
     _guards._park_awaiting_human(
         gh,
         issue,
@@ -126,15 +142,12 @@ def _parks(
     # Re-set behind the guard, which clears whatever reason it found: the
     # awaiting-human branch reads it to hand the retry to a fresh reviewer.
     parked.set(_state._PARK_REASON, reason)
-    # The notice is a request of its own; a report or evidence another road
-    # settled during it is carried onto the park, whose write keeps it.
-    if keeps_the_standing_records(gh, issue, parked) is None:
-        return
-    gh.write_pinned_state(issue, parked)
+    if _behind_the_notice(gh, issue, parked, run.subject, unparked):
+        gh.write_pinned_state(issue, parked)
 
 
-def keeps_the_standing_records(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool | None:
-    """Carry onto `state` every report and evidence record the comment moved; False where one did, None unread.
+def carries_the_standing_records(gh: GitHubClient, issue: Issue, state: PinnedState) -> list[str] | None:
+    """Carry onto `state` every report and evidence record the comment moved; those records, or None unread.
 
     For a write about to go down over records another road may have recorded
     or settled since they were read -- a park's, or an approval's. Only those
@@ -152,7 +165,39 @@ def keeps_the_standing_records(gh: GitHubClient, issue: Issue, state: PinnedStat
             state.data.pop(field, None)
         else:
             state.set(field, written)
-    return not moved
+    return moved
+
+
+def _behind_the_notice(
+    gh: GitHubClient,
+    issue: Issue,
+    parked: PinnedState,
+    subject: _review_subjects.ReviewSubject,
+    unparked: dict,
+) -> bool:
+    """Settle the park's write once its notice is posted; False where nothing may be written.
+
+    The subject is resolved first and the comment read last, so a report
+    settling during either is carried rather than written back over. Where
+    the subject moved, the park's flags go back to `unparked` and the write
+    drops the verdict alone.
+    """
+    stands = _review_coverage._subject_still_stands(gh, issue, parked, subject)
+    moved = carries_the_standing_records(gh, issue, parked)
+    if moved is None:
+        return False
+    if stands is False or any(field in _review_comment._REPORT_RECORDS for field in moved):
+        log.info(
+            "issue=#%d the subject its reviewer's verdict is about moved while "
+            "its park notice was posted; dropping the verdict for a fresh "
+            "reviewer rather than parking", issue.number,
+        )
+        for field, was in unparked.items():
+            if was is _ABSENT:
+                parked.data.pop(field, None)
+            else:
+                parked.set(field, was)
+    return True
 
 
 def _room_for_the_park(gh: GitHubClient, issue: Issue, state: PinnedState, reason: str) -> PinnedState | None:

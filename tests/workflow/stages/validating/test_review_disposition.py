@@ -57,6 +57,9 @@ REQUESTING = _world.declared_run(exit_status=1, verdict="CHANGES_REQUESTED")
 
 UNDECLARED_REQUEST = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
 
+# An approval with nothing declared beside it.
+UNDECLARED_APPROVAL = "LGTM\n\nVERDICT: APPROVED"
+
 
 
 def _settles_a_later_report(case) -> None:
@@ -104,7 +107,7 @@ _BEFORE_THE_HANDOFF = (
 # Approvals that rely on no evidence an approval may rest on, and the words
 # the park names each for.
 _UNVERIFIED_APPROVALS = (
-    ("nothing declared", "LGTM\n\nVERDICT: APPROVED", "declared no verification"),
+    ("nothing declared", UNDECLARED_APPROVAL, "declared no verification"),
     ("a failed run", _world.declared_run(exit_status=1), "did not exit 0"),
     ("another command", _world.declared_run(command="uv run ruff check"), "every command `VERIFY_COMMANDS`"),
     ("another head", _world.declared_run().replace(_world.HEAD, _world.OTHER_HEAD), "names another commit"),
@@ -142,6 +145,20 @@ _NO_ROOM = (
         _world.declared_run(exit_status=1, verdict="CHANGES_REQUESTED", output=_LONG),
         MAX_PINNED_BODY - len(_LONG) * 3 // 2,
     ),
+)
+
+# The two parks a returned verdict takes -- the reply that earns each, the
+# operator notes that leave no room for the verdict, and a phrase of the
+# notice -- and what moves the subject behind that notice, with the report
+# revision the pinned comment records then.
+_PARKS = (
+    (UNVERIFIED, (UNDECLARED_APPROVAL, 0, UNVERIFIED_NOTICE)),
+    (UNRECORDED, (f"{_LONG}\n\nVERDICT: CHANGES_REQUESTED", MAX_PINNED_BODY - len(_LONG), "could not be recorded")),
+)
+
+_MOVES = (
+    ("a later report", _settles_a_later_report, 2),
+    ("a push", _world.pushes, 1),
 )
 
 
@@ -445,8 +462,8 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
         return self.finishes(_world.developer(), dirty_files=(), push_branch=True, head_shas=FIX_HEAD_SHAS)
 
 
-class NoRoomTest(_world.ReviewVerdictWorld, unittest.TestCase):
-    """A verdict the pinned comment has no room to persist is never acted on."""
+class ParkedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
+    """A verdict that may not be acted on parks for a human, and only over the subject it is about."""
 
     def test_no_room_parks_the_verdict_unacted(self) -> None:
         for name, message, filled in _NO_ROOM:
@@ -487,6 +504,38 @@ class NoRoomTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 self.github.label_history,
             ),
             (before, 0, [], []),
+        )
+
+    def test_a_move_behind_the_park_notice_drops_it(self) -> None:
+        # The notice is the park's last request: a later report settling, or
+        # a push, while it is posted is a subject nobody reviewed, so no park
+        # lands to ask a human about it. The verdict is dropped for a fresh
+        # reviewer, and a later report is kept rather than written back over.
+        for park, reply in _PARKS:
+            for move, road, revision in _MOVES:
+                with self.subTest(park=park, move=move):
+                    self.assertEqual(
+                        self._moved_behind_the_notice(*reply, road),
+                        ((None, False), None, True, revision, []),
+                    )
+
+    def _moved_behind_the_notice(self, message: str, filled: int, notice: str, road) -> tuple:
+        """What the park `message` earns over `filled` notes leaves where `road` moves its subject behind `notice`.
+
+        Whether it parked, the verdict it left, whether the notice was posted,
+        the current report revision, and every relabel.
+        """
+        self.setUp()
+        self._fills(filled)
+        behind = _world.AnotherRoadBehind(self, "comment", lambda body: notice in body, road)
+        behind.returning(message)
+        pinned = self.pinned()
+        return (
+            (pinned.get(_world.PARK_REASON), bool(pinned.get("awaiting_human"))),
+            pinned.get(_world.RETURNED_VERDICT),
+            any(notice in body for _, body in self.github.posted_comments),
+            _read.current_report_revision(self),
+            self.github.label_history,
         )
 
     def _fills(self, filled: int) -> None:
@@ -538,7 +587,7 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
             self, "comment", lambda body: UNVERIFIED_NOTICE in body, _read.settles_evidence,
         )
 
-        behind.returning("LGTM\n\nVERDICT: APPROVED")
+        behind.returning(UNDECLARED_APPROVAL)
 
         pinned = self.pinned()
         self.assertEqual(
@@ -559,7 +608,7 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
             self, REREAD, lambda _location: True, _read.settles_evidence, 3,
         )
 
-        behind.returning("LGTM\n\nVERDICT: APPROVED")
+        behind.returning(UNDECLARED_APPROVAL)
 
         pinned = self.pinned()
         self.assertEqual(

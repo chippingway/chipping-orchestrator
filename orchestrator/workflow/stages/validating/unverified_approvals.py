@@ -135,10 +135,10 @@ def _held_to_the_comment(gh: GitHubClient, issue: Issue, state: PinnedState) -> 
     approval, which no longer rests on this issue's current evidence; the park
     it takes then keeps the newer records.
     """
-    stood = _parks.keeps_the_standing_records(gh, issue, state)
-    if stood is None:
+    moved = _parks.carries_the_standing_records(gh, issue, state)
+    if moved is None:
         return None
-    return "" if stood else f"{_REUSE_MOVED}: {_EVIDENCE_MOVED}"
+    return f"{_REUSE_MOVED}: {_EVIDENCE_MOVED}" if moved else ""
 
 
 def _claimed_refusal(claim: _verdicts.EvidenceClaim | None) -> str:

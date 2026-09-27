@@ -41,10 +41,10 @@ again (`review_coverage._verdict_still_stands`): a later report settling on the
 same head while the artifact was posted is on the pinned comment and nowhere in
 hand, and a verdict acted on over it would post feedback about, and launch a
 developer on, words the pull request no longer carries. A change request's
-handoff holds it again around its own feedback post (`review_handoffs`), and a
-refused approval before it parks, so a push or a later report that landed
-meanwhile drops the verdict for a fresh reviewer rather than parking it for a
-human.
+handoff holds it again around its own feedback post (`review_handoffs`), a
+refused approval before it parks, and each park behind its own notice
+(`review_parks`), so a push or a later report that landed meanwhile drops the
+verdict for a fresh reviewer rather than parking it for a human.
 
 The evidence is published before the verdict is acted on, on the tick it
 returns, and neither verdict is acted on until it is: a publication that holds

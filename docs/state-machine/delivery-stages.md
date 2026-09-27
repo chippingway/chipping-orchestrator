@@ -3469,8 +3469,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        settled, proved current, passing, and covering `VERIFY_COMMANDS` by its own artifact
        (`validating/unverified_approvals.py`), and a verdict the comment has no room to persist parks under
        `reviewer_unrecorded` with nothing acted on (`validating/review_parks.py`). A subject that moved behind any of
-       those requests drops the verdict over the newer records; one nobody could read holds it. The record and both
-       parks are described under [pinned state](labels-and-state.md#pinned-state).
+       those requests -- a park's own notice included, which then lands no park -- drops the verdict over the newer
+       records; one nobody could read holds it. The record and both parks are described under
+       [pinned state](labels-and-state.md#pinned-state).
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.
      On a hit the handler returns WITHOUT running its result handler (`_post_user_content_change_result` /

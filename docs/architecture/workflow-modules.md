@@ -3205,8 +3205,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `reviewer_unrecorded`, each dropping the verdict in its own write and answered by a
                             fresh reviewer; measured at its widest before the notice is posted, taken over the
                             comment as it stands where it has no room beside what the returned run staged, and
-                            written with the report and evidence records the comment carries once read again
-                            behind the notice (`keeps_the_standing_records`, which the approval check shares)
+                            held behind the notice to the subject resolved again and then to the comment read
+                            last, the report and evidence records it moved carried onto the write
+                            (`carries_the_standing_records`, which the approval check shares) -- a push or a
+                            report record moved meanwhile lands no park, the write dropping the verdict alone
       review_handoffs.py    a persisted change request's handoff: held to the subject standing, the pinned comment
                             read behind it, then the feedback posted -- a post that failed or left no id holds the
                             verdict unhanded -- the whole subject held again behind that post, the verdict written
