@@ -104,6 +104,9 @@ _FEEDBACK_ANCHOR = "pending_fix_reviewer_comment_id"
 
 _VERDICT_MEMBERS = frozenset((_ROUND, _VERDICT, _SUBJECT, _FEEDBACK, _EVIDENCE, _HANDED))
 
+# What `drops_the_verdict` drops where its caller names no verdict it holds.
+_WHICHEVER = object()
+
 _CLAIM_MEMBERS = frozenset((_USE, _RECEIPT, _REVISION, _DIGEST, _PASSED, _COVERS))
 
 
@@ -331,11 +334,19 @@ def hands_off(state: PinnedState, runs_used: int) -> None:
         state.set(RETURNED_VERDICT, replace(waiting, handed=runs_used).recorded())
 
 
-def drops_the_verdict(state: PinnedState) -> None:
-    """Stage the end of the verdict this issue had waiting, where it has one.
+def drops_the_verdict(state: PinnedState, *, only: object = _WHICHEVER) -> bool:
+    """Stage the end of the verdict this issue had waiting, where it has one; whether it did.
 
     Only where the key is present, so an issue that never carried one is not
-    given it. The caller writes.
+    given it. `only`, where given, is the verdict the caller holds -- None for
+    a caller holding none -- and the waiting verdict is dropped only where it
+    reads as exactly that one: a verdict another road put in its place since,
+    carried onto `state` by a reading of the comment, is that road's to
+    finish, not the caller's to drop. The caller writes.
     """
-    if state.carries(RETURNED_VERDICT):
-        state.set(RETURNED_VERDICT, None)
+    if not state.carries(RETURNED_VERDICT):
+        return False
+    if only is not _WHICHEVER and read_returned_verdict(state) != only:
+        return False
+    state.set(RETURNED_VERDICT, None)
+    return True

@@ -61,25 +61,17 @@ def hands_the_request_over(
     A subject proved to have moved drops the verdict in a write composed over
     what the comment carries now; a comment or a subject that will not read
     writes nothing, holding the verdict for the next tick to resolve again.
+    The verdict this road holds is the one the state in hand carries as it
+    starts, so a verdict another road put in its place meanwhile is never the
+    one it drops.
     """
+    owned = _verdicts.read_returned_verdict(state)
     stands = _review_coverage._verdict_still_stands(gh, issue, state, decision.run.subject)
     if not stands:
-        drops_what_moved(gh, issue, state, stands)
+        drops_what_moved(gh, issue, state, stands, (owned, None))
         return
     context = _models._RequestedChanges(gh, spec, issue, state, decision)
-    posted_over = dict(state.data)
-    if not _requested_changes._post_reviewer_feedback(context):
-        log.warning(
-            "issue=#%s holding its reviewer's change request until the "
-            "feedback is posted on the PR", issue.number,
-        )
-        return
-    # The post is a request of its own, long enough for a push or a later
-    # report to land; the records are read against the comment the post was
-    # made over, so the anchor it staged is not mistaken for another road's.
-    stood = _review_coverage._verdict_still_stands(gh, issue, state, decision.run.subject, posted_over)
-    if not stood:
-        drops_what_moved(gh, issue, state, stood)
+    if not _posts_the_feedback(context, owned):
         return
     _verdicts.hands_off(state, _run_ledger_values._runs_used(state))
     gh.write_pinned_state(issue, state)
@@ -102,30 +94,62 @@ def launches_the_developer(context: _models._RequestedChanges) -> None:
     the run retire the verdict.
     """
     gh, issue, state = context.gh, context.issue, context.state
+    owned = _verdicts.read_returned_verdict(state)
     stands = _review_coverage._verdict_still_stands(gh, issue, state, context.decision.run.subject)
     if not stands:
-        drops_what_moved(gh, issue, state, stands)
+        drops_what_moved(gh, issue, state, stands, (owned, None))
         return
-    _verdicts.drops_the_verdict(state)
+    _verdicts.drops_the_verdict(state, only=owned)
     _requested_changes._finish_requested_fix(context, _requested_changes._run_requested_fix(context))
 
 
-def drops_what_moved(gh: GitHubClient, issue: Issue, state: PinnedState, stood: bool | None) -> None:
+def drops_what_moved(
+    gh: GitHubClient, issue: Issue, state: PinnedState, stood: bool | None, owned: tuple,
+) -> None:
     """Drop a request whose subject moved, over what the comment carries now; nothing where it will not read.
 
     A False reading has carried every record the comment moved onto `state`,
-    so the write keeps the newer report rather than the one the verdict read.
-    The feedback's anchor goes with the verdict: it names words about a
-    subject nobody is handing on, and a later park's retry replaying them would
-    hand a developer a review of work the pull request no longer carries.
+    so the write keeps the newer report rather than the one the verdict read
+    -- and a verdict another road put in place of this road's, which is that
+    road's to finish. `owned` is the verdict this road holds and the anchor of
+    the feedback it posted for it, if any: only those are dropped. The
+    feedback's anchor goes with this road's verdict, since it names words
+    about a subject nobody is handing on, and a later park's retry replaying
+    them would hand a developer a review of work the pull request no longer
+    carries; an anchor another road wrote beside its own verdict stays.
     """
     if stood is None:
         return
+    verdict, posted = owned
     log.info(
         "issue=#%d the subject its reviewer's change request is about moved "
         "before it was handed over; dropping the verdict", issue.number,
     )
-    _verdicts.drops_the_verdict(state)
-    if state.carries(_verdicts._FEEDBACK_ANCHOR):
+    dropped = _verdicts.drops_the_verdict(state, only=verdict)
+    anchor = state.get(_verdicts._FEEDBACK_ANCHOR)
+    if anchor is not None and (dropped or anchor == posted):
         state.set(_verdicts._FEEDBACK_ANCHOR, None)
     gh.write_pinned_state(issue, state)
+
+
+def _posts_the_feedback(context: _models._RequestedChanges, owned) -> bool:
+    """Post the reviewer's feedback and hold the subject to what stands behind it; whether the handoff goes on.
+
+    The post is a request of its own, long enough for a push or a later
+    report to land; the records are read against the comment the post was
+    made over, so the anchor it staged is not mistaken for another road's.
+    """
+    posted_over = dict(context.state.data)
+    if not _requested_changes._post_reviewer_feedback(context):
+        log.warning(
+            "issue=#%s holding its reviewer's change request until the "
+            "feedback is posted on the PR", context.issue.number,
+        )
+        return False
+    posted = context.state.get(_verdicts._FEEDBACK_ANCHOR)
+    stood = _review_coverage._verdict_still_stands(
+        context.gh, context.issue, context.state, context.decision.run.subject, posted_over,
+    )
+    if not stood:
+        drops_what_moved(context.gh, context.issue, context.state, stood, (owned, posted))
+    return bool(stood)

@@ -14,9 +14,9 @@ carries the report records the state in hand carries (`_resolved_over`), and
 every later road that acts on an approval after requests long enough for that
 to happen asks the same (`_records_in_hand`): the approval between its
 comment and the squash, and the squash handoff once the rewrite is published --
-both watching the verification evidence records beside the report's -- and the
-in_review ready ping and the unmergeable park beside it once mergeability is
-read. Where the comment moved them, or will not
+both watching the verification evidence records and the returned verdict beside
+the report's -- and the in_review ready ping and the unmergeable park beside it
+once mergeability is read. Where the comment moved them, or will not
 read or parse, the answer is the one that hands nothing over and writes
 nothing: every write from there would be laid over records the tick never
 read, putting back the report they replaced. So is a fresh reading of another

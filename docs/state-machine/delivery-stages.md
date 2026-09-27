@@ -3477,7 +3477,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        `reviewer_unrecorded` with nothing acted on (`validating/review_parks.py`). A subject that moved behind any of
        those requests -- a park's own notice included, behind which a moved report or evidence record lands no park
        either -- drops the verdict over the newer records, the round and whatever else another road's settlement wrote
-       beside them included; one nobody could read holds it. The record and both parks are described under [pinned
+       beside them included -- only the verdict this road holds, never one another road put in its place; one nobody
+       could read holds it. The record and both parks are described under [pinned
        state](labels-and-state.md#pinned-state).
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.

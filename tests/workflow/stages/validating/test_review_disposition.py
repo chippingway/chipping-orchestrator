@@ -211,6 +211,36 @@ _CLEARED = (
     ("a change request", lambda _case: UNDECLARED_REQUEST, 0),
 )
 
+# Where another road replaces a persisted verdict with one of its own -- a
+# later round's, beside the round it spent -- while this tick is acting on
+# it: the reply that earned the verdict, and the request behind which the
+# replacement lands, with how many of those requests go first.
+_REPLACED = (
+    (
+        "behind the approval comment",
+        lambda case: REUSING.format(digest=_read.settles_evidence(case).content_revision),
+        (PR_COMMENT, lambda body: APPROVAL_NOTICE in body, 1),
+    ),
+    (
+        "behind the feedback post",
+        lambda _case: UNDECLARED_REQUEST,
+        (PR_COMMENT, lambda body: _read.FEEDBACK_NOTICE in body, 1),
+    ),
+    (
+        "behind the park notice",
+        lambda _case: UNDECLARED_APPROVAL,
+        ("comment", lambda body: UNVERIFIED_NOTICE in body, 1),
+    ),
+    (
+        # The fourth artifact reread, behind the two the round's handover
+        # took and the proof's own, is the approval's last before the comment
+        # is read again for it.
+        "behind the approval's proof",
+        lambda case: REUSING.format(digest=_read.settles_evidence(case).content_revision),
+        ("reread_verification_artifact", bool, 4),
+    ),
+)
+
 _MOVES = (
     ("a later report", _settles_a_later_report, (2, 1), False),
     ("a push", _world.pushes, (1, 0), False),
@@ -866,7 +896,10 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
 
 
 class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
-    """A verdict is acted on only while the comment carries it and the records it was proved over."""
+    """A verdict is acted on only while the comment carries it and the records it was proved over.
+
+    And one another road put in its place is never dropped by this one.
+    """
 
     def test_a_settlement_behind_the_approval_comment(self) -> None:
         # Evidence settles while the approval comment is posted, a request long
@@ -909,6 +942,32 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
             with self.subTest(name):
                 self.assertEqual(self._cleared_behind_its_write(reply), (0, None, None, posts, []))
 
+    def test_a_replaced_verdict_is_left_standing(self) -> None:
+        # Another road puts a verdict of its own in place of the one this tick
+        # persisted and is acting on, and spends a round beside it: whichever
+        # request it lands behind, this tick squashes, relabels, parks, and
+        # hands over nothing, and drops nothing but its own verdict -- the
+        # replacement and its round stand for that road to finish.
+        for name, reply, behind in _REPLACED:
+            with self.subTest(name):
+                self.setUp()
+
+                ran = _world.AnotherRoadBehind(
+                    self, behind[0], behind[1], self._replaces, behind[2],
+                ).returning(reply(self))
+
+                standing = self.pinned()
+                self.assertEqual(
+                    (
+                        ran["_squash_and_force_push"].call_count,
+                        standing.get(_world.RETURNED_VERDICT) == self.replacement,
+                        standing.get(REVIEW_ROUND),
+                        standing.get(_world.PARK_REASON),
+                        self.github.label_history,
+                    ),
+                    (0, True, 1, None, []),
+                )
+
     def _cleared_behind_its_write(self, reply) -> tuple:
         """What returning `reply` leaves where another road clears the verdict behind the write persisting it.
 
@@ -928,6 +987,14 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
             len(self.github.posted_pr_comments) - posted,
             self.github.label_history,
         )
+
+    def _replaces(self, _case) -> None:
+        """Another road's write putting a later round's verdict in place of the one waiting, and spending a round."""
+        state = self.github.read_pinned_state(self.issue)
+        self.replacement = {**state.get(_world.RETURNED_VERDICT), "round": 1}
+        state.set(_world.RETURNED_VERDICT, self.replacement)
+        state.set(REVIEW_ROUND, 1)
+        self.github.write_pinned_state(self.issue, state)
 
     def _carries_a_verdict(self, state) -> bool:
         """Whether a pinned write carries a verdict waiting."""

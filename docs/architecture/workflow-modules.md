@@ -2910,8 +2910,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             resolved again once the gate has run, whatever it answered, and the pinned comment read
                             behind it, carrying report or evidence records settled meanwhile, a failed gate parking
                             only over the subject still standing, a persisted verdict retired by whichever write
-                            follows and held where the subject would not read, and the report and evidence records
-                            held in hand again behind the approval comment, ahead of the squash; the review
+                            follows and held where the subject would not read, and the report, evidence, and verdict
+                            records held in hand again behind the approval comment and behind the squash, the verdict
+                            retired only once both find it as it was; the review
                             subject recorded as approved once the gate passes, riding whichever write the tail
                             makes, and the relabel that tail owes held wherever that approval no longer covers the
                             report the pull request carries, the requirements the issue carries, or the head the
@@ -3184,7 +3185,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             developer launch's run-ledger charge composed over it -- with exactly the transaction a
                             published claim names staged in the same write and measured with its settlement beside
                             that reservation, a retry of one already recorded included, a reuse or no claim beside
-                            none, or neither; marked handed, or dropped, only where it stands
+                            none, or neither; marked handed, or dropped, only where it stands -- and, where the
+                            caller names the verdict it holds, only where the one waiting is exactly that verdict
       review_claims.py      what a returned reviewer's verification declaration earns, asked only by the dormant
                             `review_disposition.py`:
                             commands it ran minted, not recorded, as a reviewer-reported transaction past every spent
@@ -3224,8 +3226,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             verdict unhanded -- the whole subject held again behind that post, the verdict written
                             as handed with the anchor, the relabel, and the launch, held to the subject once more
                             right before it (`launches_the_developer`, the entry every road launching a handed
-                            request's developer takes); a moved subject drops the verdict and its anchor over the
-                            newer records (`drops_what_moved`)
+                            request's developer takes); a moved subject drops the verdict this road holds and the
+                            anchor it posted over the newer records (`drops_what_moved`), never a verdict or anchor
+                            another road put in their place
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its

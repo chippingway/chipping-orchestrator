@@ -134,7 +134,7 @@ def parks_over_the_subject(
             "posting and writing nothing", issue.number, park[0],
         )
         return
-    lands = _behind_the_notice(gh, issue, parked, run, park)
+    lands = _behind_the_notice(gh, issue, parked, run, (park, _verdicts.read_returned_verdict(state)))
     if lands is None:
         return
     gh.write_pinned_state(issue, parked)
@@ -160,17 +160,20 @@ def _behind_the_notice(
     issue: Issue,
     parked: PinnedState,
     run: _models._ReviewerRun,
-    park: tuple[str, str, str | None],
+    held: tuple,
 ) -> bool | None:
     """Post the park's notice, then settle its write over the subject standing behind it; None to write nothing.
 
-    True where the park lands: the subject resolved again whole as the one
-    `run` was handed, and no report or evidence record moved on the comment
-    since `run` read it. False where it does not: the verdict is dropped where
-    the subject moved, and left as it waited where it would not read.
+    `held` is the park and the verdict the state in hand carried as it began,
+    the only one it drops. True where the park lands: the subject resolved
+    again whole as the one `run` was handed, and no report, evidence, or
+    verdict record moved on the comment since `run` read it. False where it
+    does not: that verdict is dropped where the subject moved -- one another
+    road put in its place is left for that road -- and left as it waited
+    where the subject would not read.
     """
-    reason, words = park[:2]
-    posted = _posts_the_notice(gh, issue, parked, words)
+    park, owned = held
+    posted = _posts_the_notice(gh, issue, parked, park[1])
     stands = _review_coverage._subject_still_stands(gh, issue, parked, run.subject)
     records = _review_comment._records_stand(gh, issue, parked, run.resolved_over)
     if records is None:
@@ -186,10 +189,10 @@ def _behind_the_notice(
             "tick rather than parking", issue.number,
         )
         return False
-    _verdicts.drops_the_verdict(parked)
+    _verdicts.drops_the_verdict(parked, only=owned)
     if records and stands:
         parked.set(_AWAITING_HUMAN, True)
-        parked.set(_state._PARK_REASON, reason)
+        parked.set(_state._PARK_REASON, park[0])
         return True
     log.info(
         "issue=#%d the subject its reviewer's verdict is about moved while its "

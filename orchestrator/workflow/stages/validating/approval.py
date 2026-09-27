@@ -304,6 +304,7 @@ def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
         gate, branch, _payloads.as_identity(pr_number),
     )
     if squashed.held:
+        _verdicts.drops_the_verdict(state)
         # The gate owns the issue from here, and it owns it in one of two
         # shapes. Routed, the squashed commit is on the branch, the label is
         # the adjudication's, and an authorized settlement publishes it -- so a
@@ -319,16 +320,19 @@ def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
         gh.write_pinned_state(issue, state)
         return
     # The rewrite and its force-push are time another road can settle a later
-    # report or evidence revision in, and everything below writes the state
-    # in hand whole: over a comment that moved, the handoff would put the
-    # replaced records back and move the label under an approval of them.
-    # Nothing is posted or written, and the collapse the squash recorded is
-    # the next tick's recovery to finish -- over the records the comment
-    # carries then.
+    # report or evidence revision in, or replace the verdict this approval
+    # finishes, and everything below writes the state in hand whole: over a
+    # comment that moved, the handoff would put the replaced records back and
+    # move the label under an approval of them. Nothing is posted or written,
+    # and the collapse the squash recorded is the next tick's recovery to
+    # finish -- over the records the comment carries then.
     if not _review_comment._records_in_hand(
-        gh, issue, state, "finish its squash under the approval it holds", _review_comment._STANDING_RECORDS,
+        gh, issue, state, "finish its squash under the approval it holds", _review_comment._VERDICT_RECORDS,
     ):
         return
+    # The comment carries exactly the verdict in hand, which is the one this
+    # handoff finishes, so every write below retires it.
+    _verdicts.drops_the_verdict(state)
     if not squashed.success:
         _park_squash_failure(
             gh, issue, state, squashed.error, standing=squashed.standing,
@@ -347,11 +351,6 @@ def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
     # instead, that notice would reach in_review as fresh human PR feedback
     # and wake the dev on an informational orchestrator post.
     _handoff._seed_in_review_handoff_watermarks(gh, issue, state, pinned_pr)
-    # A squash that finished ends the park it took: the branch is published
-    # and the label is about to move, so an `awaiting_human` carried into
-    # `documenting` would hold an issue over a condition that is answered.
-    state.set(_AWAITING_HUMAN, False)
-    state.set(_state._PARK_REASON, None)
     _persists_then_relabels(gh, issue, state, squashed.sha)
 
 
@@ -382,9 +381,14 @@ def _persists_then_relabels(
     spawns a second reviewer over a branch this stage already published.
 
     Everything the caller staged rides the same write: the watermarks seeded
-    behind the notice, and the end of a park this recovery may have taken over
-    an earlier attempt.
+    behind the notice, and the verdict the approval finishes retired. So does
+    the end of a park this recovery may have taken over an earlier attempt:
+    the branch is published and the label is about to move, so an
+    `awaiting_human` carried into `documenting` would hold an issue over a
+    condition that is answered.
     """
+    state.set(_AWAITING_HUMAN, False)
+    state.set(_state._PARK_REASON, None)
     _collapses.settle_pending_collapse(state, sha)
     gh.write_pinned_state(issue, state)
     published = sha or _review_subjects.ReviewSubject.commit_recorded_in(
@@ -495,15 +499,15 @@ def _finalize_validating_approval(
     if stands and verify.status in _VERIFIED:
         # Staged here and written by whichever write the squash road below
         # makes, so an approval nothing recorded is never one a later tick
-        # acts on, and a verdict it finishes is not finished again.
-        _verdicts.drops_the_verdict(state)
+        # acts on; the verdict it finishes goes in that same write.
         _review_subjects.record_approved(state, reviewer_run.subject)
         _handoff._post_approval_comment(gh, issue, state, reviewer_run)
         # The comment is a request of its own, long enough for another road to
         # settle a later report or evidence revision the approval was not
-        # proved over: no rewrite goes out over it, and nothing is written.
+        # proved over, or to replace the verdict it is finishing: no rewrite
+        # goes out over any of them, and nothing is written.
         if not _review_comment._records_in_hand(
-            gh, issue, state, "squash under the approval it posted", _review_comment._STANDING_RECORDS,
+            gh, issue, state, "squash under the approval it posted", _review_comment._VERDICT_RECORDS,
         ):
             return
         _squashed_and_handed_off(gate, branch, reviewer_run.pr_number)
@@ -542,6 +546,7 @@ def _stands_behind_the_gate(
     moved retires it here; one that stands is retired by whatever the caller
     does with it.
     """
+    owned = _verdicts.read_returned_verdict(state)
     stands = _review_coverage._subject_still_stands(
         gh, issue, state, reviewer_run.subject,
     )
@@ -551,5 +556,7 @@ def _stands_behind_the_gate(
     if records_stand is None:
         return None
     if not records_stand or stands is False:
-        _verdicts.drops_the_verdict(state)
+        # Only the verdict this approval held: one another road put in its
+        # place, carried onto the state by that reading, is that road's.
+        _verdicts.drops_the_verdict(state, only=owned)
     return bool(records_stand and stands)

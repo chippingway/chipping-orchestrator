@@ -179,12 +179,11 @@ def disposes_of_the_verdict(
     # launch's write was: measured against the comment the subject was
     # resolved over, this round's own records would read as another road's
     # and be carried back over the verdict the disposition drops.
-    rewritten = replace(run, resolved_over=dict(state.data))
+    run = replace(run, resolved_over=dict(state.data))
+    rewritten = replace(in_hand, decision=replace(decision, run=run))
     if in_hand.pending is not None and not _still_stands(gh, issue, state, rewritten):
         return
-    acts_on_the_verdict(gh, spec, issue, state, replace(
-        in_hand, decision=replace(decision, run=rewritten),
-    ))
+    acts_on_the_verdict(gh, spec, issue, state, rewritten)
 
 
 def acts_on_the_verdict(
@@ -229,7 +228,7 @@ def acts_on_the_verdict(
         # it is a review of work nobody is asking about: a fresh reviewer
         # answers that without anybody's reply, so only a verdict of the
         # subject standing parks.
-        if _still_stands(gh, issue, state, decision.run):
+        if _still_stands(gh, issue, state, in_hand):
             _parks.parks_unverified(gh, issue, state, decision.run, refusal)
     else:
         _approval._finalize_validating_approval(
@@ -284,7 +283,7 @@ def _waits_on_its_evidence(
     )
     run = in_hand.decision.run
     if _review_coverage._verdict_still_stands(gh, issue, state, run.subject, run.resolved_over) is not None:
-        _verdicts.drops_the_verdict(state)
+        _verdicts.drops_the_verdict(state, only=in_hand.returned())
         gh.write_pinned_state(issue, state)
     return True
 
@@ -293,7 +292,7 @@ def _still_stands(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
-    run: _models._ReviewerRun,
+    in_hand: VerdictInHand,
 ) -> bool:
     """Whether the verdict's subject still stands, dropping the verdict where it moved.
 
@@ -304,21 +303,23 @@ def _still_stands(
     over it would post feedback about words the pull request no longer
     carries and launch a developer on it, and a refused approval would park
     for a human over a review nobody needs. So would one refused over report
-    or evidence records that moved since `run` read the comment, the refusal
-    included -- a fresh reviewer handed those records answers it without
-    anybody's reply. Such a verdict is dropped in a write composed over what
-    the comment carries now, for the next tick's reviewer. A comment or a
-    subject that will not read writes nothing, and the verdict waits for the
-    next tick to resolve again rather than being dropped as stale over a
-    reading nobody could take.
+    or evidence records that moved since its run read the comment, the
+    refusal included -- a fresh reviewer handed those records answers it
+    without anybody's reply. Such a verdict is dropped in a write composed
+    over what the comment carries now, for the next tick's reviewer -- and
+    only this verdict: one another road put in its place meanwhile is that
+    road's. A comment or a subject that will not read writes nothing, and the
+    verdict waits for the next tick to resolve again rather than being
+    dropped as stale over a reading nobody could take.
     """
+    run = in_hand.decision.run
     stands = _review_coverage._verdict_still_stands(gh, issue, state, run.subject, run.resolved_over)
     if stands is False:
         log.info(
             "issue=#%d the subject its reviewer's verdict is about moved "
             "before it was acted on; dropping the verdict", issue.number,
         )
-        _verdicts.drops_the_verdict(state)
+        _verdicts.drops_the_verdict(state, only=in_hand.returned())
         gh.write_pinned_state(issue, state)
     return bool(stands)
 
