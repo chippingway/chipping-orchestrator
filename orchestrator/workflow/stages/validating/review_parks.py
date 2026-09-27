@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The parks a returned reviewer's verdict takes when it may not be acted on.
+"""The parks a returned reviewer's verdict takes when it may not be acted on, and the funnel every such park takes.
 
 Two refusals stop a verdict of a subject that still stands, and both are the
 reviewer's round to redo rather than a developer's to answer. An approval that
@@ -15,30 +15,35 @@ the tick died, which is the rerun the persisted verdict exists to prevent.
 Neither retries itself. A bare `/orchestrator continue` buys a fresh reviewer
 (`awaiting._reviewer_retry_awaiting_action`), and a reply with words in it is
 requirements the report never saw, which reach the developer first as on every
-reviewer-side park. Each park drops the verdict it refuses in its own write.
+reviewer-side park.
 
-A park is measured before its notice is posted, at the widest it writes -- the
-notice's ledger entry and the watermark it stamps at the widest id, beside the
-flags -- since a notice posted over a write GitHub then refuses leaves neither
-a verdict nor a park durable, and the next tick's reviewer answers the round
-again. A comment with no room for the park beside what the returned run staged
-takes it over the comment as it stands instead: the run's usage and session go
+Both, and the park a failed verify gate takes over an approval (`approval`,
+`verify`), go down through `parks_over_the_subject`, since each is a park of a
+reviewed subject that only means anything while that subject stands. A park is
+measured before its notice is posted, at the widest it writes -- the notice's
+ledger entry and the watermark it stamps at the widest id, beside the flags --
+since a notice posted over a write GitHub then refuses leaves neither a verdict
+nor a park durable, and the next tick's reviewer answers the round again. A
+comment with no room for the park beside what the returned run staged takes it
+over the comment as it stands instead: the run's usage and session go
 unrecorded, a smaller loss than a park that never lands. One with no room even
 for that posts and writes nothing, and says so.
 
-The notice is a request of its own, long enough for a push or a later report
-to land, and a park over either is a human asked to answer for a review of
-work the pull request no longer carries. So the subject is resolved again
-behind it, and the comment read last, carrying whatever report or evidence
-records another road moved meanwhile onto the write rather than writing them
-back over. A subject that moved -- a head read whole that is another, or a
-report record the comment moved -- lands no park: the write drops the verdict
-and keeps the notice recorded as the orchestrator's own, the park's flags put
-back as they were, and the next tick's reviewer is handed the subject as it
-stands. A subject nobody could read is no proof it moved, nor that it still
-stands, and a park is only for a verdict of the subject standing: it lands no
-park either, and whatever the verdict left waiting is written back for a later
-tick to resolve again. A comment that will not read writes nothing.
+The notice is a request of its own, long enough for a push or another road's
+settlement to land, and a park over either is a human asked to answer for a
+review of work the pull request no longer carries. So the subject is resolved
+again behind it, and the comment read last against the reading the verdict's
+run was resolved over (`review_comment._records_stand`). A report or evidence
+record moved there carries everything the comment changed since -- a report
+settlement's spent round beside its records -- and, like a head read whole that
+is another, lands no park: the write drops the verdict, and the next tick's
+reviewer is handed the subject as it stands. A subject nobody could read is no
+proof it moved, nor that it still stands: it lands no park either, and the
+verdict is left waiting for a later tick to resolve again. The notice stays
+recorded as the orchestrator's own whichever way, and a comment that will not
+read writes nothing. Only a park that lands sets the flags, drops the verdict it
+refuses, and -- once its write is down -- reports the human wait
+(`park_awaiting_human`), since that record is the moment the issue enters one.
 """
 from __future__ import annotations
 
@@ -52,9 +57,9 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     guards as _guards,
+    park_watermarks as _park_watermarks,
     report_record_state as _report_record_state,
     report_record_values as _record_values,
-    review_subjects as _review_subjects,
 )
 from orchestrator.workflow.stages.validating import (
     models as _models,
@@ -63,6 +68,7 @@ from orchestrator.workflow.stages.validating import (
     review_verdicts as _verdicts,
     state as _state,
 )
+from orchestrator.workflow.state import stage_name
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -77,13 +83,10 @@ _UNRECORDED = (
 
 _LAST_REVIEW_SESSION_ID = "last_review_session_id"
 
-# What a record the comment does not carry reads as, apart from one it carries
-# as `null`.
-_ABSENT = object()
+_AWAITING_HUMAN = "awaiting_human"
 
-# What a park stages beside its notice's ledger entry, put back as it was where
-# no park lands behind that notice.
-_PARK_FIELDS = ("awaiting_human", _state._PARK_REASON, "last_action_comment_id")
+# The agent role the reviewer's own parks are reported as.
+_REVIEWER = "reviewer"
 
 
 def parks_unverified(
@@ -98,7 +101,7 @@ def parks_unverified(
         "the reviewer approved without the verification evidence an approval "
         f"requires: {refusal}. The approval was not acted on; {_RETRY}"
     )
-    _parks(gh, issue, state, run, (_state._REASON_REVIEWER_UNVERIFIED, words))
+    parks_over_the_subject(gh, issue, state, run, (_state._REASON_REVIEWER_UNVERIFIED, words, _REVIEWER))
 
 
 def parks_unrecorded(
@@ -108,135 +111,125 @@ def parks_unrecorded(
     run: _models._ReviewerRun,
 ) -> None:
     """Park a verdict the pinned comment has no room to persist, acting on nothing."""
-    _parks(gh, issue, state, run, (_state._REASON_REVIEWER_UNRECORDED, _UNRECORDED))
+    parks_over_the_subject(gh, issue, state, run, (_state._REASON_REVIEWER_UNRECORDED, _UNRECORDED, _REVIEWER))
 
 
-def _parks(
+def parks_over_the_subject(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
     run: _models._ReviewerRun,
-    park: tuple[str, str],
+    park: tuple[str, str, str | None],
 ) -> None:
-    """File one reviewer-side park under `park`'s reason and words, in one write, where it fits."""
-    reason, words = park
-    waiting = state.data.get(_verdicts.RETURNED_VERDICT, _ABSENT)
-    parked = _room_for_the_park(gh, issue, state, reason)
+    """File `park` over the subject `run` was handed, in one write, where it fits and that subject still stands.
+
+    `park` is the reason, the notice's words, and the agent role the park is
+    reported as, with the round, session, and pull request it ran for; a park
+    of no agent's (None) reports its reason alone.
+    """
+    parked = _room_for_the_park(gh, issue, state, park[0])
     if parked is None:
         log.error(
             "issue=#%d has no room on its pinned comment even for the %s park; "
-            "posting and writing nothing", issue.number, reason,
+            "posting and writing nothing", issue.number, park[0],
         )
         return
-    unparked = {field: parked.data.get(field, _ABSENT) for field in _PARK_FIELDS}
-    unparked[_verdicts.RETURNED_VERDICT] = waiting
-    _guards._park_awaiting_human(
-        gh,
-        issue,
-        parked,
-        f"{config.HITL_MENTIONS} {words}",
-        reason=reason,
-        agent_role="reviewer",
-        session_id=state.get(_LAST_REVIEW_SESSION_ID),
-        review_round=run.round_n,
-        retry_count=_guards._safe_int(state.get("retry_count")),
-        pr_number=_guards._safe_int(run.pr_number),
-        bounded=True,
-    )
-    # Re-set behind the guard, which clears whatever reason it found: the
-    # awaiting-human branch reads it to hand the retry to a fresh reviewer.
-    parked.set(_state._PARK_REASON, reason)
-    if _behind_the_notice(gh, issue, parked, run.subject, unparked):
-        gh.write_pinned_state(issue, parked)
-
-
-def carries_the_standing_records(gh: GitHubClient, issue: Issue, state: PinnedState) -> list[str] | None:
-    """Carry onto `state` every report and evidence record the comment moved; those records, or None unread.
-
-    For a write about to go down over records another road may have recorded
-    or settled since they were read -- a park's, or an approval's. Only those
-    records are carried: nothing this road stages writes them, so any that
-    differ are another road's, while what it did stage -- a verdict dropped,
-    the park's own fields -- is left as staged.
-    """
-    durable = _review_comment._read(gh, issue, state, "keep the records another road settled")
-    if durable is None:
-        return None
-    moved = _review_comment._moved(durable.data, state.data, _review_comment._STANDING_RECORDS)
-    for field in moved:
-        written = durable.data.get(field, _ABSENT)
-        if written is _ABSENT:
-            state.data.pop(field, None)
-        else:
-            state.set(field, written)
-    return moved
+    lands = _behind_the_notice(gh, issue, parked, run, park)
+    if lands is None:
+        return
+    gh.write_pinned_state(issue, parked)
+    if lands:
+        correlation = {} if park[2] is None else {
+            "agent_role": park[2],
+            "session_id": state.get(_LAST_REVIEW_SESSION_ID),
+            "review_round": run.round_n,
+            "retry_count": _guards._safe_int(state.get("retry_count")),
+            "pr_number": _guards._safe_int(run.pr_number),
+        }
+        gh.emit_event(
+            "park_awaiting_human",
+            issue_number=issue.number,
+            stage=stage_name(gh.workflow_label(issue)),
+            reason=park[0],
+            **_guards._screened_correlation(correlation),
+        )
 
 
 def _behind_the_notice(
     gh: GitHubClient,
     issue: Issue,
     parked: PinnedState,
-    subject: _review_subjects.ReviewSubject,
-    unparked: dict,
-) -> bool:
-    """Settle the park's write once its notice is posted; False where nothing may be written.
+    run: _models._ReviewerRun,
+    park: tuple[str, str, str | None],
+) -> bool | None:
+    """Post the park's notice, then settle its write over the subject standing behind it; None to write nothing.
 
-    The subject is resolved first and the comment read last, so a report
-    settling during either is carried rather than written back over. Where
-    the subject moved, the park's flags go back to `unparked` and the write
-    drops the verdict alone; where it would not read, the verdict it dropped
-    goes back as well, waiting for a later tick to resolve it again.
+    True where the park lands: the subject resolved again whole as the one
+    `run` was handed, and no report or evidence record moved on the comment
+    since `run` read it. False where it does not: the verdict is dropped where
+    the subject moved, and left as it waited where it would not read.
     """
-    stands = _review_coverage._subject_still_stands(gh, issue, parked, subject)
-    moved = carries_the_standing_records(gh, issue, parked)
-    if moved is None:
-        return False
-    if stands is False or any(field in _review_comment._REPORT_RECORDS for field in moved):
-        log.info(
-            "issue=#%d the subject its reviewer's verdict is about moved while "
-            "its park notice was posted; dropping the verdict for a fresh "
-            "reviewer rather than parking", issue.number,
-        )
-        restored = dict(unparked)
-        restored.pop(_verdicts.RETURNED_VERDICT)
-    elif stands is None:
+    reason, words = park[:2]
+    posted = _posts_the_notice(gh, issue, parked, words)
+    stands = _review_coverage._subject_still_stands(gh, issue, parked, run.subject)
+    records = _review_comment._records_stand(gh, issue, parked, run.resolved_over)
+    if records is None:
+        return None
+    if posted is not None:
+        # What moved was carried whole, the comment's own ledger included,
+        # which knows nothing of the notice this park just posted.
+        _comments._track_orchestrator_comment(parked, posted)
+    if records and stands is None:
         log.info(
             "issue=#%d could not read the subject its reviewer's verdict is "
-            "about behind its park notice; keeping what the verdict left "
-            "waiting rather than parking", issue.number,
+            "about behind its park notice; keeping the verdict for a later "
+            "tick rather than parking", issue.number,
         )
-        restored = unparked
-    else:
+        return False
+    _verdicts.drops_the_verdict(parked)
+    if records and stands:
+        parked.set(_AWAITING_HUMAN, True)
+        parked.set(_state._PARK_REASON, reason)
         return True
-    for field, was in restored.items():
-        if was is _ABSENT:
-            parked.data.pop(field, None)
-        else:
-            parked.set(field, was)
-    return True
+    log.info(
+        "issue=#%d the subject its reviewer's verdict is about moved while its "
+        "park notice was posted; dropping the verdict for a fresh reviewer "
+        "rather than parking", issue.number,
+    )
+    return False
+
+
+def _posts_the_notice(gh: GitHubClient, issue: Issue, parked: PinnedState, words: str) -> int | None:
+    """Post the park's notice and record the thread read through it; the notice's id, or None.
+
+    Read only as far as the orchestrator's own comments go
+    (`park_watermarks`), since a park follows a run long enough for a human
+    to have written something nobody has read -- which is also why the mark
+    is harmless where no park lands behind the notice.
+    """
+    said_before = _comments._orchestrator_ids(parked)
+    notice = _comments._post_issue_comment(gh, issue, parked, f"{config.HITL_MENTIONS} {words}")
+    _park_watermarks._stamp_read_this_far(gh, issue, parked, said_before)
+    return getattr(notice, "id", None)
 
 
 def _room_for_the_park(gh: GitHubClient, issue: Issue, state: PinnedState, reason: str) -> PinnedState | None:
-    """The state the park goes down on: the one in hand, else the comment as it stands; None for neither.
-
-    Either with the verdict's drop staged, which is part of the park's write.
-    """
-    _verdicts.drops_the_verdict(state)
+    """The state the park goes down on: the one in hand, else the comment as it stands; None for neither."""
     if _park_fits(state, reason):
         return state
     durable = _review_comment._read(gh, issue, state, "park a verdict with no room for what its run staged")
     if durable is None:
         return None
-    _verdicts.drops_the_verdict(durable)
     return durable if _park_fits(durable, reason) else None
 
 
 def _park_fits(state: PinnedState, reason: str) -> bool:
-    """Whether the comment has room for a park on `state`, measured at its widest."""
+    """Whether the comment has room for a park on `state`, measured at its widest, with the verdict it drops."""
     widest = _record_values.MAX_RECORDED_NUMBER
     reserved = PinnedState(comment_id=state.comment_id, state_data=dict(state.data))
+    _verdicts.drops_the_verdict(reserved)
     _comments._reserve_comment_slot(reserved, widest)
-    reserved.set("awaiting_human", True)
+    reserved.set(_AWAITING_HUMAN, True)
     reserved.set(_state._PARK_REASON, reason)
     reserved.set("last_action_comment_id", widest)
     return _report_record_state.fits_the_comment(reserved.data)

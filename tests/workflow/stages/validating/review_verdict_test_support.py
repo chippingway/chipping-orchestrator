@@ -166,10 +166,10 @@ class AnotherRoadBehind:
                 self._road(self._case)
         return answered
 
-    def returning(self, message: str) -> dict:
+    def returning(self, message: str, **run_options) -> dict:
         """The tick in which a reviewer returned `message`, over a client carrying this request."""
         with patch.object(self._owner, self._name, self):
-            return self._case.returns(message)
+            return self._case.returns(message, **run_options)
 
 
 class ReviewVerdictWorld(_PatchedWorkflowMixin):

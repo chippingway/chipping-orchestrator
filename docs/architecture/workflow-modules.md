@@ -2933,8 +2933,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             id, abandoned outright on an unreadable PR rather than stranding an approved branch on
                             a read, and the ratchets reached past it, which is what each of the three watermarks
                             becomes against what is already persisted
-      verify.py             how a refused verify result reads and the park it earns; `ok` and the `not_run` an
-                            empty `VERIFY_COMMANDS` returns both advance instead
+      verify.py             how a refused verify result reads and the park it earns, filed through
+                            `review_parks.py` over the approved subject; `ok` and the `not_run` an empty
+                            `VERIFY_COMMANDS` returns both advance instead
       watermarks.py         the seed walk past leading orchestrator comments and a bare `/orchestrator
                             add-agent-runs` a grant left unread, and the ratchet that never regresses one
       requested_changes.py  the PR feedback and `workflow:fixing`-labeled dev fix, its report disposed of through
@@ -3204,14 +3205,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             evidence the pinned comment carries once read again, moved records carried onto the
                             state; why not, for the park; or a hold where a reading could not be taken
       review_parks.py       the two parks a verdict takes instead of being acted on, `reviewer_unverified` and
-                            `reviewer_unrecorded`, each dropping the verdict in its own write and answered by a
-                            fresh reviewer; measured at its widest before the notice is posted, taken over the
-                            comment as it stands where it has no room beside what the returned run staged, and
-                            held behind the notice to the subject resolved again and then to the comment read
-                            last, the report and evidence records it moved carried onto the write
-                            (`carries_the_standing_records`, which the approval check shares) -- a push or a
-                            report record moved meanwhile lands no park, the write dropping the verdict alone, and
-                            a subject that would not read lands none either, the verdict written back as it waited
+                            `reviewer_unrecorded`, each answered by a fresh reviewer, and the funnel they and a
+                            failed verify gate's park take (`parks_over_the_subject`): measured at its widest before
+                            the notice is posted, taken over the comment as it stands where it has no room beside
+                            what the returned run staged, and held behind the notice to the subject resolved again
+                            and then to the comment read against the run's reading -- a report or evidence record
+                            moved there carries everything the comment changed since, a settlement's spent round
+                            included, and like a push lands no park, the write dropping the verdict alone, while a
+                            subject that would not read lands none either and leaves the verdict waiting. Only a
+                            park that lands sets its flags, drops the verdict, and reports `park_awaiting_human`,
+                            once its write is down
       review_handoffs.py    a persisted change request's handoff: held to the subject standing, the pinned comment
                             read behind it, then the feedback posted -- a post that failed or left no id holds the
                             verdict unhanded -- the whole subject held again behind that post, the verdict written

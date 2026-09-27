@@ -24,7 +24,8 @@ for the report to be edited under it, and an approval of the earlier words is
 not one the squash may be taken under -- and the pinned comment is read behind
 that resolution, its last request, so report or evidence records another road
 settled during it are carried rather than written back over. A failed
-verification is held to the same resolution before it parks, since a failure
+verification is held to the same resolution before it parks, and to the
+subject once more behind the park's notice (`review_parks`), since a failure
 over a head nobody reviewed is a fresh reviewer's to answer rather than a
 human's. A subject nobody could read holds a verdict a disposition persisted
 instead of retiring it, while every write the approval makes past that retires
@@ -469,12 +470,13 @@ def _finalize_validating_approval(
     The subject is resolved again behind the gate whatever it said, so a
     failed verification parks only over the subject the reviewer approved: a
     push, an edit, or a later report meanwhile is work nobody reviewed, which
-    a fresh reviewer answers rather than a human. A persisted verdict
-    (`review_verdicts`) is retired by whichever write this makes -- the park,
-    the drop, or the squash road's -- except where the subject could not be
-    read: that is no proof the approval stands or fell, so the write keeps the
-    verdict for the next tick to finish, and no second reviewer is spent
-    answering a round already reviewed.
+    a fresh reviewer answers rather than a human. The park holds it to that
+    subject once more behind its own notice (`review_parks`). A persisted
+    verdict (`review_verdicts`) is retired by whichever write this makes --
+    the park that lands, the drop, or the squash road's -- except where the
+    subject could not be read: that is no proof the approval stands or fell,
+    so the write keeps the verdict for the next tick to finish, and no second
+    reviewer is spent answering a round already reviewed.
 
     The squash and everything behind it are the tail beside this one, because
     a collapse an earlier tick did not finish owes the same steps with no
@@ -492,16 +494,20 @@ def _finalize_validating_approval(
     if stands and verify.status in _VERIFIED:
         # Staged here and written by whichever write the squash road below
         # makes, so an approval nothing recorded is never one a later tick
-        # acts on.
+        # acts on, and a verdict it finishes is not finished again.
+        _verdicts.drops_the_verdict(state)
         _review_subjects.record_approved(state, reviewer_run.subject)
         _handoff._post_approval_comment(gh, issue, state, reviewer_run)
         _squashed_and_handed_off(gate, branch, reviewer_run.pr_number)
         return
     if stands:
-        _verify._park_verify_failure(gh, issue, state, verify)
-    # A failed verification of the subject standing parks, an approval the
-    # subject moved out from under is dropped, and one whose subject would
-    # not read is held; each way what the run left is the write owed.
+        # Held to the subject once more behind its notice, and written by
+        # the park itself where it lands and where it does not.
+        _verify._park_verify_failure(gh, issue, state, reviewer_run, verify)
+        return
+    # An approval the subject moved out from under is dropped, and one whose
+    # subject would not read is held; either way what the run left is the
+    # write owed.
     gh.write_pinned_state(issue, state)
 
 
@@ -524,8 +530,9 @@ def _stands_behind_the_gate(
     comment that will not read is None. A subject nobody could read is no
     proof either way: nothing is acted on or parked, and the verdict a
     disposition persisted is left for the caller's write to keep for the next
-    tick rather than retired for a second reviewer. Every other answer
-    retires it.
+    tick rather than retired for a second reviewer. A subject proved to have
+    moved retires it here; one that stands is retired by whatever the caller
+    does with it.
     """
     stands = _review_coverage._subject_still_stands(
         gh, issue, state, reviewer_run.subject,
@@ -535,6 +542,6 @@ def _stands_behind_the_gate(
     )
     if records_stand is None:
         return None
-    if not (records_stand and stands is None):
+    if not records_stand or stands is False:
         _verdicts.drops_the_verdict(state)
     return bool(records_stand and stands)

@@ -3324,8 +3324,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        approval. An empty command tuple returns `not_run`, which advances without being evidence that anything passed,
        and any other non-ok result parks — only where the records stood and the subject still stands, since a failure
        over work nobody reviewed is a fresh reviewer's to answer and one over a subject nobody could read holds — via
-       `_park_verify_failure` with a typed `park_reason` (`verify_failed` / `verify_timeout` / `verify_dirty` /
-       `verify_head_changed` / `verify_tree_changed`) and the approval / squash / handoff do NOT fire (see
+       `_park_verify_failure`, filed through `review_parks.py`, which holds it to the subject once more behind its
+       notice and reports the wait only for a park that lands, with a typed `park_reason` (`verify_failed` /
+       `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`) and the approval / squash /
+       handoff do NOT fire (see
        [`configuration.md#local-verification-gate`](../configuration.md#local-verification-gate)); otherwise the
        approval is acted on only where the records stood and the subject still stands; then stage the
        subject as `review_approved_subject`, retiring the `docs_verdict` and `ready_ping_sha` an earlier approval left,
@@ -3472,9 +3474,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        settled, proved current, passing, and covering `VERIFY_COMMANDS` by its own artifact
        (`validating/unverified_approvals.py`), and a verdict the comment has no room to persist parks under
        `reviewer_unrecorded` with nothing acted on (`validating/review_parks.py`). A subject that moved behind any of
-       those requests -- a park's own notice included, which then lands no park -- drops the verdict over the newer
-       records; one nobody could read holds it. The record and both parks are described under
-       [pinned state](labels-and-state.md#pinned-state).
+       those requests -- a park's own notice included, behind which a moved report or evidence record lands no park
+       either -- drops the verdict over the newer records, the round and whatever else another road's settlement wrote
+       beside them included; one nobody could read holds it. The record and both parks are described under [pinned
+       state](labels-and-state.md#pinned-state).
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.
      On a hit the handler returns WITHOUT running its result handler (`_post_user_content_change_result` /

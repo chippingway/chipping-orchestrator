@@ -12,6 +12,10 @@ operator's next move differs by which commit appeared -- keep it and re-spawn
 the reviewer on the new HEAD, or revert it and re-run. `tree_changed`
 surfaces both short tree ids and says HEAD stayed put.
 
+The park itself goes down through `review_parks`, the funnel every park of a
+reviewed subject takes: a failure over a subject that moved while the notice
+was posted is no failure of the approval, and a fresh reviewer answers it.
+
 The captured output is quoted exactly as the runner produced it. Re-redacting
 here would be a no-op for anything already collapsed to `***` and would still
 miss a secret straddling the truncation cut, so the redact-before-truncate
@@ -21,11 +25,10 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import guards as _guards, messages as _messages
-from orchestrator.workflow.stages.validating import state as _state
+from orchestrator.workflow.engine import messages as _messages
+from orchestrator.workflow.stages.validating import models as _models, review_parks as _review_parks, state as _state
 
 
 def _verify_failure_detail(verify) -> str:
@@ -103,9 +106,10 @@ def _park_verify_failure(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
+    reviewer_run: _models._ReviewerRun,
     verify,
 ) -> None:
-    """Park `validating` on a local-verify failure.
+    """Park `validating` on a local-verify failure of the approval `reviewer_run` returned.
 
     The park comment names the failing command, its exit code (or
     timeout), and a redacted / truncated tail of the captured output so
@@ -113,15 +117,14 @@ def _park_verify_failure(
     `park_reason` is set to a stable token (`verify_failed`,
     `verify_timeout`, `verify_dirty`, `verify_head_changed`, or
     `verify_tree_changed`) so dashboards and future transient-recovery
-    logic can branch on the failure mode.
+    logic can branch on the failure mode. It goes down through the funnel
+    every park of a reviewed subject takes (`review_parks`), which holds it
+    to that subject once more behind its notice and writes it.
     """
     reason = _state._VERIFY_STATUS_TO_REASON.get(verify.status, "verify_failed")
     detail = _verify_failure_detail(verify)
 
-    message = (
-        f"{config.HITL_MENTIONS} local verification failed; PR not handed "
-        f"off to in_review. {detail}."
-    )
+    message = f"local verification failed; PR not handed off to in_review. {detail}."
     # `verify.output` is already redacted-then-truncated by the runner;
     # re-redacting here would be a no-op for any match `redact_secrets`
     # already collapsed to `***`, AND would not catch a partial secret
@@ -132,9 +135,4 @@ def _park_verify_failure(
         quoted = _messages._as_blockquote(output.rstrip())
         message = f"{message}\n\n_Verify output (tail):_\n\n{quoted}"
 
-    _guards._park_awaiting_human(
-        gh, issue, state, message,
-        reason=reason,
-        bounded=True,
-    )
-    state.set(_state._PARK_REASON, reason)
+    _review_parks.parks_over_the_subject(gh, issue, state, reviewer_run, (reason, message, None))

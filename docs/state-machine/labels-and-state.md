@@ -1773,11 +1773,13 @@ The keys that matter for the state machine fall into a few groups:
   or whose transaction it has no room for, parks under `reviewer_unrecorded` with nothing published or acted on
   (`review_parks.py`): the park is measured at its widest before its notice is posted and taken over the comment as it
   stands -- the returned run's usage and session unrecorded -- where it has no room beside what that run staged, and
-  nothing is posted or written at all where there is room for no park. Each park sets the record to `null` in its own
-  write, with the report and evidence records the comment carries once read again behind its notice; the subject is
-  resolved again behind that notice too, and a push or a report record moved meanwhile lands no park, the write setting
-  the record to `null` alone for a fresh reviewer, while a subject that would not read lands none either and writes the
-  record back as it waited. A failed verify gate likewise parks only over the subject still standing behind it. A bare
+  nothing is posted or written at all where there is room for no park. Behind its notice the subject is resolved again
+  and the comment read against the reading the verdict's run was resolved over: a report or evidence record moved there
+  carries everything the comment changed since -- a settlement's spent `review_round` beside its records -- and, like a
+  push, lands no park, the write setting the record to `null` alone for a fresh reviewer, while a subject that would not
+  read lands none either and leaves the record as it waited. A park that lands sets the record to `null` in its own
+  write and reports `park_awaiting_human` only once that write is down. A failed verify gate's park goes through the
+  same funnel, so it too lands only over the subject still standing behind the gate and behind its notice. A bare
   `/orchestrator continue` on either park buys a fresh reviewer,
   and an edit under one nobody replied to waits for that reviewer rather than resuming the developer. Additive and
   dormant: no live reviewer round hands its result to that service yet, and nothing finishes a record a tick left

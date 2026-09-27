@@ -60,7 +60,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.validating import (
     review_claims as _claims,
-    review_parks as _parks,
+    review_comment as _review_comment,
     review_verdicts as _verdicts,
 )
 
@@ -131,14 +131,14 @@ def _held_to_the_comment(gh: GitHubClient, issue: Issue, state: PinnedState) -> 
     road to record or settle other evidence, which is on the comment and
     nowhere in hand -- and the approval arc writes the state in hand, which
     would put the older records back over it. So the comment is read again,
-    and evidence that moved is carried onto the state in hand and refuses the
-    approval, which no longer rests on this issue's current evidence; the park
-    it takes then keeps the newer records.
+    and records that moved -- with everything else the comment changed beside
+    them -- are carried onto the state in hand and refuse the approval, which
+    no longer rests on this issue's current evidence.
     """
-    moved = _parks.carries_the_standing_records(gh, issue, state)
-    if moved is None:
+    stood = _review_comment._records_stand(gh, issue, state, dict(state.data))
+    if stood is None:
         return None
-    return f"{_REUSE_MOVED}: {_EVIDENCE_MOVED}" if moved else ""
+    return "" if stood else f"{_REUSE_MOVED}: {_EVIDENCE_MOVED}"
 
 
 def _claimed_refusal(claim: _verdicts.EvidenceClaim | None) -> str:

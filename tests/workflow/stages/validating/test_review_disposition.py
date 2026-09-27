@@ -63,11 +63,21 @@ UNDECLARED_REQUEST = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
 # An approval with nothing declared beside it.
 UNDECLARED_APPROVAL = "LGTM\n\nVERDICT: APPROVED"
 
+REVIEW_ROUND = "review_round"
+
+# The event a park that lands reports, once per human wait it opens.
+PARK_EVENT = "park_awaiting_human"
+
+# The verdict an approval's waiting record names.
+APPROVED = "approved"
 
 
 def _settles_a_later_report(case) -> None:
-    """Another road's settlement of a later report on the same head."""
+    """Another road's settlement of a later report on the same head, spending the round its handover bought."""
     _published_reports.republishes_the_report(case.github, case.issue, LATER_REPORT)
+    state = case.github.read_pinned_state(case.issue)
+    state.set(REVIEW_ROUND, (state.get(REVIEW_ROUND) or 0) + 1)
+    case.github.write_pinned_state(case.issue, state)
 
 
 # The requests between a change request's verdict and its handoff behind which
@@ -154,51 +164,68 @@ _NO_ROOM = (
     ),
 )
 
-# The two parks a returned verdict takes -- the reply that earns each, the
-# operator notes that leave no room for the verdict, and a phrase of the
-# notice -- and the verdict each leaves waiting where no park lands over it.
+# Every park a verdict of a reviewed subject takes -- the two a returned
+# verdict takes and the one its approval's failed verify gate takes -- with
+# the reply that earns each, the operator notes that leave no room for the
+# verdict, a phrase of the notice, the verdict each leaves waiting where no
+# park lands over it, and how the tick runs.
 _PARKS = (
-    (UNVERIFIED, (UNDECLARED_APPROVAL, 0, UNVERIFIED_NOTICE), "approved"),
+    (UNVERIFIED, (UNDECLARED_APPROVAL, 0, UNVERIFIED_NOTICE), APPROVED, {}),
     (
         UNRECORDED,
         (f"{_LONG}\n\nVERDICT: CHANGES_REQUESTED", MAX_PINNED_BODY - len(_LONG), "could not be recorded"),
         None,
+        {},
+    ),
+    (
+        "verify_failed",
+        (_world.declared_run(), 0, "local verification failed"),
+        APPROVED,
+        {"verify_result": VerifyResult(status="failed")},
     ),
 )
 
 # What another road does to a verdict's subject behind one of its requests,
-# the report revision the pinned comment records then, and whether the verdict
-# is held for a later tick: a later report or a push proves the subject moved,
-# and a report nobody could read proves nothing either way.
+# the report revision and review round the pinned comment records then, and
+# whether the verdict is held for a later tick: a later report settling -- and
+# spending its round -- or a push proves the subject moved, and a report
+# nobody could read proves nothing either way.
 _MOVES = (
-    ("a later report", _settles_a_later_report, 2, False),
-    ("a push", _world.pushes, 1, False),
-    ("an unread report", lambda case: case.github.report_failures.unreadable.add(_world.PR), 1, True),
+    ("a later report", _settles_a_later_report, (2, 1), False),
+    ("a push", _world.pushes, (1, 0), False),
+    (
+        "an unread report",
+        lambda case: case.github.report_failures.unreadable.add(_world.PR),
+        (1, 0),
+        True,
+    ),
 )
 
 # Each park with each move behind its notice, and what it leaves: whether it
 # parked, the verdict waiting, whether the notice was posted, the report
-# revision, and every relabel. No park lands over a subject that is not proved
-# to stand.
+# revision and round, every relabel, and every park reported. No park lands
+# over a subject that is not proved to stand, and none is reported.
 _BEHIND_THE_NOTICE = tuple(
     (
         park,
         move,
         (*reply, road),
-        ((None, False), waiting if holds else None, True, revision, []),
+        options,
+        ((None, False), waiting if holds else None, True, recorded, ([], [])),
     )
-    for park, reply, waiting in _PARKS
-    for move, road, revision, holds in _MOVES
+    for park, reply, waiting, options in _PARKS
+    for move, road, recorded, holds in _MOVES
 )
 
 # An approval whose verify gate fails with each move landing during it, and
-# what it leaves: the park it takes, the verdict waiting, and the report
-# revision. Only a subject still standing behind the gate parks.
+# what it leaves: the park it takes, the verdict waiting, the report revision
+# and round, and every park reported. Only a subject still standing behind the
+# gate parks.
 _UNDER_A_FAILED_GATE = (
-    ("nothing", None, ("verify_failed", None, 1)),
+    ("nothing", None, ("verify_failed", None, (1, 0), ["verify_failed"])),
     *(
-        (move, road, (None, "approved" if holds else None, revision))
-        for move, road, revision, holds in _MOVES
+        (move, road, (None, APPROVED if holds else None, recorded, []))
+        for move, road, recorded, holds in _MOVES
     ),
 )
 
@@ -267,8 +294,13 @@ class DisposedApprovalTest(_world.ReviewVerdictWorld, unittest.TestCase):
 
                 pinned = self.pinned()
                 self.assertEqual(
-                    (pinned[_world.PARK_REASON], pinned[_world.RETURNED_VERDICT], ran[VERIFY].call_count),
-                    (UNVERIFIED, None, 0),
+                    (
+                        pinned[_world.PARK_REASON],
+                        pinned[_world.RETURNED_VERDICT],
+                        ran[VERIFY].call_count,
+                        [event.get("reason") for event in self.github.recorded_events if event["event"] == PARK_EVENT],
+                    ),
+                    (UNVERIFIED, None, 0, [UNVERIFIED]),
                 )
                 self.assertEqual(self.github.label_history, [])
                 self.assertIn(refusal, self.github.posted_comments[-1][1])
@@ -323,7 +355,7 @@ class DisposedApprovalTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 waiting[_world.PENDING_EVIDENCE] is None,
                 self.github.label_history,
             ),
-            ("approved", False, []),
+            (APPROVED, False, []),
         )
 
         finished = self.finishes()
@@ -564,14 +596,16 @@ class ParkedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # reviewer, and a later report is kept rather than written back over.
         # A report nobody could read then is no proof either way: no park
         # lands, and the verdict an approval persisted waits for a later tick.
-        for park, move, case, expected in _BEHIND_THE_NOTICE:
+        for park, move, case, options, expected in _BEHIND_THE_NOTICE:
             with self.subTest(park=park, move=move):
-                self.assertEqual(self._moved_behind_the_notice(*case), expected)
+                self.assertEqual(self._moved_behind_the_notice(*case, **options), expected)
 
     def test_a_settlement_behind_a_park_notice(self) -> None:
         # Evidence settles while the refused approval's park notice is posted,
-        # the park's last request: the subject still stands, so the park lands
-        # and keeps the settlement.
+        # the park's last request: the refusal was read over evidence records
+        # that no longer stand, so no park lands to ask a human about it. The
+        # settlement is kept, and the verdict dropped for a fresh reviewer
+        # handed that evidence.
         behind = _world.AnotherRoadBehind(
             self, "comment", lambda body: UNVERIFIED_NOTICE in body, _read.settles_evidence,
         )
@@ -581,30 +615,34 @@ class ParkedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
         pinned = self.pinned()
         self.assertEqual(
             (
-                pinned[_world.PARK_REASON],
+                pinned.get(_world.PARK_REASON),
                 _read.current_evidence_revision(self),
                 pinned[_world.RETURNED_VERDICT],
             ),
-            (UNVERIFIED, 1, None),
+            (None, 1, None),
         )
 
-    def _moved_behind_the_notice(self, message: str, filled: int, notice: str, road) -> tuple:
+    def _moved_behind_the_notice(self, message: str, filled: int, notice: str, road, **options) -> tuple:
         """What the park `message` earns over `filled` notes leaves where `road` moves its subject behind `notice`.
 
         Whether it parked, the verdict it left, whether the notice was posted,
-        the current report revision, and every relabel.
+        the current report revision and round, and every relabel beside every
+        park reported.
         """
         self.setUp()
         self._fills(filled)
         behind = _world.AnotherRoadBehind(self, "comment", lambda body: notice in body, road)
-        behind.returning(message)
+        behind.returning(message, **options)
         pinned = self.pinned()
         return (
             (pinned.get(_world.PARK_REASON), bool(pinned.get("awaiting_human"))),
             (pinned.get(_world.RETURNED_VERDICT) or {}).get(VERDICT),
             any(notice in body for _, body in self.github.posted_comments),
-            _read.current_report_revision(self),
-            self.github.label_history,
+            (_read.current_report_revision(self), pinned.get(REVIEW_ROUND)),
+            (
+                self.github.label_history,
+                [event.get("reason") for event in self.github.recorded_events if event["event"] == PARK_EVENT],
+            ),
         )
 
     def _fills(self, filled: int) -> None:
@@ -653,8 +691,9 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # The verify gate is long enough for a push or a later report, and a
         # failure over a subject nobody reviewed is no failure of the
         # approval: it is dropped for a fresh reviewer rather than parked for
-        # a human. A report nobody could read behind the gate proves nothing
-        # either way, so nothing parks and the verdict waits.
+        # a human, and a later report's round is kept. A report nobody could
+        # read behind the gate proves nothing either way, so nothing parks and
+        # the verdict waits. Only the park that lands is reported.
         for move, road, expected in _UNDER_A_FAILED_GATE:
             with self.subTest(move):
                 self.setUp()
@@ -670,7 +709,8 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
                     (
                         pinned.get(_world.PARK_REASON),
                         (pinned.get(_world.RETURNED_VERDICT) or {}).get(VERDICT),
-                        _read.current_report_revision(self),
+                        (_read.current_report_revision(self), pinned.get(REVIEW_ROUND)),
+                        [event.get("reason") for event in self.github.recorded_events if event["event"] == PARK_EVENT],
                         self.github.label_history,
                     ),
                     (*expected, []),
@@ -726,8 +766,9 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # A second transaction settles behind the approval's last read of its
         # artifact -- the fourth, behind the two the round's handover took and
         # the proof's own: the approval rests on evidence no longer current,
-        # so it is not acted on, and the newer records are kept rather than
-        # written back over.
+        # so it is not acted on, nor parked for a human -- a fresh reviewer
+        # handed the newer evidence answers it -- and the newer records are
+        # kept rather than written back over.
         digest = _read.settles_evidence(self).content_revision
         behind = _world.AnotherRoadBehind(
             self, "reread_verification_artifact", lambda _comment: True, _read.settles_evidence, 4,
@@ -742,8 +783,9 @@ class EvidenceRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 _read.current_evidence_revision(self),
                 pinned["verification_evidence_revision"],
                 pinned.get(_world.PARK_REASON),
+                pinned[_world.RETURNED_VERDICT],
             ),
-            ([], 2, 2, UNVERIFIED),
+            ([], 2, 2, None, None),
         )
 
     def _gate(self, *_args, road=None, status: str = "ok", **_kw) -> VerifyResult:

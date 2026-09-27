@@ -160,14 +160,14 @@ def disposes_of_the_verdict(
             "evidence it declared is confirmed on PR #%s", issue.number, run.pr_number,
         )
         return
-    if in_hand.pending is not None and not _still_stands(gh, issue, state, run):
-        return
     # What this tick wrote -- the verdict, and the settlement behind it -- is
     # what every later re-read of the comment is measured against, as the
     # launch's write was: measured against the comment the subject was
     # resolved over, this round's own records would read as another road's
     # and be carried back over the verdict the disposition drops.
     rewritten = replace(run, resolved_over=dict(state.data))
+    if in_hand.pending is not None and not _still_stands(gh, issue, state, rewritten):
+        return
     acts_on_the_verdict(gh, spec, issue, state, replace(
         in_hand, decision=replace(decision, run=rewritten),
     ))
@@ -181,7 +181,7 @@ def acts_on_the_verdict(
     in_hand: VerdictInHand,
 ) -> None:
     """Carry out a persisted verdict once the evidence it declared is published."""
-    if _waits_on_its_evidence(gh, issue, state, in_hand.claim):
+    if _waits_on_its_evidence(gh, issue, state, in_hand):
         return
     decision = in_hand.decision
     if decision.verdict == _verdicts.CHANGES_REQUESTED:
@@ -215,7 +215,7 @@ def _waits_on_its_evidence(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
-    claim: _verdicts.EvidenceClaim | None,
+    in_hand: VerdictInHand,
 ) -> bool:
     """Whether the verdict ends this tick on the evidence it declared rather than being acted on.
 
@@ -228,9 +228,13 @@ def _waits_on_its_evidence(
     settle -- retired, superseded by a later revision, or recorded under a
     verification context that has since moved -- drops the verdict instead,
     for a fresh reviewer, rather than waiting on it forever, in a write
-    composed over the comment read again, so a report or evidence another road
-    settled meanwhile is kept; a comment that will not read writes nothing.
+    composed over the comment read again against what the verdict's run read
+    (`review_coverage._verdict_still_stands`): a report or evidence another
+    road settled meanwhile is kept, with the round and whatever else that
+    settlement wrote beside it. A reading nobody could take writes nothing,
+    and the next tick finds the evidence lost again.
     """
+    claim = in_hand.claim
     if claim is None or claim.use is not _verdicts.EvidenceUse.PUBLISHED:
         return False
     standing = _claims.claim_standing(state, claim)
@@ -246,8 +250,9 @@ def _waits_on_its_evidence(
         "issue=#%d drops its reviewer's verdict: the verification evidence it "
         "declared can no longer be published", issue.number,
     )
-    _verdicts.drops_the_verdict(state)
-    if _parks.carries_the_standing_records(gh, issue, state) is not None:
+    run = in_hand.decision.run
+    if _review_coverage._verdict_still_stands(gh, issue, state, run.subject, run.resolved_over) is not None:
+        _verdicts.drops_the_verdict(state)
         gh.write_pinned_state(issue, state)
     return True
 
@@ -266,13 +271,16 @@ def _still_stands(
     push, meanwhile is a subject nobody reviewed: a change request acted on
     over it would post feedback about words the pull request no longer
     carries and launch a developer on it, and a refused approval would park
-    for a human over a review nobody needs. Such a verdict is dropped in a
-    write composed over what the comment carries now, for the next tick's
-    reviewer. A comment or a subject that will not read writes nothing, and
-    the verdict waits for the next tick to resolve again rather than being
-    dropped as stale over a reading nobody could take.
+    for a human over a review nobody needs. So would one refused over report
+    or evidence records that moved since `run` read the comment, the refusal
+    included -- a fresh reviewer handed those records answers it without
+    anybody's reply. Such a verdict is dropped in a write composed over what
+    the comment carries now, for the next tick's reviewer. A comment or a
+    subject that will not read writes nothing, and the verdict waits for the
+    next tick to resolve again rather than being dropped as stale over a
+    reading nobody could take.
     """
-    stands = _review_coverage._verdict_still_stands(gh, issue, state, run.subject)
+    stands = _review_coverage._verdict_still_stands(gh, issue, state, run.subject, run.resolved_over)
     if stands is False:
         log.info(
             "issue=#%d the subject its reviewer's verdict is about moved "
