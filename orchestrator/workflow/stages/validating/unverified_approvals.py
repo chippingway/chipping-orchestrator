@@ -19,6 +19,14 @@ exiting 0 (`review_claims.covers_the_configuration`). A reviewer that ran
 something else, however green, did not run what the repository requires of a
 change, so an approval resting on it parks like one resting on nothing.
 
+The claim's own `passed` and `covers` are the verdict's copy of what the
+evidence said when the reviewer returned, and a copy is never what an approval
+rests on: they refuse the approval early where they already say no, and
+otherwise the evidence answers for itself. Its pass flag is the one the proof
+holds to the artifact, and its commands are the artifact's, re-read at the
+comment it settled as and held to the record again as the proof held it -- a
+record whose flags say more than the pull request shows is no approval.
+
 Commands the reviewer ran therefore count only once their transaction has
 SETTLED: posted on the pull request and made current by the reconciliation.
 Recorded is not enough. A transaction still owed is a publication that stood
@@ -39,9 +47,12 @@ from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pull_request_reports import ReportPresence
 from orchestrator.workflow.engine import (
+    verification_current as _current,
     verification_proof as _proof,
     verification_record_state as _record_state,
+    verification_records as _records,
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.stages.validating import review_claims as _claims, review_verdicts as _verdicts
@@ -56,6 +67,8 @@ _UNCOVERED = (
 _UNPUBLISHED = "its verification evidence could not be published on the pull request"
 
 _REUSE_MOVED = "the evidence it relies on is no longer this issue's current evidence"
+
+_ARTIFACT_MOVED = "its artifact is gone or no longer the one that settled"
 
 
 def approval_refusal(
@@ -77,7 +90,28 @@ def approval_refusal(
     proved = _proof.current_evidence_verdict(_proof.ProofReading(gh, spec, issue, state))
     if proved.holds:
         return None
-    return "" if proved.proved else f"{_REUSE_MOVED}: {proved.refusal}"
+    if not proved.proved:
+        return f"{_REUSE_MOVED}: {proved.refusal}"
+    return _evidence_refusal(gh, proved.pull_request, current)
+
+
+def _evidence_refusal(
+    gh: GitHubClient, pull_request, current: _records.CurrentEvidence,
+) -> str | None:
+    """Why the settled evidence itself refuses the approval; "" where it may stand, None to hold.
+
+    Read off the artifact on `pull_request`, the one the proof just proved,
+    rather than off the claim: the pass flag the proof holds to it, and the
+    commands it carries for the configuration's coverage.
+    """
+    presence, found = gh.reread_verification_artifact(pull_request, current.comment_id)
+    if presence is ReportPresence.UNCONFIRMED:
+        return None
+    if presence is not ReportPresence.PRESENT or not _current._is_the_settled_artifact(found, current):
+        return f"{_REUSE_MOVED}: {_ARTIFACT_MOVED}"
+    if not current.passed:
+        return _FAILED
+    return "" if _claims.covers_the_configuration(found.commands) else _uncovered()
 
 
 def _claimed_refusal(claim: _verdicts.EvidenceClaim | None) -> str:
@@ -87,9 +121,14 @@ def _claimed_refusal(claim: _verdicts.EvidenceClaim | None) -> str:
     if not claim.passed:
         return _FAILED
     if not claim.covers:
-        listed = ", ".join(f"`{command}`" for command in config.VERIFY_COMMANDS)
-        return f"{_UNCOVERED}: {listed}"
+        return _uncovered()
     return ""
+
+
+def _uncovered() -> str:
+    """Why evidence missing a configured command refuses the approval, naming what is required."""
+    listed = ", ".join(f"`{command}`" for command in config.VERIFY_COMMANDS)
+    return f"{_UNCOVERED}: {listed}"
 
 
 def _unsettled_refusal(state: PinnedState, claim: _verdicts.EvidenceClaim) -> str:

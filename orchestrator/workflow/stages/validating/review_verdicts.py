@@ -23,10 +23,11 @@ command it lists exited 0 and whether those commands cover every configured
 verification command. A declaration that earned no evidence leaves
 `evidence` `null`. `handed` is `null` until a change request is handed to
 `workflow:fixing`, and then the lifetime agent-run count as that handoff was
-written: the relabel goes down before the developer is launched, so a tick that
-finds the record on `fixing` with no launch charged past that count -- or one
+written: the handoff goes down before the relabel and the developer launch, so
+a tick that finds the record with no launch charged past that count -- or one
 charged and never started -- still owes the developer the feedback, and hands it
-over instead of a fresh reviewer taking the round (`review_resume`).
+over instead of a fresh reviewer taking the round (`review_resume`). An
+approval is never handed, so a record saying otherwise does not read.
 
 The record is additive and fail-closed: an issue without it has no verdict
 waiting, and one in any shape this reader refuses is dropped rather than acted
@@ -196,6 +197,8 @@ class ReturnedVerdict:
         read_whole = (
             returned.round_n is not None,
             returned.handed is not None or recorded[_HANDED] is None,
+            # Only a change request is ever handed to a developer.
+            recorded[_HANDED] is None or returned.verdict == CHANGES_REQUESTED,
             returned.verdict in (APPROVED, CHANGES_REQUESTED),
             _review_subjects.ReviewSubject.identity_recorded_in(returned.subject) is not None,
             isinstance(returned.feedback, str),
@@ -224,9 +227,9 @@ def records_the_verdict(state: PinnedState, returned: ReturnedVerdict) -> bool:
 def hands_off(state: PinnedState, runs_used: int) -> None:
     """Stage the waiting verdict as handed to `workflow:fixing` at `runs_used`, where it waits.
 
-    Written by the relabel's own write and kept past it, so the developer
-    launch that write precedes is the only thing that can retire it. The
-    caller writes.
+    Written by the handoff's own write, ahead of the relabel, and kept past
+    both, so the developer launch that write precedes is the only thing that
+    can retire it. The caller writes.
     """
     waiting = read_returned_verdict(state)
     if waiting is not None:

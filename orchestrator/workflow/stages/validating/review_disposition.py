@@ -54,11 +54,11 @@ human otherwise.
 
 Every disposition retires the verdict in the write it makes: the approval arc
 in whichever write its road makes, and each park in its own. A change request
-keeps it through the relabel to `workflow:fixing`, marked as handed with the
-agent-run count the developer's launch will charge past, and the writes after
-that launch drop it -- so a tick that dies between the relabel and the launch
-leaves `fixing` the feedback to hand over (`review_resume`) rather than a round
-to spend on a second reviewer. A disposition that ends its tick writing
+keeps it, marked as handed with the agent-run count the developer's launch
+will charge past, in a write ahead of the relabel to `workflow:fixing`, and
+the writes after that launch drop it -- so a tick that dies anywhere between
+that write and the launch leaves the feedback to hand over (`review_resume`)
+rather than a round to spend on a second reviewer. A disposition that ends its tick writing
 nothing leaves the verdict for the next tick to finish.
 """
 from __future__ import annotations
@@ -164,8 +164,9 @@ def acts_on_the_verdict(
         return
     decision = in_hand.decision
     if decision.verdict == _verdicts.CHANGES_REQUESTED:
-        # Kept through the relabel, marked with the count the developer's
-        # launch will charge past, rather than dropped ahead of it.
+        # Kept through the handoff's write and the relabel, marked with the
+        # count the developer's launch will charge past, rather than dropped
+        # ahead of it.
         _verdicts.hands_off(state, _run_ledger_values._runs_used(state))
         _requested_changes._handle_validating_changes_requested(
             gh, spec, issue, state, decision,

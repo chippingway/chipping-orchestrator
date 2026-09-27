@@ -85,6 +85,7 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
             ("a round below zero", _with(recorded, round=-1)),
             ("a round that is a flag", _with(recorded, round=True)),
             ("a handoff below zero", _with(recorded, handed=-1)),
+            ("an approval handed to a developer", _with(recorded, verdict="approved", handed=HANDED_AT)),
             ("a subject short of its head", _with(recorded, subject=_with(RETURNED.subject, sha=...))),
             ("feedback that is no text", _with(recorded, feedback=["1."])),
             ("a claim of another revision", _with(recorded, evidence=_with(claim, revision=4))),

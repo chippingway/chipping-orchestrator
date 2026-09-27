@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Whether the developer a handed change request owes was launched, and the park where nobody can say.
 
-A reviewer's change request is handed to `workflow:fixing` by a relabel whose
-write records the verdict as handed at the lifetime agent-run count
-(`review_verdicts`), and only the writes behind the developer's run retire it.
-A verdict still standing there is therefore a handoff whose developer's run
-wrote nothing, and what that means is read off the ledger the launch charges
+A reviewer's change request is handed to `workflow:fixing` by a write that
+records the verdict as handed at the lifetime agent-run count
+(`review_verdicts`), ahead of the relabel, and only the writes behind the
+developer's run retire it. A handed verdict still standing is therefore a
+handoff whose developer's run wrote nothing, and what that means is read off the ledger the launch charges
 before it spawns (`run_circuit`), which records two phases durably and the end
 of neither.
 

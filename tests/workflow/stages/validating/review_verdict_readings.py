@@ -1,11 +1,12 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a returned-verdict case reads back off the in-memory client, and the evidence it seeds.
+"""What a returned-verdict case reads back off the in-memory client, and the records it seeds.
 
 What the issue has spent, the artifacts and reviewer feedback on the pull
-request, and -- the one thing a case seeds rather than reads -- evidence an
-earlier round left current for the subject the next reviewer is handed, for
-the world `review_verdict_test_support` builds.
+request, and -- the two things a case seeds rather than reads -- evidence an
+earlier round left current for the subject the next reviewer is handed, and a
+verdict an earlier tick left waiting over it, for the world
+`review_verdict_test_support` builds.
 """
 from __future__ import annotations
 
@@ -19,10 +20,13 @@ from orchestrator.workflow.engine import (
     verification_record_state as _record_state,
     verification_records as _records,
 )
+from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
 from tests.workflow.stages.validating import review_verdict_test_support as _world
 
 # What the issue has spent: runs charged, usage folded, rounds.
 _SPENT = ("agent_runs_used", "issue_agent_runs", "issue_total_tokens", "review_round")
+
+_RETURNED_SUBJECT = "review_returned_subject"
 
 # What the reviewer's feedback post says about itself.
 FEEDBACK_NOTICE = "requested changes"
@@ -48,8 +52,10 @@ def feedback_posts(case) -> list[str]:
     return [body for _, body in case.github.posted_pr_comments if FEEDBACK_NOTICE in body]
 
 
-def settles_evidence(case) -> str:
-    """Settle a passing run of the suite for the subject `case`'s next reviewer is handed; its digest.
+def settles_evidence(
+    case, *, command: str = _world.SUITE, exit_status: int = 0,
+) -> _records.PendingEvidence:
+    """Settle one run of `command` for the subject `case`'s next reviewer is handed; the transaction.
 
     As an earlier round leaves it: a reviewer handed that subject returned over
     it, and its declared run was recorded and made current by the dispatcher's
@@ -57,7 +63,7 @@ def settles_evidence(case) -> str:
     """
     state = case.github.read_pinned_state(case.issue)
     subject = case.handed(state).subject
-    state.set("review_returned_subject", subject.recorded())
+    state.set(_RETURNED_SUBJECT, subject.recorded())
     report = _report_settlement.read_current_report(state)
     binding = _records.EvidenceBinding(
         target=_records.EvidenceTarget(
@@ -70,9 +76,29 @@ def settles_evidence(case) -> str:
         context_revision=_proof.configured_context_revision(),
     )
     pending = _record_state.mint_pending_evidence(
-        state, _world.ISSUE, binding, (_evidence.VerifiedCommand(_world.SUITE, 0, _world.SUITE_OUTPUT),),
+        state, _world.ISSUE, binding, (_evidence.VerifiedCommand(command, exit_status, _world.SUITE_OUTPUT),),
     )
     _record_state.record_pending_evidence(state, pending)
     case.github.write_pinned_state(case.issue, state)
     case._run(partial(case.reconciled, handled=False), run_agent=[])
-    return pending.content_revision
+    return pending
+
+
+def seeds_an_approval(case, settled: _records.PendingEvidence) -> None:
+    """Leave waiting an approval of the standing subject whose claim names `settled` and says it passed and covers.
+
+    Whatever the evidence itself shows: the record a tick finishes an approval
+    from, written as nothing but the reviewer's own copy of what it relied on.
+    """
+    state = case.github.read_pinned_state(case.issue)
+    claim = _verdicts.EvidenceClaim(
+        use=_verdicts.EvidenceUse.PUBLISHED,
+        receipt=settled.receipt,
+        revision=settled.revision,
+        digest=settled.content_revision,
+        passed=True,
+        covers=True,
+    )
+    returned = _verdicts.ReturnedVerdict(0, _verdicts.APPROVED, state.get(_RETURNED_SUBJECT), evidence=claim)
+    state.set(_verdicts.RETURNED_VERDICT, returned.recorded())
+    case.github.write_pinned_state(case.issue, state)

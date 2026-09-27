@@ -52,6 +52,13 @@ _UNVERIFIED_APPROVALS = (
     ("another head", _world.declared_run().replace(_world.HEAD, OTHER_HEAD), "names another commit"),
 )
 
+# Settled evidence a waiting approval's claim says passed and covers the
+# configuration, and the words the park names what it really shows for.
+_MISDESCRIBED = (
+    ("a failed run", {"exit_status": 1}, "did not exit 0"),
+    ("another command", {"command": "uv run ruff check"}, "every command `VERIFY_COMMANDS`"),
+)
+
 # A reuse naming the evidence it was handed, or other evidence, and where the
 # approval ends up: the approval arc, or the park.
 _REUSES = (
@@ -176,7 +183,7 @@ class DisposedApprovalTest(_world.ReviewVerdictWorld, unittest.TestCase):
         for name, named, outcome in _REUSES:
             with self.subTest(name):
                 self.setUp()
-                digest = _read.settles_evidence(self)
+                digest = _read.settles_evidence(self).content_revision
 
                 self.returns(f"Covered.\n\nVERIFICATION: REUSED sha256:{named(digest)}\n\nVERDICT: APPROVED")
 
@@ -184,6 +191,29 @@ class DisposedApprovalTest(_world.ReviewVerdictWorld, unittest.TestCase):
                     (self.github.label_history, self.pinned().get(_world.PARK_REASON)), outcome,
                 )
                 self.assertEqual(len(_read.artifacts(self)), 1, "a reuse publishes nothing of its own")
+
+    def test_a_claim_is_held_to_the_evidence_it_names(self) -> None:
+        # The claim's flags are the verdict's copy of what the evidence said;
+        # the approval rests on the evidence, which shows otherwise.
+        for name, settled, refusal in _MISDESCRIBED:
+            with self.subTest(name):
+                self.setUp()
+                _read.seeds_an_approval(self, _read.settles_evidence(self, **settled))
+
+                ran = self.dispatched()
+
+                pinned = self.pinned()
+                self.assertEqual(
+                    (
+                        pinned[_world.PARK_REASON],
+                        pinned[_world.RETURNED_VERDICT],
+                        ran[VERIFY].call_count,
+                        ran[_world.RUN_AGENT].call_count,
+                    ),
+                    (UNVERIFIED, None, 0, 0),
+                )
+                self.assertEqual(self.github.label_history, [])
+                self.assertIn(refusal, self.github.posted_comments[-1][1])
 
     def test_a_held_publication_needs_no_reviewer(self) -> None:
         # The post lands and its response is lost: the tick holds with the

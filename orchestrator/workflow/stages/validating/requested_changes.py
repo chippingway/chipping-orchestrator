@@ -28,8 +28,12 @@ handler replays that exact comment to reconstruct the batch. It is the one
 durable copy of the feedback once a persisted verdict is handed on
 (`review_verdicts`), so that handoff waits for it: a post that failed, or
 landed with no id to record, relabels and launches nothing, and the verdict
-still waiting posts again on the next tick. A change request nothing persisted
-has no later tick to post from, so it goes on without the anchor. It is a
+still waiting posts again on the next tick. A persisted verdict's handoff is
+also written BEFORE the label moves, with the anchor and the verdict marked as
+handed: a relabel that landed over a write that did not would leave `fixing` a
+verdict never handed and feedback nothing anchors, which the no-feedback bounce
+walks past. A change request nothing persisted has no later tick to post from,
+so it goes on without the anchor, relabelled ahead of its write. It is a
 standalone key rather than part of the in_review bookmark pair, since
 `pending_fix_at` is what tells that route's round RESET from this route's
 bump.
@@ -350,21 +354,31 @@ def _handle_validating_changes_requested(
     `_clear_pending_fix_bookmarks`.
     """
     context = _models._RequestedChanges(gh, spec, issue, state, decision)
-    if not _post_reviewer_feedback(context) and _verdicts.read_returned_verdict(state) is not None:
-        # Nothing is relabelled, launched, or written: the persisted verdict
-        # is still waiting, and the next tick posts again rather than handing
-        # a developer feedback no later retry could replay.
+    posted = _post_reviewer_feedback(context)
+    if _verdicts.read_returned_verdict(state) is None:
+        gh.set_workflow_label(issue, WorkflowLabel.FIXING)
+        gh.write_pinned_state(issue, state)
+    elif posted:
+        # A persisted verdict's handoff is written first, carrying the anchor
+        # and the verdict as handed, so whichever request fails leaves a
+        # verdict the next tick hands over without posting twice -- on
+        # `validating` a relabel still owed, on `fixing` the launch
+        # (`review_resume`).
+        gh.write_pinned_state(issue, state)
+        gh.set_workflow_label(issue, WorkflowLabel.FIXING)
+    else:
+        # Nothing is relabelled, launched, or written behind feedback that did
+        # not post: the verdict is still waiting, and the next tick posts again
+        # rather than handing a developer feedback no later retry could replay.
         log.warning(
             "issue=#%s holding its reviewer's change request until the "
             "feedback is posted on the PR", issue.number,
         )
         return
-    gh.set_workflow_label(issue, WorkflowLabel.FIXING)
-    gh.write_pinned_state(issue, state)
-    # A persisted verdict rode that write as handed over, and stays on the
-    # comment until the developer is launched: only the writes after the run
-    # drop it, so a tick that dies before the launch leaves `fixing` the
-    # feedback to hand over rather than a round to spend on a second reviewer.
+    # A persisted verdict went down as handed over, and stays on the comment
+    # until the developer is launched: only the writes after the run drop it,
+    # so a tick that dies before the launch leaves the feedback to hand over
+    # rather than a round to spend on a second reviewer.
     _verdicts.drops_the_verdict(state)
     _finish_requested_fix(context, _run_requested_fix(context))
 

@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """A change request handed to `workflow:fixing` whose developer launch never reported back.
 
-The relabel's write records the persisted verdict as handed, and only the
-writes behind the developer's run drop it. A process that stops between the
-two leaves `fixing` the feedback to hand over: the developer is launched once,
-nothing is posted twice, and no second reviewer is spent. A launch the ledger
-shows settled is not run again, and one that started and left no trace parks
-for the operator's retry, which replays the posted feedback to one developer.
+The handoff's write records the persisted verdict as handed, ahead of the
+relabel, and only the writes behind the developer's run drop it. A tick that
+stops anywhere in between leaves the next one the feedback to hand over: the
+developer is launched once and no second reviewer is spent, and only feedback
+whose anchor never landed is posted again. A launch the ledger shows settled
+is not run again, and one that started and left no trace parks for the
+operator's retry, which replays the posted feedback to one developer.
 """
 from __future__ import annotations
 
@@ -29,6 +30,22 @@ EXECUTION_FAILED = "agent_execution_failed"
 # Ticks on `fixing` with nothing new on the thread, which a park waits through.
 QUIET_TICKS = 2
 
+HANDED_BACK = ((_world.ISSUE, LABEL_FIXING), (_world.ISSUE, LABEL_VALIDATING))
+
+
+def _hands_the_verdict_over(state) -> bool:
+    """Whether a pinned write carries the waiting verdict as handed."""
+    return (state.get(_world.RETURNED_VERDICT) or {}).get("handed") is not None
+
+
+# Each request the handoff makes before its launch, the one that fails, and
+# how many feedback posts the pull request carries once the next tick hands
+# the request over: feedback whose anchor never landed is posted again.
+_UNLANDED = (
+    ("the handoff's write", ("write_pinned_state", _hands_the_verdict_over), 2),
+    ("its relabel", ("set_workflow_label", lambda label: label == LABEL_FIXING), 1),
+)
+
 
 class _RefusesTheLaunchRead:
     """A pinned-comment read that fails once, the first time the issue carries `workflow:fixing`.
@@ -47,6 +64,52 @@ class _RefusesTheLaunchRead:
             self._failed = True
             raise ConnectionError("the pinned comment could not be read")
         return self._read(issue)
+
+
+class _FailsOnce:
+    """One client request that fails the first time `fails` says what it was asked is the one."""
+
+    def __init__(self, request, fails) -> None:
+        self._request = request
+        self._fails = fails
+        self._failed = False
+
+    def __call__(self, issue, asked):
+        if not self._failed and self._fails(asked):
+            self._failed = True
+            raise ConnectionError("GitHub refused the request")
+        return self._request(issue, asked)
+
+
+class UnlandedHandoffTest(_world.ReviewVerdictWorld, unittest.TestCase):
+    """A handoff whose write or relabel failed is finished on `validating` by one developer."""
+
+    def test_the_next_tick_hands_it_over(self) -> None:
+        for name, failure, posts in _UNLANDED:
+            with self.subTest(name):
+                self.setUp()
+                self._fails_the_handoff(*failure)
+                self.assertEqual(self.github.workflow_label(self.issue), LABEL_VALIDATING)
+
+                fixed = self.dispatched(_developer(), dirty_files=(), push_branch=True, head_shas=FIX_HEAD_SHAS)
+
+                spawned = fixed[_world.RUN_AGENT]
+                self.assertEqual(
+                    (
+                        spawned.call_count,
+                        _world.REQUESTED in spawned.call_args.args[1],
+                        len(_read.feedback_posts(self)),
+                        tuple(self.github.label_history),
+                        self.pinned()[_world.RETURNED_VERDICT],
+                    ),
+                    (1, True, posts, HANDED_BACK, None),
+                )
+
+    def _fails_the_handoff(self, request: str, fails) -> None:
+        """Return the change request over a client whose `request` fails once, where `fails` says."""
+        failing = _FailsOnce(getattr(self.github, request), fails)
+        with patch.object(self.github, request, failing), self.assertRaises(ConnectionError):
+            self.returns(REQUESTING)
 
 
 class HandedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):

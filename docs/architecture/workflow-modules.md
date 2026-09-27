@@ -2942,8 +2942,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             fixing stage's settled-round mark for a relabel that never lands -- plus the
                             no-VERDICT park and the split that tells a provider's failure from a reviewer's. A
                             feedback post that fails, or lands with no id to replay, holds a persisted verdict's
-                            handoff for the next tick rather than relabelling; the relabel's write carries that
-                            verdict as handed, and the writes behind the launch drop it
+                            handoff for the next tick rather than relabelling; otherwise that handoff is written,
+                            the verdict marked handed beside the anchor, BEFORE the relabel, and the writes behind
+                            the launch drop it
       dev_fix.py            what a finished dev fix leaves behind: the publishable reading and the proved remote
                             head it carries on as the lease, taken for a run that committed as well as for one
                             that did not -- a tick committing over work an earlier one stranded begins at a
@@ -3177,16 +3178,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             then acted on -- an owed transaction holds the verdict, a lost one drops it, and a
                             comment with no room for either parks it
       unverified_approvals.py
-                            whether an approval rests on the current evidence exactly as it claims -- settled,
-                            passing, covering the configuration, and proved current again; why not, for the park; or
-                            a hold where the proof could not be read
+                            whether an approval rests on the current evidence exactly as it claims -- settled and
+                            proved current again, then passing and covering the configuration by that evidence's
+                            own pass flag and re-read artifact rather than the claim's copies; why not, for the
+                            park; or a hold where a reading could not be taken
       review_parks.py       the two parks a verdict takes instead of being acted on, `reviewer_unverified` and
                             `reviewer_unrecorded`, each dropping the verdict in its own write and answered by a
                             fresh reviewer
       review_resume.py      the recovery hooks, live over a record an issue already carries: `workflow:validating`
                             finishes a waiting verdict ahead of the round cap with no reviewer run, usage fold, or
-                            round spent, while its subject still resolves to the one recorded, and
-                            `workflow:fixing` launches the one developer a handed change request never reached
+                            round spent, while its subject still resolves to the one recorded -- relabelling and
+                            launching a handed change request whose relabel never landed, posting nothing twice --
+                            and `workflow:fixing` launches the one developer a handed change request never reached
       review_handoffs.py    whether a handed change request's developer is owed, launched, or unfinished -- read off
                             the lifetime ledger past the handed count and, for a `started` charge, the branch --
                             and the `agent_execution_failed` park an unfinished launch takes

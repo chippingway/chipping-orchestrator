@@ -23,17 +23,20 @@ hand a fresh reviewer the subject as it stands, or to refuse it. A reading
 that could not be taken ends the tick with nothing written, for the next one
 to ask again.
 
-A change request handed to `workflow:fixing` is finished there instead
-(`finishes_a_handed_request`), where the relabel that handed it landed and the
-developer launch behind it did not: the feedback is already on the pull
-request, so the developer is launched on it and nothing is posted twice. The
-lifetime ledger and the branch say whether that launch happened
-(`review_handoffs`): a verdict whose developer was launched is dropped wherever
-it is found, since the run it owed happened, and one whose launch STARTED and
-left nothing to account for parks on `fixing` rather than paying for a second
-developer or a second reviewer. On `workflow:validating`, where only a relabel
-from outside brings a handed verdict back, an unfinished launch is dropped like
-a finished one and the round runs.
+A change request is handed over by a write that records it as handed, with
+the feedback's anchor, and only then by the relabel to `workflow:fixing`
+(`requested_changes`). Once that write landed the feedback is on the pull
+request, so a handed verdict is finished by launching the developer on it and
+nothing is posted twice: on `fixing` (`finishes_a_handed_request`), where the
+relabel landed and the launch did not, and on `workflow:validating`, where the
+relabel itself never landed, after moving the label first. The lifetime
+ledger and the branch say whether that launch happened (`review_handoffs`): a
+verdict whose developer was launched is dropped wherever it is found, since
+the run it owed happened, and one whose launch STARTED and left nothing to
+account for parks on `fixing` rather than paying for a second developer or a
+second reviewer. On `validating`, where only a relabel from outside brings
+such a verdict back, an unfinished launch is dropped like a finished one and
+the round runs.
 
 Nor is a verdict finished on a tick an awaiting-human park was cleared into:
 that reply bought a fresh round of its own, and the round's writes drop the
@@ -65,6 +68,7 @@ from orchestrator.workflow.stages.validating import (
     review_report as _review_report,
     review_verdicts as _verdicts,
 )
+from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -112,10 +116,17 @@ def resumes_a_returned_verdict(
     held, run = _resumed_run(gh, spec, issue, state, returned)
     if run is None:
         return held
-    _disposition.acts_on_the_verdict(gh, spec, issue, state, _disposition.VerdictInHand(
-        _models._ReviewerDecision(run, returned.verdict, returned.feedback),
-        returned.evidence,
-    ))
+    decision = _models._ReviewerDecision(run, returned.verdict, returned.feedback)
+    if returned.handed is not None:
+        # The write handing the request over landed and its relabel did not:
+        # the feedback is posted and anchored, so the label is moved and the
+        # developer launched on it rather than the feedback posted again.
+        gh.set_workflow_label(issue, WorkflowLabel.FIXING)
+        _hands_over(gh, spec, issue, state, decision)
+        return True
+    _disposition.acts_on_the_verdict(
+        gh, spec, issue, state, _disposition.VerdictInHand(decision, returned.evidence),
+    )
     return True
 
 
@@ -150,18 +161,33 @@ def finishes_a_handed_request(
         if not held:
             gh.write_pinned_state(issue, state)
         return held
-    log.info(
-        "issue=#%d hands the change request its relabel never delivered to "
-        "the developer, without a second reviewer", issue.number,
-    )
-    context = _models._RequestedChanges(gh, spec, issue, state, _models._ReviewerDecision(
+    _hands_over(gh, spec, issue, state, _models._ReviewerDecision(
         run, returned.verdict, returned.feedback,
     ))
+    return True
+
+
+def _hands_over(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    decision: _models._ReviewerDecision,
+) -> None:
+    """Launch the developer a handed change request owes, on the feedback already posted.
+
+    The drop is staged ahead of the launch, whose charge writes only its own
+    fields, so only the writes behind the run retire the verdict.
+    """
+    log.info(
+        "issue=#%d hands the change request its handoff never delivered to "
+        "the developer, without a second reviewer", issue.number,
+    )
+    context = _models._RequestedChanges(gh, spec, issue, state, decision)
     _verdicts.drops_the_verdict(state)
     _requested_changes._finish_requested_fix(
         context, _requested_changes._run_requested_fix(context),
     )
-    return True
 
 
 def _resumed_run(
