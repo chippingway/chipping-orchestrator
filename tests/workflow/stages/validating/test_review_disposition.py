@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 from orchestrator.github.pinned_state import MAX_PINNED_BODY
 from tests.workflow import published_reports as _published_reports
-from tests.workflow.fixtures import LABEL_DOCUMENTING, LABEL_FIXING, LABEL_VALIDATING, _agent, _reported
+from tests.workflow.fixtures import LABEL_DOCUMENTING, LABEL_FIXING, LABEL_VALIDATING, _agent
 from tests.workflow.stages.validating import review_verdict_readings as _read, review_verdict_test_support as _world
 from tests.workflow.stages.validating.validating_review_test_support import FIX_HEAD_SHAS
 
@@ -35,9 +35,7 @@ HANDED_BACK = ((_world.ISSUE, LABEL_FIXING), (_world.ISSUE, LABEL_VALIDATING))
 
 LATER_REPORT = "Covered the empty configuration as well; the suite passes."
 
-# A commit and an evidence digest nothing in the world names.
-OTHER_HEAD = "0123456789abcdef0123456789abcdef01234567"
-
+# An evidence digest nothing in the world names.
 OTHER_DIGEST = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 # A reviewer asking for that change beside its declared run, which failed,
@@ -46,15 +44,39 @@ REQUESTING = _world.declared_run(exit_status=1, verdict="CHANGES_REQUESTED")
 
 UNDECLARED_REQUEST = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
 
-# The requests between a change request's verdict and its handoff behind
-# which a later report settles, and how many feedback posts that leaves.
+
+
+def _settles_a_later_report(case) -> None:
+    """Another road's settlement of a later report on the same head."""
+    _published_reports.republishes_the_report(case.github, case.issue, LATER_REPORT)
+
+
+# The requests between a change request's verdict and its handoff behind which
+# another road moves its subject, how many feedback posts that leaves, and the
+# report revision the pinned comment records then.
 _BEFORE_THE_HANDOFF = (
     (
-        "the verdict's write",
-        ("write_pinned_state", lambda state: state.get(_world.RETURNED_VERDICT) is not None),
+        "a report behind the verdict's write",
+        (
+            "write_pinned_state",
+            lambda state: state.get(_world.RETURNED_VERDICT) is not None,
+            _settles_a_later_report,
+        ),
         0,
+        2,
     ),
-    ("the feedback post", ("pr_comment", lambda body: _read.FEEDBACK_NOTICE in body), 1),
+    (
+        "a report behind the feedback post",
+        ("pr_comment", lambda body: _read.FEEDBACK_NOTICE in body, _settles_a_later_report),
+        1,
+        2,
+    ),
+    (
+        "a push behind the feedback post",
+        ("pr_comment", lambda body: _read.FEEDBACK_NOTICE in body, _world.pushes),
+        1,
+        1,
+    ),
 )
 
 # Approvals that rely on no evidence an approval may rest on, and the words
@@ -63,7 +85,7 @@ _UNVERIFIED_APPROVALS = (
     ("nothing declared", "LGTM\n\nVERDICT: APPROVED", "declared no verification"),
     ("a failed run", _world.declared_run(exit_status=1), "did not exit 0"),
     ("another command", _world.declared_run(command="uv run ruff check"), "every command `VERIFY_COMMANDS`"),
-    ("another head", _world.declared_run().replace(_world.HEAD, OTHER_HEAD), "names another commit"),
+    ("another head", _world.declared_run().replace(_world.HEAD, _world.OTHER_HEAD), "names another commit"),
 )
 
 # Settled evidence a waiting approval's claim says passed and covers the
@@ -96,11 +118,6 @@ _NO_ROOM = (
 )
 
 
-def _developer():
-    """The developer run a handed change request is answered by."""
-    return _agent(session_id=_world.DEV_SESSION, last_message=_reported("fixed"))
-
-
 def _one_developer_later(spent: tuple) -> tuple:
     """What `spent` becomes once one developer answered and its pushed fix spent the one round.
 
@@ -122,29 +139,6 @@ class _ReadsTheCommentAtThePost:
     def __call__(self, pull_request, body):
         self.seen.append(self._case.pinned())
         return self._post(pull_request, body)
-
-
-class _SettlesALaterReportBehind:
-    """A client request behind which, the first time `when` says, a later report settles on the same head."""
-
-    def __init__(self, case, request: str, when) -> None:
-        self._case = case
-        self._name = request
-        self._request = getattr(case.github, request)
-        self._when = when
-        self._settled = False
-
-    def __call__(self, target, asked):
-        answered = self._request(target, asked)
-        if not self._settled and self._when(asked):
-            self._settled = True
-            _published_reports.republishes_the_report(self._case.github, self._case.issue, LATER_REPORT)
-        return answered
-
-    def returning(self, message: str) -> dict:
-        """The tick in which a reviewer returned `message`, over a client carrying this request."""
-        with patch.object(self._case.github, self._name, self):
-            return self._case.returns(message)
 
 
 class _RefusesTheFeedback:
@@ -327,7 +321,9 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
         self.assertEqual(_read.spent(self), charged)
 
     def test_a_report_settling_mid_post_drops_it(self) -> None:
-        posting = _SettlesALaterReportBehind(self, "_post_verification_artifact", lambda _body: True)
+        posting = _world.AnotherRoadBehind(
+            self, "_post_verification_artifact", lambda _body: True, _settles_a_later_report,
+        )
         ran = posting.returning(REQUESTING)
 
         self.assertEqual(
@@ -340,15 +336,15 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
             (0, [], None, []),
         )
 
-    def test_a_report_before_the_handoff_drops_it(self) -> None:
+    def test_a_move_before_the_handoff_drops_it(self) -> None:
         # Nothing declared, so nothing is published: the request is held to
         # the subject after its own write and again behind its feedback post,
-        # and the later report is kept rather than written back over.
-        for name, settles_behind, posts in _BEFORE_THE_HANDOFF:
+        # and a later report is kept rather than written back over.
+        for name, behind, posts, revision in _BEFORE_THE_HANDOFF:
             with self.subTest(name):
                 self.setUp()
 
-                ran = _SettlesALaterReportBehind(self, *settles_behind).returning(UNDECLARED_REQUEST)
+                ran = _world.AnotherRoadBehind(self, *behind).returning(UNDECLARED_REQUEST)
 
                 self.assertEqual(
                     (
@@ -358,7 +354,7 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
                         self.github.label_history,
                         _read.current_report_revision(self),
                     ),
-                    (0, posts, None, [], 2),
+                    (0, posts, None, [], revision),
                 )
 
     def test_a_refused_feedback_post_holds_it(self) -> None:
@@ -411,7 +407,7 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
 
     def _fixed(self) -> dict:
         """The next tick, in which one developer answers the request and pushes."""
-        return self.dispatched(_developer(), dirty_files=(), push_branch=True, head_shas=FIX_HEAD_SHAS)
+        return self.dispatched(_world.developer(), dirty_files=(), push_branch=True, head_shas=FIX_HEAD_SHAS)
 
     def _fills(self, filled: int) -> None:
         """Put `filled` characters of operator notes on the pinned comment."""

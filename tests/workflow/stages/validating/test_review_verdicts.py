@@ -14,6 +14,11 @@ import unittest
 from dataclasses import replace
 
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState, pinned_state_body
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    report_record_state as _report_record_state,
+    run_ledger as _run_ledger,
+)
 from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
 from tests.workflow.engine import verification_record_test_support as _record_support
 
@@ -51,11 +56,39 @@ APPROVED = replace(RETURNED, verdict=_verdicts.APPROVED, feedback="")
 
 FILLER = "operator_notes"
 
+# What a change request's handoff and its developer's launch write, at widths
+# GitHub and the ledger spell them in practice: the feedback comment's id, the
+# lifetime count the request is handed at, and the launch's fingerprint.
+POSTED_ID = 3_456_789_012
 
-def _filled_to(returned: _verdicts.ReturnedVerdict) -> PinnedState:
-    """A comment filled so that `returned`, as first written, would be its last character."""
+RUNS_USED = 41
+
+LAUNCH = "0123456789abcdef" * 4
+
+# How far short of the comment's last character a sweep starts: past all the
+# handoff and the launch's charge add beside the record.
+SWEEP = 400
+
+
+def _filled_to(returned: _verdicts.ReturnedVerdict, short: int = 0) -> PinnedState:
+    """A comment filled so that `returned`, as first written, would end `short` characters before its last."""
     bare = len(pinned_state_body({FILLER: "", _verdicts.RETURNED_VERDICT: returned.recorded()}))
-    return PinnedState(comment_id=1, state_data={FILLER: "x" * (MAX_PINNED_BODY - bare)})
+    filled = "x" * (MAX_PINNED_BODY - bare - short)
+    return PinnedState(comment_id=1, state_data={FILLER: filled})
+
+
+def _handed_and_charged(state: PinnedState) -> bool:
+    """Whether the comment still fits once `state`'s request is handed over and its developer's launch charged.
+
+    Both are written while the verdict stands: the handoff by its own write,
+    and the charge composed over the comment that write left.
+    """
+    _verdicts.hands_off(state, RUNS_USED)
+    state.set("pending_fix_reviewer_comment_id", POSTED_ID)
+    _comments._track_orchestrator_comment(state, POSTED_ID)
+    state.set("agent_runs_used", RUNS_USED)
+    _run_ledger._reserve_run(state, LAUNCH)
+    return _report_record_state.fits_the_comment(state.data)
 
 
 def _with(record: dict, **members) -> dict:
@@ -132,6 +165,18 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
                     (_verdicts.records_the_verdict(state, returned), state.carries(_verdicts.RETURNED_VERDICT)),
                     (accepted, accepted),
                 )
+
+    def test_accepted_records_leave_the_launch_room(self) -> None:
+        # Every comment a change request is accepted into, up to its last
+        # character, still carries the request handed over and the developer
+        # launch's charge of the run ledger behind it.
+        accepted = 0
+        for short in range(SWEEP):
+            state = _filled_to(RETURNED, short)
+            if _verdicts.records_the_verdict(state, RETURNED):
+                accepted += 1
+                self.assertTrue(_handed_and_charged(state), f"{short} characters short")
+        self.assertGreater(accepted, 0, "the sweep reached no comment the record fits")
 
     def test_a_handoff_marks_the_waiting_one(self) -> None:
         carried = PinnedState(

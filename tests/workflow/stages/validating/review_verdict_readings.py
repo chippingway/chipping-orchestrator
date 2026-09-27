@@ -21,6 +21,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
 )
 from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
+from tests.workflow.engine.event_values import EVENT_AGENT_SPAWN
 from tests.workflow.stages.validating import review_verdict_test_support as _world
 
 # What the issue has spent: runs charged, usage folded, rounds.
@@ -50,6 +51,13 @@ def artifacts(case) -> list:
 def current_report_revision(case) -> int:
     """The revision of the developer report `case`'s pinned comment records as current."""
     return _report_settlement.read_current_report(case.github.read_pinned_state(case.issue)).report_revision
+
+
+def spawned_roles(case) -> list[str]:
+    """The role of every agent `case`'s issue has spawned through the tracked runner, in order."""
+    return [
+        event.get("agent_role") for event in case.github.recorded_events if event["event"] == EVENT_AGENT_SPAWN
+    ]
 
 
 def feedback_posts(case) -> list[str]:

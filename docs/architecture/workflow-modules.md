@@ -3142,8 +3142,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             squash tail asks all of it before its relabel, on either road into it, the settled
                             squash handoff before moving a label that tail left owed, and `in_review` before an
                             approval may stand behind a ready ping. A persisted verdict is held to its subject
-                            once more after its evidence is published (`_verdict_still_stands`), over the comment
-                            read again first. Nothing here parks or posts
+                            again behind each request that could move it -- its evidence's publication, a change
+                            request's feedback post, whatever a refused approval was read over
+                            (`_verdict_still_stands`) -- over the comment read again first. Nothing here parks or
+                            posts
       review_records.py     what a reviewer round writes onto the pinned comment, through writers the round and the
                             report settlement's measurement share: the spec and the subject it is handed, written ahead
                             of the spawn -- onto the comment as `review_report.py` read it, since the launch charge
@@ -3165,8 +3167,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             verdict, subject, feedback, the one evidence claim it relies on, and the agent-run count a
                             change request was handed to `workflow:fixing` on. Read whole or not at all, staged only
                             where the comment has room for it at its widest write -- a change request's handoff,
-                            reserved with the count, anchor, and ledger entry it adds, and the claimed transaction
-                            measured beside that -- and dropped only where it stands
+                            reserved with the count, anchor, and ledger entry it adds and the developer launch's
+                            run-ledger charge composed over it, and the claimed transaction measured beside that
+                            -- and dropped only where it stands
       review_claims.py      what a returned reviewer's verification declaration earns: commands it ran minted as a
                             reviewer-reported transaction bound to the handed subject and the reviewed head's tree, a
                             reuse of the current evidence it was handed named exactly, or the reason it earns none;
@@ -3175,7 +3178,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       review_disposition.py the order a returned verdict is settled in, which no live round calls yet: held to the
                             subject standing, persisted with its minted transaction in one write, the evidence
                             published through the dispatcher's own reconciliation, the subject held again, and only
-                            then acted on -- an owed transaction holds the verdict, a lost one drops it, and a
+                            then acted on -- an owed transaction holds the verdict, a lost one drops it, a refused
+                            approval parks only while its subject still stands and is dropped otherwise, and a
                             comment with no room for either parks it
       unverified_approvals.py
                             whether an approval rests on the current evidence exactly as it claims -- settled and
@@ -3191,9 +3195,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             launching a handed change request whose relabel never landed, posting nothing twice --
                             and `workflow:fixing` launches the one developer a handed change request never reached
       review_handoffs.py    a persisted change request's handoff: held to the subject standing, the pinned comment
-                            read first, then the feedback posted, the records read again behind that post, the
-                            verdict written as handed with the anchor, and only then the relabel and the launch --
-                            a moved subject drops the verdict over the newer records. Also whether a handed
+                            read first, then the feedback posted, the whole subject held again behind that post,
+                            the verdict written as handed with the anchor, and only then the relabel and the launch
+                            -- a moved subject drops the verdict over the newer records. Also whether a handed
                             request's developer is owed, launched, or unfinished -- read off the lifetime ledger
                             past the handed count and, for a `started` charge, the branch -- and the
                             `agent_execution_failed` park an unfinished launch takes

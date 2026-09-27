@@ -15,6 +15,10 @@ the launch and the return record it, the launch charged, the reviewer's usage
 folded once, and the parsed verdict handed to `review_disposition`. Every later
 tick is dispatched as the dispatcher takes one -- the evidence reconciliation,
 then the handler -- and read back through `review_verdict_readings`.
+
+What another road does between two of a tick's requests is spelled here too
+(`AnotherRoadBehind`): a push, or a later report settling, behind the one
+request a case is about.
 """
 from __future__ import annotations
 
@@ -36,8 +40,8 @@ from orchestrator.workflow.stages.validating import (
     review_records as _review_records,
     review_report as _review_report,
 )
-from tests.support.fakes import DEFAULT_PR_HEAD_SHA, FakeGitHubClient, make_issue
-from tests.workflow.fixtures import LABEL_VALIDATING, _agent, _PatchedWorkflowMixin, publishes_the_report
+from tests.support.fakes import DEFAULT_PR_HEAD_SHA, FakeComment, FakeGitHubClient, FakeUser, make_issue
+from tests.workflow.fixtures import LABEL_VALIDATING, _agent, _PatchedWorkflowMixin, _reported, publishes_the_report
 from tests.workflow.git_owners import seam_patch
 from tests.workflow.repo_values import _FAKE_WT, _TEST_SPEC
 from tests.workflow.value_helpers import _issue_branch, _open_pr_for
@@ -47,6 +51,9 @@ ISSUE = 1_990
 PR = 19_900
 
 HEAD = DEFAULT_PR_HEAD_SHA
+
+# A commit a push moves the pull request onto, which nobody reviewed.
+OTHER_HEAD = "0123456789abcdef0123456789abcdef01234567"
 
 DEV_SESSION = "dev-sess"
 
@@ -93,6 +100,48 @@ def declared_run(
         "VERIFICATION: END\n\n"
         f"VERDICT: {verdict}"
     )
+
+
+def developer():
+    """The developer run a handed change request is answered by."""
+    return _agent(session_id=DEV_SESSION, last_message=_reported("fixed"))
+
+
+def replies(case, text: str) -> None:
+    """The issue author's reply on `case`'s issue thread, below everything posted on it so far."""
+    author = FakeUser(case.issue.user.login)
+    case.issue.comments.append(FakeComment(
+        id=case.github._next_comment_id(case.issue), body=text, user=author,
+    ))
+
+
+def pushes(case) -> None:
+    """Another road's push, standing `case`'s pull request on a head nobody reviewed."""
+    case.pull_request.head.sha = OTHER_HEAD
+
+
+class AnotherRoadBehind:
+    """A client request behind which, the first time `when` says, `road` does another road's work."""
+
+    def __init__(self, case, request: str, when, road) -> None:
+        self._case = case
+        self._name = request
+        self._request = getattr(case.github, request)
+        self._when = when
+        self._road = road
+        self._done = False
+
+    def __call__(self, target, asked):
+        answered = self._request(target, asked)
+        if not self._done and self._when(asked):
+            self._done = True
+            self._road(self._case)
+        return answered
+
+    def returning(self, message: str) -> dict:
+        """The tick in which a reviewer returned `message`, over a client carrying this request."""
+        with patch.object(self._case.github, self._name, self):
+            return self._case.returns(message)
 
 
 class ReviewVerdictWorld(_PatchedWorkflowMixin):

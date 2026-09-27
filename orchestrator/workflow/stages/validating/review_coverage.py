@@ -30,10 +30,11 @@ not finish sent it there; the settled handoff asks it before moving a label
 that tail left owed; and `in_review` asks it before the approval may stand
 behind a ready ping.
 
-A returned verdict is held to its subject once more after the evidence it
-declared is published (`_verdict_still_stands`), ahead of the change request
-or the approval it carries: a report settling during that publication is a
-subject nobody reviewed.
+A persisted verdict is held to its subject again behind every request that
+could let it move (`_verdict_still_stands`) -- its evidence's publication, its
+own write, a change request's feedback post -- ahead of the change request or
+the approval it carries: a push or a report settling in between is a subject
+nobody reviewed.
 
 Nothing here parks or posts. What a refusal owes is the next reviewer
 round's to decide, and that round resolves the subject for itself.
@@ -104,18 +105,21 @@ def _verdict_still_stands(
     issue: Issue,
     state: PinnedState,
     subject: _review_subjects.ReviewSubject,
+    resolved_over: dict | None = None,
 ) -> bool | None:
-    """Whether a verdict of `subject` still stands once its evidence's publication is over.
+    """Whether a verdict of `subject` still stands once the requests since it was last held to it are over.
 
-    The publication is requests long enough for another road to settle a
-    later report, which is on the pinned comment and nowhere in hand while
-    the earlier report still reads where it was -- so the comment is read
-    again against the state in hand first (`review_comment._records_stand`),
-    carrying whatever it moved onto that state, and only then is the whole
-    subject resolved again. None where the comment will not read, which
-    writes nothing.
+    A publication, a verdict's own write, or a feedback post is a request
+    long enough for another road to push or to settle a later report, which
+    is on the pinned comment and nowhere in hand while the earlier report
+    still reads where it was -- so the comment is read again against
+    `resolved_over` first, the state in hand by default
+    (`review_comment._records_stand`), carrying whatever it moved onto that
+    state, and only then is the whole subject resolved again. None where the
+    comment will not read, which writes nothing.
     """
-    stood = _review_comment._records_stand(gh, issue, state, dict(state.data))
+    baseline = dict(state.data) if resolved_over is None else resolved_over
+    stood = _review_comment._records_stand(gh, issue, state, baseline)
     if stood is None:
         return None
     return stood and _subject_still_stands(gh, issue, state, subject)

@@ -36,9 +36,10 @@ before it is staged -- a change request's feedback is the reviewer's own words
 and has no bound -- and a comment with no room for it goes without the record
 rather than past what GitHub accepts. It is measured at the widest write it is
 ever part of: a change request is written again as handed, beside the anchor
-of the feedback it posted and that comment's ledger entry, so that handoff is
-reserved here, and the transaction the verdict claims is measured beside the
-reservation rather than beside the narrower record.
+of the feedback it posted and that comment's ledger entry, and stays pinned
+through the developer launch's own charge of the run ledger, so the handoff
+and that charge are reserved here, and the transaction the verdict claims is
+measured beside the reservation rather than beside the narrower record.
 """
 from __future__ import annotations
 
@@ -51,10 +52,13 @@ from orchestrator.workflow.engine import (
     report_record_state as _report_record_state,
     report_record_values as _record_values,
     review_subjects as _review_subjects,
+    run_ledger as _run_ledger,
+    run_ledger_values as _run_ledger_values,
     verification_record_state as _record_state,
     verification_records as _records,
 )
 from orchestrator.workflow.late_split import formats as _formats, payloads as _payloads
+from orchestrator.workflow.stages.validating import review_records as _review_records
 
 # The verdict a returned reviewer left and no disposition has dropped yet.
 RETURNED_VERDICT = "review_returned_verdict"
@@ -220,15 +224,22 @@ class ReturnedVerdict:
 
         A change request goes down again as handed -- at an agent-run count,
         beside the anchor of the feedback it posted, which the comment's ledger
-        records too -- each reserved at the widest a recorded number is
-        spelled. An approval is never handed, and is measured as it is.
+        records too -- and is still pinned when the developer's launch charges
+        the run ledger, composed over that very comment, so each is reserved at
+        the widest a recorded number or fingerprint is spelled, the charge
+        through the ledger's own writer as a reviewer round's is. An approval
+        is never handed, and is measured as it is.
         """
         reserved = PinnedState(comment_id=state.comment_id, state_data=dict(state.data))
         written = self
         if self.verdict == CHANGES_REQUESTED:
-            written = replace(self, handed=_record_values.MAX_RECORDED_NUMBER)
-            reserved.set(_FEEDBACK_ANCHOR, _record_values.MAX_RECORDED_NUMBER)
-            _comments._reserve_comment_slot(reserved, _record_values.MAX_RECORDED_NUMBER)
+            widest = _record_values.MAX_RECORDED_NUMBER
+            written = replace(self, handed=widest)
+            reserved.set(_FEEDBACK_ANCHOR, widest)
+            _comments._reserve_comment_slot(reserved, widest)
+            # The charge adds one to the count it finds.
+            reserved.set(_run_ledger_values.AGENT_RUNS_USED, widest - 1)
+            _run_ledger._reserve_run(reserved, _review_records._WIDEST_FINGERPRINT)
         reserved.set(RETURNED_VERDICT, written.recorded())
         return reserved
 

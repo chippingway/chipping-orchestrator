@@ -1735,8 +1735,8 @@ The keys that matter for the state machine fall into a few groups:
   carrying one does not read. The disposition service (`review_disposition.py`) writes it in one write with the returned
   run's own records, BEFORE its evidence is published or the verdict acted on, beside the transaction it claims; the
   approval arc's write and each park's set it to `null`. A change request is handed over only while its subject still
-  stands, resolved again with the pinned comment read first, and with the report records read once more behind its
-  feedback post -- a later report settling in between drops the verdict in a write that keeps the newer records -- and
+  stands, resolved again with the pinned comment read first, and held to the whole subject once more behind its feedback
+  post -- a push or a later report settling in between drops the verdict in a write that keeps the newer records -- and
   its handoff is written with `handed` set and the feedback's `pending_fix_reviewer_comment_id` BEFORE the relabel to
   `workflow:fixing`; the writes after the developer launch set the record to `null`. No live reviewer round hands its
   result to that service yet, so no issue carries the key until one does. The recovery hooks are live and answer only a
@@ -1749,13 +1749,16 @@ The keys that matter for the state machine fall into a few groups:
   posted feedback to a fresh developer session. A subject that moved, a park a reply cleared into a fresh round, a
   developer already launched, or a record in any shape its reader refuses drops it. Additive: an issue without it has no
   verdict waiting. It is measured before it is staged -- a change request's feedback has no bound -- at the widest write
-  it is part of: a change request's handoff, with its count, anchor, and that comment's ledger entry reserved at the
-  widest a recorded number is spelled, and the claimed transaction and its settlement measured beside that. A verdict
-  the comment has no room for, or whose transaction it has no room for, is not acted on: it parks under
-  `reviewer_unrecorded`. An approval parks under `reviewer_unverified` unless its claim names the current evidence
-  exactly and that evidence proves current, its re-read artifact still the one that settled, and passes and covers the
-  configuration by the artifact's own commands rather than by the claim's copied `passed` and `covers`; a bare
-  `/orchestrator continue` on either park buys a fresh reviewer.
+  it is part of: a change request's handoff, with its count, anchor, and that comment's ledger entry, and the developer
+  launch's `agent_runs_used` / `agent_run_reservation` / `agent_run_fingerprint` charge composed over it while the
+  record still stands, each reserved at the widest a recorded number or fingerprint is spelled, and the claimed
+  transaction and its settlement measured beside that. A verdict the comment has no room for, or whose transaction it
+  has no room for, is not acted on: it parks under `reviewer_unrecorded`. An approval of the subject still standing --
+  one a push or a later report moved since its write is dropped for a fresh reviewer instead -- parks under
+  `reviewer_unverified` unless its claim names the current evidence exactly and that evidence proves current, its
+  re-read artifact still the one that settled, and passes and covers the configuration by the artifact's own commands
+  rather than by the claim's copied `passed` and `covers`; a bare `/orchestrator continue` on either park buys a fresh
+  reviewer.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
   live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the

@@ -37,7 +37,11 @@ Once the publication's requests are over, the subject is held to what stands
 again (`review_coverage._verdict_still_stands`): a later report settling on the
 same head while the artifact was posted is on the pinned comment and nowhere in
 hand, and a verdict acted on over it would post feedback about, and launch a
-developer on, words the pull request no longer carries.
+developer on, words the pull request no longer carries. A change request's
+handoff holds it again around its own feedback post (`review_handoffs`), and a
+refused approval before it parks, so a push or a later report that landed
+meanwhile drops the verdict for a fresh reviewer rather than parking it for a
+human.
 
 The evidence is published before the verdict is acted on, on the tick it
 returns, and neither verdict is acted on until it is: a publication that holds
@@ -50,7 +54,7 @@ A change request stands without evidence -- a reviewer may find a bug without
 running anything -- and goes to the developer as it always has. An approval
 does not: it reaches the approval arc only once the evidence it relies on is
 settled, passing, and proved current (`unverified_approvals`), and parks for a
-human otherwise.
+human otherwise -- while its subject still stands.
 
 Every disposition retires the verdict in the write it makes: the approval arc
 in whichever write its road makes, and each park in its own. A change request
@@ -137,7 +141,7 @@ def disposes_of_the_verdict(
             "evidence it declared is confirmed on PR #%s", issue.number, run.pr_number,
         )
         return
-    if in_hand.pending is not None and not _stood_through_the_publication(gh, issue, state, run):
+    if in_hand.pending is not None and not _still_stands(gh, issue, state, run):
         return
     # What this tick wrote -- the verdict, and the settlement behind it -- is
     # what every later re-read of the comment is measured against, as the
@@ -173,7 +177,13 @@ def acts_on_the_verdict(
             "holding the approval for the next tick", issue.number,
         )
     elif refusal:
-        _parks.parks_unverified(gh, issue, state, decision.run, refusal)
+        # A push, an edit, or a later report since the verdict was last held
+        # to its subject refuses the evidence as surely as a failed check, but
+        # it is a review of work nobody is asking about: a fresh reviewer
+        # answers that without anybody's reply, so only a verdict of the
+        # subject standing parks.
+        if _still_stands(gh, issue, state, decision.run):
+            _parks.parks_unverified(gh, issue, state, decision.run, refusal)
     else:
         _verdicts.drops_the_verdict(state)
         _approval._finalize_validating_approval(
@@ -221,29 +231,30 @@ def _waits_on_its_evidence(
     return True
 
 
-def _stood_through_the_publication(
+def _still_stands(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
     run: _models._ReviewerRun,
 ) -> bool:
-    """Whether the verdict's subject still stands after its evidence's publication.
+    """Whether the verdict's subject still stands, dropping the verdict where it moved.
 
-    Asked only where this tick published something: the subject was held to
-    what stands just before the verdict was persisted, and only the
-    publication's requests are long enough to move it again. A later report
-    settling while the artifact was posted is a subject nobody reviewed: a
-    change request acted on over it would post feedback about words the pull
-    request no longer carries and launch a developer on it. Such a verdict is
-    dropped in a write composed over what the comment carries now, for the
-    next tick's reviewer; a comment that will not read writes nothing, and the
-    verdict waits for the next tick to resolve again.
+    Asked behind requests long enough to move it: its evidence's publication,
+    where this tick published something, and whatever an approval's refusal
+    was read over before that refusal parks. A later report settling, or a
+    push, meanwhile is a subject nobody reviewed: a change request acted on
+    over it would post feedback about words the pull request no longer
+    carries and launch a developer on it, and a refused approval would park
+    for a human over a review nobody needs. Such a verdict is dropped in a
+    write composed over what the comment carries now, for the next tick's
+    reviewer; a comment that will not read writes nothing, and the verdict
+    waits for the next tick to resolve again.
     """
     stands = _review_coverage._verdict_still_stands(gh, issue, state, run.subject)
     if stands is False:
         log.info(
-            "issue=#%d the subject its reviewer's verdict is about moved while "
-            "the evidence was published; dropping the verdict", issue.number,
+            "issue=#%d the subject its reviewer's verdict is about moved "
+            "before it was acted on; dropping the verdict", issue.number,
         )
         _verdicts.drops_the_verdict(state)
         gh.write_pinned_state(issue, state)

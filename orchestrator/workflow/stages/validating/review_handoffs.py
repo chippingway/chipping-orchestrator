@@ -4,18 +4,20 @@
 
 The handoff (`hands_the_request_over`) is taken only while the subject the
 verdict is about still stands, resolved again with the pinned comment read
-first, since another road can settle a later report between the verdict's
-write and this: feedback posted and handed on over it is about words the pull
-request no longer carries, and the handoff's write would put the older report
-records back over the newer. The feedback is posted next, and the one durable
-copy of it is the id it lands as, so a post that failed or left no id relabels
-and launches nothing and the verdict still waiting posts again on the next
-tick. The records are read once more behind that post, the one request between
-the recheck and the write, and only then is the verdict written as handed at
-the lifetime agent-run count (`review_verdicts`), with the anchor, and the
-issue relabelled to `workflow:fixing` -- so whichever request fails leaves a
-verdict the next tick hands over without posting twice (`review_resume`). The
-room that write needs was reserved when the verdict was recorded.
+first, since another road can settle a later report between the verdict's write
+and this: feedback posted and handed on over it is about words the pull request
+no longer carries, and the handoff's write would put the older report records
+back over the newer. The feedback is posted next, and the one durable copy of
+it is the id it lands as, so a post that failed or left no id relabels and
+launches nothing and the verdict still waiting posts again on the next tick.
+The whole subject is held to what stands once more behind that post, the one
+request between the recheck and the write -- a push landing during it is as
+much a subject nobody reviewed -- and only then is the verdict written as
+handed at the lifetime agent-run count (`review_verdicts`), with the anchor,
+and the issue relabelled to `workflow:fixing` -- so whichever request fails
+leaves a verdict the next tick hands over without posting twice
+(`review_resume`). The room that write and the launch's charge need was
+reserved when the verdict was recorded.
 
 Only the writes behind the developer's run retire the verdict, so a handed one
 still standing is a handoff whose developer's run wrote nothing, and what that
@@ -62,7 +64,6 @@ from orchestrator.workflow.stages.implementing import parks as _implementing_par
 from orchestrator.workflow.stages.validating import (
     models as _models,
     requested_changes as _requested_changes,
-    review_comment as _review_comment,
     review_coverage as _review_coverage,
     review_verdicts as _verdicts,
     state as _state,
@@ -105,7 +106,10 @@ def hands_the_request_over(
             "feedback is posted on the PR", issue.number,
         )
         return
-    stood = _review_comment._records_stand(gh, issue, state, posted_over)
+    # The post is a request of its own, long enough for a push or a later
+    # report to land; the records are read against the comment the post was
+    # made over, so the anchor it staged is not mistaken for another road's.
+    stood = _review_coverage._verdict_still_stands(gh, issue, state, decision.run.subject, posted_over)
     if not stood:
         _drops_what_moved(gh, issue, state, stood)
         return

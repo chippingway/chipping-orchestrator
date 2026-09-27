@@ -15,8 +15,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from tests.support.fakes import FakeComment, FakeUser
-from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING, _agent, _reported
+from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING
 from tests.workflow.stages.validating import review_verdict_readings as _read, review_verdict_test_support as _world
 from tests.workflow.stages.validating.validating_review_test_support import FIX_HEAD_SHAS
 
@@ -91,7 +90,7 @@ class UnlandedHandoffTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 self._fails_the_handoff(*failure)
                 self.assertEqual(self.github.workflow_label(self.issue), LABEL_VALIDATING)
 
-                fixed = self.dispatched(_developer(), dirty_files=(), push_branch=True, head_shas=FIX_HEAD_SHAS)
+                fixed = self.dispatched(_world.developer(), dirty_files=(), push_branch=True, head_shas=FIX_HEAD_SHAS)
 
                 spawned = fixed[_world.RUN_AGENT]
                 self.assertEqual(
@@ -127,7 +126,7 @@ class HandedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
             (LABEL_FIXING, pinned[_world.AGENT_RUNS_USED]),
         )
 
-        fixed = self._fixing(_developer())
+        fixed = self._fixing(_world.developer())
 
         self.assertEqual(
             (
@@ -170,12 +169,8 @@ class HandedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
             ({0}, EXECUTION_FAILED, None, LABEL_FIXING),
         )
 
-        self.issue.comments.append(FakeComment(
-            id=self.github._next_comment_id(self.issue),
-            body="/orchestrator continue",
-            user=FakeUser(self.issue.user.login),
-        ))
-        fixed = self._fixing(_developer())
+        _world.replies(self, "/orchestrator continue")
+        fixed = self._fixing(_world.developer())
 
         spawned = fixed[_world.RUN_AGENT]
         self.assertEqual(
@@ -195,11 +190,6 @@ class HandedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
         state.set(_world.AGENT_RUNS_USED, state.get(_world.AGENT_RUNS_USED) + 1)
         state.set(RESERVATION, phase)
         self.github.write_pinned_state(self.issue, state)
-
-
-def _developer():
-    """The developer run a handed change request is answered by."""
-    return _agent(session_id=_world.DEV_SESSION, last_message=_reported("fixed"))
 
 
 if __name__ == "__main__":
