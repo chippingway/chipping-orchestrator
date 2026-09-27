@@ -1782,8 +1782,10 @@ The keys that matter for the state machine fall into a few groups:
   reviewer-reported evidence, `review_subject` for orchestrator-executed), the settled report re-read exactly as a
   reviewer is handed it -- `developer_report_current` and `developer_report_handoff` agreeing, and the report at its
   recorded location unchanged under its author -- named by that subject, which passes that reader's own rules
-  (requirements the round was due, and a report about the subject's head written against `user_content_hash`), and the
-  issue's requirements the bound revision. The post is scoped by the receipt, so an accepted write whose response was
+  (requirements the round was due, and a report about the subject's head written against `user_content_hash`, or older
+  than a `user_content_hash` that is the subject's own requirements, which only the settlement of the reply that bought
+  the round leaves), and the issue's requirements the bound revision. The post is scoped by the receipt, so an
+  accepted write whose response was
   lost is found rather than repeated. Before the settlement the issue and the pinned comment are read afresh: the issue
   has to be live work still, by the same rule as above, or nothing at all is written; the comment has to carry every
   bound record -- `pr_number`, the `developer_report_*` group, `review_subject`, `review_returned_subject`, the four
