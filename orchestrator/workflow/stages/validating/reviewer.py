@@ -334,7 +334,7 @@ def _dispatch_reviewer_result(
     # carries. The run is recorded over whatever settled meanwhile, and the
     # next tick's reviewer is handed the subject as it stands, or refused.
     if reviewer_run.report_moved or not _review_coverage._subject_still_stands(
-        gh, issue, state, reviewer_run.subject,
+        gh, issue, state, reviewer_run.subject.recorded(),
     ):
         gh.write_pinned_state(issue, state)
         return

@@ -11,9 +11,10 @@ which would spend another run, fold its usage again, and could say something
 else about the same subject. So the verdict is to be written onto the pinned
 comment in the write that records the returned reviewer's run, before the
 evidence is published or the verdict disposed of, and dropped by whichever
-write disposes of it. No live reviewer round writes it yet: the round keeps
-acting on its verdict in the tick it returns, and this owner is the record
-alone -- its shape, its reader, its measurement, and its writers.
+write disposes of it. Only the dormant disposition service writes it
+(`review_disposition`), and no live reviewer round calls that service yet: the
+round keeps acting on its verdict in the tick it returns, and this owner is the
+record alone -- its shape, its reader, its measurement, and its writers.
 
 `review_returned_verdict` holds the round the reviewer ran as, its verdict,
 the subject it was handed exactly as `review_subjects` records one, the
@@ -102,6 +103,9 @@ _HANDED = "handed"
 _FEEDBACK_ANCHOR = "pending_fix_reviewer_comment_id"
 
 _VERDICT_MEMBERS = frozenset((_ROUND, _VERDICT, _SUBJECT, _FEEDBACK, _EVIDENCE, _HANDED))
+
+# What `drops_the_verdict` drops where its caller names no verdict it holds.
+_WHICHEVER = object()
 
 _CLAIM_MEMBERS = frozenset((_USE, _RECEIPT, _REVISION, _DIGEST, _PASSED, _COVERS))
 
@@ -230,6 +234,16 @@ class ReturnedVerdict:
         )
         return returned if all(read_whole) else None
 
+    def reads_back(self) -> bool:
+        """Whether this verdict, written, reads back as exactly itself.
+
+        What the record holds is the reviewer's own -- its words above all --
+        and a verdict whose record its reader refuses, words UTF-8 cannot carry
+        say, is no verdict a later tick can finish, however much room the
+        comment has for it.
+        """
+        return ReturnedVerdict.read(self.recorded()) == self
+
     def claims_exactly(self, pending: _records.PendingEvidence | None) -> bool:
         """Whether `pending` is exactly the transaction this verdict relies on, or None where it relies on none.
 
@@ -301,16 +315,16 @@ def records_the_verdict(
 ) -> bool:
     """Stage `returned` and the transaction `pending` it claims where they fit; False, untouched, where not.
 
-    Refused outright unless the record reads back as `returned` exactly --
-    a record its own reader refuses is no verdict a later tick can finish --
-    and unless `pending` is exactly what the verdict claims
+    Refused outright unless the record reads back as `returned` exactly
+    (`ReturnedVerdict.reads_back`) and unless `pending` is exactly what the
+    verdict claims
     (`ReturnedVerdict.claims_exactly`). Measured at the verdict's handoff,
     and the transaction over that -- its own record and the write that
     settles it (`ReturnedVerdict.fits_beside`) -- so neither the settlement
     nor the handoff is the write GitHub refuses. The caller writes.
     """
-    readable = ReturnedVerdict.read(returned.recorded()) == returned
-    if not (readable and returned.claims_exactly(pending) and returned.fits_beside(state, pending)):
+    staged = returned.reads_back() and returned.claims_exactly(pending)
+    if not (staged and returned.fits_beside(state, pending)):
         return False
     if pending is not None and not _record_state.record_pending_evidence(state, pending):
         return False
@@ -330,11 +344,19 @@ def hands_off(state: PinnedState, runs_used: int) -> None:
         state.set(RETURNED_VERDICT, replace(waiting, handed=runs_used).recorded())
 
 
-def drops_the_verdict(state: PinnedState) -> None:
-    """Stage the end of the verdict this issue had waiting, where it has one.
+def drops_the_verdict(state: PinnedState, *, only: object = _WHICHEVER) -> bool:
+    """Stage the end of the verdict this issue had waiting, where it has one; whether it did.
 
     Only where the key is present, so an issue that never carried one is not
-    given it. The caller writes.
+    given it. `only`, where given, is the verdict the caller holds, and the
+    waiting one is dropped only where it reads as exactly that: a verdict
+    another road put in its place since, carried onto `state` by a reading of
+    the comment, is that road's to finish, not the caller's to drop. The
+    caller writes.
     """
-    if state.carries(RETURNED_VERDICT):
-        state.set(RETURNED_VERDICT, None)
+    if not state.carries(RETURNED_VERDICT):
+        return False
+    if only is not _WHICHEVER and read_returned_verdict(state) != only:
+        return False
+    state.set(RETURNED_VERDICT, None)
+    return True

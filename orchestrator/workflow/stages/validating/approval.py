@@ -485,7 +485,7 @@ def _finalize_validating_approval(
     if verify.status not in ("ok", "not_run"):
         _verify._park_verify_failure(gh, issue, state, verify)
     elif records_stand and _review_coverage._subject_still_stands(
-        gh, issue, state, reviewer_run.subject,
+        gh, issue, state, reviewer_run.subject.recorded(),
     ):
         # Staged here and written by whichever write the squash road below
         # makes, so an approval nothing recorded is never one a later tick

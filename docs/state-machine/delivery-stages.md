@@ -3453,6 +3453,27 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        the post-spawn state (no resume-budget charge, no watermark, no park), so the pre-spawn `workflow:fixing` flip
        stands and the next tick re-runs the cycle; any commit the killed run left is republished later via the
        stranded-fix tail, not this run.
+     - **the returned-verdict disposition** (`validating/review_disposition.py`), which no live round calls yet, is the
+       preparation an approval or change request of a standing subject is to be acted on behind: the transaction its
+       declared commands are minted as, then the subject held to what stands and the comment read again behind that
+       resolution -- a `verification_evidence_*` record moved since refusing it as surely as a report -- then the run's
+       own records staged, its usage folded over whatever usage that reading carries, and the verdict persisted as
+       `review_returned_verdict` with that transaction in ONE write before anything is published. A subject that moved
+       by then records the run with no verdict, and one nobody could read writes nothing; a verdict whose record would
+       not read back as written, or that the comment has no room for beside its transaction, is written and published
+       nowhere, and the service answers which, for its caller to park. The transaction is published through the
+       [evidence reconciliation](#the-verification-evidence-transaction-every-dispatch), and the verdict is ready to act
+       on only while the comment still carries it as persisted, its subject -- held to it once more, the comment read
+       again last -- still stands, and its claim, judged over that last reading, has settled, or it declared none: a
+       settlement of the very evidence it claims readies it, and a push, a later report, or a later revision superseding
+       that evidence drops it. A later tick asks the same of a waiting verdict from the pinned comment alone
+       (`waiting_verdict_ready`), holding the standing subject to the one the record names. An owed transaction holds it
+       for a later tick while its subject stands and drops it once that subject is proved to have moved, and a lost
+       claim, published or reused, whichever the verdict -- superseded by a later revision included -- drops it for a
+       fresh reviewer. Every write it makes is composed over the comment read again just before it, keeping what another
+       road wrote there -- a round a reply bought included -- and every drop names only the verdict this road holds,
+       never one another road put in its place. The record is described under [pinned
+       state](labels-and-state.md#pinned-state).
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.
      On a hit the handler returns WITHOUT running its result handler (`_post_user_content_change_result` /

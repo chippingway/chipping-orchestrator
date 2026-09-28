@@ -1734,24 +1734,52 @@ The keys that matter for the state machine fall into a few groups:
   verification context, whose artifact has to render as one comment, or `reused` for the current evidence it was
   handed and named, never any other -- and that record's `receipt`, `revision`, evidence `digest`, `passed`, and
   `covers` (every configured `VERIFY_COMMANDS` command among its commands, exactly as configured, exiting 0). A
-  claim's evidence is settled while `verification_evidence_current` names its receipt, revision, and digest, owed
-  while `verification_evidence_pending` does, either bound under the configured verification context, and lost
-  otherwise. `handed` is `null` until a change request is handed to `workflow:fixing`, and then the `agent_runs_used`
-  count as that handoff was written, no wider than the count its room is reserved at; an approval carrying one does
-  not read. The reader takes the record whole -- exactly those six members, a claim of exactly its six, each in its
-  writer's shape -- or reads no verdict at all, and nothing that reader refuses is staged. It is staged only where
+  claim's evidence is settled while `verification_evidence_current` names its receipt, revision, and digest, owed while
+  `verification_evidence_pending` does, either bound under the configured verification context and at the latest
+  revision the issue has spent, and lost otherwise -- a later transaction, settled or not, supersedes it. `handed` is
+  `null` until a change request is handed to `workflow:fixing`, and then the `agent_runs_used` count as that handoff was
+  written, no wider than the count its room is reserved at; an approval carrying one does not read. The reader takes
+  the record whole -- exactly those six members, a claim of exactly its six, each in its writer's shape -- or reads no
+  verdict at all, and nothing that reader refuses is staged. It is staged only where
   the comment has room for it at the widest write it is part of: a change request's handoff, with its count, the
   `pending_fix_reviewer_comment_id` anchor, and that comment's ledger entry, and the developer launch's
   `agent_runs_used` / `agent_run_reservation` / `agent_run_fingerprint` charge composed over it, each reserved at the
   widest a recorded number or fingerprint is spelled. A `published` claim is staged only in the same write as exactly
   the transaction it names -- its receipt, revision, digest, and `passed` -- measured with its settlement beside that
   reservation, a retry of the one the comment already carries included, and a `reused` claim or none only beside no
-  transaction; where the pair does not match or either has no room, neither is staged. Additive and dormant: no live
-  reviewer round writes it yet, so no issue carries the key, and an issue without it has no verdict waiting.
+  transaction; where the pair does not match or either has no room, neither is staged. Its one writer is the dormant
+  disposition service (`review_disposition.py`): the transaction is minted first, since reading the reviewed tree is a
+  request of its own, and the record and that transaction go down in one write with the returned run's own records, over
+  the pinned comment read again once the subject has been resolved -- the last requests before that write -- BEFORE the
+  evidence is published through the dispatcher's own reconciliation. The service stages those run records itself --
+  `last_review_session_id`, `last_review_at`, `review_returned_subject`, and the reviewer's usage folded into
+  `issue_agent_runs` / `issue_total_tokens` / `issue_total_cost_usd` / `issue_cost_sources` -- over that last reading,
+  so a usage total another road folded meanwhile is added to rather than written back over. A subject proved to have
+  moved by then, or a `verification_evidence_*` record another road moved since the subject was resolved -- the
+  transaction was minted, and a reuse named its evidence, over the records it replaced -- writes the run's own records
+  and no verdict; one that would not read writes nothing. A record that would not read back as written -- feedback UTF-8
+  cannot carry, say -- or one the comment has no room for beside its transaction is written nowhere and nothing is
+  published: the service answers which, for the park that is its caller's. The verdict is ready to act on only while the
+  comment carries it as persisted, its subject -- held to it once more, the report records and the record itself read
+  again last -- still stands, and its claim, judged over that last reading, is settled, or it relies on none: a
+  settlement of the very evidence it claims readies it, and a push, a later report, or a later revision superseding that
+  evidence sets it to `null`. A later tick asks the same of a waiting record over the pinned comment alone, since
+  nothing of the run that returned it outlives its tick: the record's own `subject` is what the standing subject has to
+  record as, and the comment as that tick read it is what the record is held against. An owed transaction holds the
+  record for a later tick while its subject stands -- held to it again on every tick it waits -- and sets it to `null`
+  once that subject is proved to have moved, leaving the transaction owed to the reconciliation; a lost claim, whichever
+  the verdict -- a transaction that can never settle, or reused evidence a later revision has superseded since -- sets
+  it to `null` for a fresh reviewer. Every write the service makes, the record's own included, is composed over the
+  comment read again just before it, keeping what another road wrote there -- newer records, and fields no verdict
+  stands on, such as a `review_round` a reply bought or the `last_action_comment_id` it read through -- save, where the
+  report records and the record stand, a field the service changed itself. Every drop names the verdict it holds, so one
+  another road put in its place is never the one dropped. Additive and dormant: nothing acts on a ready verdict yet, no
+  live reviewer round hands its result to that service, and nothing finishes a record a tick left waiting, so no issue
+  carries the key, and an issue without it has no verdict waiting.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
   live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the
-  returned-verdict record that would stage a reviewer's declared commands beside its verdict is dormant -- so no
+  returned-verdict disposition that would record a reviewer's declared commands beside its verdict is dormant -- so no
   issue carries these keys until one does. `verification_evidence_pending` is one transaction, written BEFORE its
   artifact is posted: a receipt (`issue-<n>-verification-<revision>-<nonce>`, which every record's reader holds to that
   record's own revision) and a revision past every one the issue has spent; the report subject's own `repo` / `pr` /

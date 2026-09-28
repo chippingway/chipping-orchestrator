@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from types import MappingProxyType
 from unittest.mock import MagicMock
 
 from orchestrator.github.pinned_state import PinnedState
@@ -39,6 +40,12 @@ STAGED = "review_subject"
 STAGED_VALUE = "the subject handed over"
 
 ALSO_SETTLED = "orchestrator_comment_ids"
+
+# The current verification evidence and the returned verdict, which only a
+# persisted verdict's recheck watches beside the report.
+EVIDENCE = "verification_evidence_current"
+
+VERDICT = "review_returned_verdict"
 
 # The pinned comment the tick read, and the one that replaced it since.
 PINNED_ID = 5_579_000_001
@@ -73,6 +80,29 @@ NO_COMMENT_IN_HAND = (
 )
 
 
+# The comment as a persisted verdict's recheck reads it -- the handed report
+# records beside evidence settled since, the verdict cleared, or only fields no
+# verdict stands on moved -- whether the recheck is a persisted verdict's or
+# the return's own reading, and what it answers and leaves the state holding.
+# Settled evidence is carried for the verdict's claim to be judged over, and
+# is no move of the records by itself.
+_HANDED_RECORDS = MappingProxyType(_current(HANDED))
+
+_MOVED_EVIDENCE = MappingProxyType({**_HANDED_RECORDS, EVIDENCE: {"revision": SETTLED}})
+
+_PERSISTED_RECHECKS = (
+    ("evidence moved, the return's reading", _MOVED_EVIDENCE, False, (True, _in_hand())),
+    ("evidence moved", _MOVED_EVIDENCE, True, (True, {**_MOVED_EVIDENCE, STAGED: STAGED_VALUE})),
+    ("the verdict cleared", {**_HANDED_RECORDS, VERDICT: None}, True, (False, {**_in_hand(), VERDICT: None})),
+    (
+        "only other fields moved",
+        {**_HANDED_RECORDS, ALSO_SETTLED: [1], STAGED: "another road's"},
+        True,
+        (True, {**_in_hand(), ALSO_SETTLED: [1]}),
+    ),
+)
+
+
 def _reading(durable: PinnedState | Exception) -> MagicMock:
     """A client whose one read of the pinned comment answers `durable`.
 
@@ -84,15 +114,15 @@ def _reading(durable: PinnedState | Exception) -> MagicMock:
 
 
 def _returned(
-    durable: PinnedState | Exception,
+    durable: PinnedState | Exception, *, persisted: bool = False,
 ) -> tuple[bool | None, dict, int | None]:
-    """Ask a verdict's return over `durable`: its answer, and the state after.
+    """Ask a verdict's return over `durable`, or a persisted verdict's recheck: its answer, and the state after.
 
     The state after is its data and the comment it names.
     """
     state = _pinned(_in_hand())
     stood = _review_comment._records_stand(
-        _reading(durable), MagicMock(number=1), state, _current(HANDED),
+        _reading(durable), MagicMock(number=1), state, _current(HANDED), persisted=persisted,
     )
     return stood, state.data, state.comment_id
 
@@ -126,6 +156,19 @@ class RecordsStandTest(unittest.TestCase):
                     json.dumps({**durable_data, STAGED: STAGED_VALUE}, sort_keys=True),
                 )
                 self.assertEqual(comment_id, PINNED_ID)
+
+    def test_a_persisted_verdict_is_composed(self) -> None:
+        # Held for a persisted verdict, the verdict itself is watched beside
+        # the report's records, and where they stand every field another road
+        # changed since is carried too -- evidence included, which the
+        # verdict's claim answers for -- save one this tick changed as well,
+        # which its own write says. The return's own reading carries nothing
+        # where the report stands.
+        for name, durable_data, persisted, expected in _PERSISTED_RECHECKS:
+            with self.subTest(name):
+                returned = _returned(_pinned(durable_data), persisted=persisted)
+
+                self.assertEqual(returned[:2], expected)
 
     def test_no_comment_in_hand_carries_nothing(self) -> None:
         # No reading of another comment than the one the tick read says the

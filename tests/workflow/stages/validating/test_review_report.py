@@ -630,7 +630,7 @@ class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
             ).subject
             covers = [
                 _review_coverage._subject_still_stands(
-                    self.github, self.issue, state, subject,
+                    self.github, self.issue, state, subject.recorded(),
                 )
                 for subject in (
                     handed,

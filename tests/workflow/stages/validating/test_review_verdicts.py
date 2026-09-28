@@ -236,11 +236,28 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
         )
         untouched = PinnedState(comment_id=1, state_data={})
 
-        _verdicts.drops_the_verdict(carried)
-        _verdicts.drops_the_verdict(untouched)
-
+        self.assertEqual(
+            (_verdicts.drops_the_verdict(carried), _verdicts.drops_the_verdict(untouched)),
+            (True, False),
+        )
         self.assertEqual(carried.data, {_verdicts.RETURNED_VERDICT: None})
         self.assertEqual(untouched.data, {})
+
+    def test_a_named_drop_touches_only_the_one_held(self) -> None:
+        # One another road put in its place, or already cleared, stays exactly
+        # as that road left it.
+        for name, carried, dropped in (
+            ("the one held", RETURNED.recorded(), True),
+            ("another in its place", APPROVED.recorded(), False),
+            ("one already cleared", None, False),
+        ):
+            with self.subTest(name):
+                state = PinnedState(comment_id=1, state_data={_verdicts.RETURNED_VERDICT: carried})
+
+                self.assertEqual(
+                    (_verdicts.drops_the_verdict(state, only=RETURNED), state.data),
+                    (dropped, {_verdicts.RETURNED_VERDICT: None if dropped else carried}),
+                )
 
 
 class ReturnedVerdictRoomTest(unittest.TestCase):

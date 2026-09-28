@@ -3115,15 +3115,22 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the run makes keeps that settlement current; another comment or an unread one carries
                             nothing and the tick writes nothing. Records are compared as the comment's JSON spells
                             them, so one written `null` where there was none, or a revision `true` where it was `1`,
-                            is a move. The later roads that act on an approval after requests long enough for a
-                            settlement -- the squash tail once its rewrite is published, and the in_review park and
-                            ready ping -- ask the comment the same before they write, and act on nothing where it
-                            moved. Nothing here parks or posts
+                            is a move. The dormant `review_disposition.py` asks it of more wherever it holds a persisted
+                            verdict to its subject (`persisted`): the returned verdict beside the report's records,
+                            which no write may act on once another road dropped or replaced it -- and, since every write
+                            it makes is laid over the comment as it stands, whatever else the comment changed is carried
+                            even where those records stand, save a field the tick changed too: the verification evidence
+                            another road recorded or settled, which that service judges the verdict's claim over, as
+                            much as a round a reply bought. The later roads that act on an approval after requests long
+                            enough for a settlement -- the squash tail once its rewrite is published, and the in_review
+                            park and ready ping -- ask the comment the same before they write, and act on nothing where
+                            it moved. Nothing here parks or posts
       review_coverage.py    whether an approval still covers the subject standing when it is acted on. When the reviewer
                             returns -- approving or requesting changes -- and the report records on the pinned comment
                             stand (`review_comment.py`), the whole subject is resolved again over the issue read afresh
-                            and has to EQUAL the one handed over -- pull request, head, requirements, and the report's
-                            revision, digest, location, and words -- or the verdict is not acted on and the next round
+                            and has to RECORD as the one handed over -- pull request, head, requirements, and the
+                            report's revision and digest, its words read again at its location, where an edit or a
+                            removal refuses the reading -- or the verdict is not acted on and the next round
                             resolves the subject for itself; asked again by `approval.py` once the verify gate has
                             passed, since a verification can run long enough for the report to be edited or replaced
                             under it. Later, once the pinned records agree the current report is the approved
@@ -3134,8 +3141,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             about what the reviewer read; and the pull request is read afresh against the commit the
                             move is owed over, since a push landing meanwhile is a commit nobody approved: the
                             squash tail asks all of it before its relabel, on either road into it, the settled
-                            squash handoff before moving a label that tail left owed, and `in_review` before an
-                            approval may stand behind a ready ping. Nothing here parks or posts
+                            squash handoff before moving a label that tail left owed, and `in_review` before an approval
+                            may stand behind a ready ping. A returned verdict is held to its subject the same way ahead
+                            of the write persisting it, once more before it is handed back ready, and on every tick it
+                            waits on its evidence (`_verdict_still_stands`) -- the subject resolved and then the comment
+                            read behind it, watching the verdict beside the report's records and carrying the
+                            evidence records for its claim to be judged over, and a reading nobody could take told
+                            apart from a subject that moved, so a persisted verdict is held rather than dropped.
+                            Nothing here parks or posts
       review_records.py     what a reviewer round writes onto the pinned comment, through writers the round and the
                             report settlement's measurement share: the spec and the subject it is handed, written ahead
                             of the spawn -- onto the comment as `review_report.py` read it, since the launch charge
@@ -3153,23 +3166,41 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             held to the record again, so the words quoted are the ones the revision names; anything
                             short of that, a reading nobody could take included, hands nothing and logs why, and the
                             reviewer runs the verification itself
-      review_verdicts.py    the `review_returned_verdict` record a returned reviewer's verdict is to wait in, which no
-                            round writes yet: its round, verdict, subject, feedback, the one evidence claim it relies
-                            on, and the agent-run count a change request was handed to `workflow:fixing` on -- an
-                            approval handed nothing and carrying no feedback. Read whole or not at all, and staged
-                            only where it reads back exactly and the comment has room for it at its widest write -- a
-                            change request's handoff, with the count, anchor, and ledger entry it adds and the
-                            developer launch's run-ledger charge composed over it -- with exactly the transaction a
-                            published claim names staged in the same write and measured with its settlement beside
-                            that reservation, a retry of one already recorded included, a reuse or no claim beside
-                            none, or neither; marked handed, or dropped, only where it stands
-      review_claims.py      what a returned reviewer's verification declaration earns, which no round asks yet:
-                            commands it ran minted, not recorded, as a reviewer-reported transaction past every spent
-                            revision, bound to the handed subject, the reviewed head and its tree, and the configured
-                            context, its whole artifact rendering as one comment; a reuse of exactly the current
-                            evidence it was handed; or the reason it earns none. Also whether a claim's commands
-                            cover every configured command exactly, and where its evidence stands -- settled or owed
-                            under the configured context, or lost
+      review_verdicts.py    the `review_returned_verdict` record a returned reviewer's verdict is to wait in, written
+                            only by the dormant `review_disposition.py`: its round, verdict, subject, feedback, the one
+                            evidence claim it relies on, and the agent-run count a change request was handed to
+                            `workflow:fixing` on -- an approval handed nothing and carrying no feedback. Read whole or
+                            not at all, and staged only where it reads back exactly and the comment has room for it at
+                            its widest write -- a change request's handoff, with the count, anchor, and ledger entry it
+                            adds and the developer launch's run-ledger charge composed over it -- with exactly the
+                            transaction a published claim names staged in the same write and measured with its
+                            settlement beside that reservation, a retry of one already recorded included, a reuse or no
+                            claim beside none, or neither; marked handed, or dropped, only where it stands -- and, where
+                            the caller names the verdict it holds, only where the one waiting is exactly that verdict
+      review_claims.py      what a returned reviewer's verification declaration earns, asked only by the dormant
+                            `review_disposition.py`: commands it ran minted, not recorded, as a reviewer-reported
+                            transaction past every spent revision, bound to the handed subject, the reviewed head and
+                            its tree, and the configured context, its whole artifact rendering as one comment; a reuse
+                            of exactly the current evidence it was handed; or the reason it earns none. Also whether a
+                            claim's commands cover every configured command exactly, and where its evidence stands --
+                            settled or owed under the configured context at the latest revision spent, or lost
+      review_disposition.py the preparation a returned verdict is acted on behind, which no live round calls yet: its
+                            evidence minted, then held to the subject standing and the pinned comment read again behind
+                            that resolution -- an evidence record moved since refusing it as a report does -- then the
+                            run's own records staged over that reading, its usage folded over whatever usage another
+                            road folded meanwhile, the last requests before the verdict is persisted with its minted
+                            transaction in one write -- or, where the record would not read back as written or the
+                            comment has no room for either, nothing written or published and an answer that says which
+                            (`UNREADABLE`, `NO_ROOM`), for the caller's park -- then that transaction published through
+                            the dispatcher's own reconciliation (`prepares_the_verdict`). A verdict is ready only while
+                            the comment carries it as persisted, its subject, held to it once more with the comment read
+                            again last, still stands, and its claim, judged over that reading, is settled or it relies
+                            on none: a settlement of the very evidence it claims readies it, an owed transaction holds
+                            it, and a lost claim -- published or reused, superseded included -- drops it. A later tick
+                            asks the same of a waiting verdict over the pinned comment alone (`waiting_verdict_ready`),
+                            the record's own subject what the standing one has to record as. Every write is composed
+                            over the comment as read just before it, keeping what another road wrote there, and drops
+                            only ever the verdict it holds. Acting on a ready verdict is not here
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its

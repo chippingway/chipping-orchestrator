@@ -228,14 +228,22 @@ class ClaimedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
     def test_a_claim_stands_settled_owed_or_lost(self) -> None:
         earlier = self.claimed(_returned(_reused(self.handed.revision))).claim
         later = self.claimed(_returned(_declared()))
+        settled = _claims.claim_standing(self.state, earlier)
         self.assertTrue(_record_state.record_pending_evidence(self.state, later.pending))
         self.gh.write_pinned_state(self.issue, self.state)
 
+        # The later transaction spent a revision past the evidence still
+        # current, which it supersedes before it has settled.
         self.assertEqual(
-            [_claims.claim_standing(self.state, claim) for claim in (
+            [settled, *(_claims.claim_standing(self.state, claim) for claim in (
                 earlier, later.claim, replace(later.claim, digest=OTHER_DIGEST),
-            )],
-            [_claims.ClaimStanding.SETTLED, _claims.ClaimStanding.OWED, _claims.ClaimStanding.LOST],
+            ))],
+            [
+                _claims.ClaimStanding.SETTLED,
+                _claims.ClaimStanding.LOST,
+                _claims.ClaimStanding.OWED,
+                _claims.ClaimStanding.LOST,
+            ],
         )
         # Evidence recorded under a context the configuration has moved past,
         # settled or not, is evidence the proof refuses.
