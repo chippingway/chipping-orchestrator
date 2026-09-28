@@ -416,6 +416,13 @@ than a second source of truth: where the two disagree, the handler pages are aut
      a developer report still owed ─► no reviewer spawned; bound and
        settled where the receipt and checkout prove it, else parked
        report_undeliverable once no retry can settle it
+     a rewritten-head report debt once no report is owed
+       (developer_report_rewrite_debt) ─► a settled report of the head the
+       PR stands on pays it (written null) and the reviewer runs; a readable
+       claim explaining exactly why that report is about the head the
+       rewrite replaced ─► no reviewer spawned, nothing parked or posted;
+       any other claim, a damaged one included ─► the refusals below answer
+       the report as they would with no claim
      the settled report re-read and quoted whole in the reviewer's prompt
        (review_subject); unreadable on the pinned comment, about another
        PR, out of step with its handoff, removed, edited, cut short,
@@ -679,9 +686,10 @@ than a second source of truth: where the two disagree, the handler pages are aut
    the same dispatch, on the same pinned read (the pair below is asked
        AHEAD of the reuse guard above, since both RUN rather than merely
        answer; the agent-run-limit hold sits between them and the reuse
-       guard, the developer-report reconciliation and the verification-
-       evidence reconciliation behind it sit between that hold and the
-       reuse guard, and the greeting refusal is asked behind it):
+       guard, the developer-report reconciliation, the verification-
+       evidence reconciliation behind it, and the rewrite-debt hold behind
+       both sit between that hold and the reuse guard, and the greeting
+       refusal is asked behind it):
      late cycle a close ended, ─► the closed-owner ending below, run from
        cleanup unfinished          wherever the owner was left: reaches no
                                    handler, and writes that cycle's rejected
@@ -803,6 +811,15 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    done|rejected, hard-skipped, and
                                    unlabelled issues are left exactly as
                                    they stand
+     developer_report_rewrite_ ─► the REWRITE-DEBT hold, directly behind the
+       debt claimed, readable      evidence reconciliation: the handler is
+       or not, on                  not reached, nothing is written or posted,
+       workflow:documenting|       and the hold is logged once a tick, so a
+       in_review                   head no report is about is never carried
+                                   to the human who merges it. Every other
+                                   label runs -- validating above all, whose
+                                   report hold pays the debt. No road
+                                   records one yet
      no workflow label, a      ─► nothing, logged once a tick. Pickup GREETS
        pinned comment already      an issue and mints its pinned comment, so a
        on the issue, and no        second greeting writes a second one every
