@@ -772,8 +772,9 @@ because there it is the claim that this stage has already rerouted rather than a
   than posting on a proof of its own — a requirements-drift resume (the
   [user-content drift](#user-content-drift-detection) routing) and a reviewer-requested round on either side of a park
   (`_handle_validating`'s `changes_requested` arc and `_handle_fixing` step 9) both do, with
-  `_handle_validating`'s report hold behind them for a delivery a later push carried. So this reconciliation finishes
-  the ones
+  `_handle_validating`'s report hold behind them for a delivery a later push carried. The rewritten-head report
+  refresh that hold runs (`_handle_validating` step 3) does the same with the report alone it asks the developer for,
+  binding and completing it on the tick it records it. So this reconciliation finishes the ones
   that did NOT complete there: a post GitHub refused or never confirmed, a process that died in the window, a
   settlement whose write was lost.
 - **Where in the order**: behind the pause (the dispatcher's hard-skip screen, one level up in `_process_issue`),
