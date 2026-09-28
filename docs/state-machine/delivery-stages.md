@@ -3392,7 +3392,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        this road reports as standing where it planned. On squash / force-push failure, park awaiting human
        under a durable
        `park_reason="squash_failed"` and stay on `workflow:validating` — through `review_parks.py`, measured before
-       its notice and landing only behind a notice that was identified, since one nothing identified may have
+       its notice, keeping any verdict it does not retire (a later round's, on the recovery road, which holds none),
+       and landing only behind a notice that was identified, since one nothing identified may have
        reached nobody: that write keeps what the tick staged, the verdict left waiting, without the park, and a
        later tick words the notice again. A comment with no room for the park is posted on and written to not at
        all — the squash's own record drop rides this write, so a tick that writes nothing is the one that died
@@ -3535,24 +3536,24 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        road wrote there -- a round a reply bought included -- and every drop names only the verdict this road holds,
        never one another road put in its place. It acts on a verdict only right behind proving it ready
        (`disposes_of_the_verdict` for a returned run, `finishes_the_verdict` for a waiting one, over a run its caller
-       rebuilds whose round and subject have to be the record's own). A change request's handoff
-       (`validating/review_handoffs.py`) posts the feedback, holding the verdict unhanded where the post failed or left
-       no id, holds the subject again behind that post, writes the verdict as `handed` with its
-       `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to `workflow:fixing`, and holds the subject once more
-       before the developer launch; a later tick finishing a verdict already `handed` posts nothing again, and
-       relabels and launches that developer — or, where the run ledger was charged past `handed`, drops the verdict,
-       the developer already launched, which is asked again right before every launch so a developer another road
-       launched behind the relabel is not launched twice. An approval reaches the approval arc above only where the
-       evidence it names is settled, proved current, passing, and covering `VERIFY_COMMANDS` by its own artifact
-       (`validating/unverified_approvals.py`); a proof nobody could read holds it, and any other refusal parks it under
-       `reviewer_unverified` once it is held to its subject and its claim again. A verdict that could not be persisted
-       parks under `reviewer_unrecorded` with nothing published or acted on (`validating/review_parks.py`). A subject
-       that moved behind any of those requests -- a park's own notice included, behind which a moved report, verdict,
-       or evidence record lands no park either -- drops the verdict over the newer records; one nobody could read holds
-       it, and so does a park notice that left no id. A park write is composed over the comment as it stands, keeping
-       what another road wrote behind its notice, and one carrying what moved there is measured again and not made
-       where it no longer fits. The record and both parks are described under [pinned
-       state](labels-and-state.md#pinned-state).
+       rebuilds whose round and subject have to be the record's own and whose pull request has to be the one that
+       subject names). A change request's handoff (`validating/review_handoffs.py`) posts the feedback, holding the
+       verdict unhanded where the post failed, left no id, or had no pull request to go on, holds the subject again
+       behind that post, writes the verdict as `handed` with its `pending_fix_reviewer_comment_id` anchor BEFORE the
+       relabel to `workflow:fixing`, and holds the subject once more before the developer launch; a later tick
+       finishing a verdict already `handed` posts nothing again, and relabels and launches that developer — or, where
+       the run ledger was charged past `handed`, drops the verdict, the developer already launched, which is asked
+       again right before every launch so a developer another road launched behind the relabel is not launched twice.
+       An approval reaches the approval arc above only where the evidence it names is settled, proved current, passing,
+       and covering `VERIFY_COMMANDS` by its own artifact (`validating/unverified_approvals.py`); a proof nobody could
+       read holds it, and any other refusal parks it under `reviewer_unverified` once it is held to its subject and its
+       claim again. A verdict that could not be persisted parks under `reviewer_unrecorded` with nothing published or
+       acted on (`validating/review_parks.py`). A subject that moved behind any of those requests -- a park's own
+       notice included, behind which a moved report, verdict, or evidence record lands no park either -- drops the
+       verdict over the newer records; one nobody could read holds it, and so does a park notice that left no id. A
+       park write is composed over the comment as it stands, keeping what another road wrote behind its notice, and one
+       carrying what moved there is measured again and not made where it no longer fits. The record and both parks are
+       described under [pinned state](labels-and-state.md#pinned-state).
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.
      On a hit the handler returns WITHOUT running its result handler (`_post_user_content_change_result` /

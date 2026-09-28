@@ -8,8 +8,10 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.git.publication import models as _publication
-from orchestrator.git.publication.models import _SquashOutcome
-from tests.support.fakes import FakePRRef
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
+from orchestrator.workflow.engine import report_record_values as _record_values
+from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
+from tests.support.fakes import FakeComment, FakePRRef, FakeUser
 from tests.workflow.fixtures import REVIEW_APPROVED_MESSAGE, _agent
 from tests.workflow.stages.validating import squash_approval_support as _support
 from tests.workflow.stages.validating.squash_approval_support import (
@@ -25,6 +27,25 @@ from tests.workflow.stages.validating.squash_approval_support import (
 COMMITS_AT_HEAD = "the original commits are still on the branch"
 
 FROM_THE_RECORDED_HEAD = "reachable from the head the record names"
+
+# The notice a failed squash parks with, the operator notes that fill a
+# comment, and the approval whose squash is recorded, whose subject a later
+# round reviews with feedback long enough that keeping it or not decides room.
+SQUASH_FAILED_NOTICE = "squash-on-approval failed"
+
+NOTES = "operator_notes"
+
+APPROVED_SUBJECT = "review_approved_subject"
+
+_LATER_FEEDBACK = "A later round's feedback. " * 100
+
+# An orchestrator comment numbered near the widest id a record spells, so the
+# park notice minted after it, and its ledger entry, are as wide as the
+# measurement a park is taken under reserves: what decides room is then the
+# verdict the park keeps, not the slack a narrow id leaves.
+_WIDE_COMMENT = FakeComment(
+    id=_record_values.MAX_RECORDED_NUMBER - 1_000, body="picking this up", user=FakeUser("orchestrator"),
+)
 
 
 class SquashOnApprovalTest(
@@ -247,12 +268,76 @@ class SquashParkNoticeTest(
         gh, issue = self._setup()[:2]
 
         self._run_squash_approval(
-            gh, issue, _SquashOutcome(error=error, standing=standing),
+            gh, issue, _publication._SquashOutcome(error=error, standing=standing),
         )
 
         parked = [body for _, body in gh.posted_comments if "squash" in body]
         self.assertTrue(parked)
         return parked[-1]
+
+
+class SquashParkRoomTest(
+    unittest.TestCase,
+    _SquashApprovalFixtureMixin,
+    _CollapseWorldMixin,
+):
+    """A failed squash's park is measured as the write it lands in, before its notice is posted."""
+
+    def test_a_kept_verdict_is_measured_with_the_park(self) -> None:
+        # The recovery of a squash an earlier tick did not finish holds no
+        # verdict, so the park its failed squash takes keeps a later round's
+        # verdict pinned beside it -- and is measured keeping it. With room, the
+        # park lands and adds what it adds; one character short of that, nothing
+        # is posted on the thread or written, rather than a notice announcing a
+        # park whose write then does not fit.
+        added, landed = self._parks_beside_a_later_verdict()
+        self.assertEqual(landed, (True, _support.PARK_SQUASH_FAILED, True))
+
+        left = self._parks_beside_a_later_verdict(spare=added - 1)
+
+        self.assertEqual(left[1], (False, None, True))
+
+    def _parks_beside_a_later_verdict(self, spare=None) -> tuple:
+        """What recovering a squash that fails beside a later round's verdict adds to the comment, and leaves.
+
+        Filled first with operator notes to `spare` characters short of its
+        ceiling, where given. The characters the tick added, beside whether a
+        squash-failure notice was posted, the park reason, and whether the
+        later verdict still waits.
+        """
+        github, issue, pr = self._setup()
+        pr.issue_comments.append(_WIDE_COMMENT)
+        self._records_a_collapse(github)
+        later = _verdicts.ReturnedVerdict(
+            1, _verdicts.CHANGES_REQUESTED, github.read_pinned_state(issue).get(APPROVED_SUBJECT), _LATER_FEEDBACK,
+        )
+        self._pins(github, _verdicts.RETURNED_VERDICT, later.recorded())
+        if spare is not None:
+            self._fills_to(github, spare)
+        before = len(pinned_state_body(github.pinned_data(_support.APPROVAL_ISSUE)))
+
+        self._run_squash_approval(github, issue, _RefusesTheCollapse())
+
+        return (
+            len(pinned_state_body(github.pinned_data(_support.APPROVAL_ISSUE))) - before,
+            self._left(github, later),
+        )
+
+    def _left(self, github, later) -> tuple:
+        """Whether a squash-failure notice was posted, the park reason, and whether `later` still waits."""
+        pinned = github.pinned_data(_support.APPROVAL_ISSUE)
+        notices = [
+            body for _, body in github.posted_comments if SQUASH_FAILED_NOTICE in body
+        ]
+        waiting = _verdicts.ReturnedVerdict.read(pinned.get(_verdicts.RETURNED_VERDICT))
+        return (bool(notices), pinned.get(_support.PARK_REASON), waiting == later)
+
+    def _fills_to(self, github, spare: int) -> None:
+        """Fill the pinned comment with operator notes to `spare` characters short of its ceiling."""
+        self._pins(github, NOTES, "")
+        body = pinned_state_body(github.pinned_data(_support.APPROVAL_ISSUE))
+        room = MAX_PINNED_BODY - len(body) - spare
+        self._pins(github, NOTES, "x" * room)
 
 
 class SquashSubjectReferenceTest(

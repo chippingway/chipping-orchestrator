@@ -2948,8 +2948,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             ledger entries of what was already posted (`handoff._holds_its_records`); that number
                             read as an identity before the squash subject may reference it: the optional squash,
                             the park each of its four readings earns, through `review_parks.py` -- measured before
-                            its notice, landing only behind an identified notice and over the records in hand, and
-                            reported only once written -- the notice its count is worded from --
+                            its notice, keeping any verdict it does not retire, landing only behind an identified
+                            notice and over the records in hand, and reported only once written -- the notice its
+                            count is worded from --
                             posted ahead of the seed it orders, and the one failure that stops the road, since
                             the count lives only on the collapse record the next tick would otherwise drop -- the
                             end of that record, and the `workflow:documenting` relabel that lands behind that
@@ -2978,8 +2979,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `fix_reports.py` and bound behind the round and the relabel -- its record carrying the
                             fixing stage's settled-round mark for a relabel that never lands -- plus the
                             no-VERDICT park and the split that tells a provider's failure from a reviewer's; its
-                            feedback post says whether it landed with an id to replay, which a persisted verdict's
-                            handoff waits on (`review_handoffs.py`)
+                            feedback post answers the id it landed as, or nothing -- no pull request to post on, a
+                            refused post, or one with no id -- and a persisted verdict's handoff waits on that id
+                            (`review_handoffs.py`)
       dev_fix.py            what a finished dev fix leaves behind: the publishable reading and the proved remote
                             head it carries on as the lease, taken for a run that committed as well as for one
                             that did not -- a tick committing over work an earlier one stranded begins at a
@@ -3259,7 +3261,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             just proved ready: `disposes_of_the_verdict` over a returned run -- parking one it could
                             not persist under `reviewer_unrecorded` -- and `finishes_the_verdict` over a waiting one,
                             in the checkout and pull request of a run its caller rebuilds, whose round and subject
-                            have to be the record's own. A change request goes to its developer and an approval to
+                            have to be the record's own and whose pull request the one that subject names. A change
+                            request goes to its developer and an approval to
                             the approval arc where its evidence proves valid (`review_handoffs.py`); a proof nobody
                             could read holds the approval, and a refusal parks it under `reviewer_unverified` only
                             once the verdict is held to its subject and its claim again, and is dropped otherwise
@@ -3284,13 +3287,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             no room, composed over the comment as it stands so a field another road wrote behind the
                             notice -- a round spent -- is kept. Only a park that lands sets its flags, drops the
                             verdict, and reports `park_awaiting_human`, once its write is down. The park a failed
-                            squash takes (`parks_the_failed_squash`) shares its notice and its measurement, held
+                            squash takes (`parks_the_failed_squash`) shares its notice and its measurement -- the
+                            write measured keeping any verdict it does not retire, a later round's on the recovery
+                            road, which holds none -- held
                             behind the notice to the records in hand rather than to a subject, since the recovery
                             reaches it with no reviewer run; it is never taken over the comment as it stands,
                             because its write is what makes the squash's own record drop durable
       review_handoffs.py    a persisted verdict handed on (`hands_the_verdict_on`): an approval to
                             `unverified_approvals.py`, and a change request to its developer -- the feedback posted
-                            first, a post that failed or left no id holding the verdict unhanded, the whole subject
+                            first, a post that failed, left no id, or had no pull request to go on holding the
+                            verdict unhanded, the whole subject
                             held again behind that post, the verdict written as handed with the anchor, the relabel,
                             and the launch, held to the subject once more right before it (`launches_the_developer`);
                             a request already handed resumes there without posting its feedback again -- relabelled

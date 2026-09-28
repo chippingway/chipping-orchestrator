@@ -1807,8 +1807,9 @@ The keys that matter for the state machine fall into a few groups:
   report records and the record stand, a field the service changed itself. Every drop names the verdict it holds, so one
   another road put in its place is never the one dropped. The service acts on a verdict only right behind proving it
   ready, over the run it was returned from -- for a later tick, one its caller rebuilds, whose round and subject have to
-  be the record's own. A change request is handed over (`review_handoffs.py`): its feedback is posted first, and a post
-  that failed or left no id relabels and launches nothing and leaves `handed` `null`; the whole subject is held again
+  be the record's own and whose pull request has to be the one that subject names. A change request is handed over
+  (`review_handoffs.py`): its feedback is posted first, and a post that failed, left no id, or had no pull request to
+  go on relabels and launches nothing and leaves `handed` `null`; the whole subject is held again
   behind that post, the record written with `handed` set and the `pending_fix_reviewer_comment_id` anchor BEFORE the
   relabel to `workflow:fixing`, the subject held once more right before the developer launch, and the writes after
   that launch set the record to `null`. A later tick finishing a record already `handed` posts no feedback again: it
@@ -1829,7 +1830,8 @@ The keys that matter for the state machine fall into a few groups:
   its subject and its claim again -- one whose subject or evidence moved meanwhile is set to `null` for a fresh
   reviewer instead. A verdict that could not be persisted parks under `reviewer_unrecorded` with nothing published or
   acted on (`review_parks.py`). Each park is measured at its widest before its notice is posted -- both the park's own
-  write and the one keeping the record beside the notice's ledger entry where the subject would not read -- and taken
+  write, keeping any record it does not retire, and the one keeping the record beside the notice's ledger entry where
+  the subject would not read -- and taken
   over the comment as it stands, the returned run's usage and session unrecorded, where it has no room beside what that
   run staged; nothing is posted or written where there is room for no park. Behind its notice the subject is resolved
   again and the comment read against the state the park began over: a report record, the record itself, or a

@@ -12,7 +12,8 @@ finds waiting, from the pinned comment alone: the process keeps nothing
 between ticks, so nothing of the run that returned the verdict is there to
 ask. `finishes_the_verdict` acts on that verdict in the checkout and pull
 request of a run its caller rebuilds, whose round and subject have to be the
-verdict's own: the record, not that run, says what was decided about what.
+verdict's own and whose pull request has to be the one that subject names:
+the record, not that run, says what was decided about what.
 
 A verdict is persisted only while the whole subject the reviewer was handed --
 head, requirements, and report -- still stands. A verdict of a subject that
@@ -364,18 +365,19 @@ def finishes_the_verdict(
     `run` is what the caller rebuilt of the round that returned the verdict,
     and the verdict is acted on only where the pinned comment carries exactly
     the one returned in that round over that subject -- a handed change
-    request as its handoff wrote it -- and only once `waiting_verdict_ready`
-    finds it ready.
+    request as its handoff wrote it -- where the pull request `run` would post
+    and push to is the one that subject names, and only once
+    `waiting_verdict_ready` finds it ready.
     """
     waiting = _verdicts.read_returned_verdict(state)
     if waiting is None:
         return
     in_hand = VerdictInHand.waiting(run, waiting)
-    if in_hand.returned() != waiting:
+    if in_hand.returned() != waiting or run.pr_number != run.subject.pr_number:
         log.warning(
             "issue=#%d its waiting reviewer verdict was not returned in the "
-            "round or over the subject of the run in hand; acting on nothing",
-            issue.number,
+            "round, over the subject, or on the pull request of the run in "
+            "hand; acting on nothing", issue.number,
         )
         return
     if waiting_verdict_ready(gh, issue, state) == waiting:

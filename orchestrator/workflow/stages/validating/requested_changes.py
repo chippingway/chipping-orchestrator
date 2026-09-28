@@ -172,18 +172,19 @@ def _park_reviewer_no_verdict(
     gh.write_pinned_state(issue, state)
 
 
-def _post_reviewer_feedback(context: _models._RequestedChanges) -> bool:
-    """Post the reviewer's feedback on the PR and record its id; False where it did not land.
+def _post_reviewer_feedback(context: _models._RequestedChanges) -> int | None:
+    """Post the reviewer's feedback on the PR and record its id; the id, or None where nothing was posted.
 
     The id is the replay anchor a `/orchestrator continue` on a later park of
-    this route hands to a fresh developer, so a post that failed, or whose id
-    could not be read, is no post a persisted verdict's handoff may proceed
-    behind. An issue with no pull request has nowhere to post and nothing to
-    hold.
+    this route hands to a fresh developer, so a persisted verdict's handoff
+    goes on only behind one (`review_handoffs`): an issue with no pull request
+    to post on, a post that failed, and one whose id could not be read all
+    answer None. A change request nothing persisted has no later tick to post
+    from, and goes on without it.
     """
     reviewer_run = context.decision.run
     if reviewer_run.pr_number is None:
-        return True
+        return None
     round_display = reviewer_run.round_n + 1
     feedback = context.decision.feedback
     try:
@@ -202,12 +203,12 @@ def _post_reviewer_feedback(context: _models._RequestedChanges) -> bool:
             context.issue.number,
             reviewer_run.pr_number,
         )
-        return False
+        return None
     anchor_id = getattr(reviewer_comment, "id", None)
     if anchor_id is None:
-        return False
+        return None
     context.state.set("pending_fix_reviewer_comment_id", int(anchor_id))
-    return True
+    return int(anchor_id)
 
 
 def _run_requested_fix(context: _models._RequestedChanges) -> _models._AwaitingDevAttempt:

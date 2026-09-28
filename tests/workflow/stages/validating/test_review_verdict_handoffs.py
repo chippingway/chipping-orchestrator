@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import operator
 import unittest
+from dataclasses import replace
 from functools import partial
 from unittest.mock import patch
 
@@ -40,6 +41,8 @@ HANDED_BACK = (FIXING, (_world.ISSUE, LABEL_VALIDATING))
 ANCHOR = "pending_fix_reviewer_comment_id"
 
 HANDED = "handed"
+
+REQUESTED = "changes_requested"
 
 UNDECLARED_REQUEST = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
 
@@ -90,6 +93,11 @@ def _charges_a_run(case) -> None:
     state = case.github.read_pinned_state(case.issue)
     state.set(_world.AGENT_RUNS_USED, state.get(_world.AGENT_RUNS_USED) + 1)
     case.github.write_pinned_state(case.issue, state)
+
+
+def _without_a_pull_request(returned_run, *read):
+    """The run `returned_run` builds from `read`, naming no pull request to post or push to."""
+    return replace(returned_run(*read), pr_number=None)
 
 
 # Where a handed request's handoff stopped, whether the developer it was
@@ -262,6 +270,47 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
         refused = patch.object(self.github, SET_LABEL, side_effect=RuntimeError("refused"))
         with refused, self.assertRaises(RuntimeError):
             self.returns(UNDECLARED_REQUEST)
+
+
+class ForeignRunTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
+    """A change request is handed over only on the pull request its subject names, behind a post identified there."""
+
+    def test_another_pull_request_hands_nothing(self) -> None:
+        # A later tick's rebuilt run naming another pull request than the one
+        # the waiting verdict's subject is on -- or none -- would post the
+        # feedback and push the fix there: nothing is posted, handed,
+        # relabelled, or launched, and the verdict waits as it was.
+        for pr_number in (_world.PR + 1, None):
+            with self.subTest(pr_number=pr_number):
+                self.setUp()
+                _read.seeds_a_verdict(self, _read.settles_evidence(self), REQUESTED)
+                self.run = replace(self.run, pr_number=pr_number)
+
+                ran = self.finishes(**_fixing())
+
+                self.assertEqual(self._handed(ran), (0, [], None, REQUESTED, []))
+
+    def test_no_pull_request_to_post_on_hands_nothing(self) -> None:
+        # A returned run naming no pull request has nowhere to post its
+        # feedback, whose id is the anchor the handoff is written beside: the
+        # verdict waits, unhanded, with nothing relabelled or launched.
+        unposted = partial(_without_a_pull_request, _world.returned_run)
+
+        with patch.object(_world, "returned_run", unposted):
+            ran = self.returns(UNDECLARED_REQUEST, **_fixing())
+
+        self.assertEqual(self._handed(ran), (0, [], None, REQUESTED, []))
+
+    def _handed(self, ran) -> tuple:
+        """The developers launched, the feedback posted, the verdict's handed count, the verdict, every relabel."""
+        waiting = self.pinned()[_world.RETURNED_VERDICT] or {}
+        return (
+            ran[_world.RUN_AGENT].call_count,
+            _disposed.feedback_posts(self),
+            waiting.get(HANDED),
+            self.waiting(),
+            self.github.label_history,
+        )
 
 
 if __name__ == "__main__":

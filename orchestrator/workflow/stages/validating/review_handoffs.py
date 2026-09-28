@@ -9,7 +9,8 @@ the evidence it relies on proves valid (`unverified_approvals`), and its
 refusal otherwise is handed back for the disposition to park. A change
 request's handoff (`hands_the_request_over`) starts with the feedback post.
 The one durable copy of that feedback is the id it lands as, so a post that
-failed or left no id relabels and launches nothing, and the verdict is left
+failed, left no id, or found no pull request to go on relabels and launches
+nothing, and the verdict is left
 waiting, never handed, for whatever finishes it to post again. A post GitHub
 accepted and whose response was lost reads the same way, since a feedback post
 carries no receipt to find it by, so that retry leaves the feedback on the
@@ -208,18 +209,21 @@ def _already_launched(
 def _posts_the_feedback(context: _models._RequestedChanges, owned) -> bool:
     """Post the reviewer's feedback and hold the subject to what stands behind it; whether the handoff goes on.
 
+    Only a post identified by the id it landed as goes on: that id is the
+    anchor the handoff is written beside, so no pull request to post on, a
+    post that failed, and one that left no id all hold the verdict unhanded.
     The post is a request of its own, long enough for a push or a later
     report to land; the records are read against the comment the post was
     made over, so the anchor it staged is not mistaken for another road's.
     """
     posted_over = dict(context.state.data)
-    if not _requested_changes._post_reviewer_feedback(context):
+    posted = _requested_changes._post_reviewer_feedback(context)
+    if posted is None:
         log.warning(
             "issue=#%s holding its reviewer's change request until the "
             "feedback is posted on the PR", context.issue.number,
         )
         return False
-    posted = context.state.get(_verdicts._FEEDBACK_ANCHOR)
     stood = _review_coverage._verdict_still_stands(
         context.gh, context.issue, context.state, context.decision.run.subject.recorded(), posted_over,
     )

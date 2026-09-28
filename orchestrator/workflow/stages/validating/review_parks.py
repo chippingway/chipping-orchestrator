@@ -60,8 +60,9 @@ beside the funnel rather than through it: the recovery of a squash an earlier
 tick did not finish reaches it with no reviewer run, so it is held behind its
 notice to the report, evidence, and verdict records in hand
 (`handoff._holds_its_records`) rather than to a subject. It is measured before
-its notice and lands only behind one identified, as the funnel's parks do, but
-is never taken over the comment as it stands: its write is what makes the
+its notice -- keeping any verdict it does not retire, a later round's on that
+recovery road -- and lands only behind one identified, as the funnel's parks
+do, but is never taken over the comment as it stands: its write is what makes the
 squash's own record drop durable, so a comment with no room for it is posted on
 and written to not at all -- the tick that died before its write, which the
 squash already answers.
@@ -154,11 +155,11 @@ def parks_over_the_subject(
     # report and verdict records are the ones the verdict was proved over.
     measured = replace(run, resolved_over=dict(state.data))
     parked = state
-    if not _park_fits(parked, reason):
+    if not _park_fits(parked, reason, held[1]):
         # No room beside what the returned run staged: the park is taken over
         # the comment as it stands, the run's usage and session unrecorded.
         parked = _review_comment._read(gh, issue, state, "park a verdict with no room for what its run staged")
-    if parked is None or not _park_fits(parked, reason):
+    if parked is None or not _park_fits(parked, reason, held[1]):
         log.error(
             "issue=#%d has no room on its pinned comment even for the %s park; "
             "posting and writing nothing", issue.number, reason,
@@ -208,7 +209,7 @@ def parks_the_failed_squash(
     the park's write composed over the comment as read behind its notice.
     """
     reason = _state._REASON_SQUASH_FAILED
-    if not _park_fits(state, reason):
+    if not _park_fits(state, reason, held.verdict):
         log.error(
             "issue=#%d has no room on its pinned comment for the %s park; "
             "posting and writing nothing", issue.number, reason,
@@ -320,13 +321,16 @@ def _posts_the_notice(gh: GitHubClient, issue: Issue, parked: PinnedState, words
     return getattr(notice, "id", None)
 
 
-def _park_fits(state: PinnedState, reason: str) -> bool:
+def _park_fits(state: PinnedState, reason: str, owned: _verdicts.ReturnedVerdict | None) -> bool:
     """Whether the comment has room for whichever write a park on `state` ends in, measured at its widest.
 
     Its notice's ledger entry and the watermark it stamps go down either way:
-    beside the park's flags with the verdict it drops, where the park lands,
-    and beside the verdict kept as it waited, where the subject behind the
-    notice would not read. The comment measured here is the one the notice is
+    beside the park's flags where the park lands, and beside the verdict kept
+    as it waited where the subject behind the notice would not read. The
+    park that lands retires only `owned`, the verdict it holds, and only where
+    it is still the one waiting, so it is measured keeping any other -- a later
+    round's beside the recovery of a squash an earlier tick did not finish,
+    which holds none. The comment measured here is the one the notice is
     posted over; a write that carries what moved behind it is measured again.
     """
     widest = _record_values.MAX_RECORDED_NUMBER
@@ -334,7 +338,7 @@ def _park_fits(state: PinnedState, reason: str) -> bool:
     _comments._reserve_comment_slot(kept, widest)
     kept.set("last_action_comment_id", widest)
     landed = PinnedState(comment_id=state.comment_id, state_data=dict(kept.data))
-    _verdicts.drops_the_verdict(landed)
+    _verdicts.drops_the_verdict(landed, only=owned)
     landed.set(_AWAITING_HUMAN, True)
     landed.set(_state._PARK_REASON, reason)
     return all(_report_record_state.fits_the_comment(written.data) for written in (kept, landed))
