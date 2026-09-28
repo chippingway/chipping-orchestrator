@@ -3559,15 +3559,18 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        waiting one, over a run its caller rebuilds whose round and subject have to be the record's own). A change
        request's handoff (`validating/review_handoffs.py`) posts the feedback, holding the verdict unhanded where the
        post failed, left no id, or had no pull request to go on, holds the subject -- with the pull request the issue
-       points at and the evidence the request claims -- again behind that post, writes the verdict as `handed` with its
-       `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to `workflow:fixing`, and holds the subject once
+       points at and the evidence the request claims -- again behind that post, writes the verdict as `handed`, with
+       the id of that post as its `anchor`, beside the `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to
+       `workflow:fixing`, and holds the subject once
        more before the developer launch; a later tick finishing a verdict already `handed` posts nothing again, and
        relabels and launches that developer — or, where the run ledger was charged past `handed` by a launch that
        reached a process, drops the verdict, the developer already launched (a charge still standing as an unstarted
        `agent_run_reservation` reached none: the launch stays owed, honoring that reservation), which is asked again
        right before every launch so a developer another road launched behind the relabel is not launched twice. Either
-       launch is made only behind that anchor, which the fixing stage clears with the round's other bookmarks: a
-       handoff that lost it is held, nothing relabelled or launched, since no failed run could replay the feedback. An
+       launch is made only behind that anchor, still naming the post the verdict records, which the fixing stage
+       clears with the round's other bookmarks: a handoff that lost it, or whose anchor names another comment, is held,
+       nothing relabelled or launched, since no failed run could replay the feedback, or one would replay another
+       comment as it. An
        approval reaches the approval arc above only where the evidence it names is settled, proved current, passing,
        and covering `VERIFY_COMMANDS` by its own artifact (`validating/unverified_approvals.py`); a proof nobody could
        read holds it, and any other refusal parks it under `reviewer_unverified` once it is held to its subject and its

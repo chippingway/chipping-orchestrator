@@ -23,8 +23,9 @@ claims -- and only then is the verdict
 written as handed at the lifetime agent-run count
 (`review_verdicts.hands_off`), with the anchor, and the issue relabelled to
 `workflow:fixing`, so whichever request fails leaves a verdict whose feedback
-is already posted and anchored. The room that write and the launch's charge
-need was reserved when the verdict was recorded.
+is already posted and anchored -- the verdict itself recording which comment
+that is. The room that write and the launch's charge need was reserved when
+the verdict was recorded.
 
 The relabel is a request too, so the subject is held once more right before
 the developer is launched (`launches_the_developer`, the one entry every road
@@ -45,10 +46,13 @@ retire (`_hands_it_off`). A charge the run circuit reserved and never started
 -- its start refused, the tick dying before the spawn -- reached none, and the
 launch is still owed: the circuit honors that reservation for the launch it
 was taken for rather than charging again. Either
-launch is made only behind the feedback anchor the handoff was written beside:
-the fixing stage clears it with the round's other bookmarks, and without it no
-failed run can replay the feedback, so a handoff that lost it is held, with
-nothing relabelled, launched, or written (`_launch_stands`).
+launch is made only behind the feedback anchor the handoff was written beside,
+still naming the comment the verdict records it posted: the fixing stage
+clears the anchor with the round's other bookmarks, and without it no failed
+run can replay the feedback, while one naming any other comment would replay
+that comment to the developer as this reviewer's feedback -- so a handoff that
+lost it, or whose anchor names another comment, is held, with nothing
+relabelled, launched, or written (`_launch_stands`).
 """
 from __future__ import annotations
 
@@ -188,9 +192,10 @@ def _hands_it_off(context: _models._RequestedChanges, owned: _verdicts.ReturnedV
     """
     gh, issue, state = context.gh, context.issue, context.state
     if owned.handed is None:
-        if not _posts_the_feedback(context, owned):
+        posted = _posts_the_feedback(context, owned)
+        if posted is None:
             return False
-        _verdicts.hands_off(state, _run_ledger_values._runs_used(state))
+        _verdicts.hands_off(state, _run_ledger_values._runs_used(state), posted)
         gh.write_pinned_state(issue, state)
         return True
     if not _launch_stands(gh, issue, state, owned):
@@ -217,12 +222,14 @@ def _launch_stands(
     tick died before the spawn -- and is not counted: the launch is still owed,
     and the circuit honors that reservation for the launch it was taken for
     rather than charging a second run. And the launch
-    is made only behind the feedback anchor the handoff was written beside:
-    it is the one durable copy of the feedback a failed run's `/orchestrator
-    continue` replays, and the fixing stage clears it with the round's other
-    bookmarks, so a handoff that lost it is held -- nothing relabelled,
-    launched, or written, the verdict left waiting as it was -- rather than
-    handing a developer a review no failed run could replay.
+    is made only behind the feedback anchor the handoff was written beside,
+    naming the very comment the verdict records it was handed over with
+    (`ReturnedVerdict.anchor`): it is the one durable copy of the feedback a
+    failed run's `/orchestrator continue` replays, and the fixing stage clears
+    it with the round's other bookmarks, so a handoff that lost it -- or whose
+    anchor another write pointed at some other comment, which that replay would
+    hand the developer as this reviewer's feedback -- is held: nothing
+    relabelled, launched, or written, the verdict left waiting as it was.
     """
     handed = None if owned is None else owned.handed
     unstarted = _run_ledger_values._reservation(state) is _run_ledger_models.RunPhase.RESERVED
@@ -235,19 +242,20 @@ def _launch_stands(
         _verdicts.drops_the_verdict(state, only=owned)
         gh.write_pinned_state(issue, state)
         return False
-    if state.get(_verdicts._FEEDBACK_ANCHOR) is None:
+    anchor = state.get(_verdicts._FEEDBACK_ANCHOR)
+    if anchor is None or owned is None or anchor != owned.anchor:
         log.warning(
-            "issue=#%d its reviewer's change request no longer carries the "
-            "feedback anchor it was handed beside; holding the handoff rather "
-            "than launching a developer no failed run could replay it to",
-            issue.number,
+            "issue=#%d its reviewer's change request was handed beside feedback "
+            "comment %s and the pinned anchor names %s; holding the handoff "
+            "rather than launching a developer no failed run could replay that "
+            "feedback to", issue.number, None if owned is None else owned.anchor, anchor,
         )
         return False
     return True
 
 
-def _posts_the_feedback(context: _models._RequestedChanges, owned) -> bool:
-    """Post the reviewer's feedback and hold the subject to what stands behind it; whether the handoff goes on.
+def _posts_the_feedback(context: _models._RequestedChanges, owned) -> int | None:
+    """Post the reviewer's feedback and hold the subject to what stands behind it; the post's id, or None to stop.
 
     Only a post identified by the id it landed as goes on: that id is the
     anchor the handoff is written beside, so no pull request to post on, a
@@ -265,7 +273,7 @@ def _posts_the_feedback(context: _models._RequestedChanges, owned) -> bool:
             "issue=#%s holding its reviewer's change request until the "
             "feedback is posted on the PR", context.issue.number,
         )
-        return False
+        return None
     stood = _review_coverage._verdict_still_stands(
         context.gh, context.issue, context.state, context.decision.run.subject.recorded(), posted_over,
     )
@@ -273,4 +281,5 @@ def _posts_the_feedback(context: _models._RequestedChanges, owned) -> bool:
         stood = _claims.claim_standing(context.state, owned.evidence) is _claims.ClaimStanding.SETTLED
     if not stood:
         drops_what_moved(context.gh, context.issue, context.state, stood, (owned, posted))
-    return bool(stood)
+        return None
+    return posted

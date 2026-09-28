@@ -255,6 +255,7 @@ def _leaves(case, *, replaces: bool) -> None:
             "feedback": "A later round's feedback.",
             "evidence": None,
             "handed": None,
+            "anchor": None,
         }
     state.set(_world.RETURNED_VERDICT, case.left)
     case.github.write_pinned_state(case.issue, state)

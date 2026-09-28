@@ -146,8 +146,8 @@ class VerdictInHand:
     approval without any takes; "" where it earned some or was never asked.
     `pending` is the transaction a published claim names, which that tick
     recorded and publishes itself. `handed` is the agent-run count a change
-    request was already handed on at, for a later tick finishing that
-    handoff; None ahead of it.
+    request was already handed on at, and `anchor` the feedback comment it was
+    handed over with, for a later tick finishing that handoff; None ahead of it.
     """
 
     decision: _models._ReviewerDecision
@@ -155,12 +155,13 @@ class VerdictInHand:
     refusal: str = ""
     pending: _records.PendingEvidence | None = None
     handed: int | None = None
+    anchor: int | None = None
 
     @classmethod
     def waiting(cls, run: _models._ReviewerRun, returned: _verdicts.ReturnedVerdict) -> VerdictInHand:
         """The verdict a tick left waiting as `returned`, in hand again over `run`."""
         decision = _models._ReviewerDecision(run, returned.verdict, returned.feedback)
-        return cls(decision, returned.evidence, handed=returned.handed)
+        return cls(decision, returned.evidence, handed=returned.handed, anchor=returned.anchor)
 
     def over(self, state: PinnedState) -> VerdictInHand:
         """This verdict with its run measured from here on against the comment as `state` carries it.
@@ -184,6 +185,7 @@ class VerdictInHand:
             feedback=decision.feedback if decision.verdict == _verdicts.CHANGES_REQUESTED else "",
             evidence=self.claim,
             handed=self.handed,
+            anchor=self.anchor,
         )
 
     def _persists(

@@ -1760,8 +1760,8 @@ The keys that matter for the state machine fall into a few groups:
   disposed of yet (`stages/validating/review_verdicts.py`): `round` (the round it ran as), `verdict` (`approved` or
   `changes_requested`), `subject` (exactly as `review_subject` spells it), `feedback` (the words a change request hands
   the developer; `""` for an approval, and neither an approval carrying any nor words UTF-8 cannot carry read),
-  `evidence`, and `handed`. `evidence` is `null` where the reviewer's declaration earned none, and otherwise the one
-  claim the verdict relies on (`review_claims.py`): its `use` -- `published` for a reviewer-reported transaction
+  `evidence`, `handed`, and `anchor`. `evidence` is `null` where the reviewer's declaration earned none, and otherwise
+  the one claim the verdict relies on (`review_claims.py`): its `use` -- `published` for a reviewer-reported transaction
   minted from the commands the reviewer ran, bound to the subject, head, and tree it was handed and the configured
   verification context, whose artifact has to render as one comment, or `reused` for the current evidence it was
   handed and named, never any other -- and that record's `receipt`, `revision`, evidence `digest`, `passed`, and
@@ -1770,8 +1770,10 @@ The keys that matter for the state machine fall into a few groups:
   `verification_evidence_pending` does, either bound under the configured verification context and at the latest
   revision the issue has spent, and lost otherwise -- a later transaction, settled or not, supersedes it. `handed` is
   `null` until a change request is handed to `workflow:fixing`, and then the `agent_runs_used` count as that handoff was
-  written, no wider than the count its room is reserved at; an approval carrying one does not read. The reader takes
-  the record whole -- exactly those six members, a claim of exactly its six, each in its writer's shape -- or reads no
+  written, no wider than the count its room is reserved at; an approval carrying one does not read. `anchor` is `null`
+  exactly as long, and then the id of the feedback comment the request was handed over with, as wide at most as the
+  id its room is reserved at. The reader takes
+  the record whole -- exactly those seven members, a claim of exactly its six, each in its writer's shape -- or reads no
   verdict at all, and nothing that reader refuses is staged. It is staged only where
   the comment has room for it at the widest write it is part of: a change request's handoff, with its count, the
   `pending_fix_reviewer_comment_id` anchor, and that comment's ledger entry, and the developer launch's
@@ -1821,8 +1823,10 @@ The keys that matter for the state machine fall into a few groups:
   charge still standing as an unstarted `agent_run_reservation` reached none: the launch stays owed, and the run
   circuit honors that reservation rather than charging again), which is asked again right before every launch, so a
   developer another road launched behind the relabel is never launched a second time. Either launch is made only behind
-  that anchor: the fixing stage clears it with the round's other bookmarks, and a handoff that lost it is held --
-  nothing relabelled or launched, the record left as it waited -- since no failed run could replay the feedback. A
+  that anchor, still naming the comment the record's `anchor` does: the fixing stage clears it with the round's other
+  bookmarks, and a handoff that lost it, or whose anchor names another comment, is held -- nothing relabelled or
+  launched, the record left as it waited -- since no failed run could replay the feedback, or one would replay another
+  comment to the developer as the reviewer's feedback. A
   subject proved to have moved behind either request sets the record to `null` in a write that keeps the newer records,
   clearing that anchor with it so no retry replays feedback about a subject nobody is handing on. An approval reaches
   the approval arc only where its claim names the current evidence exactly and that evidence proves current, its

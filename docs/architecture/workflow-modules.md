@@ -3246,8 +3246,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reviewer runs the verification itself
       review_verdicts.py    the `review_returned_verdict` record a returned reviewer's verdict is to wait in, written
                             only by the dormant `review_disposition.py`: its round, verdict, subject, feedback, the one
-                            evidence claim it relies on, and the agent-run count a change request was handed to
-                            `workflow:fixing` on -- an approval handed nothing and carrying no feedback. Read whole or
+                            evidence claim it relies on, the agent-run count a change request was handed to
+                            `workflow:fixing` on, and the id of the feedback comment it was handed over with -- an
+                            approval handed nothing and carrying no feedback. Read whole or
                             not at all, and staged only where it reads back exactly and the comment has room for it at
                             its widest write -- a change request's handoff, with the count, anchor, and ledger entry it
                             adds and the developer launch's run-ledger charge composed over it -- with exactly the
@@ -3335,9 +3336,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reached none, and the launch stays owed, honoring that reservation -- which is asked
                             again right before the launch, so a developer another road launched behind the relabel is
                             not launched twice. Either launch is made only behind the feedback anchor the handoff was
-                            written beside, which the fixing stage clears with the round's other bookmarks: a handoff
-                            that lost it is held, nothing relabelled or launched, since no failed run could replay
-                            the feedback (`_launch_stands`). A moved subject drops the verdict this road holds and the
+                            written beside, still naming the post the verdict records it was handed over with, which
+                            the fixing stage clears with the round's other bookmarks: a handoff that lost it, or
+                            whose anchor names another comment, is held, nothing relabelled or launched, since no
+                            failed run could replay the feedback, or one would replay another comment as it
+                            (`_launch_stands`). A moved subject drops the verdict this road holds and the
                             anchor it posted over the newer records (`drops_what_moved`), never a verdict or anchor
                             another road put in their place
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the

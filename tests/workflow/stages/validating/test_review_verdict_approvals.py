@@ -430,6 +430,7 @@ class ReplacedVerdictTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
             "feedback": "A later round's feedback.",
             "evidence": None,
             "handed": None,
+            "anchor": None,
         }
         state.set(_world.RETURNED_VERDICT, self.replacement)
         state.set(REVIEW_ROUND, 1)

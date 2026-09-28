@@ -124,10 +124,17 @@ def _charges_a_run(case) -> None:
     case.github.write_pinned_state(case.issue, state)
 
 
-def _clears_the_anchor(case) -> None:
-    """The fixing stage's clear of the round's bookmarks, the reviewer-feedback anchor among them."""
+def _moves_the_anchor(case, *, elsewhere: bool) -> None:
+    """Another write of the reviewer-feedback anchor than the handoff's.
+
+    The fixing stage's clear of the round's bookmarks, the anchor among them,
+    or -- `elsewhere` -- the anchor pointed at another comment on the pull
+    request than the feedback the request was handed over with.
+    """
     state = case.github.read_pinned_state(case.issue)
-    state.set(ANCHOR, None)
+    posted = state.get(ANCHOR)
+    others = [said.id for said in case.pull_request.issue_comments if said.id != posted]
+    state.set(ANCHOR, others[0] if elsewhere else None)
     case.github.write_pinned_state(case.issue, state)
 
 
@@ -152,14 +159,15 @@ _RETURNED = (UNDECLARED_REQUEST, _world.declared_run())
 
 
 # Where a handed request's handoff stopped, what another road did before the
-# replay -- launched the developer it was handed to, or cleared its feedback
-# anchor with the round's other bookmarks as the fixing stage does -- and what
-# the replay leaves: the developers it launches, every relabel, and the verdict
-# waiting.
+# replay -- launched the developer it was handed to, cleared its feedback
+# anchor with the round's other bookmarks as the fixing stage does, or pointed
+# that anchor at another comment -- and what the replay leaves: the developers
+# it launches, every relabel, and the verdict waiting.
 _HANDED = (
     ("on the relabel", None, (1, HANDED_BACK, None)),
     ("past the launch", _charges_a_run, (0, (), None)),
-    ("with its anchor cleared", _clears_the_anchor, (0, (), REQUESTED)),
+    ("with its anchor cleared", partial(_moves_the_anchor, elsewhere=False), (0, (), REQUESTED)),
+    ("with its anchor replaced", partial(_moves_the_anchor, elsewhere=True), (0, (), REQUESTED)),
 )
 
 
@@ -263,8 +271,10 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
         # past the count it was handed at, launches nobody and retires the
         # verdict, that developer already having run. Where the feedback
         # anchor it was handed beside is gone, no failed run could replay the
-        # feedback, so the handoff is held: nothing relabelled or launched, and
-        # the verdict waits as it was.
+        # feedback, and where it names another comment, a failed run would
+        # replay that comment as the reviewer's feedback: either way the
+        # handoff is held, nothing relabelled or launched, and the verdict
+        # waits as it was.
         for stopped, meanwhile, expected in _HANDED:
             with self.subTest(stopped):
                 self.setUp()

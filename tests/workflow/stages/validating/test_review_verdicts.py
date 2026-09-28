@@ -93,6 +93,9 @@ LONE_SURROGATE = "1. Handle \ud800 too."
 # lifetime count the request is handed at, and the launch's fingerprint.
 POSTED_ID = 3_456_789_012
 
+# A count or an id one wider than the room the record's handoff is reserved at.
+_PAST_THE_ROOM = _record_values.MAX_RECORDED_NUMBER + 1
+
 RUNS_USED = 41
 
 LAUNCH = "0123456789abcdef" * 4
@@ -131,7 +134,7 @@ def _handed_and_charged(state: PinnedState, pending: _records.PendingEvidence | 
     the charge composed over the comment that write left, and the claimed
     transaction's settlement on whichever tick its publication lands.
     """
-    _verdicts.hands_off(state, RUNS_USED)
+    _verdicts.hands_off(state, RUNS_USED, POSTED_ID)
     state.set("pending_fix_reviewer_comment_id", POSTED_ID)
     _comments._track_orchestrator_comment(state, POSTED_ID)
     state.set("agent_runs_used", RUNS_USED)
@@ -175,7 +178,7 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
         for returned in (
             RETURNED,
             _verdicts.ReturnedVerdict(0, _verdicts.APPROVED, RETURNED.subject),
-            replace(RETURNED, handed=HANDED_AT),
+            replace(RETURNED, handed=HANDED_AT, anchor=POSTED_ID),
             CLAIMING,
             _verdicts.ReturnedVerdict(
                 2, _verdicts.APPROVED, RETURNED.subject,
@@ -198,13 +201,19 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
             ("a verdict nobody acts on", _with(recorded, verdict="unknown")),
             ("a round below zero", _with(recorded, round=-1)),
             ("a round that is a flag", _with(recorded, round=True)),
-            ("a handoff below zero", _with(recorded, handed=-1)),
-            ("an approval handed to a developer", _with(recorded, verdict="approved", feedback="", handed=HANDED_AT)),
+            ("a handoff below zero", _with(recorded, handed=-1, anchor=POSTED_ID)),
+            ("a handoff behind no post", _with(recorded, handed=HANDED_AT)),
+            ("a post behind no handoff", _with(recorded, anchor=POSTED_ID)),
+            (
+                "an approval handed to a developer",
+                _with(recorded, verdict="approved", feedback="", handed=HANDED_AT, anchor=POSTED_ID),
+            ),
             ("an approval carrying feedback", _with(recorded, verdict="approved")),
             ("a subject short of its head", _with(recorded, subject=_with(RETURNED.subject, sha=...))),
             ("feedback that is no text", _with(recorded, feedback=["1."])),
             ("feedback UTF-8 cannot carry", _with(recorded, feedback=LONE_SURROGATE)),
-            ("a handoff wider than its room", _with(recorded, handed=_record_values.MAX_RECORDED_NUMBER + 1)),
+            ("a handoff wider than its room", _with(recorded, handed=_PAST_THE_ROOM, anchor=POSTED_ID)),
+            ("a post wider than its room", _with(recorded, handed=HANDED_AT, anchor=_PAST_THE_ROOM)),
             ("a claim of another revision", _with(recorded, evidence=_with(claim, revision=4))),
             ("a claim with a short digest", _with(recorded, evidence=_with(claim, digest=SHORT_DIGEST))),
             ("a claim nobody spells", _with(recorded, evidence=_with(claim, use="carried"))),
@@ -222,12 +231,12 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
         )
         untouched = PinnedState(comment_id=1, state_data={})
 
-        _verdicts.hands_off(carried, HANDED_AT)
-        _verdicts.hands_off(untouched, HANDED_AT)
+        _verdicts.hands_off(carried, HANDED_AT, POSTED_ID)
+        _verdicts.hands_off(untouched, HANDED_AT, POSTED_ID)
 
         self.assertEqual(
             (_verdicts.read_returned_verdict(carried), untouched.data),
-            (replace(RETURNED, handed=HANDED_AT), {}),
+            (replace(RETURNED, handed=HANDED_AT, anchor=POSTED_ID), {}),
         )
 
     def test_a_drop_touches_only_a_carried_one(self) -> None:
@@ -310,7 +319,11 @@ class ReturnedVerdictRoomTest(unittest.TestCase):
         # a reuse, or no claim at all, relies on no transaction.
         for name, returned, pending in (
             ("a round below zero", replace(RETURNED, round_n=-1), None),
-            ("a handoff wider than its room", replace(RETURNED, handed=_record_values.MAX_RECORDED_NUMBER + 1), None),
+            (
+                "a handoff wider than its room",
+                replace(RETURNED, handed=_record_values.MAX_RECORDED_NUMBER + 1, anchor=POSTED_ID),
+                None,
+            ),
             ("an approval carrying feedback", replace(APPROVED, feedback=RETURNED.feedback), None),
             ("feedback UTF-8 cannot carry", replace(RETURNED, feedback=LONE_SURROGATE), None),
             ("a published claim without its transaction", CLAIMING, None),

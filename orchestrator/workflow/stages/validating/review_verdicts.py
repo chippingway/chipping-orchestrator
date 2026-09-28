@@ -28,8 +28,13 @@ configured verification command. A declaration that earned no evidence leaves
 `workflow:fixing`, and then the lifetime agent-run count as that handoff was
 written: the handoff goes down before the relabel and the developer launch, so
 a charge of the run ledger past that count is the only thing that can say the
-developer it owes was launched. An approval is never handed and hands nobody
-words, so a record saying it was, or carrying feedback, does not read.
+developer it owes was launched. `anchor` is `null` exactly as long, and then
+the id of the feedback comment the request was handed over with: the pinned
+feedback anchor a failed run's `/orchestrator continue` replays has to be that
+comment for the launch it owes to be made, since another comment there would
+be replayed to the developer as this reviewer's feedback. An approval is never
+handed and hands nobody words, so a record saying it was, or carrying
+feedback, does not read.
 
 The record is additive and fail-closed: an issue without it has no verdict
 waiting, and one in any shape this reader refuses is no verdict anybody may
@@ -99,10 +104,12 @@ _COVERS = "covers"
 
 _HANDED = "handed"
 
+_ANCHOR = "anchor"
+
 # The replay anchor a change request's handoff records beside it.
 _FEEDBACK_ANCHOR = "pending_fix_reviewer_comment_id"
 
-_VERDICT_MEMBERS = frozenset((_ROUND, _VERDICT, _SUBJECT, _FEEDBACK, _EVIDENCE, _HANDED))
+_VERDICT_MEMBERS = frozenset((_ROUND, _VERDICT, _SUBJECT, _FEEDBACK, _EVIDENCE, _HANDED, _ANCHOR))
 
 # What `drops_the_verdict` drops where its caller names no verdict it holds.
 _WHICHEVER = object()
@@ -180,7 +187,8 @@ class ReturnedVerdict:
     """What one returned reviewer decided, and the evidence its verdict relies on.
 
     `subject` is the review subject exactly as `review_subjects` records it,
-    and `handed` the agent-run count a change request was handed on, or None.
+    `handed` the agent-run count a change request was handed on, or None, and
+    `anchor` the id of the feedback comment it was handed over with, or None.
     """
 
     round_n: int
@@ -189,6 +197,7 @@ class ReturnedVerdict:
     feedback: str = ""
     evidence: EvidenceClaim | None = None
     handed: int | None = None
+    anchor: int | None = None
 
     def recorded(self) -> dict:
         """The pinned object this verdict is written as."""
@@ -199,6 +208,7 @@ class ReturnedVerdict:
             _FEEDBACK: self.feedback,
             _EVIDENCE: None if self.evidence is None else self.evidence.recorded(),
             _HANDED: self.handed,
+            _ANCHOR: self.anchor,
         }
 
     @classmethod
@@ -216,11 +226,16 @@ class ReturnedVerdict:
             feedback=recorded[_FEEDBACK],
             evidence=evidence,
             handed=handed,
+            anchor=_record_values.as_recorded_number(recorded[_ANCHOR]),
         )
         read_whole = (
             returned.round_n is not None,
             # Never wider than the count the handoff's room is reserved at.
             recorded[_HANDED] is None or (handed is not None and handed <= _record_values.MAX_RECORDED_NUMBER),
+            # Handed always beside the post it was handed over with: a comment
+            # id no wider than the one the handoff's room is reserved at.
+            (recorded[_HANDED] is None) == (recorded[_ANCHOR] is None),
+            recorded[_ANCHOR] is None or returned.anchor is not None,
             # Only a change request is ever handed to a developer, or hands
             # it words: an approval's feedback is written empty.
             recorded[_HANDED] is None or returned.verdict == CHANGES_REQUESTED,
@@ -293,7 +308,7 @@ class ReturnedVerdict:
         written = self
         if self.verdict == CHANGES_REQUESTED:
             widest = _record_values.MAX_RECORDED_NUMBER
-            written = replace(self, handed=widest)
+            written = replace(self, handed=widest, anchor=widest)
             reserved.set(_FEEDBACK_ANCHOR, widest)
             _comments._reserve_comment_slot(reserved, widest)
             # The charge adds one to the count it finds.
@@ -332,8 +347,8 @@ def records_the_verdict(
     return True
 
 
-def hands_off(state: PinnedState, runs_used: int) -> None:
-    """Stage the waiting verdict as handed to `workflow:fixing` at `runs_used`, where it waits.
+def hands_off(state: PinnedState, runs_used: int, anchor: int) -> None:
+    """Stage the waiting verdict as handed to `workflow:fixing` at `runs_used`, behind the feedback posted as `anchor`.
 
     Written by the handoff's own write, ahead of the relabel, and kept past
     both, so the developer launch that write precedes is the only thing that
@@ -341,7 +356,7 @@ def hands_off(state: PinnedState, runs_used: int) -> None:
     """
     waiting = read_returned_verdict(state)
     if waiting is not None:
-        state.set(RETURNED_VERDICT, replace(waiting, handed=runs_used).recorded())
+        state.set(RETURNED_VERDICT, replace(waiting, handed=runs_used, anchor=anchor).recorded())
 
 
 def drops_the_verdict(state: PinnedState, *, only: object = _WHICHEVER) -> bool:
