@@ -173,7 +173,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the publication reconciliation settles and which a pair it leaves on a still-pinned
                             anchor would answer soundly over work no recovery has finalized. The
                             verification-evidence transaction is answered directly behind it and ahead of the reuse
-                            guard, since the evidence answers for a review subject that names the report
+                            guard, since the evidence answers for a review subject that names the report.
+                            The report debt a rewritten pull-request head leaves is asked directly behind that, and only
+                            holds: any claim, readable or not, keeps the `documenting` and `in_review` handlers off,
+                            while `validating` runs, since its report hold is what pays the debt
     poll_reading.py         classify labels and hard-skip controls while admitting observed-close cleanup; drop open
                             blocked/umbrella dependency walks on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` skips;
                             a failed label read reaches per-issue exception isolation through the family bucket
@@ -724,6 +727,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             answers one is the handler behind this guard, so a hold there would leave both parks
                             standing for the life of the issue with neither announced, while a stand-down lets that
                             handler run and takes this park on the tick after its own clears
+    report_rewrite_debt.py  the report debt a rewrite of the pull request's head leaves -- the pull request, its branch,
+                            the head the rewrite replaced, and the exact head it published -- as one additive record,
+                            `null` once paid. Read whole and fail-closed, with presence asked apart from meaning, so a
+                            claim nobody can read is still a claim. A later rewrite of the head it names retargets it
+                            and keeps the replaced head, a rewind onto that head refused; where a report of the head it
+                            names has settled since and so paid it, the later rewrite's own debt takes its place, a
+                            rewind included. A rewrite onto the head it names is a replay whatever head it says it
+                            replaced; any other rewrite, and any over a damaged claim, is refused with the claim left
+                            standing, and one the comment has no room for is not staged. It also answers whether the
+                            settled report pays the debt -- a report of the head the pinned pull request stands on --
+                            and whether a claim explains exactly why that report is about another head.
+                            `dispatch_guards.py` holds the roads past an approval on any claim and
+                            `stages/validating/report_hold.py` holds the reviewer and pays it; no road records one yet
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in. The greeting anchors both
                             `pickup_comment_id` and `last_action_comment_id`, the floor the park ending the first
@@ -3084,7 +3100,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             edited, removed, or written untrusted, asked with the reading the implementing handoff
                             takes -- and a debt no record describes at all. Every one of those is something the
                             reconciliation stands down on rather than holding, so a silent hold there would
-                            suppress every later reviewer with nobody told
+                            suppress every later reviewer with nobody told.
+                            Once nothing is owed it asks the rewritten-head report debt
+                            (`workflow/engine/report_rewrite_debt.py`): a report settled about the head the pull request
+                            stands on pays it, a readable claim that explains exactly why the settled report is about
+                            the replaced head holds the reviewer with no park, and anything else is left to
+                            `review_report.py`'s own staleness refusal
       review_report.py      the report a reviewer is handed once nothing is owed: the one last settled, re-read where it
                             settled and quoted whole, and the pull request's head read with it for the subject. Refused
                             rather than reviewed -- parked under `report_undeliverable` with the debt recorded, so the

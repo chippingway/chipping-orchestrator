@@ -930,6 +930,38 @@ The keys that matter for the state machine fall into a few groups:
   reader had never heard of makes one member unreadable, which refuses the whole group, which holds a transaction
   whose report is written and whose feedback is already answered. What each field may HOLD is still bounded here,
   because a key names a shape this domain has to prove.
+- **Rewritten-head report debt.** `developer_report_rewrite_debt` is the report a pull request is owed because this
+  orchestrator rewrote its head (`workflow/engine/report_rewrite_debt.py`): `pr`, `branch`, `previous_head` -- the head
+  the rewrite replaced, the first one across a retargeting, which is the head the settled report is about -- and
+  `rewritten_head`, the exact commit the rewrite published. It is what lets a rebase this orchestrator made wait for a
+  report of the head it published instead of parking for a human because `developer_report_current` still names the head
+  before it. Additive: an issue without the key owes no rewrite a report, and `null` is what a paid debt leaves, so only
+  a payload that is present and not `null` is a claim. The reader takes the record whole -- exactly those four members,
+  the pull request and branch in the shape a report subject's are read in, both heads whole commit ids, and two heads
+  that differ -- and anything else is a claim nobody can describe: `carries_rewrite_debt` still reports it, and no
+  reader takes it for either head.
+
+  A later rewrite of the head the debt names RETARGETS it onto the head that rewrite published and keeps
+  `previous_head`, so repeated base advances leave one debt naming the latest head; a rewrite back onto `previous_head`
+  is refused there, since the settled report covers the head the pull request returns to and the validating hold pays
+  the standing debt. Where a report of the head the debt names has settled since, that report paid the debt, and the
+  later rewrite's own debt takes its place, naming the head the settled report is about -- a rewrite back onto
+  `previous_head` included, since the settled report no longer covers it. Replays are known by the head a rewrite
+  PUBLISHED: a rewrite onto the head the claim already names, on its pull request and branch, leaves the claim as it is
+  whatever head it says it replaced, since the claim already records that head as this orchestrator's and a replay moves
+  nothing the settled report is about. A rewrite of any other head onto one the claim does not name, of another pull
+  request or branch, or over a claim nobody can read is refused and leaves the claim as it stands, and a record that
+  would not read back as written, or that the comment has no room for, is not staged.
+
+  While a claim stands, readable or not, the dispatcher holds the roads past an approval -- `workflow:documenting` and
+  `in_review` ([the rewritten-head report debt](delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)) --
+  and lets `workflow:validating` run. Its report hold (`stages/validating/report_hold.py`), once no other report is
+  owed, pays the debt with a report settled about the head the pull request stands on, whichever head the claim names or
+  whether it reads at all, writing `null` before the reviewer road; holds the reviewer without a park where a readable
+  claim explains exactly why the settled report is about another head -- the pinned pull request and the branch are the
+  claim's, the settled report is about `previous_head`, and the pull request stands on `rewritten_head`; and otherwise
+  holds nothing, leaving the reviewer road to refuse the stale report as it would with no claim. Dormant: no road
+  records one yet, so no issue carries the key.
 - **HITL park.** `awaiting_human`, `last_action_comment_id`, `park_reason`. `_park_awaiting_human` (on the same
   `workflow/engine/guards.py` owner as the two run refusals) sets
   `awaiting_human=True` and clears `park_reason` to `None`; a handler that needs the reason to survive into the next
