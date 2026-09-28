@@ -550,7 +550,8 @@ The keys that matter for the state machine fall into a few groups:
   rebase's after a refused push, and the squash's own rollback after one.
 - **A held pair's continuation.** `late_spends` records what the tick that froze a pair owed if its hold went
   through — the reviewer round a fix spends, the bookmarks a consumed batch clears, the head a finished docs pass
-  produced, the outcome a resolution earned — as `[[field, value], ...]`. It is one of `LATE_STATE_KEYS`, so it lives
+  produced, the outcome a resolution earned, the head a recovered push ahead of a rebase published — as
+  `[[field, value], ...]`. It is one of `LATE_STATE_KEYS`, so it lives
   and dies with the generation it is about, and each member is bounded by the FIELD it names rather than by what a
   comment can carry: a round is a real non-negative count, a bookmark is only ever cleared, a settled head is a whole
   object id or none, an outcome is one bounded single-line name. A counter that came back as text would pass any
@@ -579,7 +580,16 @@ The keys that matter for the state machine fall into a few groups:
   routed hold's own write ahead of the relabel, and read back by the resumed `resolving_conflict` tick, which could
   not re-derive either: the settlement publishes the commit, so the branch it comes back to already carries its base
   and would be flipped as `base_up_to_date` — the one exit that resolves nothing and stamps no
-  `last_conflict_resolved_at`. Dropped by whichever pushed-round tail finally pays the round.
+  `last_conflict_resolved_at`. Dropped by whichever pushed-round tail finally pays the round. A landed push that
+  finishes a round writes the pair too, in the gate's own write beside the publication receipt, so a round whose
+  tail a crash cut short is finished from it on the next tick — and for `base_rebased_clean`, `agent_resolved`, and
+  `recovered_push` that tail records the rewritten head's `developer_report_rewrite_debt` from the receipt beside it.
+  `conflict_preamble_sha` is the counterpart for a recovered push that lands still behind base, which finishes no
+  round and so writes no pair: the head it publishes, written in the same gate write (and in a hold's, ahead of the
+  relabel) so the report debt it owes is not lost to a crash before the debt's own write or to an adjudication that
+  publishes it later. The resumed tick reads it before anything else; once the publication receipt names that head
+  it is written `null`, and the debt is recorded where the pull request was just fetched standing on it. Any debt
+  this stage records drops it too.
   - **The replay a rebase made.** `conflict_replay_from_sha`, `conflict_replay_from_base_sha`,
   `conflict_replay_to_sha`, and `conflict_replay_pr_number` are what a `workflow:resolving_conflict` rebase records
   ABOUT ITSELF, because the tick that runs a replay is not always the tick that publishes one. The head it is about
@@ -973,8 +983,23 @@ The keys that matter for the state machine fall into a few groups:
   keeps the reviewer off and resumes the developer for a fresh report of `rewritten_head` -- recorded as
   `developer_report_delivery`, bound, published, and settled like every other report, so the next tick finds it paid;
   a run that brings none parks with `developer_report_owed` so a reply's report pays it instead. Otherwise it holds
-  nothing, leaving the reviewer road to refuse the stale report as it would with no claim. Dormant: no road records
-  one yet, so no issue carries the key.
+  nothing, leaving the reviewer road to refuse the stale report as it would with no claim.
+
+  `workflow:resolving_conflict` records the claim for every head its own push rewrites -- a clean rebase, a
+  resolution the dev finished one with, and a recovered push (`stages/conflicts/report_debt.py`) -- and reads it
+  off the code-publication receipt that push left: `implementing_published_lease` is `previous_head` and
+  `implementing_published_sha` is `rewritten_head`, on the pinned pull request, or nothing is recorded. It goes down
+  in its own write ahead of the relabel to `workflow:validating`, and a round a crash cut short between its push and
+  that relabel records it from the same receipt when the settled round is finished (**Conflict rounds** above) -- a
+  crash before the gate's receipt write included, since the approval-debt reconciliation writes that receipt against
+  the approval's original `late_approved_lease`, with the round's `late_spends` beside it; for a push an adjudication
+  accepted, the settlement's retry writes it against the head the verdict was measured over. A proved debt the comment
+  has no room for holds the round instead of handing it on: it parks `unrecorded_report_debt`, a reason no reply
+  answers, and every later tick tries the write again before anything else. A
+  recovered push that lands still behind base records its debt at once, and names its head as
+  `conflict_preamble_sha` in the gate's write so a tick after a crash, or after an adjudication publishes it, records
+  the debt from that. A no-op rebase, a failed push, and a body edit's commit record none, and a push the size gate
+  held records its debt only once the tick behind its adjudication's publication reads one of those two back.
 - **HITL park.** `awaiting_human`, `last_action_comment_id`, `park_reason`. `_park_awaiting_human` (on the same
   `workflow/engine/guards.py` owner as the two run refusals) sets
   `awaiting_human=True` and clears `park_reason` to `None`; a handler that needs the reason to survive into the next

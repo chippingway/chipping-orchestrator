@@ -4,7 +4,9 @@
 
 A held resolution records its outcome and exact head for a later tick.
 Recovery proves that head before incrementing the round, clearing its park
-and receipt, and moving the issue to validation.
+and receipt, and moving the issue to validation. A round that rewrote the
+pull request's head records the report debt it leaves first, on the tick that
+pushed and on the one a crash sent back to finish it alike.
 """
 from __future__ import annotations
 
@@ -17,7 +19,12 @@ from orchestrator.workflow.late_split import (
     formats as _formats,
     payloads as _payloads,
 )
-from orchestrator.workflow.stages.conflicts import models as _models, parks as _conflict_parks, state as _state
+from orchestrator.workflow.stages.conflicts import (
+    models as _models,
+    parks as _conflict_parks,
+    report_debt as _report_debt,
+    state as _state,
+)
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
 )
@@ -28,6 +35,24 @@ log = logging.getLogger("orchestrator.workflow")
 
 # The revision a checkout's own head is named by.
 _HEAD = "HEAD"
+
+
+# What the three rounds that REWRITE the pull request's head are recorded as,
+# in the audit event and in the receipt a hold leaves for the tick that
+# resumes behind it: a clean replay of the branch onto its base, a replay the
+# dev finished by resolving its conflicts, and commits an earlier tick made and
+# never pushed. Each moves the pull request onto a head no developer report is
+# about -- the conflict prompt asks for none, and nothing on the recovery road
+# can say whether the commits it finds ever had one -- so each owes the report
+# debt. A body edit's round is not one: its commit is the developer's own
+# answer to the change, and the report owed for it is the reviewer road's.
+_BASE_REBASED_CLEAN = "base_rebased_clean"
+
+_AGENT_RESOLVED = "agent_resolved"
+
+_RECOVERED_PUSH = "recovered_push"
+
+_REWRITES = frozenset((_BASE_REBASED_CLEAN, _AGENT_RESOLVED, _RECOVERED_PUSH))
 
 
 def _emit_conflict_round_incremented(
@@ -74,15 +99,23 @@ def _hand_resolved_round_to_validating(
     re-approve the rebased branch), bumps `conflict_round`, stamps
     `last_conflict_resolved_at`, emits the `conflict_round` audit event, flips
     the label, and persists pinned state. Shared by every pushed-diff exit --
-    recovered push, clean base rebase, agent resolution, and the drift resume.
+    recovered push, clean base rebase, agent resolution, and the drift resume
+    -- and by the settled round a hold or a crash left for a later tick.
     Docs do not run here: the single docs pass is deferred to the post-approval
     handoff to `documenting` in `_handle_validating`.
+
+    A round that rewrote the head records its report debt before any of that,
+    durably and ahead of the relabel (`report_debt`): the label is what hands
+    the head to the reviewer road, which would otherwise park for the report
+    of a commit this stage made. A debt the pinned comment has no room for
+    holds the whole tail -- nothing counted, nothing relabelled -- behind the
+    park that records why, and the settled round the push's own write left
+    brings the next tick back to try again.
     """
-    ctx.state.set(_state._REVIEW_ROUND, 0)
-    ctx.state.set(_state._CONFLICT_ROUND, conflict_round + 1)
-    ctx.state.set("last_conflict_resolved_at", _usage._now_iso())
+    if outcome in _REWRITES and not _report_debt._records_the_rewrite(ctx, sha or ""):
+        return
+    _counts_the_round(ctx, conflict_round)
     _conflict_parks._left_unparked(ctx)
-    _forget_settled_round(ctx)
     _emit_conflict_round_incremented(
         ctx,
         pr_number=int(pr_number),
@@ -153,7 +186,19 @@ def _finished_settled_round(
     The receipt is the whole of what this tick knows about a round it did not
     run: the resolution was reached, committed, and read by a human as one
     coherent change, and the settlement put it on the pull request. What is
-    left is the tail above, with the outcome the round actually had.
+    left is the tail above, with the outcome the round actually had -- the
+    report debt a rewrite owes included, read off the code-publication receipt
+    the push that published it left. That is also the road a tick takes back
+    after a process ended between its own push and its hand to `validating`:
+    the push's write carries this receipt too, so the debt is not lost with
+    the tail that never ran.
+
+    A recovered push that preceded a rebase leaves no receipt, since it
+    finished no round, but its write names the head it published, and the
+    debt that head is owed is recorded here first -- ahead of every resume
+    and rebase, against the head the pull request was just fetched on. One
+    the pinned comment has no room for ends the tick behind its park, since
+    nothing past it may run over a head that owes a debt nobody wrote down.
 
     `sync.ahead` is what says the commit reached the remote, and it is asked
     because the receipt cannot: a verdict that parked, or a human who moved
@@ -191,6 +236,8 @@ def _finished_settled_round(
     cannot peel is not one anything may be compared against -- both leave the
     receipt exactly where it is for a tick that can prove it.
     """
+    if not _report_debt._records_the_owed_preamble(ctx, sync.fetched_tip):
+        return True
     outcome, settled = _settled_round_owed(ctx.state)
     if not outcome or pr_number is None:
         return False
@@ -227,13 +274,20 @@ def _standing_on(
     return False
 
 
-def _forget_settled_round(ctx: _models._ConflictContext) -> None:
-    """Drop a receipt the round it was owed for has now been paid on.
+def _counts_the_round(ctx: _models._ConflictContext, conflict_round: int) -> None:
+    """Stage what a paid round leaves: its count, and no receipt still owing it.
 
-    Cleared by the tail rather than by the reader above, so a recovered-commit
-    push that publishes a held resolution on its own -- reaching the tail
-    under its own outcome -- leaves nothing behind for a later tick to finish
-    a second time.
+    `review_round` resets, since rebasing rewrites SHAs and validation must
+    re-approve the rebased branch; `conflict_round` is bumped and
+    `last_conflict_resolved_at` stamped.
+
+    The receipt is dropped here, by the tail rather than by the reader above,
+    so a recovered-commit push that publishes a held resolution on its own --
+    reaching the tail under its own outcome -- leaves nothing behind for a
+    later tick to finish a second time.
     """
+    ctx.state.set(_state._REVIEW_ROUND, 0)
+    ctx.state.set(_state._CONFLICT_ROUND, conflict_round + 1)
+    ctx.state.set("last_conflict_resolved_at", _usage._now_iso())
     ctx.state.set(_state._SETTLED_OUTCOME, None)
     ctx.state.set(_state._SETTLED_SHA, None)

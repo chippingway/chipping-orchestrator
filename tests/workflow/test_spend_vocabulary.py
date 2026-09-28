@@ -29,6 +29,7 @@ from orchestrator.workflow.stages.validating import state as _validating_state
 _ROUTE_SPEND_KEYS = (
     _conflicts_state._SETTLED_OUTCOME,
     _conflicts_state._SETTLED_SHA,
+    _conflicts_state._PREAMBLE_SHA,
     _conflicts_state._REVIEW_ROUND,
     _documenting_state._SETTLED_DOCS_SHA,
     _fixing_state._REVIEW_ROUND,

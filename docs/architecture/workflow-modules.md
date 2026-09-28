@@ -742,7 +742,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             claim is owed a fresh report of the head it names because the settled report is of either
                             head it names and pays nothing. `dispatch_guards.py` holds the roads past an approval on
                             any claim and `stages/validating/report_refresh.py` holds the reviewer, obtains that
-                            report, and pays it; no road records one yet
+                            report, and pays it; `stages/conflicts/report_debt.py` records one for every head the
+                            conflict stage's own push rewrites
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in. The greeting anchors both
                             `pickup_comment_id` and `last_action_comment_id`, the floor the park ending the first
@@ -1205,7 +1206,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             force-publish over
       divergence.py         admission over a stale orchestrator-produced head or a recorded replay, and recovered
                             publication through the size gate under the original lease; the behind-base count decides
-                            whether the push finishes a round or precedes another rebase
+                            whether the push finishes a round or precedes another rebase, and a landed push that
+                            precedes one records its report debt at once, since that rebase may end without a tail,
+                            having handed the gate its head so a later tick can record the debt after a crash or a
+                            hold
       recovery_guards.py    recovery parks for an unreadable candidate, unpinned remote tip, or dirty/unreadable checkout;
                             each refusal retains the recovered work and the exact reason a later tick retries
       rebase.py             the branch and base fetches, the pre-rebase head every exit of the round leases its
@@ -1242,16 +1246,30 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             resolution earns -- measured by the size gate first, since a resolution grows the pull
                             request like any other candidate, and pinned by the pre-rebase head this stage read
       parks.py              park notices, durable reasons, and the predicate that preserves a human question through
-                            transient refusals; unreadable-head and unreadable-worktree parks are shared by callers
+                            transient refusals; unreadable-head and unreadable-worktree parks are shared by callers,
+                            beside the park a proved rewrite's report debt with no room on the comment is held under
       transitions.py        held-round receipt reads and writes, exact-head recovery, round increments, and handoff to
-                            validation; a settled receipt is cleared only by the tail that pays it
+                            validation; a settled receipt is cleared only by the tail that pays it. The outcomes of
+                            the three rounds that rewrite the head -- a clean rebase, an agent resolution, a
+                            recovered push -- are named here, and the tail records their report debt before the
+                            relabel, on the pushing tick and on the settled round a crash or a hold left alike; the
+                            settled-round reader records a published preamble head's debt before anything else
+      report_debt.py        the report debt a head this stage rewrote is owed, read off the code-publication receipt
+                            the push left -- the commit it names, the pinned pull request, and the head it replaced --
+                            and carried through the debt owner's retargeting; a receipt short of any of those records
+                            none, and the write that records one goes out ahead of the relabel to validation. A
+                            recovered push ahead of a rebase finishes no round, so it hands the gate its head as a
+                            spend instead, and the next tick records that head's debt once the receipt names it and
+                            the pull request still stands on it. A proved debt the comment has no room for holds the
+                            handoff behind a park no reply answers, and every later tick tries the write first
       models.py             frozen conflict context, checkout and resume results, live replay pairs, and recorded replay
                             values handed between the stage's owners; a body-edit resume's result carries the
                             delivery record its prompt was cut from, since the thread moves while an agent is out
                             and a mark taken off the one it returns to crosses replies nobody delivered
       state.py              the counter keys they share, the single settled pair one held round at a time is named
-                            by, and the `conflict_replay_*` group a rebase writes about itself -- both ends of what
-                            it replaced, the commit it produced, and the publication it was made against -- for the
+                            by, the preamble head a recovered push ahead of a rebase leaves for its report debt, and
+                            the `conflict_replay_*` group a rebase writes about itself -- both ends of what it
+                            replaced, the commit it produced, and the publication it was made against -- for the
                             tick that may have to publish it
     decomposition/          `workflow:decomposing`, `workflow:ready`, `workflow:blocked`, and `workflow:umbrella`
       run.py                one `decomposing` tick: the retry-cap notice a stranded park still owes replayed at
@@ -1530,7 +1548,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             an accepted candidate is superseded by nothing and publishes as itself. The identity
                             is fingerprinted over the frozen pair the adjudication was run against rather than
                             over a checkout that stayed writable throughout, and a reading nobody could take
-                            leaves the exact exemption alone
+                            leaves the exact exemption alone. A retry that finds its own push already landed owes
+                            no push, only the code-publication receipt that push may have died before, written
+                            against the head the verdict was measured over
       late_reconcile.py     the two reconciliations that order opens with, shared with the handoff of a candidate a
                             remeasurement put back under the ceiling: the hold RESTORED rather than rewritten, and
                             the pull request settled against the measured commit in any state -- searched for by

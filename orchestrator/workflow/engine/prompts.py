@@ -197,7 +197,8 @@ def _build_report_refresh_prompt(
     """Ask the developer for a fresh report of a head this orchestrator rewrote, and nothing else.
 
     The report the pull request carries is about `previous_head`, which a
-    rebase replaced with `rewritten_head`, so the only outcome that pays for
+    rewrite replaced with `rewritten_head` -- a rebase, a conflict resolution,
+    or commits an earlier run left unpushed -- so the only outcome that pays for
     the rewrite is one written afresh about it. The whole report contract
     rides along, as on every developer prompt, and the verified outcome it
     teaches is then refused by name: pointing at the report already there
@@ -205,15 +206,16 @@ def _build_report_refresh_prompt(
     """
     body = issue.body or _prompt_notes._NO_BODY
     return (
-        f"This orchestrator rebased the pull request of GitHub issue #{issue.number} "
-        f"({issue.title!r}) onto its updated base branch. The pull request now "
-        f"stands on commit `{rewritten_head}`, and your worktree is checked out at "
-        f"it. The developer report the pull request carries describes "
-        f"`{previous_head}`, the head the rebase replaced, so it is not a report "
-        "of this commit.\n\n"
+        "This orchestrator rewrote the head of the pull request of GitHub issue "
+        f"#{issue.number} ({issue.title!r}) -- rebasing it onto its updated base "
+        "branch, resolving the conflicts that rebase met, or publishing commits an "
+        "earlier run left unpushed. The pull request now stands on commit "
+        f"`{rewritten_head}`, and your worktree is checked out at it. The developer "
+        f"report the pull request carries describes `{previous_head}`, the head "
+        "that rewrite replaced, so it is not a report of this commit.\n\n"
         f"Issue body:\n{body}\n\n"
         "This run delivers a report alone. Read the branch as it now stands -- "
-        "what the rebase changed underneath it included -- and write a fresh, "
+        "what the rewrite changed included -- and write a fresh, "
         "complete developer report of that commit against the issue as it reads "
         "now. Do NOT commit, push, or leave any change in the worktree: the "
         "orchestrator publishes the report onto the head the pull request "
@@ -224,6 +226,6 @@ def _build_report_refresh_prompt(
         f"`{_report_models._REPORT_END_MARKER}`. "
         f"`{_report_models._REPORT_VERIFIED_MARKER}` is not accepted here: the "
         "report already on the pull request is about the head before the "
-        "rebase, and verifying it again is no report of this one.\n\n"
+        "rewrite, and verifying it again is no report of this one.\n\n"
         f"{_prompt_notes._FOREGROUND_ONLY_NOTE}"
     )

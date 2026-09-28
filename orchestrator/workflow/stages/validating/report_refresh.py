@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """The report a rewritten head is owed, asked for and settled with no human.
 
-A rebase this orchestrator published leaves the pull request on a commit the
+A rewrite this orchestrator published -- a rebase, a conflict resolution, or
+commits an earlier tick left unpushed -- leaves the pull request on a commit the
 settled report is not about (`report_rewrite_debt`), and the reviewer road
 would refuse that report and park for a human whose reply only restarts a
 report of a commit this orchestrator made itself. So the report hold asks here
@@ -81,19 +82,19 @@ log = logging.getLogger("orchestrator.workflow")
 
 _DAMAGED_RECEIPT = (
     "the code-publication receipt cannot be read (`{member}`), so no report of "
-    "`{head}`, the head this orchestrator rebased the pull request onto, can be "
+    "`{head}`, the head this orchestrator rewrote the pull request onto, can be "
     "settled onto it -- repair that field on the pinned comment before you reply"
 )
 
 _UNRECEIPTED = (
     "the code-publication receipt does not name `{head}`, the head this "
-    "orchestrator rebased the pull request onto, so no report of it can be "
+    "orchestrator rewrote the pull request onto, so no report of it can be "
     "bound to the pull request"
 )
 
 _UNFROZEN = (
     "the checkout cannot be frozen on `{head}`, the head this orchestrator "
-    "rebased the pull request onto: {detail}"
+    "rewrote the pull request onto: {detail}"
 )
 
 

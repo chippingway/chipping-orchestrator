@@ -116,12 +116,13 @@ requirements-drift resume, a reviewer-requested round on either side of the park
 human-feedback round `in_review` routes to `workflow:fixing`: the report is recorded before the size gate, stamped
 with the requirements revision the run was handed, bound once the code is out (or at once, for a report alone, which
 spends the round a pushed fix spends because the next reviewer reads it), and the reviewer waits until the pull
-request carries it. So does the report refresh `workflow:validating` runs for a head this orchestrator's own rebase
-published (a claimed `developer_report_rewrite_debt`): before any reviewer and with no human reply, the developer is
-asked for a fresh `REPORT: READY` report of that exact head, recorded and settled the same way, and the claim is
-cleared only once a published report of that head, still intact and written against the current requirements, has
-settled -- a verification of the report the rebase left behind pays nothing. Each reviewer is then handed the report
-re-read where it settled, and what it approves is
+request carries it. So does the report refresh `workflow:validating` runs for a head this orchestrator's own push
+rewrote -- a rebase, a conflict resolution, or commits an earlier tick left unpushed (a claimed
+`developer_report_rewrite_debt`): before any reviewer, the claim is cleared at once where a published report of that
+exact head, still intact and written against the current requirements, has already settled, and otherwise the
+developer is asked with no human reply for a fresh `REPORT: READY` report of that head, recorded and settled the same
+way, which clears it once it has -- a verification of the report the rewrite left behind pays nothing. Each reviewer
+is then handed the report re-read where it settled, and what it approves is
 recorded as `review_approved_subject` — pull request, head, requirements, and report — so a report that changes on
 an unchanged head goes back to a fresh reviewer rather than riding an earlier approval
 ([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)).

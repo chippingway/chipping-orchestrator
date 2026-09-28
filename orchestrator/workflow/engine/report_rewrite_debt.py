@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """The report a pull request is owed because this orchestrator rewrote its head.
 
-A rebase this orchestrator publishes moves the pull request onto a commit no
+A rewrite this orchestrator publishes -- a rebase, a conflict resolution, or
+commits an earlier tick left unpushed -- moves the pull request onto a commit no
 developer report is about: the report the issue last settled names the head the
-rebase replaced, and a reviewer is right to refuse it for the one standing now.
+rewrite replaced, and a reviewer is right to refuse it for the one standing now.
 Left to that refusal, the rewrite parks the issue for a human whose reply only
 restarts a report for a commit this orchestrator made itself. So the rewrite is
 recorded as DEBT instead -- the pull request, its branch, the head the rewrite
@@ -54,8 +55,9 @@ does a report of an older requirements revision. Where the settled report is of
 either head the debt names and pays nothing, a fresh report of the head it
 published is what the debt is owed (`RewriteDebt.owes_a_refresh`). The
 validating stage is where both are asked, and where that report is obtained
-(`stages/validating/report_refresh.py`). No road records one yet: this owner is
-the record, its reader, its retargeting, and its drop.
+(`stages/validating/report_refresh.py`). The conflict stage records one for
+every head its own push rewrites (`stages/conflicts/report_debt.py`); this
+owner is the record, its reader, its retargeting, and its drop.
 """
 from __future__ import annotations
 

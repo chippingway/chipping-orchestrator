@@ -17,15 +17,18 @@ from tests.support.fakes import (
 from tests.workflow.fixtures import (
     _FAKE_WT,
     _TEST_SPEC,
+    LABEL_VALIDATING,
     MEASURED_CANDIDATE_SHA,
     _agent,
     _issue_branch,
     _PatchedWorkflowMixin,
 )
 from tests.workflow.stages.conflicts.conflicts_test_support import (
+    MOVED_PR_HEAD_SHA,
     RESOLVED_HEAD_SHA,
     _ResolvingConflictMixin,
 )
+from tests.workflow.stages.conflicts.report_debt_support import DEBT, owed
 
 # The pre-rebase head this stage reads for itself and pins its push to. A
 # whole object id, because the size gate freezes what the caller established
@@ -40,6 +43,10 @@ RUN_AGENT = "run_agent"
 CONFLICT_ROUND = "conflict_round"
 UNCHANGED_HEAD = "samehead"
 MAX_CONFLICT_ROUNDS_SETTING = "MAX_CONFLICT_ROUNDS"
+
+# The head a report settled about before an earlier rewrite moved the pull
+# request onto the one this round starts from.
+FIRST_HEAD = "f1257ead" * 5
 
 
 def _seed_fetch_case():
@@ -224,6 +231,11 @@ class ResolvingConflictCleanRebaseTest(unittest.TestCase, _ResolvingConflictMixi
         self.assertEqual(state.get("review_round"), 0)
         self.assertEqual(state.get(CONFLICT_ROUND), 1)
         self.assertIn("last_conflict_resolved_at", state)
+        # The rebased head is one no developer report is about, so the round
+        # hands `validating` the report debt it owes -- from the head the push
+        # replaced to the one it published -- rather than a stale report the
+        # reviewer road would park over.
+        self.assertEqual(state.get(DEBT), owed(self, BEFORE_HEAD, RESOLVED_HEAD_SHA))
 
     def test_up_to_date_skips_push_and_bumps_round(
         self,
@@ -253,6 +265,45 @@ class ResolvingConflictCleanRebaseTest(unittest.TestCase, _ResolvingConflictMixi
         state = _clean_state(gh)
         self.assertEqual(state.get("review_round"), 0)
         self.assertEqual(state.get(CONFLICT_ROUND), 1)
+        # Nothing was rewritten, so the report the pull request carries is
+        # still about the head it stands on and no debt is owed.
+        self.assertNotIn(DEBT, state)
+
+    def test_a_failed_push_owes_nothing(self) -> None:
+        # The rebased head never reached the pull request, so it is no head a
+        # reviewer could be handed and no rewrite this stage published: the
+        # round parks with the commit on the branch and records no debt.
+        gh, issue = self._seed()[:2]
+        self._run_with_merge(
+            gh,
+            issue,
+            merge_succeeded=True,
+            head_shas=[BEFORE_HEAD, RESOLVED_HEAD_SHA],
+            push_branch=False,
+        )
+        state = _clean_state(gh)
+        self.assertEqual(
+            (state.get("park_reason"), DEBT in state, gh.label_history),
+            ("push_failed", False, []),
+        )
+
+    def test_a_standing_claim_follows_only_its_head(self) -> None:
+        # Repeated base advances leave one debt naming the latest head, still
+        # owed from the head the settled report is about. A round that moved
+        # nothing leaves the claim as it stands, and so does a rewrite of a
+        # head the claim does not name -- somebody else put that head on the
+        # pull request, and recording it would call their push this stage's.
+        cases = (
+            ("rebased again", BEFORE_HEAD, RESOLVED_HEAD_SHA, RESOLVED_HEAD_SHA),
+            ("moved nothing", BEFORE_HEAD, BEFORE_HEAD, BEFORE_HEAD),
+            ("another head", MOVED_PR_HEAD_SHA, RESOLVED_HEAD_SHA, MOVED_PR_HEAD_SHA),
+        )
+        for name, claimed, after, expected in cases:
+            with self.subTest(name):
+                self.assertEqual(
+                    self._claim_after(claimed, after),
+                    (owed(self, FIRST_HEAD, expected), [(CONFLICT_ISSUE, LABEL_VALIDATING)]),
+                )
 
     def test_no_op_rebase_loops_until_cap_fires(self) -> None:
         # A PR stuck unmergeable purely due to branch protection would
@@ -301,6 +352,21 @@ class ResolvingConflictCleanRebaseTest(unittest.TestCase, _ResolvingConflictMixi
         self.assertNotIn((CONFLICT_ISSUE, "workflow:validating"), gh.label_history)
         self.assertNotIn((CONFLICT_ISSUE, "done"), gh.label_history)
         self.assertIn(MAX_CONFLICT_ROUNDS_SETTING, gh.posted_comments[-1][1])
+
+    def _claim_after(self, claimed: str, after: str) -> tuple:
+        """The debt a clean round leaves over one claimed onto `claimed`, and where it relabels.
+
+        The standing claim is owed from `FIRST_HEAD`. The round starts from
+        the head the pull request stands on and leaves the checkout on
+        `after`, which is that head again for a round that moved nothing.
+        """
+        gh, issue = self._seed(
+            extra_state={DEBT: owed(self, FIRST_HEAD, claimed)},
+        )[:2]
+        self._run_with_merge(
+            gh, issue, merge_succeeded=True, head_shas=[BEFORE_HEAD, after],
+        )
+        return (_clean_state(gh).get(DEBT), gh.label_history)
 
 
 class ResolvingConflictTerminalRoutingTest(

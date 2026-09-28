@@ -14,6 +14,7 @@ from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     _agent,
 )
+from tests.workflow.stages.conflicts import report_debt_support as _debt_world
 from tests.workflow.stages.conflicts.conflicts_test_support import (
     RESOLVED_HEAD_SHA,
     _ResolvingConflictMixin,
@@ -171,6 +172,9 @@ class ResolvingConflictAgentExecutionTest(unittest.TestCase, _ResolvingConflictM
         self.assertTrue(pinned_state.get(AWAITING_HUMAN))
         # No label flip -- still resolving_conflict.
         self.assertNotIn((CONFLICT_ISSUE, LABEL_VALIDATING), gh.label_history)
+        # And no report debt: the resolution never reached the pull request,
+        # so it is no rewrite this stage published.
+        self.assertNotIn(_debt_world.DEBT, pinned_state)
 
     def test_interrupted_resolution_keeps_state(self) -> None:
         # A dev run spawned to resolve the rebase conflict, but the shutdown
@@ -229,6 +233,24 @@ class ResolvingConflictAgentExecutionTest(unittest.TestCase, _ResolvingConflictM
         self.assertTrue(pinned_state.get(AWAITING_HUMAN))
         self.assertEqual(pinned_state.get("park_reason"), "agent_execution_failed")
         self.assertEqual(pinned_state.get("conflict_round"), 0)
+
+
+class ResolvingConflictReportedTest(unittest.TestCase, _debt_world._RewrittenReports):
+    """The report a resolution the dev wrote is owed before any reviewer."""
+
+    def test_a_changed_resolution_is_reported(self) -> None:
+        # The agent's resolution CHANGED the contribution: the resolved head
+        # fingerprints apart from the head the settled report is about, so no
+        # reading of the branch could call the old report an account of it --
+        # and the conflict prompt asks for no report of it. So the published
+        # resolution hands `validating` the debt it owes, and the report paying
+        # it is a fresh one of the resolved head, asked of the developer with
+        # no human reply and ahead of every reviewer, rather than a park over
+        # the report of the head the rebase replaced.
+        resolved = self.rewritten(_debt_world.CONFLICTED, _debt_world.CHANGED)
+
+        resolved[RUN_AGENT].assert_called_once()
+        self.assert_reported_before_review()
 
 
 if __name__ == "__main__":

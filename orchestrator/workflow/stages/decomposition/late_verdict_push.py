@@ -17,7 +17,8 @@ A pre-publication verdict pushes nothing: its candidate has no pull request
 yet, and the ordinary `implementing` publication it is handed back to is what
 opens one. Neither does a retry finishing a settlement whose push already
 landed -- the pull request is standing on the accepted candidate, and what is
-left to finish is the label and the retirement.
+left to finish is the receipt that push may not have written (recorded beside
+the dropped approval), the label, and the retirement.
 
 Both of those still owe the CHECKOUT, which is why the proof is on the road out
 rather than inside the push. What the verdict licensed is one commit, and the
@@ -90,8 +91,9 @@ def _pushed_where_it_was_measured(context: _LateContext) -> bool:
     request yet, and the `implementing` publication it is handed back to is
     what opens one. Neither does a retry finishing a settlement whose push
     already landed: the reconciliation above found the pull request standing
-    on the accepted candidate, so what is left to finish is the label and the
-    retirement, not a second push of a commit that is already there.
+    on the accepted candidate, so what is left to finish is the receipt, the
+    label, and the retirement, not a second push of a commit that is already
+    there.
 
     Both of those still owe the checkout, which is why the proof below is on
     the road out rather than inside the push: what the verdict licensed is one

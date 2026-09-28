@@ -1023,8 +1023,9 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims
   `developer_report_rewrite_debt`, readable or not, directly behind the verification-evidence transaction and ahead of
   the reuse guard. The record is described under [pinned state](labels-and-state.md#pinned-state) and owned by
-  `workflow/engine/report_rewrite_debt.py`. No road records one yet, so an issue without the record (every issue today)
-  passes through reading nothing.
+  `workflow/engine/report_rewrite_debt.py`.
+  [`_handle_resolving_conflict`](#_handle_resolving_conflict-label-workflowresolving_conflict) records one for every
+  head its own push rewrites; an issue without the record passes through reading nothing.
 - **Holds**: `workflow:documenting` and `in_review`, the roads past an approval that would carry a head no report is
   about to the human who merges it. Nothing is written or posted; the claim is left for validating, and the hold is
   logged once a tick.
@@ -2687,7 +2688,9 @@ last, after the push — including the leased no-op a pull request already carry
 the publication stands and the handoff stops: the branch has the accepted commit either way, the generation stays
 live, the label stays on the adjudication (`late_pr_unreconciled`), and a tick taken once the worktree is back on
 that commit finds the pull request already standing on it and finishes from there — nothing sent a second time,
-no agent re-run.
+no agent re-run. That retry writes the code-publication receipt its push may have died before, as the push would
+have: the accepted commit, the head the verdict was measured over, and the pull request it was frozen on. The stage
+it continues at reads that receipt -- a conflict round records its rewritten head's report debt off it.
 
 The push belongs to the
 settlement because the settlement is the last tick holding the evidence: the verdict was taken against one pull
@@ -4253,7 +4256,11 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        goes down in the push's own durable write, so a crash between it and the tail would come back to
        `("recovered_push", "")` — a pair no later tick can prove, on a branch that is in sync by then, so the round a
        push really landed is reported as the no-op flip instead. Only what the push *owes* turns on the behind-base
-       reading: still behind, it records nothing and the rebase behind it owns the round.
+       reading: still behind, it records no round and the rebase behind it owns the round. The report debt is not the
+       round's, though: a recovered push that landed records the debt of the head it published either way, since the
+       rebase behind a still-behind push may end the tick without a tail of its own -- and a still-behind push hands
+       the gate that head as `conflict_preamble_sha`, so the debt survives a crash before its own write and a hold the
+       adjudication publishes later.
      - `(0, 0)` → fall through.
   9. Read the **pre-rebase HEAD**, and park `unreadable_head` when nothing could. It is not bookkeeping: it is the
      head both exits of this round lease their force-push against, and the size gate reads "no head" as a caller that
@@ -4273,15 +4280,17 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
       round back with nothing having established whether the rebase left a rewritten commit the PR never received.
       If HEAD did not move (already up-to-date), skip the push and flip to `workflow:validating` (`review_round=0`,
       `conflict_round += 1`). Counting no-ops against the cap surfaces a perpetually-unmergeable-due-to-branch-
-      protection PR within `MAX_CONFLICT_ROUNDS` ticks. If HEAD moved, force-with-lease push and flip to
-      `workflow:validating`.
+      protection PR within `MAX_CONFLICT_ROUNDS` ticks; nothing was rewritten, so it records no report debt and leaves
+      a standing one as it is. If HEAD moved, force-with-lease push, record the report debt the rewritten head owes
+      (see *A rewrite owes its report* below), and flip to `workflow:validating`.
   12. **Conflicted rebase**: build a conflict-resolution prompt via `_build_conflict_resolution_prompt`, resume the dev
       with it (`pause_guard=True`), then run `_post_conflict_resolution_result`.
   13. `_post_conflict_resolution_result`: `interrupted` (shutdown sweep killed the run mid-flight) → ignore the
       partial result and return WITHOUT writing pinned state, leaving durable state retryable (this is the one branch
       that does not write; it precedes all others); timeout / unfinished rebase / no commit / dirty / push fail →
-      park; success → force-with-lease push, increment `conflict_round`, reset `review_round=0`, flip to
-      `workflow:validating`. Fresh-rebase pushes pin the lease to the pre-rebase PR head; awaiting-human resume
+      park; success → force-with-lease push, record the report debt the resolved head owes, increment
+      `conflict_round`, reset `review_round=0`, flip to `workflow:validating`. Fresh-rebase pushes pin the lease to
+      the pre-rebase PR head; awaiting-human resume
       pushes pin it to the head the pull request was standing on when the tick fetched it, which is read BEFORE the
       session resumes — the local `before_sha` may be an intermediate SHA on a worktree that is mid-rebase or already
       ahead of its publication, and a head left for the size gate to read after the agent returns is whatever landed
@@ -4295,7 +4304,7 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
 
 The rebase path deliberately rewrites the PR branch to keep history linear after other issue PRs land. Every pushed
 rebase resets `review_round`, so the reviewer must re-approve the rewritten head before the in_review ready-ping gate
-can fire.
+can fire, and leaves the report debt that holds that reviewer until a report of the rewritten head settles.
 
 ### Content updates onto the pull request this stage already has
 
@@ -4325,14 +4334,52 @@ measurement exists to prevent.
   candidate and a failed push each leave the counter alone — spending one for a push that never happened brings
   `MAX_CONFLICT_ROUNDS` forward by a round nobody ran. The single exception is the no-op flip, which counts a round
   *because* nothing was published; see below.
+- **A rewrite owes its report.** A clean rebase, a resolution the dev finished one with, and a recovered push each
+  leave the pull request on a head no developer report is about -- the conflict prompt asks for none, and nothing on
+  the recovery road can say whether the commits it finds ever had one -- so each records
+  `developer_report_rewrite_debt` (`conflicts/report_debt.py`) before the hand to `workflow:validating`, whose report
+  hold then asks the developer for a fresh report of that head with no human reply. What names the rewrite is the
+  code-publication receipt the size gate's write left, and nothing the caller read for itself:
+  `implementing_published_sha` has to be the round's head, `implementing_published_pr` the pinned pull request, and
+  `implementing_published_lease` -- the head the push was leased against -- becomes `previous_head`. A receipt short of
+  any of those proves no rewrite of this stage's and records none, so the reviewer road holds the report it finds to
+  the head as it would with no claim. A standing claim goes through `report_rewrite_debt.records_rewrite`: a rewrite of
+  the head it names retargets it, so repeated rounds leave one debt naming the latest head, and a claim about a head
+  somebody else pushed, or one nobody can read, is left as it stands.
+  The debt goes down in a write of its own **ahead of the relabel**, since the label is what hands the head on, and a
+  round whose push landed and whose tail a crash cut short -- before that write or before the relabel -- comes back
+  through `_finished_settled_round`, which reads the same receipt the push's own write left beside the settled round;
+  a debt already naming the head is left unwritten. A crash after the push and before that write of the gate's leaves
+  the approval the gate took ahead of the push -- the commit, the head it was leased against, and the route's spends
+  in `late_spends` -- and the reconciliation ahead of the next handler republishes that same commit under a lease,
+  writing the receipt against the original head with the spends beside it, so the stage behind it records the debt
+  the same way. An adjudication's accepted push cut short the same way is finished by the settlement's own retry,
+  which finds the pull request already on the accepted commit and writes the receipt that push never got to, against
+  the head the verdict was measured over. A proved debt the pinned comment has no room for is neither of the
+  refusals above: it parks `unrecorded_report_debt` with nothing counted or relabelled, and every later tick tries
+  the write again -- through the settled round, or the preamble head, the push's own write left -- before anything
+  else runs, handing the round on once it fits. A recovered push that lands still *behind* base records its debt
+  at once rather than at a tail, since the rebase behind it may end the tick without one -- a no-op flip, a conflict
+  the dev cannot finish, a failed push -- and a rebase that does move the head retargets it. That push finishes no
+  round, so no settled receipt brings a later tick back for it; what does is `conflict_preamble_sha`, the head it
+  hands the gate as its spend, written in the gate's write that carries the receipt on landing and in the one a
+  hold makes ahead of its relabel. `_finished_settled_round` reads it first, ahead of every resume and rebase: once
+  the receipt names that head it is dropped, and the debt is recorded where the pull request was just fetched
+  standing on it -- after a crash before the debt's own write, or once an adjudication has published the held push.
+  A pull request somebody has moved off it owes that head nothing. The no-op flip, a held candidate, and a push that
+  failed record nothing, since no head of this stage's reached the pull request; a held one's debt is recorded by
+  the settled round, or the preamble head, the tick after its publication reads. A body edit's round
+  (`drift_resolved`) records none either: its commit is the developer's own answer to the edit, not a rewrite of the
+  head.
 - **A hold ends the tick here.** The commit stays on the branch, the issue is on `workflow:decomposing`, and neither
   the hand back to `workflow:validating` nor the rebase behind a held recovered push is this tick's to make. What the
   round would have been is written inside the gate's own durable write, ahead of the relabel, as
   `conflict_settled_outcome` / `conflict_settled_sha` — `base_rebased_clean`, `agent_resolved`, `recovered_push`, or
   `drift_resolved`, with the head it produced. The resumed tick cannot re-derive either: an authorized settlement
   publishes the accepted commit, so the branch the label comes back to already carries its base, which is the no-op
-  flip's own reading. A recovered push that leaves the branch still *behind* base records nothing — it is the preamble
-  to a rebase that owns the round and leaves its own receipt.
+  flip's own reading. A recovered push that leaves the branch still *behind* base records no round — it is the
+  preamble to a rebase that owns the round and leaves its own receipt — only the head it would publish, as
+  `conflict_preamble_sha`, for the report debt that head is owed once the adjudication publishes it.
 - **One receipt slot, so one outstanding round.** `conflict_settled_outcome` / `conflict_settled_sha` is a single
   pair, and every content update that can be held writes into it — so a tick that starts a *new* resume while a
   receipt is still standing would record its own outcome over the round a settlement already published, and the
@@ -4361,8 +4408,9 @@ measurement exists to prevent.
   push requires a *provably clean* tree, and either dev resume requires one that at least **read**. A merely dirty
   tree is not this: that is the park a reply exists to unstick, and the dev is resumed over it to clean it up.
 - **A park is not always a person.** The refusals this stage takes over a reading that *did not happen* —
-  `fetch_failed`, `unreadable_divergence`, `unreadable_head`, `unreadable_worktree`, `unpinnable_recovery` — name
-  nothing a reply could answer: what clears them is the same reading taken again. Their reason is recorded durably
+  `fetch_failed`, `unreadable_divergence`, `unreadable_head`, `unreadable_worktree`, `unpinnable_recovery` — and over
+  a write that did not, `unrecorded_report_debt`, name nothing a reply could answer: what clears them is the same
+  reading or write taken again. Their reason is recorded durably
   (`park_reason`, re-set after `_park_awaiting_human` clears it) and a tick that finds one standing carries on with
   its ordinary work rather than consuming itself as an awaiting-human resume — which is what would otherwise leave a
   repaired checkout parked for good, with the thing the notice asked for already done. Because those retries run every

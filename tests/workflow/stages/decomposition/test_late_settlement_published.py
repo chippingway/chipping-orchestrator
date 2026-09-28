@@ -17,6 +17,7 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
+from orchestrator.workflow.stages.implementing import late_push as _late_push
 from tests.support.fakes import LazyPullRequest
 from tests.workflow.fixtures import LABEL_DECOMPOSING
 from tests.workflow.stages.decomposition import late_test_support as _late_support
@@ -39,6 +40,11 @@ PR_CLOSED = "closed"
 PR_NUMBER = "pr_number"
 SET_WORKFLOW_LABEL = "set_workflow_label"
 LABEL_WRITE_REJECTED = "label write rejected"
+
+# The write a landed push records itself in, and the stage a conflict round's
+# hold is settled back to.
+PUBLICATION_PAID = "_publication_paid"
+RESOLVING_CONFLICT = "workflow:resolving_conflict"
 
 
 def _CRASHES(*_called, **_options):
@@ -556,6 +562,38 @@ class PublishedOwnPushTest(
                 outcome = self._settle()
 
                 self._assert_unpublished(outcome)
+
+    def test_a_push_cut_short_is_receipted(self) -> None:
+        # The push lands and the process ends before the write that records
+        # it, so the approval still stands and no receipt names the commit.
+        # The retry recognizes its own push off that approval and makes no
+        # second one -- and writes the receipt the push never got to, against
+        # the head the verdict was measured over. The stage it continues at
+        # reads that receipt: a conflict round records the report debt of the
+        # head it rewrote off it, owed from that original head.
+        self._seed_published(stage=RESOLVING_CONFLICT)
+        with patch.object(_late_push, PUBLICATION_PAID, _CRASHES), self.assertRaises(RuntimeError):
+            self._settle()
+        self.github.get_pr(_late_support.PUBLISHED_PR_NUMBER).head.sha = _late_support.CANDIDATE_SHA
+        crashed = self._pinned()
+        self.assertEqual(
+            (crashed.get(_late_support.KEYS.approved_lease), _late_support.KEYS.receipt_sha in crashed),
+            (_late_support.PUBLISHED_HEAD_SHA, False),
+        )
+
+        outcome = self._settle(worktree=WorktreeSeed(push=False))
+
+        self.assertEqual((outcome.disposition, self._label()), (_LateDisposition.SETTLED, RESOLVING_CONFLICT))
+        pinned = self._pinned()
+        self.assertEqual(
+            (
+                pinned.get(_late_support.KEYS.receipt_sha),
+                pinned.get(_late_support.KEYS.receipt_lease),
+                pinned.get(_late_support.KEYS.receipt_pr),
+                pinned.get(_late_support.KEYS.approved_sha),
+            ),
+            (_late_support.CANDIDATE_SHA, _late_support.PUBLISHED_HEAD_SHA, _late_support.PUBLISHED_PR_NUMBER, None),
+        )
 
     def test_a_receipt_for_the_candidate_finishes_it(self) -> None:
         # And the same head with a record behind it is the window the

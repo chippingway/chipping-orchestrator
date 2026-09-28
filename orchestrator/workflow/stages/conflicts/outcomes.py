@@ -193,7 +193,7 @@ def _finalize_conflict_resolution(
             # commit as a branch already carrying its base -- the no-op flip,
             # which resolves nothing and stamps no `last_conflict_resolved_at`.
             spends=_transitions._settles_the_held_round(
-                "agent_resolved", after_sha,
+                _transitions._AGENT_RESOLVED, after_sha,
             ),
         ),
     )
@@ -214,5 +214,5 @@ def _finalize_conflict_resolution(
     # docs pass runs after final reviewer approval.
     _transitions._hand_resolved_round_to_validating(
         ctx, conflict_round, ctx.state.get("pr_number"),
-        outcome="agent_resolved", sha=after_sha,
+        outcome=_transitions._AGENT_RESOLVED, sha=after_sha,
     )

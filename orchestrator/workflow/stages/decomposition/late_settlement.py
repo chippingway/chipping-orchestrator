@@ -108,6 +108,7 @@ from orchestrator.workflow.stages.decomposition.late_result_models import (
 from orchestrator.workflow.stages.implementing import (
     late_approval_reading as _late_approval_reading,
     late_approval_state as _late_approval_state,
+    late_publication_state as _late_publication_state,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -324,6 +325,16 @@ def _recorded_debt(context: _LateContext) -> None:
     pay -- the push is skipped -- and a debt on the record freezes this
     branch out of the pre-tick base refresh for the rest of the issue's life.
 
+    What that retry DOES owe is the receipt, where the process died between
+    the push and the write that records it. The stage the label hands the
+    issue to reads that receipt to know the commit on its pull request is this
+    publication -- a conflict round records the report debt of the head it
+    rewrote off it -- so it goes down in the same write that drops the
+    approval, as the push would have written it: the accepted commit, the head
+    the verdict was measured over and the push was pinned to, and the pull
+    request it was frozen on. A receipt the push did write already says exactly
+    that, and writing it again changes nothing.
+
     What the debt RESTS on is the adjudication, and it is recorded rather than
     left to be inferred. This write and the exemption beside it go down in one
     breath, so the approval is that adjudication wearing another field and is
@@ -333,6 +344,13 @@ def _recorded_debt(context: _LateContext) -> None:
     """
     if context.already_published:
         _late_approval_state._forget_approval(context.state)
+        publication = context.generation.publication
+        _late_publication_state._record_publication(
+            context.state,
+            context.generation.candidate_sha,
+            publication.published_sha,
+            publication.published_pr_number,
+        )
         return
     _late_approval_state._approve(
         context.state,

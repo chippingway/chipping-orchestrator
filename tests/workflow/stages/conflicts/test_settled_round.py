@@ -31,6 +31,7 @@ from tests.workflow.stages.conflicts.conflicts_test_support import (
     RESOLVED_HEAD_SHA,
     _ResolvingConflictMixin,
 )
+from tests.workflow.stages.conflicts.report_debt_support import DEBT, owed
 
 CONFLICT_FILE = "a.py"
 BEFORE_HEAD = "be40e5ba" * 5
@@ -77,6 +78,9 @@ EDITED_HEAD = "ed17ed17" * 5
 CANDIDATE_ABSENT = MeasurementFailure.CANDIDATE_ABSENT
 
 ON_BASE = "0\n"
+
+# The head a recovered push that precedes a rebase leaves in the gate's write.
+PREAMBLE_SHA = "conflict_preamble_sha"
 BEHIND_BASE = "2\n"
 BASE_UP_TO_DATE = "base_up_to_date"
 
@@ -105,6 +109,10 @@ class ResolvingConflictHeldRoundTest(
         # And nothing is emitted either: a tail of the sink that saw a round
         # here would attribute one to a push that never went out.
         self.assertEqual(_round_records._rounds_of(github), [])
+        # Nor is a report debt owed yet: the resolution is on no remote, so it
+        # is no head of this stage's a reviewer could be handed. The settled
+        # round that publishes it records one.
+        self.assertNotIn(DEBT, pinned)
 
     def test_a_held_recovered_push_names_its_round(self) -> None:
         # The recovered push completes a round of its own when the branch it
@@ -129,6 +137,38 @@ class ResolvingConflictHeldRoundTest(
 
         pinned = self._pinned(github)
         self.assertIsNone(pinned.get(_round_records.SETTLED_OUTCOME))
+
+    def test_a_held_preamble_is_owed_once_published(self) -> None:
+        # No round, but the head the push would publish goes down ahead of the
+        # relabel, since nothing else would name it once the adjudication
+        # publishes it. That publication leaves the receipt its accepted push
+        # writes, against the head the pull request stood on, and the tick
+        # that resumes behind it records the debt before its own rebase --
+        # which moves nothing here -- hands `validating` the head.
+        github = self._held_recovered_push(behind=BEHIND_BASE)[0]
+        pinned = self._pinned(github)
+        self.assertEqual(pinned.get(PREAMBLE_SHA), RECOVERED_HEAD)
+        self.assertNotIn(DEBT, pinned)
+        pinned.update({
+            "implementing_published_sha": RECOVERED_HEAD,
+            "implementing_published_lease": BEFORE_HEAD,
+            "implementing_published_pr": self.pr_number,
+        })
+        github.seed_state(_round_records.CONFLICT_ISSUE, **pinned)
+        github.get_pr(self.pr_number).head.sha = RECOVERED_HEAD
+
+        self._run_with_merge(
+            github, github.get_issue(_round_records.CONFLICT_ISSUE),
+            fetched_branch_tip=RECOVERED_HEAD,
+            head_shas=[RECOVERED_HEAD],
+            candidate_commit=FrozenCommit(sha=RECOVERED_HEAD),
+        )
+
+        relabelled = github.label_history[-1]
+        self.assertEqual(
+            (relabelled, self._pinned(github).get(DEBT)),
+            ((_round_records.CONFLICT_ISSUE, LABEL_VALIDATING), owed(self, BEFORE_HEAD, RECOVERED_HEAD)),
+        )
 
     def _held_recovered_push(self, *, behind: str = ON_BASE):
         """One recovered push the gate measures past the ceiling."""

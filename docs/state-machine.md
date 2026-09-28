@@ -178,7 +178,8 @@ the pull request, its branch, the head the rewrite replaced, and the exact head 
 readable or not, the dispatcher holds `workflow:documenting` and `in_review`; the validating report hold keeps the
 reviewer off while it resumes the developer for a fresh report of that head, with no human reply, and drops the claim
 once a published report of it, still intact where it settled and written against the current requirements, pays it;
-no road records one yet
+`workflow:resolving_conflict` records one for every head its own push rewrites, off the code-publication receipt that
+push left
 ([rewritten-head report debt](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)).
 Every key, what writes it, what spends it, and the legacy `codex_session_id` still honored on read are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).

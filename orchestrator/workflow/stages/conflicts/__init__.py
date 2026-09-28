@@ -34,7 +34,11 @@ shares one shape. A park is `_park_awaiting_human` plus the pinned-state write
 that must accompany it, and a pushed round is a `review_round` reset, a
 `conflict_round` bump, an audit event, a relabel, and one write -- so many exits
 publish those that keeping them on one owner is what stops the pairs drifting
-apart. `state` holds the two counter keys the writers and readers share.
+apart. `report_debt` is what that tail owes `validating` when the round
+rewrote the head -- a clean rebase, a resolution, a recovered push -- read off
+the code-publication receipt the push left and written ahead of the relabel,
+since the head it hands on is one no developer report is about. `state` holds
+the two counter keys the writers and readers share.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would
