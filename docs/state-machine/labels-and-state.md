@@ -1816,15 +1816,17 @@ The keys that matter for the state machine fall into a few groups:
   set the record to `null`; both holds count the issue pointed at another pull request, or a later evidence revision
   superseding the evidence the request claims, as moves. A later tick finishing a record already `handed` posts no
   feedback again: it relabels and launches the developer the record is owed, or -- where `agent_runs_used` was charged
-  past `handed`, that developer already launched -- sets the record to `null`, which is asked again right before every
-  launch, so a developer another road launched behind the relabel is never launched a second time. Either launch is
-  made only behind that anchor: the fixing stage clears it with the round's other bookmarks, and a handoff that lost it
-  is held -- nothing relabelled or launched, the record left as it waited -- since no failed run could replay the
-  feedback. A subject proved to have moved behind either request sets the record to `null` in a write that keeps the
-  newer records, clearing that anchor with it so no retry replays feedback about a subject nobody is handing on. An
-  approval reaches the approval arc only where its claim names the current evidence exactly and that evidence proves
-  current, its re-read artifact still the one that settled, and passes and covers the configuration by the artifact's
-  own commands rather than by the claim's copied `passed` and `covers`, with the pinned records read again last
+  past `handed` by a launch that reached a process, that developer already launched -- sets the record to `null` (a
+  charge still standing as an unstarted `agent_run_reservation` reached none: the launch stays owed, and the run
+  circuit honors that reservation rather than charging again), which is asked again right before every launch, so a
+  developer another road launched behind the relabel is never launched a second time. Either launch is made only behind
+  that anchor: the fixing stage clears it with the round's other bookmarks, and a handoff that lost it is held --
+  nothing relabelled or launched, the record left as it waited -- since no failed run could replay the feedback. A
+  subject proved to have moved behind either request sets the record to `null` in a write that keeps the newer records,
+  clearing that anchor with it so no retry replays feedback about a subject nobody is handing on. An approval reaches
+  the approval arc only where its claim names the current evidence exactly and that evidence proves current, its
+  re-read artifact still the one that settled, and passes and covers the configuration by the artifact's own commands
+  rather than by the claim's copied `passed` and `covers`, with the pinned records read again last
   (`unverified_approvals.py`). The arc resolves the subject again behind its verify gate, whatever the gate said, and
   reads the comment behind that: a report, the record, or a `verification_evidence_*` record moved there drops the
   approval, and the arc's write sets the record to `null`, save where that subject would not read. Its squash tail

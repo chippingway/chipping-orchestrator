@@ -39,8 +39,12 @@ whose charge writes only its own fields.
 A verdict already handed is finished by a later tick from that write on: its
 feedback is posted and anchored, so it is never posted again, and the relabel
 and the launch are what a tick that died on them left owed -- unless the run
-ledger was charged past the count it was handed at, which is the developer
-already launched and only that verdict to retire (`_hands_it_off`). Either
+ledger was charged past the count it was handed at by a launch that reached a
+process, which is the developer already launched and only that verdict to
+retire (`_hands_it_off`). A charge the run circuit reserved and never started
+-- its start refused, the tick dying before the spawn -- reached none, and the
+launch is still owed: the circuit honors that reservation for the launch it
+was taken for rather than charging again. Either
 launch is made only behind the feedback anchor the handoff was written beside:
 the fixing stage clears it with the round's other bookmarks, and without it no
 failed run can replay the feedback, so a handoff that lost it is held, with
@@ -55,7 +59,10 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values
+from orchestrator.workflow.engine import (
+    run_ledger_models as _run_ledger_models,
+    run_ledger_values as _run_ledger_values,
+)
 from orchestrator.workflow.stages.validating import (
     models as _models,
     requested_changes as _requested_changes,
@@ -200,11 +207,16 @@ def _launch_stands(
 ) -> bool:
     """Whether the launch a handed request owes is still this road's to make, retiring or holding it where not.
 
-    The run ledger charged past the count the request was handed at is that
-    developer's launch, whoever made it -- a tick that died behind it, or
-    another road behind this one's relabel -- and its run is the fixing
-    stage's to answer, so the verdict is retired, over the comment as `state`
-    last carried it, rather than handed to a second developer. And the launch
+    The run ledger charged past the count the request was handed at, by a
+    launch that reached a process, is that developer's launch, whoever made
+    it -- a tick that died behind it, or another road behind this one's
+    relabel -- and its run is the fixing stage's to answer, so the verdict is
+    retired, over the comment as `state` last carried it, rather than handed
+    to a second developer. A charge still standing as the run circuit's
+    unstarted reservation reached no process -- its start was refused, or the
+    tick died before the spawn -- and is not counted: the launch is still owed,
+    and the circuit honors that reservation for the launch it was taken for
+    rather than charging a second run. And the launch
     is made only behind the feedback anchor the handoff was written beside:
     it is the one durable copy of the feedback a failed run's `/orchestrator
     continue` replays, and the fixing stage clears it with the round's other
@@ -213,7 +225,9 @@ def _launch_stands(
     handing a developer a review no failed run could replay.
     """
     handed = None if owned is None else owned.handed
-    if handed is not None and _run_ledger_values._runs_used(state) > handed:
+    unstarted = _run_ledger_values._reservation(state) is _run_ledger_models.RunPhase.RESERVED
+    reached = _run_ledger_values._runs_used(state) - int(unstarted)
+    if handed is not None and reached > handed:
         log.info(
             "issue=#%d the developer its reviewer's change request was handed to "
             "was already launched; retiring the verdict", issue.number,

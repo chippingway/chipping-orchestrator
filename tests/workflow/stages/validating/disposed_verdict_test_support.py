@@ -7,8 +7,9 @@ later tick is the dispatcher's evidence reconciliation and then
 `review_disposition.finishes_the_verdict`, over the run the verdict was
 returned from, which a later tick's handler rebuilds (`run`). Beside that
 world: what each post a verdict's tick can make says about itself, the
-developer a handed change request is answered by, and a post GitHub refuses,
-or takes without answering its id, once (`RefusesOnce`).
+developer a handed change request is answered by, a post GitHub refuses, or
+takes without answering its id, once (`RefusesOnce`), and the run circuit's
+start refused (`RefusesTheStart`).
 """
 from __future__ import annotations
 
@@ -84,6 +85,23 @@ class RefusesOnce:
             raise RuntimeError("comment rejected")
         self._posts(thread, body)
         return None
+
+
+class RefusesTheStart:
+    """A pinned-comment write GitHub refuses where it moves a run charge to started, and takes otherwise.
+
+    The window between the run circuit's two writes: the charge and its
+    reservation land, and the start that would let the spawn through does not,
+    so no agent is invoked.
+    """
+
+    def __init__(self, writes) -> None:
+        self._writes = writes
+
+    def __call__(self, issue, state):
+        if state.get("agent_run_reservation") == "started":
+            raise RuntimeError("GitHub refused the edit")
+        return self._writes(issue, state)
 
 
 class DisposedVerdictWorld(_world.ReviewVerdictWorld):

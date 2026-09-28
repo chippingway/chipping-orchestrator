@@ -176,7 +176,7 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
             (_disposed.feedback_posts(self), self.github.label_history), ([], []),
         )
 
-        run = self._fixed()[_world.RUN_AGENT]
+        run = self.finishes(**_fixing())[_world.RUN_AGENT]
 
         self.assertEqual(
             (
@@ -239,7 +239,7 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
                     (0, None, None, []),
                 )
 
-                fixed = self._fixed()
+                fixed = self.finishes(**_fixing())
 
                 self.assertEqual(
                     (
@@ -273,7 +273,7 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
                 if meanwhile is not None:
                     meanwhile(self)
 
-                ran = self._fixed()
+                ran = self.finishes(**_fixing())
 
                 self.assertEqual(
                     (
@@ -296,9 +296,10 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
             with self.subTest(replayed=replayed):
                 self.setUp()
                 behind = _world.AnotherRoadBehind(self, SET_LABEL, _TO_FIXING, _charges_a_run)
+                tick = partial(self.returns, UNDECLARED_REQUEST, **_fixing())
                 if replayed:
                     self._hands_over_unlaunched()
-                tick = self._fixed if replayed else partial(self.returns, UNDECLARED_REQUEST, **_fixing())
+                    tick = partial(self.finishes, **_fixing())
 
                 with patch.object(self.github, SET_LABEL, behind):
                     ran = tick()
@@ -314,9 +315,35 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
                     (0, (FIXING,), None, True, 1),
                 )
 
-    def _fixed(self) -> dict:
-        """The next tick, in which one developer answers the request and pushes."""
-        return self.finishes(**_fixing())
+    def test_an_unstarted_launch_is_replayed(self) -> None:
+        # The run circuit charges the developer's run and records it reserved
+        # ahead of the spawn, and starts it in a write of its own; that start
+        # is refused, so no developer ran. The charge past the count the
+        # request was handed at is an unstarted reservation rather than a
+        # launch, so the next tick replays the handoff -- posting nothing again
+        # -- and launches the one developer the request is owed, honoring that
+        # reservation rather than charging the issue a second run.
+        with patch.object(self.github, "write_pinned_state", _disposed.RefusesTheStart(self.github.write_pinned_state)):
+            unstarted = self.returns(UNDECLARED_REQUEST, **_fixing())
+        left = (
+            self.waiting(),
+            self.pinned().get("agent_run_reservation"),
+            self.pinned()[_world.AGENT_RUNS_USED],
+        )
+
+        ran = self.finishes(**_fixing())
+
+        self.assertEqual(
+            (
+                unstarted[_world.RUN_AGENT].call_count,
+                left,
+                ran[_world.RUN_AGENT].call_count,
+                self.waiting(),
+                [pr for pr, body in self.github.posted_pr_comments if _disposed.FEEDBACK_NOTICE in body],
+                self.pinned()[_world.AGENT_RUNS_USED] - left[2],
+            ),
+            (0, (REQUESTED, "reserved", left[2]), 1, None, [_world.PR], 0),
+        )
 
     def _hands_over_unlaunched(self) -> None:
         """The tick that hands the request over, whose relabel ahead of the launch GitHub refuses."""

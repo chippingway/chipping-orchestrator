@@ -3314,7 +3314,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             handed with the anchor, the relabel, and the launch, held to the subject once more right
                             before it (`launches_the_developer`); a request already handed resumes there without
                             posting its feedback again -- relabelled and launched, or retired where the run ledger was
-                            charged past the count it was handed at, its developer already launched, which is asked
+                            charged past the count it was handed at by a launch that reached a process, its developer
+                            already launched -- a charge still standing as the run circuit's unstarted reservation
+                            reached none, and the launch stays owed, honoring that reservation -- which is asked
                             again right before the launch, so a developer another road launched behind the relabel is
                             not launched twice. Either launch is made only behind the feedback anchor the handoff was
                             written beside, which the fixing stage clears with the round's other bookmarks: a handoff
