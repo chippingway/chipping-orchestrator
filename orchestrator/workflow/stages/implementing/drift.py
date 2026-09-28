@@ -160,6 +160,24 @@ class _ImplementingDriftRun:
             delivery=delivery,
         )
 
+    def publishes(
+        self,
+        spec: _config_models.RepoSpec,
+        state: _pinned_state.PinnedState,
+    ) -> bool:
+        if self.agent_result.unfinished_steps:
+            return False
+        return self.committed or _report_redelivery.redelivers_an_owed_report(
+            spec, state, self.agent_result, self.worktree,
+        )
+
+    def ack_reason(self) -> str | None:
+        if self.agent_result.unfinished_steps:
+            return None
+        return _messages._drift_ack_reason(
+            self.agent_result.last_message or "",
+        )
+
 
 def _run_implementing_drift_resume(
     gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
@@ -208,9 +226,7 @@ def _dispose_implementing_drift(
     # read the prompt -- a timeout and a question included, since what the
     # park that follows says is wrong is the answer rather than the input.
     drift.delivery.settle(state)
-    if drift.committed or _report_redelivery.redelivers_an_owed_report(
-        spec, state, drift.agent_result, drift.worktree,
-    ):
+    if drift.publishes(spec, state):
         _candidate_recovery._publish_committed_work(
             gh, spec, issue, state,
             _models._AgentWork(drift.agent_result, drift.worktree),
@@ -218,9 +234,7 @@ def _dispose_implementing_drift(
     elif drift.agent_result.timed_out:
         _disposition._park_agent_timeout(gh, issue, state, drift.before_sha)
     else:
-        ack_reason = _messages._drift_ack_reason(
-            drift.agent_result.last_message or "",
-        )
+        ack_reason = drift.ack_reason()
         if ack_reason:
             _post_implementing_drift_ack(gh, issue, state, ack_reason)
         else:
@@ -229,6 +243,7 @@ def _dispose_implementing_drift(
                 _guards._ParkedRun(
                     drift.agent_result,
                     _guards._ROUTE_DEV_DRIFT_RESUME,
+                    before_sha=drift.before_sha,
                 ),
             )
     gh.write_pinned_state(issue, state)

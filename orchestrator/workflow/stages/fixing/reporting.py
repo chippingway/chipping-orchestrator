@@ -492,6 +492,7 @@ def _hands_the_round_back(ctx: _models._FixingContext) -> None:
         ctx.state.set(_state._AWAITING_HUMAN, False)
         ctx.state.set(_state._PARK_REASON, None)
     ctx.state.set(_state._SETTLED_ROUND, None)
+    ctx.state.set("pre_implement_sha", None)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     if places:
         ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
+from orchestrator.agents.models import ToolLifecycle
 from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     _agent,
@@ -329,3 +330,32 @@ class HandleDocumentingFreshSafetyTest(
         self.assertEqual(state.get(PARK_REASON), PARK_PUSH_FAILED)
         self.assertNotIn((self.issue_number, IN_REVIEW), gh.label_history)
         self.assertNotIn((self.issue_number, VALIDATING), gh.label_history)
+
+
+class HandleDocumentingExecutionFailureTest(
+    unittest.TestCase,
+    _FreshDocumentingFixture,
+):
+    def test_unfinished_steps_parks_failed(self) -> None:
+        # A docs run that committed changes but exited prematurely with unfinished
+        # tool steps must NOT push or advance. It parks under agent_execution_failed.
+        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+        client, issue = self._seeded()
+        mocks = self._run_documenting(
+            client,
+            issue,
+            run_agent=_agent(
+                session_id=DEV_SESSION,
+                last_message="partial docs output",
+                unfinished_steps=(step,),
+            ),
+            head_shas=[SHA_BEFORE, SHA_AFTER],
+            push_branch=True,
+            branch_ahead_behind=(0, 0),
+        )
+
+        mocks[PUSH_BRANCH].assert_not_called()
+        self.assertEqual(client.workflow_label(issue), DOCUMENTING)
+        pinned = client.pinned_data(issue.number)
+        self.assertTrue(pinned.get(AWAITING_HUMAN))
+        self.assertEqual(pinned.get(PARK_REASON), "agent_execution_failed")

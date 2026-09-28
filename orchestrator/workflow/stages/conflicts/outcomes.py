@@ -76,11 +76,12 @@ def _post_conflict_resolution_result(
         run.dev_result,
         _guards._ROUTE_CONFLICT_RESUME,
         conflict_round=conflict_round,
+        before_sha=before_sha,
     )
     after_sha = _verification_probes._head_sha(wt)
-    if not after_sha or after_sha == before_sha:
-        # Agent did not finish the rebase. Treat as a question / silence park,
-        # mirroring the implementing handler.
+    if run.dev_result.unfinished_steps or not after_sha or after_sha == before_sha:
+        # Agent did not finish the rebase. Treat as an execution-failure /
+        # question / silence park, mirroring the implementing handler.
         _dev_parks._on_question(ctx.gh, ctx.issue, ctx.state, parked)
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return

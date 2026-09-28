@@ -349,7 +349,7 @@ def _records_the_report_it_owes(
     that committed over a standing record owes is answered ahead of this, by
     the road that records that work as undescribed.
     """
-    if run.dev_result.timed_out:
+    if run.dev_result.timed_out or run.dev_result.unfinished_steps:
         return False
     if not run.reported and (
         not run.after_sha or run.after_sha == run.before_sha
@@ -462,8 +462,9 @@ def _resume_fixing_and_dispatch_result(
     # on the park path (the next fixing tick's `awaiting_human and not
     # new_feedback` gate would drop it). A run that DID write one records
     # nothing here at all -- both groups ride that report's record, and the
-    # write completing the publication is what applies them.
-    if not run.reported:
+    # An unfinished command execution park (`unfinished_steps`) leaves
+    # watermarks unsettled so review context remains intact until publication.
+    if not run.reported and not run.dev_result.unfinished_steps:
         _feedback._settle_consumed_feedback(ctx.state, delivered)
 
     # The two replies this round may act on no half of, held ahead of every
@@ -605,5 +606,6 @@ def _disposes(
     # final-docs handoff after reviewer approval, so running the docs stage
     # against an unapproved diff here would just push a no-op and waste a tick.
     _late_gate_models._spend(ctx.state, owed)
+    ctx.state.set("pre_implement_sha", None)
     ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)

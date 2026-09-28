@@ -146,8 +146,12 @@ def _park_unpushable_tree(
     _comments._post_issue_comment(gh, issue, state, message)
     state.set(_state._AWAITING_HUMAN, True)
     # Mirror `_on_question`: this needs human input, so stale transient state
-    # must not auto-recover over it.
-    state.set(_state._PARK_REASON, None)
+    # must not auto-recover over it. Preserve failed-run execution attribution
+    # evidence so a clean retry can still attribute the committed candidate.
+    if state.get(_state._PRE_IMPLEMENT_SHA):
+        state.set(_state._PARK_REASON, _state._PARK_EXECUTION_FAILED)
+    else:
+        state.set(_state._PARK_REASON, None)
     state.set(_state._SILENT_PARK_COUNT, 0)
     _park_watermarks._stamp_read_this_far(gh, issue, state, said_before)
     gh.emit_event(

@@ -246,7 +246,11 @@ def _reads_the_silent_reply(
     _evidence._consumes_the_delivered(state, run)
     _dev_parks._on_question(
         gh, issue, state,
-        _guards._ParkedRun(run.agent_result, _guards._ROUTE_DEV_FIX),
+        _guards._ParkedRun(
+            run.agent_result,
+            _guards._ROUTE_DEV_FIX,
+            before_sha=run.before_sha,
+        ),
     )
     return _state._OUTCOME_PARKED
 

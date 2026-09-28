@@ -15,9 +15,10 @@ from orchestrator.workflow.engine import (
     prompt_notes as _prompt_notes,
 )
 from tests.support import agy_stream as _agy_stream
-from tests.support.fakes import FakeGitHubClient, make_issue
+from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
 from tests.workflow.fixtures import (
     LABEL_IMPLEMENTING,
+    LABEL_VALIDATING,
     _agent,
     _PatchedWorkflowMixin,
     _reported,
@@ -79,8 +80,11 @@ class _RecoveryBase(unittest.TestCase, _PatchedWorkflowMixin):
             _agy_stream.SESSION_ID,
         )
 
+    def _pinned_data(self, scenario: IssueScenario) -> dict[str, object]:
+        return scenario.github.pinned_data(1)
+
     def _assert_failure_pinned(self, scenario: IssueScenario) -> None:
-        pinned = scenario.github.pinned_data(1)
+        pinned = self._pinned_data(scenario)
         self.assertTrue(pinned.get(_AWAITING_HUMAN))
         self.assertEqual(pinned.get(_PARK_REASON), _EXECUTION_FAILED)
         self.assertNotEqual(pinned.get(_PARK_REASON), _AGENT_QUESTION)
@@ -88,13 +92,28 @@ class _RecoveryBase(unittest.TestCase, _PatchedWorkflowMixin):
         self.assertEqual(pinned.get(_AGENT_RUNS_USED), 2)
 
     def _assert_pr_state(self, scenario: IssueScenario) -> None:
-        pinned = scenario.github.pinned_data(1)
+        pinned = self._pinned_data(scenario)
         opened_pr = scenario.github.opened_prs[0]
         self.assertEqual(pinned["pr_number"], opened_pr.number)
         self.assertEqual(pinned["dev_agent"], _AGY)
         self.assertEqual(pinned["dev_session_id"], _agy_stream.SESSION_ID)
         self.assertEqual(pinned["review_round"], 0)
         self.assertEqual(pinned.get(_AGENT_RUNS_USED), 2)
+
+    def _assert_committed_park(self, scenario: IssueScenario) -> None:
+        pinned = self._pinned_data(scenario)
+        self.assertTrue(pinned.get(_AWAITING_HUMAN))
+        self.assertEqual(pinned.get(_PARK_REASON), _EXECUTION_FAILED)
+        self.assertEqual(pinned.get("pre_implement_sha"), "sha-before")
+        self.assertEqual(scenario.github.opened_prs, [])
+
+    def _assert_published_continue(self, scenario: IssueScenario) -> None:
+        self.assertEqual(len(scenario.github.opened_prs), 1)
+        self.assertIn((1, LABEL_VALIDATING), scenario.github.label_history)
+        pinned = self._pinned_data(scenario)
+        self.assertIsNone(pinned.get("pre_implement_sha"))
+        self.assertIsNone(pinned.get(_PARK_REASON))
+        self.assertFalse(pinned.get(_AWAITING_HUMAN))
 
 
 class HandleImplementingAGYRecoveryTest(_RecoveryBase):
@@ -160,7 +179,7 @@ class HandleImplementingAGYRecoveryTest(_RecoveryBase):
         self._assert_spawn_count(mocks, 2)
         self.assertEqual(scenario.github.opened_prs, [])
         self.assertEqual(scenario.github.label_history, [])
-        pinned = scenario.github.pinned_data(1)
+        pinned = self._pinned_data(scenario)
         self.assertTrue(pinned.get(_AWAITING_HUMAN))
         self.assertEqual(pinned.get(_PARK_REASON), _PARK_AGENT_TIMEOUT)
 
@@ -182,7 +201,7 @@ class HandleImplementingAGYRecoveryTest(_RecoveryBase):
         )
         self._assert_spawn_count(mocks, 2)
         self.assertEqual(scenario.github.opened_prs, [])
-        pinned = scenario.github.pinned_data(1)
+        pinned = self._pinned_data(scenario)
         self.assertTrue(pinned.get(_AWAITING_HUMAN))
         self.assertEqual(pinned.get(_PARK_REASON), _EXECUTION_FAILED)
 
@@ -204,9 +223,46 @@ class HandleImplementingAGYRecoveryTest(_RecoveryBase):
                 )
                 self._assert_spawn_count(mocks, 1)
                 self.assertEqual(
-                    scenario.github.pinned_data(1).get(_PARK_REASON),
+                    self._pinned_data(scenario).get(_PARK_REASON),
                     _EXECUTION_FAILED,
                 )
+
+    def test_premature_exit_published_on_continue(self) -> None:
+        # End-to-end recovery sequence:
+        # Tick 1: An implementing run commits work (sha-before -> sha-committed)
+        # but exits prematurely with unfinished steps (parks agent_execution_failed).
+        # Tick 2: Operator posts `/orchestrator continue`.
+        # Retry returns REPORT: READY with no further HEAD movement (head == sha-committed).
+        # Clean ahead-of-base commit attributable to failed run is published.
+        scenario = _seed_fresh_issue()
+        premature = _incomplete_agy_run()
+        # Tick 1:
+        self._run_implementing(
+            scenario.github,
+            scenario.issue,
+            run_agent=[premature, premature],
+            head_shas=["sha-before", "sha-committed"],
+            has_new_commits=[False, True],
+        )
+        self._assert_committed_park(scenario)
+
+        # Human operator posts `/orchestrator continue`
+        scenario.issue.comments.append(
+            FakeComment(id=100, body="/orchestrator continue", user=FakeUser("dave")),
+        )
+
+        # Tick 2: continue retry runs, returns REPORT: READY at sha-committed (no head change)
+        self._run_implementing(
+            scenario.github,
+            scenario.issue,
+            run_agent=_agent(session_id=_agy_stream.SESSION_ID, last_message=_reported("done")),
+            head_shas=["sha-committed", "sha-committed"],
+            has_new_commits=True,
+            dirty_files=(),
+            push_branch=True,
+        )
+        self._assert_published_continue(scenario)
+
 
 
 class HandleImplementingAGYRefusalTest(_RecoveryBase):

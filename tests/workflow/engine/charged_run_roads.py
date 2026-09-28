@@ -240,14 +240,22 @@ def _drive_conflict(case, agent_result: AgentResult, **state) -> Driven:
     return Driven(github, mocks, CONFLICT_ISSUE)
 
 
-def _drive_validating(case, agent_result: AgentResult, **state) -> Driven:
+def _drive_validating(
+    case,
+    agent_result: AgentResult | list[AgentResult],
+    *,
+    run_options: dict[str, object] | None = None,
+    **state,
+) -> Driven:
+    opts = dict(run_options or {})
+    dev_agent = opts.pop("dev_agent", None)
     github, issue = seed_issue(
         VALIDATING_ISSUE,
         label=_support.LABEL_VALIDATING,
         stage={
             _KEY_PR_NUMBER: _VALIDATING_PR,
             _KEY_BRANCH: _support._issue_branch(VALIDATING_ISSUE),
-            _KEY_DEV_AGENT: _support.BACKEND_CLAUDE,
+            _KEY_DEV_AGENT: dev_agent or _support.BACKEND_CLAUDE,
             _KEY_DEV_SESSION_ID: DEV_SESSION,
             _KEY_REVIEW_ROUND: 0,
         },
@@ -256,7 +264,9 @@ def _drive_validating(case, agent_result: AgentResult, **state) -> Driven:
     _support._open_pr_for(
         github, issue_number=VALIDATING_ISSUE, pr_number=_VALIDATING_PR,
     )
-    mocks = case._run_validating(github, issue, run_agent=agent_result)
+    mocks = case._run_validating(
+        github, issue, run_agent=agent_result, **opts,
+    )
     return Driven(github, mocks, VALIDATING_ISSUE)
 
 

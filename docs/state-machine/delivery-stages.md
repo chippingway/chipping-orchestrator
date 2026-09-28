@@ -1674,7 +1674,11 @@ because there it is the claim that this stage has already rerouted rather than a
        neutral retry prompt — NOT the bare command text, so the dev is grounded on its transcript (or, once
        `_resume_dev_with_text` rotates it, a fresh respawn preamble quoting the classifier's frozen conversation less
        the commands) rather than the nudge — and the result disposes
-       through the normal commit / timeout / question paths, with no "issue body changed" notice. A park needing a real
+       through the normal commit / timeout / question paths, with no "issue body changed" notice. If the failed run
+       already committed work before parking, its tip moved past `pre_implement_sha` and above any inherited floor;
+       when an intentional retry returns a valid `REPORT: READY` outcome with no HEAD change, that clean ahead-of-base
+       commit attributable to the failed run is published through the normal report, size, push, and PR gates, clearing
+       `pre_implement_sha` and `park_reason`. A park needing a real
        answer (any other `park_reason`) consumes the command and posts a refusal (`_refuse_parked_continue`) once, then
        stays parked (no per-tick loop). The size gate's own `late_measurement_failed` park is answered one step
        AHEAD of that classifier by `implementing/late_candidate_recovery.py`'s
@@ -3401,8 +3405,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        on, and the run is recorded, wherever the subject moved while the reviewer ran. Otherwise post the feedback to
        the PR, then flip the label to `workflow:fixing` BEFORE spawning
        the dev so the active job is observably "fixing reviewer-requested changes". Resume the dev with the fix
-       prompt, and read what it hands back through `validating/fix_reports.py`, which holds the round to the
-       developer report contract as the requirements-drift disposition holds a body-edit resume to it: on a new
+       prompt (routed through `implementing/execution.py`'s bounded coordinator to recover premature AGY command exits
+       before disposition), and read what it hands back through `validating/fix_reports.py`, which holds the round to
+       the developer report contract as the requirements-drift disposition holds a body-edit resume to it: on a new
        commit + clean tree the report is recorded as `developer_report_delivery` BEFORE the
        [size gate on a published pull request](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr)
        reads the candidate, and on a push, bump `review_round`, clear the reviewer anchor, flip back to
@@ -3442,10 +3447,15 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        label write GitHub refused — leaves the delivery unbound on `workflow:fixing`, where `_handle_fixing` step 4
        binds it and hands the round back on that mark, rather than letting its scan read whatever arrived since
        under a route the settlement has just closed. The dev spawn records `stage="fixing"` for analytics.
-       On any park (timeout, no-commit, dirty, push-fail) the label STAYS `workflow:fixing` with
-       `awaiting_human=True` and `_handle_fixing` owns the awaiting-human cycle thereafter. A run that COMMITTED and
-       handed over no usable report — including one that did not finish, which the engine exempts from the contract
-       because the roads that exemption serves publish
+       On any park (timeout, premature execution exit, no-commit, dirty, push-fail) the label STAYS
+       `workflow:fixing` with `awaiting_human=True` and `_handle_fixing` owns the awaiting-human cycle thereafter. A
+       premature AGY exit with unfinished tool steps triggers an immediate in-session continuation in the existing
+       worktree; if unfinished steps persist across the continuation, the run is not publishable and parks under
+       retryable `agent_execution_failed` while preserving reviewer anchors, feedback watermarks, and uncommitted
+       edits. When a fix is committed and published, feedback watermarks are settled and `pre_implement_sha` is
+       cleared on return to `workflow:validating`. A run that
+       COMMITTED and handed over no usable report — including one that did not finish, which the engine exempts from
+       the contract because the roads that exemption serves publish
        nothing either way — parks under `report_undeliverable` with nothing pushed, the commit in the worktree and
        the round unspent, in this road's own words rather than the engine's. Every park a reporting round earns carries
        the input its prompt delivered into the park's OWN write rather than a caller's afterwards: durable over
@@ -3982,8 +3992,13 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
 
      Then the report contract itself — the report of a commit this
      run made is recorded ahead of the size gate, and a run that committed with none parks instead, an unfinished one
-     in this road's own words since the engine exempts it and this road publishes. Then the disposition: a
-     no-commit reply first checks for a **stranded fix** (`_stranded_evidence`): when the worktree is clean and HEAD
+     in this road's own words since the engine exempts it and this road publishes. Resumed developer runs execute
+     through `implementing/execution.py`'s bounded coordinator, recovering premature AGY command exits with unfinished
+     steps in the existing worktree before inspecting commits or reports; runs that exit with unfinished steps across
+     the continuation do not count as valid reports and park under retryable `agent_execution_failed` while
+     preserving reviewer context, feedback watermarks, and uncommitted edits until a completed fix is published.
+     Then the disposition: a no-commit reply first checks for a **stranded fix**
+     (`_stranded_evidence`): when the worktree is clean and HEAD
      is strictly ahead of the fetched remote PR branch (a fix committed by an earlier parked run whose publish was
      blocked — e.g. a dirty-park whose stray files were cleaned up afterwards), the handler publishes it through the
      normal push tail and treats the run as a pushed fix — this outranks the ACK fast path on both routes, so an acked
