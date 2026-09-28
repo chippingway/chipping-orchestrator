@@ -961,9 +961,10 @@ because there it is the claim that this stage has already rerouted rather than a
   directly behind the developer-report transaction and ahead of the reuse guard. The owner is
   `workflow/engine/verification_transaction.py`; the four records and the revision floor are described under
   [pinned state](labels-and-state.md#pinned-state). No live producer records a transaction yet -- the
-  returned-verdict record (`stages/validating/review_verdicts.py`) that would stage the transaction `review_claims.py`
-  mints from a reviewer's declared commands is dormant -- so an issue without the record (every issue today) passes
-  through reading nothing and writing nothing.
+  returned-verdict disposition (`stages/validating/review_disposition.py`), which records the transaction
+  `review_claims.py` mints from a reviewer's declared commands beside its verdict and publishes it through this same
+  reconciliation, is dormant -- so an issue without the record (every issue today) passes through reading nothing and
+  writing nothing.
 - **Why it is behind the report transaction**: evidence answers for a review subject that names the developer
   report, so a report still owed is a subject about to move — the proof defers to it, and the report settles first.
 - **Stands aside**: a closed issue, a `done` or `rejected` label, a hard-skip control label, or no workflow label at
@@ -3310,8 +3311,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      not read or parse carries nothing, and the tick ends with nothing written.
   6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
      - **approved** → unless the report records moved above, the whole subject is resolved again
-       (`review_coverage._subject_still_stands`), over the issue read afresh, and has to equal the one the reviewer
-       was handed — pull request, head, requirements, and the report's revision, digest, location, and words. A push,
+       (`review_coverage._subject_still_stands`), over the issue read afresh, and has to record as the one the
+       reviewer was handed — pull request, head, requirements, and the report's revision and digest, its words read
+       again at its location, where an edit or a removal refuses the reading itself. A push,
        an issue edit, or a report edited or removed while the reviewer ran, or a reading nobody could take, means the
        approval is not acted on: the run is recorded and the next tick resolves the subject as it stands. Then, in
        order: (1) run the local verify gate

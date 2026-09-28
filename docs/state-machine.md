@@ -171,7 +171,7 @@ pull request carries now, a bounded history of retired evidence, the receipt of 
 revision spent -- which the dispatcher reconciles directly behind the report, publishing an artifact only once the
 pull request, trees, review subject, configuration, and requirements are proved, and carrying evidence to another
 head only on an equal full tree under the same context; no live producer records a transaction yet, the
-returned-verdict record that would stage a reviewer's declared commands beside its verdict being dormant
+returned-verdict disposition that would record a reviewer's declared commands beside its verdict being dormant
 ([evidence transaction](state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 Every key, what writes it, what spends it, and the legacy `codex_session_id` still honored on read are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
