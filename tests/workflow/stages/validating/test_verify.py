@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import unittest
+from functools import partial
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from orchestrator import config
@@ -15,6 +17,8 @@ from tests.workflow.fixtures import (
     _agent,
 )
 from tests.workflow.stages.validating import (
+    disposed_verdict_test_support as _disposed,
+    review_verdict_test_support as _world,
     validating_verify_test_support as verify_support,
 )
 
@@ -33,6 +37,50 @@ AWAITING_HUMAN = "awaiting_human"
 PARK_REASON = "park_reason"
 VERIFY_COMMANDS_SETTING = "VERIFY_COMMANDS"
 REVIEW_SHA = "rev-sha"
+# The reviewer session a round ran, where the pinned comment records it, the
+# lifetime count of agent runs charged on the issue, and the pull-request post
+# an approval announces itself with.
+REVIEWER_SESSION = "rev-sess"
+LAST_REVIEW_SESSION = "last_review_session_id"
+AGENT_RUNS_USED = "agent_runs_used"
+PR_COMMENT = "pr_comment"
+APPROVAL_NOTICE = "review approved"
+
+# Each verify gate another road charges a run during, and what it leaves: the
+# park reason and reviewer session recorded, and the runs charged beside every
+# relabel. A passing gate is charged behind its approval comment as well.
+_CHARGED_AROUND_THE_GATE = (
+    (
+        VerifyResult(status=VERIFY_OK),
+        ((None, REVIEWER_SESSION), (3, [(ISSUE, LABEL_DOCUMENTING)])),
+    ),
+    (
+        VerifyResult(status=VERIFY_FAILED, command=VERIFY_PYTEST, exit_code=1),
+        ((PARK_VERIFY_FAILED, REVIEWER_SESSION), (2, [])),
+    ),
+)
+
+
+def _charges_a_run(case) -> None:
+    """Another road's lifetime charge of an agent run it launches on `case`'s issue."""
+    state = case.github.read_pinned_state(case.issue)
+    state.set(AGENT_RUNS_USED, state.get(AGENT_RUNS_USED) + 1)
+    case.github.write_pinned_state(case.issue, state)
+
+
+def _charged_gate(case, verified: VerifyResult, *_args) -> VerifyResult:
+    """A verify gate answering `verified`, while another road charges a run on `case`'s issue."""
+    _charges_a_run(case)
+    return verified
+
+
+def _left(github) -> tuple:
+    """The park reason and reviewer session the pinned comment records, and the runs charged beside every relabel."""
+    pinned = github.pinned_data(ISSUE)
+    return (
+        (pinned.get(PARK_REASON), pinned.get(LAST_REVIEW_SESSION)),
+        (pinned.get(AGENT_RUNS_USED), github.label_history),
+    )
 
 
 class HandleValidatingVerifyGateTest(
@@ -176,6 +224,34 @@ class HandleValidatingVerifyGateTest(
         self.assertIn(VERIFY_SLOW, last_comment)
         self.assertIn("timed out after 123s", last_comment)
         self.assertNotIn(f"{CURRENT_TIMEOUT_SECONDS}s", last_comment)
+
+    def test_runs_charged_around_the_gate_are_kept(self) -> None:
+        # Another road charges an agent run while the gate runs, and -- where
+        # the gate passes -- another behind the approval comment. The reviewer
+        # round's own charge is part of the comment every later write is
+        # measured against, so each charge is kept rather than written back
+        # over by the count this round's charge left: the approval reaches
+        # `documenting`, and a failed gate's park lands with the round's own
+        # record -- the reviewer session that approved.
+        for verified, expected in _CHARGED_AROUND_THE_GATE:
+            with self.subTest(verified.status):
+                github, issue = self._seeded()
+                world = SimpleNamespace(github=github, issue=issue)
+                with (
+                    patch.object(config, VERIFY_COMMANDS_SETTING, (VERIFY_PYTEST,)),
+                    patch.object(github, PR_COMMENT, _world.AnotherRoadBehind(
+                        world, PR_COMMENT, _disposed.saying(APPROVAL_NOTICE), _charges_a_run,
+                    )),
+                ):
+                    self._run_validating(
+                        github,
+                        issue,
+                        run_agent=_agent(session_id=REVIEWER_SESSION, last_message=REVIEW_APPROVED_MESSAGE),
+                        head_shas=(REVIEW_SHA,),
+                        verify_result=partial(_charged_gate, world, verified),
+                    )
+
+                self.assertEqual(_left(github), expected)
 
     def _assert_failed_comment(self, comment: str) -> None:
         self.assertIn("local verification failed", comment)

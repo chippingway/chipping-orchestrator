@@ -1842,14 +1842,18 @@ The keys that matter for the state machine fall into a few groups:
   the record beside the notice's ledger entry where the subject would not read -- and taken over the comment as it
   stands, the returned run's usage and session unrecorded, where it has no room beside what that run staged; nothing is
   posted or written where there is room for no park. Behind its notice the subject is resolved again and the comment
-  read against the state the park began over: a report record, the record itself, or a `verification_evidence_*` record
-  moved there, like a push, lands no park and sets the record to `null` alone, over the newer records, while a subject
-  that would not read, or a notice that left no id and so may have reached nobody, lands none either and leaves the
-  record as it waited for a later tick to park again. Every park write is composed over the comment as it stands, so a
-  field another road wrote behind the notice -- a spent `review_round` -- is kept, and the `orchestrator_comment_ids`
-  ledger merged, an id either side recorded kept, as they are by every write the approval's squash tail makes; one that
-  carries what moved there is measured again, and not made where another road's write left no room. A park that lands
-  sets the record to `null` in its own write and reports `park_awaiting_human` only once that write is down. A failed
+  read against the one the tick last read or wrote -- the state a `reviewer_unverified` park began over, the reading a
+  returned run was resolved over for `reviewer_unrecorded`, the verify gate's for its park -- so what the run staged,
+  its session and usage among them, lands with the park: a report record, the record itself, or a
+  `verification_evidence_*` record moved there, like a push, lands no park and sets the record to `null` alone, over the
+  newer records, while a subject that would not read, or a notice that left no id and so may have reached nobody, lands
+  none either and leaves the record as it waited for a later tick to park again. Every park write is composed over the
+  comment as it stands, so a field another road wrote behind the notice -- a spent `review_round` -- is kept, and the
+  `orchestrator_comment_ids` ledger merged, an id either side recorded kept among the newest 500 the ledger holds -- an
+  id one reading already evicted is evicted again rather than a newer one -- as they are by every write the approval's
+  squash tail makes; one that carries what moved there is measured again, and not made where another road's write left
+  no room. A park that lands sets the record to `null` in its own write and reports `park_awaiting_human` only once that
+  write is down. A failed
   verify gate's park goes through the same funnel, so it too lands only over the subject still standing behind the gate
   and behind its notice. A refused approval parked again from a waiting record with no claim says only that nothing it
   declared earned verification evidence, since the record keeps no copy of why. A bare `/orchestrator continue` on

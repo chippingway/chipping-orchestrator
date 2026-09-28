@@ -33,13 +33,16 @@ nothing, and says so.
 The notice is a request of its own, long enough for a push or another road's
 settlement to land, and a park over either is a human asked to answer for a
 review of work the pull request no longer carries. So the subject is resolved
-again behind it, and the comment read last against the state the park began
-over (`review_comment._records_stand`). A report or verdict record moved there
-carries everything the comment changed since -- a report settlement's spent
-round beside its records -- and, like an evidence record another road
-recorded or settled there, or a head read whole that is another, lands no
-park: the write drops the verdict, and the next tick's reviewer is handed the
-subject as it stands. A subject nobody could read is no proof it moved, nor
+again behind it, and the comment read last against the one the tick last
+read or wrote (`review_comment._records_stand`) -- the state an unverified
+approval's park began over, the reading a returned run was resolved over for
+an unrecorded verdict's, the verify gate's for a failed gate's -- so what the
+returned run staged is this tick's own and lands with the park. A report or
+verdict record moved there carries everything the comment changed since -- a
+report settlement's spent round beside its records -- and, like an evidence
+record another road recorded or settled there, or a head read whole that is
+another, lands no park: the write drops the verdict, and the next tick's
+reviewer is handed the subject as it stands. A subject nobody could read is no proof it moved, nor
 that it still stands: it lands no park either, and the verdict is left waiting
 for a later tick to resolve again. A notice nothing
 identified may have reached nobody, so no park lands behind it either, and the
@@ -70,7 +73,6 @@ squash already answers.
 from __future__ import annotations
 
 import logging
-from dataclasses import replace
 
 from github.Issue import Issue
 
@@ -112,12 +114,19 @@ def parks_unverified(
     run: _models._ReviewerRun,
     refusal: str,
 ) -> None:
-    """Park an approval that relies on no valid evidence, dropping the verdict it left."""
+    """Park an approval that relies on no valid evidence, dropping the verdict it left.
+
+    Measured against `state` as the park begins: the verdict is persisted
+    and proved over the comment it carries, with nothing staged beside it.
+    """
     words = (
         "the reviewer approved without the verification evidence an approval "
         f"requires: {refusal}. The approval was not acted on; {_RETRY}"
     )
-    parks_over_the_subject(gh, issue, state, run, (_state._REASON_REVIEWER_UNVERIFIED, words, _REVIEWER))
+    parks_over_the_subject(
+        gh, issue, state, run.measured_over(state.data),
+        (_state._REASON_REVIEWER_UNVERIFIED, words, _REVIEWER),
+    )
 
 
 def parks_unrecorded(
@@ -127,7 +136,12 @@ def parks_unrecorded(
     run: _models._ReviewerRun,
     why: str,
 ) -> None:
-    """Park a verdict that could not be persisted, `why` in `review_disposition`'s words, acting on nothing."""
+    """Park a verdict that could not be persisted, `why` in `review_disposition`'s words, acting on nothing.
+
+    Measured against the reading the returned run was resolved over, so what
+    that run staged and could not persist beside its verdict -- its usage and
+    session -- lands with the park.
+    """
     words = (
         f"the reviewer's verdict could not be recorded on the pinned comment: {why}. "
         "Nothing it returned was published or acted on; free room on the pinned "
@@ -148,23 +162,29 @@ def parks_over_the_subject(
     `park` is the reason, the notice's words, and the agent role the park is
     reported as, with the round, session, and pull request it ran for; a park
     of no agent's (None) reports its reason alone.
+
+    `run.resolved_over` is the comment as the tick last read or wrote it, with
+    the report and verdict records the verdict was proved over. Behind the
+    notice, a field the state in hand spells otherwise than that reading is
+    this tick's own to write -- what the returned run staged among them -- and
+    one the comment spells otherwise is another road's, carried.
     """
     reason = park[0]
     held = (park, _verdicts.read_returned_verdict(state))
-    # Measured behind the notice against `state` as the park begins, whose
-    # report and verdict records are the ones the verdict was proved over.
-    measured = replace(run, resolved_over=dict(state.data))
-    parked = state
-    if not _park_fits(parked, reason, held[1]):
-        # No room beside what the returned run staged: the park is taken over
-        # the comment as it stands, the run's usage and session unrecorded.
-        parked = _review_comment._read(gh, issue, state, "park a verdict with no room for what its run staged")
+    # With no room beside what the returned run staged, the park is taken
+    # over the comment as it stands, the run's usage and session unrecorded.
+    parked = state if _park_fits(state, reason, held[1]) else _review_comment._read(
+        gh, issue, state, "park a verdict with no room for what its run staged",
+    )
     if parked is None or not _park_fits(parked, reason, held[1]):
         log.error(
             "issue=#%d has no room on its pinned comment even for the %s park; "
             "posting and writing nothing", issue.number, reason,
         )
         return
+    # A park over the comment as it stands writes nothing but that reading,
+    # so that reading is what it is measured against.
+    measured = run if parked is state else run.measured_over(parked.data)
     lands = _behind_the_notice(gh, issue, parked, measured, held)
     if lands is None:
         return

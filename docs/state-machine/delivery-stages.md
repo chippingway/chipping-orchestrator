@@ -3325,7 +3325,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      carries what only the round's own write may land, a cap grant's round reset among them, which a launch the run
      circuit refuses has to discard — and run the reviewer with the read-only prompt, which quotes
      that report whole between the issue and the inspection commands (must end with `VERDICT: APPROVED` or
-     `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check
+     `VERDICT: CHANGES_REQUESTED`). The charge that launch takes on the comment is the round's own write, so it is
+     taken into the reading every later write of the round is measured against, and a run another road charges since
+     reads as that road's rather than being written back over. A mid-run `paused` / `backlog` re-check
      (`_paused_during_agent_run`) right after the reviewer returns short-circuits BEFORE the usage fold, session record,
      verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state.
      A reviewer that returns has the subject it was handed staged again as `review_returned_subject` beside its
@@ -3430,9 +3432,14 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        last read or wrote it — a round spent by a reply — is carried onto the state in hand unless that state
        changed it too, save the squash's own collapse record, which the squash writes itself and drops only in memory
        for this write to make durable. The tail starts from the comment as the reading behind the verify gate found it
-       — the reading the reviewer's run was resolved over, with whatever that gate carried onto the state taken into
-       it, so a field it carried is never mistaken for the tick's own and written back over a later one — or on the
-       recovery road from the comment as the tick read it. (4) On success, if `squashed_count > 1` post `:package:
+       — the reading the reviewer's run was resolved over, its own launch charge included, with whatever that gate
+       carried onto the state taken into it, so a field it carried, or a run another road charged since, is never
+       mistaken for the tick's own and written back over a later one — or on the recovery road from the comment as
+       the tick read it. A failed gate's park is measured behind its notice against the same reading, so it lands with
+       what the round staged — its reviewer session and usage among them. The ledger of the orchestrator's own
+       comments is merged rather than carried, and its bound evicts the oldest ids — the smallest, wherever they stand
+       — so an id one reading already evicted is evicted again rather than a newer one. (4) On success, if
+       `squashed_count > 1` post `:package:
        squashed N commits to 1` — a count of 0 or 1 replaced no history and posts nothing — seed the in_review
        watermarks (inside the `gh.get_pr()` try so a snapshot failure leaves them untouched; the walk advances through
        the leading run of the orchestrator's own comments plus the issue-thread ids `last_action_comment_id` already

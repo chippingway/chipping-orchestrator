@@ -57,6 +57,7 @@ from dataclasses import replace
 from github.Issue import Issue
 
 from orchestrator import config
+from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
@@ -109,29 +110,110 @@ def _run_reviewer_round(
     if handover is None:
         return None
     handover = _persists_the_launch(gh, issue, state, handover)
-    reviewer_run = _models._ReviewerRun(
+    agent_result, handover = _runs_charged(
+        gh, issue, state, handover,
+        agent_role="reviewer",
+        stage="validating",
+        backend=config.REVIEW_AGENT,
+        prompt=_review_prompt(
+            spec, issue, state, delivered.rendered_text, handover.subject,
+        ),
+        cwd=wt,
+        agent_spec=config.REVIEW_AGENT_SPEC,
+        timeout=config.REVIEW_TIMEOUT,
+        extra_args=config.REVIEW_AGENT_ARGS,
+        review_round=round_n,
+        retry_count=state.get("retry_count"),
+    )
+    return _read_again_on_return(gh, issue, state, _models._ReviewerRun(
         wt=wt,
         round_n=round_n,
         pr_number=pr_number,
-        agent_result=_usage._run_agent_tracked(
-            gh, _run_charge_state.AgentRunBudget(issue=issue, state=state),
-            agent_role="reviewer",
-            stage="validating",
-            backend=config.REVIEW_AGENT,
-            prompt=_review_prompt(
-                spec, issue, state, delivered.rendered_text, handover.subject,
-            ),
-            cwd=wt,
-            agent_spec=config.REVIEW_AGENT_SPEC,
-            timeout=config.REVIEW_TIMEOUT,
-            extra_args=config.REVIEW_AGENT_ARGS,
-            review_round=round_n,
-            retry_count=state.get("retry_count"),
-        ),
+        agent_result=agent_result,
         delivery=delivered,
         subject=handover.subject,
         resolved_over=handover.resolved_over,
+    ))
+
+
+def _persists_the_launch(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    handover: _review_comment._ResolvedSubject,
+) -> _review_comment._ResolvedSubject:
+    """Write the reviewer spec and its subject BEFORE the spawn; stage both too.
+
+    The launch charge writes only the fields it took, so without a write of
+    their own nothing would put these two down until the reviewer returned,
+    and a round that died mid-review would leave no record of which spec ran
+    or what it was shown. They are written onto the comment as `review_report`
+    read it an instant ago -- carrying the report records in hand -- rather
+    than as the state in hand: that state carries what this tick staged for
+    the round's own write, a cleared park and a cap grant's round reset among
+    them, and a launch the run circuit refuses discards those, which is what
+    lets the grant be honored again once an agent-run grant hands the park
+    back. What was written -- with the charge behind it (`_runs_charged`) --
+    is what the verdict's return is measured against.
+    """
+    durable = PinnedState(
+        comment_id=state.comment_id, state_data=dict(handover.resolved_over),
     )
+    _review_records._records_the_launch(durable, handover.subject)
+    gh.write_pinned_state(issue, durable)
+    # The comment this write landed on is the one every later write of the
+    # round has to reach, rather than a second one pinned beside it.
+    state.comment_id = durable.comment_id
+    _review_records._records_the_launch(state, handover.subject)
+    return replace(handover, resolved_over=dict(durable.data))
+
+
+def _runs_charged(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    handover: _review_comment._ResolvedSubject,
+    **request,
+) -> tuple[AgentResult, _review_comment._ResolvedSubject]:
+    """Run the reviewer `request` describes, and the comment its return is measured against once its charge is down.
+
+    The run circuit charges the launch on the comment behind the write
+    `_persists_the_launch` made, and merges onto `state` only the fields that
+    charge moved. Those are the round's own write, so they are taken into the
+    comment `handover` was read over (`review_comment._ResolvedSubject.carrying`)
+    as they are into `state`: left out of it, the count would read as a field
+    this tick staged and never wrote, and a reading behind the approval's
+    verify gate, or behind a post its tail makes, would keep this charge's
+    count over a newer one another road's charge wrote meanwhile, and write it
+    back.
+    """
+    before = dict(state.data)
+    ran = _usage._run_agent_tracked(
+        gh, _run_charge_state.AgentRunBudget(issue=issue, state=state), **request,
+    )
+    return ran, handover.carrying(before, state)
+
+
+def _read_again_on_return(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    reviewer_run: _models._ReviewerRun,
+) -> _models._ReviewerRun | None:
+    """The run, recorded and once the pinned comment is read again; None to end the tick unwritten.
+
+    A run an operator paused under, or one the shutdown sweep killed, ends the
+    tick before that, in that order, around the record of the return.
+
+    The comment is read before anything the run leaves is written -- a park for a timeout or
+    a missing verdict as much as the record of a verdict -- since each of
+    those writes goes out from the state in hand, and a report that settled
+    while the reviewer ran is on the comment and nowhere in it. What moved is
+    carried onto that state first, and marks the verdict as one of a subject
+    that no longer stands. A comment that will not read or parse ends the tick
+    with nothing written, as an interrupted run does: the next tick spawns a
+    reviewer over whatever the comment carries then.
+    """
     # Live pause: an operator applied `paused` / `backlog` while the reviewer
     # ran. Dispatch only saw the pre-run labels, so re-check a freshly fetched
     # issue and return WITHOUT folding usage, recording the review session,
@@ -158,57 +240,6 @@ def _run_reviewer_round(
     # branches.
     if _guards._ignore_if_interrupted(issue, reviewer_run.agent_result):
         return None
-    return _read_again_on_return(gh, issue, state, reviewer_run)
-
-
-def _persists_the_launch(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    handover: _review_comment._ResolvedSubject,
-) -> _review_comment._ResolvedSubject:
-    """Write the reviewer spec and its subject BEFORE the spawn; stage both too.
-
-    The launch charge writes only the fields it took, so without a write of
-    their own nothing would put these two down until the reviewer returned,
-    and a round that died mid-review would leave no record of which spec ran
-    or what it was shown. They are written onto the comment as `review_report`
-    read it an instant ago -- carrying the report records in hand -- rather
-    than as the state in hand: that state carries what this tick staged for
-    the round's own write, a cleared park and a cap grant's round reset among
-    them, and a launch the run circuit refuses discards those, which is what
-    lets the grant be honored again once an agent-run grant hands the park
-    back. What was written is what the verdict's return is measured against.
-    """
-    durable = PinnedState(
-        comment_id=state.comment_id, state_data=dict(handover.resolved_over),
-    )
-    _review_records._records_the_launch(durable, handover.subject)
-    gh.write_pinned_state(issue, durable)
-    # The comment this write landed on is the one every later write of the
-    # round has to reach, rather than a second one pinned beside it.
-    state.comment_id = durable.comment_id
-    _review_records._records_the_launch(state, handover.subject)
-    return replace(handover, resolved_over=dict(durable.data))
-
-
-def _read_again_on_return(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    reviewer_run: _models._ReviewerRun,
-) -> _models._ReviewerRun | None:
-    """The run, once the pinned comment is read again; None to end the tick unwritten.
-
-    Read before anything the run leaves is written -- a park for a timeout or
-    a missing verdict as much as the record of a verdict -- since each of
-    those writes goes out from the state in hand, and a report that settled
-    while the reviewer ran is on the comment and nowhere in it. What moved is
-    carried onto that state first, and marks the verdict as one of a subject
-    that no longer stands. A comment that will not read or parse ends the tick
-    with nothing written, as an interrupted run does: the next tick spawns a
-    reviewer over whatever the comment carries then.
-    """
     stood = _review_comment._records_stand(
         gh, issue, state, reviewer_run.resolved_over,
     )

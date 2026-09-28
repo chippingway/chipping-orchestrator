@@ -520,19 +520,28 @@ def _finalize_validating_approval(
     verify = _verify_runner._run_verify_commands(
         reviewer_run.wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT,
     )
-    # What the reading behind the gate carries onto the state is the comment
-    # the squash tail's writes are measured against from here on.
     before = dict(state.data)
     stands = _stands_behind_the_gate(gate.gh, gate.issue, state, reviewer_run)
     if stands is None:
         return
+    # What the reading behind the gate carried onto the state is the comment
+    # every later write -- the squash tail's, or the park's -- is measured
+    # against: measured against the run's older reading instead, a field it
+    # carried would read as this tick's own and be written back over a later
+    # one, and one the round staged and never wrote as another road's.
+    held = _handoff._Held(
+        _verdicts.read_returned_verdict(state), dict(reviewer_run.resolved_over), reviewer_run.subject.recorded(),
+    )
+    held.carried(before, state)
     if stands and verify.status in _VERIFIED:
-        _squashes_the_approval(gate, reviewer_run, branch, before)
+        _squashes_the_approval(gate, reviewer_run, branch, held)
         return
     if stands:
         # Held to the subject once more behind its notice, and written by
         # the park itself where it lands and where it does not.
-        _verify._park_verify_failure(gate.gh, gate.issue, state, reviewer_run, verify)
+        _verify._park_verify_failure(
+            gate.gh, gate.issue, state, reviewer_run.measured_over(held.comment), verify,
+        )
         return
     # An approval the subject moved out from under is dropped, and one whose
     # subject would not read is held; either way what the run left is the
@@ -540,7 +549,7 @@ def _finalize_validating_approval(
     gate.gh.write_pinned_state(gate.issue, state)
 
 
-def _squashes_the_approval(gate, reviewer_run: _models._ReviewerRun, branch: str, before: dict) -> None:
+def _squashes_the_approval(gate, reviewer_run: _models._ReviewerRun, branch: str, held: _handoff._Held) -> None:
     """Record, announce, and squash an approval whose verify gate passed over the subject still standing.
 
     The approval is staged and written by whichever write the squash road
@@ -559,16 +568,13 @@ def _squashes_the_approval(gate, reviewer_run: _models._ReviewerRun, branch: str
     records written without the approval; where it would not read, they are
     written keeping the verdict. Every write from here on is composed over
     the comment as read, a field another road changed told from this tick's
-    own by the comment as the gate read it -- the run's reading with what the
-    gate carried onto the state since `before` taken into it
-    (`handoff._Held.carried`) -- so a round spent during the gate, and another
-    behind the approval comment, is kept rather than written back over.
+    own by the comment as the gate read it -- `held`, the run's reading with
+    what the gate carried onto the state taken into it
+    (`handoff._Held.carried`) -- so a round spent or a run charged during the
+    gate, and another behind the approval comment, is kept rather than
+    written back over.
     """
     gh, issue, state = gate.gh, gate.issue, gate.state
-    held = _handoff._Held(
-        _verdicts.read_returned_verdict(state), dict(reviewer_run.resolved_over), reviewer_run.subject.recorded(),
-    )
-    held.carried(before, state)
     _handoff._post_approval_comment(gh, issue, state, reviewer_run)
     stands = _review_coverage._subject_still_stands(gh, issue, state, held.subject)
     if not _handoff._holds_its_records(gh, issue, state, "squash under the approval it posted", held):

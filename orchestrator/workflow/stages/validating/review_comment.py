@@ -21,7 +21,11 @@ writes nothing: every write from there would be laid over records the tick never
 read, putting back the report they replaced. So is a fresh reading of another
 comment than the one the state in hand was read from -- the pinned comment
 replaced, or gone -- since the tick's write goes to the comment it read and
-would pin a second one. The reading that agreed goes on with the subject.
+would pin a second one. The reading that agreed goes on with the subject, and
+takes in the round's own launch charge once that charge is down
+(`_ResolvedSubject.carrying`): the charge lands on the state in hand only the
+fields it wrote, which read against the comment without them would be taken
+for this tick's own, and written back over a later charge another road wrote.
 
 `_records_stand` reads the comment against that reading again, as the reviewer
 returns and once more after an approval is verified, before anything the run
@@ -44,15 +48,16 @@ move -- and a round a reply bought, or the thread another road read through,
 none of which a write may put back. The ledger of the orchestrator's own
 comments is merged rather than carried or kept, whichever way the records went:
 every road adds to it, and an id either side recorded is a comment every later
-prompt has to know as the orchestrator's. Records are compared as the comment's JSON
-spells them, so one written `null` where there was none, or a revision spelled
-`true` where it was `1`, is a move. Records that stand leave the state alone.
-Records that moved refuse the verdict, and everything the comment changed since
-the subject was resolved is carried onto the state in hand, so every write the
-run makes lays itself over the newer settlement. A comment that will not read
-or parse, or is no longer the one the state was read from, carries nothing, and
-the answer is the one that writes nothing: the run is charged, and the next
-tick spawns a reviewer over whatever the comment carries then.
+prompt has to know as the orchestrator's, kept among the newest its bound holds.
+Records are compared as the comment's JSON spells them, so one written `null`
+where there was none, or a revision spelled `true` where it was `1`, is a move.
+Records that stand leave the state alone. Records that moved refuse the
+verdict, and everything the comment changed since the subject was resolved is
+carried onto the state in hand, so every write the run makes lays itself over
+the newer settlement. A comment that will not read or parse, or is no longer
+the one the state was read from, carries nothing, and the answer is the one
+that writes nothing: the run is charged, and the next tick spawns a reviewer
+over whatever the comment carries then.
 
 Nothing here parks or posts.
 """
@@ -125,6 +130,25 @@ class _ResolvedSubject:
     # carries the very report records the subject was resolved from: what
     # the verdict's return measures the comment against.
     resolved_over: dict
+
+    def carrying(self, before: dict, state: PinnedState) -> _ResolvedSubject:
+        """This subject, over its comment with every field `state` changed since `before` taken into it.
+
+        For a write that lands on `state` only the fields it wrote on the
+        comment -- the run circuit's launch charge -- whatever `state` changed
+        since `before` is what the comment says now. Left out of the reading,
+        each would read as a field this tick staged and never wrote, and be
+        written back over a later one another road wrote. Compared as the
+        comment's JSON spells them (`_moved`).
+        """
+        comment = dict(self.resolved_over)
+        for field in _moved(state.data, before, {*before, *state.data}):
+            written = state.data.get(field, _ABSENT)
+            if written is _ABSENT:
+                comment.pop(field, None)
+            else:
+                comment[field] = written
+        return _ResolvedSubject(self.subject, comment)
 
 
 def _resolved_over(
@@ -204,7 +228,8 @@ def _records_stand(
             state.set(field, written)
     # The ledger of the orchestrator's own comments is a set every road adds
     # to, so it is merged rather than carried or kept whole: an id either side
-    # recorded is a comment every later prompt has to know as the orchestrator's.
+    # recorded is a comment every later prompt has to know as the orchestrator's,
+    # and one this state's own posts evicted is evicted again (`comments`).
     _comments._track_orchestrator_comment(state, *sorted(_comments._orchestrator_ids(durable)))
     if not stand:
         log.warning(

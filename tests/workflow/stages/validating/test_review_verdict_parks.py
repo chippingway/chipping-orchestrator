@@ -42,6 +42,9 @@ REQUESTED = "changes_requested"
 
 REVIEW_ROUND = "review_round"
 
+# Where the pinned comment records the reviewer session a round ran.
+LAST_REVIEW_SESSION = "last_review_session_id"
+
 ISSUE_COMMENT = "comment"
 
 UNDECLARED_APPROVAL = "LGTM\n\nVERDICT: APPROVED"
@@ -216,6 +219,12 @@ _LEDGER_WINDOWS = (
     ("the approval comment", _world.declared_run(), ("pr_comment", _disposed.APPROVAL_NOTICE)),
 )
 
+# How many ids the ledger holds, and a ledger at that bound of ids older than
+# any comment the world posts.
+_LEDGER_CAP = _comments._ORCH_COMMENT_ID_CAP
+
+_FULL_LEDGER = range(1, _LEDGER_CAP + 1)
+
 
 def _fills_to(case, spare: int) -> None:
     """Fill `case`'s pinned comment with operator notes to `spare` characters short of its ceiling."""
@@ -235,7 +244,8 @@ class ParkedVerdictTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
     def test_an_unrecorded_verdict_parks_unacted(self) -> None:
         # Nothing durable backs it, so nothing it returned is published or
         # acted on: its park says why, and a fresh reviewer is what a reply
-        # buys.
+        # buys. The park has room beside what the returned run staged, so the
+        # round it records is the one that ran -- the reviewer's session.
         for name, message, filled, why in _UNRECORDED:
             with self.subTest(name):
                 self.setUp()
@@ -252,8 +262,9 @@ class ParkedVerdictTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
                         _disposed.feedback_posts(self),
                         self.github.label_history,
                         why in self.last_notice(),
+                        self.pinned().get(LAST_REVIEW_SESSION),
                     ),
-                    (_UNRECORDED_PARK, None, [], 0, [], [], True),
+                    (_UNRECORDED_PARK, None, [], 0, [], [], True, _world.REVIEWER_SESSION),
                 )
 
     def test_no_room_even_for_the_park_writes_nothing(self) -> None:
@@ -472,6 +483,34 @@ class ParkWriteTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
                 ).returning(reply)
 
                 self.assertEqual(self._unrecorded_posts(), set())
+
+    def test_a_full_ledger_keeps_its_newest_ids(self) -> None:
+        # Over a ledger already at its cap, each post evicts the oldest id,
+        # and the write behind a park's notice, or behind the approval
+        # comment, merges the comment's own reading back in -- which still
+        # carries that id. The ledger it writes holds the newest ids there
+        # are: the evicted one stays evicted, no newer one goes instead, and
+        # every notice this tick posted is recorded.
+        for window in _LEDGER_WINDOWS:
+            with self.subTest(window[0]):
+                self.setUp()
+                self.theirs = []
+                state = self.github.read_pinned_state(self.issue)
+                seeded = list(_FULL_LEDGER)
+                state.set(_disposed.LEDGER, seeded)
+                self.github.write_pinned_state(self.issue, state)
+
+                self.returns(window[1])
+
+                kept = self.pinned()[_disposed.LEDGER]
+                self.assertEqual(
+                    (
+                        len(kept),
+                        self._unrecorded_posts(),
+                        sorted({*seeded, *kept})[-_LEDGER_CAP:],
+                    ),
+                    (_LEDGER_CAP, set(), sorted(kept)),
+                )
 
     def _spends_a_round(self, _case) -> None:
         """Another road's write of the round, which no verdict stands on."""

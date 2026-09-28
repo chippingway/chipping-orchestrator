@@ -74,7 +74,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             whichever reading finds it on the thread, since a post whose response was lost hands
                             back no id, and a verification artifact enters the same one through the sibling owner
                             below; callers persist the ledger, merging another reading's ids into it several at a
-                            time where two roads each added some, and shared token accounts are never treated as
+                            time where two roads each added some -- its bound evicts the smallest ids, the oldest
+                            comments, wherever they stand, so an id one reading already evicted is evicted again
+                            rather than a newer one -- and shared token accounts are never treated as
                             exclusively automated. The id a report landed as is read off the LOOKUP, which
                             resolves it once when the reading is taken: this records a comment before its caller
                             ever sees the reading, and an id answered afresh to each of them could fail here and
@@ -2897,6 +2899,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             this run's own checkout. The developer report is resolved through `review_report.py`
                             ahead of the spawn and the subject it yields written beside the reviewer spec before
                             the spawn, onto the comment as that resolution read it, through `review_records.py`; the
+                            launch charge written behind it is taken into that reading as well, so a later charge
+                            another road writes is never mistaken for this round's own and written back over; the
                             pinned comment is read again through `review_comment.py` as the reviewer returns, before
                             any park or record the run leaves is written, and an approval is acted on only while
                             `review_coverage.py` finds that whole subject standing
@@ -2975,13 +2979,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             where they stand composes the write behind over the comment as read: a field another
                             road wrote since the tail last read or wrote it (`_Held`) is carried onto the state in
                             hand unless that state changed it too, save the squash's own collapse record -- and the
-                            ledger of the orchestrator's own comments merged, an id either side recorded kept; on the
-                            approval road the tail first reads the comment as the reading behind the verify gate
-                            found it, the run's reading with what that gate carried onto the state taken into it
-                            (`_Held.carried`), so a field the gate carried is never mistaken for the tick's own
+                            ledger of the orchestrator's own comments merged, an id either side recorded kept among
+                            the newest its bound holds; on the approval road the tail first reads the comment as the
+                            reading behind the verify gate found it, the run's reading -- its own launch charge
+                            included -- with what that gate carried onto the state taken into it (`_Held.carried`),
+                            so a field the gate carried is never mistaken for the tick's own
       verify.py             how a refused verify result reads and the park it earns, filed through
-                            `review_parks.py` over the approved subject; `ok` and the `not_run` an empty
-                            `VERIFY_COMMANDS` returns both advance instead
+                            `review_parks.py` over the approved subject and measured behind its notice against the
+                            comment as the verify gate's reading left it, as the squash tail is, so the park lands
+                            with what the reviewer round staged; `ok` and the `not_run` an empty `VERIFY_COMMANDS`
+                            returns both advance instead
       watermarks.py         the seed walk past leading orchestrator comments and a bare `/orchestrator
                             add-agent-runs` a grant left unread, and the ratchet that never regresses one
       requested_changes.py  the PR feedback and `workflow:fixing`-labeled dev fix, its report disposed of through
@@ -3170,8 +3177,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it does not, the comment will not read or parse, or the fresh reading is another comment
                             than the one the state was read from -- replaced or gone, whose write would pin a second
                             one -- nothing is handed over and the tick ends WITHOUT writing, since any write would put
-                            the replaced report back. The reading that agreed goes with the subject, and the comment
-                            is read against it again as the reviewer returns and once more after an approval is
+                            the replaced report back. The reading that agreed goes with the subject, with the round's
+                            own launch charge taken into it once that charge is down (`_ResolvedSubject.carrying`),
+                            and the comment is read against it again as the reviewer returns and once more after an approval is
                             verified, before anything the run leaves is written: records that moved refuse the verdict
                             and everything the comment changed since is carried onto the state in hand, so every write
                             the run makes keeps that settlement current; another comment or an unread one carries
@@ -3293,8 +3301,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the notice is posted, for the park's own write and for the one keeping the verdict beside
                             the notice where the subject would not read, taken over the comment as it stands where it
                             has no room beside what the returned run staged, and held behind the notice to the
-                            subject resolved again and then to the comment read against the state the park began
-                            over -- a report, verdict, or evidence record moved there, like a push, lands no park and
+                            subject resolved again and then to the comment read against the one the tick last read
+                            or wrote -- the state a `reviewer_unverified` park began over, the reading a returned
+                            run was resolved over for `reviewer_unrecorded`, and the verify gate's for its park, so
+                            what the run staged lands with the park -- a report, verdict, or evidence record moved
+                            there, like a push, lands no park and
                             drops the verdict alone, over the newer records, while a subject that would not read, or
                             a notice that left no id, lands none either and leaves the verdict waiting; that write is
                             measured again once it carries what moved, and not made where another road's write left

@@ -49,19 +49,29 @@ def _track_orchestrator_comment(state: PinnedState, *comment_ids: int) -> None:
     layer -- a road that posts through a wrapped client and then through
     `_post_issue_comment` records the same id twice -- so an id already here
     keeps the position it has: what the bound evicts is the oldest comment
-    rather than the least recently re-recorded. Several at once is a road
-    merging what another reading of the comment recorded -- the ledger is a set
-    every road adds to, so an id either side recorded is kept -- appended in
-    the order given behind the ones already here.
+    rather than the least recently re-recorded. GitHub numbers comments in one
+    ascending space, so the oldest are the smallest ids, wherever each landed
+    in the list. Several at once is a road merging what another reading of
+    the comment recorded -- the ledger is a set every road adds to, so an id
+    either side recorded is kept as long as it is among the newest the bound
+    holds -- appended in the order given behind the ones already here. An id
+    one side already evicted is offered back that way, and is evicted again
+    rather than a newer one in its place.
     """
-    raw = state.get(_ORCH_COMMENT_IDS)
-    ids = list(raw) if isinstance(raw, list) else []
+    ids = state.get(_ORCH_COMMENT_IDS)
+    ids = list(ids) if isinstance(ids, list) else []
     added = [
         identified for identified in dict.fromkeys(map(int, comment_ids)) if identified not in ids
     ]
     if not added:
         return
-    state.set(_ORCH_COMMENT_IDS, [*ids, *added][-_ORCH_COMMENT_ID_CAP:])
+    ids.extend(added)
+    # Whatever the bound leaves out goes, oldest first by id; an entry that
+    # names no comment goes before any that does.
+    evicted = sorted(
+        ids, key=lambda entry: entry if isinstance(entry, int) else -1, reverse=True,
+    )[_ORCH_COMMENT_ID_CAP:]
+    state.set(_ORCH_COMMENT_IDS, [kept for kept in ids if kept not in evicted])
 
 
 def _reserve_comment_slot(state: PinnedState, widest: int) -> None:

@@ -201,11 +201,14 @@ def _holds_its_records(
         "not %s; recording only the comments it posted and retiring the verdict "
         "it holds", issue.number, purpose,
     )
-    posted = sorted(_comments._orchestrator_ids(state) - _comments._orchestrator_ids(durable))
+    ledger = durable.get(_comments._ORCH_COMMENT_IDS)
+    # Merged whole: an id the comment evicted since is older than every one
+    # the bound keeps there, and is evicted again rather than written back.
+    _comments._track_orchestrator_comment(durable, *sorted(_comments._orchestrator_ids(state)))
+    posted = durable.get(_comments._ORCH_COMMENT_IDS) != ledger
     retired = held.verdict is not None and _verdicts.drops_the_verdict(durable, only=held.verdict)
     if not (posted or retired):
         return False
-    _comments._track_orchestrator_comment(durable, *posted)
     if _report_record_state.fits_the_comment(durable.data):
         gh.write_pinned_state(issue, durable)
     else:
@@ -224,7 +227,9 @@ def _carries_what_others_wrote(state: PinnedState, durable: dict, held: _Held) -
     tick's to write, and so is the squash's own record. Compared as the
     comment's JSON spells them (`review_comment._moved`). The ledger of the
     orchestrator's own comments is merged instead, since both sides add to it
-    and an id either recorded is a comment every later prompt has to know.
+    and an id either recorded is a comment every later prompt has to know --
+    kept among the newest its bound holds, so one this tick's posts evicted is
+    evicted again rather than a newer one.
     """
     theirs = _review_comment._moved(durable, held.comment, {*held.comment, *durable})
     ours = set(_review_comment._moved(state.data, held.comment, theirs))
