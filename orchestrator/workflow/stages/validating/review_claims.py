@@ -45,7 +45,7 @@ read. A change request stands without evidence; an approval does not.
 Nothing is written here: the transaction is minted, not recorded, because its
 record has to be measured beside the verdict it is persisted with
 (`review_verdicts.records_the_verdict`). No live reviewer round asks for a
-claim yet.
+claim yet; only the dormant disposition service does (`review_disposition`).
 """
 from __future__ import annotations
 
@@ -212,9 +212,10 @@ class ClaimStanding(StrEnum):
 
     SETTLED is the current evidence, exactly the one named, under the
     configured context. OWED is the transaction still waiting to be published,
-    under the configured context. LOST is anything else: retired, superseded,
-    or recorded under a verification context that has since moved, none of
-    which can settle or be relied on.
+    under the configured context. LOST is anything else: retired, superseded
+    -- a later revision spent, whether or not it has settled yet -- or
+    recorded under a verification context that has since moved, none of which
+    can settle or be relied on.
     """
 
     SETTLED = "settled"
@@ -229,8 +230,15 @@ def claim_standing(state: PinnedState, claim: _verdicts.EvidenceClaim) -> ClaimS
     -- since a record sharing only a receipt is not the evidence the verdict
     relied on, and has to be bound under the configured verification context:
     the proof refuses evidence recorded under one that has moved since,
-    whether it settled or not.
+    whether it settled or not. And the claim's revision has to be the latest
+    this issue has spent: a later transaction, recorded and not yet settled,
+    already supersedes the evidence still reading as current, as the proof and
+    the reconciliation both hold -- and so does a spent revision nobody can
+    read.
     """
+    latest = _record_state._latest_revision(state)
+    if latest is None or latest > claim.revision:
+        return ClaimStanding.LOST
     named = (claim.receipt, claim.revision, claim.digest, _proof.configured_context_revision())
     for standing, record in (
         (ClaimStanding.SETTLED, _settlement.read_current_evidence(state)),

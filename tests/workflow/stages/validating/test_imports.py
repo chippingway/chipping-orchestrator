@@ -40,6 +40,7 @@ _OWNERS = (
     "report_settlement",
     "requested_changes",
     "review_claims",
+    "review_disposition",
     "review_evidence",
     "review_verdicts",
     "reviewer",

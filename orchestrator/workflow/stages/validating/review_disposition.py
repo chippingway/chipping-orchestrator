@@ -1,0 +1,344 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""A returned reviewer's verdict, persisted and its evidence reconciled before anything acts on it.
+
+No live reviewer round hands its result here yet: the round still acts on its
+`VERDICT:` line alone, so no issue carries a verdict this service persisted.
+What is here is the preparation a disposition stands behind.
+`prepares_the_verdict` takes a returned run from the top and hands back the
+verdict ready to be acted on, or nothing. `waiting_verdict_ready` answers the
+same of a verdict a later tick finds waiting, from the pinned comment alone:
+the process keeps nothing between ticks, so nothing of the run that returned
+the verdict is there to ask. Acting on a ready verdict -- the approval arc, a
+change request's handoff to a developer, the parks -- is not this owner's, and
+nothing asks either entry yet.
+
+A verdict is persisted only while the whole subject the reviewer was handed --
+head, requirements, and report -- still stands. A verdict of a subject that
+moved while the reviewer ran is about work that is not there: an approval
+would hand it on, and a change request would pay a developer to answer a
+review of words the pull request no longer carries. So is one returned beside
+verification evidence another road recorded or settled meanwhile: its
+transaction was minted, and a reuse named the evidence it was handed, over the
+records that replaced. The run is recorded over whatever settled meanwhile --
+the pinned comment read again once the subject has been resolved, since that
+resolution is requests of its own -- and the next tick's reviewer is handed
+the subject as it stands, or refused.
+
+The run's own records -- its usage, session, and returned subject -- are
+staged here, over that last reading, rather than by the caller: a usage total
+another road folded meanwhile is added to, not written back over, however the
+records it was read against stand. A verdict of the subject that stands is
+persisted before anything is published (`review_verdicts`): the round,
+verdict, subject, the feedback a change request hands on, and the evidence the
+verdict relies on go down in ONE write beside those records and the reply the
+round settled, with the reviewer-reported transaction its commands were
+minted as (`review_claims`) recorded in that same write. From there nothing
+asks the reviewer again. The transaction is published through the
+dispatcher's own reconciliation (`verification_transaction`), which retries a
+post GitHub refuses or never confirms on every later tick, so a retry reruns no
+reviewer, folds no usage twice, and spends no round. A write GitHub refuses
+raises before anything is published. A verdict that cannot be persisted is
+persisted and published nowhere, and the answer says why
+(`Prepared.unrecorded`): a record that would not read back as written -- words
+UTF-8 cannot carry, say -- or a comment with no room for the verdict or its
+transaction. A disposition nothing durable backs is one a second reviewer
+would answer again, and evidence dropped for room would leave what the
+reviewer reported, a failed check included, off the pull request. The park
+that answers it is its caller's, over the run's records staged here.
+
+Neither verdict is ready until the evidence it relies on has settled: a change
+request handed to a developer moves the head and an approval squashes it, and
+either leaves a transaction about the old head that can never settle. A
+publication that holds or stands down leaves the verdict waiting and the
+transaction owed, for the reconciliation ahead of a later tick to publish --
+held to its subject on every tick it waits
+(`review_coverage._verdict_still_stands`), and dropped once that subject is
+proved to have moved, since no settlement makes it a review of the work there
+now. A transaction that can never settle -- retired, superseded by a later
+revision, or bound to a verification context that has since moved -- drops the
+verdict for a fresh reviewer instead of waiting forever. So does a reuse of
+evidence a later revision has superseded since, whichever the verdict: the
+reviewer judged the branch beside evidence that is no longer the pull
+request's current evidence. Nor is a verdict ready on its evidence alone: the
+verdict's own write, a publication, or a later tick's reads are long enough
+for a push or a later report, so it is held once more to its subject, the
+comment read again last, and its claim judged over that reading -- a
+settlement of the very evidence it claims readies it, and a later revision
+superseding that evidence drops it.
+
+Every write here -- the verdict's own, the run's where its subject moved, and
+each drop -- is composed over the comment read again just before it
+(`review_comment._records_stand`): a report or evidence another road settled
+meanwhile is kept, and so is anything else it wrote that no verdict stands on
+-- a round a reply bought, the thread it read through -- save, where the report
+records and the verdict stand, a field this tick changed too, which its own
+write says. A drop names the verdict held (`review_verdicts.drops_the_verdict`),
+so one another road put in its place is that road's to finish. A comment or
+subject that will not read writes nothing, and the verdict waits.
+
+A change request stands without evidence -- a reviewer may find a bug without
+running anything -- so a declaration that earned none is ready too, carrying
+the refusal that says why (`VerdictInHand.refusal`) for an approval, which
+cannot rest on it.
+"""
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+
+from github.Issue import Issue
+
+from orchestrator.config import models as _config_models
+from orchestrator.github.client import GitHubClient
+from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import (
+    verification_records as _records,
+    verification_transaction as _transaction,
+)
+from orchestrator.workflow.stages.validating import (
+    models as _models,
+    review_claims as _claims,
+    review_comment as _review_comment,
+    review_coverage as _review_coverage,
+    review_records as _review_records,
+    review_verdicts as _verdicts,
+)
+from orchestrator.workflow.state import WorkflowLabel
+
+log = logging.getLogger("orchestrator.workflow")
+
+# Why a returned verdict went unrecorded, in words for the park that answers it.
+UNREADABLE = "its verdict would not read back as written (words UTF-8 cannot carry, for example)"
+
+NO_ROOM = "the pinned comment has no room for its verdict or the verification evidence it declared"
+
+
+@dataclass(frozen=True)
+class VerdictInHand:
+    """A verdict and the evidence it relies on, as the tick it returned in persisted it.
+
+    `refusal` says why a declaration earned no evidence, for the park an
+    approval without any takes; "" where it earned some or was never asked.
+    `pending` is the transaction a published claim names, which that tick
+    recorded and publishes itself.
+    """
+
+    decision: _models._ReviewerDecision
+    claim: _verdicts.EvidenceClaim | None = None
+    refusal: str = ""
+    pending: _records.PendingEvidence | None = None
+
+    def returned(self) -> _verdicts.ReturnedVerdict:
+        """The record this verdict is persisted as, ahead of any handoff."""
+        decision = self.decision
+        return _verdicts.ReturnedVerdict(
+            round_n=decision.run.round_n,
+            verdict=decision.verdict,
+            subject=decision.run.subject.recorded(),
+            feedback=decision.feedback if decision.verdict == _verdicts.CHANGES_REQUESTED else "",
+            evidence=self.claim,
+        )
+
+
+@dataclass(frozen=True)
+class Prepared:
+    """What preparing one returned verdict leaves its caller.
+
+    `ready` is the verdict persisted, relying on settled evidence or on none,
+    and proved to stand -- subject and records -- behind the last request this
+    tick made: the one thing a caller may act on, holding it to its subject
+    again, against the state handed back beside it, around whatever requests
+    it makes. None where this tick has nothing to act on -- the verdict waits
+    on its evidence, was dropped, or was never persisted over a subject that
+    moved or a reading nobody could take. `unrecorded` says why the verdict
+    could not be persisted at all (`UNREADABLE`, `NO_ROOM`), "" where it was
+    or was never asked: nothing was written or published, and the park that
+    answers it is the caller's write.
+    """
+
+    ready: VerdictInHand | None = None
+    unrecorded: str = ""
+
+
+def prepares_the_verdict(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    decision: _models._ReviewerDecision,
+) -> Prepared:
+    """Persist a returned reviewer's verdict and publish its evidence; the verdict ready to be acted on, if any.
+
+    `state` carries whatever the round staged ahead of the run and nothing of
+    its return, which is staged here. The evidence is minted first, since
+    reading the reviewed tree is a request of its own. Then the subject is
+    held to what stands, which is requests of its own too, long enough for
+    another road to settle a later report the state in hand does not carry, so
+    the comment is read again against what the run was resolved over,
+    carrying whatever moved -- the last requests before the write that
+    persists the verdict: a write composed over the older records would put
+    them back over the newer, and the verdict it persists would be handed on
+    as though nothing had. A comment or a subject that will not read writes
+    nothing: no verdict is persisted over a reading nobody took.
+    """
+    run = decision.run
+    claimed = _claims.claimed_evidence(issue, state, run)
+    stands = _review_coverage._verdict_still_stands(gh, issue, state, run.subject.recorded(), run.resolved_over)
+    if stands is None:
+        return Prepared()
+    _review_records._records_the_return(
+        state, run.agent_result.usage, run.agent_result.session_id, run.subject,
+    )
+    evidence_moved = _review_comment._moved(state.data, run.resolved_over, _review_comment._EVIDENCE_RECORDS)
+    if run.report_moved or not stands or evidence_moved:
+        gh.write_pinned_state(issue, state)
+        return Prepared()
+    in_hand = VerdictInHand(decision, claimed.claim, claimed.refusal, claimed.pending)
+    return _persists(gh, spec, issue, state, in_hand)
+
+
+def waiting_verdict_ready(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+) -> _verdicts.ReturnedVerdict | None:
+    """The verdict this issue has waiting, where it may be acted on now; None where none may.
+
+    For a later tick, over the pinned comment alone: the record names the
+    subject its reviewer was handed and the evidence it relies on, and the
+    comment as `state` was read is what it is held against. None where no
+    verdict waits, where it waits on evidence still owed or on a reading
+    nobody could take, and where it was dropped (`_ready`).
+    """
+    waiting = _verdicts.read_returned_verdict(state)
+    if waiting is None:
+        return None
+    read = dict(state.data)
+    return waiting if _ready(gh, issue, state, waiting, read) else None
+
+
+def _persists(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    in_hand: VerdictInHand,
+) -> Prepared:
+    """Persist the verdict with the transaction it claims in one write, then publish it; the verdict once ready.
+
+    Measured together at the verdict's handoff: the transaction's settlement
+    lands while the verdict still waits, and a change request's handoff behind
+    both. The claim and its transaction were minted together over records
+    that still stand, so a record that reads back refused past that is one
+    the comment has no room for. The publication goes through the
+    dispatcher's own reconciliation, which holds the tick over a reading
+    nobody could take, and otherwise settles the evidence, retires it, or
+    stands down with it still owed; what this tick wrote, the settlement
+    included, is what the verdict is held against from there.
+    """
+    returned = in_hand.returned()
+    unrecorded = ""
+    if not returned.reads_back():
+        unrecorded = UNREADABLE
+    elif not _verdicts.records_the_verdict(state, returned, in_hand.pending):
+        unrecorded = NO_ROOM
+    if unrecorded:
+        log.warning(
+            "issue=#%d could not persist its reviewer's verdict (%s); writing "
+            "and publishing nothing", issue.number, unrecorded,
+        )
+        return Prepared(unrecorded=unrecorded)
+    gh.write_pinned_state(issue, state)
+    if in_hand.pending is not None and _transaction._reconciles_pending_evidence(
+        gh, spec, issue, WorkflowLabel.VALIDATING, state,
+    ):
+        log.info(
+            "issue=#%d holds its reviewer's verdict until the verification "
+            "evidence it declared is confirmed on PR #%s", issue.number, in_hand.decision.run.pr_number,
+        )
+        return Prepared()
+    if _ready(gh, issue, state, returned, dict(state.data)):
+        return Prepared(in_hand)
+    return Prepared()
+
+
+def _ready(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    held: _verdicts.ReturnedVerdict,
+    resolved_over: dict,
+) -> bool:
+    """Whether the persisted verdict `held` may be acted on now: still carried, standing, and its evidence settled.
+
+    Only the verdict the pinned comment carries, as the state in hand read or
+    wrote it last -- `resolved_over`: one another road dropped or replaced
+    since -- a reply that bought a fresh round, a recovery that finished it --
+    is no verdict this tick may act on, nor drop over whatever took its place.
+    Whatever requests came since the comment was last read -- the verdict's
+    own write, a publication, the reads a later tick took before asking -- are
+    long enough for a push or a later report, so the verdict is held to its
+    subject once more first (`_still_stands`), and dropped where it moved. The
+    comment that reads last carries whatever evidence another road recorded
+    or settled meanwhile, and the verdict's claim is judged over it without a
+    request of its own: a settlement of the very evidence it claims readies
+    it; a transaction still owed holds it, written nowhere, for the
+    reconciliation ahead of the next tick to publish; and evidence that can
+    never be relied on -- superseded by a later revision, retired, or under a
+    verification context that has since moved -- drops it, whichever the
+    verdict, in a write composed over that reading.
+    """
+    if _verdicts.read_returned_verdict(state) != held:
+        log.info(
+            "issue=#%d its pinned comment no longer carries the reviewer "
+            "verdict this tick holds; acting on nothing", issue.number,
+        )
+        return False
+    if not _still_stands(gh, issue, state, held, resolved_over):
+        return False
+    claim = held.evidence
+    standing = _claims.ClaimStanding.SETTLED if claim is None else _claims.claim_standing(state, claim)
+    if standing is _claims.ClaimStanding.OWED:
+        log.info(
+            "issue=#%d holds its reviewer's verdict until the verification "
+            "evidence it declared is published", issue.number,
+        )
+    elif standing is _claims.ClaimStanding.LOST:
+        log.info(
+            "issue=#%d drops its reviewer's verdict: the verification evidence it "
+            "declared can no longer be published or relied on", issue.number,
+        )
+        if _verdicts.drops_the_verdict(state, only=held):
+            gh.write_pinned_state(issue, state)
+    return standing is _claims.ClaimStanding.SETTLED
+
+
+def _still_stands(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    held: _verdicts.ReturnedVerdict,
+    resolved_over: dict,
+) -> bool:
+    """Whether the subject `held` records still stands, dropping `held` where it moved.
+
+    A later report settling, or a push, is a subject nobody reviewed, and so
+    are report records that moved since `resolved_over`: a fresh reviewer
+    handed them answers it. Such a verdict is dropped in a write composed over
+    what the comment carries now, whatever else another road wrote there kept
+    -- and only this verdict: one another road put in its place is that
+    road's, and the state already carries it as the comment does. A comment or
+    a subject that will not read writes nothing, and the verdict waits for a
+    later tick to resolve again rather than being dropped as stale over a
+    reading nobody could take.
+    """
+    stands = _review_coverage._verdict_still_stands(gh, issue, state, held.subject, resolved_over)
+    if stands is False:
+        log.info(
+            "issue=#%d the subject its reviewer's verdict is about moved "
+            "before it was acted on; dropping the verdict", issue.number,
+        )
+        if _verdicts.drops_the_verdict(state, only=held):
+            gh.write_pinned_state(issue, state)
+    return bool(stands)

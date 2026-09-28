@@ -14,8 +14,9 @@ report records on the pinned comment are asked first (`review_comment`): a
 report settling on the same head while the reviewer ran is a subject the
 records in hand cannot see, and refuses the verdict. Only where they stand is
 the whole subject resolved again the way `review_report` resolved it before
-the spawn -- over the issue read afresh -- and has to equal the one handed
-over. Later, the approval is held to the
+the spawn -- over the issue read afresh -- and has to record as the one
+handed over, its report's words read again at its location. Later, the
+approval is held to the
 report recorded as current -- the pinned records have to agree it is the one
 approved, and the report is read at its location once more, since no pinned
 record sees a human editing or deleting the comment in place -- to the
@@ -29,6 +30,14 @@ reviewer, whether an approval or the recovery of a squash an earlier tick did
 not finish sent it there; the settled handoff asks it before moving a label
 that tail left owed; and `in_review` asks it before the approval may stand
 behind a ready ping.
+
+The dormant disposition service holds a returned verdict to its subject the
+same way (`_verdict_still_stands`) -- ahead of the write persisting it, once
+more before handing it back ready, and on every tick it waits on its evidence
+-- but in the other order: the subject is resolved first and the comment read
+behind it, watching the verdict itself beside the report, so whatever lands
+during that resolution -- verification evidence included, which the verdict's
+claim answers for -- is carried rather than written back over.
 
 Nothing here parks or posts. What a refusal owes is the next reviewer
 round's to decide, and that round resolves the subject for itself.
@@ -49,7 +58,7 @@ from orchestrator.workflow.engine import (
     review_subjects as _review_subjects,
 )
 from orchestrator.workflow.late_split import payloads as _payloads
-from orchestrator.workflow.stages.validating import review_report as _review_report
+from orchestrator.workflow.stages.validating import review_comment as _review_comment, review_report as _review_report
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -63,35 +72,75 @@ def _subject_still_stands(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
-    subject: _review_subjects.ReviewSubject,
-) -> bool:
-    """Whether a verdict that just came back is of the subject standing now.
+    recorded: dict,
+) -> bool | None:
+    """Whether a verdict of the subject `recorded` names is of the one standing now; None where nobody could read it.
 
     Asked once `review_comment` has found the report records where they were.
     The whole subject is resolved again, exactly as it was before the spawn,
-    and has to equal the one the reviewer was handed: the pull request, the
-    head it stands on, the requirements over an issue read afresh, and the
-    report -- revision, digest, location, and words. The reviewer ran for
-    minutes, and a push, an edit of the issue, or a human editing or removing
-    the report in that time is a subject nobody reviewed. A reading nobody
-    could take is no proof either. Nothing is parked here: the next tick
-    resolves the subject for a reviewer of its own, and refuses it there if it
-    has to.
+    and has to record as the one the reviewer was handed -- `recorded` is
+    `ReviewSubject.recorded` of it, which a persisted verdict keeps too: the
+    pull request, the head it stands on, the requirements over an issue read
+    afresh, and the report's revision and digest, with its words read again at
+    its location, where an edit or a removal refuses the reading itself. The
+    reviewer ran for minutes, and a push, an edit of the issue, or a human
+    editing or removing the report in that time is a subject nobody reviewed. A reading nobody
+    could take is no proof either way, and is told apart as None: a caller
+    that acts only on a proved subject reads it as not standing, and one
+    holding a persisted verdict holds it rather than dropping it as stale.
+    Nothing is parked here: the next tick resolves the subject for a reviewer
+    of its own, and refuses it there if it has to.
     """
     requirements = _fresh_requirements(gh, issue, state)
-    standing = None
-    if requirements is not None:
-        standing, _ = _review_report._reads_the_subject(
-            gh, issue, state, subject.pr_number, requirements,
-        )
-    if standing == subject:
+    if requirements is None:
+        return None
+    pr_number = (_review_subjects.ReviewSubject.identity_recorded_in(recorded) or (None,))[0]
+    standing, refusal = _review_report._reads_the_subject(
+        gh, issue, state, pr_number, requirements,
+    )
+    if standing is not None and standing.recorded() == recorded:
         return True
+    if standing is None and not refusal:
+        return None
     log.warning(
         "issue=#%d reviewer approved a subject PR #%s no longer stands on as "
-        "it was handed; not acting on the approval", issue.number,
-        subject.pr_number,
+        "it was handed; not acting on the approval", issue.number, pr_number,
     )
     return False
+
+
+def _verdict_still_stands(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    recorded: dict,
+    resolved_over: dict,
+) -> bool | None:
+    """Whether a verdict of the subject `recorded` names still stands once the requests since it was last held are over.
+
+    The reviewer's run and the minting behind it, the verdict's own write and
+    its evidence's publication, or a later tick's reads are long enough for
+    another road to push, or to settle a later report, which is on the pinned
+    comment and nowhere in hand while the earlier report still reads where it
+    was. So the whole subject is resolved again, and then -- since that
+    resolution is requests of its own -- the comment is read against
+    `resolved_over`, the comment the verdict was last held over, watching the
+    report records and the verdict itself (`review_comment._records_stand`),
+    and carrying whatever another road changed there onto `state` --
+    verification evidence recorded or settled, which the caller holds the
+    verdict's claim to, and a round a reply bought as much as a moved record: a
+    write behind this keeps what landed at any point before it rather than
+    putting the older values back. False only where something is proved to have
+    moved -- the records, or a subject read whole that is another -- and None
+    where the comment or the subject would not read: a persisted verdict is
+    held for a later tick to ask again, never dropped as stale over a reading
+    nobody could take.
+    """
+    stands = _subject_still_stands(gh, issue, state, recorded)
+    stood = _review_comment._records_stand(gh, issue, state, resolved_over, persisted=True)
+    if stood is None:
+        return None
+    return stands if stood else False
 
 
 def _approval_stands(gh: GitHubClient, state: PinnedState) -> bool | None:
