@@ -1,0 +1,222 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""A returned change request reaches exactly one developer, behind feedback that is posted and anchored.
+
+The feedback's id is the one durable copy of it, so a post that failed or left
+no id hands nothing on and the verdict waits to post again. The subject is
+held to what stands behind that post and behind the relabel ahead of the
+launch, and a move behind either drops the request -- its anchor with it --
+rather than paying a developer to answer a review of work that is not there.
+A request already handed resumes where its handoff stopped without posting
+its feedback again, and launches nobody where the run ledger says its
+developer already ran.
+
+The preparation the request is handed over behind is in
+`test_review_disposition.py`.
+"""
+from __future__ import annotations
+
+import operator
+import unittest
+from unittest.mock import patch
+
+from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING
+from tests.workflow.stages.validating import (
+    disposed_verdict_test_support as _disposed,
+    review_verdict_readings as _read,
+    review_verdict_test_support as _world,
+)
+from tests.workflow.stages.validating.validating_review_test_support import FIX_HEAD_SHAS
+
+PR_COMMENT = "pr_comment"
+
+SET_LABEL = "set_workflow_label"
+
+FIXING = (_world.ISSUE, LABEL_FIXING)
+
+HANDED_BACK = (FIXING, (_world.ISSUE, LABEL_VALIDATING))
+
+ANCHOR = "pending_fix_reviewer_comment_id"
+
+HANDED = "handed"
+
+UNDECLARED_REQUEST = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
+
+# A reviewer asking for that change beside its declared run, which failed.
+REQUESTING = _world.declared_run(exit_status=1, verdict="CHANGES_REQUESTED")
+
+# What one developer answering a change request adds to what the issue spent:
+# its run charged and folded, and the one round its pushed fix spends -- the
+# reviewer's tokens are not folded again.
+_ONE_DEVELOPER = (1, 1, 0, 1)
+
+_CARRIES_THE_VERDICT = operator.methodcaller("get", _world.RETURNED_VERDICT)
+
+_THE_FEEDBACK = _disposed.saying(_disposed.FEEDBACK_NOTICE)
+
+# The requests between a change request's verdict and its developer behind
+# which another road moves its subject, how many feedback posts that leaves,
+# the report revision the pinned comment records then, and every relabel.
+_BEFORE_THE_LAUNCH = (
+    (
+        "a report behind the verdict's write",
+        ("write_pinned_state", _CARRIES_THE_VERDICT, _read.settles_a_later_report),
+        (0, 2, ()),
+    ),
+    ("a report behind the feedback post", (PR_COMMENT, _THE_FEEDBACK, _read.settles_a_later_report), (1, 2, ())),
+    ("a push behind the feedback post", (PR_COMMENT, _THE_FEEDBACK, _world.pushes), (1, 1, ())),
+    (
+        "a report behind the relabel",
+        (SET_LABEL, lambda label: label == LABEL_FIXING, _read.settles_a_later_report),
+        (1, 2, (FIXING,)),
+    ),
+)
+
+# Where a handed request's handoff stopped, whether the developer it was
+# handed to was launched before it did, and what the replay leaves: the
+# developers it launches, every relabel, and the verdict waiting.
+_HANDED = (
+    ("on the relabel", False, (1, HANDED_BACK, None)),
+    ("past the launch", True, (0, (), None)),
+)
+
+
+class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
+    """A change request reaches one developer, and only over what stands."""
+
+    def test_a_held_request_reaches_one_developer(self) -> None:
+        # Its evidence's publication is held, so nothing is posted or
+        # relabelled; the next tick hands it to the developer it owes, over
+        # the verdict the first tick wrote, with no reviewer run again.
+        self.github.report_failures.lost.add(_world.PR)
+        self.returns(REQUESTING)
+        self.github.report_failures.lost.discard(_world.PR)
+        charged = tuple(map(
+            operator.add, _read.spent(self), _ONE_DEVELOPER,
+        ))
+        self.assertEqual(
+            (_disposed.feedback_posts(self), self.github.label_history), ([], []),
+        )
+
+        run = self._fixed()[_world.RUN_AGENT]
+
+        self.assertEqual(
+            (
+                run.call_count,
+                run.call_args.kwargs.get("resume_session_id"),
+                _world.REQUESTED in run.call_args.args[1],
+                len(_disposed.feedback_posts(self)),
+                _read.artifacts(self)[0].commands[0].exit_status,
+                tuple(self.github.label_history),
+                _read.spent(self),
+                self.waiting(),
+            ),
+            (1, _world.DEV_SESSION, True, 1, 1, HANDED_BACK, charged, None),
+        )
+
+    def test_a_move_before_the_launch_drops_it(self) -> None:
+        # Behind the verdict's write, its feedback post, or the relabel ahead
+        # of the launch: no developer is launched, a later report is kept
+        # rather than written back over, and no anchor is left for a retry to
+        # replay.
+        for name, behind, expected in _BEFORE_THE_LAUNCH:
+            with self.subTest(name):
+                self.setUp()
+
+                ran = _world.AnotherRoadBehind(self, *behind).returning(UNDECLARED_REQUEST)
+
+                self.assertEqual(
+                    (
+                        ran[_world.RUN_AGENT].call_count,
+                        self.waiting(),
+                        self.pinned().get(ANCHOR),
+                        len(_disposed.feedback_posts(self)),
+                        _read.current_report_revision(self),
+                        tuple(self.github.label_history),
+                    ),
+                    (0, None, None, *expected),
+                )
+
+    def test_a_feedback_post_with_no_id_holds_it(self) -> None:
+        # Whether GitHub refused the post or took it with an answer naming no
+        # comment, nothing is relabelled or launched without the anchor. The
+        # verdict, never handed, posts again on the next tick and reaches one
+        # developer: twice over on the pull request where the first post
+        # landed, since a feedback post carries no receipt to find it by.
+        for name, lands, posts in (("refused", False, 1), ("landed with no id", True, 2)):
+            with self.subTest(name):
+                self.setUp()
+                with patch.object(
+                    self.github, PR_COMMENT,
+                    _disposed.RefusesOnce(self.github.pr_comment, _disposed.FEEDBACK_NOTICE, lands=lands),
+                ):
+                    held = self.returns(UNDECLARED_REQUEST)
+                self.assertEqual(
+                    (
+                        held[_world.RUN_AGENT].call_count,
+                        self.pinned()[_world.RETURNED_VERDICT][HANDED],
+                        self.pinned().get(ANCHOR),
+                        self.github.label_history,
+                    ),
+                    (0, None, None, []),
+                )
+
+                fixed = self._fixed()
+
+                self.assertEqual(
+                    (
+                        fixed[_world.RUN_AGENT].call_count,
+                        len(_disposed.feedback_posts(self)),
+                        tuple(self.github.label_history),
+                        self.waiting(),
+                    ),
+                    (1, posts, HANDED_BACK, None),
+                )
+
+    def test_a_handed_request_resumes_its_handoff(self) -> None:
+        # The relabel behind the write that handed the request over is
+        # refused, so its feedback is posted and anchored and nobody launched.
+        # The replay posts no feedback again: it relabels and launches the one
+        # developer the request is owed -- or, where the run ledger was charged
+        # past the count it was handed at, launches nobody and retires the
+        # verdict, that developer already having run.
+        for stopped, launched, expected in _HANDED:
+            with self.subTest(stopped):
+                self.setUp()
+                with patch.object(self.github, SET_LABEL, side_effect=RuntimeError("refused")), self.assertRaises(
+                    RuntimeError,
+                ):
+                    self.returns(UNDECLARED_REQUEST)
+                handed = self.pinned()
+                self.assertEqual(
+                    (handed[_world.RETURNED_VERDICT][HANDED], handed[ANCHOR] is not None),
+                    (handed[_world.AGENT_RUNS_USED], True),
+                )
+                if launched:
+                    self._charges_a_run()
+
+                ran = self._fixed()
+
+                self.assertEqual(
+                    (
+                        ran[_world.RUN_AGENT].call_count,
+                        tuple(self.github.label_history),
+                        self.waiting(),
+                        len(_disposed.feedback_posts(self)),
+                    ),
+                    (*expected, 1),
+                )
+
+    def _fixed(self) -> dict:
+        """The next tick, in which one developer answers the request and pushes."""
+        return self.finishes(_disposed.developer(), dirty_files=(), push_branch=True, head_shas=FIX_HEAD_SHAS)
+
+    def _charges_a_run(self) -> None:
+        """The launch of the developer a handed request was owed, as its charge of the run ledger records it."""
+        state = self.github.read_pinned_state(self.issue)
+        state.set(_world.AGENT_RUNS_USED, state.get(_world.AGENT_RUNS_USED) + 1)
+        self.github.write_pinned_state(self.issue, state)
+
+
+if __name__ == "__main__":
+    unittest.main()

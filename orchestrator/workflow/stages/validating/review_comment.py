@@ -12,11 +12,12 @@ the records on the comment do.
 So `review_report` binds a resolved subject only to a comment read afresh that
 carries the report records the state in hand carries (`_resolved_over`), and
 every later road that acts on an approval after requests long enough for that
-to happen asks the same (`_records_in_hand`): the squash handoff once the
-rewrite is published, and the in_review ready ping and the unmergeable park
-beside it once mergeability is read. Where the comment moved them, or will not
-read or parse, the answer is the one that hands nothing over and writes
-nothing: every write from there would be laid over records the tick never
+to happen asks the same: the squash tail ahead of each write it makes, over the
+evidence and verdict records beside the report's (`handoff._holds_its_records`),
+and the in_review ready ping and the unmergeable park beside it once
+mergeability is read (`_records_in_hand`). Where the comment moved them,
+or will not read or parse, the answer is the one that hands nothing over and
+writes nothing: every write from there would be laid over records the tick never
 read, putting back the report they replaced. So is a fresh reading of another
 comment than the one the state in hand was read from -- the pinned comment
 replaced, or gone -- since the tick's write goes to the comment it read and
@@ -27,7 +28,9 @@ returns and once more after an approval is verified, before anything the run
 leaves is written -- a park for a timeout or a missing verdict as much as the
 record of a verdict. The dormant disposition service asks it of more
 (`persisted`) wherever it holds a verdict to its subject
-(`review_coverage._verdict_still_stands`): the returned verdict it persisted
+(`review_coverage._verdict_still_stands`), and so do the approval behind its
+verify gate, the proof of the evidence it rests on (`unverified_approvals`),
+and a park behind its notice (`review_parks`): the returned verdict it persisted
 (`review_verdicts`) beside the report's records, since one another road dropped
 or replaced since is no longer the verdict any write behind this may act on.
 Every write it makes behind that reading is laid over the comment as it stands,

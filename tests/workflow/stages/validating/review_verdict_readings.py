@@ -108,7 +108,8 @@ def seeds_a_verdict(
     The claim is the transaction's own publication, or a reuse of it where
     `reused` says so: the record a tick finishes a verdict from, returned by a
     reviewer handed that subject -- a change request with the feedback the
-    world's reviewer asks for.
+    world's reviewer asks for. The run it was returned from is kept as
+    `case.run`, for a later tick that rebuilds it.
     """
     state = case.github.read_pinned_state(case.issue)
     claim = _verdicts.EvidenceClaim(
@@ -124,3 +125,4 @@ def seeds_a_verdict(
     returned = _verdicts.ReturnedVerdict(0, verdict, run.subject.recorded(), feedback, claim)
     state.set(_verdicts.RETURNED_VERDICT, returned.recorded())
     case.github.write_pinned_state(case.issue, state)
+    case.run = run

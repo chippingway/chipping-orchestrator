@@ -42,10 +42,13 @@ _OWNERS = (
     "review_claims",
     "review_disposition",
     "review_evidence",
+    "review_handoffs",
+    "review_parks",
     "review_verdicts",
     "reviewer",
     "state",
     "stranded",
+    "unverified_approvals",
     "verify",
     "watermarks",
 )

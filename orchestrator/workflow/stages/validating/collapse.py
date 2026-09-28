@@ -92,6 +92,7 @@ from orchestrator.workflow.stages.implementing import (
 )
 from orchestrator.workflow.stages.validating import (
     approval as _approval,
+    handoff as _handoff,
     models as _models,
     review_coverage as _review_coverage,
     state as _state,
@@ -124,9 +125,12 @@ def _recovers_a_recorded_collapse(
     of them asks, because a record this build cannot read whole is exactly the
     claim that has to reach the refusal rather than be waved past.
     """
+    # The comment as this tick read it, before anything below stages over it:
+    # what every write the squash's tail makes tells another road's fields by.
+    read_as = dict(state.data)
     if _collapses.carries_pending_collapse(state):
-        return _finished_collapse(gh, spec, issue, state)
-    return _finished_handoff(gh, issue, state)
+        return _finished_collapse(gh, spec, issue, state, read_as)
+    return _finished_handoff(gh, issue, state, read_as)
 
 
 def _finished_collapse(
@@ -134,6 +138,7 @@ def _finished_collapse(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
+    read_as: dict,
 ) -> bool:
     """Take the recovery, or hold the tick for a park it did not word."""
     if _held_by_another_park(gh, spec, issue, state):
@@ -149,6 +154,7 @@ def _finished_collapse(
         ),
         _naming._resolve_branch_name(state, spec, issue.number),
         state.get(_approval._PR_NUMBER),
+        _handoff._Held(None, read_as),
     )
     return True
 
@@ -226,7 +232,7 @@ def _held_by_another_park(
 
 
 def _finished_handoff(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
+    gh: GitHubClient, issue: Issue, state: PinnedState, read_as: dict,
 ) -> bool:
     """Move the label a finished squash's handoff never got to move.
 
@@ -278,7 +284,7 @@ def _finished_handoff(
     if not standing:
         _late_handoffs.clear_settled_handoff(state)
         return False
-    _approval._hands_to_documenting(gh, issue, state)
+    _approval._hands_to_documenting(gh, issue, state, _handoff._Held(None, read_as))
     return True
 
 
