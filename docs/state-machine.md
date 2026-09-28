@@ -173,6 +173,12 @@ pull request, trees, review subject, configuration, and requirements are proved,
 head only on an equal full tree under the same context; no live producer records a transaction yet, the
 returned-verdict disposition that would record a reviewer's declared commands beside its verdict being dormant
 ([evidence transaction](state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
+The additive `developer_report_rewrite_debt` claim is the report a rewrite of the pull request's head leaves owed --
+the pull request, its branch, the head the rewrite replaced, and the exact head it published. While any claim stands,
+readable or not, the dispatcher holds `workflow:documenting` and `in_review`, and the validating report hold keeps
+the reviewer off without a park until a report of the head the pull request stands on settles and pays it; no road
+records one yet
+([rewritten-head report debt](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)).
 Every key, what writes it, what spends it, and the legacy `codex_session_id` still honored on read are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
 
