@@ -3270,7 +3270,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transaction in one write -- or, where the record would not read back as written or the
                             comment has no room for either, nothing written or published and an answer that says which
                             (`UNREADABLE`, `NO_ROOM`), for the caller's park -- then that transaction published through
-                            the dispatcher's own reconciliation (`prepares_the_verdict`). A verdict is ready only while
+                            the dispatcher's own reconciliation (`prepares_the_verdict`), which refuses a run whose
+                            pull request is not the one its subject names -- or names none -- before anything is
+                            minted, written, or published, and hands nothing back. A verdict is ready only while
                             the comment carries it as persisted, its subject, held to it once more with the comment read
                             again last, still stands, and its claim, judged over that reading, is settled or it relies
                             on none: a settlement of the very evidence it claims readies it, an owed transaction holds
@@ -3280,9 +3282,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             over the comment as read just before it, keeping what another road wrote there, and drops
                             only ever the verdict it holds. Its two entries act only on a verdict that preparation has
                             just proved ready, through a run whose pull request is the one its subject names:
-                            `disposes_of_the_verdict` over a returned run -- refusing one naming another pull request
-                            or none outright, nothing persisted or published, and parking one it could not persist
-                            under `reviewer_unrecorded` -- and `finishes_the_verdict` over a waiting one, in the
+                            `disposes_of_the_verdict` over a returned run -- a run elsewhere refused by that
+                            preparation, and one it could not persist parked under `reviewer_unrecorded` -- and
+                            `finishes_the_verdict` over a waiting one, in the
                             checkout and pull request of a run its caller rebuilds, whose round and subject have to be
                             the record's own. A change request goes to its developer and an approval to the approval
                             arc where its evidence proves valid (`review_handoffs.py`); a proof nobody could read holds
@@ -3401,5 +3403,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             withheld the clear -- told apart from a transient condition that merely has not
                             resolved, since only the second licenses the fixing stage's worktree-drift reroute
                             -- and the grouping of every outcome that healed nothing, which is what keeps a road
-                            testing for the words it knows from reading a later addition as a recovery
+                            testing for the words it knows from reading a later addition as a recovery. Beside
+                            them, the fields a write laid over the comment as it stands keeps both moves of, where
+                            this tick and another road each moved one (`_keeps_both_moves`): the `issue_*` usage
+                            totals add up, `issue_cost_sources` joins, and a comment-id watermark keeps whichever
+                            reading went further; any other field both moved is one road's to say. The same table
+                            reads back what the comment held of a field kept that way (`_as_the_comment_held`), so
+                            a reading measured against it later keeps this tick's move again
 ```

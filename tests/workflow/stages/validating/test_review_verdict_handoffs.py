@@ -23,6 +23,7 @@ from dataclasses import replace
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator.workflow.stages.validating import review_disposition as _disposition
 from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING
 from tests.workflow.stages.validating import (
     disposed_verdict_test_support as _disposed,
@@ -43,6 +44,9 @@ HANDED_BACK = (FIXING, (_world.ISSUE, LABEL_VALIDATING))
 ANCHOR = "pending_fix_reviewer_comment_id"
 
 HANDED = "handed"
+
+# The disposition entry a returned run is handed to.
+DISPOSES = "disposes_of_the_verdict"
 
 REQUESTED = "changes_requested"
 
@@ -374,25 +378,42 @@ class ForeignRunTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
         # A returned run naming another pull request than the one its subject
         # is on -- or none, beside a subject naming one or naming none either --
         # would post a change request's feedback and push its fix there, or
-        # post an approval and squash there: whichever the verdict, it is
-        # refused outright, nothing persisted, published, posted, relabelled,
-        # or launched, and the pinned comment left as it was.
-        for numbers, message in itertools.product(_ELSEWHERE, _RETURNED):
-            with self.subTest(pr_numbers=numbers, verdict=message.splitlines()[-1]):
+        # post an approval and squash there: whichever the verdict, and whether
+        # the disposition takes it or its preparation is handed it directly, it
+        # is refused outright -- nothing persisted, published, posted,
+        # relabelled, or launched, nothing handed back to act on or park, and
+        # the pinned comment left as it was.
+        for numbers, message, direct in itertools.product(_ELSEWHERE, _RETURNED, (False, True)):
+            with self.subTest(numbers, verdict=message.splitlines()[-1], direct=direct):
                 self.setUp()
                 before = (self.pinned(), len(self.github.posted_pr_comments))
 
-                with patch.object(_world, "returned_run", partial(_on_pull_request, numbers, _world.returned_run)):
+                with (
+                    patch.object(_world, "returned_run", partial(_on_pull_request, numbers, _world.returned_run)),
+                    patch.object(_disposition, DISPOSES, self._handed_to(direct=direct)),
+                ):
                     ran = self.returns(message, **_fixing())
 
                 self.assertEqual(
                     (
                         self._handed(ran),
-                        self.pinned(),
+                        (self.pinned(), self.prepared or _disposition.Prepared()),
                         self.github.posted_pr_comments[before[1]:],
                     ),
-                    ((0, [], None, None, []), before[0], []),
+                    (
+                        (0, [], None, None, []),
+                        (before[0], _disposition.Prepared()),
+                        [],
+                    ),
                 )
+
+    def _handed_to(self, *, direct: bool):
+        """What a returned run is handed to: the disposition itself, or -- `direct` -- its preparation alone."""
+        return self._prepares_only if direct else _disposition.disposes_of_the_verdict
+
+    def _prepares_only(self, gh, spec, issue, state, decision) -> None:
+        """Hand a returned run's decision to the preparation, keeping what it hands back."""
+        self.prepared = _disposition.prepares_the_verdict(gh, spec, issue, state, decision)
 
     def _handed(self, ran) -> tuple:
         """The developers launched, the feedback posted, the verdict's handed count, the verdict, every relabel."""

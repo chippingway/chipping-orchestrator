@@ -55,6 +55,7 @@ from orchestrator.workflow.stages.validating import (
     models as _models,
     review_comment as _review_comment,
     review_verdicts as _verdicts,
+    state as _state,
     watermarks as _watermarks,
 )
 
@@ -102,13 +103,16 @@ class _Held:
         gate -- whatever `state` changed since `before` is what the comment
         said then, and measured against the older reading instead, it would
         read as this tick's own field and be written back over a later one.
+        A field that reading kept both changes of is taken as the comment held
+        it, this tick's own change taken back out
+        (`state._as_the_comment_held`), so the next reading keeps it again.
         """
         for field in _review_comment._moved(state.data, before, {*before, *state.data}):
             written = state.data.get(field, _review_comment._ABSENT)
             if written is _review_comment._ABSENT:
                 self.comment.pop(field, None)
             else:
-                self.comment[field] = written
+                self.comment[field] = _state._as_the_comment_held(field, written, before, self.comment)
 
 
 def _post_approval_comment(
@@ -224,8 +228,9 @@ def _carries_what_others_wrote(state: PinnedState, durable: dict, held: _Held) -
 
     Another road's is a field the comment spells otherwise than it did while
     `state` still spells it as it did then; one `state` changed too is this
-    tick's to write, and so is the squash's own record. Compared as the
-    comment's JSON spells them (`review_comment._moved`). The ledger of the
+    tick's to write -- keeping both changes where they add up or only advance
+    (`state._keeps_both_moves`) -- and so is the squash's own record. Compared
+    as the comment's JSON spells them (`review_comment._moved`). The ledger of the
     orchestrator's own comments is merged instead, since both sides add to it
     and an id either recorded is a comment every later prompt has to know --
     kept among the newest its bound holds, so one this tick's posts evicted is
@@ -233,7 +238,10 @@ def _carries_what_others_wrote(state: PinnedState, durable: dict, held: _Held) -
     """
     theirs = _review_comment._moved(durable, held.comment, {*held.comment, *durable})
     ours = set(_review_comment._moved(state.data, held.comment, theirs))
-    for field in set(theirs) - ours - _SQUASH_RECORD - {_comments._ORCH_COMMENT_IDS}:
+    for field in set(theirs) - _SQUASH_RECORD - {_comments._ORCH_COMMENT_IDS}:
+        if field in ours:
+            _state._keeps_both_moves(state, field, durable, held.comment)
+            continue
         written = durable.get(field, _review_comment._ABSENT)
         if written is _review_comment._ABSENT:
             state.data.pop(field, None)

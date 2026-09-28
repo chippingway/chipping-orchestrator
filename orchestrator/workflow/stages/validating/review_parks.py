@@ -56,7 +56,9 @@ write is down -- reports the human wait (`park_awaiting_human`), since that
 record is the moment the issue enters one. The write that lands is composed
 over the comment as it stands whichever way the records went, so a field
 another road wrote behind the notice -- a round spent by a reply -- is kept
-rather than written back over by the state in hand.
+rather than written back over by the state in hand, and one both moved keeps
+both moves where they add up or only advance -- the run's usage beside that
+road's, the thread read as far as either read it (`state._keeps_both_moves`).
 
 The park a failed squash takes (`parks_the_failed_squash`) is filed here too,
 beside the funnel rather than through it: the recovery of a squash an earlier

@@ -1807,7 +1807,8 @@ The keys that matter for the state machine fall into a few groups:
   report records and the record stand, a field the service changed itself. Every drop names the verdict it holds, so one
   another road put in its place is never the one dropped. The service acts on a verdict only right behind proving it
   ready, over the run it was returned from, whose pull request has to be the one its subject names -- a returned run
-  naming another pull request or none is refused outright, nothing persisted or published -- and for a later tick, one
+  naming another pull request or none is refused by the preparation itself, entered directly or through the
+  disposition, nothing persisted or published -- and for a later tick, one
   its caller rebuilds, whose round and subject have to be the record's own. A change request is handed over
   (`review_handoffs.py`): its feedback is posted first, and a post that failed, left no id, or had no pull request to
   go on relabels and launches nothing and leaves `handed` `null`; the whole subject is held again behind that post, the
@@ -1848,7 +1849,10 @@ The keys that matter for the state machine fall into a few groups:
   `verification_evidence_*` record moved there, like a push, lands no park and sets the record to `null` alone, over the
   newer records, while a subject that would not read, or a notice that left no id and so may have reached nobody, lands
   none either and leaves the record as it waited for a later tick to park again. Every park write is composed over the
-  comment as it stands, so a field another road wrote behind the notice -- a spent `review_round` -- is kept, and the
+  comment as it stands, so a field another road wrote behind the notice -- a spent `review_round` -- is kept; one it
+  and this tick both moved keeps both moves where they add up or only advance -- the `issue_*` usage totals add,
+  `issue_cost_sources` joins, `last_action_comment_id` and the `pr_last_*` watermarks keep the furthest -- and is
+  otherwise this tick's; and the
   `orchestrator_comment_ids` ledger merged, an id either side recorded kept among the newest 500 the ledger holds -- an
   id one reading already evicted is evicted again rather than a newer one -- as they are by every write the approval's
   squash tail makes; one that carries what moved there is measured again, and not made where another road's write left

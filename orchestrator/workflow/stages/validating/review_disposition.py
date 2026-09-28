@@ -285,21 +285,12 @@ def disposes_of_the_verdict(
     """Persist a returned reviewer's verdict and publish its evidence, then act on it or park it where that is owed now.
 
     `state` is as `prepares_the_verdict` takes it. A run whose pull request is
-    not the one its subject names is refused outright, persisted and published
-    nowhere: its feedback, its fix, and its approval would go to another pull
-    request than the one reviewed. Otherwise a verdict the preparation could
-    not persist parks over the run's records it staged; one it hands back ready
-    is acted on over the comment as that preparation last read it; anything
-    else was held or dropped there, and this tick does nothing more.
+    not the one its subject names is refused there, persisted and published
+    nowhere. Otherwise a verdict the preparation could not persist parks over
+    the run's records it staged; one it hands back ready is acted on over the
+    comment as that preparation last read it; anything else was held or
+    dropped there, and this tick does nothing more.
     """
-    run = decision.run
-    if run.pr_number is None or run.pr_number != run.subject.pr_number:
-        log.warning(
-            "issue=#%d its reviewer run names PR #%s where the subject it "
-            "reviewed is on PR #%s; acting on nothing", issue.number,
-            run.pr_number, run.subject.pr_number,
-        )
-        return
     prepared = prepares_the_verdict(gh, spec, issue, state, decision)
     if prepared.unrecorded:
         _parks.parks_unrecorded(gh, issue, state, decision.run, prepared.unrecorded)
@@ -326,9 +317,20 @@ def prepares_the_verdict(
     persists the verdict: a write composed over the older records would put
     them back over the newer, and the verdict it persists would be handed on
     as though nothing had. A comment or a subject that will not read writes
-    nothing: no verdict is persisted over a reading nobody took.
+    nothing: no verdict is persisted over a reading nobody took. Nor does a run
+    whose pull request is not the one its subject names -- or names none: its
+    feedback, its fix, and its approval would go to another pull request than
+    the one reviewed, so it is refused before anything is minted, written, or
+    published, and nothing is handed back.
     """
     run = decision.run
+    if run.pr_number is None or run.pr_number != run.subject.pr_number:
+        log.warning(
+            "issue=#%d its reviewer run names PR #%s where the subject it "
+            "reviewed is on PR #%s; acting on nothing", issue.number,
+            run.pr_number, run.subject.pr_number,
+        )
+        return Prepared()
     claimed = _claims.claimed_evidence(issue, state, run)
     stands = _review_coverage._verdict_still_stands(gh, issue, state, run.subject.recorded(), run.resolved_over)
     if stands is None:

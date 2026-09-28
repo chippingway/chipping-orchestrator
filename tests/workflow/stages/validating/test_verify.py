@@ -43,43 +43,46 @@ REVIEW_SHA = "rev-sha"
 REVIEWER_SESSION = "rev-sess"
 LAST_REVIEW_SESSION = "last_review_session_id"
 AGENT_RUNS_USED = "agent_runs_used"
+ISSUE_AGENT_RUNS = "issue_agent_runs"
 PR_COMMENT = "pr_comment"
 APPROVAL_NOTICE = "review approved"
 
-# Each verify gate another road charges a run during, and what it leaves: the
-# park reason and reviewer session recorded, and the runs charged beside every
-# relabel. A passing gate is charged behind its approval comment as well.
-_CHARGED_AROUND_THE_GATE = (
+# Each verify gate another road runs an agent during, and what it leaves: the
+# park reason and reviewer session recorded, and the runs charged and folded
+# into the usage totals beside every relabel. A passing gate has another run
+# behind its approval comment as well.
+_RUN_AROUND_THE_GATE = (
     (
         VerifyResult(status=VERIFY_OK),
-        ((None, REVIEWER_SESSION), (3, [(ISSUE, LABEL_DOCUMENTING)])),
+        ((None, REVIEWER_SESSION), (3, 3, [(ISSUE, LABEL_DOCUMENTING)])),
     ),
     (
         VerifyResult(status=VERIFY_FAILED, command=VERIFY_PYTEST, exit_code=1),
-        ((PARK_VERIFY_FAILED, REVIEWER_SESSION), (2, [])),
+        ((PARK_VERIFY_FAILED, REVIEWER_SESSION), (2, 2, [])),
     ),
 )
 
 
-def _charges_a_run(case) -> None:
-    """Another road's lifetime charge of an agent run it launches on `case`'s issue."""
+def _runs_an_agent(case) -> None:
+    """Another road's agent run on `case`'s issue: the lifetime charge it took, and the usage it folded."""
     state = case.github.read_pinned_state(case.issue)
     state.set(AGENT_RUNS_USED, state.get(AGENT_RUNS_USED) + 1)
+    state.set(ISSUE_AGENT_RUNS, (state.get(ISSUE_AGENT_RUNS) or 0) + 1)
     case.github.write_pinned_state(case.issue, state)
 
 
 def _charged_gate(case, verified: VerifyResult, *_args) -> VerifyResult:
-    """A verify gate answering `verified`, while another road charges a run on `case`'s issue."""
-    _charges_a_run(case)
+    """A verify gate answering `verified`, while another road runs an agent on `case`'s issue."""
+    _runs_an_agent(case)
     return verified
 
 
 def _left(github) -> tuple:
-    """The park reason and reviewer session the pinned comment records, and the runs charged beside every relabel."""
+    """The park and reviewer session the comment records, and the runs charged and folded beside every relabel."""
     pinned = github.pinned_data(ISSUE)
     return (
         (pinned.get(PARK_REASON), pinned.get(LAST_REVIEW_SESSION)),
-        (pinned.get(AGENT_RUNS_USED), github.label_history),
+        (pinned.get(AGENT_RUNS_USED), pinned.get(ISSUE_AGENT_RUNS), github.label_history),
     )
 
 
@@ -225,22 +228,23 @@ class HandleValidatingVerifyGateTest(
         self.assertIn("timed out after 123s", last_comment)
         self.assertNotIn(f"{CURRENT_TIMEOUT_SECONDS}s", last_comment)
 
-    def test_runs_charged_around_the_gate_are_kept(self) -> None:
-        # Another road charges an agent run while the gate runs, and -- where
-        # the gate passes -- another behind the approval comment. The reviewer
+    def test_runs_around_the_gate_are_kept(self) -> None:
+        # Another road runs an agent while the gate runs, and -- where the
+        # gate passes -- another behind the approval comment. The reviewer
         # round's own charge is part of the comment every later write is
         # measured against, so each charge is kept rather than written back
-        # over by the count this round's charge left: the approval reaches
-        # `documenting`, and a failed gate's park lands with the round's own
-        # record -- the reviewer session that approved.
-        for verified, expected in _CHARGED_AROUND_THE_GATE:
+        # over by the count this round's charge left; and each run's usage is
+        # added to the round's own, which both folded into the same totals. The
+        # approval reaches `documenting`, and a failed gate's park lands with
+        # the round's own record -- the reviewer session that approved.
+        for verified, expected in _RUN_AROUND_THE_GATE:
             with self.subTest(verified.status):
                 github, issue = self._seeded()
                 world = SimpleNamespace(github=github, issue=issue)
                 with (
                     patch.object(config, VERIFY_COMMANDS_SETTING, (VERIFY_PYTEST,)),
                     patch.object(github, PR_COMMENT, _world.AnotherRoadBehind(
-                        world, PR_COMMENT, _disposed.saying(APPROVAL_NOTICE), _charges_a_run,
+                        world, PR_COMMENT, _disposed.saying(APPROVAL_NOTICE), _runs_an_agent,
                     )),
                 ):
                     self._run_validating(

@@ -3431,17 +3431,20 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        they stand, the write behind is composed over the comment as read: a field another road wrote since the tail
        last read or wrote it — a round spent by a reply — is carried onto the state in hand unless that state
        changed it too, save the squash's own collapse record, which the squash writes itself and drops only in memory
-       for this write to make durable. The tail starts from the comment as the reading behind the verify gate found it
-       — the reading the reviewer's run was resolved over, its own launch charge included, with whatever that gate
-       carried onto the state taken into it, so a field it carried, or a run another road charged since, is never
-       mistaken for the tick's own and written back over a later one — or on the recovery road from the comment as
-       the tick read it. A failed gate's park is measured behind its notice against the same reading, so it lands with
-       what the round staged — its reviewer session and usage among them. The ledger of the orchestrator's own
-       comments is merged rather than carried, and its bound evicts the oldest ids — the smallest, wherever they stand
-       — so an id one reading already evicted is evicted again rather than a newer one. (4) On success, if
-       `squashed_count > 1` post `:package:
-       squashed N commits to 1` — a count of 0 or 1 replaced no history and posts nothing — seed the in_review
-       watermarks (inside the `gh.get_pr()` try so a snapshot failure leaves them untouched; the walk advances through
+       for this write to make durable. A field both changed keeps both changes where they add up or only advance —
+       the `issue_*` usage totals add, `issue_cost_sources` joins, a comment-id watermark keeps the furthest
+       (`validating/state._keeps_both_moves`) — and is this tick's otherwise. The tail starts from the comment as the
+       reading behind the verify gate found it — the reading the reviewer's run was resolved over, its own launch
+       charge included, with whatever that gate carried onto the state taken into it, and a field it kept both
+       changes of taken as the comment held it, so a field it carried, or a run another road charged or folded since,
+       is never mistaken for the tick's own and written back over a later one — or on the recovery road from the
+       comment as the tick read it. A failed gate's park is measured behind its notice against the same reading, so it
+       lands with what the round staged — its reviewer session and usage among them. The ledger of the orchestrator's
+       own comments is merged rather than carried, and its bound evicts the oldest ids — the smallest, wherever they
+       stand — so an id one reading already evicted is evicted again rather than a newer one. (4) On success, if
+       `squashed_count > 1` post `:package: squashed N commits to 1` — a count of 0 or 1 replaced no history and posts
+       nothing — seed the in_review watermarks (inside the `gh.get_pr()` try so a snapshot failure leaves them
+       untouched; the walk advances through
        the leading run of the orchestrator's own comments plus the issue-thread ids `last_action_comment_id` already
        records as delivered, and stops at the first unseen human comment on EITHER surface, so a PR-conversation
        comment numbered below a consumed reply holds the seed back rather than being swallowed by it — the scan that
@@ -3550,8 +3553,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        fresh reviewer. Every write it makes is composed over the comment read again just before it, keeping what another
        road wrote there -- a round a reply bought included -- and every drop names only the verdict this road holds,
        never one another road put in its place. It acts on a verdict only right behind proving it ready, through a run
-       whose pull request is the one its subject names (`disposes_of_the_verdict` for a returned run, refusing one that
-       names another pull request or none outright, nothing persisted or published; `finishes_the_verdict` for a
+       whose pull request is the one its subject names (`disposes_of_the_verdict` for a returned run, whose
+       preparation refuses one that names another pull request or none -- entered directly as well -- nothing
+       persisted or published; `finishes_the_verdict` for a
        waiting one, over a run its caller rebuilds whose round and subject have to be the record's own). A change
        request's handoff (`validating/review_handoffs.py`) posts the feedback, holding the verdict unhanded where the
        post failed, left no id, or had no pull request to go on, holds the subject -- with the pull request the issue

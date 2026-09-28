@@ -49,6 +49,8 @@ none of which a write may put back. The ledger of the orchestrator's own
 comments is merged rather than carried or kept, whichever way the records went:
 every road adds to it, and an id either side recorded is a comment every later
 prompt has to know as the orchestrator's, kept among the newest its bound holds.
+So is a field both changed that adds up or only advances -- a usage total, its
+cost tags, a comment-id watermark (`state._keeps_both_moves`).
 Records are compared as the comment's JSON spells them, so one written `null`
 where there was none, or a revision spelled `true` where it was `1`, is a move.
 Records that stand leave the state alone. Records that moved refuse the
@@ -79,7 +81,7 @@ from orchestrator.workflow.engine import (
     review_subjects as _review_subjects,
     verification_records as _evidence_records,
 )
-from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
+from orchestrator.workflow.stages.validating import review_verdicts as _verdicts, state as _state
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -201,6 +203,9 @@ def _records_stand(
     every field the comment changed since `resolved_over` that `state` has
     not changed itself, evidence records included, is carried onto `state`
     too, so that write keeps it and the caller judges its claim over it.
+    Whichever way the records went, a field both changed keeps both changes
+    where they add up or only advance -- a usage total, its cost tags, a
+    comment-id watermark (`state._keeps_both_moves`).
     """
     durable = _read(
         gh, issue, state, "see whether a report settled while the reviewer ran",
@@ -210,17 +215,19 @@ def _records_stand(
     stand = not _moved(durable.data, resolved_over, _WATCHED[persisted])
     if stand and not persisted:
         return True
-    fields = {*resolved_over, *durable.data}
-    if stand:
-        # Over records that stand, a field this tick changed too is its own
-        # write's to say.
-        fields.difference_update(
-            _moved(state.data, resolved_over, fields | set(state.data)),
-        )
     # Every field the comment changed since `resolved_over`, as `_moved`
     # spells a change: a field Python calls equal -- `true` over `1` -- is
-    # still carried rather than written back over by the run's own write.
-    for field in _moved(durable.data, resolved_over, fields - {_comments._ORCH_COMMENT_IDS}):
+    # still carried rather than written back over by the run's own write...
+    fields = _moved(
+        durable.data, resolved_over, {*resolved_over, *durable.data} - {_comments._ORCH_COMMENT_IDS},
+    )
+    # ...save one this tick changed too, which keeps both changes where they
+    # add up or only advance (`state._BOTH_MOVES`), and is otherwise, over
+    # records that stand, this tick's own write's to say.
+    for field in _moved(state.data, resolved_over, fields):
+        if _state._keeps_its_move(state, field, durable.data, resolved_over, over_theirs=stand):
+            fields.remove(field)
+    for field in fields:
         written = durable.data.get(field, _ABSENT)
         if written is _ABSENT:
             state.data.pop(field, None)

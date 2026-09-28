@@ -59,12 +59,20 @@ two groupings that decide behavior on their own: the first turns a verify
 status into the durable tag a park is filed under, and the second is the set
 a later tick is allowed to retry silently -- membership here is what says a
 condition can resolve without anyone commenting.
+
+`_BOTH_MOVES` is the third. A write laid over the comment as it stands keeps
+what another road wrote there and what this tick staged, and where both moved
+one field it is the membership here that decides whether both moves are kept
+-- a usage total adding up the runs each folded in, the cost tags beside it
+joining, a comment-id watermark keeping whichever reading went further -- or
+the field is one road's to say, as every other field both moved is.
 """
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from types import MappingProxyType
-from typing import Any
+from typing import Any, NamedTuple
 
 from orchestrator.github.pinned_state import PinnedState
 
@@ -204,6 +212,49 @@ _VERIFY_STATUS_TO_REASON = MappingProxyType({
 })
 
 
+class _BothMoves(NamedTuple):
+    """How a pinned field keeps a tick's move beside another road's, and what the comment held of one kept that way."""
+
+    # The value both moves leave: from this tick's value, the other road's,
+    # and the one both moved from.
+    kept: Callable[[Any, Any, Any], Any]
+    # The other road's value: from the one both moves left, this tick's, and
+    # the one both moved from -- this tick's own move taken back out.
+    theirs: Callable[[Any, Any, Any], Any]
+
+
+# A usage total: the runs each road folded in add up.
+_ADDS_UP = _BothMoves(
+    kept=lambda ours, theirs, since: theirs + ours - (since or 0),
+    theirs=lambda kept, ours, since: kept - ours + (since or 0),
+)
+
+# The cost tags beside those totals: both roads' tags are kept.
+_JOINS = _BothMoves(
+    kept=lambda ours, theirs, _since: sorted({*ours, *theirs}),
+    theirs=lambda kept, ours, since: sorted(
+        set(kept).difference(set(ours).difference(since or ())),
+    ),
+)
+
+# A comment-id watermark: neither road may move it back past what the other
+# read, so it keeps whichever went further, and a reading that moved it at all
+# moved it to the other road's.
+_ADVANCES = _BothMoves(
+    kept=lambda ours, theirs, _since: max(ours, theirs),
+    theirs=lambda kept, _ours, _since: kept,
+)
+
+_BOTH_MOVES = MappingProxyType({
+    **dict.fromkeys(("issue_agent_runs", "issue_total_tokens", "issue_total_cost_usd"), _ADDS_UP),
+    "issue_cost_sources": _JOINS,
+    **dict.fromkeys(
+        ("last_action_comment_id", "pr_last_comment_id", "pr_last_review_comment_id", "pr_last_review_summary_id"),
+        _ADVANCES,
+    ),
+})
+
+
 def _discharges_the_owed_round(state: PinnedState) -> None:
     """Drop the note that a reviewer round is owed, and what it was due to hand.
 
@@ -215,3 +266,52 @@ def _discharges_the_owed_round(state: PinnedState) -> None:
     state.set(_REVIEWER_OWES_A_ROUND, None)
     if state.get(_ROUND_BOUGHT_THROUGH) is not None:
         state.set(_ROUND_BOUGHT_THROUGH, None)
+
+
+def _keeps_both_moves(state: PinnedState, field: str, read: dict, since: dict) -> bool:
+    """Keep on `state` both moves of `field`: this tick's, and another road's to what the comment `read` holds.
+
+    Both moved from what `since`, the comment as read before, held. True where
+    the field is one of `_BOTH_MOVES`; False, `state` left as it is, for any
+    other, and for a value the field never records -- a hand edit, an older
+    writer -- whose move is one road's to say like any other field's.
+    """
+    rule = _BOTH_MOVES.get(field)
+    if rule is None:
+        return False
+    try:
+        kept = rule.kept(
+            state.get(field), read.get(field), since.get(field),
+        )
+    except TypeError:
+        return False
+    state.set(field, kept)
+    return True
+
+
+def _keeps_its_move(state: PinnedState, field: str, read: dict, since: dict, *, over_theirs: bool) -> bool:
+    """Whether `state` keeps its own move of `field` beside another road's to what the comment `read` holds.
+
+    Both moves kept where they add up or only advance (`_keeps_both_moves`);
+    otherwise this tick's alone where `over_theirs`, and the other road's --
+    carried by the caller -- where not.
+    """
+    return _keeps_both_moves(state, field, read, since) or over_theirs
+
+
+def _as_the_comment_held(field: str, kept: Any, before: dict, since: dict) -> Any:
+    """What the comment held of `field` where a reading left `kept` on a state that was `before`.
+
+    `since` is the comment as read before that. `kept` itself where the
+    reading only carried the comment's value; where it kept both moves of a
+    field in `_BOTH_MOVES`, the other road's value, this tick's own move taken
+    back out -- so a later reading still measures that move as this tick's,
+    and keeps it again rather than writing it away.
+    """
+    rule = _BOTH_MOVES.get(field)
+    if rule is None:
+        return kept
+    try:
+        return rule.theirs(kept, before.get(field), since.get(field))
+    except TypeError:
+        return kept

@@ -16,6 +16,7 @@ wrote behind the notice is kept, and is measured again with it.
 """
 from __future__ import annotations
 
+import operator
 import unittest
 from types import MappingProxyType
 from unittest.mock import patch
@@ -71,6 +72,15 @@ _SPARE = 8
 
 # The round another road spends behind a request: a field no verdict stands on.
 _SPENT_ROUND = 7
+
+# The tokens another road's run folds into the usage totals, and what the
+# comment holds once another road has worked behind a post: the round it spent,
+# the runs and tokens folded, and how far the thread was read.
+_THEIR_TOKENS = 100
+
+_WORKED_BEHIND = operator.itemgetter(
+    REVIEW_ROUND, "issue_agent_runs", "issue_total_tokens", "last_action_comment_id",
+)
 
 # What a refused approval parked on a waiting record with no claim says of the
 # declaration behind it, which that record keeps no copy of.
@@ -433,20 +443,24 @@ class ParkWriteTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
     def test_a_park_keeps_what_another_road_wrote(self) -> None:
         # Another road spends a round behind a park's notice, or behind a post
         # an approval makes on its way to the handoff or to the park its
-        # failed squash takes: the park or the approval goes on, composed over
-        # the comment as it stands, so the round is not written back over.
+        # failed squash takes, folds a run of its own into the usage totals,
+        # and reads the thread past every post there: the park or the approval
+        # goes on, composed over the comment as it stands, so the round is not
+        # written back over, the runs this tick folded are added to that
+        # road's -- unwritten, beside a verdict with no room -- and the thread
+        # stays read as far as that road read it, past the park's own mark.
         for name, reply, behind, options, expected in _SPENT_BEHIND:
             with self.subTest(name):
                 self.setUp()
                 _disposed.fills(self, reply[1])
 
                 _world.AnotherRoadBehind(
-                    self, behind[0], _disposed.saying(behind[1]), self._spends_a_round,
+                    self, behind[0], _disposed.saying(behind[1]), self._works_behind,
                 ).returning(reply[0], **options)
 
                 self.assertEqual(
-                    ((self.parked(), self.github.label_history), self.pinned().get(REVIEW_ROUND)),
-                    (expected, _SPENT_ROUND),
+                    ((self.parked(), self.github.label_history), _WORKED_BEHIND(self.pinned())),
+                    (expected, (_SPENT_ROUND, 2, _world.REVIEWER_TOKENS + _THEIR_TOKENS, self.read_through)),
                 )
 
     def test_a_full_comment_takes_no_squash_park(self) -> None:
@@ -512,10 +526,19 @@ class ParkWriteTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
                     (_LEDGER_CAP, set(), sorted(kept)),
                 )
 
-    def _spends_a_round(self, _case) -> None:
-        """Another road's write of the round, which no verdict stands on."""
+    def _works_behind(self, _case) -> None:
+        """Another road's write of the round, which no verdict stands on, a run it folded, and a thread it read further.
+
+        Read one past every comment the issue and its pull request carry, as
+        answering a reply that landed behind the post does.
+        """
         state = self.github.read_pinned_state(self.issue)
         state.set(REVIEW_ROUND, _SPENT_ROUND)
+        state.set("issue_agent_runs", (state.get("issue_agent_runs") or 0) + 1)
+        state.set("issue_total_tokens", (state.get("issue_total_tokens") or 0) + _THEIR_TOKENS)
+        said = (*self.issue.comments, *self.pull_request.issue_comments)
+        self.read_through = max(comment.id for comment in said) + 1
+        state.set("last_action_comment_id", self.read_through)
         self.github.write_pinned_state(self.issue, state)
 
     def _posts_two_notices(self, _case) -> None:
