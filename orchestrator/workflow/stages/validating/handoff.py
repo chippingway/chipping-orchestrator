@@ -89,6 +89,21 @@ class _Held:
         """Take `state`, just written, as the comment the tail last wrote."""
         self.comment = dict(state.data)
 
+    def carried(self, before: dict, state: PinnedState) -> None:
+        """Take every field a reading carried onto `state` since it read `before` as the comment the tail last read.
+
+        For a reading that only carries -- the one behind an approval's verify
+        gate -- whatever `state` changed since `before` is what the comment
+        said then, and measured against the older reading instead, it would
+        read as this tick's own field and be written back over a later one.
+        """
+        for field in _review_comment._moved(state.data, before, {*before, *state.data}):
+            written = state.data.get(field, _review_comment._ABSENT)
+            if written is _review_comment._ABSENT:
+                self.comment.pop(field, None)
+            else:
+                self.comment[field] = written
+
 
 def _post_approval_comment(
     gh: GitHubClient,

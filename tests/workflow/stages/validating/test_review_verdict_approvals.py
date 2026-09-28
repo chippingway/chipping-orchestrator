@@ -72,6 +72,13 @@ def _reusing(case, named=None) -> str:
     return REUSING.format(digest=named or settled)
 
 
+def _spends_a_round(case) -> None:
+    """Another road's write of the next review round, which no verdict stands on."""
+    state = case.github.read_pinned_state(case.issue)
+    state.set(REVIEW_ROUND, state.get(REVIEW_ROUND) + 1)
+    case.github.write_pinned_state(case.issue, state)
+
+
 def _declaring(**declared):
     """A reply declaring one run as `declared` spells it, for a table of replies."""
     return lambda _case: _world.declared_run(**declared)
@@ -349,6 +356,25 @@ class ApprovalRaceTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
         self.finishes()
 
         self.assertEqual((self.parked(), self.github.label_history), (_NOT_PARKED, []))
+
+    def test_rounds_spent_around_the_gate_are_kept(self) -> None:
+        # Another road spends a round while the verify gate runs, and another
+        # while the approval comment is posted: the reading behind the gate
+        # carries the first onto the state, and the tail's writes tell the
+        # second from this tick's own by the comment as that reading found it,
+        # so the later round is kept rather than written back over by the one
+        # before it -- and the approval still reaches `documenting`.
+        message = _reusing(self)
+        behind = _world.AnotherRoadBehind(
+            self, PR_COMMENT, _disposed.saying(_disposed.APPROVAL_NOTICE), _spends_a_round,
+        )
+
+        behind.returning(message, verify_result=partial(self._gate, road=_spends_a_round))
+
+        self.assertEqual(
+            (self.github.label_history, self.pinned()[REVIEW_ROUND]),
+            ([DOCUMENTING], 2),
+        )
 
     def _gate(self, *_args, road=None, status: str = "ok", **_kw) -> VerifyResult:
         """A verify gate answering `status`, during which `road` does another road's work, or behind which one may."""

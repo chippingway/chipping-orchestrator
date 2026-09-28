@@ -2971,7 +2971,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             where they stand composes the write behind over the comment as read: a field another
                             road wrote since the tail last read or wrote it (`_Held`) is carried onto the state in
                             hand unless that state changed it too, save the squash's own collapse record -- and the
-                            ledger of the orchestrator's own comments merged, an id either side recorded kept
+                            ledger of the orchestrator's own comments merged, an id either side recorded kept; on the
+                            approval road the tail first reads the comment as the reading behind the verify gate
+                            found it, the run's reading with what that gate carried onto the state taken into it
+                            (`_Held.carried`), so a field the gate carried is never mistaken for the tick's own
       verify.py             how a refused verify result reads and the park it earns, filed through
                             `review_parks.py` over the approved subject; `ok` and the `not_run` an empty
                             `VERIFY_COMMANDS` returns both advance instead

@@ -489,9 +489,12 @@ def _finalize_validating_approval(
     "not_run", which advances without being evidence that anything passed. A
     failed / timed-out command, a worktree not proven clean before or after a
     command, or a moved HEAD or tree parks awaiting_human in `validating`
-    with a stable `park_reason`. A failed squash / force-push also parks and STAYS in `validating` (no relabel), and
-    its notice says which of the two places it left the branch: the original
-    commits, or a collapse an earlier tick could not finish. On success the
+    with a stable `park_reason`. A failed squash / force-push also parks and
+    STAYS in `validating` (no relabel), and its notice says which of four
+    places it left the branch: the approved commits at HEAD, a collapse it
+    could not finish standing over them in the reflog, a branch grown past the
+    head that collapse records with them in its own history, or a reading that
+    placed them nowhere (`_park_squash_failure`). On success the
     (possibly squashed) head routes through `documenting` for a final docs
     pass before in_review picks up; the watermarks, approval, and squash
     comment seeded here are preserved across the documenting hop.
@@ -513,28 +516,31 @@ def _finalize_validating_approval(
     reading sent the tick -- which is why the gate and the branch arrive here
     already built, from whichever road did the deciding.
     """
-    gh, issue, state = gate.gh, gate.issue, gate.state
+    state = gate.state
     verify = _verify_runner._run_verify_commands(
         reviewer_run.wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT,
     )
-    stands = _stands_behind_the_gate(gh, issue, state, reviewer_run)
+    # What the reading behind the gate carries onto the state is the comment
+    # the squash tail's writes are measured against from here on.
+    before = dict(state.data)
+    stands = _stands_behind_the_gate(gate.gh, gate.issue, state, reviewer_run)
     if stands is None:
         return
     if stands and verify.status in _VERIFIED:
-        _squashes_the_approval(gate, reviewer_run, branch)
+        _squashes_the_approval(gate, reviewer_run, branch, before)
         return
     if stands:
         # Held to the subject once more behind its notice, and written by
         # the park itself where it lands and where it does not.
-        _verify._park_verify_failure(gh, issue, state, reviewer_run, verify)
+        _verify._park_verify_failure(gate.gh, gate.issue, state, reviewer_run, verify)
         return
     # An approval the subject moved out from under is dropped, and one whose
     # subject would not read is held; either way what the run left is the
     # write owed.
-    gh.write_pinned_state(issue, state)
+    gate.gh.write_pinned_state(gate.issue, state)
 
 
-def _squashes_the_approval(gate, reviewer_run: _models._ReviewerRun, branch: str) -> None:
+def _squashes_the_approval(gate, reviewer_run: _models._ReviewerRun, branch: str, before: dict) -> None:
     """Record, announce, and squash an approval whose verify gate passed over the subject still standing.
 
     The approval is staged and written by whichever write the squash road
@@ -545,13 +551,17 @@ def _squashes_the_approval(gate, reviewer_run: _models._ReviewerRun, branch: str
     replace the verdict it is finishing: no rewrite goes out over any of them,
     and only the comment's own ledger entry is written
     (`handoff._holds_its_records`). Every write from here on is composed over
-    the comment as read against what the run read, so a field another road
-    wrote since -- a round spent -- is kept rather than written back over.
+    the comment as read, a field another road changed told from this tick's
+    own by the comment as the gate read it -- the run's reading with what the
+    gate carried onto the state since `before` taken into it
+    (`handoff._Held.carried`) -- so a round spent during the gate, and another
+    behind the approval comment, is kept rather than written back over.
     """
     gh, issue, state = gate.gh, gate.issue, gate.state
+    held = _handoff._Held(_verdicts.read_returned_verdict(state), dict(reviewer_run.resolved_over))
+    held.carried(before, state)
     _review_subjects.record_approved(state, reviewer_run.subject)
     _handoff._post_approval_comment(gh, issue, state, reviewer_run)
-    held = _handoff._Held(_verdicts.read_returned_verdict(state), dict(reviewer_run.resolved_over))
     if _handoff._holds_its_records(gh, issue, state, "squash under the approval it posted", held):
         _squashed_and_handed_off(gate, branch, reviewer_run.pr_number, held)
 

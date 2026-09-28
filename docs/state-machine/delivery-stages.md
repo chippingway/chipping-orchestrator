@@ -3422,7 +3422,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        behind is composed over the comment as read: a field another road wrote since the tail last read or wrote it —
        a round spent by a reply — is carried onto the state in hand unless that state changed it too, save the
        squash's own collapse record, which the squash writes itself and drops only in memory for this write to make
-       durable. The tail starts from the reading the reviewer's run was resolved over, or on the recovery road from
+       durable. The tail starts from the comment as the reading behind the verify gate found it — the reading the
+       reviewer's run was resolved over, with whatever that gate carried onto the state taken into it, so a field it
+       carried is never mistaken for the tick's own and written back over a later one — or on the recovery road from
        the comment as the tick read it. (4) On success,
        if `squashed_count > 1` post `:package: squashed N commits to 1` — a count of 0 or 1 replaced no history and
        posts nothing — seed the in_review watermarks (inside the
