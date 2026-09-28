@@ -2932,7 +2932,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             behind it with whatever another road wrote carried, a report, verdict, or evidence
                             record moved there dropping the approval, a failed gate parking only over the subject
                             still standing (`review_parks.py`), a persisted verdict retired by whichever write
-                            follows and held where the subject would not read; the tail holds the report, evidence,
+                            follows and held where the subject would not read, and the subject resolved again behind
+                            the approval comment before the approval is staged or the rewrite goes out; the tail
+                            holds the report, evidence,
                             and verdict records in hand again ahead of every write it makes behind a request of its
                             own and ahead of the relabel, retires only the verdict the approval behind it hands in
                             -- none on the recovery road -- holds the relabel over a verdict still waiting, and ends
@@ -3299,9 +3301,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             verdict, and reports `park_awaiting_human`, once its write is down. The park a failed
                             squash takes (`parks_the_failed_squash`) shares its notice and its measurement -- the
                             write measured keeping any verdict it does not retire, a later round's on the recovery
-                            road, which holds none -- held
-                            behind the notice to the records in hand rather than to a subject, since the recovery
-                            reaches it with no reviewer run; it is never taken over the comment as it stands,
+                            road, which holds none -- held behind the notice to the records in hand and, on the
+                            approval road, to the subject that approval was of, resolved again, a push or an edit
+                            there landing no park and dropping the verdict; the recovery reaches it with no reviewer
+                            run and no subject; it is never taken over the comment as it stands,
                             because its write is what makes the squash's own record drop durable
       review_handoffs.py    a persisted verdict handed on (`hands_the_verdict_on`): an approval to
                             `unverified_approvals.py`, and a change request to its developer -- the feedback posted

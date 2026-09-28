@@ -127,10 +127,20 @@ def _clears_the_anchor(case) -> None:
     case.github.write_pinned_state(case.issue, state)
 
 
-def _on_pull_request(pr_number, returned_run, *read):
-    """The run `returned_run` builds from `read`, naming `pr_number` to post and push to whatever its subject is on."""
-    return replace(returned_run(*read), pr_number=pr_number)
+def _on_pull_request(numbers, returned_run, *read):
+    """The run `returned_run` builds from `read`, naming the pull requests `numbers` gives it and its subject."""
+    run = returned_run(*read)
+    subject = replace(run.subject, pr_number=numbers[1])
+    return replace(run, pr_number=numbers[0], subject=subject)
 
+
+# The pull requests a run names beside the one its subject names that no
+# verdict is acted on through: another, none beside one, and none beside none.
+_ELSEWHERE = (
+    (_world.PR + 1, _world.PR),
+    (None, _world.PR),
+    (None, None),
+)
 
 # The verdicts a returned run can carry: a change request declaring nothing,
 # and an approval over its own passing run.
@@ -335,21 +345,26 @@ class ForeignRunTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
 
     def test_a_returned_run_elsewhere_is_refused(self) -> None:
         # A returned run naming another pull request than the one its subject
-        # is on -- or none -- would post a change request's feedback and push
-        # its fix there, or post an approval and squash there: whichever the
-        # verdict, it is refused outright, nothing persisted, published,
-        # posted, relabelled, or launched.
-        for pr_number, message in itertools.product((_world.PR + 1, None), _RETURNED):
-            with self.subTest(pr_number=pr_number, verdict=message.splitlines()[-1]):
+        # is on -- or none, beside a subject naming one or naming none either --
+        # would post a change request's feedback and push its fix there, or
+        # post an approval and squash there: whichever the verdict, it is
+        # refused outright, nothing persisted, published, posted, relabelled,
+        # or launched, and the pinned comment left as it was.
+        for numbers, message in itertools.product(_ELSEWHERE, _RETURNED):
+            with self.subTest(pr_numbers=numbers, verdict=message.splitlines()[-1]):
                 self.setUp()
-                posted = len(self.github.posted_pr_comments)
+                before = (self.pinned(), len(self.github.posted_pr_comments))
 
-                with patch.object(_world, "returned_run", partial(_on_pull_request, pr_number, _world.returned_run)):
+                with patch.object(_world, "returned_run", partial(_on_pull_request, numbers, _world.returned_run)):
                     ran = self.returns(message, **_fixing())
 
                 self.assertEqual(
-                    (self._handed(ran), self.github.posted_pr_comments[posted:]),
-                    ((0, [], None, None, []), []),
+                    (
+                        self._handed(ran),
+                        self.pinned(),
+                        self.github.posted_pr_comments[before[1]:],
+                    ),
+                    ((0, [], None, None, []), before[0], []),
                 )
 
     def _handed(self, ran) -> tuple:

@@ -135,6 +135,13 @@ _BEHIND_THE_NOTICE = tuple(
     for move, road, holds, recorded in _MOVES
 )
 
+# What moves an approval's subject behind the notice of the park its failed
+# squash takes, and the verdict each leaves waiting.
+_BEHIND_THE_SQUASH_NOTICE = (
+    ("a push", _world.pushes, None),
+    ("an unread report", _world.stops_answering, APPROVED),
+)
+
 # Each request behind which another road spends a round, the reply and notes
 # that reach it, the request and a phrase of the post, how the tick runs, and
 # what it leaves: the park as `parked` reads it beside every relabel. Every
@@ -346,6 +353,21 @@ class ParkNoticeTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
                     (self.pinned(), _written_length(self), self.parked()[2]),
                     (self.written, MAX_PINNED_BODY, []),
                 )
+
+    def test_a_squash_park_holds_to_its_subject(self) -> None:
+        # A push behind the notice of the park an approval's failed squash
+        # takes is work nobody reviewed: no park lands, and the verdict is
+        # dropped for a fresh reviewer. A report nobody could read then proves
+        # nothing: no park lands either, and the verdict waits.
+        for move, road, waiting in _BEHIND_THE_SQUASH_NOTICE:
+            with self.subTest(move):
+                self.setUp()
+
+                _world.AnotherRoadBehind(
+                    self, ISSUE_COMMENT, _disposed.saying(_disposed.SQUASH_FAILED_NOTICE), road,
+                ).returning(_world.declared_run(), **REFUSED_SQUASH)
+
+                self.assertEqual(self.parked(), ((None, False), waiting, []))
 
     def _unidentified(self, message: str, filled: int, notice: str, **options) -> tuple:
         """What the park `message` earns over `filled` notes leaves where its `notice` is posted with no id."""

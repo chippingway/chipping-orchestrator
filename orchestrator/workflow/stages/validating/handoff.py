@@ -79,11 +79,15 @@ class _Held:
     `verdict` is the returned verdict the approval behind the tail finishes,
     the only one any of its writes retires -- None on the recovery of a
     squash an earlier tick did not finish, which holds none. `comment` is the
-    pinned comment as the tail last read or wrote it.
+    pinned comment as the tail last read or wrote it. `subject` is the review
+    subject the approval behind the tail was of, as it is recorded, which a
+    park that tail takes is held to behind its notice -- None on that recovery,
+    which holds no subject either.
     """
 
     verdict: _verdicts.ReturnedVerdict | None
     comment: dict
+    subject: dict | None = None
 
     def wrote(self, state: PinnedState) -> None:
         """Take `state`, just written, as the comment the tail last wrote."""

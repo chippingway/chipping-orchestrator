@@ -550,7 +550,14 @@ def _squashes_the_approval(gate, reviewer_run: _models._ReviewerRun, branch: str
     report or evidence revision the approval was not proved over, or to
     replace the verdict it is finishing: no rewrite goes out over any of them,
     and only the comment's own ledger entry is written
-    (`handoff._holds_its_records`). Every write from here on is composed over
+    (`handoff._holds_its_records`). Nor does one go out over a subject that
+    moved while it was posted -- a push, an edit of the issue or the report --
+    since a rewrite and a handoff under an approval of the older subject hand
+    on work nobody reviewed: the subject is resolved again behind the comment,
+    ahead of the comment's own reading, and the approval is staged only where
+    both stand. Where the subject moved, the verdict is dropped and the run's
+    records written without the approval; where it would not read, they are
+    written keeping the verdict. Every write from here on is composed over
     the comment as read, a field another road changed told from this tick's
     own by the comment as the gate read it -- the run's reading with what the
     gate carried onto the state since `before` taken into it
@@ -558,12 +565,21 @@ def _squashes_the_approval(gate, reviewer_run: _models._ReviewerRun, branch: str
     behind the approval comment, is kept rather than written back over.
     """
     gh, issue, state = gate.gh, gate.issue, gate.state
-    held = _handoff._Held(_verdicts.read_returned_verdict(state), dict(reviewer_run.resolved_over))
+    held = _handoff._Held(
+        _verdicts.read_returned_verdict(state), dict(reviewer_run.resolved_over), reviewer_run.subject.recorded(),
+    )
     held.carried(before, state)
-    _review_subjects.record_approved(state, reviewer_run.subject)
     _handoff._post_approval_comment(gh, issue, state, reviewer_run)
-    if _handoff._holds_its_records(gh, issue, state, "squash under the approval it posted", held):
-        _squashed_and_handed_off(gate, branch, reviewer_run.pr_number, held)
+    stands = _review_coverage._subject_still_stands(gh, issue, state, held.subject)
+    if not _handoff._holds_its_records(gh, issue, state, "squash under the approval it posted", held):
+        return
+    if not stands:
+        if stands is False:
+            _verdicts.drops_the_verdict(state, only=held.verdict)
+        gh.write_pinned_state(issue, state)
+        return
+    _review_subjects.record_approved(state, reviewer_run.subject)
+    _squashed_and_handed_off(gate, branch, reviewer_run.pr_number, held)
 
 
 def _stands_behind_the_gate(

@@ -293,7 +293,7 @@ def disposes_of_the_verdict(
     else was held or dropped there, and this tick does nothing more.
     """
     run = decision.run
-    if run.pr_number != run.subject.pr_number:
+    if run.pr_number is None or run.pr_number != run.subject.pr_number:
         log.warning(
             "issue=#%d its reviewer run names PR #%s where the subject it "
             "reviewed is on PR #%s; acting on nothing", issue.number,
@@ -384,7 +384,8 @@ def finishes_the_verdict(
     if waiting is None:
         return
     in_hand = VerdictInHand.waiting(run, waiting)
-    if in_hand.returned() != waiting or run.pr_number != run.subject.pr_number:
+    elsewhere = run.pr_number is None or run.pr_number != run.subject.pr_number
+    if in_hand.returned() != waiting or elsewhere:
         log.warning(
             "issue=#%d its waiting reviewer verdict was not returned in the "
             "round, over the subject, or on the pull request of the run in "

@@ -3358,9 +3358,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        (`verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`) and the
        approval / squash / handoff do NOT fire (see
        [`configuration.md#local-verification-gate`](../configuration.md#local-verification-gate)); otherwise the
-       approval is acted on only where the records stood and the subject still stands; then stage the
-       subject as `review_approved_subject`, retiring the `docs_verdict` and `ready_ping_sha` an earlier approval left,
-       since both are keyed on a head this approval may share; (2) post `:white_check_mark: codex review approved.`;
+       approval is acted on only where the records stood and the subject still stands; then (2) post
+       `:white_check_mark: codex review approved.`, resolve the subject again behind that post and read the comment
+       last — a push or an edit of the issue or the report landing while it was posted drops the verdict and writes
+       the run without an approval, and a subject nobody could read writes it keeping the verdict — and only then
+       stage the subject as `review_approved_subject`, retiring the `docs_verdict` and `ready_ping_sha` an earlier
+       approval left, since both are keyed on a head this approval may share;
        (3) when `SQUASH_ON_APPROVAL` is on (default), call
        `_squash_and_force_push` (subject reuses the first commit when it carries a reusable `<prefix>:` form —
        Conventional **or** repo-local such as `event:`/`career:` — otherwise `<inferred-prefix>: <issue title>`, where
@@ -3393,7 +3396,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        under a durable
        `park_reason="squash_failed"` and stay on `workflow:validating` — through `review_parks.py`, measured before
        its notice, keeping any verdict it does not retire (a later round's, on the recovery road, which holds none),
-       and landing only behind a notice that was identified, since one nothing identified may have
+       and landing only behind a notice that was identified and, on the approval road, over the subject that approval
+       was of, resolved again behind the notice — a push or an edit there lands no park and drops the verdict, and a
+       subject nobody could read lands none and keeps it — since a notice nothing identified may have
        reached nobody: that write keeps what the tick staged, the verdict left waiting, without the park, and a
        later tick words the notice again. A comment with no room for the park is posted on and written to not at
        all — the squash's own record drop rides this write, so a tick that writes nothing is the one that died

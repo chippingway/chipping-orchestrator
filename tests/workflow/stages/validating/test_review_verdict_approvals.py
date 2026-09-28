@@ -57,6 +57,9 @@ REUSING = "Covered.\n\nVERIFICATION: REUSED sha256:{digest}\n\nVERDICT: APPROVED
 
 UNDECLARED_APPROVAL = "LGTM\n\nVERDICT: APPROVED"
 
+# What a human edits the issue body to while an approval is posted.
+_EDITED_BODY = "Also handle an empty configuration file."
+
 # An evidence digest nothing in the world names.
 OTHER_DIGEST = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
@@ -446,6 +449,43 @@ class ReplacedVerdictTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
             self.github.label_history,
             posted <= set(standing[_disposed.LEDGER]),
         )
+
+
+
+class MovedBehindTheApprovalTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
+    """An approval rewrites and records nothing over a subject that moved while its comment was posted."""
+
+    def test_a_moved_subject_squashes_nothing(self) -> None:
+        # A push, or an edit of the issue, while the approval comment is posted
+        # is work nobody reviewed: no rewrite goes out and no approval is
+        # recorded, the verdict is dropped for a fresh reviewer, and the
+        # approval comment stays the orchestrator's on the ledger.
+        for move, road in (("a push", _world.pushes), ("an edit of the issue", self._edits_the_issue)):
+            with self.subTest(move):
+                self.setUp()
+                message = _reusing(self)
+
+                ran = _world.AnotherRoadBehind(
+                    self, PR_COMMENT, _disposed.saying(_disposed.APPROVAL_NOTICE), road,
+                ).returning(message)
+
+                approval = next(
+                    said.id for said in self.pull_request.issue_comments if _disposed.APPROVAL_NOTICE in said.body
+                )
+                self.assertEqual(
+                    (
+                        ran[SQUASH].call_count,
+                        self.github.label_history,
+                        self.waiting(),
+                        self.pinned().get("review_approved_subject"),
+                        approval in self.pinned()[_disposed.LEDGER],
+                    ),
+                    (0, [], None, None, True),
+                )
+
+    def _edits_the_issue(self, _case) -> None:
+        """A human editing the issue body, which moves the requirements the approval was of."""
+        self.issue.body = _EDITED_BODY
 
 
 if __name__ == "__main__":

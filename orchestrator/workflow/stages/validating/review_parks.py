@@ -207,6 +207,11 @@ def parks_the_failed_squash(
     was, the only one the park retires -- the recovery of a squash an earlier
     tick did not finish holds none -- and the comment it last read or wrote,
     the park's write composed over the comment as read behind its notice.
+    An approval's squash is held to the subject that approval was of, resolved
+    again behind the notice ahead of the comment's own reading: a push or an
+    edit landing while it was posted is work nobody reviewed, so no park asks
+    a human about it -- the verdict is dropped for a fresh reviewer -- and a
+    subject nobody could read lands no park either, keeping the verdict.
     """
     reason = _state._REASON_SQUASH_FAILED
     if not _park_fits(state, reason, held.verdict):
@@ -216,16 +221,22 @@ def parks_the_failed_squash(
         )
         return
     notice = _posts_the_notice(gh, issue, state, words)
+    stands = held.subject is None or _review_coverage._subject_still_stands(
+        gh, issue, state, held.subject,
+    )
     if not _handoff._holds_its_records(gh, issue, state, "park its failed squash over the records it holds", held):
         return
-    if notice is None:
-        log.warning(
-            "issue=#%d could not confirm the notice of its %s park was posted; "
-            "writing what the tick staged without parking", issue.number, reason,
-        )
-    else:
+    lands = notice is not None and stands is True
+    if lands:
         state.set(_AWAITING_HUMAN, True)
         state.set(_state._PARK_REASON, reason)
+    else:
+        log.warning(
+            "issue=#%d landed no %s park: its notice left no id, or the subject "
+            "its approval is about moved or would not read behind it; writing "
+            "what the tick staged without parking", issue.number, reason,
+        )
+    if lands or stands is False:
         _verdicts.drops_the_verdict(state, only=held.verdict)
     if not _report_record_state.fits_the_comment(state.data):
         log.error(
@@ -234,7 +245,7 @@ def parks_the_failed_squash(
         )
         return
     gh.write_pinned_state(issue, state)
-    if notice is not None:
+    if lands:
         gh.emit_event(
             "park_awaiting_human",
             issue_number=issue.number,

@@ -1828,7 +1828,8 @@ The keys that matter for the state machine fall into a few groups:
   (`unverified_approvals.py`). The arc resolves the subject again behind its verify gate, whatever the gate said, and
   reads the comment behind that: a report, the record, or a `verification_evidence_*` record moved there drops the
   approval, and the arc's write sets the record to `null`, save where that subject would not read. Its squash tail
-  retires only that record, held to the report, evidence, and verdict records in hand ahead of each write -- the
+  retires only that record, held to the report, evidence, and verdict records in hand ahead of each write, and to its
+  subject behind the approval comment and behind a failed squash's park notice, a move there dropping the record -- the
   recovery of a squash an earlier tick did not finish holds none, so a later round's record found beside it is left
   waiting and holds the move to `documenting`. A proof nobody could read holds the record; any other refusal parks the
   approval under `reviewer_unverified`, once held to its subject and its claim again -- one whose subject or evidence
