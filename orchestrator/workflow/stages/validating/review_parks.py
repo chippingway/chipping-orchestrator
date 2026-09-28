@@ -227,10 +227,13 @@ def _behind_the_notice(
 def _posts_the_notice(gh: GitHubClient, issue: Issue, parked: PinnedState, words: str) -> int | None:
     """Post the park's notice and record the thread read through it; the notice's id, or None.
 
-    Read only as far as the orchestrator's own comments go
-    (`park_watermarks`), since a park follows a run long enough for a human
-    to have written something nobody has read -- which is also why the mark
-    is harmless where no park lands behind the notice.
+    The notice of the park a failed squash takes as well
+    (`approval._park_squash_failure`), which the recovery reaches with no
+    reviewer run to go through the funnel with. Read only as far as the
+    orchestrator's own comments go (`park_watermarks`), since a park follows
+    a run long enough for a human to have written something nobody has read
+    -- which is also why the mark is harmless where no park lands behind the
+    notice.
     """
     said_before = _comments._orchestrator_ids(parked)
     notice = _comments._post_issue_comment(gh, issue, parked, f"{config.HITL_MENTIONS} {words}")

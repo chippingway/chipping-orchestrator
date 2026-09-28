@@ -1007,15 +1007,16 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # Another road puts a verdict of its own in place of the one this tick
         # persisted and is acting on, and spends a round beside it: whichever
         # request it lands behind, this tick squashes no further, relabels,
-        # parks, and hands over nothing, and drops nothing but its own verdict
-        # -- the other verdict and its round stand for that road to finish,
-        # and no write this tick makes after them lays itself over them. What
-        # it posted on the way is still recorded as the orchestrator's.
+        # parks -- or reports a park -- and hands over nothing, and drops
+        # nothing but its own verdict: the other verdict and its round stand
+        # for that road to finish, and no write this tick makes after them
+        # lays itself over them. What it posted on the way is still recorded
+        # as the orchestrator's.
         for name, reply, behind, options, squashed in _REPLACED:
             with self.subTest(name):
                 self.assertEqual(
                     self._replaced_behind(reply, behind, **options),
-                    (squashed, (True, 1), None, [], True),
+                    (squashed, (True, 1), (None, []), [], True),
                 )
 
     def _cleared_behind_its_write(self, reply) -> tuple:
@@ -1044,9 +1045,9 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
         """What returning `reply` leaves where another road puts its own verdict in place behind `behind`'s request.
 
         The squashes taken, whether that road's verdict stands beside the
-        review round, the park, every relabel, and whether the pinned ledger
-        records every approval, squash, feedback, and park notice the tick
-        posted.
+        review round, the park beside every park reported, every relabel, and
+        whether the pinned ledger records every approval, squash, feedback,
+        and park notice the tick posted.
         """
         self.setUp()
         ran = _world.AnotherRoadBehind(
@@ -1058,10 +1059,11 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
             for said in (*self.issue.comments, *self.pull_request.issue_comments)
             if any(phrase in said.body for phrase in _POSTED)
         }
+        reported = [event for event in self.github.recorded_events if PARK_EVENT in event.values()]
         return (
             ran["_squash_and_force_push"].call_count,
             (standing.get(_world.RETURNED_VERDICT) == self.replacement, standing.get(REVIEW_ROUND)),
-            standing.get(_world.PARK_REASON),
+            (standing.get(_world.PARK_REASON), reported),
             self.github.label_history,
             posted <= set(standing[LEDGER]),
         )

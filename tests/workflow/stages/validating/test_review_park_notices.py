@@ -1,12 +1,14 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A reviewer's park lands only behind a notice somebody can read, in a write the comment has room for.
+"""A verdict's park lands only behind a notice somebody can read, in a write the comment has room for.
 
-A notice nothing identified may have reached nobody, so no park lands behind
-it: the verdict waits as it was, for the tick that finishes it to park behind
-a notice that is identified. And the park's write carries whatever moved on
-the comment behind its notice, where another road can have left no room for
-what the park adds beside it: that write is measured again, and not made.
+Every park a verdict of a reviewed subject can take -- the reviewer's own two,
+its approval's failed verify gate, and its approval's failed squash. A notice
+nothing identified may have reached nobody, so no park lands behind it: the
+verdict waits as it was, for the tick that finishes it to park behind a notice
+that is identified. And the park's write carries whatever moved on the comment
+behind its notice, where another road can have left no room for what the park
+adds beside it: that write is measured again, and not made.
 
 The parks themselves, and the subject each is held to behind its notice, are
 in `test_review_disposition.py` beside this.
@@ -20,11 +22,26 @@ from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from tests.workflow.stages.validating import review_verdict_test_support as _world
 from tests.workflow.stages.validating.test_review_disposition import (
     _PARKS,
+    APPROVED,
     ISSUE_COMMENT,
     PARK_EVENT,
+    SQUASH_FAILED_NOTICE,
     VERDICT,
     _RefusesOnce,
     _settles_a_later_report,
+)
+
+# Each park `_PARKS` spells, and the one an approval's failed squash takes,
+# spelled the same way: an approval over the evidence its passing run
+# published, whose squash the remote refuses.
+_EVERY_PARK = (
+    *_PARKS,
+    (
+        "squash_failed",
+        (_world.declared_run(), 0, SQUASH_FAILED_NOTICE),
+        APPROVED,
+        {"squash_result": (False, None, 0, "force-push rejected")},
+    ),
 )
 
 
@@ -36,7 +53,7 @@ class ParkNoticeTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # park lands behind it and none is reported: the verdict waits as it
         # was, and the later tick that finishes it parks behind a notice that
         # is identified. A verdict with no room to persist leaves none waiting.
-        for park, reply, waiting, options in _PARKS:
+        for park, reply, waiting, options in _EVERY_PARK:
             with self.subTest(park):
                 left = self._unidentified(*reply, **options)
                 self.assertEqual(left, ((None, False), waiting, []))
@@ -50,7 +67,7 @@ class ParkNoticeTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # write carrying all of that beside the notice's ledger entry and
         # watermark would not fit, so the park writes nothing and the comment
         # stays as that road wrote it.
-        for park, reply, _waiting, options in _PARKS:
+        for park, reply, _waiting, options in _EVERY_PARK:
             with self.subTest(park):
                 left = self._filled_behind(*reply, **options)
                 self.assertEqual(left, (self.written, MAX_PINNED_BODY, []))

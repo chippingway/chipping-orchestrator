@@ -2927,7 +2927,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             records in hand, so a report settled meanwhile is left for the next tick, save the
                             ledger entries of what was already posted (`handoff._holds_its_records`); that number
                             read as an identity before the squash subject may reference it: the optional squash,
-                            the park each of its four readings earns, the notice its count is worded from --
+                            the park each of its four readings earns -- landing only behind an identified notice
+                            and over the records in hand, and reported only once written -- the notice its count
+                            is worded from --
                             posted ahead of the seed it orders, and the one failure that stops the road, since
                             the count lives only on the collapse record the next tick would otherwise drop -- the
                             end of that record, and the `workflow:documenting` relabel that lands behind that

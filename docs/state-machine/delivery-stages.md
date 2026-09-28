@@ -3362,7 +3362,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        back, since the read is a request and a commit landing in that window is work no reviewer saw on a branch
        this road reports as standing where it planned. On squash / force-push failure, park awaiting human
        under a durable
-       `park_reason="squash_failed"` and stay on `workflow:validating`. The notice names which of four places
+       `park_reason="squash_failed"` and stay on `workflow:validating` — only behind a notice that was identified,
+       since one nothing identified may have reached nobody: that write keeps what the tick staged, the verdict
+       left waiting, without the park, and a later tick words the notice again. The park reports
+       `park_awaiting_human` only once its write is down. The notice names which of four places
        that left the branch: the approved
        commits are still on it — the ordinary failure, which aborted before anything destructive or restored what it
        rewound, including a record whose reset never ran — or a collapse this tick could not finish is standing
