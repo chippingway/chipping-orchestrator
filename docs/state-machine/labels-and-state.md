@@ -1785,7 +1785,9 @@ The keys that matter for the state machine fall into a few groups:
   resolved again and the comment read against the reading the verdict's run was resolved over: a report or evidence
   record moved there carries everything the comment changed since -- a settlement's spent `review_round` beside its
   records -- and, like a push, lands no park, the write setting the record to `null` alone for a fresh reviewer, while a
-  subject that would not read lands none either and leaves the record as it waited. A park that lands sets the record to
+  subject that would not read, or a notice that left no id and so may have reached nobody, lands none either and leaves
+  the record as it waited for a later tick to park again. A park write that carries what moved behind the notice is
+  measured again, and not made where another road's write left no room for it. A park that lands sets the record to
   `null` in its own write and reports `park_awaiting_human` only once that write is down. A failed verify gate's park
   goes through the same funnel, so it too lands only over the subject still standing behind the gate and behind its
   notice. A bare `/orchestrator continue` on either park buys a fresh reviewer, and an edit under one nobody replied to

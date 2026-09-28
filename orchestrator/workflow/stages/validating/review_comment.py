@@ -22,7 +22,10 @@ nothing: every write from there would be laid over records the tick never
 read, putting back the report they replaced. So is a fresh reading of another
 comment than the one the state in hand was read from -- the pinned comment
 replaced, or gone -- since the tick's write goes to the comment it read and
-would pin a second one. The reading that agreed goes on with the subject.
+would pin a second one. Of what the approval posted on the way, only the
+ledger entries go down, over the comment read afresh where it is still the one
+read (`handoff._holds_its_records`). The reading that agreed goes on with the
+subject.
 
 `_records_stand` reads the comment against that reading again, as the reviewer
 returns and once more after an approval is verified, before anything the run

@@ -2924,7 +2924,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             rewrite finished either way -- the one check the recovery of a squash an earlier tick
                             did not finish gets -- and nothing posted or written past a published rewrite, nor the
                             label moved on either road, where the pinned comment no longer carries the report
-                            records in hand, so a report settled meanwhile is left for the next tick; that number
+                            records in hand, so a report settled meanwhile is left for the next tick, save the
+                            ledger entries of what was already posted (`handoff._holds_its_records`); that number
                             read as an identity before the squash subject may reference it: the optional squash,
                             the park each of its four readings earns, the notice its count is worded from --
                             posted ahead of the seed it orders, and the one failure that stops the road, since
@@ -2938,7 +2939,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             snapshot taken behind the caller's notice so the seed walk steps past the notice's own
                             id, abandoned outright on an unreadable PR rather than stranding an approved branch on
                             a read, and the ratchets reached past it, which is what each of the three watermarks
-                            becomes against what is already persisted
+                            becomes against what is already persisted; and the check ahead of each of the arc's
+                            writes (`_holds_its_records`) that the report, evidence, and verdict records still stand,
+                            which where they moved records only the arc's own posts on the ledger, over the comment
+                            read afresh and where it fits, so a prompt still keeps them as the orchestrator's
       verify.py             how a refused verify result reads and the park it earns, filed through
                             `review_parks.py` over the approved subject; `ok` and the `not_run` an empty
                             `VERIFY_COMMANDS` returns both advance instead
@@ -3224,9 +3228,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and then to the comment read against the run's reading -- a report or evidence record
                             moved there carries everything the comment changed since, a settlement's spent round
                             included, and like a push lands no park, the write dropping the verdict alone, while a
-                            subject that would not read lands none either and leaves the verdict waiting. Only a
-                            park that lands sets its flags, drops the verdict, and reports `park_awaiting_human`,
-                            once its write is down
+                            subject that would not read, or a notice that left no id, lands none either and leaves
+                            the verdict waiting; that write is measured again once it carries what moved, and not
+                            made where another road's write left no room. Only a park that lands sets its flags,
+                            drops the verdict, and reports `park_awaiting_human`, once its write is down
       review_handoffs.py    a persisted change request's handoff: held to the subject standing, the pinned comment
                             read behind it, then the feedback posted -- a post that failed or left no id holds the
                             verdict unhanded -- the whole subject held again behind that post, the verdict written

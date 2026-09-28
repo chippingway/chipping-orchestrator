@@ -21,6 +21,13 @@ The approval comment is the one post nothing is owed for. It carries no count,
 nothing later reads it back, and a thread that would not take it is no reason
 to hold a verified branch out of `documenting` -- so its failure is logged and
 the road carries on.
+
+What every post leaves on the ledger is owed all the same, even where the
+approval stops behind it (`_holds_its_records`): each of its writes is held to
+the report, evidence, and verdict records it was proved over, and one that
+moved under a post writes nothing the approval holds -- but the post is the
+orchestrator's, and a prompt keeps an orchestrator comment only where that
+ledger vouches for it.
 """
 from __future__ import annotations
 
@@ -31,9 +38,10 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import comments as _comments, report_record_state as _report_record_state
 from orchestrator.workflow.stages.validating import (
     models as _models,
+    review_comment as _review_comment,
     watermarks as _watermarks,
 )
 
@@ -61,6 +69,39 @@ def _post_approval_comment(
             issue.number,
             reviewer_run.pr_number,
         )
+
+
+def _holds_its_records(
+    gh: GitHubClient, issue: Issue, state: PinnedState, purpose: str,
+) -> bool:
+    """Whether the comment still carries the report, evidence, and verdict records `state` does.
+
+    Asked ahead of each write an approval makes behind requests of its own
+    (`review_comment._records_in_hand`, `purpose` naming the write). Where
+    the records moved, nothing `state` holds is written over them; only the
+    orchestrator comments `state` records and the comment does not -- the
+    approval comment, the squash notice, a park notice posted on the way --
+    are recorded over the comment read afresh. A comment that will not read,
+    or has no room for them, is left as it stands.
+    """
+    if _review_comment._records_in_hand(gh, issue, state, purpose, _review_comment._VERDICT_RECORDS):
+        return True
+    durable = _review_comment._read(gh, issue, state, "record the comments its approval posted")
+    if durable is None:
+        return False
+    posted = sorted(_comments._orchestrator_ids(state) - _comments._orchestrator_ids(durable))
+    if not posted:
+        return False
+    for comment_id in posted:
+        _comments._track_orchestrator_comment(durable, comment_id)
+    if _report_record_state.fits_the_comment(durable.data):
+        gh.write_pinned_state(issue, durable)
+    else:
+        log.error(
+            "issue=#%s has no room on its pinned comment to record the "
+            "comments its approval posted; leaving it as it stands", issue.number,
+        )
+    return False
 
 
 def _seed_in_review_handoff_watermarks(

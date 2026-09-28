@@ -40,11 +40,16 @@ settlement's spent round beside its records -- and, like a head read whole that
 is another, lands no park: the write drops the verdict, and the next tick's
 reviewer is handed the subject as it stands. A subject nobody could read is no
 proof it moved, nor that it still stands: it lands no park either, and the
-verdict is left waiting for a later tick to resolve again. The notice stays
-recorded as the orchestrator's own whichever way, and a comment that will not
-read writes nothing. Only a park that lands sets the flags, drops the verdict it
-refuses, and -- once its write is down -- reports the human wait
-(`park_awaiting_human`), since that record is the moment the issue enters one.
+verdict is left waiting for a later tick to resolve again. A notice nothing
+identified may have reached nobody, so no park lands behind it either, and the
+verdict waits as it was for a later tick to park again rather than a human
+being held to a question nobody may have seen. An identified notice stays
+recorded as the orchestrator's own whichever way. A comment that will not read
+writes nothing, and nor does a write that, carrying what moved there, no longer
+fits: another road's write can spend the room the park was measured with. Only
+a park that lands sets the flags, drops the verdict it refuses, and -- once its
+write is down -- reports the human wait (`park_awaiting_human`), since that
+record is the moment the issue enters one.
 """
 from __future__ import annotations
 
@@ -138,6 +143,14 @@ def parks_over_the_subject(
     lands = _behind_the_notice(gh, issue, parked, run, (park, _verdicts.read_returned_verdict(state)))
     if lands is None:
         return
+    # What moved behind the notice was carried whole, and another road's
+    # write can have spent the room this one was measured with.
+    if not _report_record_state.fits_the_comment(parked.data):
+        log.error(
+            "issue=#%d has no room on its pinned comment for the %s park beside "
+            "what moved there behind its notice; writing nothing", issue.number, park[0],
+        )
+        return
     gh.write_pinned_state(issue, parked)
     if lands:
         correlation = {} if park[2] is None else {
@@ -166,12 +179,13 @@ def _behind_the_notice(
     """Post the park's notice, then settle its write over the subject standing behind it; None to write nothing.
 
     `held` is the park and the verdict the state in hand carried as it began,
-    the only one it drops. True where the park lands: the subject resolved
-    again whole as the one `run` was handed, and no report, evidence, or
-    verdict record moved on the comment since `run` read it. False where it
-    does not: that verdict is dropped where the subject moved -- one another
-    road put in its place is left for that road -- and left as it waited
-    where the subject would not read.
+    the only one it drops. True where the park lands: the notice was posted
+    and identified, the subject resolved again whole as the one `run` was
+    handed, and no report, evidence, or verdict record moved on the comment
+    since `run` read it. False where it does not: that verdict is dropped
+    where the subject moved -- one another road put in its place is left for
+    that road -- and left as it waited where the subject would not read or
+    the notice left no id.
     """
     park, owned = held
     posted = _posts_the_notice(gh, issue, parked, park[1])
@@ -188,6 +202,13 @@ def _behind_the_notice(
             "issue=#%d could not read the subject its reviewer's verdict is "
             "about behind its park notice; keeping the verdict for a later "
             "tick rather than parking", issue.number,
+        )
+        return False
+    if records and stands and posted is None:
+        log.warning(
+            "issue=#%d could not confirm the notice of its %s park was posted; "
+            "keeping the verdict for a later tick rather than parking with "
+            "nobody told", issue.number, park[0],
         )
         return False
     _verdicts.drops_the_verdict(parked, only=owned)
@@ -233,7 +254,8 @@ def _park_fits(state: PinnedState, reason: str) -> bool:
     Its notice's ledger entry and the watermark it stamps go down either way:
     beside the park's flags with the verdict it drops, where the park lands,
     and beside the verdict kept as it waited, where the subject behind the
-    notice would not read.
+    notice would not read. The comment measured here is the one the notice is
+    posted over; a write that carries what moved behind it is measured again.
     """
     widest = _record_values.MAX_RECORDED_NUMBER
     kept = PinnedState(comment_id=state.comment_id, state_data=dict(state.data))

@@ -3379,8 +3379,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        in hand over the comment — so each write the tail makes behind a request of its own (the squash park behind its
        notice, the write a failed squash notice leaves, the settled handoff behind the notice and the watermark reads)
        is held to the same records again first and retires the approval's verdict only then. Where it moved them or will
-       not read, nothing is posted or written and the label stays — the collapse the squash recorded is the next tick's
-       recovery to finish, over the records the comment carries then. (4) On success,
+       not read, nothing more is posted, nothing the tick holds is written, and the label stays — the collapse the
+       squash recorded is the next tick's recovery to finish, over the records the comment carries then. Only the
+       ledger entries of what the approval already posted go down, over the comment read afresh and where they fit
+       (`handoff._holds_its_records`), so every prompt still keeps those posts as the orchestrator's. (4) On success,
        if `squashed_count > 1` post `:package: squashed N commits to 1` — a count of 0 or 1 replaced no history and
        posts nothing — seed the in_review watermarks (inside the
        `gh.get_pr()` try so a snapshot failure leaves them untouched; the walk advances through the leading run of
@@ -3484,8 +3486,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        those requests -- a park's own notice included, behind which a moved report or evidence record lands no park
        either -- drops the verdict over the newer records, the round and whatever else another road's settlement wrote
        beside them included -- only the verdict this road holds, never one another road put in its place; one nobody
-       could read holds it. The record and both parks are described under [pinned
-       state](labels-and-state.md#pinned-state).
+       could read holds it, and so does a park notice that left no id. A park write carrying what moved behind its
+       notice is measured again and not made where it no longer fits. The record and both parks are described under
+       [pinned state](labels-and-state.md#pinned-state).
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.
      On a hit the handler returns WITHOUT running its result handler (`_post_user_content_change_result` /

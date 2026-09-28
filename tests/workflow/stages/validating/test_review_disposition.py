@@ -51,14 +51,25 @@ VERDICT = "verdict"
 
 LATER_REPORT = "Covered the empty configuration as well; the suite passes."
 
-# What the approval comment an approval posts says about itself.
+# What the approval comment an approval posts says about itself, the notice
+# its squash of two commits posts, and the park a failed squash takes.
 APPROVAL_NOTICE = "review approved"
 
-# The client requests a pull-request comment and a pinned-comment write go
-# out through.
+SQUASH_NOTICE = "squashed 2 commits"
+
+SQUASH_FAILED_NOTICE = "squash-on-approval failed"
+
+# The client requests a pull-request comment, a pinned-comment write, and an
+# issue comment go out through.
 PR_COMMENT = "pr_comment"
 
 PINNED_WRITE = "write_pinned_state"
+
+ISSUE_COMMENT = "comment"
+
+# The pinned ledger of the comments the orchestrator posted, which every
+# prompt keeps an orchestrator comment by.
+LEDGER = "orchestrator_comment_ids"
 
 # A reviewer approving over the evidence revision `digest` names, running
 # nothing of its own.
@@ -221,7 +232,8 @@ _CLEARED = (
 # which the other lands with how many of those requests go first, how the
 # tick runs, and how many squashes it takes. Behind the squash notice and
 # behind the write that settles the squash, the approval is finishing a
-# rewrite already made.
+# rewrite already made; behind a failed squash's park notice, it is parking
+# one that never went.
 _REPLACED = (
     (
         "behind the approval comment",
@@ -240,7 +252,7 @@ _REPLACED = (
     (
         "behind the park notice",
         lambda _case: UNDECLARED_APPROVAL,
-        ("comment", lambda body: UNVERIFIED_NOTICE in body, 1),
+        (ISSUE_COMMENT, lambda body: UNVERIFIED_NOTICE in body, 1),
         {},
         0,
     ),
@@ -257,8 +269,15 @@ _REPLACED = (
     (
         "behind the squash notice",
         lambda case: REUSING.format(digest=_read.settles_evidence(case).content_revision),
-        (PR_COMMENT, lambda body: "squashed 2 commits" in body, 1),
+        (PR_COMMENT, lambda body: SQUASH_NOTICE in body, 1),
         {"squash_result": (True, _world.HEAD, 2, None)},
+        1,
+    ),
+    (
+        "behind the squash failure's notice",
+        lambda case: REUSING.format(digest=_read.settles_evidence(case).content_revision),
+        (ISSUE_COMMENT, lambda body: SQUASH_FAILED_NOTICE in body, 1),
+        {"squash_result": (False, None, 0, "force-push rejected")},
         1,
     ),
     (
@@ -269,6 +288,10 @@ _REPLACED = (
         1,
     ),
 )
+
+# What every orchestrator post a verdict's tick can make says: the approval
+# comment, the squash notice, the feedback, and the two park notices.
+_POSTED = (APPROVAL_NOTICE, SQUASH_NOTICE, _read.FEEDBACK_NOTICE, UNVERIFIED_NOTICE, SQUASH_FAILED_NOTICE)
 
 _MOVES = (
     ("a later report", _settles_a_later_report, (2, 1), False),
@@ -311,25 +334,27 @@ _UNDER_A_FAILED_GATE = (
 )
 
 
-class _RefusesTheFeedback:
-    """A pull request that fails the reviewer's feedback post once, and takes every other comment.
+class _RefusesOnce:
+    """A post that fails once where it says `phrase`, and goes through every other time.
 
     Refused outright, or -- where it `lands` -- taken with an answer that
-    names no comment, so nothing reads its id back.
+    names no comment, so nothing reads its id back. `posts` is the client's
+    own request, a pull-request or an issue comment.
     """
 
-    def __init__(self, github, *, lands: bool = False) -> None:
-        self._posts = github.pr_comment
+    def __init__(self, posts, phrase: str, *, lands: bool = False) -> None:
+        self._posts = posts
+        self._phrase = phrase
         self._lands = lands
         self._failed = False
 
-    def __call__(self, pr_number, body):
-        if self._failed or _read.FEEDBACK_NOTICE not in body:
-            return self._posts(pr_number, body)
+    def __call__(self, thread, body):
+        if self._failed or self._phrase not in body:
+            return self._posts(thread, body)
         self._failed = True
         if not self._lands:
-            raise RuntimeError("pull request comment rejected")
-        self._posts(pr_number, body)
+            raise RuntimeError("comment rejected")
+        self._posts(thread, body)
         return None
 
 
@@ -616,7 +641,9 @@ class DisposedChangeRequestTest(_world.ReviewVerdictWorld, unittest.TestCase):
         for name, lands, posts in (("refused", False, 1), ("landed with no id", True, 2)):
             with self.subTest(name):
                 self.setUp()
-                with patch.object(self.github, PR_COMMENT, _RefusesTheFeedback(self.github, lands=lands)):
+                with patch.object(
+                    self.github, PR_COMMENT, _RefusesOnce(self.github.pr_comment, _read.FEEDBACK_NOTICE, lands=lands),
+                ):
                     held = self.returns(REQUESTING)
                 self.assertEqual(
                     (
@@ -753,7 +780,7 @@ class ParkedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
         """
         self.setUp()
         self._fills(filled)
-        behind = _world.AnotherRoadBehind(self, "comment", lambda body: notice in body, road)
+        behind = _world.AnotherRoadBehind(self, ISSUE_COMMENT, lambda body: notice in body, road)
         behind.returning(message, **options)
         pinned = self.pinned()
         return (
@@ -931,10 +958,11 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
 
     def test_a_settlement_behind_the_approval_comment(self) -> None:
         # Evidence settles while the approval comment is posted, a request long
-        # enough for another road: no rewrite goes out over it and nothing is
-        # written, so the newer records stand. The verdict left waiting names
-        # evidence the later revision superseded, and the next tick drops it
-        # for a fresh reviewer rather than moving the issue on.
+        # enough for another road: no rewrite goes out over it and nothing the
+        # approval holds is written, so the newer records stand -- only the
+        # approval comment is recorded as the orchestrator's. The verdict left
+        # waiting names evidence the later revision superseded, and the next
+        # tick drops it for a fresh reviewer rather than moving the issue on.
         digest = _read.settles_evidence(self).content_revision
         behind = _world.AnotherRoadBehind(
             self, PR_COMMENT, lambda body: APPROVAL_NOTICE in body, _read.settles_evidence,
@@ -942,14 +970,19 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
 
         ran = behind.returning(REUSING.format(digest=digest))
 
+        approval = next(
+            said.id for said in self.pull_request.issue_comments if APPROVAL_NOTICE in said.body
+        )
         self.assertEqual(
             (
                 ran["_squash_and_force_push"].call_count,
                 _read.current_evidence_revision(self),
                 self.pinned().get(_world.RETURNED_VERDICT, {}).get(VERDICT),
+                self.pinned().get("review_approved_subject"),
+                approval in self.pinned()[LEDGER],
                 self.github.label_history,
             ),
-            (0, 2, APPROVED, []),
+            (0, 2, APPROVED, None, True, []),
         )
 
         self.finishes()
@@ -976,12 +1009,13 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # request it lands behind, this tick squashes no further, relabels,
         # parks, and hands over nothing, and drops nothing but its own verdict
         # -- the other verdict and its round stand for that road to finish,
-        # and no write this tick makes after them lays itself over them.
+        # and no write this tick makes after them lays itself over them. What
+        # it posted on the way is still recorded as the orchestrator's.
         for name, reply, behind, options, squashed in _REPLACED:
             with self.subTest(name):
                 self.assertEqual(
                     self._replaced_behind(reply, behind, **options),
-                    (squashed, True, 1, None, []),
+                    (squashed, (True, 1), None, [], True),
                 )
 
     def _cleared_behind_its_write(self, reply) -> tuple:
@@ -1009,20 +1043,27 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
     def _replaced_behind(self, reply, behind: tuple, **options) -> tuple:
         """What returning `reply` leaves where another road puts its own verdict in place behind `behind`'s request.
 
-        The squashes taken, whether that road's verdict stands, the review
-        round, the park, and every relabel.
+        The squashes taken, whether that road's verdict stands beside the
+        review round, the park, every relabel, and whether the pinned ledger
+        records every approval, squash, feedback, and park notice the tick
+        posted.
         """
         self.setUp()
         ran = _world.AnotherRoadBehind(
             self, behind[0], behind[1], self._replaces, behind[2],
         ).returning(reply(self), **options)
         standing = self.pinned()
+        posted = {
+            said.id
+            for said in (*self.issue.comments, *self.pull_request.issue_comments)
+            if any(phrase in said.body for phrase in _POSTED)
+        }
         return (
             ran["_squash_and_force_push"].call_count,
-            standing.get(_world.RETURNED_VERDICT) == self.replacement,
-            standing.get(REVIEW_ROUND),
+            (standing.get(_world.RETURNED_VERDICT) == self.replacement, standing.get(REVIEW_ROUND)),
             standing.get(_world.PARK_REASON),
             self.github.label_history,
+            posted <= set(standing[LEDGER]),
         )
 
     def _replaces(self, _case) -> None:
