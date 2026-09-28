@@ -377,6 +377,9 @@ settles the whole obligation in one write; short of that it holds a read nobody 
 anything a route behind it would fix, retires a transaction whose pull request is over, and parks once on a record
 it may not act on
 ([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch))
+— a report debt a rewritten pull-request head left, which holds the roads past an approval (`workflow:documenting`,
+`in_review`) while any claim stands, readable or not, and leaves `workflow:validating` to pay it
+([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch))
 — and, last, an unlabeled issue that already carries a pinned comment, which is one this orchestrator has met
 before: the pickup handler behind it *greets* an issue and mints its pinned comment, so a second greeting writes a
 second comment that every later read shadows

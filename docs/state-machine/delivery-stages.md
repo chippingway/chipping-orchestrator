@@ -1018,6 +1018,22 @@ because there it is the claim that this stage has already rerouted rather than a
   unchanged and the new head and its review as its target, which this reconciliation proves whole before it is published
   or current. No stage asks for a decision yet.
 
+## The rewritten-head report debt (every dispatch)
+- **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims
+  `developer_report_rewrite_debt`, readable or not, directly behind the verification-evidence transaction and ahead of
+  the reuse guard. The record is described under [pinned state](labels-and-state.md#pinned-state) and owned by
+  `workflow/engine/report_rewrite_debt.py`. No road records one yet, so an issue without the record (every issue today)
+  passes through reading nothing.
+- **Holds**: `workflow:documenting` and `in_review`, the roads past an approval that would carry a head no report is
+  about to the human who merges it. Nothing is written or posted; the claim is left for validating, and the hold is
+  logged once a tick.
+- **Runs**: every other label -- `workflow:validating` above all, whose report hold
+  ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 3) holds the reviewer against the debt and
+  pays it once a report of the head the pull request stands on settles -- and any issue whose debt is paid (`null`) or
+  was never recorded.
+- **Why it sits here**: behind the auto-rebase anchor readings, since a replay no recovery has published is no head a
+  debt can name yet, and ahead of the handler it keeps off.
+
 ## The reuse guard (every dispatch, ahead of every handler)
 - **Trigger**: `_route_issue_to_handler` on any issue whose pinned ancestry still names a snapshot ref. It shares its
   pinned read with the live-adjudication guard beside it, so it costs no extra comment walk. Both step aside for
@@ -3269,6 +3285,13 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      reading nobody could take, or a pull request somebody moved under the report — holds silently, since the next
      tick is as likely to settle it. A park the awaiting-human branch cleared into this round is
      written when the hold stops it, so its reply is not answered twice.
+     Once no report is owed -- on arrival, or once this tick settled it -- a claimed `developer_report_rewrite_debt` is
+     asked last: a report settled about the head the pull request stands on pays it (the key is written `null` before
+     the reviewer road), a readable claim that explains exactly why the settled report is about the head the rewrite
+     replaced holds the reviewer with no park and no notice, and anything else -- a claim nobody can read, another pull
+     request or branch, a head somebody pushed over the rewrite, a settled report of neither head -- holds nothing, so
+     the subject resolution in step 5 refuses the stale report as it would with no claim. A pull request head nobody
+     could read holds for the next tick.
   4. If `review_round >= MAX_REVIEW_ROUNDS` (default 3), park (`review_cap`). The park comment surfaces the
      `/orchestrator add-review-rounds N` escape hatch.
   5. Otherwise resolve what the reviewer is handed (`review_report._resolves_the_subject`): the pull request's head, and

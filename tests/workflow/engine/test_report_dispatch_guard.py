@@ -17,7 +17,7 @@ spawned over a report nobody published. Every one of those failures leaves every
 other assertion in this file passing, so the order itself is what is asserted.
 The verification-evidence transaction is pinned in the same sequence, directly
 behind this one, since the evidence it settles answers for the report this one
-publishes.
+publishes, and so is the report debt a rewritten head leaves, behind both.
 
 A PAUSED issue never reaches the guard at all: the hard-skip screen is one
 level up, in `_process_issue`, and returns before the routing that runs the
@@ -30,6 +30,11 @@ an issue whose pull request is still open would otherwise get a report
 published and a handoff recorded on the way to `rejected`. The control case
 beside it is what makes the refusal meaningful: the same world with the issue
 open does publish.
+
+That debt is driven through the real dispatch as well, since what it protects is
+whether a handler is reached at all: any claim, readable or not, holds the roads
+past an approval, while `validating` -- whose report hold pays the debt -- and an
+issue that never carried the record or has paid it dispatch as they always did.
 """
 from __future__ import annotations
 
@@ -43,6 +48,7 @@ from orchestrator.workflow.engine import (
     issue_processing as _issue_processing,
     report_record_state as _record_state,
     report_records as _records,
+    report_rewrite_debt as _rewrite_debt,
     report_transaction as _report_transaction,
     stage_targets as _stage_targets,
     verification_transaction as _verification_transaction,
@@ -51,12 +57,19 @@ from tests.support.github.models import FakeLabel
 from tests.workflow.engine import report_transaction_test_support as support
 from tests.workflow.fixtures import (
     _TEST_SPEC,
+    LABEL_DOCUMENTING,
     LABEL_DONE,
+    LABEL_IN_REVIEW,
     LABEL_REJECTED,
     LABEL_VALIDATING,
+    SHA_LENGTH,
 )
 
 _PAUSED = "paused"
+
+# The seam every stage handler is reached through, stood aside wherever a case
+# counts what the dispatch reached.
+_DISPATCH_SEAM = "_call_handler"
 
 # A park a stage takes and a stage answers, standing for every reason that is
 # not this owner's own.
@@ -85,8 +98,22 @@ _RECOVERY = "recovery"
 # is left to observe.
 _REQUIRED_ORDER = (
     "adjudication", _RECOVERY, "publication", _RECOVERY, "report", "evidence",
-    "reuse", "handler",
+    "rewrite", "reuse", "handler",
 )
+
+# The head a rebase of this orchestrator's published over the one the settled
+# report is about, and the debt it leaves.
+_REWRITTEN = "cd" * (SHA_LENGTH // 2)
+
+_DEBT = _rewrite_debt.RewriteDebt(
+    pr_number=support.PR_NUMBER,
+    branch=support.BRANCH,
+    previous_head=support.SOURCE_SHA,
+    rewritten_head=_REWRITTEN,
+).recorded()
+
+# What an issue that predates the record carries in its place: nothing at all.
+_LEGACY = object()
 
 
 class _Recorder:
@@ -129,7 +156,11 @@ def _stood_aside(called: list[str]):
             _Recorder(called, "evidence"),
         ))
         chain.enter_context(patch.object(
-            _stage_targets, "_call_handler", _Recorder(called, "handler", None),
+            _dispatch_guards, "_rewrite_debt_holds_the_tick",
+            _Recorder(called, "rewrite"),
+        ))
+        chain.enter_context(patch.object(
+            _stage_targets, _DISPATCH_SEAM, _Recorder(called, "handler", None),
         ))
         yield
 
@@ -207,7 +238,7 @@ class DispatchOrderingTest(unittest.TestCase, support.ReportTransactionCase):
         self.issue.labels.append(FakeLabel(_PAUSED))
 
         with self._seams(), patch.object(
-            _stage_targets, "_call_handler",
+            _stage_targets, _DISPATCH_SEAM,
         ) as dispatched:
             _issue_processing._process_issue(self.gh, _TEST_SPEC, self.issue)
             dispatched.assert_not_called()
@@ -270,7 +301,7 @@ class ForeignParkRecoveryTest(unittest.TestCase, support.ReportTransactionCase):
     def _dispatched(self) -> int:
         """One real dispatch, answering with how many handlers it reached."""
         with self._seams(), patch.object(
-            _stage_targets, "_call_handler",
+            _stage_targets, _DISPATCH_SEAM,
         ) as dispatched:
             _issue_processing._process_issue(self.gh, _TEST_SPEC, self.issue)
             return dispatched.call_count
@@ -281,6 +312,55 @@ class ForeignParkRecoveryTest(unittest.TestCase, support.ReportTransactionCase):
         standing.set(support.AWAITING_HUMAN, False)
         standing.set(support.PARK_REASON, None)
         self.gh.write_pinned_state(self.issue, standing)
+
+
+class RewriteDebtDispatchTest(unittest.TestCase, support.ReportTransactionCase):
+    """A rewritten head's report debt holds the roads past an approval, and only them."""
+
+    def test_a_claim_holds_the_roads_past_an_approval(self) -> None:
+        # Presence rather than meaning: a claim nobody can read holds these
+        # roads as a readable one does, and a held tick writes and posts
+        # nothing, so the claim is still there for validating to pay.
+        for label in (LABEL_DOCUMENTING, LABEL_IN_REVIEW):
+            for claim in (_DEBT, {"pr": support.PR_NUMBER}, []):
+                with self.subTest(label=label, claim=claim):
+                    self.assertEqual(self._dispatched(label, claim), 0)
+
+                    self.assertEqual(
+                        (
+                            self.gh.pinned_data(support.ISSUE_NUMBER).get(_rewrite_debt.REWRITE_DEBT),
+                            self.gh.posted_comments,
+                        ),
+                        (claim, []),
+                    )
+
+    def test_validating_and_a_settled_debt_dispatch(self) -> None:
+        # Validating runs over any claim, since its report hold is where the
+        # debt is held against the reviewer and paid; an issue that predates
+        # the record, and one whose debt was paid, dispatch everywhere.
+        cases = (
+            (LABEL_VALIDATING, _DEBT),
+            (LABEL_VALIDATING, {"pr": support.PR_NUMBER}),
+            (LABEL_IN_REVIEW, _LEGACY),
+            (LABEL_IN_REVIEW, None),
+            (LABEL_DOCUMENTING, None),
+        )
+        for label, claim in cases:
+            with self.subTest(label=label, claim=claim):
+                self.assertEqual(self._dispatched(label, claim), 1)
+
+    def _dispatched(self, label: str, claim) -> int:
+        """One real dispatch of a fresh issue on `label` carrying `claim`."""
+        support.ReportTransactionCase.setUp(self)
+        self.issue.labels = [FakeLabel(label)]
+        if claim is not _LEGACY:
+            self.state.set(_rewrite_debt.REWRITE_DEBT, claim)
+        self.gh.write_pinned_state(self.issue, self.state)
+        with self._seams(), patch.object(
+            _stage_targets, _DISPATCH_SEAM,
+        ) as dispatched:
+            _issue_processing._process_issue(self.gh, _TEST_SPEC, self.issue)
+            return dispatched.call_count
 
 
 if __name__ == "__main__":

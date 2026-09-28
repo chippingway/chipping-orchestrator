@@ -7,7 +7,9 @@ reconciliation remains lazily resolved, and a pinned but unlabeled issue
 is not greeted again. The developer-report transaction and the
 verification-evidence transaction behind it are the reconciliations here that
 belong to no stage, so they are bound at module scope rather than resolved
-through `stage_targets.py`.
+through `stage_targets.py`. So is the report debt a rewritten pull-request head
+leaves, which holds the roads past an approval from here and leaves the
+validating stage to settle it.
 """
 from __future__ import annotations
 
@@ -23,6 +25,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    report_rewrite_debt as _rewrite_debt,
     report_transaction as _report_transaction,
     run_limit_dispatch as _run_limit_dispatch,
     stage_targets as _stage_targets,
@@ -32,6 +35,9 @@ from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
+# The roads past an approval: the final-docs pass and the ready ping a human
+# merges on. `validating` is not one, since it is the stage that pays the debt.
+_MERGE_ROADS = frozenset((WorkflowLabel.DOCUMENTING, WorkflowLabel.IN_REVIEW))
 
 
 def _pinned_state_refuses(
@@ -44,7 +50,7 @@ def _pinned_state_refuses(
 ) -> bool:
     """True when what this issue's own pinned comment records stops the tick.
 
-    ONE read, eight questions, because the read is what costs -- a comment
+    ONE read, nine questions, because the read is what costs -- a comment
     walk per labelled issue per dispatch, on top of the one that issue's own
     handler makes.
 
@@ -135,7 +141,10 @@ def _pinned_state_refuses(
     the record outlives the run that wrote it, and the handler about to run
     would spawn a reviewer over a report nobody put on the pull request.
     Verification evidence recorded and never made current is answered right
-    behind it, for the same reason and about the report it names. Where both
+    behind it, for the same reason and about the report it names. So is the
+    report debt a rewritten pull-request head leaves, which only holds: the
+    roads past an approval would carry a head no report is about to the human
+    who merges it, while `validating` runs and pays the debt. Where all three
     sit among the reconciliations above them, and why, is on
     `_record_stops_the_tick` below, which is where they are ordered.
 
@@ -240,6 +249,11 @@ def _record_stops_the_tick(
     report still owed is a subject about to move and must settle first. It
     stays ahead of the reuse guard and the handler too, so whatever reads the
     evidence behind them reads it settled or honestly still owed.
+
+    The report debt a rewritten head leaves is asked directly behind both, and
+    it only holds: behind the anchor readings, since a replay no recovery has
+    published is no head a debt can name yet, and ahead of the handler it
+    keeps off.
     """
     late_relabel = importlib.import_module(_stage_targets._LATE_RELABEL_OWNER)
     if late_relabel._holds_the_label(gh, issue, state):
@@ -260,7 +274,7 @@ def _record_stops_the_tick(
         gh, spec, issue, label, state,
     ) or _verification_transaction._reconciles_pending_evidence(
         gh, spec, issue, label, state,
-    ):
+    ) or _rewrite_debt_holds_the_tick(spec, issue, label, state):
         return True
     late_reuse = importlib.import_module(_stage_targets._LATE_REUSE_OWNER)
     return (
@@ -295,6 +309,32 @@ def _anchor_holds_the_tick(
         spec.slug, issue.number, label,
     )
     _recovery_holds._answers_a_held_anchor(gh, spec, issue, state, label)
+    return True
+
+
+def _rewrite_debt_holds_the_tick(
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    label: str | None,
+    state: PinnedState,
+) -> bool:
+    """Whether a rewritten head's report debt keeps this label's handler off.
+
+    Only on the roads past an approval, which are what would carry a head no
+    report is about to the human who merges it. Presence rather than meaning:
+    a claim nobody can read holds these roads as a readable one does, since
+    neither says the head they would carry has its report. Every other label
+    runs -- `validating` above all, whose report hold is where the debt is held
+    against the reviewer and paid, and the developer's own roads, whose report
+    is what pays it.
+    """
+    if label not in _MERGE_ROADS or not _rewrite_debt.carries_rewrite_debt(state):
+        return False
+    log.warning(
+        "repo=%s issue=#%s carries report debt for a rewritten pull-request "
+        "head; holding the %r handler until validating settles a report of it",
+        spec.slug, issue.number, label,
+    )
     return True
 
 
