@@ -26,9 +26,12 @@ need was reserved when the verdict was recorded.
 The relabel is a request too, so the subject is held once more right before
 the developer is launched (`launches_the_developer`, the one entry every road
 that launches a handed request's developer takes), and a moved one drops the
-verdict and its anchor. Only the writes behind the developer's run retire the
-verdict, since its drop is staged ahead of the launch, whose charge writes only
-its own fields.
+verdict and its anchor. So is the run ledger: a charge past the count the
+request was handed at, landed behind the relabel, is the developer it owes
+already launched by another road, and the verdict is retired rather than
+handed to a second developer. Only the writes behind the developer's run
+retire the verdict otherwise, since its drop is staged ahead of the launch,
+whose charge writes only its own fields.
 
 A verdict already handed is finished by a later tick from that write on: its
 feedback is posted and anchored, so it is never posted again, and the relabel
@@ -105,9 +108,11 @@ def launches_the_developer(context: _models._RequestedChanges) -> None:
     writes would put those records back over the newer. So the subject is held
     to what stands once more, the comment read again behind it, and a moved one
     drops the request -- its anchor with it -- in a write that keeps the newer
-    records, launching nothing. Otherwise the drop is staged ahead of the
-    launch, whose charge writes only its own fields, so only the writes behind
-    the run retire the verdict.
+    records, launching nothing. That reading carries the run ledger too, and a
+    charge past the count the request was handed at is its developer already
+    launched by another road meanwhile (`_already_launched`). Otherwise the
+    drop is staged ahead of the launch, whose charge writes only its own
+    fields, so only the writes behind the run retire the verdict.
     """
     gh, issue, state = context.gh, context.issue, context.state
     owned = _verdicts.read_returned_verdict(state)
@@ -116,6 +121,8 @@ def launches_the_developer(context: _models._RequestedChanges) -> None:
     )
     if not stands:
         drops_what_moved(gh, issue, state, stands, (owned, None))
+        return
+    if _already_launched(gh, issue, state, owned):
         return
     _verdicts.drops_the_verdict(state, only=owned)
     _requested_changes._finish_requested_fix(context, _requested_changes._run_requested_fix(context))
@@ -156,9 +163,7 @@ def _hands_it_off(context: _models._RequestedChanges, owned: _verdicts.ReturnedV
     A verdict already handed has its feedback posted and anchored, so it is
     not posted again: the relabel or the launch behind that write is what a
     tick that died on it left owed. The lifetime agent-run count it was
-    handed at says which -- a charge past it is the developer already
-    launched, whose run is the fixing stage's to answer, so that verdict is
-    retired rather than handed to a second developer.
+    handed at says which (`_already_launched`).
     """
     gh, issue, state = context.gh, context.issue, context.state
     if owned.handed is None:
@@ -167,19 +172,37 @@ def _hands_it_off(context: _models._RequestedChanges, owned: _verdicts.ReturnedV
         _verdicts.hands_off(state, _run_ledger_values._runs_used(state))
         gh.write_pinned_state(issue, state)
         return True
-    if _run_ledger_values._runs_used(state) <= owned.handed:
-        log.info(
-            "issue=#%d resumes the handoff of its reviewer's change request, "
-            "already posted and anchored", issue.number,
-        )
-        return True
+    if _already_launched(gh, issue, state, owned):
+        return False
+    log.info(
+        "issue=#%d resumes the handoff of its reviewer's change request, "
+        "already posted and anchored", issue.number,
+    )
+    return True
+
+
+def _already_launched(
+    gh: GitHubClient, issue: Issue, state: PinnedState, owned: _verdicts.ReturnedVerdict | None,
+) -> bool:
+    """Whether the developer a handed request owes was already launched, retiring the verdict where it was.
+
+    The run ledger charged past the count the request was handed at is that
+    developer's launch, whoever made it -- a tick that died behind it, or
+    another road behind this one's relabel -- and its run is the fixing
+    stage's to answer, so the verdict is retired, over the comment as `state`
+    last carried it, rather than handed to a second developer. A request not
+    yet handed has launched nobody.
+    """
+    handed = None if owned is None else owned.handed
+    if handed is None or _run_ledger_values._runs_used(state) <= handed:
+        return False
     log.info(
         "issue=#%d the developer its reviewer's change request was handed to "
         "was already launched; retiring the verdict", issue.number,
     )
     _verdicts.drops_the_verdict(state, only=owned)
     gh.write_pinned_state(issue, state)
-    return False
+    return True
 
 
 def _posts_the_feedback(context: _models._RequestedChanges, owned) -> bool:

@@ -76,18 +76,39 @@ class _RefusesTheNotice:
         return self._posts(pr_number, body)
 
 
-class _SettlesAReportBehindTheRelabel:
-    """A relabel to `documenting` behind which another road settles a later report."""
+class _BehindTheRelabel:
+    """A relabel to `documenting` behind which another road does `road`'s work on the issue."""
 
-    def __init__(self, github) -> None:
+    def __init__(self, github, road) -> None:
         self._github = github
         self._relabels = github.set_workflow_label
+        self._road = road
 
     def __call__(self, issue, label):
         answered = self._relabels(issue, label)
         if (issue.number, label) == HANDED_ON:
-            _published_reports.republishes_the_report(self._github, issue, "A later report.")
+            self._road(self._github, issue)
         return answered
+
+
+def _settles_a_later_report(github, issue) -> None:
+    """Another road's settlement of a later report on the same head."""
+    _published_reports.republishes_the_report(github, issue, "A later report.")
+
+
+def _replaces_the_handoff(github, issue) -> None:
+    """Another road's write of a squash handoff over another commit than the one being finished."""
+    state = github.read_pinned_state(issue)
+    state.set(_support.HANDOFF_KEY, MOVED_HEAD)
+    github.write_pinned_state(issue, state)
+
+
+# What another road does behind the relabel, and what the comment carries once
+# the handoff has ended: the current report revision and the handoff record.
+_BEHIND_THE_RELABEL = (
+    ("a later report", _settles_a_later_report, (2, None)),
+    ("a replaced handoff", _replaces_the_handoff, (1, MOVED_HEAD)),
+)
 
 
 class _RecordsTheLabelAtEachWrite:
@@ -151,25 +172,29 @@ class SquashHandoffTest(
         self.assertEqual(writes.writes[-1][0], 1)
         self.assertNotIn(_support.HANDOFF_KEY, github.pinned_data(_support.APPROVAL_ISSUE))
 
-    def test_a_report_behind_the_relabel_is_kept(self) -> None:
+    def test_what_lands_behind_the_relabel_is_kept(self) -> None:
         # The relabel is a request of its own, long enough for another road to
-        # settle a later report: the write that ends the record behind it is
-        # composed over the comment as it stands then, so it ends the record
-        # and puts nothing older back.
-        github, issue, _pr = self._setup()
+        # settle a later report or to record a squash handoff of its own: the
+        # write that ends the record behind it is composed over the comment as
+        # it stands then, so it puts nothing older back, and it ends only the
+        # handoff this tick finished -- one another road put in its place is
+        # left for the reading that answers it.
+        for name, road, expected in _BEHIND_THE_RELABEL:
+            with self.subTest(name):
+                github = self._setup()[0]
+                issue = github.get_issue(_support.APPROVAL_ISSUE)
 
-        with patch.object(github, _support.SET_LABEL, _SettlesAReportBehindTheRelabel(github)):
-            self._lands_a_collapse(github, issue)
+                with patch.object(github, _support.SET_LABEL, _BehindTheRelabel(github, road)):
+                    self._lands_a_collapse(github, issue)
 
-        written = github.read_pinned_state(issue)
-        self.assertEqual(
-            (
-                _settlement.read_current_report(written).report_revision,
-                _support.HANDOFF_KEY in written.data,
-                HANDED_ON in github.label_history,
-            ),
-            (2, False, True),
-        )
+                self.assertEqual(
+                    (
+                        _settlement.read_current_report(github.read_pinned_state(issue)).report_revision,
+                        github.read_pinned_state(issue).get(_support.HANDOFF_KEY),
+                        HANDED_ON in github.label_history,
+                    ),
+                    (*expected, True),
+                )
 
     def test_a_later_verdict_outlives_the_recovery(self) -> None:
         # A verdict persisted after the approval whose squash is recorded -- a

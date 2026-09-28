@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import operator
 import unittest
+from functools import partial
 from unittest.mock import patch
 
 from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING
@@ -54,6 +55,8 @@ _CARRIES_THE_VERDICT = operator.methodcaller("get", _world.RETURNED_VERDICT)
 
 _THE_FEEDBACK = _disposed.saying(_disposed.FEEDBACK_NOTICE)
 
+_TO_FIXING = partial(operator.eq, LABEL_FIXING)
+
 # The requests between a change request's verdict and its developer behind
 # which another road moves its subject, how many feedback posts that leaves,
 # the report revision the pinned comment records then, and every relabel.
@@ -67,10 +70,27 @@ _BEFORE_THE_LAUNCH = (
     ("a push behind the feedback post", (PR_COMMENT, _THE_FEEDBACK, _world.pushes), (1, 1, ())),
     (
         "a report behind the relabel",
-        (SET_LABEL, lambda label: label == LABEL_FIXING, _read.settles_a_later_report),
+        (SET_LABEL, _TO_FIXING, _read.settles_a_later_report),
         (1, 2, (FIXING,)),
     ),
 )
+
+def _fixing() -> dict:
+    """How a tick runs in which one developer answers the request and pushes."""
+    return {
+        _world.RUN_AGENT: [_disposed.developer()],
+        "dirty_files": (),
+        "push_branch": True,
+        "head_shas": FIX_HEAD_SHAS,
+    }
+
+
+def _charges_a_run(case) -> None:
+    """The launch of the developer a handed request was owed, as its charge of the run ledger records it."""
+    state = case.github.read_pinned_state(case.issue)
+    state.set(_world.AGENT_RUNS_USED, state.get(_world.AGENT_RUNS_USED) + 1)
+    case.github.write_pinned_state(case.issue, state)
+
 
 # Where a handed request's handoff stopped, whether the developer it was
 # handed to was launched before it did, and what the replay leaves: the
@@ -183,17 +203,14 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
         for stopped, launched, expected in _HANDED:
             with self.subTest(stopped):
                 self.setUp()
-                with patch.object(self.github, SET_LABEL, side_effect=RuntimeError("refused")), self.assertRaises(
-                    RuntimeError,
-                ):
-                    self.returns(UNDECLARED_REQUEST)
+                self._hands_over_unlaunched()
                 handed = self.pinned()
                 self.assertEqual(
                     (handed[_world.RETURNED_VERDICT][HANDED], handed[ANCHOR] is not None),
                     (handed[_world.AGENT_RUNS_USED], True),
                 )
                 if launched:
-                    self._charges_a_run()
+                    _charges_a_run(self)
 
                 ran = self._fixed()
 
@@ -207,15 +224,44 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
                     (*expected, 1),
                 )
 
+    def test_no_second_launch_behind_the_relabel(self) -> None:
+        # Another road launches the developer the request is owed while the
+        # relabel ahead of this road's launch is made -- on the tick that hands
+        # the request over, or on a replay of that handoff. Its charge of the
+        # run ledger past the count the request was handed at is that launch,
+        # so this road launches nobody and retires the verdict, its feedback
+        # posted once and its anchor left for that developer's replay.
+        for replayed in (False, True):
+            with self.subTest(replayed=replayed):
+                self.setUp()
+                behind = _world.AnotherRoadBehind(self, SET_LABEL, _TO_FIXING, _charges_a_run)
+                if replayed:
+                    self._hands_over_unlaunched()
+                tick = self._fixed if replayed else partial(self.returns, UNDECLARED_REQUEST, **_fixing())
+
+                with patch.object(self.github, SET_LABEL, behind):
+                    ran = tick()
+
+                self.assertEqual(
+                    (
+                        ran[_world.RUN_AGENT].call_count,
+                        tuple(self.github.label_history),
+                        self.waiting(),
+                        self.pinned().get(ANCHOR) is not None,
+                        len(_disposed.feedback_posts(self)),
+                    ),
+                    (0, (FIXING,), None, True, 1),
+                )
+
     def _fixed(self) -> dict:
         """The next tick, in which one developer answers the request and pushes."""
-        return self.finishes(_disposed.developer(), dirty_files=(), push_branch=True, head_shas=FIX_HEAD_SHAS)
+        return self.finishes(**_fixing())
 
-    def _charges_a_run(self) -> None:
-        """The launch of the developer a handed request was owed, as its charge of the run ledger records it."""
-        state = self.github.read_pinned_state(self.issue)
-        state.set(_world.AGENT_RUNS_USED, state.get(_world.AGENT_RUNS_USED) + 1)
-        self.github.write_pinned_state(self.issue, state)
+    def _hands_over_unlaunched(self) -> None:
+        """The tick that hands the request over, whose relabel ahead of the launch GitHub refuses."""
+        refused = patch.object(self.github, SET_LABEL, side_effect=RuntimeError("refused"))
+        with refused, self.assertRaises(RuntimeError):
+            self.returns(UNDECLARED_REQUEST)
 
 
 if __name__ == "__main__":

@@ -411,7 +411,11 @@ def _hands_to_documenting(
     The record goes in a write of its own, BEHIND the label rather than ahead
     of it, because it is the label that it is about -- composed over the
     comment read again once the label has moved, so that write ends the record
-    and nothing else. A returned verdict still waiting -- one the approval
+    and nothing else. It ends only the record this handoff finished, taken
+    before any reading here could carry another road's onto the state: a
+    record another road replaced meanwhile -- during the relabel above all --
+    is that road's, and is left standing for the reading that answers it. A
+    returned verdict still waiting -- one the approval
     behind this handoff did not own, since it retired its own before this --
     is a later review of the branch, so the label is not moved past it and
     the record ends all the same, leaving that verdict to the road that
@@ -429,6 +433,7 @@ def _hands_to_documenting(
     waiting. The record left standing is the next tick's to answer, over what
     the comment carries then.
     """
+    finished = _late_handoffs.read_settled_handoff(state)
     if not _handoff._holds_its_records(gh, issue, state, "move its label past the approval it holds", held):
         return
     # A verdict still waiting is a review past the approval this handoff
@@ -450,15 +455,22 @@ def _hands_to_documenting(
             "it finished; ending the handoff without moving the label past it",
             issue.number,
         )
-    if not _late_handoffs.read_settled_handoff(state):
+    if not finished:
         return
     # The relabel is a request of its own, long enough for another road to
     # write this comment, so the record is ended over the comment read afresh
     # rather than the state in hand: that write would put back whatever the
     # other road wrote. One that will not read keeps the record, which the
-    # next reading answers.
+    # next reading answers, and so does one carrying another record than the
+    # one this handoff finished.
     durable = _review_comment._read(gh, issue, state, "end the handoff behind the label it moved")
     if durable is None:
+        return
+    if _late_handoffs.read_settled_handoff(durable) != finished:
+        log.info(
+            "issue=#%s its pinned comment no longer carries the squash handoff "
+            "this tick finished; leaving the record as it stands", issue.number,
+        )
         return
     _late_handoffs.clear_settled_handoff(durable)
     gh.write_pinned_state(issue, durable)

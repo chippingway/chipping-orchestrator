@@ -2935,7 +2935,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and verdict records in hand again ahead of every write it makes behind a request of its
                             own and ahead of the relabel, retires only the verdict the approval behind it hands in
                             -- none on the recovery road -- holds the relabel over a verdict still waiting, and ends
-                            the handoff record behind the label over the comment read afresh; the review
+                            the handoff record behind the label over the comment read afresh, only where it is
+                            still the record the tail finished rather than one another road wrote meanwhile; the review
                             subject recorded as approved once the gate passes, riding whichever write the tail
                             makes, and the relabel that tail owes held wherever that approval no longer covers the
                             report the pull request carries, the requirements the issue carries, or the head the
@@ -3294,7 +3295,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the launch, held to the subject once more right before it (`launches_the_developer`);
                             a request already handed resumes there without posting its feedback again -- relabelled
                             and launched, or retired where the run ledger was charged past the count it was handed
-                            at, its developer already launched; a moved subject drops the verdict this road holds
+                            at, its developer already launched, which is asked again right before the launch, so a
+                            developer another road launched behind the relabel is not launched twice; a moved subject drops the verdict this road holds
                             and the anchor it posted over the newer records (`drops_what_moved`), never a verdict or
                             anchor another road put in their place
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the

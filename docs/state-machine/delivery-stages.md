@@ -3432,7 +3432,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        follows drops the consumed reply on its own), then end the collapse record and persist —
        leaving `late_collapse_handoff_sha` in its place — and only then relabel to `workflow:documenting`, dropping that
        record in a write of its own behind the label, composed over the pinned comment read again once the label has
-       moved so it puts nothing another road wrote meanwhile back. The relabel is held, with the rewrite already
+       moved so it puts nothing another road wrote meanwhile back, and ending only the record this tick finished — one
+       another road put in its place meanwhile is left standing. The relabel is held, with the rewrite already
        finished, unless the approval still covers the report as it reads at its location, the requirements over the
        issue read afresh (the approval's own revision and the baseline both), and the head over the pull request read
        afresh — the commit the rewrite published, or the head the approval was given where it rewrote nothing
@@ -3540,8 +3541,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to `workflow:fixing`, and holds the subject once more
        before the developer launch; a later tick finishing a verdict already `handed` posts nothing again, and
        relabels and launches that developer — or, where the run ledger was charged past `handed`, drops the verdict,
-       the developer already launched. An approval reaches the approval arc above only where the evidence it names is
-       settled, proved current, passing, and covering `VERIFY_COMMANDS` by its own artifact
+       the developer already launched, which is asked again right before every launch so a developer another road
+       launched behind the relabel is not launched twice. An approval reaches the approval arc above only where the
+       evidence it names is settled, proved current, passing, and covering `VERIFY_COMMANDS` by its own artifact
        (`validating/unverified_approvals.py`); a proof nobody could read holds it, and any other refusal parks it under
        `reviewer_unverified` once it is held to its subject and its claim again. A verdict that could not be persisted
        parks under `reviewer_unrecorded` with nothing published or acted on (`validating/review_parks.py`). A subject
