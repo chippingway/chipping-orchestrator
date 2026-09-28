@@ -3258,14 +3258,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the record's own subject what the standing one has to record as. Every write is composed
                             over the comment as read just before it, keeping what another road wrote there, and drops
                             only ever the verdict it holds. Its two entries act only on a verdict that preparation has
-                            just proved ready: `disposes_of_the_verdict` over a returned run -- parking one it could
-                            not persist under `reviewer_unrecorded` -- and `finishes_the_verdict` over a waiting one,
-                            in the checkout and pull request of a run its caller rebuilds, whose round and subject
-                            have to be the record's own and whose pull request the one that subject names. A change
-                            request goes to its developer and an approval to
-                            the approval arc where its evidence proves valid (`review_handoffs.py`); a proof nobody
-                            could read holds the approval, and a refusal parks it under `reviewer_unverified` only
-                            once the verdict is held to its subject and its claim again, and is dropped otherwise
+                            just proved ready, through a run whose pull request is the one its subject names:
+                            `disposes_of_the_verdict` over a returned run -- refusing one naming another pull request
+                            or none outright, nothing persisted or published, and parking one it could not persist
+                            under `reviewer_unrecorded` -- and `finishes_the_verdict` over a waiting one, in the
+                            checkout and pull request of a run its caller rebuilds, whose round and subject have to be
+                            the record's own. A change request goes to its developer and an approval to the approval
+                            arc where its evidence proves valid (`review_handoffs.py`); a proof nobody could read holds
+                            the approval, and a refusal parks it under `reviewer_unverified` only once the verdict is
+                            held to its subject and its claim again, and is dropped otherwise
       unverified_approvals.py
                             whether an approval rests on the current evidence exactly as it claims -- settled and
                             proved current again, then passing and covering the configuration by that evidence's
@@ -3296,15 +3297,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       review_handoffs.py    a persisted verdict handed on (`hands_the_verdict_on`): an approval to
                             `unverified_approvals.py`, and a change request to its developer -- the feedback posted
                             first, a post that failed, left no id, or had no pull request to go on holding the
-                            verdict unhanded, the whole subject
-                            held again behind that post, the verdict written as handed with the anchor, the relabel,
-                            and the launch, held to the subject once more right before it (`launches_the_developer`);
-                            a request already handed resumes there without posting its feedback again -- relabelled
-                            and launched, or retired where the run ledger was charged past the count it was handed
-                            at, its developer already launched, which is asked again right before the launch, so a
-                            developer another road launched behind the relabel is not launched twice; a moved subject drops the verdict this road holds
-                            and the anchor it posted over the newer records (`drops_what_moved`), never a verdict or
-                            anchor another road put in their place
+                            verdict unhanded, the whole subject held again behind that post, the verdict written as
+                            handed with the anchor, the relabel, and the launch, held to the subject once more right
+                            before it (`launches_the_developer`); a request already handed resumes there without
+                            posting its feedback again -- relabelled and launched, or retired where the run ledger was
+                            charged past the count it was handed at, its developer already launched, which is asked
+                            again right before the launch, so a developer another road launched behind the relabel is
+                            not launched twice. Either launch is made only behind the feedback anchor the handoff was
+                            written beside, which the fixing stage clears with the round's other bookmarks: a handoff
+                            that lost it is held, nothing relabelled or launched, since no failed run could replay
+                            the feedback (`_launch_stands`). A moved subject drops the verdict this road holds and the
+                            anchor it posted over the newer records (`drops_what_moved`), never a verdict or anchor
+                            another road put in their place
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its

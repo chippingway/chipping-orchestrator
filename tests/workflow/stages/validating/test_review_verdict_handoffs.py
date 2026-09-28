@@ -16,6 +16,7 @@ The preparation the request is handed over behind is in
 """
 from __future__ import annotations
 
+import itertools
 import operator
 import unittest
 from dataclasses import replace
@@ -95,17 +96,32 @@ def _charges_a_run(case) -> None:
     case.github.write_pinned_state(case.issue, state)
 
 
-def _without_a_pull_request(returned_run, *read):
-    """The run `returned_run` builds from `read`, naming no pull request to post or push to."""
-    return replace(returned_run(*read), pr_number=None)
+def _clears_the_anchor(case) -> None:
+    """The fixing stage's clear of the round's bookmarks, the reviewer-feedback anchor among them."""
+    state = case.github.read_pinned_state(case.issue)
+    state.set(ANCHOR, None)
+    case.github.write_pinned_state(case.issue, state)
 
 
-# Where a handed request's handoff stopped, whether the developer it was
-# handed to was launched before it did, and what the replay leaves: the
-# developers it launches, every relabel, and the verdict waiting.
+def _on_pull_request(pr_number, returned_run, *read):
+    """The run `returned_run` builds from `read`, naming `pr_number` to post and push to whatever its subject is on."""
+    return replace(returned_run(*read), pr_number=pr_number)
+
+
+# The verdicts a returned run can carry: a change request declaring nothing,
+# and an approval over its own passing run.
+_RETURNED = (UNDECLARED_REQUEST, _world.declared_run())
+
+
+# Where a handed request's handoff stopped, what another road did before the
+# replay -- launched the developer it was handed to, or cleared its feedback
+# anchor with the round's other bookmarks as the fixing stage does -- and what
+# the replay leaves: the developers it launches, every relabel, and the verdict
+# waiting.
 _HANDED = (
-    ("on the relabel", False, (1, HANDED_BACK, None)),
-    ("past the launch", True, (0, (), None)),
+    ("on the relabel", None, (1, HANDED_BACK, None)),
+    ("past the launch", _charges_a_run, (0, (), None)),
+    ("with its anchor cleared", _clears_the_anchor, (0, (), REQUESTED)),
 )
 
 
@@ -207,8 +223,11 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
         # The replay posts no feedback again: it relabels and launches the one
         # developer the request is owed -- or, where the run ledger was charged
         # past the count it was handed at, launches nobody and retires the
-        # verdict, that developer already having run.
-        for stopped, launched, expected in _HANDED:
+        # verdict, that developer already having run. Where the feedback
+        # anchor it was handed beside is gone, no failed run could replay the
+        # feedback, so the handoff is held: nothing relabelled or launched, and
+        # the verdict waits as it was.
+        for stopped, meanwhile, expected in _HANDED:
             with self.subTest(stopped):
                 self.setUp()
                 self._hands_over_unlaunched()
@@ -217,8 +236,8 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
                     (handed[_world.RETURNED_VERDICT][HANDED], handed[ANCHOR] is not None),
                     (handed[_world.AGENT_RUNS_USED], True),
                 )
-                if launched:
-                    _charges_a_run(self)
+                if meanwhile is not None:
+                    meanwhile(self)
 
                 ran = self._fixed()
 
@@ -273,7 +292,7 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
 
 
 class ForeignRunTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
-    """A change request is handed over only on the pull request its subject names, behind a post identified there."""
+    """A verdict is acted on only through a run naming the pull request its subject is on."""
 
     def test_another_pull_request_hands_nothing(self) -> None:
         # A later tick's rebuilt run naming another pull request than the one
@@ -290,20 +309,28 @@ class ForeignRunTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
 
                 self.assertEqual(self._handed(ran), (0, [], None, REQUESTED, []))
 
-    def test_no_pull_request_to_post_on_hands_nothing(self) -> None:
-        # A returned run naming no pull request has nowhere to post its
-        # feedback, whose id is the anchor the handoff is written beside: the
-        # verdict waits, unhanded, with nothing relabelled or launched.
-        unposted = partial(_without_a_pull_request, _world.returned_run)
+    def test_a_returned_run_elsewhere_is_refused(self) -> None:
+        # A returned run naming another pull request than the one its subject
+        # is on -- or none -- would post a change request's feedback and push
+        # its fix there, or post an approval and squash there: whichever the
+        # verdict, it is refused outright, nothing persisted, published,
+        # posted, relabelled, or launched.
+        for pr_number, message in itertools.product((_world.PR + 1, None), _RETURNED):
+            with self.subTest(pr_number=pr_number, verdict=message.splitlines()[-1]):
+                self.setUp()
+                posted = len(self.github.posted_pr_comments)
 
-        with patch.object(_world, "returned_run", unposted):
-            ran = self.returns(UNDECLARED_REQUEST, **_fixing())
+                with patch.object(_world, "returned_run", partial(_on_pull_request, pr_number, _world.returned_run)):
+                    ran = self.returns(message, **_fixing())
 
-        self.assertEqual(self._handed(ran), (0, [], None, REQUESTED, []))
+                self.assertEqual(
+                    (self._handed(ran), self.github.posted_pr_comments[posted:]),
+                    ((0, [], None, None, []), []),
+                )
 
     def _handed(self, ran) -> tuple:
         """The developers launched, the feedback posted, the verdict's handed count, the verdict, every relabel."""
-        waiting = self.pinned()[_world.RETURNED_VERDICT] or {}
+        waiting = self.pinned().get(_world.RETURNED_VERDICT) or {}
         return (
             ran[_world.RUN_AGENT].call_count,
             _disposed.feedback_posts(self),

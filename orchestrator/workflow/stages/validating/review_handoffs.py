@@ -38,7 +38,11 @@ A verdict already handed is finished by a later tick from that write on: its
 feedback is posted and anchored, so it is never posted again, and the relabel
 and the launch are what a tick that died on them left owed -- unless the run
 ledger was charged past the count it was handed at, which is the developer
-already launched and only that verdict to retire (`_hands_it_off`).
+already launched and only that verdict to retire (`_hands_it_off`). Either
+launch is made only behind the feedback anchor the handoff was written beside:
+the fixing stage clears it with the round's other bookmarks, and without it no
+failed run can replay the feedback, so a handoff that lost it is held, with
+nothing relabelled, launched, or written (`_launch_stands`).
 """
 from __future__ import annotations
 
@@ -111,9 +115,10 @@ def launches_the_developer(context: _models._RequestedChanges) -> None:
     drops the request -- its anchor with it -- in a write that keeps the newer
     records, launching nothing. That reading carries the run ledger too, and a
     charge past the count the request was handed at is its developer already
-    launched by another road meanwhile (`_already_launched`). Otherwise the
-    drop is staged ahead of the launch, whose charge writes only its own
-    fields, so only the writes behind the run retire the verdict.
+    launched by another road meanwhile, and an anchor it no longer carries is
+    a handoff held (`_launch_stands`). Otherwise the drop is staged ahead of
+    the launch, whose charge writes only its own fields, so only the writes
+    behind the run retire the verdict.
     """
     gh, issue, state = context.gh, context.issue, context.state
     owned = _verdicts.read_returned_verdict(state)
@@ -123,7 +128,7 @@ def launches_the_developer(context: _models._RequestedChanges) -> None:
     if not stands:
         drops_what_moved(gh, issue, state, stands, (owned, None))
         return
-    if _already_launched(gh, issue, state, owned):
+    if not _launch_stands(gh, issue, state, owned):
         return
     _verdicts.drops_the_verdict(state, only=owned)
     _requested_changes._finish_requested_fix(context, _requested_changes._run_requested_fix(context))
@@ -163,8 +168,8 @@ def _hands_it_off(context: _models._RequestedChanges, owned: _verdicts.ReturnedV
 
     A verdict already handed has its feedback posted and anchored, so it is
     not posted again: the relabel or the launch behind that write is what a
-    tick that died on it left owed. The lifetime agent-run count it was
-    handed at says which (`_already_launched`).
+    tick that died on it left owed, where it is still owed at all
+    (`_launch_stands`).
     """
     gh, issue, state = context.gh, context.issue, context.state
     if owned.handed is None:
@@ -173,7 +178,7 @@ def _hands_it_off(context: _models._RequestedChanges, owned: _verdicts.ReturnedV
         _verdicts.hands_off(state, _run_ledger_values._runs_used(state))
         gh.write_pinned_state(issue, state)
         return True
-    if _already_launched(gh, issue, state, owned):
+    if not _launch_stands(gh, issue, state, owned):
         return False
     log.info(
         "issue=#%d resumes the handoff of its reviewer's change request, "
@@ -182,27 +187,40 @@ def _hands_it_off(context: _models._RequestedChanges, owned: _verdicts.ReturnedV
     return True
 
 
-def _already_launched(
+def _launch_stands(
     gh: GitHubClient, issue: Issue, state: PinnedState, owned: _verdicts.ReturnedVerdict | None,
 ) -> bool:
-    """Whether the developer a handed request owes was already launched, retiring the verdict where it was.
+    """Whether the launch a handed request owes is still this road's to make, retiring or holding it where not.
 
     The run ledger charged past the count the request was handed at is that
     developer's launch, whoever made it -- a tick that died behind it, or
     another road behind this one's relabel -- and its run is the fixing
     stage's to answer, so the verdict is retired, over the comment as `state`
-    last carried it, rather than handed to a second developer. A request not
-    yet handed has launched nobody.
+    last carried it, rather than handed to a second developer. And the launch
+    is made only behind the feedback anchor the handoff was written beside:
+    it is the one durable copy of the feedback a failed run's `/orchestrator
+    continue` replays, and the fixing stage clears it with the round's other
+    bookmarks, so a handoff that lost it is held -- nothing relabelled,
+    launched, or written, the verdict left waiting as it was -- rather than
+    handing a developer a review no failed run could replay.
     """
     handed = None if owned is None else owned.handed
-    if handed is None or _run_ledger_values._runs_used(state) <= handed:
+    if handed is not None and _run_ledger_values._runs_used(state) > handed:
+        log.info(
+            "issue=#%d the developer its reviewer's change request was handed to "
+            "was already launched; retiring the verdict", issue.number,
+        )
+        _verdicts.drops_the_verdict(state, only=owned)
+        gh.write_pinned_state(issue, state)
         return False
-    log.info(
-        "issue=#%d the developer its reviewer's change request was handed to "
-        "was already launched; retiring the verdict", issue.number,
-    )
-    _verdicts.drops_the_verdict(state, only=owned)
-    gh.write_pinned_state(issue, state)
+    if state.get(_verdicts._FEEDBACK_ANCHOR) is None:
+        log.warning(
+            "issue=#%d its reviewer's change request no longer carries the "
+            "feedback anchor it was handed beside; holding the handoff rather "
+            "than launching a developer no failed run could replay it to",
+            issue.number,
+        )
+        return False
     return True
 
 

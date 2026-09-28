@@ -284,11 +284,22 @@ def disposes_of_the_verdict(
 ) -> None:
     """Persist a returned reviewer's verdict and publish its evidence, then act on it or park it where that is owed now.
 
-    `state` is as `prepares_the_verdict` takes it. A verdict it could not
-    persist parks over the run's records it staged; one it hands back ready
+    `state` is as `prepares_the_verdict` takes it. A run whose pull request is
+    not the one its subject names is refused outright, persisted and published
+    nowhere: its feedback, its fix, and its approval would go to another pull
+    request than the one reviewed. Otherwise a verdict the preparation could
+    not persist parks over the run's records it staged; one it hands back ready
     is acted on over the comment as that preparation last read it; anything
     else was held or dropped there, and this tick does nothing more.
     """
+    run = decision.run
+    if run.pr_number != run.subject.pr_number:
+        log.warning(
+            "issue=#%d its reviewer run names PR #%s where the subject it "
+            "reviewed is on PR #%s; acting on nothing", issue.number,
+            run.pr_number, run.subject.pr_number,
+        )
+        return
     prepared = prepares_the_verdict(gh, spec, issue, state, decision)
     if prepared.unrecorded:
         _parks.parks_unrecorded(gh, issue, state, decision.run, prepared.unrecorded)

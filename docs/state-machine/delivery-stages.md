@@ -3534,16 +3534,19 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        claim, published or reused, whichever the verdict -- superseded by a later revision included -- drops it for a
        fresh reviewer. Every write it makes is composed over the comment read again just before it, keeping what another
        road wrote there -- a round a reply bought included -- and every drop names only the verdict this road holds,
-       never one another road put in its place. It acts on a verdict only right behind proving it ready
-       (`disposes_of_the_verdict` for a returned run, `finishes_the_verdict` for a waiting one, over a run its caller
-       rebuilds whose round and subject have to be the record's own and whose pull request has to be the one that
-       subject names). A change request's handoff (`validating/review_handoffs.py`) posts the feedback, holding the
-       verdict unhanded where the post failed, left no id, or had no pull request to go on, holds the subject again
-       behind that post, writes the verdict as `handed` with its `pending_fix_reviewer_comment_id` anchor BEFORE the
-       relabel to `workflow:fixing`, and holds the subject once more before the developer launch; a later tick
-       finishing a verdict already `handed` posts nothing again, and relabels and launches that developer — or, where
-       the run ledger was charged past `handed`, drops the verdict, the developer already launched, which is asked
-       again right before every launch so a developer another road launched behind the relabel is not launched twice.
+       never one another road put in its place. It acts on a verdict only right behind proving it ready, through a run
+       whose pull request is the one its subject names (`disposes_of_the_verdict` for a returned run, refusing one that
+       names another pull request or none outright, nothing persisted or published; `finishes_the_verdict` for a
+       waiting one, over a run its caller rebuilds whose round and subject have to be the record's own). A change
+       request's handoff (`validating/review_handoffs.py`) posts the feedback, holding the verdict unhanded where the
+       post failed, left no id, or had no pull request to go on, holds the subject again behind that post, writes the
+       verdict as `handed` with its `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to `workflow:fixing`,
+       and holds the subject once more before the developer launch; a later tick finishing a verdict already `handed`
+       posts nothing again, and relabels and launches that developer — or, where the run ledger was charged past
+       `handed`, drops the verdict, the developer already launched, which is asked again right before every launch so a
+       developer another road launched behind the relabel is not launched twice. Either launch is made only behind
+       that anchor, which the fixing stage clears with the round's other bookmarks: a handoff that lost it is held,
+       nothing relabelled or launched, since no failed run could replay the feedback.
        An approval reaches the approval arc above only where the evidence it names is settled, proved current, passing,
        and covering `VERIFY_COMMANDS` by its own artifact (`validating/unverified_approvals.py`); a proof nobody could
        read holds it, and any other refusal parks it under `reviewer_unverified` once it is held to its subject and its
