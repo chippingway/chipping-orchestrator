@@ -5,7 +5,9 @@
 Only an orchestrator-produced stale head or this stage's recorded replay
 licenses a force-push over divergence. Recovery carries its original lease
 through the size gate, and settles the conflict round only after the push
-lands and the checkout has caught up with the base.
+lands and the checkout has caught up with the base. A landed recovery owes the
+report debt of the head it published even where the rebase behind it owns the
+round, since that rebase may end the tick without a tail.
 """
 from __future__ import annotations
 
@@ -23,6 +25,7 @@ from orchestrator.workflow.stages.conflicts import (
     parks as _conflict_parks,
     recovery_guards as _recovery_guards,
     replay_records as _replay_records,
+    report_debt as _report_debt,
     transitions as _transitions,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -32,10 +35,6 @@ from orchestrator.workflow.stages.implementing import (
 )
 
 log = logging.getLogger("orchestrator.workflow")
-
-# What a round a recovered push finished is recorded as, in the audit event
-# and in the receipt a hold leaves for the tick that resumes behind it.
-_RECOVERED_PUSH = "recovered_push"
 
 
 def _guard_diverged_worktree(
@@ -184,7 +183,9 @@ def _push_recovered_commits(
     continue to the base rebase -- when the push landed but the worktree is
     still behind base (the fixing dead-lock reroute lands unpushed fix
     commits here, NOT a rebase, so the combined push+rebase round is owned by
-    the rebase path).
+    the rebase path). The report debt is not the round's, though: the head
+    this push left is on the pull request either way, so it records its debt
+    before falling through, and a rebase that moves the head carries it on.
     """
     wt = sync.worktree
     lease = publish_lease or sync.fetched_tip
@@ -230,8 +231,8 @@ def _push_recovered_commits(
             # to the adjudication, and the resumed tick reads the published
             # commit as a branch already standing on its base -- the no-op
             # flip, which resolves nothing and stamps no
-            # `last_conflict_resolved_at`. Nothing is owed where the rebase
-            # behind this one owns the round instead.
+            # `last_conflict_resolved_at`. Where the rebase behind this one
+            # owns the round instead, the head it publishes is what is owed.
             spends=_recovered_round(still_behind, recovered_sha),
             # The commit this push is about, named on EVERY road out of here
             # rather than only the one that finishes a round. The gate proves
@@ -254,12 +255,20 @@ def _push_recovered_commits(
         _refused_the_recovery(ctx, published.held)
         return True
     if still_behind != 0:
+        # The push landed, so the head it left is a rewrite this stage
+        # published whatever the rebase behind it comes to -- and that rebase
+        # may end the tick with no tail of its own: a no-op flip, a conflict
+        # the dev cannot finish, a push that fails. So its report debt goes
+        # down now, and a rebase that does move the head carries it on. A
+        # crash before this write leaves the head in the gate's own, and a
+        # debt the comment has no room for ends the tick behind its park.
         log.info(
             "issue=#%d resolving_conflict: pushed %d recovered commit(s) "
-            "but worktree still %d behind %s; continuing with base rebase",
+            "but worktree still %d behind %s; recording the report debt of "
+            "the head it left before the base rebase",
             ctx.issue.number, sync.ahead, still_behind, _base_ref(ctx.spec),
         )
-        return False
+        return not _report_debt._records_the_rewrite(ctx, recovered_sha)
     # Pushed branch diff -> hand straight back to validating; the single docs
     # pass runs after final reviewer approval. A replay record goes with it:
     # the commit it explains is on the remote, and this tail's own write
@@ -267,7 +276,7 @@ def _push_recovered_commits(
     _replay_records._forgets_the_replay(ctx.state)
     _transitions._hand_resolved_round_to_validating(
         ctx, conflict_round, pr_number,
-        outcome=_RECOVERED_PUSH, sha=recovered_sha,
+        outcome=_transitions._RECOVERED_PUSH, sha=recovered_sha,
     )
     return True
 
@@ -301,7 +310,7 @@ def _base_ref(spec: _config_models.RepoSpec) -> str:
 
 
 def _recovered_round(still_behind: int, recovered_sha: str):
-    """The round a held recovered push owes, or nothing where it owes none.
+    """What a recovered push leaves in the gate's write: its round, or its head.
 
     Only the push that FINISHES a round leaves a receipt. One that lands with
     the branch still behind base is a preamble: the rebase behind it owns the
@@ -310,10 +319,17 @@ def _recovered_round(still_behind: int, recovered_sha: str):
     yet -- and it is the resumed tick's only evidence, since the settlement
     publishes the commit and leaves it reading a branch already standing on
     its base, which is the no-op flip that resolves nothing.
+
+    What a preamble does leave is the head it publishes, for the report debt
+    that head is owed: the gate's write is the one a crash after the push
+    cannot take, and the one a hold makes before the adjudication publishes
+    it, so a later tick records the debt from it (`report_debt`).
     """
     if still_behind:
-        return _late_gate_models._SPENDS_NOTHING
-    return _transitions._settles_the_held_round(_RECOVERED_PUSH, recovered_sha)
+        return _report_debt._owes_the_preamble(recovered_sha)
+    return _transitions._settles_the_held_round(
+        _transitions._RECOVERED_PUSH, recovered_sha,
+    )
 
 
 def _still_behind_base(wt: Path, base_ref: str) -> int:

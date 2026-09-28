@@ -75,7 +75,8 @@ per-stage behavior is in
   down before the run budget is asked and a refused launch leaves it with no reviewer invoked; that returned record is
   what tells a hand-back still owed its review from one a reviewer has read. A pull request with no report recorded, a
   report about another commit than that head, and one written against requirements the issue has moved past are refused
-  rather than handed over — save that a report of the head this orchestrator's own rebase replaced, where a recorded
+  rather than handed over — save that a report of the head this orchestrator's own rewrite replaced (a rebase, a
+  conflict resolution, or commits an earlier tick left unpushed), where a recorded
   `developer_report_rewrite_debt` explains exactly that gap, holds the reviewer while the developer is resumed for a
   fresh report of the rewritten head, which is the report handed over once it settles. A report that changes on an
   unchanged head is a new subject, so it always reaches a fresh reviewer — one settling before the spawn holds the

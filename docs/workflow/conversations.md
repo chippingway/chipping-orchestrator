@@ -276,7 +276,7 @@ Where the contract is carried:
   there and, when it is complete and current, end on `REPORT: VERIFIED`; and the drift, late-revision, and
   PR-feedback prompts keep `ACK:` for a reply after which neither the branch nor the report has to change. The
   report-refresh `_build_report_refresh_prompt` carries it whole too, then asks for the `REPORT: READY` block alone and
-  refuses `REPORT: VERIFIED` by name, since the report already on the pull request is about the head a rebase replaced;
+  refuses `REPORT: VERIFIED` by name, since the report already on the pull request is about the head a rewrite replaced;
   it offers no `ACK:`.
 - **Deferred** in `_build_fresh_respawn_preamble`, which carries `_RESPAWN_REPORT_NOTE` instead: the concise report
   covers the final state of the whole branch, the previous session's commits included, ownership and publication are
@@ -340,15 +340,18 @@ the pull request to `in_review` — but only a reply that never used the report 
 reached for the markers and missed, an `ACK:` line beside a report block included, is a broken contract and parks.
 
 The **rewritten-head report refresh** acts on one on `workflow:validating`, where a recorded
-`developer_report_rewrite_debt` says this orchestrator rebased the pull request onto a head no settled report is about
+`developer_report_rewrite_debt` says this orchestrator's own push moved the pull request onto a head no settled report
+is about -- a rebase, a conflict resolution, or commits an earlier tick left unpushed
 ([`_handle_validating`](../state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating) step 3,
-`workflow/stages/validating/report_refresh.py`). Before any reviewer runs, and with no human reply, the locked session
-is resumed for a report alone of that exact head, over requirements, a whole code-publication receipt, and a clean
-checkout proved to stand where the debt says, and read again once the run is back. Only a `REPORT: READY` from a run
+`workflow/stages/validating/report_refresh.py`). A published report of that head that already settled, still intact
+and written against the current requirements, pays the claim and the reviewer runs. Otherwise, before any reviewer
+runs, and with no human reply, the locked session is resumed for a report alone of that exact head, over
+requirements, a whole code-publication receipt, and a clean checkout proved to stand where the debt says, and read
+again once the run is back. Only a `REPORT: READY` from a run
 that left no command unfinished pays: it is recorded under the requirements revision frozen before the run, with no
 round or feedback riding it, bound to the receipt's publication, and settled through the reconciliation on the same
 tick, and the next tick drops the debt once that report still reads intact. A `REPORT: VERIFIED` pointing at the report
-already there is refused, since that report describes the head before the rebase and verifying it again carries it
+already there is refused, since that report describes the head before the rewrite and verifying it again carries it
 forward on nobody's proof. A run that commits, leaves loose work, times out, or verifies instead parks under
 `report_undeliverable`; a question or other agent failure takes its usual park; each records `developer_report_owed`, so
 the reply is read as the report it owes. A head moved or an issue edited while the agent was out records nothing,
@@ -493,8 +496,8 @@ division of labour between the developer and the orchestrator never changes.
     for a human with the replay anchor intact;
   - human feedback routed from `in_review` (`pending_fix_at` set) resets `review_round` to 0 on its handover, since
     the approval was of the prior head, and its `ACK:` returns the pull request to `in_review`;
-  - a rewritten head's report refresh spends nothing: the rebase already reset `review_round` for the head it
-    published, and the report answers no feedback.
+  - a rewritten head's report refresh spends nothing: the push that rewrote it already reset `review_round` for the
+    head it published, and the report answers no feedback.
 
   Agent runs are counted where they are spawned and nowhere else: each launch is charged once to `agent_runs_used`
   and its usage folded once into the per-issue totals, and a recovery that finishes a result spawns nobody. Review

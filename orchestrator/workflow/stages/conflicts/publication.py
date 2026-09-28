@@ -172,7 +172,7 @@ def _publish_clean_rebase(
             # commit as a branch already carrying its base -- the no-op flip,
             # which resolves nothing and stamps no `last_conflict_resolved_at`.
             spends=_transitions._settles_the_held_round(
-                "base_rebased_clean", after_sha,
+                _transitions._BASE_REBASED_CLEAN, after_sha,
             ),
             # What this replay REPLACED, which nothing past the rebase could
             # recover. Handed over whether or not this issue has an exemption
@@ -206,7 +206,7 @@ def _publish_clean_rebase(
     _replay_records._forgets_the_replay(ctx.state)
     _transitions._hand_resolved_round_to_validating(
         ctx, conflict_round, pr_number,
-        outcome="base_rebased_clean", sha=after_sha,
+        outcome=_transitions._BASE_REBASED_CLEAN, sha=after_sha,
     )
 
 

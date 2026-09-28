@@ -102,6 +102,11 @@ class _ConflictRunContext:
     # and zero, which is what an in-sync branch answers, so a case about a
     # probe that established nothing says so here.
     branch_divergence_readable: bool = True
+    # What the fetched `<remote>/<branch>` ref stands on. Empty is the pull
+    # request's seeded head, which is what it stands on in every ordinary
+    # world; a tick run behind an earlier one whose push landed names the
+    # head that push left instead.
+    fetched_branch_tip: str = ""
     # What the two contributions a replay sits between fingerprint to. One
     # value answers both alike, which is the history-only rebase a transfer
     # is granted for; a mapping keyed on the commit seeds them apart, which
@@ -191,6 +196,7 @@ def _run_conflict_merge(owner, github, issue, context):
             added_lines=context.added_lines,
             branch_ahead_behind=context.branch_ahead_behind,
             branch_divergence_readable=context.branch_divergence_readable,
+            fetched_branch_tip=context.fetched_branch_tip or owner.pr_head_sha,
             candidate_commit=context.candidate_commit,
             authed_fetch_result=context.authed_fetch_result,
             contribution_digest=context.contribution_digest,

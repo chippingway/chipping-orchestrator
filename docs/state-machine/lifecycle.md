@@ -608,6 +608,17 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                       parks for a human's decision and hands
                                       nothing back, and a `split` closes the
                                       PR and never re-enters this label
+     any push above that rewrote   ─► developer_report_rewrite_debt recorded
+       the head (not a drift fix;     off the code-publication receipt -- the
+       a settled round alike)         head the push replaced to the head it
+                                      published -- in its own write ahead of
+                                      the relabel; a recovered push still
+                                      behind base records it before the
+                                      rebase behind it, and leaves its head
+                                      as conflict_preamble_sha in the gate's
+                                      write, so a crash or a held push the
+                                      adjudication publishes is recorded by
+                                      the next tick
      drift ACK / drift _on_question park ─► no relabel; rebase still
                                             unfinished, next tick
                                             re-enters the same label
@@ -821,8 +832,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
        in_review                   head no report is about is never carried
                                    to the human who merges it. Every other
                                    label runs -- validating above all, whose
-                                   report hold pays the debt. No road
-                                   records one yet
+                                   report hold pays the debt. Recorded by
+                                   resolving_conflict for each head its own
+                                   push rewrites
      no workflow label, a      ─► nothing, logged once a tick. Pickup GREETS
        pinned comment already      an issue and mints its pinned comment, so a
        on the issue, and no        second greeting writes a second one every

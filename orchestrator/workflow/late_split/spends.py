@@ -84,6 +84,7 @@ _SPENDABLE_FIELDS = MappingProxyType({
     "fixing_round_settled": _raised,
     "conflict_settled_outcome": _named_outcome,
     "conflict_settled_sha": _settled_commit,
+    "conflict_preamble_sha": _settled_commit,
     "docs_settled_sha": _settled_commit,
 })
 

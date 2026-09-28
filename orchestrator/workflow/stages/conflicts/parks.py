@@ -17,6 +17,15 @@ from orchestrator.workflow.stages.conflicts import models as _models, state as _
 
 log = logging.getLogger("orchestrator.workflow")
 
+_UNRECORDED_DEBT_PARK = (
+    "{mentions} `{head}` is on the pull request, published by this stage over "
+    "`{previous}`, and the report debt that head is owed does not fit on this "
+    "issue's pinned state comment. Handed to `workflow:validating` without it, "
+    "the reviewer road would be given the report of the head it replaced, so "
+    "the round stops here with its push recorded and nothing counted. Remove "
+    "records this issue no longer needs from the pinned state comment; the "
+    "next tick records the debt before anything else and hands the round on."
+)
 
 
 def _park_conflict(
@@ -178,6 +187,30 @@ def _park_unreadable_worktree(ctx: _models._ConflictContext) -> None:
         reason=_state._REASON_UNREADABLE_WORKTREE,
         # Said once: a later tick's own status read is what clears this, so
         # every tick after this one retries it.
+        once=True,
+    )
+
+
+def _park_unrecorded_debt(
+    ctx: _models._ConflictContext, head: str, previous: str,
+) -> None:
+    """Hold a proved rewrite's handoff whose report debt the pinned comment has no room for.
+
+    Said once, and transient: no reply makes room on a comment, and every
+    tick after this one tries the write again ahead of every resume and
+    rebase, so the round is handed on the moment it fits.
+    """
+    log.error(
+        "issue=#%d resolving_conflict: the report debt %s owes does not fit "
+        "on the pinned state comment; holding the hand to validating",
+        ctx.issue.number, head,
+    )
+    _park_conflict(
+        ctx,
+        _UNRECORDED_DEBT_PARK.format(
+            mentions=config.HITL_MENTIONS, head=head, previous=previous,
+        ),
+        reason=_state._REASON_UNRECORDED_DEBT,
         once=True,
     )
 

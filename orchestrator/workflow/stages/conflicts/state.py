@@ -19,7 +19,9 @@ round a no-op flip.
 
 The replay group is the same idea one seam further still: a record a tick
 writes for a LATER tick to read, because what it says is destroyed by the very
-step it describes.
+step it describes. The preamble head is the settled pair's counterpart for a
+push that finishes no round: what that push's own write leaves for the report
+debt of the head it published.
 
 One slot, one round. A resume that commits while a receipt is still outstanding
 would write its own over it -- pushed, the owed round is cleared without ever
@@ -42,6 +44,9 @@ _PARK_REASON = "park_reason"
 # resolved, a status nothing read, a head nothing could name -- so what clears
 # it is the same reading taken again, not a reply. The tick that finds one
 # standing therefore carries on with its ordinary work rather than waiting.
+# A rewrite's report debt the pinned comment had no room for is the same shape
+# from the other side: a WRITE that did not happen, which no reply makes room
+# for and the next tick takes again before anything else.
 _REASON_FETCH_FAILED = "fetch_failed"
 
 _REASON_UNREADABLE_DIVERGENCE = "unreadable_divergence"
@@ -52,12 +57,15 @@ _REASON_UNREADABLE_WORKTREE = "unreadable_worktree"
 
 _REASON_UNPINNABLE_RECOVERY = "unpinnable_recovery"
 
+_REASON_UNRECORDED_DEBT = "unrecorded_report_debt"
+
 _TRANSIENT_PARKS = frozenset((
     _REASON_FETCH_FAILED,
     _REASON_UNREADABLE_DIVERGENCE,
     _REASON_UNREADABLE_HEAD,
     _REASON_UNREADABLE_WORKTREE,
     _REASON_UNPINNABLE_RECOVERY,
+    _REASON_UNRECORDED_DEBT,
 ))
 
 # The account one replay leaves of itself: the head it was about to replace,
@@ -95,3 +103,11 @@ _REPLAY_KEYS = (
 _SETTLED_OUTCOME = "conflict_settled_outcome"
 
 _SETTLED_SHA = "conflict_settled_sha"
+
+# The head a recovered push that precedes a rebase publishes, written into the
+# gate's own write for the report debt that head is owed. The settled pair is
+# no place for it: that push finishes no round, and a receipt would have the
+# resumed tick close one the rebase has not run. But the head is on the pull
+# request once the push lands, and a crash before the debt's own write, or an
+# adjudication that publishes it later, leaves nothing else naming it.
+_PREAMBLE_SHA = "conflict_preamble_sha"

@@ -78,20 +78,20 @@ _LOOSE_WORK = "it carries uncommitted work the pull request does not"
 
 _LEFT_THE_HEAD = (
     "the developer run asked only for a report of `{head}`, the head this "
-    "orchestrator rebased the pull request onto, did not leave the checkout "
+    "orchestrator rewrote the pull request onto, did not leave the checkout "
     "as it found it: {detail}"
 )
 
 _TIMED_OUT = (
     "the developer run asked for a fresh report of `{head}`, the head this "
-    "orchestrator rebased the pull request onto, timed out before it wrote one"
+    "orchestrator rewrote the pull request onto, timed out before it wrote one"
 )
 
 _VERIFIED = (
     "the developer run asked for a fresh report of `{head}`, the head this "
-    "orchestrator rebased the pull request onto, verified a report already on "
+    "orchestrator rewrote the pull request onto, verified a report already on "
     "the pull request instead -- and the report standing there when the "
-    "rebase landed is about the head before it, so carrying it forward would "
+    "rewrite landed is about the head before it, so carrying it forward would "
     "describe another commit"
 )
 

@@ -32,6 +32,7 @@ _OWNERS = (
     "outcomes",
     "publication",
     "rebase",
+    "report_debt",
     "resume",
     "routing",
     "state",
