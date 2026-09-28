@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Implementation, documentation, fixing, and conflict-resolution prompts.
+"""Implementation, documentation, fixing, conflict-resolution, and report-refresh prompts.
 
 Trust-filtered thread and repository context comes from prompt_context. Shared
 placeholders and execution notes come from prompt_notes; every response marker
@@ -17,6 +17,7 @@ from orchestrator.workflow.engine import (
     messages as _messages,
     prompt_context as _prompt_context,
     prompt_notes as _prompt_notes,
+    report_outcome_models as _report_models,
 )
 
 _MAX_FILES_SHOWN = 20
@@ -186,5 +187,43 @@ def _build_conflict_resolution_prompt(
         "If you genuinely cannot resolve a conflict, end your final "
         "message with a question for the human and leave the worktree "
         "mid-rebase; the orchestrator will park the issue for human review.\n\n"
+        f"{_prompt_notes._FOREGROUND_ONLY_NOTE}"
+    )
+
+
+def _build_report_refresh_prompt(
+    issue: Issue, previous_head: str, rewritten_head: str,
+) -> str:
+    """Ask the developer for a fresh report of a head this orchestrator rewrote, and nothing else.
+
+    The report the pull request carries is about `previous_head`, which a
+    rebase replaced with `rewritten_head`, so the only outcome that pays for
+    the rewrite is one written afresh about it. The whole report contract
+    rides along, as on every developer prompt, and the verified outcome it
+    teaches is then refused by name: pointing at the report already there
+    would carry the account of another commit forward unchanged.
+    """
+    body = issue.body or _prompt_notes._NO_BODY
+    return (
+        f"This orchestrator rebased the pull request of GitHub issue #{issue.number} "
+        f"({issue.title!r}) onto its updated base branch. The pull request now "
+        f"stands on commit `{rewritten_head}`, and your worktree is checked out at "
+        f"it. The developer report the pull request carries describes "
+        f"`{previous_head}`, the head the rebase replaced, so it is not a report "
+        "of this commit.\n\n"
+        f"Issue body:\n{body}\n\n"
+        "This run delivers a report alone. Read the branch as it now stands -- "
+        "what the rebase changed underneath it included -- and write a fresh, "
+        "complete developer report of that commit against the issue as it reads "
+        "now. Do NOT commit, push, or leave any change in the worktree: the "
+        "orchestrator publishes the report onto the head the pull request "
+        "already carries.\n\n"
+        f"{_prompt_notes._DEVELOPER_REPORT_NOTE}\n\n"
+        "End this run on the first outcome, the complete report between "
+        f"`{_report_models._REPORT_READY_MARKER}` and "
+        f"`{_report_models._REPORT_END_MARKER}`. "
+        f"`{_report_models._REPORT_VERIFIED_MARKER}` is not accepted here: the "
+        "report already on the pull request is about the head before the "
+        "rebase, and verifying it again is no report of this one.\n\n"
         f"{_prompt_notes._FOREGROUND_ONLY_NOTE}"
     )

@@ -53,9 +53,13 @@ reviewer-requested round's, `report_settlement` binds either to the publication
 the code reached -- or, for a report needing no commit, to the publication the
 pull request already carries -- and settles it, and `report_hold` holds the
 reviewer, on every tick, until the pull request carries it, which is why
-`handler` asks that hold last, ahead of the spawn. The same hold keeps the
-reviewer off a head this orchestrator rewrote until a report of it settles and
-pays the debt the rewrite recorded. Once nothing is owed,
+`handler` asks that hold last, ahead of the spawn. The same hold asks
+`report_refresh` about a head this orchestrator rewrote: the reviewer is kept
+off it while the developer is resumed, with no human reply, for a fresh report
+of that head, and `report_refresh_outcomes` records and settles that report or
+parks what the run left instead, over the record `report_refresh_models`
+freezes before the run. The report that settles pays the debt the rewrite
+recorded. Once nothing is owed,
 `review_report` hands the reviewer the report the pull request carries -- the
 one last settled, re-read and quoted whole -- or refuses the round over one
 the thread has moved out of reach, and `review_comment` binds that subject to

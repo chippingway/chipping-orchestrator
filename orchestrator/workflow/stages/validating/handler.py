@@ -43,7 +43,9 @@ request holds the reviewer last of all. Behind the drift check, because a
 resume answering an edit is what supersedes a report written against the old
 requirements; ahead of the spawn, because a reviewer handed work whose report
 nothing on the pull request carries is the review the report exists to
-prevent.
+prevent. A head this orchestrator rewrote is owed its report in the same
+place, and that hold is where the developer is asked for it: the tick that
+asks ends there, and the reviewer runs once the report has paid the debt.
 """
 from __future__ import annotations
 
@@ -106,9 +108,11 @@ def _ends_before_review(
     -> fall through to the report hold, the round-cap check and the spawn.
 
     A report still owed then holds the reviewer until it is confirmed on the
-    pull request. A park the branch above cleared into this round is staged
-    and not yet written -- the reviewer's own write carries it otherwise -- so
-    a held tick writes it, or the next one answers the same reply again.
+    pull request, and so does the report a rewritten head is owed while the
+    developer is asked for it. A park the branch above cleared into this round
+    is staged and not yet written -- the reviewer's own write carries it
+    otherwise -- so a held tick writes it, or the next one answers the same
+    reply again.
     """
     if parked is not None and _awaiting_resume._handle_validating_awaiting_human(
         parked,

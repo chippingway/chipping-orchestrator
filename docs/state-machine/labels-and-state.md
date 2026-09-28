@@ -955,13 +955,19 @@ The keys that matter for the state machine fall into a few groups:
 
   While a claim stands, readable or not, the dispatcher holds the roads past an approval -- `workflow:documenting` and
   `in_review` ([the rewritten-head report debt](delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)) --
-  and lets `workflow:validating` run. Its report hold (`stages/validating/report_hold.py`), once no other report is
-  owed, pays the debt with a report settled about the head the pull request stands on, whichever head the claim names or
-  whether it reads at all, writing `null` before the reviewer road; holds the reviewer without a park where a readable
-  claim explains exactly why the settled report is about another head -- the pinned pull request and the branch are the
-  claim's, the settled report is about `previous_head`, and the pull request stands on `rewritten_head`; and otherwise
-  holds nothing, leaving the reviewer road to refuse the stale report as it would with no claim. Dormant: no road
-  records one yet, so no issue carries the key.
+  and lets `workflow:validating` run. Its report hold, once no other report is owed, asks
+  `stages/validating/report_refresh.py`. That pays the debt with a report settled about the head the pull request
+  stands on, whichever head the claim names or whether it reads at all -- but only one PUBLISHED as a report of its
+  own, written against the current `user_content_hash`, and still intact at its location -- writing `null` before the
+  reviewer road. A `developer_report_current` in `verify` mode, or with no mode, pays nothing: a verification of the
+  report standing when the head was rewritten is that report carried forward, not proof it describes the new head.
+  Where a readable claim names the pinned pull request, the pull request stands on `rewritten_head`, and the settled
+  report is about `previous_head` or about `rewritten_head` without paying (`RewriteDebt.owes_a_refresh`), the hold
+  keeps the reviewer off and resumes the developer for a fresh report of `rewritten_head` -- recorded as
+  `developer_report_delivery`, bound, published, and settled like every other report, so the next tick finds it paid;
+  a run that brings none parks with `developer_report_owed` so a reply's report pays it instead. Otherwise it holds
+  nothing, leaving the reviewer road to refuse the stale report as it would with no claim. Dormant: no road records
+  one yet, so no issue carries the key.
 - **HITL park.** `awaiting_human`, `last_action_comment_id`, `park_reason`. `_park_awaiting_human` (on the same
   `workflow/engine/guards.py` owner as the two run refusals) sets
   `awaiting_human=True` and clears `park_reason` to `None`; a handler that needs the reason to survive into the next

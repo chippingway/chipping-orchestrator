@@ -180,6 +180,8 @@ _ROUTE_DOCS_PASS = "docs_pass"
 _ROUTE_CONFLICT_RESUME = "conflict_resume"
 # The shared seam every committed candidate publishes through.
 _ROUTE_CANDIDATE_PUBLICATION = "candidate_publication"
+# A resume asking for a report alone of a head this orchestrator rewrote.
+_ROUTE_REPORT_REFRESH = "report_refresh"
 
 
 class _ParkedRun(NamedTuple):

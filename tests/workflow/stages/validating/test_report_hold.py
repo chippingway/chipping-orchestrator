@@ -15,36 +15,19 @@ which no retry settles and a silent hold would suppress every later reviewer
 over. A park like that is answered by the repair as much as by a reply: the
 settlement that follows one ends the debt, the park, and the hold together.
 
-A head this orchestrator rewrote holds the reviewer too, once nothing else is
-owed, and without the park the stale settled report would otherwise earn -- only
-where the recorded debt explains exactly that gap, and until a report of the
-head the pull request stands on settles and pays it. A claim nobody can read, or
-one saying nothing about the head standing, earns no such hold: the reviewer road
-parks for the report as it always did, and the report the reply brings pays the
-debt all the same.
+A head this orchestrator rewrote is asked about once nothing else is owed, and
+what that asks of the developer is `test_report_refresh.py`'s.
 """
 
 from __future__ import annotations
 
 import unittest
-from dataclasses import replace
-from types import MappingProxyType
-from unittest.mock import MagicMock
 
 from orchestrator import config
-from orchestrator.workflow.engine import (
-    report_delivery as _report_delivery,
-    report_rewrite_debt as _rewrite_debt,
-)
-from orchestrator.workflow.stages.validating import review_report as _review_report
+from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.support.fakes import FakeComment, FakeUser
-from tests.workflow import (
-    drift_reports as world,
-    fix_reports as _fix_world,
-    published_reports as _published_reports,
-    reviewed_reports as _reviewed,
-)
-from tests.workflow.fixtures import LABEL_VALIDATING, _agent, _issue_branch
+from tests.workflow import drift_reports as world
+from tests.workflow.fixtures import LABEL_VALIDATING, _agent
 
 ISSUE = 1_794
 
@@ -79,22 +62,6 @@ CURRENT = "current"
 # What a human leaves in place of the report when they edit the comment it
 # landed as, and take back out of it when they put the report back.
 REWRITTEN = "a human's own words"
-
-DEBT = _rewrite_debt.REWRITE_DEBT
-
-# The head a rebase this orchestrator published leaves the pull request on, and
-# one somebody else pushed over it.
-REWRITTEN_HEAD = "c" * len(world.FIXED_HEAD)
-
-FOREIGN_HEAD = "d" * len(world.FIXED_HEAD)
-
-# Where a second rebase of this orchestrator's moves the pull request next.
-SECOND_HEAD = "f" * len(world.FIXED_HEAD)
-
-# What an issue that predates the record carries in its place: nothing at all.
-LEGACY = object()
-
-UNREADABLE = MappingProxyType({"pr": PR})
 
 
 class _HeldReview(world._DriftReportMixin):
@@ -363,145 +330,6 @@ class EditedReportTest(unittest.TestCase, _HeldReview):
         self.drift(world.reported())
         self.github.report_failures.lost.clear()
         _rewritten_by_hand(self, world.REPORT_TEXT, REWRITTEN)
-
-# The debt a rebase from the settled report's head onto `REWRITTEN_HEAD` leaves.
-REWRITE = _rewrite_debt.RewriteDebt(
-    pr_number=PR,
-    branch=_issue_branch(ISSUE),
-    previous_head=world.PUBLISHED_HEAD,
-    rewritten_head=REWRITTEN_HEAD,
-)
-
-
-# Every debt that does not explain the head the pull request stands on, beside
-# that head: none recorded, one paid, one nobody can read, and one about
-# another head, pull request, branch, or report than the ones standing.
-UNEXPLAINED = (
-    ("legacy", LEGACY, REWRITTEN_HEAD),
-    ("paid", None, REWRITTEN_HEAD),
-    ("unreadable", dict(UNREADABLE), REWRITTEN_HEAD),
-    ("not an object", [], REWRITTEN_HEAD),
-    ("one head", replace(REWRITE, rewritten_head=world.PUBLISHED_HEAD).recorded(), REWRITTEN_HEAD),
-    ("foreign head", REWRITE.recorded(), FOREIGN_HEAD),
-    ("another pull request", replace(REWRITE, pr_number=PR + 1).recorded(), REWRITTEN_HEAD),
-    ("another branch", replace(REWRITE, branch="elsewhere").recorded(), REWRITTEN_HEAD),
-    ("another report", replace(REWRITE, previous_head=world.STRANDED_HEAD).recorded(), REWRITTEN_HEAD),
-)
-
-
-class RewriteDebtHoldTest(unittest.TestCase, _reviewed._ReviewedReports):
-    """A rewritten head the recorded debt explains holds the review without a park.
-
-    Every case opens on a pull request whose settled report is about the head
-    it stood on before a rebase moved it, which is the report the reviewer road
-    refuses as stale.
-    """
-
-    def test_a_rewritten_head_holds_until_reported(self) -> None:
-        # Repeated ticks hold the reviewer, park nothing, post nothing, and
-        # leave the debt standing. The report of the head it names -- by
-        # whichever road it settles -- pays it, and the reviewer is handed it.
-        self.rewritten(REWRITE.recorded(), REWRITTEN_HEAD)
-        notices = len(self.github.posted_comments)
-
-        for held in (self.reviewed(), self.reviewed()):
-            held[RUN_AGENT].assert_not_called()
-        self.assert_held(notices, REWRITE)
-
-        _published_reports.republishes_the_report(
-            self.github, self.issue, _reviewed.SECOND_REPORT,
-        )
-        reviewed = self.reviewed()
-
-        self.assertIn(f"> {_reviewed.SECOND_REPORT}", _reviewed.prompt(reviewed))
-        # Paid rather than removed: the key stays, holding `null`.
-        self.assertIsNone(self.pinned().get(DEBT, LEGACY))
-
-    def test_a_rewrite_past_a_paid_debt_holds(self) -> None:
-        # A report of the rewritten head settles, and a second rebase lands
-        # before any validating tick drops the debt that report paid. The
-        # second rewrite's own debt takes its place, so the review is held
-        # rather than parked over the report of the head that rebase replaced.
-        self.rewritten(REWRITE.recorded(), REWRITTEN_HEAD)
-        _published_reports.republishes_the_report(
-            self.github, self.issue, _reviewed.SECOND_REPORT,
-        )
-        second = replace(REWRITE, previous_head=REWRITTEN_HEAD, rewritten_head=SECOND_HEAD)
-        state = self.github.read_pinned_state(self.issue)
-        self.assertTrue(_rewrite_debt.records_rewrite(state, second))
-        self.github.write_pinned_state(self.issue, state)
-        self.pull_request.head.sha = SECOND_HEAD
-        notices = len(self.github.posted_comments)
-
-        self.reviewed()[RUN_AGENT].assert_not_called()
-
-        self.assert_held(notices, second)
-
-    def test_a_head_the_debt_does_not_explain_parks(self) -> None:
-        # The reviewer road refuses the stale report exactly as it would with
-        # no debt at all, and the claim -- readable or not -- is left as it
-        # stood.
-        for name, claim, head in UNEXPLAINED:
-            with self.subTest(name):
-                self.rewritten(claim, head)
-                refusal = _review_report._MOVED_COMMIT.format(
-                    reported=world.PUBLISHED_HEAD, head=head,
-                )
-
-                self.assert_refused(self.reviewed(), refusal)
-                self.assertEqual(self.pinned().get(DEBT, LEGACY), claim)
-
-    def test_a_reply_pays_a_debt_it_did_not_explain(self) -> None:
-        # The park's reply resumes the developer, whose report of the head the
-        # pull request stands on pays the debt whatever the claim named -- or
-        # whether it could be read -- and that report is what is reviewed.
-        for name, claim in (
-            ("unreadable", dict(UNREADABLE)),
-            ("another report", replace(REWRITE, previous_head=world.STRANDED_HEAD).recorded()),
-        ):
-            with self.subTest(name):
-                self.rewritten(claim, REWRITTEN_HEAD)
-                self.reviewed()
-                _fix_world.replied(self, "please report the head the pull request stands on")
-                self._ticked(
-                    self._run_validating,
-                    MagicMock(side_effect=_fix_world._Runs(_fix_world.reported(_reviewed.SECOND_REPORT))),
-                    committed=False,
-                )
-
-                reviewed = self.reviewed()
-
-                self.assertIn(f"> {_reviewed.SECOND_REPORT}", _reviewed.prompt(reviewed))
-                self.assertIsNone(self.pinned().get(DEBT, LEGACY))
-
-    def assert_held(self, notices: int, debt: _rewrite_debt.RewriteDebt) -> None:
-        """No park, no notice past the first `notices`, and `debt` still standing."""
-        self.assertEqual(
-            (
-                bool(self.pinned().get(AWAITING_HUMAN)),
-                self.pinned().get(PARK_REASON),
-                len(self.github.posted_comments),
-                self.pinned()[DEBT],
-            ),
-            (False, None, notices, debt.recorded()),
-        )
-
-    def rewritten(self, claim, head: str) -> None:
-        """A validating issue a rebase published onto `REWRITTEN_HEAD`, carrying `claim` where it is recorded.
-
-        The pull request stands on `head`: the rebase's own, or one somebody
-        pushed over it, which leaves the receipt naming the rebase.
-        """
-        self.seeded(ISSUE, PR, LABEL_VALIDATING)
-        # The code-publication receipt the rebase's gated push leaves.
-        rewrite = {
-            "implementing_published_sha": REWRITTEN_HEAD,
-            "implementing_published_lease": world.PUBLISHED_HEAD,
-        }
-        if claim is not LEGACY:
-            rewrite[DEBT] = claim
-        _reviewed.restate(self, **rewrite)
-        self.pull_request.head.sha = head
 
 
 def _restate(case: ReportHoldTest, **changed) -> None:

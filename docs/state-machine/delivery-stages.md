@@ -1028,9 +1028,10 @@ because there it is the claim that this stage has already rerouted rather than a
   about to the human who merges it. Nothing is written or posted; the claim is left for validating, and the hold is
   logged once a tick.
 - **Runs**: every other label -- `workflow:validating` above all, whose report hold
-  ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 3) holds the reviewer against the debt and
-  pays it once a report of the head the pull request stands on settles -- and any issue whose debt is paid (`null`) or
-  was never recorded.
+  ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 3) holds the reviewer against the debt,
+  resumes the developer for a fresh report of the rewritten head with no human reply, and pays the debt once a
+  published report of the head the pull request stands on settles -- and any issue whose debt is paid (`null`) or was
+  never recorded.
 - **Why it sits here**: behind the auto-rebase anchor readings, since a replay no recovery has published is no head a
   debt can name yet, and ahead of the handler it keeps off.
 
@@ -3286,12 +3287,53 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      tick is as likely to settle it. A park the awaiting-human branch cleared into this round is
      written when the hold stops it, so its reply is not answered twice.
      Once no report is owed -- on arrival, or once this tick settled it -- a claimed `developer_report_rewrite_debt` is
-     asked last: a report settled about the head the pull request stands on pays it (the key is written `null` before
-     the reviewer road), a readable claim that explains exactly why the settled report is about the head the rewrite
-     replaced holds the reviewer with no park and no notice, and anything else -- a claim nobody can read, another pull
-     request or branch, a head somebody pushed over the rewrite, a settled report of neither head -- holds nothing, so
-     the subject resolution in step 5 refuses the stale report as it would with no claim. A pull request head nobody
-     could read holds for the next tick.
+     asked last (`report_refresh._rewrite_holds_the_review`), against the pull request's head read the way the
+     reviewer's subject reads it; a head nobody could read holds for the next tick. A claim that is to be paid or
+     refreshed first waits for requirements the drift check stood down for -- an edit behind an owed reviewer round,
+     or a reply with words that bought one: nothing is paid over a report that never saw them and nothing is asked
+     under a baseline the issue has left, so the tick holds, drops `validating_reviewer_owes_a_round`, and the next
+     tick's drift resume answers the change, whose own report of the head pays the debt, or, after an `ACK:`, the
+     next refresh asks under the new baseline.
+     - **Paid.** A settled report pays the debt where it is about that head on the pinned pull request, was PUBLISHED
+       -- a report verified where it already stood pays nothing, since the one standing when the head was rewritten is
+       the account of the head before it, and a settlement recorded before its mode was is held the same way -- and
+       was written against the `user_content_hash` baseline (`report_rewrite_debt.pays_the_debt`). It is re-read at
+       its location as the reviewer road reads it before the key is written `null`, and the reviewer runs on that tick.
+       A location nobody could read holds; a report out of step with its handoff, removed, edited, or untrusted pays
+       nothing and holds nothing, so step 5 parks for it with the claim still standing.
+     - **Refreshed.** A readable claim naming the pinned pull request and the head it stands on, whose settled report
+       is of the head the rewrite replaced or of the rewritten head itself without paying
+       (`RewriteDebt.owes_a_refresh`), holds the reviewer while the developer is asked for a fresh report of that
+       head (`workflow/stages/validating/report_refresh.py`). The world is frozen first, before any agent runs: a
+       code-publication receipt group with a member this build cannot read (`late_receipt_damage._damaged_receipt`,
+       the damage the reconciliation would only hold on, with nobody told), one that does not name the rewritten
+       head, or a checkout not standing on it clean parks under `report_undeliverable`, naming what to repair; a
+       reading nobody could take holds. The checkout is the one the resume runs in, read where it stands and
+       recreated only where it is gone (`implementing/worktree._ensure_resume_worktree`), since `_ensure_worktree`
+       reclaims an existing directory whose branch carries nothing past the base, loose work included. The
+       locked session is then resumed on `_build_report_refresh_prompt` with the live-pause guard; a launch the run
+       circuit refused, a shutdown kill, and a live pause write nothing and are asked again next tick. What the run
+       left is read by `report_refresh_outcomes.py`: a `REPORT: READY` over a checkout still clean on the head, with
+       the pull request's head and the requirements read again unchanged, is recorded through
+       `report_delivery.recording_stops_the_tick` under the frozen baseline with no round or watermarks riding it,
+       then bound to the receipt's publication and settled through the reconciliation, all on this tick -- so a
+       refused post, a lost response, a crash before the binding, or one on the settlement write is finished by the
+       reconciliation or the next tick's hold, found by its receipt, with no second developer run and no second
+       comment. A head somebody pushed or an edit made while the agent was out records nothing and parks nothing:
+       the reviewer road refuses a head the claim no longer explains, and the drift resume answers the edit. A run
+       that committed (recorded `developer_report_unreported_work`) or left loose work, one that timed out, and one
+       that ended on `REPORT: VERIFIED` instead of writing a report park once under `report_undeliverable`; every
+       other finished run with no report -- a question, a silent exit, a quota stop, a provider refusal, an unfinished
+       command -- takes the agent-failure park `_on_question` classifies (route `report_refresh`). A run that ended
+       with a tool step still active, which is what the AGY recovery behind the resume hands back once its one retry
+       is spent, is read as that unfinished command ahead of its message, so a `REPORT: READY` block it wrote parks
+       `agent_execution_failed` rather than being published. Each park sets
+       `developer_report_owed`, so the reply resumes the developer on the requirements-drift reading and the report
+       it writes settles and pays the debt; until then the tick holds with nothing run. Every refresh tick ends
+       there, a settled one included: the next tick finds the debt paid.
+     - **Held for nothing.** Anything else -- a claim nobody can read, another pull request or branch, a head
+       somebody pushed over the rewrite, a settled report of neither head -- holds nothing, so the subject
+       resolution in step 5 refuses the stale report as it would with no claim.
   4. If `review_round >= MAX_REVIEW_ROUNDS` (default 3), park (`review_cap`). The park comment surfaces the
      `/orchestrator add-review-rounds N` escape hatch.
   5. Otherwise resolve what the reviewer is handed (`review_report._resolves_the_subject`): the pull request's head, and
