@@ -417,10 +417,13 @@ than a second source of truth: where the two disagree, the handler pages are aut
        settled where the receipt and checkout prove it, else parked
        report_undeliverable once no retry can settle it
      a rewritten-head report debt once no report is owed
-       (developer_report_rewrite_debt) ─► a settled report of the head the
-       PR stands on pays it (written null) and the reviewer runs; a readable
-       claim explaining exactly why that report is about the head the
-       rewrite replaced ─► no reviewer spawned, nothing parked or posted;
+       (developer_report_rewrite_debt) ─► a published report of the head
+       the PR stands on, against the current requirements and still intact
+       where it settled, pays it (written null) and the reviewer runs; a
+       readable claim owed a fresh report of that head ─► no reviewer
+       spawned, the developer resumed for that report alone, which is
+       recorded, bound, posted once, and settled -- paid on the next tick;
+       a run that brings none ─► parked once with developer_report_owed;
        any other claim, a damaged one included ─► the refusals below answer
        the report as they would with no claim
      the settled report re-read and quoted whole in the reviewer's prompt

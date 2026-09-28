@@ -46,8 +46,15 @@ records.
 
 What pays the debt is a report settled about the head the pull request stands
 on -- whichever head that is, since a debt for a head the pull request has left
-is owed to nothing -- and the validating stage is where that is asked
-(`stages/validating/report_hold.py`). No road records one yet: this owner is
+is owed to nothing -- PUBLISHED as a report of its own and written against the
+requirements the issue carries now. A report verified where it already stood
+pays nothing: the one standing when the head was rewritten is an account of the
+head before it, and verifying it again carries it forward on nobody's proof. So
+does a report of an older requirements revision. Where the settled report is of
+either head the debt names and pays nothing, a fresh report of the head it
+published is what the debt is owed (`RewriteDebt.owes_a_refresh`). The
+validating stage is where both are asked, and where that report is obtained
+(`stages/validating/report_refresh.py`). No road records one yet: this owner is
 the record, its reader, its retargeting, and its drop.
 """
 from __future__ import annotations
@@ -56,8 +63,10 @@ from dataclasses import dataclass, replace
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    prompt_delivery as _prompt_delivery,
     report_record_state as _report_record_state,
     report_record_values as _record_values,
+    report_records as _records,
     report_settlement_state as _settlement,
 )
 from orchestrator.workflow.late_split import formats as _formats, payloads as _payloads
@@ -159,13 +168,7 @@ class RewriteDebt:
         On this rewrite's pull request and branch. It is what a debt has to be
         able to explain, and what paid the debt of the rewrite before it.
         """
-        settled = _settlement.read_current_report(state)
-        if settled is None:
-            return False
-        subject = settled.subject
-        return (subject.pr_number, subject.branch, subject.source_sha) == (
-            self.pr_number, self.branch, self.previous_head,
-        )
+        return self._settled_head(state) == self.previous_head
 
     def explains(self, state: PinnedState, head: str) -> bool:
         """Whether this debt is exactly why the report `state` last settled is about another head than `head`.
@@ -177,6 +180,30 @@ class RewriteDebt:
         """
         pinned = (pinned_pull_request(state), head) == (self.pr_number, self.rewritten_head)
         return pinned and self.follows_the_report(state)
+
+    def owes_a_refresh(self, state: PinnedState, head: str) -> bool:
+        """Whether a fresh report of `head` is what this debt is owed.
+
+        Where the debt explains the settled report, and where that report is
+        already of the head this debt names, on its pull request and branch,
+        and still pays nothing (`pays_the_debt`) -- a report verified where an
+        earlier one stood, or written against requirements the issue has since
+        moved past. Asked once the settled report is known not to pay, so a
+        report of either head is one only a fresh report of `head` replaces.
+        A settled report of neither head is one this debt says nothing about.
+        """
+        pinned = (pinned_pull_request(state), head) == (self.pr_number, self.rewritten_head)
+        return pinned and self._settled_head(state) in {self.previous_head, self.rewritten_head}
+
+    def _settled_head(self, state: PinnedState) -> str:
+        """The head the report `state` last settled is about, on this debt's pull request and branch, or ""."""
+        settled = _settlement.read_current_report(state)
+        if settled is None:
+            return ""
+        subject = settled.subject
+        if (subject.pr_number, subject.branch) != (self.pr_number, self.branch):
+            return ""
+        return subject.source_sha
 
 
 def carries_rewrite_debt(state: PinnedState) -> bool:
@@ -223,19 +250,30 @@ def pinned_pull_request(state: PinnedState) -> int | None:
 
 
 def pays_the_debt(state: PinnedState, head: str) -> bool:
-    """Whether the report `state` last settled is about `head` on the pull request it pins.
+    """Whether the report `state` last settled pays a rewrite's debt for `head`.
 
-    Asked of the head the pull request stands on, whatever head the claim
-    names -- or whether it can be read at all: once a settled report is about
-    that head, the head a reviewer would be handed has its report, and a debt
-    for any other is owed to nothing. The settled report is read as the
-    pinned comment records it; the reviewer road re-reads it at its location
-    before anybody is handed it.
+    A report about `head` on the pull request the issue pins, asked of the
+    head the pull request stands on whatever head the claim names -- or
+    whether it can be read at all: once such a report settles, the head a
+    reviewer would be handed has its report, and a debt for any other is owed
+    to nothing. It has to have been PUBLISHED, and against the requirements
+    baseline the issue carries now. A verified report is somebody's earlier
+    text read where it stood, the report of the head before the rewrite
+    included, so it proves nothing about this one; a settlement recorded
+    before its mode was is held to the same reading. A report of older
+    requirements is the one the reviewer road would refuse as stale.
+
+    The settled report is read as the pinned comment records it; whoever
+    drops the debt on it re-reads it at its location first.
     """
     settled = _settlement.read_current_report(state)
     if settled is None or not head:
         return False
-    return (settled.subject.pr_number, settled.subject.source_sha) == (pinned_pull_request(state), head)
+    subject = settled.subject
+    return (subject.pr_number, subject.source_sha, subject.requirements_revision, settled.mode) == (
+        pinned_pull_request(state), head,
+        state.get(_prompt_delivery.PINNED_USER_CONTENT_HASH), _records.ReportMode.PUBLISH,
+    )
 
 
 def drops_rewrite_debt(state: PinnedState) -> bool:

@@ -736,10 +736,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             rewind included. A rewrite onto the head it names is a replay whatever head it says it
                             replaced; any other rewrite, and any over a damaged claim, is refused with the claim left
                             standing, and one the comment has no room for is not staged. It also answers whether the
-                            settled report pays the debt -- a report of the head the pinned pull request stands on --
-                            and whether a claim explains exactly why that report is about another head.
-                            `dispatch_guards.py` holds the roads past an approval on any claim and
-                            `stages/validating/report_hold.py` holds the reviewer and pays it; no road records one yet
+                            settled report pays the debt -- a report of the head the pinned pull request stands on,
+                            PUBLISHED rather than verified where it stood, and written against the current baseline --
+                            whether a claim explains exactly why that report is about another head, and whether a
+                            claim is owed a fresh report of the head it names because the settled report is of either
+                            head it names and pays nothing. `dispatch_guards.py` holds the roads past an approval on
+                            any claim and `stages/validating/report_refresh.py` holds the reviewer, obtains that
+                            report, and pays it; no road records one yet
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in. The greeting anchors both
                             `pickup_comment_id` and `last_action_comment_id`, the floor the park ending the first
@@ -751,8 +754,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             metadata the orchestrator appends for the pull request and the tracked issue's number is
                             never one of them -- the developer report contract spelled from the report vocabulary with
                             its fresh-respawn counterpart, and the continuation notes for a session-limit retry
-    prompts.py              implementation, documentation, fixing, conflict-resolution, and fresh-session prompt
-                            builders; each response marker agrees with the parser that settles its stage
+    prompts.py              implementation, documentation, fixing, conflict-resolution, fresh-session, and
+                            report-refresh prompt builders; each response marker agrees with the parser that settles
+                            its stage, and the report refresh asks for a `REPORT: READY` report of the rewritten head
+                            alone, refusing `REPORT: VERIFIED` by name
     review_prompts.py       the fresh reviewer's prompt and the handover it is built over -- the backend that
                             implemented the work and the subject the validating stage resolved -- with the developer
                             report quoted whole between the issue and the inspection commands, named by revision and
@@ -3101,11 +3106,36 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             takes -- and a debt no record describes at all. Every one of those is something the
                             reconciliation stands down on rather than holding, so a silent hold there would
                             suppress every later reviewer with nobody told.
-                            Once nothing is owed it asks the rewritten-head report debt
-                            (`workflow/engine/report_rewrite_debt.py`): a report settled about the head the pull request
-                            stands on pays it, a readable claim that explains exactly why the settled report is about
-                            the replaced head holds the reviewer with no park, and anything else is left to
+                            Once nothing is owed it asks `report_refresh.py` about the rewritten-head report debt
+      report_refresh.py     the rewritten-head report debt (`workflow/engine/report_rewrite_debt.py`) the report hold
+                            asks once nothing else is owed, against the pull request's head as the reviewer's subject
+                            reads it. A published report of that head, against the current baseline and still intact
+                            where it settled -- re-read as `review_report.py` reads it -- pays it, written `null`
+                            before the reviewer road; a report the thread moved out of reach pays nothing and is left
+                            to that road's refusal. A readable claim owed a fresh report holds the reviewer and resumes
+                            the locked session on the report-refresh prompt. Before either, requirements the drift
+                            check stood down for hold and drop the owed-round note, so the drift resume answers them
+                            rather than a report of older requirements paying. The refresh freezes its world before
+                            any run: a damaged receipt group, a receipt not naming the rewritten head, or a checkout
+                            not standing on it clean -- the one the resume runs in, read where it stands and only
+                            recreated where gone -- parks under `report_undeliverable`. A launch nothing ran, a
+                            shutdown kill, and a live pause write nothing. Anything else is left to
                             `review_report.py`'s own staleness refusal
+      report_refresh_models.py the frozen record that refresh hands the owner reading its run -- the debt, whose
+                            rewritten head is the one proved on the pull request, the receipt, and the checkout, and
+                            the requirements baseline the report is stamped with -- with the reading of the
+                            requirements taken once the run is back and the park both helpers take
+      report_refresh_outcomes.py what a refresh run left: a `REPORT: READY` over a checkout still clean on the head,
+                            with the pull request's head and the requirements read again unchanged, recorded under
+                            the frozen baseline with no round or watermarks, then bound and settled through
+                            `report_settlement.py` on the same tick, so a refused post, a lost response, or a crash
+                            before the binding or on the settlement is finished later by its receipt; a moved head
+                            or an edit records nothing. A commit (recorded as work no report describes), loose work, a
+                            timeout, and a `REPORT: VERIFIED` of the report already there park under
+                            `report_undeliverable`; any other finished run with no report takes the agent-failure park
+                            `implementing/parks.py` classifies, route `report_refresh` -- a run that left a command
+                            unfinished among them, read so ahead of any report block it wrote. Each park records
+                            `developer_report_owed`, so the reply is read as the report it owes
       review_report.py      the report a reviewer is handed once nothing is owed: the one last settled, re-read where it
                             settled and quoted whole, and the pull request's head read with it for the subject. Refused
                             rather than reviewed -- parked under `report_undeliverable` with the debt recorded, so the

@@ -12,6 +12,11 @@ where a report of the head it names has settled since, is recorded in its
 place, a rewind onto the debt's first head included. A rewrite onto the head the
 claim names is a replay whatever head it says it replaced; every other rewrite
 is refused and leaves the standing claim exactly where it was.
+
+What pays a debt is a report PUBLISHED about the head the pinned pull request
+stands on, against the requirements baseline the issue carries now; a settled
+report of either head the debt names that pays nothing is owed a fresh report
+of the head the rewrite published.
 """
 from __future__ import annotations
 
@@ -86,6 +91,25 @@ def _reported_on(head: str) -> PinnedState:
         location=ReportLocation(pr_number=PR, comment_id=1),
         mode=_records.ReportMode.PUBLISH,
     ))
+    return state
+
+
+def _settled_on(
+    head: str,
+    mode: _records.ReportMode | None = _records.ReportMode.PUBLISH,
+    requirements: str = DIGEST,
+    pinned: int = PR,
+) -> PinnedState:
+    """`_reported_on(head)` settled by `mode` against `requirements`, pinning `pinned`, over a `DIGEST` baseline."""
+    state = _reported_on(head)
+    settled = _settlement.read_current_report(state)
+    _settlement.record_current_report(state, replace(
+        settled,
+        subject=replace(settled.subject, requirements_revision=requirements),
+        mode=mode,
+    ))
+    state.set("pr_number", pinned)
+    state.set("user_content_hash", DIGEST)
     return state
 
 
@@ -272,6 +296,42 @@ class RewriteDebtRefusalTest(unittest.TestCase):
                 self.assertFalse(_rewrite_debt.records_rewrite(state, rewrite))
 
                 self.assertFalse(state.carries(KEY))
+
+
+class RewriteDebtPaymentTest(unittest.TestCase):
+    """What pays a debt, and what a debt nothing pays is owed."""
+
+    def test_only_a_fresh_report_of_the_head_pays(self) -> None:
+        # A report published about the head the pinned pull request stands
+        # on, against the baseline the issue carries now, pays. One verified
+        # where it stood -- the report before the rewrite carried forward --
+        # one settled before settlements named their mode, one of older
+        # requirements, and one of another head pay nothing.
+        for name, settled, paid in (
+            ("published", _settled_on(FIRST), True),
+            ("verified", _settled_on(FIRST, mode=_records.ReportMode.VERIFY), False),
+            ("no mode", _settled_on(FIRST, mode=None), False),
+            ("older requirements", _settled_on(FIRST, requirements="f" * len(DIGEST)), False),
+            ("another head", _settled_on(REPORTED), False),
+            ("another pull request pinned", _settled_on(FIRST, pinned=PR + 1), False),
+        ):
+            with self.subTest(name):
+                self.assertEqual(_rewrite_debt.pays_the_debt(settled, FIRST), paid)
+
+    def test_either_head_is_owed_a_refresh(self) -> None:
+        # The report of the head the rewrite replaced, and one of the head it
+        # published that pays nothing, are each owed a fresh report of the
+        # head the debt names. A report of neither head, a head the debt does
+        # not name, and a pull request it is not about are owed nothing.
+        for name, settled, head, owed in (
+            ("the replaced head", _settled_on(REPORTED), FIRST, True),
+            ("a verified published head", _settled_on(FIRST, mode=_records.ReportMode.VERIFY), FIRST, True),
+            ("neither head", _settled_on(FOREIGN), FIRST, False),
+            ("another head standing", _settled_on(REPORTED), FOREIGN, False),
+            ("another pull request pinned", _settled_on(REPORTED, pinned=PR + 1), FIRST, False),
+        ):
+            with self.subTest(name):
+                self.assertEqual(DEBT.owes_a_refresh(settled, head), owed)
 
 
 if __name__ == "__main__":

@@ -15,14 +15,14 @@ that committed and wrote no report. A reply resumes the session through the
 drift route, and the report it writes then supersedes the one that could not be
 delivered.
 
-Once nothing is owed there, a head this orchestrator rewrote holds the reviewer
-too (`report_rewrite_debt`): the pull request stands on a commit the settled
-report is not about, and the reviewer road behind would park for that. Where
-the debt explains exactly that gap, the review is held without a park, since the
-report owed is for a commit this orchestrator made; a report settled about the
-head the pull request stands on pays the debt here, and the reviewer runs. A
-claim nobody can read, or a head it does not explain, holds nothing here and
-leaves the reviewer road's own rules to answer the report it finds.
+Once nothing is owed there, a head this orchestrator rewrote is asked about
+last (`report_refresh`): the pull request stands on a commit the settled report
+is not about, and the reviewer road behind would park for that. A report of
+that head settled and still intact pays the debt, and the reviewer runs; a
+claim owed a fresh report holds the reviewer while the developer is asked for
+it, with no human involved. A claim nobody can read, or a head it does not
+explain, holds nothing and leaves the reviewer road's own rules to answer the
+report it finds.
 """
 from __future__ import annotations
 
@@ -41,12 +41,11 @@ from orchestrator.workflow.engine import (
     report_delivery_state as _delivery_state,
     report_evidence as _report_evidence,
     report_record_state as _record_state,
-    report_rewrite_debt as _rewrite_debt,
 )
 from orchestrator.workflow.stages.validating import (
     drift_reports as _drift_reports,
+    report_refresh as _report_refresh,
     report_settlement as _settlement,
-    review_report as _review_report,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -103,17 +102,19 @@ def _report_holds_the_review(
     silently they would suppress every later reviewer with nobody told.
 
     A report no longer owed leaves the question of a rewritten head, asked
-    last because a report this tick settled may be the one that pays it.
+    last because a report this tick settled may be the one that pays it --
+    and asked ahead of the reviewer, since what it holds the reviewer for is
+    the developer run that writes the report of that head.
     """
     if not _report_delivery.owes_a_report(state):
-        return _rewrite_holds_the_review(gh, issue, state)
+        return _report_refresh._rewrite_holds_the_review(gh, spec, issue, state)
     refusal = _refusal_before_settling(state)
     if refusal:
         _settlement._parks(gh, issue, state, refusal)
         return True
     _settlement._settles_the_report(gh, spec, issue, state, WorkflowLabel.VALIDATING)
     if not _report_delivery.owes_a_report(state):
-        return _rewrite_holds_the_review(gh, issue, state)
+        return _report_refresh._rewrite_holds_the_review(gh, spec, issue, state)
     refusal = _refusal_after_settling(gh, spec, issue, state)
     if refusal:
         _settlement._parks(gh, issue, state, refusal)
@@ -247,44 +248,3 @@ def _moved_off_the_commit(worktree: Path, state: PinnedState) -> str:
     if not head or head == pending.subject.source_sha:
         return ""
     return _MOVED_CHECKOUT
-
-
-def _rewrite_holds_the_review(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
-) -> bool:
-    """Hold the reviewer over a head this orchestrator rewrote and no report is about yet.
-
-    The pull request's head is read the way the reviewer's subject reads it,
-    and a head nobody could read holds, since the next tick is as likely to
-    read it. A report settled about that head pays the debt whatever the
-    claim names, and the write that drops it goes out before the reviewer
-    road, so no road behind it reads the paid claim back. A readable claim
-    that explains the gap between the settled report and that head holds the
-    review without a park. Anything else -- a claim nobody can read, another
-    pull request or branch, a head somebody else pushed, a settled report of
-    neither head -- holds nothing here: the reviewer road holds the report it
-    finds to the head, and parks for one that is not about it.
-    """
-    if not _rewrite_debt.carries_rewrite_debt(state):
-        return False
-    pr_number = _rewrite_debt.pinned_pull_request(state)
-    head = _review_report._pull_request_head(gh, issue, pr_number)
-    if head is None:
-        return True
-    if _rewrite_debt.pays_the_debt(state, head):
-        _rewrite_debt.drops_rewrite_debt(state)
-        gh.write_pinned_state(issue, state)
-        log.info(
-            "issue=#%d settled a report of PR #%s's head %s; its rewrite's "
-            "report debt is paid", issue.number, pr_number, head[:8],
-        )
-        return False
-    debt = _rewrite_debt.read_rewrite_debt(state)
-    if debt is None or not debt.explains(state, head):
-        return False
-    log.info(
-        "issue=#%d PR #%s stands on %s, which this orchestrator rewrote from "
-        "%s; holding the review until a report of it settles",
-        issue.number, pr_number, head[:8], debt.previous_head[:8],
-    )
-    return True

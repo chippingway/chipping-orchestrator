@@ -274,7 +274,10 @@ Where the contract is carried:
   PR-feedback prompts have an item that asks only for report content answered in the report, with no commit for it;
   the PR-feedback prompt sends a developer whose comments say a human published or updated the report to read it
   there and, when it is complete and current, end on `REPORT: VERIFIED`; and the drift, late-revision, and
-  PR-feedback prompts keep `ACK:` for a reply after which neither the branch nor the report has to change.
+  PR-feedback prompts keep `ACK:` for a reply after which neither the branch nor the report has to change. The
+  report-refresh `_build_report_refresh_prompt` carries it whole too, then asks for the `REPORT: READY` block alone and
+  refuses `REPORT: VERIFIED` by name, since the report already on the pull request is about the head a rebase replaced;
+  it offers no `ACK:`.
 - **Deferred** in `_build_fresh_respawn_preamble`, which carries `_RESPAWN_REPORT_NOTE` instead: the concise report
   covers the final state of the whole branch, the previous session's commits included, ownership and publication are
   restated, and the outcome is the one the task below the preamble describes — that preamble also precedes tasks that
@@ -335,6 +338,21 @@ left unpublished still passes the gate on its way there, since its own report wa
 non-actionable `ACK:` and a question keep their own roads, and on the human-feedback route the `ACK:` still returns
 the pull request to `in_review` — but only a reply that never used the report contract at all is that: one that
 reached for the markers and missed, an `ACK:` line beside a report block included, is a broken contract and parks.
+
+The **rewritten-head report refresh** acts on one on `workflow:validating`, where a recorded
+`developer_report_rewrite_debt` says this orchestrator rebased the pull request onto a head no settled report is about
+([`_handle_validating`](../state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating) step 3,
+`workflow/stages/validating/report_refresh.py`). Before any reviewer runs, and with no human reply, the locked session
+is resumed for a report alone of that exact head, over requirements, a whole code-publication receipt, and a clean
+checkout proved to stand where the debt says, and read again once the run is back. Only a `REPORT: READY` from a run
+that left no command unfinished pays: it is recorded under the requirements revision frozen before the run, with no
+round or feedback riding it, bound to the receipt's publication, and settled through the reconciliation on the same
+tick, and the next tick drops the debt once that report still reads intact. A `REPORT: VERIFIED` pointing at the report
+already there is refused, since that report describes the head before the rebase and verifying it again carries it
+forward on nobody's proof. A run that commits, leaves loose work, times out, or verifies instead parks under
+`report_undeliverable`; a question or other agent failure takes its usual park; each records `developer_report_owed`, so
+the reply is read as the report it owes. A head moved or an issue edited while the agent was out records nothing,
+leaving the reviewer road or the drift resume to answer it.
 
 Every other developer road is still routed by its commits, its `ACK:` line, and the question parks the
 [delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report outcome is read there the way
@@ -449,7 +467,8 @@ division of labour between the developer and the orchestrator never changes.
   - a report recorded and never bound — the process dying before the gate or before the binding, or the
     reviewer-requested round's relabel to `workflow:validating`, which it takes before the binding, never landing —
     by the stage that binds it: `workflow:validating`'s review hold, or `workflow:fixing`'s recovery, which hands the
-    round back on the `fixing_round_settled` mark the record carries;
+    round back on the `fixing_round_settled` mark the record carries — the report a rewritten head's refresh recorded
+    included, which that hold binds before it asks about the debt again;
   - a round settled on `workflow:fixing` and never handed back, on that same mark; and one whose hand-back was
     written and whose relabel never landed, by taking the relabel again while no reviewer has returned over that
     round's report — `review_returned_subject`, which only a reviewer that ran writes, rather than the launch's
@@ -473,7 +492,9 @@ division of labour between the developer and the orchestrator never changes.
     receipt for a commit, at the settlement for a report alone — and has no `ACK:` completion: an `ACK:` there parks
     for a human with the replay anchor intact;
   - human feedback routed from `in_review` (`pending_fix_at` set) resets `review_round` to 0 on its handover, since
-    the approval was of the prior head, and its `ACK:` returns the pull request to `in_review`.
+    the approval was of the prior head, and its `ACK:` returns the pull request to `in_review`;
+  - a rewritten head's report refresh spends nothing: the rebase already reset `review_round` for the head it
+    published, and the report answers no feedback.
 
   Agent runs are counted where they are spawned and nowhere else: each launch is charged once to `agent_runs_used`
   and its usage folded once into the per-issue totals, and a recovery that finishes a result spawns nobody. Review

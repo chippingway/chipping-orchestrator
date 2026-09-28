@@ -102,8 +102,9 @@ file is the durable record.
   `route` names the road rather than the stage, since one stage reaches these parks from several and one road is
   reached from several stages: `dev_run` (a fresh or resumed developer run under `workflow:implementing`),
   `dev_drift_resume` (a resume an issue-body edit earned), `dev_fix` (a fix round), `docs_pass` (the single
-  documentation pass), `conflict_resume` (a dev resume inside the rebase loop), and `candidate_publication` (the
-  shared seam every committed candidate publishes through). What the correlation payload deliberately does not do
+  documentation pass), `conflict_resume` (a dev resume inside the rebase loop), `candidate_publication` (the
+  shared seam every committed candidate publishes through), and `report_refresh` (a resume asking for a report alone
+  of a head this orchestrator rewrote). What the correlation payload deliberately does not do
   is report any part of what the agent wrote: no last message, prompt, captured stream, or report body reaches
   either sink, and every field in it is a structured identifier the caller already held. The `reason` beside it is
   a different matter — `_on_question` classifies structured unfinished tool steps first as `agent_execution_failed`,

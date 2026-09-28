@@ -76,9 +76,10 @@ per-stage behavior is in
   what tells a hand-back still owed its review from one a reviewer has read. A pull request with no report recorded, a
   report about another commit than that head, and one written against requirements the issue has moved past are refused
   rather than handed over — save that a report of the head this orchestrator's own rebase replaced, where a recorded
-  `developer_report_rewrite_debt` explains exactly that gap, holds the reviewer without a park until a report of the
-  rewritten head settles. A report that changes on an unchanged head is a new subject, so it always reaches a fresh
-  reviewer — one settling before the spawn holds the round, and one settling while a reviewer is out, while its approval
+  `developer_report_rewrite_debt` explains exactly that gap, holds the reviewer while the developer is resumed for a
+  fresh report of the rewritten head, which is the report handed over once it settles. A report that changes on an
+  unchanged head is a new subject, so it always reaches a fresh reviewer — one settling before the spawn holds the
+  round, and one settling while a reviewer is out, while its approval
   is verified or squashed, or while `in_review` decides its ready ping voids what that approval would have earned, and
   either stays current — and nothing an earlier approval left keyed on the head alone stands in for that review (see
   [`review_approved_subject`][review-subject]). Nor does an approval of requirements the issue has moved past, or of a
