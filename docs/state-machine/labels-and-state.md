@@ -1813,39 +1813,41 @@ The keys that matter for the state machine fall into a few groups:
   go on relabels and launches nothing and leaves `handed` `null`; the whole subject is held again behind that post, the
   record written with `handed` set and the `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to
   `workflow:fixing`, the subject held once more right before the developer launch, and the writes after that launch
-  set the record to `null`. A later tick finishing a record already `handed` posts no feedback again: it relabels and
-  launches the developer the record is owed, or -- where `agent_runs_used` was charged past `handed`, that developer
-  already launched -- sets the record to `null`, which is asked again right before every launch, so a developer another
-  road launched behind the relabel is never launched a second time. Either launch is made only behind that anchor: the
-  fixing stage clears it with the round's other bookmarks, and a handoff that lost it is held -- nothing relabelled or
-  launched, the record left as it waited -- since no failed run could replay the feedback. A subject proved to have
-  moved behind either request sets the record to `null` in a write that keeps the newer records, clearing that anchor
-  with it so no retry replays feedback about a subject nobody is handing on. An approval reaches the approval arc only
-  where its claim names the current evidence exactly and that evidence proves current, its re-read artifact still the
-  one that settled, and passes and covers the configuration by the artifact's own commands rather than by the claim's
-  copied `passed` and `covers`, with the pinned records read again last (`unverified_approvals.py`). The arc resolves
-  the subject again behind its verify gate, whatever the gate said, and reads the comment behind that: a report, the
-  record, or a `verification_evidence_*` record moved there drops the approval, and the arc's write sets the record to
-  `null`, save where that subject would not read. Its squash tail retires only that record, held to the report,
-  evidence, and verdict records in hand ahead of each write -- the recovery of a squash an earlier tick did not finish
-  holds none, so a later round's record found beside it is left waiting and holds the move to `documenting`. A proof
-  nobody could read holds the record; any other refusal parks the approval under `reviewer_unverified`, once held to
-  its subject and its claim again -- one whose subject or evidence moved meanwhile is set to `null` for a fresh
-  reviewer instead. A verdict that could not be persisted parks under `reviewer_unrecorded` with nothing published or
-  acted on (`review_parks.py`). Each park is measured at its widest before its notice is posted -- both the park's own
-  write, keeping any record it does not retire, and the one keeping the record beside the notice's ledger entry where
-  the subject would not read -- and taken over the comment as it stands, the returned run's usage and session
-  unrecorded, where it has no room beside what that run staged; nothing is posted or written where there is room for no
-  park. Behind its notice the subject is resolved again and the comment read against the state the park began over: a
-  report record, the record itself, or a `verification_evidence_*` record moved there, like a push, lands no park and
-  sets the record to `null` alone, over the newer records, while a subject that would not read, or a notice that left
-  no id and so may have reached nobody, lands none either and leaves the record as it waited for a later tick to park
-  again. Every park write is composed over the comment as it stands, so a field another road wrote behind the notice --
-  a spent `review_round` -- is kept, as it is by every write the approval's squash tail makes; one that carries what
-  moved there is measured again, and not made where another road's write left no room. A park that lands sets the
-  record to `null` in its own write and reports `park_awaiting_human` only once that write is down. A failed verify
-  gate's park goes through the same funnel, so it too lands only over the subject still standing behind the gate and
-  behind its notice. A refused approval parked again from a waiting record with no claim says only that nothing it
+  set the record to `null`; both holds count the issue pointed at another pull request, or a later evidence revision
+  superseding the evidence the request claims, as moves. A later tick finishing a record already `handed` posts no
+  feedback again: it relabels and launches the developer the record is owed, or -- where `agent_runs_used` was charged
+  past `handed`, that developer already launched -- sets the record to `null`, which is asked again right before every
+  launch, so a developer another road launched behind the relabel is never launched a second time. Either launch is
+  made only behind that anchor: the fixing stage clears it with the round's other bookmarks, and a handoff that lost it
+  is held -- nothing relabelled or launched, the record left as it waited -- since no failed run could replay the
+  feedback. A subject proved to have moved behind either request sets the record to `null` in a write that keeps the
+  newer records, clearing that anchor with it so no retry replays feedback about a subject nobody is handing on. An
+  approval reaches the approval arc only where its claim names the current evidence exactly and that evidence proves
+  current, its re-read artifact still the one that settled, and passes and covers the configuration by the artifact's
+  own commands rather than by the claim's copied `passed` and `covers`, with the pinned records read again last
+  (`unverified_approvals.py`). The arc resolves the subject again behind its verify gate, whatever the gate said, and
+  reads the comment behind that: a report, the record, or a `verification_evidence_*` record moved there drops the
+  approval, and the arc's write sets the record to `null`, save where that subject would not read. Its squash tail
+  retires only that record, held to the report, evidence, and verdict records in hand ahead of each write -- the
+  recovery of a squash an earlier tick did not finish holds none, so a later round's record found beside it is left
+  waiting and holds the move to `documenting`. A proof nobody could read holds the record; any other refusal parks the
+  approval under `reviewer_unverified`, once held to its subject and its claim again -- one whose subject or evidence
+  moved meanwhile is set to `null` for a fresh reviewer instead. A verdict that could not be persisted parks under
+  `reviewer_unrecorded` with nothing published or acted on (`review_parks.py`). Each park is measured at its widest
+  before its notice is posted -- both the park's own write, keeping any record it does not retire, and the one keeping
+  the record beside the notice's ledger entry where the subject would not read -- and taken over the comment as it
+  stands, the returned run's usage and session unrecorded, where it has no room beside what that run staged; nothing is
+  posted or written where there is room for no park. Behind its notice the subject is resolved again and the comment
+  read against the state the park began over: a report record, the record itself, or a `verification_evidence_*` record
+  moved there, like a push, lands no park and sets the record to `null` alone, over the newer records, while a subject
+  that would not read, or a notice that left no id and so may have reached nobody, lands none either and leaves the
+  record as it waited for a later tick to park again. Every park write is composed over the comment as it stands, so a
+  field another road wrote behind the notice -- a spent `review_round` -- is kept, and the `orchestrator_comment_ids`
+  ledger merged, an id either side recorded kept, as they are by every write the approval's squash tail makes; one that
+  carries what moved there is measured again, and not made where another road's write left no room. A park that lands
+  sets the record to `null` in its own write and reports `park_awaiting_human` only once that write is down. A failed
+  verify gate's park goes through the same funnel, so it too lands only over the subject still standing behind the gate
+  and behind its notice. A refused approval parked again from a waiting record with no claim says only that nothing it
   declared earned verification evidence, since the record keeps no copy of why. A bare `/orchestrator continue` on
   either park buys a fresh reviewer, and an edit under one nobody replied to waits for that reviewer rather than
   resuming the developer. Additive and dormant: no live reviewer round hands its result to that service yet, and no

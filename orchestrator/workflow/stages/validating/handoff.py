@@ -197,16 +197,19 @@ def _carries_what_others_wrote(state: PinnedState, durable: dict, held: _Held) -
     Another road's is a field the comment spells otherwise than it did while
     `state` still spells it as it did then; one `state` changed too is this
     tick's to write, and so is the squash's own record. Compared as the
-    comment's JSON spells them (`review_comment._moved`).
+    comment's JSON spells them (`review_comment._moved`). The ledger of the
+    orchestrator's own comments is merged instead, since both sides add to it
+    and an id either recorded is a comment every later prompt has to know.
     """
     theirs = _review_comment._moved(durable, held.comment, {*held.comment, *durable})
     ours = set(_review_comment._moved(state.data, held.comment, theirs))
-    for field in set(theirs) - ours - _SQUASH_RECORD:
+    for field in set(theirs) - ours - _SQUASH_RECORD - {_comments._ORCH_COMMENT_IDS}:
         written = durable.get(field, _review_comment._ABSENT)
         if written is _review_comment._ABSENT:
             state.data.pop(field, None)
         else:
             state.set(field, written)
+    _comments._track_orchestrator_comment(state, *sorted(_comments._orchestrator_ids(durable)))
     held.comment = dict(durable)
 
 

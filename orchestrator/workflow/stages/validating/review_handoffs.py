@@ -17,7 +17,9 @@ carries no receipt to find it by, so that retry leaves the feedback on the
 pull request twice. The whole subject is held to what stands once more behind
 that post, the comment read behind it -- a push or a later report landing
 during it is a subject nobody reviewed, and the handoff's write would put the
-older report records back over the newer -- and only then is the verdict
+older report records back over the newer; so is the issue pointed at another
+pull request, and a later revision superseding the evidence the request
+claims -- and only then is the verdict
 written as handed at the lifetime agent-run count
 (`review_verdicts.hands_off`), with the anchor, and the issue relabelled to
 `workflow:fixing`, so whichever request fails leaves a verdict whose feedback
@@ -57,6 +59,7 @@ from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values
 from orchestrator.workflow.stages.validating import (
     models as _models,
     requested_changes as _requested_changes,
+    review_claims as _claims,
     review_coverage as _review_coverage,
     review_verdicts as _verdicts,
     unverified_approvals as _unverified,
@@ -112,8 +115,10 @@ def launches_the_developer(context: _models._RequestedChanges) -> None:
     developer would answer words the pull request no longer carries and its
     writes would put those records back over the newer. So the subject is held
     to what stands once more, the comment read again behind it, and a moved one
-    drops the request -- its anchor with it -- in a write that keeps the newer
-    records, launching nothing. That reading carries the run ledger too, and a
+    -- a push, a later report, the issue pointed at another pull request, or a
+    later revision superseding the evidence the request claims -- drops the
+    request, its anchor with it, in a write that keeps the newer records,
+    launching nothing. That reading carries the run ledger too, and a
     charge past the count the request was handed at is its developer already
     launched by another road meanwhile, and an anchor it no longer carries is
     a handoff held (`_launch_stands`). Otherwise the drop is staged ahead of
@@ -125,6 +130,8 @@ def launches_the_developer(context: _models._RequestedChanges) -> None:
     stands = _review_coverage._verdict_still_stands(
         gh, issue, state, context.decision.run.subject.recorded(), dict(state.data),
     )
+    if stands and owned is not None and owned.evidence is not None:
+        stands = _claims.claim_standing(state, owned.evidence) is _claims.ClaimStanding.SETTLED
     if not stands:
         drops_what_moved(gh, issue, state, stands, (owned, None))
         return
@@ -153,8 +160,9 @@ def drops_what_moved(
         return
     verdict, posted = owned
     log.info(
-        "issue=#%d the subject its reviewer's change request is about moved "
-        "before it was handed over; dropping the verdict", issue.number,
+        "issue=#%d the subject, or the evidence, its reviewer's change request "
+        "stands on moved before it was handed over; dropping the verdict",
+        issue.number,
     )
     dropped = _verdicts.drops_the_verdict(state, only=verdict)
     anchor = state.get(_verdicts._FEEDBACK_ANCHOR)
@@ -230,9 +238,11 @@ def _posts_the_feedback(context: _models._RequestedChanges, owned) -> bool:
     Only a post identified by the id it landed as goes on: that id is the
     anchor the handoff is written beside, so no pull request to post on, a
     post that failed, and one that left no id all hold the verdict unhanded.
-    The post is a request of its own, long enough for a push or a later
-    report to land; the records are read against the comment the post was
-    made over, so the anchor it staged is not mistaken for another road's.
+    The post is a request of its own, long enough for a push, a later report,
+    a repoint of the issue's pull request, or a later evidence revision to
+    land; the records are read against the comment the post was made over, so
+    the anchor it staged is not mistaken for another road's, and the claim is
+    judged over that reading.
     """
     posted_over = dict(context.state.data)
     posted = _requested_changes._post_reviewer_feedback(context)
@@ -245,6 +255,8 @@ def _posts_the_feedback(context: _models._RequestedChanges, owned) -> bool:
     stood = _review_coverage._verdict_still_stands(
         context.gh, context.issue, context.state, context.decision.run.subject.recorded(), posted_over,
     )
+    if stood and owned.evidence is not None:
+        stood = _claims.claim_standing(context.state, owned.evidence) is _claims.ClaimStanding.SETTLED
     if not stood:
         drops_what_moved(context.gh, context.issue, context.state, stood, (owned, posted))
     return bool(stood)

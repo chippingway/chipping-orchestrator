@@ -31,15 +31,20 @@ record of a verdict. The dormant disposition service asks it of more
 (`review_coverage._verdict_still_stands`), and so do the approval behind its
 verify gate, the proof of the evidence it rests on (`unverified_approvals`),
 and a park behind its notice (`review_parks`): the returned verdict it persisted
-(`review_verdicts`) beside the report's records, since one another road dropped
-or replaced since is no longer the verdict any write behind this may act on.
+(`review_verdicts`) and the pull request the issue points at beside the
+report's records, since a verdict another road dropped or replaced since is no
+longer the one any write behind this may act on, and one about a pull request
+the issue no longer points at is no review of the one it does.
 Every write it makes behind that reading is laid over the comment as it stands,
 so the rest of what the comment changed is carried even where those records
 stand: the workflow verification evidence another road recorded or settled --
 which that service holds the verdict's evidence claim to, over the comment as
 read last, rather than calling a settlement of the very evidence it claims a
 move -- and a round a reply bought, or the thread another road read through,
-none of which a write may put back. Records are compared as the comment's JSON
+none of which a write may put back. The ledger of the orchestrator's own
+comments is merged rather than carried or kept, whichever way the records went:
+every road adds to it, and an id either side recorded is a comment every later
+prompt has to know as the orchestrator's. Records are compared as the comment's JSON
 spells them, so one written `null` where there was none, or a revision spelled
 `true` where it was `1`, is a move. Records that stand leave the state alone.
 Records that moved refuse the verdict, and everything the comment changed since
@@ -64,6 +69,7 @@ from github.Issue import Issue
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    comments as _comments,
     report_records as _records,
     review_subjects as _review_subjects,
     verification_records as _evidence_records,
@@ -82,9 +88,14 @@ _REPORT_RECORDS = (
     _records.REPORT_HANDOFF,
 )
 
+# The pull request the issue points at, which every road posting or pushing
+# for it reads off the pinned comment.
+_PR_NUMBER = "pr_number"
+
 # What a persisted verdict stands on in the comment beyond the report: the
-# returned verdict itself. The evidence it claims is judged by the claim.
-_VERDICT_RECORDS = (*_REPORT_RECORDS, _verdicts.RETURNED_VERDICT)
+# pull request the issue points at, and the returned verdict itself. The
+# evidence it claims is judged by the claim.
+_VERDICT_RECORDS = (*_REPORT_RECORDS, _PR_NUMBER, _verdicts.RETURNED_VERDICT)
 
 # Every record a verification transaction, its settlement, or its retirement
 # writes.
@@ -185,12 +196,16 @@ def _records_stand(
     # Every field the comment changed since `resolved_over`, as `_moved`
     # spells a change: a field Python calls equal -- `true` over `1` -- is
     # still carried rather than written back over by the run's own write.
-    for field in _moved(durable.data, resolved_over, fields):
+    for field in _moved(durable.data, resolved_over, fields - {_comments._ORCH_COMMENT_IDS}):
         written = durable.data.get(field, _ABSENT)
         if written is _ABSENT:
             state.data.pop(field, None)
         else:
             state.set(field, written)
+    # The ledger of the orchestrator's own comments is a set every road adds
+    # to, so it is merged rather than carried or kept whole: an id either side
+    # recorded is a comment every later prompt has to know as the orchestrator's.
+    _comments._track_orchestrator_comment(state, *sorted(_comments._orchestrator_ids(durable)))
     if not stand:
         log.warning(
             "issue=#%d the records its reviewer's verdict stands on moved on the "

@@ -30,6 +30,7 @@ from tests.workflow.stages.validating import (
     review_verdict_test_support as _world,
 )
 from tests.workflow.stages.validating.validating_review_test_support import FIX_HEAD_SHAS
+from tests.workflow.value_helpers import _open_pr_for
 
 PR_COMMENT = "pr_comment"
 
@@ -61,22 +62,45 @@ _THE_FEEDBACK = _disposed.saying(_disposed.FEEDBACK_NOTICE)
 
 _TO_FIXING = partial(operator.eq, LABEL_FIXING)
 
+def _repoints(case) -> None:
+    """Another road pointing `case`'s issue at another pull request than the one its reviewer reviewed."""
+    _open_pr_for(case.github, issue_number=_world.ISSUE, pr_number=_world.PR + 1)
+    state = case.github.read_pinned_state(case.issue)
+    state.set("pr_number", _world.PR + 1)
+    case.github.write_pinned_state(case.issue, state)
+
+
 # The requests between a change request's verdict and its developer behind
-# which another road moves its subject, how many feedback posts that leaves,
-# the report revision the pinned comment records then, and every relabel.
+# which another road moves what it stands on, the reply that earned it -- one
+# declaring nothing, or one whose failed run it relies on as evidence -- how
+# many feedback posts that leaves, the report revision the pinned comment
+# records then, and every relabel. A later report, a push, the issue pointed at
+# another pull request, or a later evidence revision superseding the one the
+# request claims each moves it.
 _BEFORE_THE_LAUNCH = (
     (
         "a report behind the verdict's write",
+        UNDECLARED_REQUEST,
         ("write_pinned_state", _CARRIES_THE_VERDICT, _read.settles_a_later_report),
         (0, 2, ()),
     ),
-    ("a report behind the feedback post", (PR_COMMENT, _THE_FEEDBACK, _read.settles_a_later_report), (1, 2, ())),
-    ("a push behind the feedback post", (PR_COMMENT, _THE_FEEDBACK, _world.pushes), (1, 1, ())),
+    (
+        "a report behind the feedback post",
+        UNDECLARED_REQUEST,
+        (PR_COMMENT, _THE_FEEDBACK, _read.settles_a_later_report),
+        (1, 2, ()),
+    ),
+    ("a push behind the feedback post", UNDECLARED_REQUEST, (PR_COMMENT, _THE_FEEDBACK, _world.pushes), (1, 1, ())),
+    ("a repoint behind the feedback post", UNDECLARED_REQUEST, (PR_COMMENT, _THE_FEEDBACK, _repoints), (1, 1, ())),
+    ("evidence behind the feedback post", REQUESTING, (PR_COMMENT, _THE_FEEDBACK, _read.settles_evidence), (1, 1, ())),
     (
         "a report behind the relabel",
+        UNDECLARED_REQUEST,
         (SET_LABEL, _TO_FIXING, _read.settles_a_later_report),
         (1, 2, (FIXING,)),
     ),
+    ("a repoint behind the relabel", UNDECLARED_REQUEST, (SET_LABEL, _TO_FIXING, _repoints), (1, 1, (FIXING,))),
+    ("evidence behind the relabel", REQUESTING, (SET_LABEL, _TO_FIXING, _read.settles_evidence), (1, 1, (FIXING,))),
 )
 
 def _fixing() -> dict:
@@ -163,11 +187,11 @@ class DisposedChangeRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCas
         # of the launch: no developer is launched, a later report is kept
         # rather than written back over, and no anchor is left for a retry to
         # replay.
-        for name, behind, expected in _BEFORE_THE_LAUNCH:
+        for name, message, behind, expected in _BEFORE_THE_LAUNCH:
             with self.subTest(name):
                 self.setUp()
 
-                ran = _world.AnotherRoadBehind(self, *behind).returning(UNDECLARED_REQUEST)
+                ran = _world.AnotherRoadBehind(self, *behind).returning(message, **_fixing())
 
                 self.assertEqual(
                     (

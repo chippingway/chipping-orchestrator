@@ -73,7 +73,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             shared by issue and pull-request comment posts; a developer report enters the ledger on
                             whichever reading finds it on the thread, since a post whose response was lost hands
                             back no id, and a verification artifact enters the same one through the sibling owner
-                            below; callers persist the ledger, and shared token accounts are never treated as
+                            below; callers persist the ledger, merging another reading's ids into it several at a
+                            time where two roads each added some, and shared token accounts are never treated as
                             exclusively automated. The id a report landed as is read off the LOOKUP, which
                             resolves it once when the reading is taken: this records a comment before its caller
                             ever sees the reading, and an id answered afresh to each of them could fail here and
@@ -2969,7 +2970,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             read afresh and where it fits, so a prompt still keeps them as the orchestrator's, and
                             where they stand composes the write behind over the comment as read: a field another
                             road wrote since the tail last read or wrote it (`_Held`) is carried onto the state in
-                            hand unless that state changed it too, save the squash's own collapse record
+                            hand unless that state changed it too, save the squash's own collapse record -- and the
+                            ledger of the orchestrator's own comments merged, an id either side recorded kept
       verify.py             how a refused verify result reads and the park it earns, filed through
                             `review_parks.py` over the approved subject; `ok` and the `not_run` an empty
                             `VERIFY_COMMANDS` returns both advance instead
@@ -3171,7 +3173,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is a move. The dormant `review_disposition.py` asks it of more wherever it holds a persisted
                             verdict to its subject (`persisted`), and so do the approval behind its verify gate, the
                             proof of the evidence an approval rests on (`unverified_approvals.py`), and a park behind
-                            its notice (`review_parks.py`): the returned verdict beside the report's records,
+                            its notice (`review_parks.py`): the returned verdict and the pull request the issue points
+                            at beside the report's records, the ledger of the orchestrator's own comments merged into
+                            every write composed there rather than carried or kept whole,
                             which no write may act on once another road dropped or replaced it -- and, since every write
                             it makes is laid over the comment as it stands, whatever else the comment changed is carried
                             even where those records stand, save a field the tick changed too: the verification evidence
@@ -3201,11 +3205,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             squash handoff before moving a label that tail left owed, and `in_review` before an approval
                             may stand behind a ready ping. A returned verdict is held to its subject the same way ahead
                             of the write persisting it, once more before it is acted on, on every tick it waits on its
-                            evidence, and behind a change request's feedback post and relabel (`_verdict_still_stands`) -- the subject resolved and then the comment
-                            read behind it, watching the verdict beside the report's records and carrying the
-                            evidence records for its claim to be judged over, and a reading nobody could take told
-                            apart from a subject that moved, so a persisted verdict is held rather than dropped.
-                            Nothing here parks or posts
+                            evidence, and behind a change request's feedback post and relabel
+                            (`_verdict_still_stands`) -- the subject resolved and then the comment read behind it,
+                            watching the verdict and the pull request the issue points at beside the report's records,
+                            and carrying the evidence records for its claim to be judged over; the issue pointed at
+                            another pull request than the subject records, since then or between ticks, is a move,
+                            and a reading nobody could take is told apart from a subject that moved, so a persisted
+                            verdict is held rather than dropped. Nothing here parks or posts
       review_records.py     what a reviewer round writes onto the pinned comment, through writers the round and the
                             report settlement's measurement share: the spec and the subject it is handed, written ahead
                             of the spawn -- onto the comment as `review_report.py` read it, since the launch charge
@@ -3297,7 +3303,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       review_handoffs.py    a persisted verdict handed on (`hands_the_verdict_on`): an approval to
                             `unverified_approvals.py`, and a change request to its developer -- the feedback posted
                             first, a post that failed, left no id, or had no pull request to go on holding the
-                            verdict unhanded, the whole subject held again behind that post, the verdict written as
+                            verdict unhanded, the whole subject -- with the pull request the issue points at and the
+                            evidence the request claims -- held again behind that post, the verdict written as
                             handed with the anchor, the relabel, and the launch, held to the subject once more right
                             before it (`launches_the_developer`); a request already handed resumes there without
                             posting its feedback again -- relabelled and launched, or retired where the run ledger was

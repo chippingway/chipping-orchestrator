@@ -22,6 +22,7 @@ from unittest.mock import patch
 
 from orchestrator.git.verification.models import VerifyResult
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
+from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.validating import review_claims as _claims, review_disposition as _disposition
 from tests.workflow.fixtures import LABEL_DOCUMENTING
 from tests.workflow.stages.validating import (
@@ -171,6 +172,15 @@ _SPENT_BEHIND = (
         REFUSED_SQUASH,
         ((("squash_failed", True), None, ["squash_failed"]), []),
     ),
+)
+
+
+# Where another road records orchestrator comments of its own: behind a park's
+# notice, and behind the approval comment on the way to the squash -- the reply
+# that reaches each, and the request and a phrase of the post it lands behind.
+_LEDGER_WINDOWS = (
+    ("the park's notice", UNDECLARED_APPROVAL, (ISSUE_COMMENT, _disposed.UNVERIFIED_NOTICE)),
+    ("the approval comment", _world.declared_run(), ("pr_comment", _disposed.APPROVAL_NOTICE)),
 )
 
 
@@ -397,11 +407,46 @@ class ParkWriteTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
             (before, []),
         )
 
+    def test_another_roads_ledger_entries_are_kept(self) -> None:
+        # Another road records two orchestrator comments of its own behind a
+        # park's notice, or behind the approval comment on the way to the
+        # squash: every write behind that merges the ledger rather than keeping
+        # one side's, so that road's comments and this tick's own posts alike
+        # stay the orchestrator's to every later prompt.
+        for name, reply, behind in _LEDGER_WINDOWS:
+            with self.subTest(name):
+                self.setUp()
+
+                _world.AnotherRoadBehind(
+                    self, behind[0], _disposed.saying(behind[1]), self._posts_two_notices,
+                ).returning(reply)
+
+                self.assertEqual(self._unrecorded_posts(), set())
+
     def _spends_a_round(self, _case) -> None:
         """Another road's write of the round, which no verdict stands on."""
         state = self.github.read_pinned_state(self.issue)
         state.set(REVIEW_ROUND, _SPENT_ROUND)
         self.github.write_pinned_state(self.issue, state)
+
+    def _posts_two_notices(self, _case) -> None:
+        """Another road's two identified orchestrator comments on the issue, recorded in the ledger it writes."""
+        state = self.github.read_pinned_state(self.issue)
+        self.theirs = [
+            _comments._post_issue_comment(self.github, self.issue, state, "Another road's notice.").id
+            for _ in range(2)
+        ]
+        self.github.write_pinned_state(self.issue, state)
+
+    def _unrecorded_posts(self) -> set:
+        """Every orchestrator comment -- another road's, and each notice this tick posted -- the ledger lost."""
+        ours = {
+            said.id
+            for said in (*self.issue.comments, *self.pull_request.issue_comments)
+            if any(notice in said.body for notice in _disposed.NOTICES)
+        }
+        recorded = set(self.pinned()[_disposed.LEDGER])
+        return (ours | set(self.theirs)) - recorded
 
 
 if __name__ == "__main__":
