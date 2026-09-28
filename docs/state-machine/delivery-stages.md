@@ -3397,7 +3397,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        `park_reason="squash_failed"` and stay on `workflow:validating` — through `review_parks.py`, measured before
        its notice, keeping any verdict it does not retire (a later round's, on the recovery road, which holds none),
        and landing only behind a notice that was identified and, on the approval road, over the subject that approval
-       was of, resolved again behind the notice — a push or an edit there lands no park and drops the verdict, and a
+       was of, resolved again behind the notice — a push or an edit there, or a report, evidence, or pull-request record
+       moved behind the notice, lands no park and drops the verdict, and a
        subject nobody could read lands none and keeps it — since a notice nothing identified may have
        reached nobody: that write keeps what the tick staged, the verdict left waiting, without the park, and a
        later tick words the notice again. A comment with no room for the park is posted on and written to not at
@@ -3423,25 +3424,25 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        it moved them or will not read, nothing more is posted, nothing the tick holds is written, and the label stays
        — the collapse the squash recorded is the next tick's recovery to finish, over the records the comment carries
        then. Only the ledger entries of what the approval already posted go down, over the comment read afresh and
-       where they fit, so every prompt still keeps those posts as the orchestrator's. Where they stand, the write
-       behind is composed over the comment as read: a field another road wrote since the tail last read or wrote it —
-       a round spent by a reply — is carried onto the state in hand unless that state changed it too, save the
-       squash's own collapse record, which the squash writes itself and drops only in memory for this write to make
-       durable. The tail starts from the comment as the reading behind the verify gate found it — the reading the
-       reviewer's run was resolved over, with whatever that gate carried onto the state taken into it, so a field it
-       carried is never mistaken for the tick's own and written back over a later one — or on the recovery road from
-       the comment as the tick read it. (4) On success,
-       if `squashed_count > 1` post `:package: squashed N commits to 1` — a count of 0 or 1 replaced no history and
-       posts nothing — seed the in_review watermarks (inside the
-       `gh.get_pr()` try so a snapshot failure leaves them untouched; the walk advances through the leading run of
-       the orchestrator's own comments plus the issue-thread ids `last_action_comment_id` already records as
-       delivered, and stops at the first unseen human comment on EITHER surface, so a PR-conversation comment
-       numbered below a consumed reply holds the seed back rather than being swallowed by it — the scan that
-       follows drops the consumed reply on its own), then end the collapse record and persist —
-       leaving `late_collapse_handoff_sha` in its place — and only then relabel to `workflow:documenting`, dropping that
+       where they fit, so every prompt still keeps those posts as the orchestrator's, beside the end of the verdict the
+       approval finishes, which rested on the records that moved — one another road put in its place stays. Where
+       they stand, the write behind is composed over the comment as read: a field another road wrote since the tail
+       last read or wrote it — a round spent by a reply — is carried onto the state in hand unless that state
+       changed it too, save the squash's own collapse record, which the squash writes itself and drops only in memory
+       for this write to make durable. The tail starts from the comment as the reading behind the verify gate found it
+       — the reading the reviewer's run was resolved over, with whatever that gate carried onto the state taken into
+       it, so a field it carried is never mistaken for the tick's own and written back over a later one — or on the
+       recovery road from the comment as the tick read it. (4) On success, if `squashed_count > 1` post `:package:
+       squashed N commits to 1` — a count of 0 or 1 replaced no history and posts nothing — seed the in_review
+       watermarks (inside the `gh.get_pr()` try so a snapshot failure leaves them untouched; the walk advances through
+       the leading run of the orchestrator's own comments plus the issue-thread ids `last_action_comment_id` already
+       records as delivered, and stops at the first unseen human comment on EITHER surface, so a PR-conversation
+       comment numbered below a consumed reply holds the seed back rather than being swallowed by it — the scan that
+       follows drops the consumed reply on its own), then end the collapse record and persist — leaving
+       `late_collapse_handoff_sha` in its place — and only then relabel to `workflow:documenting`, dropping that
        record in a write of its own behind the label, composed over the pinned comment read again once the label has
-       moved so it puts nothing another road wrote meanwhile back, and ending only the record this tick finished — one
-       another road put in its place meanwhile is left standing. The relabel is held, with the rewrite already
+       moved so it puts nothing another road wrote meanwhile back, and ending only the record this tick finished —
+       one another road put in its place meanwhile is left standing. The relabel is held, with the rewrite already
        finished, unless the approval still covers the report as it reads at its location, the requirements over the
        issue read afresh (the approval's own revision and the baseline both), and the head over the pull request read
        afresh — the commit the rewrite published, or the head the approval was given where it rewrote nothing
@@ -3449,9 +3450,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        the pinned comment, read last, still carries the report, evidence, and returned-verdict records in hand — a
        verdict persisted meanwhile holds the move, and so does one still waiting on the recovery road, whose squash
        retires only the verdict of the approval behind it and there holds none; the next tick answers whatever moved,
-       through step 1's handoff reading. A relabel that does not land is not raised past the
-       handoff: everything it owed is durable, and step 1 moves the label on the next tick instead of a second
-       reviewer being run over a branch already published.
+       through step 1's handoff reading. A relabel that does not land is not raised past the handoff: everything it
+       owed is durable, and step 1 moves the label on the next tick instead of a second reviewer being run over a
+       branch already published.
      - **unknown** (no marker) → park, split by whose failure it was
        (`_reviewer_no_verdict_park`). An empty last message with a non-zero exit (a crash), or a message opening with
        a transient provider refusal (`is_transient_provider_failure` — `API Error: 529 Overloaded` and its 5xx

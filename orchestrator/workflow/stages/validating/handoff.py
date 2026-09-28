@@ -35,7 +35,9 @@ writes itself and drops only in memory for this tail's write to make durable.
 Where the records moved, nothing the approval holds is written, but what every
 post leaves on the ledger is owed all the same: the post is the
 orchestrator's, and a prompt keeps an orchestrator comment only where that
-ledger vouches for it.
+ledger vouches for it. So is the end of the verdict the approval finishes,
+which rested on the records that moved -- retired over the comment as read,
+and only that verdict: one another road put in its place stays.
 """
 from __future__ import annotations
 
@@ -181,8 +183,11 @@ def _holds_its_records(
     they moved, nothing `state` holds is written over them; only the
     orchestrator comments `state` records and the comment does not -- the
     approval comment, the squash notice, a park notice posted on the way --
-    are recorded over the comment as read. A comment that will not read, or
-    has no room for them, is left as it stands.
+    are recorded over the comment as read, and the verdict the tail holds is
+    retired there: it was proved over the records that moved, so a fresh
+    reviewer answers the subject as it stands, while a verdict another road
+    put in its place stays for that road. A comment that will not read, or has
+    no room for that write, is left as it stands.
     """
     durable = _review_comment._read(gh, issue, state, purpose)
     if durable is None:
@@ -193,13 +198,14 @@ def _holds_its_records(
     log.warning(
         "issue=#%s its pinned comment does not carry the developer report, "
         "verification evidence, or verdict records this tick holds, so it will "
-        "not %s; recording only the comments it posted", issue.number, purpose,
+        "not %s; recording only the comments it posted and retiring the verdict "
+        "it holds", issue.number, purpose,
     )
     posted = sorted(_comments._orchestrator_ids(state) - _comments._orchestrator_ids(durable))
-    if not posted:
+    retired = held.verdict is not None and _verdicts.drops_the_verdict(durable, only=held.verdict)
+    if not (posted or retired):
         return False
-    for comment_id in posted:
-        _comments._track_orchestrator_comment(durable, comment_id)
+    _comments._track_orchestrator_comment(durable, *posted)
     if _report_record_state.fits_the_comment(durable.data):
         gh.write_pinned_state(issue, durable)
     else:

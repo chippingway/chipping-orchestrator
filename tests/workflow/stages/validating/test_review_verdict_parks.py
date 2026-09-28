@@ -30,12 +30,15 @@ from tests.workflow.stages.validating import (
     review_verdict_readings as _read,
     review_verdict_test_support as _world,
 )
+from tests.workflow.value_helpers import _open_pr_for
 
 UNVERIFIED = "reviewer_unverified"
 
 UNRECORDED = "reviewer_unrecorded"
 
 APPROVED = "approved"
+
+REQUESTED = "changes_requested"
 
 REVIEW_ROUND = "review_round"
 
@@ -135,11 +138,34 @@ _BEHIND_THE_NOTICE = tuple(
     for move, road, holds, recorded in _MOVES
 )
 
-# What moves an approval's subject behind the notice of the park its failed
-# squash takes, and the verdict each leaves waiting.
+def _repoints(case) -> None:
+    """Another road pointing `case`'s issue at another pull request than the one its reviewer reviewed."""
+    _open_pr_for(case.github, issue_number=_world.ISSUE, pr_number=_world.PR + 1)
+    state = case.github.read_pinned_state(case.issue)
+    state.set("pr_number", _world.PR + 1)
+    case.github.write_pinned_state(case.issue, state)
+
+
+def _replaces_the_verdict(case) -> None:
+    """Another road putting a later round's change request in place of `case`'s waiting verdict."""
+    state = case.github.read_pinned_state(case.issue)
+    replacement = dict(state.get(_world.RETURNED_VERDICT), verdict=REQUESTED, feedback="A later round's feedback.")
+    state.set(_world.RETURNED_VERDICT, dict(replacement, round=1, evidence=None))
+    case.github.write_pinned_state(case.issue, state)
+
+
+# What moves an approval's subject or its records behind the notice of the
+# park its failed squash takes, and the verdict each leaves waiting: a push, a
+# repoint, a later report, or later evidence retires the approval's verdict --
+# over the comment as read, where the records moved -- a report nobody could
+# read keeps it, and a verdict another road put in its place stays.
 _BEHIND_THE_SQUASH_NOTICE = (
     ("a push", _world.pushes, None),
+    ("a repoint", _repoints, None),
+    ("a later report", _read.settles_a_later_report, None),
+    ("an evidence settlement", _read.settles_evidence, None),
     ("an unread report", _world.stops_answering, APPROVED),
+    ("a replaced verdict", _replaces_the_verdict, REQUESTED),
 )
 
 # Each request behind which another road spends a round, the reply and notes
@@ -355,10 +381,12 @@ class ParkNoticeTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
                 )
 
     def test_a_squash_park_holds_to_its_subject(self) -> None:
-        # A push behind the notice of the park an approval's failed squash
-        # takes is work nobody reviewed: no park lands, and the verdict is
-        # dropped for a fresh reviewer. A report nobody could read then proves
-        # nothing: no park lands either, and the verdict waits.
+        # A push, a repoint, a later report, or later evidence behind the
+        # notice of the park an approval's failed squash takes is work nobody
+        # reviewed: no park lands, and the approval's verdict is retired for a
+        # fresh reviewer -- over the comment as read where the records moved,
+        # so a verdict another road put in its place stays. A report nobody
+        # could read then proves nothing: no park lands, and the verdict waits.
         for move, road, waiting in _BEHIND_THE_SQUASH_NOTICE:
             with self.subTest(move):
                 self.setUp()

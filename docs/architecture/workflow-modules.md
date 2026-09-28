@@ -2970,6 +2970,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             writes (`_holds_its_records`) that the report, evidence, and verdict records still stand,
                             which where they moved records only the arc's own posts on the ledger, over the comment
                             read afresh and where it fits, so a prompt still keeps them as the orchestrator's, and
+                            retires there the verdict the tail holds, which rested on the records that moved -- a
+                            verdict another road put in its place stays -- and
                             where they stand composes the write behind over the comment as read: a field another
                             road wrote since the tail last read or wrote it (`_Held`) is carried onto the state in
                             hand unless that state changed it too, save the squash's own collapse record -- and the
@@ -3303,7 +3305,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             write measured keeping any verdict it does not retire, a later round's on the recovery
                             road, which holds none -- held behind the notice to the records in hand and, on the
                             approval road, to the subject that approval was of, resolved again, a push or an edit
-                            there landing no park and dropping the verdict; the recovery reaches it with no reviewer
+                            there -- or a report, evidence, or pull-request record moved behind the notice --
+                            landing no park and dropping the verdict; the recovery reaches it with no reviewer
                             run and no subject; it is never taken over the comment as it stands,
                             because its write is what makes the squash's own record drop durable
       review_handoffs.py    a persisted verdict handed on (`hands_the_verdict_on`): an approval to

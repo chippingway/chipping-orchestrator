@@ -333,8 +333,9 @@ class ApprovalRaceTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
     def test_a_settlement_behind_the_approval_comment(self) -> None:
         # Evidence settles while the approval comment is posted: no rewrite
         # goes out over it and nothing the approval holds is written but the
-        # comment's own ledger entry. The next tick drops the verdict, whose
-        # evidence the later revision superseded, rather than moving on.
+        # comment's own ledger entry -- and the end of the verdict, whose
+        # evidence the later revision superseded, for a fresh reviewer. The
+        # next tick has nothing to move on.
         message = _reusing(self)
         behind = _world.AnotherRoadBehind(
             self, PR_COMMENT, _disposed.saying(_disposed.APPROVAL_NOTICE), _read.settles_evidence,
@@ -353,7 +354,7 @@ class ApprovalRaceTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
                 self.pinned().get("review_approved_subject"),
                 approval in self.pinned()[_disposed.LEDGER],
             ),
-            (0, 2, APPROVED, None, True),
+            (0, 2, None, None, True),
         )
 
         self.finishes()
