@@ -27,6 +27,12 @@ that launches a handed request's developer takes), and a moved one drops the
 verdict and its anchor. Only the writes behind the developer's run retire the
 verdict, since its drop is staged ahead of the launch, whose charge writes only
 its own fields.
+
+A verdict already handed is finished by a later tick from that write on: its
+feedback is posted and anchored, so it is never posted again, and the relabel
+and the launch are what a tick that died on them left owed -- unless the run
+ledger was charged past the count it was handed at, which is the developer
+already launched and only that verdict to retire (`_hands_it_off`).
 """
 from __future__ import annotations
 
@@ -63,7 +69,8 @@ def hands_the_request_over(
     writes nothing, holding the verdict for the next tick to resolve again.
     The verdict this road holds is the one the state in hand carries as it
     starts, so a verdict another road put in its place meanwhile is never the
-    one it drops.
+    one it drops. One already handed resumes where that handoff stopped
+    (`_hands_it_off`) rather than posting its feedback again.
     """
     owned = _verdicts.read_returned_verdict(state)
     stands = _review_coverage._verdict_still_stands(gh, issue, state, decision.run.subject)
@@ -71,10 +78,8 @@ def hands_the_request_over(
         drops_what_moved(gh, issue, state, stands, (owned, None))
         return
     context = _models._RequestedChanges(gh, spec, issue, state, decision)
-    if not _posts_the_feedback(context, owned):
+    if not _hands_it_off(context, owned):
         return
-    _verdicts.hands_off(state, _run_ledger_values._runs_used(state))
-    gh.write_pinned_state(issue, state)
     gh.set_workflow_label(issue, WorkflowLabel.FIXING)
     launches_the_developer(context)
 
@@ -130,6 +135,38 @@ def drops_what_moved(
     if anchor is not None and (dropped or anchor == posted):
         state.set(_verdicts._FEEDBACK_ANCHOR, None)
     gh.write_pinned_state(issue, state)
+
+
+def _hands_it_off(context: _models._RequestedChanges, owned: _verdicts.ReturnedVerdict) -> bool:
+    """Hand the verdict off behind its posted feedback, or find where that handoff got to; whether the launch is owed.
+
+    A verdict already handed has its feedback posted and anchored, so it is
+    not posted again: the relabel or the launch behind that write is what a
+    tick that died on it left owed. The lifetime agent-run count it was
+    handed at says which -- a charge past it is the developer already
+    launched, whose run is the fixing stage's to answer, so that verdict is
+    retired rather than handed to a second developer.
+    """
+    gh, issue, state = context.gh, context.issue, context.state
+    if owned.handed is None:
+        if not _posts_the_feedback(context, owned):
+            return False
+        _verdicts.hands_off(state, _run_ledger_values._runs_used(state))
+        gh.write_pinned_state(issue, state)
+        return True
+    if _run_ledger_values._runs_used(state) <= owned.handed:
+        log.info(
+            "issue=#%d resumes the handoff of its reviewer's change request, "
+            "already posted and anchored", issue.number,
+        )
+        return True
+    log.info(
+        "issue=#%d the developer its reviewer's change request was handed to "
+        "was already launched; retiring the verdict", issue.number,
+    )
+    _verdicts.drops_the_verdict(state, only=owned)
+    gh.write_pinned_state(issue, state)
+    return False
 
 
 def _posts_the_feedback(context: _models._RequestedChanges, owned) -> bool:

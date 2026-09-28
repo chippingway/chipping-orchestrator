@@ -3362,10 +3362,13 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        back, since the read is a request and a commit landing in that window is work no reviewer saw on a branch
        this road reports as standing where it planned. On squash / force-push failure, park awaiting human
        under a durable
-       `park_reason="squash_failed"` and stay on `workflow:validating` — only behind a notice that was identified,
-       since one nothing identified may have reached nobody: that write keeps what the tick staged, the verdict
-       left waiting, without the park, and a later tick words the notice again. The park reports
-       `park_awaiting_human` only once its write is down. The notice names which of four places
+       `park_reason="squash_failed"` and stay on `workflow:validating` — through `review_parks.py`, measured before
+       its notice and landing only behind a notice that was identified, since one nothing identified may have
+       reached nobody: that write keeps what the tick staged, the verdict left waiting, without the park, and a
+       later tick words the notice again. A comment with no room for the park is posted on and written to not at
+       all — the squash's own record drop rides this write, so a tick that writes nothing is the one that died
+       before it, which the squash already answers — and the park reports `park_awaiting_human` only once its
+       write is down. The notice names which of four places
        that left the branch: the approved
        commits are still on it — the ordinary failure, which aborted before anything destructive or restored what it
        rewound, including a record whose reset never ran — or a collapse this tick could not finish is standing
@@ -3477,20 +3480,24 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        minting and ahead of that write; that transaction published through the
        [evidence reconciliation](#the-verification-evidence-transaction-every-dispatch) and the subject held again
        behind it; and the verdict acted on only once the evidence it declared settled — an owed transaction holds it
-       for a later tick, a lost claim, published or reused, whichever the verdict — superseded by a later revision
-       included — drops it for a fresh reviewer over the comment read again. A change request's handoff
+       for a later tick while its subject stands and drops it once that subject is proved to have moved, a lost
+       claim, published or reused, whichever the verdict — superseded by a later revision included — drops it for a
+       fresh reviewer over the comment read again. A change request's handoff
        (`validating/review_handoffs.py`) posts the feedback, holding the verdict unhanded where the post failed or left
        no id, holds the subject again behind that post, writes the verdict as `handed` with its
        `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to `workflow:fixing`, and holds the subject once more
-       before the developer launch. An approval parks under `reviewer_unverified` unless the evidence it names is
+       before the developer launch; a later tick finishing a verdict already `handed` posts nothing again, and
+       relabels and launches that developer — or, where the run ledger was charged past `handed`, drops the verdict,
+       the developer already launched. An approval parks under `reviewer_unverified` unless the evidence it names is
        settled, proved current, passing, and covering `VERIFY_COMMANDS` by its own artifact
        (`validating/unverified_approvals.py`), and a verdict the comment has no room to persist parks under
        `reviewer_unrecorded` with nothing acted on (`validating/review_parks.py`). A subject that moved behind any of
        those requests -- a park's own notice included, behind which a moved report or evidence record lands no park
        either -- drops the verdict over the newer records, the round and whatever else another road's settlement wrote
        beside them included -- only the verdict this road holds, never one another road put in its place; one nobody
-       could read holds it, and so does a park notice that left no id. A park write carrying what moved behind its
-       notice is measured again and not made where it no longer fits. The record and both parks are described under
+       could read holds it, and so does a park notice that left no id. A park write is composed over the comment as
+       it stands, keeping what another road wrote behind its notice, and one carrying what moved there is measured
+       again and not made where it no longer fits. The record and both parks are described under
        [pinned state](labels-and-state.md#pinned-state).
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.

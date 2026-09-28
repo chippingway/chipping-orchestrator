@@ -49,12 +49,14 @@ verdict for a fresh reviewer rather than parking it for a human.
 The evidence is published before the verdict is acted on, on the tick it
 returns, and neither verdict is acted on until it is: a publication that holds
 or stands down ends the tick with the verdict waiting and the transaction owed,
-for the reconciliation ahead of a later tick to publish, and a transaction that
-can never settle -- retired, or bound to a verification context that has since
-moved -- drops the verdict for a fresh reviewer instead of waiting forever. So
-does a reuse of evidence a later revision has superseded since, whichever the
-verdict: the reviewer judged the branch beside evidence that is no longer the
-pull request's current evidence.
+for the reconciliation ahead of a later tick to publish -- held to its subject
+on every tick it waits, and dropped once that subject is proved to have moved,
+since no settlement makes it a review of the work there now -- and a
+transaction that can never settle -- retired, or bound to a verification
+context that has since moved -- drops the verdict for a fresh reviewer instead
+of waiting forever. So does a reuse of evidence a later revision has
+superseded since, whichever the verdict: the reviewer judged the branch beside
+evidence that is no longer the pull request's current evidence.
 
 A change request stands without evidence -- a reviewer may find a bug without
 running anything -- and goes to the developer as it always has. An approval
@@ -70,8 +72,10 @@ agent-run count the developer's launch will charge past, in a write ahead of
 the relabel to `workflow:fixing`, and the writes after that launch drop it
 (`review_handoffs`) -- so a tick that dies anywhere between that write and the
 launch leaves feedback posted and anchored to hand over rather than a round to
-spend on a second reviewer. A disposition that ends its tick writing nothing
-leaves the verdict for the next tick to finish.
+spend on a second reviewer, and the tick that finishes it resumes that handoff
+without posting the feedback again. A disposition that ends its tick writing
+nothing leaves the verdict for the next tick to finish, as it was left waiting
+(`VerdictInHand.waiting`).
 """
 from __future__ import annotations
 
@@ -111,15 +115,24 @@ class VerdictInHand:
     approval without any takes; "" where it earned some or was never asked.
     `pending` is the transaction a published claim names where this tick
     recorded it, which is the one tick that publishes it before acting.
+    `handed` is the agent-run count a change request was already handed on
+    at, for a later tick finishing that handoff; None ahead of it.
     """
 
     decision: _models._ReviewerDecision
     claim: _verdicts.EvidenceClaim | None = None
     refusal: str = ""
     pending: _records.PendingEvidence | None = None
+    handed: int | None = None
+
+    @classmethod
+    def waiting(cls, run: _models._ReviewerRun, returned: _verdicts.ReturnedVerdict) -> VerdictInHand:
+        """The verdict a tick left waiting as `returned`, in hand again over the run it was returned from."""
+        decision = _models._ReviewerDecision(run, returned.verdict, returned.feedback)
+        return cls(decision, returned.evidence, handed=returned.handed)
 
     def returned(self) -> _verdicts.ReturnedVerdict:
-        """The record this verdict is persisted as, ahead of any handoff."""
+        """The record this verdict is persisted as: ahead of any handoff, or as the handoff it waits in wrote it."""
         decision = self.decision
         return _verdicts.ReturnedVerdict(
             round_n=decision.run.round_n,
@@ -127,6 +140,7 @@ class VerdictInHand:
             subject=decision.run.subject.recorded(),
             feedback=decision.feedback if decision.verdict == _verdicts.CHANGES_REQUESTED else "",
             evidence=self.claim,
+            handed=self.handed,
         )
 
 
@@ -251,7 +265,11 @@ def _waits_on_its_evidence(
     it, and either leaves a transaction about the old head that can never
     settle. So a transaction still owed -- a publication that stood down --
     holds the verdict, written nowhere, for the reconciliation ahead of the
-    next tick to publish and the tick behind it to finish. Evidence that can
+    next tick to publish and the tick behind it to finish, for as long as its
+    subject stands: one proved to have moved while it waited drops the
+    verdict, since no settlement makes it a review of the work there now. The
+    transaction is left to the reconciliation, owed until it settles or the
+    next one recorded retires it into history. Evidence that can
     never be relied on drops the verdict instead, whichever the verdict, for
     a fresh reviewer handed the evidence current then: a transaction retired,
     superseded by a later revision, or recorded under a verification context
@@ -272,10 +290,15 @@ def _waits_on_its_evidence(
     if standing is _claims.ClaimStanding.SETTLED:
         return False
     if standing is _claims.ClaimStanding.OWED:
-        log.info(
-            "issue=#%d holds its reviewer's verdict until the verification "
-            "evidence it declared is published", issue.number,
-        )
+        # A publication can stay owed across any number of ticks, and a push
+        # or a later report meanwhile leaves the verdict about work nobody is
+        # asking about: held to what stands on every one, it is dropped once
+        # the subject is proved to have moved.
+        if _still_stands(gh, issue, state, in_hand):
+            log.info(
+                "issue=#%d holds its reviewer's verdict until the verification "
+                "evidence it declared is published", issue.number,
+            )
         return True
     log.info(
         "issue=#%d drops its reviewer's verdict: the verification evidence it "

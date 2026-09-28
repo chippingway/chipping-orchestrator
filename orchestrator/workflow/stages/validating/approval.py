@@ -101,7 +101,7 @@ from orchestrator.workflow.stages.validating import (
     state as _state,
     verify as _verify,
 )
-from orchestrator.workflow.state import WorkflowLabel, stage_name
+from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -240,13 +240,10 @@ def _park_squash_failure(
     past them. And a failure the squash owner could not place at all says so,
     since named as any of the others it points somewhere nothing established.
 
-    The notice is a request of its own, so the park goes down only over the
-    records it was decided on (`handoff._holds_its_records`), and only behind
-    a notice that was identified: one nothing identified may have reached
-    nobody, so the write keeps what the tick staged -- the verdict left
-    waiting -- without the park, and a later tick words the notice again.
-    `park_awaiting_human` is reported only for a park that lands, once its
-    write is down.
+    The park itself goes down through `review_parks`, which measures it
+    before its notice, holds it to the records in hand behind that notice,
+    lands it only behind a notice that was identified, and reports it once
+    its write is down (`parks_the_failed_squash`).
     """
     if state.get(_AWAITING_HUMAN) and state.get(_state._PARK_REASON) == _state._REASON_SQUASH_FAILED:
         # Already parked on a squash that would not go: the notice is on the
@@ -257,30 +254,9 @@ def _park_squash_failure(
         gh.write_pinned_state(issue, state)
         return
     left = _LEFT[squashed.standing]
-    notice = _review_parks._posts_the_notice(gh, issue, state, f"squash-on-approval failed ({squashed.error}); {left}")
-    if not _handoff._holds_its_records(gh, issue, state, _HELD):
-        return
-    lands = notice is not None
-    if lands:
-        # Durable, and what a later tick's re-entry is recognized by; the
-        # verdict retired is only the one the approval whose squash failed
-        # holds.
-        state.set(_AWAITING_HUMAN, True)
-        state.set(_state._PARK_REASON, _state._REASON_SQUASH_FAILED)
-        _verdicts.drops_the_verdict(state, only=owned)
-    else:
-        log.warning(
-            "issue=#%s could not confirm its squash-failure notice was posted; "
-            "writing what the tick staged without parking", issue.number,
-        )
-    gh.write_pinned_state(issue, state)
-    if lands:
-        gh.emit_event(
-            "park_awaiting_human",
-            issue_number=issue.number,
-            stage=stage_name(gh.workflow_label(issue)),
-            reason=_state._REASON_SQUASH_FAILED,
-        )
+    _review_parks.parks_the_failed_squash(
+        gh, issue, state, f"squash-on-approval failed ({squashed.error}); {left}", owned,
+    )
 
 
 def _squashed_and_handed_off(

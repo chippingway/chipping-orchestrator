@@ -2927,9 +2927,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             records in hand, so a report settled meanwhile is left for the next tick, save the
                             ledger entries of what was already posted (`handoff._holds_its_records`); that number
                             read as an identity before the squash subject may reference it: the optional squash,
-                            the park each of its four readings earns -- landing only behind an identified notice
-                            and over the records in hand, and reported only once written -- the notice its count
-                            is worded from --
+                            the park each of its four readings earns, through `review_parks.py` -- measured before
+                            its notice, landing only behind an identified notice and over the records in hand, and
+                            reported only once written -- the notice its count is worded from --
                             posted ahead of the seed it orders, and the one failure that stops the road, since
                             the count lives only on the collapse record the next tick would otherwise drop -- the
                             end of that record, and the `workflow:documenting` relabel that lands behind that
@@ -3137,14 +3137,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             disposition persisted, which no write may act on once another road dropped or replaced
                             it: records that moved refuse the
                             verdict and everything the comment changed since is carried onto the state in hand, so every
-                            write the run makes keeps that settlement current; another comment or an unread one carries
-                            nothing and the tick writes nothing. Records are compared as the comment's JSON spells
-                            them, so one written `null` where there was none, or a revision `true` where it was `1`,
-                            is a move. The later roads that act on an approval after requests long enough for a
-                            settlement -- the approval ahead of its squash and the squash tail once its rewrite is
-                            published, both over the evidence records too, and the in_review park and ready ping --
-                            ask the comment the same before they write, and act on nothing where it moved. Nothing
-                            here parks or posts
+                            write the run makes keeps that settlement current -- and a park, which asks it `composed`,
+                            has what the comment changed carried even where they stand; another comment or an unread
+                            one carries nothing and the tick writes nothing. Records are compared as the comment's
+                            JSON spells them, so one written `null` where there was none, or a revision `true` where
+                            it was `1`, is a move. The later roads that act on an approval after requests long
+                            enough for a settlement -- the approval ahead of its squash and the squash tail once its
+                            rewrite is published, both over the evidence records too, and the in_review park and
+                            ready ping -- ask the comment the same before they write, and act on nothing where it
+                            moved. Nothing here parks or posts
       review_coverage.py    whether an approval still covers the subject standing when it is acted on. When the reviewer
                             returns -- approving or requesting changes -- and the report records on the pinned comment
                             stand (`review_comment.py`), the whole subject is resolved again over the issue read afresh
@@ -3209,11 +3210,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             minted, then held to the subject standing and the pinned comment read again behind that
                             resolution, the last requests before it is persisted with its minted transaction in one
                             write, the evidence published through the dispatcher's own reconciliation, the subject held
-                            again, and only then acted on -- an owed transaction holds the verdict, a lost claim --
-                            published or reused -- drops it over the comment read again, a refused approval parks only
-                            while its subject still stands and is dropped otherwise, and a comment with no room for
-                            either parks it. `acts_on_the_verdict` is the half behind the persisted write, the entry a
-                            later tick finishing a waiting verdict is to take
+                            again, and only then acted on -- an owed transaction holds the verdict while its subject
+                            stands and drops it once that subject is proved to have moved, a lost claim -- published
+                            or reused -- drops it over the comment read again, a refused approval parks only while its
+                            subject still stands and is dropped otherwise, and a comment with no room for either parks
+                            it. `acts_on_the_verdict` is the half behind the persisted write, the entry a later tick
+                            finishing a waiting verdict is to take, handed it as it was left waiting
+                            (`VerdictInHand.waiting`), a change request's handed count included
       unverified_approvals.py
                             whether an approval rests on the current evidence exactly as it claims -- settled and
                             proved current again, then passing and covering the configuration by that evidence's
@@ -3232,16 +3235,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             included, and like a push lands no park, the write dropping the verdict alone, while a
                             subject that would not read, or a notice that left no id, lands none either and leaves
                             the verdict waiting; that write is measured again once it carries what moved, and not
-                            made where another road's write left no room. Only a park that lands sets its flags,
-                            drops the verdict, and reports `park_awaiting_human`, once its write is down
+                            made where another road's write left no room, composed over the comment as it stands so a
+                            field another road wrote behind the notice -- a round spent -- is kept. Only a park that
+                            lands sets its flags, drops the verdict, and reports `park_awaiting_human`, once its write
+                            is down. The park a failed squash takes (`parks_the_failed_squash`) shares its notice and
+                            its measurement, held behind the notice to the records in hand rather than to a subject,
+                            since the recovery reaches it with no reviewer run; it is never taken over the comment as
+                            it stands, because its write is what makes the squash's own record drop durable, so a
+                            comment with no room for it is posted on and written to not at all
       review_handoffs.py    a persisted change request's handoff: held to the subject standing, the pinned comment
                             read behind it, then the feedback posted -- a post that failed or left no id holds the
                             verdict unhanded -- the whole subject held again behind that post, the verdict written
                             as handed with the anchor, the relabel, and the launch, held to the subject once more
                             right before it (`launches_the_developer`, the entry every road launching a handed
-                            request's developer takes); a moved subject drops the verdict this road holds and the
-                            anchor it posted over the newer records (`drops_what_moved`), never a verdict or anchor
-                            another road put in their place
+                            request's developer takes); a request already handed resumes there without posting its
+                            feedback again -- relabelled and launched, or retired where the run ledger was charged
+                            past the count it was handed at, its developer already launched; a moved subject drops
+                            the verdict this road holds and the anchor it posted over the newer records
+                            (`drops_what_moved`), never a verdict or anchor another road put in their place
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its

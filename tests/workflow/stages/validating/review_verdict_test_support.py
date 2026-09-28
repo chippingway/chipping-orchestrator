@@ -16,8 +16,8 @@ folded once, and the parsed verdict handed to `review_disposition`. No handler
 finishes a verdict a tick left waiting yet either, so a later tick is the
 dispatcher's evidence reconciliation and then the disposition's own entry for
 a persisted verdict (`acts_on_the_verdict`), handed the verdict the comment
-carries as the decision it was returned as. Both are read back through
-`review_verdict_readings`.
+carries as it was left waiting (`VerdictInHand.waiting`). Both are read back
+through `review_verdict_readings`.
 
 What another road does between two of a tick's requests is spelled here too
 (`AnotherRoadBehind`): a push, or a later report settling, behind the one
@@ -233,15 +233,16 @@ class ReviewVerdictWorld(_PatchedWorkflowMixin):
         _disposition.disposes_of_the_verdict(self.github, _TEST_SPEC, self.issue, state, self.decision)
 
     def _finishes(self, meanwhile) -> None:
-        """The verdict the comment carries, acted on over the run it was returned from."""
+        """The verdict the comment carries, acted on over the run it was returned from; nothing where none waits."""
         if reconciles(self):
             return
         state = self.github.read_pinned_state(self.issue)
         if meanwhile is not None:
             meanwhile(self)
         waiting = _verdicts.read_returned_verdict(state)
+        if waiting is None:
+            return
         run = replace(self.decision.run, resolved_over=dict(state.data))
-        decision = _models._ReviewerDecision(run, waiting.verdict, waiting.feedback)
         _disposition.acts_on_the_verdict(
-            self.github, _TEST_SPEC, self.issue, state, _disposition.VerdictInHand(decision, waiting.evidence),
+            self.github, _TEST_SPEC, self.issue, state, _disposition.VerdictInHand.waiting(run, waiting),
         )

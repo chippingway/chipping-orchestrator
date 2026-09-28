@@ -49,7 +49,21 @@ writes nothing, and nor does a write that, carrying what moved there, no longer
 fits: another road's write can spend the room the park was measured with. Only
 a park that lands sets the flags, drops the verdict it refuses, and -- once its
 write is down -- reports the human wait (`park_awaiting_human`), since that
-record is the moment the issue enters one.
+record is the moment the issue enters one. The write that lands is composed
+over the comment as it stands whichever way the records went, so a field
+another road wrote behind the notice -- a round spent by a reply -- is kept
+rather than written back over by the state in hand.
+
+The park a failed squash takes (`parks_the_failed_squash`) is filed here too,
+beside the funnel rather than through it: the recovery of a squash an earlier
+tick did not finish reaches it with no reviewer run, so it is held behind its
+notice to the report, evidence, and verdict records in hand
+(`handoff._holds_its_records`) rather than to a subject. It is measured before
+its notice and lands only behind one identified, as the funnel's parks do, but
+is never taken over the comment as it stands: its write is what makes the
+squash's own record drop durable, so a comment with no room for it is posted on
+and written to not at all -- the tick that died before its write, which the
+squash already answers.
 """
 from __future__ import annotations
 
@@ -68,6 +82,7 @@ from orchestrator.workflow.engine import (
     report_record_values as _record_values,
 )
 from orchestrator.workflow.stages.validating import (
+    handoff as _handoff,
     models as _models,
     review_comment as _review_comment,
     review_coverage as _review_coverage,
@@ -133,11 +148,16 @@ def parks_over_the_subject(
     reported as, with the round, session, and pull request it ran for; a park
     of no agent's (None) reports its reason alone.
     """
-    parked = _room_for_the_park(gh, issue, state, park[0])
-    if parked is None:
+    reason = park[0]
+    parked = state
+    if not _park_fits(parked, reason):
+        # No room beside what the returned run staged: the park is taken over
+        # the comment as it stands, the run's usage and session unrecorded.
+        parked = _review_comment._read(gh, issue, state, "park a verdict with no room for what its run staged")
+    if parked is None or not _park_fits(parked, reason):
         log.error(
             "issue=#%d has no room on its pinned comment even for the %s park; "
-            "posting and writing nothing", issue.number, park[0],
+            "posting and writing nothing", issue.number, reason,
         )
         return
     lands = _behind_the_notice(gh, issue, parked, run, (park, _verdicts.read_returned_verdict(state)))
@@ -148,7 +168,7 @@ def parks_over_the_subject(
     if not _report_record_state.fits_the_comment(parked.data):
         log.error(
             "issue=#%d has no room on its pinned comment for the %s park beside "
-            "what moved there behind its notice; writing nothing", issue.number, park[0],
+            "what moved there behind its notice; writing nothing", issue.number, reason,
         )
         return
     gh.write_pinned_state(issue, parked)
@@ -164,8 +184,57 @@ def parks_over_the_subject(
             "park_awaiting_human",
             issue_number=issue.number,
             stage=stage_name(gh.workflow_label(issue)),
-            reason=park[0],
+            reason=reason,
             **_guards._screened_correlation(correlation),
+        )
+
+
+def parks_the_failed_squash(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    words: str,
+    owned: _verdicts.ReturnedVerdict | None,
+) -> None:
+    """File the park a failed squash takes, in one write, where it fits and the records in hand stand behind its notice.
+
+    `words` say where the failure left the branch (`approval`), and `owned`
+    is the verdict of the approval whose squash it was, the only one the park
+    retires: the recovery of a squash an earlier tick did not finish holds
+    none.
+    """
+    reason = _state._REASON_SQUASH_FAILED
+    if not _park_fits(state, reason):
+        log.error(
+            "issue=#%d has no room on its pinned comment for the %s park; "
+            "posting and writing nothing", issue.number, reason,
+        )
+        return
+    notice = _posts_the_notice(gh, issue, state, words)
+    if not _handoff._holds_its_records(gh, issue, state, "park its failed squash over the records it holds"):
+        return
+    if notice is None:
+        log.warning(
+            "issue=#%d could not confirm the notice of its %s park was posted; "
+            "writing what the tick staged without parking", issue.number, reason,
+        )
+    else:
+        state.set(_AWAITING_HUMAN, True)
+        state.set(_state._PARK_REASON, reason)
+        _verdicts.drops_the_verdict(state, only=owned)
+    if not _report_record_state.fits_the_comment(state.data):
+        log.error(
+            "issue=#%d has no room on its pinned comment for the %s park beside "
+            "a verdict it does not retire; writing nothing", issue.number, reason,
+        )
+        return
+    gh.write_pinned_state(issue, state)
+    if notice is not None:
+        gh.emit_event(
+            "park_awaiting_human",
+            issue_number=issue.number,
+            stage=stage_name(gh.workflow_label(issue)),
+            reason=reason,
         )
 
 
@@ -190,7 +259,10 @@ def _behind_the_notice(
     park, owned = held
     posted = _posts_the_notice(gh, issue, parked, park[1])
     stands = _review_coverage._subject_still_stands(gh, issue, parked, run.subject)
-    records = _review_comment._records_stand(gh, issue, parked, run.resolved_over)
+    # Composed over the comment as it stands whether or not the records moved:
+    # the notice is time another road can write any field -- a round spent
+    # by a reply -- and the park would write the state in hand back over it.
+    records = _review_comment._records_stand(gh, issue, parked, run.resolved_over, composed=True)
     if records is None:
         return None
     if posted is not None:
@@ -228,27 +300,15 @@ def _posts_the_notice(gh: GitHubClient, issue: Issue, parked: PinnedState, words
     """Post the park's notice and record the thread read through it; the notice's id, or None.
 
     The notice of the park a failed squash takes as well
-    (`approval._park_squash_failure`), which the recovery reaches with no
-    reviewer run to go through the funnel with. Read only as far as the
-    orchestrator's own comments go (`park_watermarks`), since a park follows
-    a run long enough for a human to have written something nobody has read
-    -- which is also why the mark is harmless where no park lands behind the
-    notice.
+    (`parks_the_failed_squash`). Read only as far as the orchestrator's own
+    comments go (`park_watermarks`), since a park follows a run long enough
+    for a human to have written something nobody has read -- which is also
+    why the mark is harmless where no park lands behind the notice.
     """
     said_before = _comments._orchestrator_ids(parked)
     notice = _comments._post_issue_comment(gh, issue, parked, f"{config.HITL_MENTIONS} {words}")
     _park_watermarks._stamp_read_this_far(gh, issue, parked, said_before)
     return getattr(notice, "id", None)
-
-
-def _room_for_the_park(gh: GitHubClient, issue: Issue, state: PinnedState, reason: str) -> PinnedState | None:
-    """The state the park goes down on: the one in hand, else the comment as it stands; None for neither."""
-    if _park_fits(state, reason):
-        return state
-    durable = _review_comment._read(gh, issue, state, "park a verdict with no room for what its run staged")
-    if durable is None:
-        return None
-    return durable if _park_fits(durable, reason) else None
 
 
 def _park_fits(state: PinnedState, reason: str) -> bool:

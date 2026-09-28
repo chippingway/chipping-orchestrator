@@ -1751,49 +1751,53 @@ The keys that matter for the state machine fall into a few groups:
   service (`review_disposition.py`): the transaction is minted first, since reading the reviewed tree is a request of
   its own, and the record and that transaction go down in one write with the returned run's own records, over the pinned
   comment read again once the subject has been resolved -- the last requests before that write -- BEFORE the evidence is
-  published or the verdict acted on, and neither verdict is acted on until that evidence settles -- an owed transaction
-  holds the record for a later tick, and a lost claim, whichever the verdict -- a transaction that can never settle, or
-  the reused evidence a later revision has superseded since -- sets it to `null` for a fresh reviewer, in a write
-  composed over the comment read again. A change request is handed
-  over only while its subject still stands (`review_handoffs.py`): its feedback is posted first, and a post that failed
-  or left no id relabels and launches nothing and leaves `handed` `null`; the whole subject is held again behind that
-  post, the record written with `handed` set and the `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to
-  `workflow:fixing`, the subject held once more right before the developer launch, and the writes after that launch set
-  the record to `null`. A subject proved to have moved behind any of those requests -- a push, or a later report
-  settling -- sets it to `null` in a write that keeps the newer records, clearing that anchor with it so no retry
-  replays feedback about a subject nobody is handing on; a pull request, issue, or comment that would not read holds it
-  instead, the approval arc's write included, which keeps the record where the subject behind its verify gate would not
-  read and sets it to `null` otherwise. Every such recheck reads the comment again behind the subject's resolution and
-  watches the `verification_evidence_*` records beside the report's, and the record itself, carrying whatever another
-  road moved, so no write puts older records back -- and a verdict the state in hand no longer carries as persisted, or
-  one another road dropped or replaced since, is not acted on at all. Whatever sets the record to `null` names the
-  verdict it holds, so a verdict another road put in its place, carried onto the state by one of those rechecks, is
-  never the one dropped; the approval's squash is held to the exact record in hand before and after its rewrite, and
-  retires it only then -- and the recovery of a squash an earlier tick did not finish holds no verdict at all, so a
-  later round's verdict found beside it is left waiting and holds the move to `documenting`. An approval of the subject
-  still standing parks under `reviewer_unverified`
-  (`unverified_approvals.py`) unless its claim names the current evidence exactly and that evidence proves current, its
-  re-read artifact still the one that settled, and passes and covers the configuration by the artifact's own commands
-  rather than by the claim's copied `passed` and `covers`, with the pinned `verification_evidence_*` records read again
-  last and, where another road moved them meanwhile, carried onto the state and the approval refused; a refused approval
-  whose subject moved meanwhile is dropped for a fresh reviewer instead. A verdict the comment has no room to persist,
-  or whose transaction it has no room for, parks under `reviewer_unrecorded` with nothing published or acted on
+  published or the verdict acted on, and neither verdict is acted on until that evidence settles -- an owed
+  transaction holds the record for a later tick while its subject stands, and sets it to `null` once that subject is
+  proved to have moved, leaving the transaction owed to the reconciliation; a lost claim, whichever the verdict -- a
+  transaction that can never settle, or the reused evidence a later revision has superseded since -- sets it to `null`
+  for a fresh reviewer, in a write composed over the comment read again. A change request is handed over only while
+  its subject still stands (`review_handoffs.py`): its feedback is posted first, and a post that failed or left no id
+  relabels and launches nothing and leaves `handed` `null`; the whole subject is held again behind that post, the
+  record written with `handed` set and the `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to
+  `workflow:fixing`, the subject held once more right before the developer launch, and the writes after that launch
+  set the record to `null`. A later tick finishing a record already `handed` posts no feedback again: it relabels and
+  launches the developer the record is owed, or -- where `agent_runs_used` was charged past `handed`, that developer
+  already launched -- sets the record to `null`. A subject proved to have moved behind any of those requests -- a
+  push, or a later report settling -- sets it to `null` in a write that keeps the newer records, clearing that anchor
+  with it so no retry replays feedback about a subject nobody is handing on; a pull request, issue, or comment that
+  would not read holds it instead, the approval arc's write included, which keeps the record where the subject behind
+  its verify gate would not read and sets it to `null` otherwise. Every such recheck reads the comment again behind
+  the subject's resolution and watches the `verification_evidence_*` records beside the report's, and the record
+  itself, carrying whatever another road moved, so no write puts older records back -- and a verdict the state in hand
+  no longer carries as persisted, or one another road dropped or replaced since, is not acted on at all. Whatever sets
+  the record to `null` names the verdict it holds, so a verdict another road put in its place, carried onto the state
+  by one of those rechecks, is never the one dropped; the approval's squash is held to the exact record in hand before
+  and after its rewrite, and retires it only then -- and the recovery of a squash an earlier tick did not finish holds
+  no verdict at all, so a later round's verdict found beside it is left waiting and holds the move to `documenting`.
+  An approval of the subject still standing parks under `reviewer_unverified` (`unverified_approvals.py`) unless its
+  claim names the current evidence exactly and that evidence proves current, its re-read artifact still the one that
+  settled, and passes and covers the configuration by the artifact's own commands rather than by the claim's copied
+  `passed` and `covers`, with the pinned `verification_evidence_*` records read again last and, where another road
+  moved them meanwhile, carried onto the state and the approval refused; a refused approval whose subject moved
+  meanwhile is dropped for a fresh reviewer instead. A verdict the comment has no room to persist, or whose
+  transaction it has no room for, parks under `reviewer_unrecorded` with nothing published or acted on
   (`review_parks.py`): the park is measured at its widest before its notice is posted -- both the park's own write and
   the one keeping the record beside the notice's ledger entry where the subject would not read -- and taken over the
   comment as it stands -- the returned run's usage and session unrecorded -- where it has no room beside what that run
   staged, and nothing is posted or written at all where there is room for no park. Behind its notice the subject is
   resolved again and the comment read against the reading the verdict's run was resolved over: a report or evidence
   record moved there carries everything the comment changed since -- a settlement's spent `review_round` beside its
-  records -- and, like a push, lands no park, the write setting the record to `null` alone for a fresh reviewer, while a
-  subject that would not read, or a notice that left no id and so may have reached nobody, lands none either and leaves
-  the record as it waited for a later tick to park again. A park write that carries what moved behind the notice is
-  measured again, and not made where another road's write left no room for it. A park that lands sets the record to
-  `null` in its own write and reports `park_awaiting_human` only once that write is down. A failed verify gate's park
-  goes through the same funnel, so it too lands only over the subject still standing behind the gate and behind its
-  notice. A bare `/orchestrator continue` on either park buys a fresh reviewer, and an edit under one nobody replied to
-  waits for that reviewer rather than resuming the developer. Additive and dormant: no live reviewer round hands its
-  result to that service yet, and nothing finishes a record a tick left waiting, so no issue carries the key, and an
-  issue without it has no verdict waiting.
+  records -- and, like a push, lands no park, the write setting the record to `null` alone for a fresh reviewer, while
+  a subject that would not read, or a notice that left no id and so may have reached nobody, lands none either and
+  leaves the record as it waited for a later tick to park again. Every park write is composed over the comment as it
+  stands, so a field another road wrote behind the notice -- a spent `review_round` -- is kept; one that carries what
+  moved there is measured again, and not made where another road's write left no room for it. A park that lands sets
+  the record to `null` in its own write and reports `park_awaiting_human` only once that write is down. A failed
+  verify gate's park goes through the same funnel, so it too lands only over the subject still standing behind the
+  gate and behind its notice. A bare `/orchestrator continue` on either park buys a fresh reviewer, and an edit under
+  one nobody replied to waits for that reviewer rather than resuming the developer. Additive and dormant: no live
+  reviewer round hands its result to that service yet, and nothing finishes a record a tick left waiting, so no issue
+  carries the key, and an issue without it has no verdict waiting.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
   live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the

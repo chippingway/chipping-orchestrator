@@ -37,7 +37,8 @@ put the superseded revision back -- and the returned verdict a disposition
 persisted (`review_verdicts`), since a verdict another road dropped or replaced
 since is no longer the one any write behind this may act on. Records are compared as the comment's JSON
 spells them, so one written `null` where there was none, or a revision spelled
-`true` where it was `1`, is a move. Records that stand leave the state alone.
+`true` where it was `1`, is a move. Records that stand leave the state alone,
+save for a park, which composes its write over the comment either way.
 Records that moved refuse the verdict, and everything the comment changed since
 the subject was resolved is carried onto the state in hand, so every write the
 run makes lays itself over the newer settlement. A comment that will not read
@@ -143,7 +144,7 @@ def _records_in_hand(
 
 
 def _records_stand(
-    gh: GitHubClient, issue: Issue, state: PinnedState, resolved_over: dict,
+    gh: GitHubClient, issue: Issue, state: PinnedState, resolved_over: dict, *, composed: bool = False,
 ) -> bool | None:
     """Whether the comment still carries the report and evidence records the subject had.
 
@@ -152,14 +153,18 @@ def _records_stand(
     not acted on. None where the comment will not read or parse, or is not the
     one `state` was read from, which carries nothing -- a record read back
     empty is no settlement to keep -- and the caller ends the tick without
-    writing.
+    writing. `composed` carries what the comment changed even where the
+    records stand, for a write that lays itself over the comment as it stands
+    either way -- a park's, whose notice is time another road can spend a
+    round or write any field no verdict stands on.
     """
     durable = _read(
         gh, issue, state, "see whether a report settled while the reviewer ran",
     )
     if durable is None:
         return None
-    if not _moved(durable.data, resolved_over, _VERDICT_RECORDS):
+    stand = not _moved(durable.data, resolved_over, _VERDICT_RECORDS)
+    if stand and not composed:
         return True
     # Every field the comment changed since `resolved_over`, as `_moved`
     # spells a change: a field Python calls equal -- `true` over `1` -- is
@@ -170,13 +175,14 @@ def _records_stand(
             state.data.pop(field, None)
         else:
             state.set(field, written)
-    log.warning(
-        "issue=#%d its developer report, verification evidence, or returned "
-        "verdict records moved on the pinned comment while the reviewer's "
-        "verdict waited; keeping them and not acting on the verdict",
-        issue.number,
-    )
-    return False
+    if not stand:
+        log.warning(
+            "issue=#%d its developer report, verification evidence, or returned "
+            "verdict records moved on the pinned comment while the reviewer's "
+            "verdict waited; keeping them and not acting on the verdict",
+            issue.number,
+        )
+    return stand
 
 
 def _in_hand(
