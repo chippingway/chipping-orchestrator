@@ -79,6 +79,12 @@ def _dispose_documenting_outcome(
         _parks._park_documenting_dirty(ctx, run.agent_result, dirty)
         return
 
+    if run.agent_result.unfinished_steps:
+        _parks._park_documenting_question(
+            ctx, run.agent_result, before_sha=run.before_sha,
+        )
+        return
+
     if after_sha and after_sha != run.before_sha:
         _publication._push_docs_and_advance(
             ctx, wt, after_sha,

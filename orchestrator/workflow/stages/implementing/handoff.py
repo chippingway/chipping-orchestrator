@@ -44,7 +44,9 @@ from orchestrator.workflow.state import WorkflowLabel
 # The park reasons this write spends, because what each of them was waiting for
 # is what reaching this line means happened.
 _SPENT_PARK_REASONS = frozenset((
-    _state._AGENT_TIMEOUT, _report_delivery.UNDELIVERABLE_REPORT,
+    _state._AGENT_TIMEOUT,
+    _state._PARK_EXECUTION_FAILED,
+    _report_delivery.UNDELIVERABLE_REPORT,
 ))
 
 
@@ -165,14 +167,14 @@ def _reset_implementing_counters(state: _pinned_state.PinnedState) -> None:
     # silent-park streak so a future blip doesn't tip an otherwise-healthy
     # session past the fresh-session threshold.
     state.set(_state._SILENT_PARK_COUNT, 0)
-    # The commit shipped, so any agent-timeout park watermark is spent -- clear
-    # it (and the stale reason) so it cannot linger into `validating` or
-    # mis-fire the next-tick timeout recovery on a later implementing hop. The
-    # report this publication could not deliver is spent the same way and for
-    # the same reason: it named a report that has since reached the pull
-    # request, so carried into another stage it is a park nothing is waiting
-    # on, and carried back here it would silence the notice a NEW undeliverable
-    # report owes the thread.
+    # The commit shipped, so any agent-timeout or retryable execution-failure park
+    # watermark is spent -- clear it (and the stale reason) so it cannot linger
+    # into `validating` or mis-fire the next-tick timeout recovery on a later
+    # implementing hop. The report this publication could not deliver is spent the
+    # same way and for the same reason: it named a report that has since reached
+    # the pull request, so carried into another stage it is a park nothing is
+    # waiting on, and carried back here it would silence the notice a NEW
+    # undeliverable report owes the thread.
     if state.get(_state._PARK_REASON) in _SPENT_PARK_REASONS:
         state.set(_state._PARK_REASON, None)
     state.set(_state._PRE_IMPLEMENT_SHA, None)

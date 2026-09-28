@@ -164,7 +164,10 @@ def _park_documenting_dirty(
 
 
 def _park_documenting_question(
-    ctx: _models._DocumentingContext, documentation_result: AgentResult,
+    ctx: _models._DocumentingContext,
+    documentation_result: AgentResult,
+    *,
+    before_sha: str | None = None,
 ) -> None:
     """Park an unknown verdict via `_on_question`.
 
@@ -175,7 +178,9 @@ def _park_documenting_question(
     _dev_parks._on_question(
         ctx.gh, ctx.issue, ctx.state,
         _guards._ParkedRun(
-            documentation_result, _guards._ROUTE_DOCS_PASS,
+            documentation_result,
+            _guards._ROUTE_DOCS_PASS,
+            before_sha=before_sha,
         ),
     )
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)

@@ -201,6 +201,7 @@ def _dispose_silent_reply(
         _guards._ParkedRun(
             run.agent_result,
             _guards._ROUTE_DEV_DRIFT_RESUME,
+            before_sha=run.before_sha,
         ),
     )
     return _state._OUTCOME_PARKED

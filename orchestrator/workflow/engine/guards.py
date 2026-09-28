@@ -203,6 +203,7 @@ class _ParkedRun(NamedTuple):
     agent_result: AgentResult
     route: str
     conflict_round: int | None = None
+    before_sha: str | None = None
 
 
 ALLOWED_CORRELATION_FIELDS: frozenset[str] = frozenset((

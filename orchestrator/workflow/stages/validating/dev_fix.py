@@ -112,6 +112,8 @@ def _publishable_dev_fix(
     at all, and one whose head is exactly what the run started on with nothing
     of that run's stranded on the branch unpushed.
     """
+    if run.agent_result.unfinished_steps:
+        return None
     after_sha = run.after_sha
     if after_sha is None:
         after_sha = _verification_probes._head_sha(run.worktree)
@@ -204,6 +206,7 @@ def _publish_dev_fix(
     if published.held:
         return False
     if published.landed:
+        state.set("pre_implement_sha", None)
         return True
     _guards._park_awaiting_human(
         gh, issue, state,
@@ -232,7 +235,9 @@ def _dispose_dev_fix_result(
         _dev_parks._on_question(
             gh, issue, state,
             _guards._ParkedRun(
-                run.agent_result, _guards._ROUTE_DEV_FIX,
+                run.agent_result,
+                _guards._ROUTE_DEV_FIX,
+                before_sha=run.before_sha,
             ),
         )
         return False

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.agents.models import ToolLifecycle
 from tests.workflow.fixtures import _reported
 from tests.workflow.stages.implementing import drift_test_support as support
 
@@ -146,6 +147,48 @@ class HandleImplementingResumeOnHashChangeTest(
         self._agent_args = self._mocks[RUN_AGENT].call_args[0]
         prompt = self._agent_args[1]
         _assert_body_drift_outcome(self, gh, prompt)
+
+    def test_unfinished_drift_parks_failed(self) -> None:
+        # A drift resume that committed new work but exited prematurely with unfinished
+        # tool steps must NOT publish or flip to validating. It parks under agent_execution_failed.
+        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+        gh = FakeGitHubClient()
+        issue = make_issue(
+            DRIFT_RESUME_ISSUE,
+            label=LABEL_IMPLEMENTING,
+            body=UPDATED_REQUIREMENTS,
+        )
+        gh.add_issue(issue)
+        gh.seed_state(
+            DRIFT_RESUME_ISSUE,
+            user_content_hash=STALE_CONTENT_HASH,
+            dev_agent=DEV_AGENT,
+            dev_session_id=DEV_SESSION,
+            awaiting_human=True,
+            last_action_comment_id=HUMAN_COMMENT_ID,
+            branch=_issue_branch(DRIFT_RESUME_ISSUE),
+        )
+
+        mocks = self._run_implementing(
+            gh,
+            issue,
+            run_agent=_agent(
+                session_id=DEV_SESSION,
+                last_message="partial drift output",
+                unfinished_steps=(step,),
+            ),
+            has_new_commits=True,
+            dirty_files=(),
+            push_branch=True,
+            head_shas=["before-resume", "after-resume"],
+        )
+
+        mocks[RUN_AGENT].assert_called_once()
+        self.assertEqual(gh.opened_prs, [])
+        self.assertNotIn((DRIFT_RESUME_ISSUE, LABEL_VALIDATING), gh.label_history)
+        state = gh.pinned_data(DRIFT_RESUME_ISSUE)
+        self.assertTrue(state.get(AWAITING_HUMAN))
+        self.assertEqual(state.get("park_reason"), "agent_execution_failed")
 
     def test_no_session_falls_through_to_fresh(self) -> None:
         # Pre-spawn implementing (ready -> implementing on the same tick,

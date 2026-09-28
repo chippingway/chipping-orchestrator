@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.agents.models import ToolLifecycle
 from tests.workflow.fixtures import (
     _FAKE_WT,
     _TEST_SPEC,
@@ -29,6 +30,7 @@ PAST_THE_CEILING = 6
 RUN_AGENT = "run_agent"
 PUSH_BRANCH = "_push_branch"
 LABEL_VALIDATING = "workflow:validating"
+AWAITING_HUMAN = "awaiting_human"
 
 
 def _assert_resolution_prompt(test_case, prompt: str) -> None:
@@ -54,7 +56,7 @@ def _assert_resolved_state(test_case, github) -> None:
 
 def _assert_interrupted_state(test_case, github) -> None:
     pinned_state = github.pinned_data(CONFLICT_ISSUE)
-    test_case.assertFalse(pinned_state.get("awaiting_human"))
+    test_case.assertFalse(pinned_state.get(AWAITING_HUMAN))
     test_case.assertEqual(pinned_state.get("conflict_round"), 0)
     test_case.assertNotIn((CONFLICT_ISSUE, LABEL_VALIDATING), github.label_history)
     test_case.assertFalse(
@@ -166,7 +168,7 @@ class ResolvingConflictAgentExecutionTest(unittest.TestCase, _ResolvingConflictM
         self.assertEqual(mocks[RUN_AGENT].call_count, 1)
         mocks[PUSH_BRANCH].assert_called_once()
         pinned_state = gh.pinned_data(CONFLICT_ISSUE)
-        self.assertTrue(pinned_state.get("awaiting_human"))
+        self.assertTrue(pinned_state.get(AWAITING_HUMAN))
         # No label flip -- still resolving_conflict.
         self.assertNotIn((CONFLICT_ISSUE, LABEL_VALIDATING), gh.label_history)
 
@@ -200,6 +202,33 @@ class ResolvingConflictAgentExecutionTest(unittest.TestCase, _ResolvingConflictM
         )
         mocks[PUSH_BRANCH].assert_not_called()
         _assert_interrupted_state(self, gh)
+
+    def test_unfinished_resolution_parks_failed(self) -> None:
+        # A dev run spawned to resolve a rebase conflict moved HEAD (rebased/committed),
+        # but exited prematurely with unfinished tool steps. It must NOT push with lease
+        # or relabel to validating; it parks as agent_execution_failed.
+        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+        gh, issue, _ = self._seed()
+        mocks, _, _ = self._run_with_merge(
+            gh,
+            issue,
+            merge_succeeded=False,
+            conflicted_files=[CONFLICT_FILE],
+            head_shas=[BEFORE_HEAD, RESOLVED_HEAD_SHA],
+            push_branch=True,
+            run_agent_result=_agent(
+                session_id="dev-sess",
+                last_message="partial rebase output",
+                unfinished_steps=(step,),
+            ),
+        )
+
+        mocks[PUSH_BRANCH].assert_not_called()
+        self.assertNotIn((CONFLICT_ISSUE, LABEL_VALIDATING), gh.label_history)
+        pinned_state = gh.pinned_data(CONFLICT_ISSUE)
+        self.assertTrue(pinned_state.get(AWAITING_HUMAN))
+        self.assertEqual(pinned_state.get("park_reason"), "agent_execution_failed")
+        self.assertEqual(pinned_state.get("conflict_round"), 0)
 
 
 if __name__ == "__main__":

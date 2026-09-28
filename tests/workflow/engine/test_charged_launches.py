@@ -27,15 +27,46 @@ import unittest
 
 from orchestrator.agents.models import ToolLifecycle
 from tests.workflow.engine import charged_run_roads as roads, charged_run_test_support as support
-from tests.workflow.fixtures import _agent, _PatchedWorkflowMixin, _reported
+from tests.workflow.fixtures import (
+    LABEL_VALIDATING,
+    REVIEW_CHANGES_REQUESTED_MESSAGE,
+    _agent,
+    _PatchedWorkflowMixin,
+    _reported,
+)
 
 # What a resume lands on when the backend has lost the transcript it names.
 _POISONED = _agent(
     session_id=None, last_message="", stderr=support.POISONED_STDERR,
 )
 
+_AGY_SESSION = "agy-sess"
+_PREMATURE_TOOL_STEP = ToolLifecycle(
+    step_index=1, tool_name="run_command", state="ACTIVE",
+)
+_RECOVERY_RESUME_ROADS = (
+    roads.IMPLEMENTING_RESUME,
+    roads.FIXING,
+    roads.DOCUMENTING,
+    roads.IN_REVIEW,
+    roads.CONFLICT,
+)
 
-class ChargedLaunchTest(unittest.TestCase, _PatchedWorkflowMixin):
+
+class _ChargedBase(unittest.TestCase, _PatchedWorkflowMixin):
+    def _assert_charged(self, driven, *, launches: int) -> None:
+        """The issue durably paid for every process this tick invoked."""
+        self.assertEqual(driven.spent, support.SPENT_BEFORE + launches)
+        self.assertEqual(driven.reservation, support.STARTED)
+
+    def _assert_nothing_disposed(self, driven) -> None:
+        """A run whose outcome was declined published none of it."""
+        self.assertEqual(driven.github.label_history, [])
+        self.assertEqual(driven.github.posted_comments, [])
+        self.assertFalse(driven.mocks[support.PUSH_BRANCH].called)
+
+
+class ChargedLaunchTest(_ChargedBase):
     """No road reaches a process without spending one of the issue's runs."""
 
     def test_every_road_charges_the_issue_it_spends(self) -> None:
@@ -59,31 +90,6 @@ class ChargedLaunchTest(unittest.TestCase, _PatchedWorkflowMixin):
         self.assertEqual(driven.spawns, 2)
         self._assert_charged(driven, launches=2)
 
-    def test_an_agy_recovery_pays_for_both_spawns(self) -> None:
-        # An initial AGY run that exits prematurely with unfinished tool steps
-        # earns an immediate bounded recovery in the same worktree. The daily
-        # fresh-spawn gate is charged only once, while both processes are
-        # charged to the lifetime agent-run ledger.
-        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
-        incomplete = _agent(
-            session_id="agy-sess",
-            exit_code=1,
-            unfinished_steps=(step,),
-        )
-        recovered = _agent(
-            session_id="agy-sess",
-            last_message=_reported(),
-        )
-        driven = roads.IMPLEMENTING_FRESH.drive(
-            self,
-            [incomplete, recovered],
-            dev_agent="agy",
-        )
-
-        self.assertEqual(driven.spawns, 2)
-        self._assert_charged(driven, launches=2)
-        self.assertNotEqual(driven.github.label_history, [])
-
     def test_an_interrupted_launch_stays_charged(self) -> None:
         for road in roads.ROADS:
             with self.subTest(role=road.role):
@@ -104,16 +110,95 @@ class ChargedLaunchTest(unittest.TestCase, _PatchedWorkflowMixin):
                 self._assert_charged(driven, launches=1)
                 self._assert_nothing_disposed(driven)
 
-    def _assert_charged(self, driven, *, launches: int) -> None:
-        """The issue durably paid for every process this tick invoked."""
-        self.assertEqual(driven.spent, support.SPENT_BEFORE + launches)
-        self.assertEqual(driven.reservation, support.STARTED)
 
-    def _assert_nothing_disposed(self, driven) -> None:
-        """A run whose outcome was declined published none of it."""
-        self.assertEqual(driven.github.label_history, [])
-        self.assertEqual(driven.github.posted_comments, [])
-        self.assertFalse(driven.mocks[support.PUSH_BRANCH].called)
+class ChargedAgyRecoveryLaunchTest(_ChargedBase):
+    """AGY premature exit recoveries charge both processes to the run ledger."""
+
+    def test_an_agy_recovery_pays_for_both_spawns(self) -> None:
+        # An initial AGY run that exits prematurely with unfinished tool steps
+        # earns an immediate bounded recovery in the same worktree. The daily
+        # fresh-spawn gate is charged only once, while both processes are
+        # charged to the lifetime agent-run ledger.
+        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+        incomplete = _agent(
+            session_id=_AGY_SESSION,
+            exit_code=1,
+            unfinished_steps=(step,),
+        )
+        recovered = _agent(
+            session_id=_AGY_SESSION,
+            last_message=_reported(),
+        )
+        driven = roads.IMPLEMENTING_FRESH.drive(
+            self,
+            [incomplete, recovered],
+            dev_agent="agy",
+        )
+
+        self.assertEqual(driven.spawns, 2)
+        self._assert_charged(driven, launches=2)
+        self.assertNotEqual(driven.github.label_history, [])
+
+    def test_agy_resume_recovery_pays_for_both_spawns(self) -> None:
+        # Resumed AGY developer runs that exit prematurely with unfinished tool
+        # steps earn an immediate bounded recovery in the existing worktree across
+        # all shared resume roads. Both processes are charged to the lifetime
+        # agent-run ledger.
+        for road in _RECOVERY_RESUME_ROADS:
+            with self.subTest(role=road.role):
+                incomplete = _agent(
+                    session_id=_AGY_SESSION,
+                    exit_code=1,
+                    unfinished_steps=(_PREMATURE_TOOL_STEP,),
+                )
+                recovered = _agent(
+                    session_id=_AGY_SESSION,
+                    last_message=road.agent_result.last_message,
+                )
+                driven = road.drive(
+                    self,
+                    [incomplete, recovered],
+                    dev_agent="agy",
+                )
+
+                self.assertEqual(driven.spawns, 2)
+                self._assert_charged(driven, launches=2)
+                self.assertNotEqual(driven.github.label_history, [])
+
+    def test_validating_dev_fix_pays_for_three_spawns(self) -> None:
+        # Reviewer requests changes on validating, triggering dev fix.
+        # An initial AGY dev fix run exits prematurely with unfinished tool
+        # steps and is recovered in the existing worktree. The reviewer launch
+        # and both developer launches are charged to the ledger (3 total).
+        reviewer = _agent(
+            session_id="rev-sess",
+            last_message=REVIEW_CHANGES_REQUESTED_MESSAGE,
+        )
+        incomplete = _agent(
+            session_id=_AGY_SESSION,
+            exit_code=1,
+            unfinished_steps=(_PREMATURE_TOOL_STEP,),
+        )
+        recovered = _agent(
+            session_id=_AGY_SESSION,
+            last_message=_reported("fixed"),
+        )
+        driven = roads.VALIDATING.drive(
+            self,
+            [reviewer, incomplete, recovered],
+            run_options={
+                "dev_agent": "agy",
+                "head_shas": [roads.SHA_BEFORE, roads.SHA_AFTER],
+                "push_branch": True,
+            },
+        )
+
+        self.assertEqual(driven.spawns, 3)
+        self._assert_charged(driven, launches=3)
+        self.assertIn(
+            (roads.VALIDATING_ISSUE, LABEL_VALIDATING),
+            driven.github.label_history,
+        )
 
 
 if __name__ == "__main__":

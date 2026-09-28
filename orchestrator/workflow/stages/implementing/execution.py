@@ -119,14 +119,16 @@ class _DevResumeContext:
         self, *, fresh: bool, session_id: str | None,
     ) -> tuple[AgentResult, bool]:
         session = self.plan.session
-        agent_result = _usage._run_agent_tracked(
+        return _coordinate_developer_run(
             self.gh,
             _run_charge_state.AgentRunBudget(
                 issue=self.issue, state=self.state,
             ),
-            agent_role="developer",
-            stage=self.stage,
+            issue=self.issue,
+            state=self.state,
+            worktree=self.worktree,
             backend=session.backend,
+            stage=self.stage,
             prompt=_session._build_dev_spawn_prompt(
                 self.spec,
                 self.issue,
@@ -134,19 +136,13 @@ class _DevResumeContext:
                 self.options,
                 fresh=fresh,
             ),
-            cwd=self.worktree,
             agent_spec=session.spec,
             resume_session_id=session_id,
             extra_args=session.extra_args,
             review_round=self.state.get("review_round", 0),
             retry_count=self.state.get(_state._RETRY_COUNT),
+            pause_guard=self.options.pause_guard,
         )
-        _issue_usage._accumulate_issue_usage(self.state, agent_result.usage)
-        paused = (
-            self.options.pause_guard
-            and _guards._paused_during_agent_run(self.gh, self.issue)
-        )
-        return agent_result, paused
 
     def _needs_fresh_retry(self, agent_result: AgentResult) -> bool:
         """Whether a poisoned session earns this issue a second spawn.
