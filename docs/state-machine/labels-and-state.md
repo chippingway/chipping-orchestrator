@@ -650,7 +650,10 @@ The keys that matter for the state machine fall into a few groups:
   reviewer-requested round, recorded under `workflow:fixing` — the label that round actually runs under, and one of
   the roads whose park notice therefore says the pull request stands where it stood rather than that none was opened
   ([`_handle_validating`](delivery-stages.md#_handle_validating-label-workflowvalidating)'s `changes_requested` arc
-  and [`_handle_fixing`](delivery-stages.md#_handle_fixing-label-workflowfixing) step 9).
+  and [`_handle_fixing`](delivery-stages.md#_handle_fixing-label-workflowfixing) step 9). So does the rewritten-head
+  report refresh, recorded under the `workflow:validating` route and the requirements baseline it froze before the
+  run, with no round or watermarks riding it
+  ([`_handle_validating`](delivery-stages.md#_handle_validating-label-workflowvalidating) step 3).
 
   `developer_report_delivery` is what one completed run wrote, recorded **before** the size gate reads its candidate
   and before the push sends it — which is the last moment the report is certainly recoverable, since the session
@@ -755,10 +758,13 @@ The keys that matter for the state machine fall into a few groups:
 
   `developer_report_owed` is the debt those parks leave, a bare `true` written beside the reason by every road that
   parks under `report_undeliverable` — and by the drift resume's tree park, which names the loose files rather than the
-  report though the run it refused to record had written one. The flags are single, so any later park — a resumed run
-  that times out, a question — replaces `park_reason`, and without the flag the report that finally comes back would
-  read as an ordinary reply on an issue owing nothing. `owes_a_report` reads it beside the two records and the reason,
-  and the write that records a delivered report retires it with the reason — as does the settlement that puts a report
+  report though the run it refused to record had written one, and by the rewritten-head report refresh beside the
+  agent-failure park `_on_question` classifies for a run that brought no report, since the reply to that question,
+  silent exit, or unfinished command is the report the debt is owed. The flags are single, so any later park — a
+  resumed run that times out, a question — replaces `park_reason`, and without the flag the report that finally comes
+  back would read as an ordinary reply on an issue owing nothing. `owes_a_report` reads it beside the two records and
+  the reason, and the write that records a delivered report retires it with the reason — as does the settlement
+  that puts a report
   on the pull request, which retires the `report_undeliverable` park itself where that is the park it answers: a
   condition a human REPAIRS rather than replies to (an edited report restored, a checkout cleaned) leaves nothing else
   to end the wait, and a debt outliving the settlement would hold the reviewer over a report the pull request carries.
@@ -770,8 +776,9 @@ The keys that matter for the state machine fall into a few groups:
   `developer_report_unreported_work` is the narrower fact beside it: a run committed work and no record of
   this issue's describes it. Every road that holds such work writes it — one whose report this build cannot record,
   one that handed over no usable report at all, one whose run never finished, a commit an earlier run stranded that
-  the reply in hand does not describe, and the timeout retry that publishes a commit the run it is finishing was
-  killed before reporting — and only a report recorded afterwards retires it, since only a
+  the reply in hand does not describe, the timeout retry that publishes a commit the run it is finishing was
+  killed before reporting, and the rewritten-head report refresh whose run committed when it was asked for a report
+  alone — and only a report recorded afterwards retires it, since only a
   report written over the branch as it stands describes those commits. The debt alone cannot say this, because a
   record an EARLIER run left is still a record: a reply that publishes the newer commits under it would settle a
   report of work it was written before, and the reviewer would read it as the account of the whole branch. So while

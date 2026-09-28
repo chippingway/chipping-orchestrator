@@ -98,11 +98,12 @@ authors no subject. Where each prompt carries it, and why the bare developer res
 ## Developer report contract in developer prompts
 
 Every prompt a developer can finish work on — the initial implementation, an automated-review fix, a
-requirements-drift resume, PR feedback, a human-reply resume, a late revision against a human's guidance, and the
-bare-continue retry — teaches one report contract: the developer writes the complete, current report, the
-orchestrator publishes it as routine work that needs no permission, and the prompt asks the developer to keep the
-report at or below 4,000 characters by describing the final branch state rather than repeating the issue, prior review
-rounds, every file, or every test. The parser and publication path do not enforce that writing budget. A report that
+requirements-drift resume, PR feedback, a human-reply resume, a late revision against a human's guidance, a rewritten
+head's report refresh, and the bare-continue retry — teaches one report contract: the developer writes the complete,
+current report, the orchestrator publishes it as routine work that needs no permission, and the prompt asks the
+developer to keep the report at or below 4,000 characters by describing the final branch state rather than
+repeating the issue, prior review rounds, every file, or every test. The parser and publication path do not
+enforce that writing budget. A report that
 needs no repository change needs no commit, and finished work ends on exactly one outcome — either the report between
 `REPORT: READY` and `REPORT: END` lines or a `REPORT: VERIFIED <location> <revision>` line naming a report already on
 the pull request. A fresh respawn's preamble restates the ownership and defers the outcome to the task below it.
@@ -115,7 +116,12 @@ requirements-drift resume, a reviewer-requested round on either side of the park
 human-feedback round `in_review` routes to `workflow:fixing`: the report is recorded before the size gate, stamped
 with the requirements revision the run was handed, bound once the code is out (or at once, for a report alone, which
 spends the round a pushed fix spends because the next reviewer reads it), and the reviewer waits until the pull
-request carries it. That reviewer is then handed the report re-read where it settled, and what it approves is
+request carries it. So does the report refresh `workflow:validating` runs for a head this orchestrator's own rebase
+published (a claimed `developer_report_rewrite_debt`): before any reviewer and with no human reply, the developer is
+asked for a fresh `REPORT: READY` report of that exact head, recorded and settled the same way, and the claim is
+cleared only once a published report of that head, still intact and written against the current requirements, has
+settled -- a verification of the report the rebase left behind pays nothing. Each reviewer is then handed the report
+re-read where it settled, and what it approves is
 recorded as `review_approved_subject` — pull request, head, requirements, and report — so a report that changes on
 an unchanged head goes back to a fresh reviewer rather than riding an earlier approval
 ([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)).
