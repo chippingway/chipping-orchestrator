@@ -12,13 +12,20 @@ that count is final, the umbrella flag, and the park flags -- so the tick
 falls through and re-derives a manifest against the updated body rather than
 returning the way the pre-implementation drift routes do.
 
-Two things survive it. The locked agent spec stays, since a mid-flight
+Three things survive it. The locked agent spec stays, since a mid-flight
 `DECOMPOSE_AGENT` flip must not retarget an issue whose pinned session id was
 written by another backend; only the session id is retired, and through the
 session owner, which is where that retirement is spelled for every caller that
 decides the next run is a fresh one. Children the wiped manifest tracked stay
 open on GitHub: the orchestrator stops tracking them, so the notice names them
 as orphans and leaves it to the operator to decide which no longer apply.
+
+And a late generation a split left stays exactly as it was written, because
+it is not manifest tracking. Its register, its snapshot, and its consumer
+ledger are what the remote is owed and who that ref was preserved for, and an
+edit changes neither: the orphans the notice names are still the consumers
+the umbrella's cleanup proves the ref against, whatever manifest replaces
+them. Nothing here adopts, relabels, or reopens one of them.
 
 The notice is posted before the reset touches state, so a tick that dies
 between the two re-detects the same edit next time rather than throwing a

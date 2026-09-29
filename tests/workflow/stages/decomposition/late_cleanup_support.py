@@ -63,6 +63,11 @@ CHILD_NUMBER = 411
 # what the crash between the two writes leaves behind.
 UNRECORDED_CHILD = 412
 
+# The child an ordinary re-decomposition tracks in place of the split's own
+# once a genuine edit has orphaned it: nothing late recorded it, and no ref
+# was cut for it.
+REPLACEMENT_CHILD = 421
+
 SUPERSEDED_BRANCH = "orchestrator/chippingway__orchestrator/issue-41"
 
 SNAPSHOT_REF = "refs/orchestrator/late-split/issue-41/cycle-3/gen-1"
@@ -263,6 +268,25 @@ class SeededUmbrella:
         with remote.answering():
             walk_owner(case, self, _late_sweep._handle_closed_owner_cleanup)
         return remote
+
+    def replaced(self) -> None:
+        """Track a finished replacement in place of the split's own child.
+
+        What a genuine edit leaves once the ordinary decomposer has answered
+        it: the reroute orphaned the child the split made, and the manifest it
+        produced tracks one of its own under the same umbrella. The late
+        generation is left exactly as the split wrote it, because neither
+        road writes it -- so the ledger still names the original as the ref's
+        consumer, and the umbrella's own scan no longer does.
+        """
+        self.github.add_issue(
+            make_issue(REPLACEMENT_CHILD, label=LABEL_DONE, closed=True),
+        )
+        self.github.seed_state(PARENT_NUMBER, **{
+            **self.github.pinned_data(PARENT_NUMBER),
+            "children": [REPLACEMENT_CHILD],
+            EXPECTED_CHILDREN: 1,
+        })
 
 
 def split_umbrella(

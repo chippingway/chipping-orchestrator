@@ -2902,7 +2902,9 @@ rather than preserving.
   receipt and the child's own guard rather than by keeping a ref nobody holds. Every
   state but `reconciled` is still owed. `late_consumers` is the direct snapshot consumers, deduplicated and ordered,
   since the reclamation rule asks about each of them once — and it is read from the other end too, as the one record
-  that can vouch for a child claiming this split in a body marker anybody can paste. Only a positive whole number is
+  that can vouch for a child claiming this split in a body marker anybody can paste. It is not `children`, and a drift
+  reroute that replaces that manifest leaves it naming the originals the ref was preserved for: the proof reads any
+  consumer the umbrella's scan of the replacements was not asked about afresh. Only a positive whole number is
   one — `True`, `2.5`,
   and `"7"` are not issues anything can ask GitHub about, and neither the reader nor `with_consumers` will convert
   one into a consumer id. Neither ledger is ever *reduced* to what this binary understood: an entry it cannot type, or a

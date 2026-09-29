@@ -1656,13 +1656,23 @@ over a remote nobody will ever reap.
 
 That boundary is also the first at which the **snapshot** can go, and under the rule that owns it: a ref may be
 deleted only once every recorded direct consumer has **ended**, and all-children-resolved is exactly when that
-becomes true for the consumers this split created. Ended is read off the consumer's own closed state and explicitly
+becomes true for the consumers this split created — for as long as the children the umbrella tracks are those
+consumers. Ended is read off the consumer's own closed state and explicitly
 not off its label: all three dispositions that end a child close the issue and none of them survives a reopen, while
 a label does — a child reopened while still wearing `done` is live again, and a reading taken off the label would
-delete the only copy of the work it came back for. The issues come off the child scan the umbrella already took, so
-proving it costs no request of its own, and a closed `done` covers a nested split too — a child that reached it has
-published, so its own descendants are past needing the ancestor. Anything that cannot be proved keeps the ref: a
-consumer missing from the scan, one whose read failed, or a consumer ledger this binary could not type. All of that
+delete the only copy of the work it came back for. The issues come off the child scan the umbrella already took
+wherever that scan was asked about them, so the ordinary proof costs no request of its own, and a closed `done`
+covers a nested split too — a child that reached it has published, so its own descendants are past needing the
+ancestor. A recorded consumer the scan was **not** asked about is read afresh instead: a genuine edit re-decomposes
+the umbrella, and from then on its scan is of the replacements while the originals it orphaned are still the
+consumers the ref was preserved for. The ledger decides who is read, never the manifest beside it, and the orphans
+are only read and, once the ref goes, told so — never adopted, relabelled, or reopened. What the ledger does not
+change is *when* the question is asked: only on a tick that finds every tracked child resolved, or one a child's
+disposition parks. So an original that ends while the replacements are still running frees the ref on the first
+such tick after it, not sooner — and the terminal waits behind the same settlement, so nothing closes over the ref
+in between. Anything that cannot be
+proved keeps the ref: a consumer that is open or was reopened, one whose read failed, or a consumer ledger this
+binary could not type. All of that
 is about the consumers the ledger *names*, so the prior question is whether it names all of them, and the record's
 own phase answers it. A child is created and then recorded in two writes — it must be, since a child on GitHub the
 parent does not record is a child nothing would come back to — so while `splitting` stands the list may be short by
@@ -2043,9 +2053,10 @@ next tick. Two rules keep that from undoing work that already exists.
 A generation whose split has **already acted outside this process** may not be revised into a new one, and two
 effects put it past that point.
 
-*Children*, because a second manifest over the top of real GitHub issues strands every one of them: nothing polls a
-child the parent stops recording, they carry an ancestry naming the adjudication that made them, and they are the
-consumers the snapshot is retained for.
+*Children*, because a second manifest over the top of real GitHub issues strands every one of them: nothing drives
+a child the parent stops recording — no walk activates it or waits on it, and the one pass that still reads it is the
+snapshot cleanup, asking only whether it has ended — they carry an ancestry naming the adjudication that made them,
+and they are the consumers the snapshot is retained for.
 
 *A recorded snapshot obligation*, even with no child yet. The ref is named for the generation but the **commit under
 it** is the candidate that generation froze, and the reclamation proves a ref is ours to delete by comparing the two

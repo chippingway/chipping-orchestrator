@@ -209,7 +209,11 @@ the action depends on lifecycle position:
   `workflow:decomposing` via `_route_drift_to_decomposing`: same state-wipe + notice, plus a label flip to
   `workflow:decomposing`. `decomposer_agent` is preserved across this transition so a mid-flight `DECOMPOSE_AGENT` env
   flip cannot retarget an in-flight issue. Any previously-tracked children are listed in the notice as ORPHANED — the
-  orchestrator no longer tracks them, so the operator must close any that no longer apply.
+  orchestrator no longer tracks them, so the operator must close any that no longer apply. Neither reset touches a
+  late split's generation, which is not manifest tracking: its register, its snapshot, and `late_consumers` survive
+  whole and go on naming the orphans, so the umbrella the re-decomposition leaves still proves that ref against them
+  (see [what the terminal waits on](#_handle_umbrella-label-workflowumbrella)). The orphans are never adopted,
+  relabelled, or reopened.
 - **`workflow:implementing` / `workflow:validating` / `in_review` / `workflow:resolving_conflict`** (a dev session
   exists and possibly a PR) — post a `:pencil2: issue body changed; resuming dev session` notice (on the issue for
   implementing/validating, on the PR for in_review/resolving_conflict), resume the locked dev session with
@@ -609,18 +613,29 @@ because there it is the claim that this stage has already rerouted rather than a
   last tick that could settle either: nothing revisits a closed umbrella, and no other handler reads that ledger. So
   `late_cleanup` retries every `branch` entry that is not `reconciled` — taking down the remote ref, the checkout,
   and the local ref, and settling the entry only once a read afterwards proves all three gone — and deletes each held
-  `snapshot_ref` once every recorded direct consumer has **ended**, which all-children-resolved has just made true,
-  proved off the child scan this handler already took rather than off requests of its own. "Ended" is the consumer's
+  `snapshot_ref` once every recorded direct consumer has **ended** — which all-children-resolved has just made true
+  only while the children this handler tracks are the ones the split recorded — proved off the child scan this
+  handler already took for every consumer that scan was asked about. A recorded consumer it was not asked about is
+  read afresh: after a genuine edit re-decomposed the umbrella the scan is of the replacements, and the originals the
+  reroute orphaned are the consumers the ref was preserved for — so one of them still open, reopened, or unreadable
+  keeps the ref (and the terminal) however finished the replacements are. The settlement is asked only where this
+  handler reaches it — a poll that finds every tracked child resolved, or one a child's disposition parks — so the
+  ref goes on the first such poll after the last original ends, not on the first poll of any kind; an original that
+  ends while replacements are still running frees nothing until they resolve or one parks the parent, and the
+  terminal is behind the same settlement, so nothing closes over the ref in between. "Ended" is the consumer's
   own issue state, not its label: reaching `done`, being `rejected`, and a human closing it all close the issue, and
   reopening preserves the label — so a child reopened while still wearing `done` is live again and keeps the ref. A
   branch target outside the orchestrator namespace or belonging to another issue is refused rather than deleted; a
   consumer that cannot be proved ended keeps the ref.
 - **A park settles the same ledger, and decides no terminal.** All-children-resolved is not the only reading that
-  ends every consumer: a child `rejected` and a child closed by hand both park the parent for a human, and both
-  closed the child — which is the reading the rule takes. Since nothing revisits an *open* umbrella either, a park
-  that returned before settling would hold a reclaimable ref and a superseded branch for as long as the human took
-  to answer. So the parked path runs the same settlement from the same fresh scan that parked it, reports only what
-  it actually did, and leaves the park itself untouched: still `awaiting_human`, still open, still on `umbrella`.
+  can end every consumer: a child `rejected` and a child closed by hand both park the parent for a human, and both
+  closed the child — which is the reading the rule takes wherever that child is one the split recorded. The park
+  proves nothing by itself: after a genuine edit the parked child can be a replacement, and an original still open
+  or unreadable keeps the ref. Since nothing revisits an *open* umbrella either, a park that returned before settling
+  would hold a reclaimable ref and a superseded branch for as long as the human took to answer. So the parked path
+  runs the same settlement, handed the fresh scan that parked it and proving the ref against the recorded consumers
+  as above, reports only what it actually did, and leaves the park itself untouched: still `awaiting_human`, still
+  open, still on `umbrella`.
 - **Whether the ledger names every consumer is asked first**, off the record's own phase, because the proof above is
   only as complete as the list it walks. A child is created and then recorded in two writes — it must be, since a
   child on GitHub the parent does not record is a child nothing would come back to — so while `splitting` stands the

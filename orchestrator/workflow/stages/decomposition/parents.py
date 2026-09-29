@@ -20,7 +20,9 @@ against the PR-merge finalize before it counts as manually closed.
 A parent also re-checks the human's requirements here. Its own body may have
 been edited while children were running, and unlike an implementing issue there
 is no later stage to notice; the reroute back to `decomposing` re-derives the
-manifest against what the body says now.
+manifest against what the body says now. The children it stops tracking are
+orphaned rather than forgotten where a late split made them: that split's
+generation survives the reroute, and its consumer ledger still names them.
 """
 from __future__ import annotations
 
@@ -207,9 +209,11 @@ def _parked_on_children(
     scan they are asked of because one caller has something to do on the way
     out: an umbrella parked here is still the owner of whatever its split put
     on the remote, and every disposition that parks it -- a child rejected,
-    a child closed by hand -- is one the reclamation rule counts as ended. So
-    the parent that stops for a human still settles its ledger, and the park
-    itself is unchanged either way.
+    a child closed by hand -- closed that child, which the reclamation rule
+    reads as ended wherever the child is one the split recorded as a
+    consumer. So the parent that stops for a human still settles its ledger,
+    against the consumers that ledger records rather than the children
+    scanned here, and the park itself is unchanged either way.
     """
     if _park_rejected_children(gh, issue, state, scan.labels):
         return True

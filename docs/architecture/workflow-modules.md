@@ -1304,7 +1304,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             dep graph, expected count, the seal that calls that count final, the umbrella flag, and
                             the park flags -- and the session retired through the owner above, so the tick falls
                             through and re-derives a manifest against the updated body instead of relabelling and
-                            returning the way the pre-implementation routes do
+                            returning the way the pre-implementation routes do; a late split's generation is not
+                            manifest tracking and survives it whole, so its orphaned children stay the snapshot's
+                            recorded consumers
       manifest.py           the fenced-block envelope rules both modes are held to, the JSON decode, and the parse entry
                             point the stage routes on
       child_validation.py   child text and dependency shapes; dependency indices must be real integers naming another
@@ -1338,7 +1340,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             retire the live cycle while retaining its obligations, then label done and close
       umbrella.py           the `workflow:umbrella` poll and barriers around child activation, cleanup, and completion;
                             require settled obligations and publication before retirement, and restore a cancelled
-                            cycle when a close is observed inside the retirement window
+                            cycle when a close is observed inside the retirement window; its scan of the tracked
+                            manifest is handed to cleanup, which proves a held snapshot against the recorded consumers
       late_coordinator.py   the late mode's order: admission, park retirement, content settlement, then reuse
                             a recorded answer or buy one fresh adjudication; only the completion guard can
                             hand a cleared split to the transaction
@@ -1468,7 +1471,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             persists cancellation once while retaining the current generation and its debts
       late_cleanup_reading.py
                             owed branches, held snapshots, opaque-ledger refusal, fresh consumer scans, and exact
-                            generation-derived snapshot ownership; unreadable consumers retain their refs
+                            generation-derived snapshot ownership; a consumer whose lookup, state, or labels cannot be
+                            read retains its ref without failing the pass, and a recorded consumer the caller's scan
+                            was not asked about -- an original a replaced manifest orphaned -- is read afresh rather
+                            than taken from the manifest
       late_cleanup_proof.py prove the complete consumer ledger from its recorded phase, count, or cancellation seal,
                             then require every consumer to be freshly known closed before reclaiming its snapshot
       late_branch_reclamation.py
@@ -1481,7 +1487,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             persist reclamation intent, refresh the consumer proof, and delete the exact snapshot;
                             recover missing refs and interrupted receipts without recreating or repointing the ref
       late_reclamation.py   select owed work, apply close and publication barriers, and retain attempted and changed
-                            entries separately so unchanged failures require no pinned-state rewrite
+                            entries separately so unchanged failures require no pinned-state rewrite; a held snapshot
+                            is selected against the ledger's consumers, never the manifest the caller scanned
       late_cleanup.py       settle and report attempts, persist changed entries, and hold the umbrella terminal until
                             every obligation and the superseded publication settle; opaque uncorrelated debts stay held
       late_reuse_reading.py snapshot reuse verdicts from the owner's reclamation receipt, corroborated ancestry,

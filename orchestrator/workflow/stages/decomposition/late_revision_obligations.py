@@ -11,8 +11,9 @@ replacement, and both are read off the record rather than guessed.
 **Children.** They exist as real GitHub issues, carry an ancestry naming the
 adjudication that made them, and are recorded as the consumers a snapshot is
 retained for -- so a second manifest over the top of them would strand every
-one: nothing polls a child the parent no longer records, and no automatic rule
-can say which of two manifests a human meant.
+one: nothing drives a child the parent no longer records -- the snapshot
+cleanup still reads it, but only to ask whether it has ended -- and no
+automatic rule can say which of two manifests a human meant.
 
 **A snapshot obligation.** The ref is named for the generation but the commit
 under it is the candidate that generation froze, and the reclamation proves a
