@@ -6,7 +6,9 @@ An issue retains ancestry after its own generation is retired. Each pinned
 field is read fail-closed, and snapshot refs must belong to the snapshot
 namespace. Parent corroboration checks the cycle, generation, and recorded
 consumer before supplying the snapshot SHA. Wire keys and write omission
-rules live here beside the reader that interprets them.
+rules live here beside the reader that interprets them. Which lineage an
+ordinary decomposition's children inherit is decided on `provenance`, which
+reads this record rather than a second spelling of it.
 """
 from __future__ import annotations
 
@@ -104,6 +106,10 @@ def contradicted_lineage(
     agent how much room it had, so quietly deepening it here would act on a
     verdict nobody asked for at that depth. An issue with no recorded ancestry
     is a root and contradicts nothing.
+
+    The ordinary decomposition's provenance asks the same of a record that
+    split, since the replacement children it names a lineage for would be
+    born one past whichever of the two depths it believed.
     """
     ancestry = read_late_ancestry(state)
     if not ancestry.is_present:

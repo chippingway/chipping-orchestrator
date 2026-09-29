@@ -123,8 +123,10 @@ class LateAncestry:
 # because it is the only durable record of a child's lineage the split writes
 # OUTSIDE the pinned comment -- which is what makes it readable when the pinned
 # write that would have recorded the same thing never landed. The prefix is its
-# own name because two readings need it: the marker is built from it, and a
-# candidate the orphan lookup returns is checked for carrying exactly one.
+# own name because three readings need it: the marker is built from it, a
+# candidate the orphan lookup returns is checked for carrying exactly one, and
+# an ordinary decomposition's provenance refuses a body carrying one beside no
+# recorded ancestry.
 CHILD_RECEIPT = "<!--orchestrator-late-child:"
 
 _CHILD_MARKER = CHILD_RECEIPT + (
