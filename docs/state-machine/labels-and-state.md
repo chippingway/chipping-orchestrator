@@ -1059,7 +1059,8 @@ The keys that matter for the state machine fall into a few groups:
   is already posted and the park still has to be recorded. `_handle_pickup` writes the floor the first run walks from:
   the pickup comment anchors `last_action_comment_id` beside `pickup_comment_id`, because the spawn it opens quotes the
   thread as it stands. EVERY park the `workflow:implementing` and `workflow:validating` handlers take after a run reads
-  the field that way — the agent question and checkout refusals call the walk directly, and every other one asks
+  the field that way — the agent question and checkout refusals call the walk directly, as do the dormant
+  returned-verdict parks (`stages/validating/review_parks.py`) behind their own notice, and every other one asks
   `_park_awaiting_human` for it with `bounded=True` (both timeout parks, both push failures, the measurement failure,
   the unauthorized-exemption hold, the checkout-moved refusals, the undeliverable-report park, the squash and verify
   failures, the reviewer timeout and no-VERDICT parks, and the review cap) — and so do the agent-run-limit notice and
@@ -1079,7 +1080,13 @@ The keys that matter for the state machine fall into a few groups:
   exhausted retry budget re-sets `retry_cap` for the same kind of reason — a park nothing can recognize is one the
   next tick re-decides from scratch (see [The retry budget](#the-retry-budget)), and the spent lifetime agent-run
   ledger re-sets `agent_run_limit` for the same reason again, since the dispatcher's hold over it reads that flag and
-  nothing else (see the **agent-run-limit park** bullet below). A failed squash-on-approval re-sets `squash_failed`,
+  nothing else (see the **agent-run-limit park** bullet below). A returned verdict's parks set `reviewer_unverified`
+  and `reviewer_unrecorded` in their own write for a reason of their own: neither retries itself, and the reason is
+  what hands the reply to a fresh reviewer rather than to the developer, and what the drift check stands down for
+  (see the **Returned reviewer verdict** bullet below). A `park_reason` spelled as anything but a word -- a hand edit
+  leaving a list or an object -- names no park the `workflow:validating` awaiting and drift routes know, exactly as
+  an unknown word does: a reply to it resumes the developer, and an edit under it takes the drift road. A failed
+  squash-on-approval re-sets `squash_failed`,
   and what reads it back is the recovery that took it: that route retries on every tick and stays silent while its
   own reason stands, so the reason is what tells a notice already on the thread from one to post afresh — and a park
   worded by the size gate behind it, which says its own piece on every reading it cannot take, is held for a human
@@ -1744,8 +1751,9 @@ The keys that matter for the state machine fall into a few groups:
   back — both review stages do, and `in_review` reads it for the budget its hand-back owes. An issue without the key
   has no edit outstanding.
 - **The reviewer round somebody is still owed.** `validating_reviewer_owes_a_round`, additive and set only between
-  the `workflow:validating` tick that stood a round up and the round that runs. A reviewer-side or `review_cap`
-  park owns the human's next comment, so the drift check stands down for it — but the park is gone before that
+  the `workflow:validating` tick that stood a round up and the round that runs. A reviewer-side park — a returned
+  verdict's `reviewer_unverified` / `reviewer_unrecorded` among them — or a `review_cap` one owns the human's next
+  comment, so the drift check stands down for it — but the park is gone before that
   round runs: the silent recovery clears the flags and ends its tick, a report still owed holds the reviewer
   behind a clear already written, and the reviewer spawns a tick or more later. An edit nobody has delivered would
   take that tick down the developer's drift road instead, ahead of the retry the park was taken for, so both the
@@ -1761,7 +1769,8 @@ The keys that matter for the state machine fall into a few groups:
   that differs from it holds the round and drops both keys, and the next tick's drift check hands the new words to
   the developer. Additive, written only where the buying reply is a control and nothing else — the bare cap grant,
   or a bare `/orchestrator continue` — and dropped with the note it rides beside. A reply carrying words is itself a
-  requirements change (a reviewer-side park retries on its own, so a reply to one says something), so it records
+  requirements change (a reviewer-side park retries on its own or, for a returned verdict's `reviewer_unverified` /
+  `reviewer_unrecorded` park, waits on exactly that reply, so a reply to one says something), so it records
   none and the round is held for the developer; a round bought before the key existed is held to the drift baseline
   too.
 - **The review-cap grant already honored.** `review_cap_granted_comment_id`, additive, holding the id of the
@@ -1870,7 +1879,8 @@ The keys that matter for the state machine fall into a few groups:
   transaction was minted, and a reuse named its evidence, over the records it replaced -- writes the run's own records
   and no verdict; one that would not read writes nothing. A record that would not read back as written -- feedback UTF-8
   cannot carry, say -- or one the comment has no room for beside its transaction is written nowhere and nothing is
-  published: the service answers which, for the park that is its caller's. The verdict is ready to act on only while the
+  published: the service answers which, and its caller parks it under `reviewer_unrecorded`. The verdict is ready to act
+  on only while the
   comment carries it as persisted, its subject -- held to it once more, the report records, the record itself, and
   `pr_number` read again last -- still stands, and its claim, judged over that last reading, is settled, or it relies on
   none: a settlement of the very evidence it claims readies it, and a push, a later report, or a later revision
@@ -1894,9 +1904,36 @@ The keys that matter for the state machine fall into a few groups:
   once among the newest 500 it holds, an id one reading already evicted evicted again rather than a newer one, a
   ledger already past 500 -- an older binary's, a hand edit -- cut to it even where the merge adds nothing, and an
   entry naming no comment -- or a ledger that is no list -- dropped from either side, so no later scan of the ledger
-  fails on it. Every drop names the verdict it holds, so one another road put in its place is never the one dropped.
-  Additive and dormant: nothing acts on a ready verdict yet, no live reviewer round hands its result to that service,
-  and nothing finishes a record a tick left waiting, so no issue carries the key, and an issue without it has no
+  fails on it. Every drop names the verdict it holds, so one another road put in its place is never the one dropped,
+  and a caller holding none drops nothing -- a record no reader takes, which reads as none, included.
+  Two parks answer a verdict that may not be acted on (`stages/validating/review_parks.py`): an approval relying on no
+  valid evidence parks under `reviewer_unverified`, and a verdict that could not be persisted under
+  `reviewer_unrecorded`, with nothing published or acted on -- its notice asking for room on the pinned comment only
+  where room is what refused the record, and not where it would not read back as written. Each is measured before its
+  notice is posted at the park's own write -- its flags beside the notice's ledger entry and `last_action_comment_id`,
+  each at the widest id, with the record it refuses set to `null` -- and taken over the comment as it stands, the
+  returned run's usage and session unrecorded, where it has no room beside what that run staged, but only while that
+  reading carries the report records, `pr_number`, the record, and the `verification_evidence_*` records the tick last
+  read; nothing is posted or written where there is room for no park. Behind the notice the subject is resolved again
+  and the comment read last, against the one the tick last read or wrote -- the state a `reviewer_unverified` park began
+  over, the reading a returned run was resolved over for `reviewer_unrecorded` -- so what that run staged, its session
+  and usage among them, lands with the park: a push, a later report, a moved `pr_number`, a record another road put in
+  place of the one parked, or a `verification_evidence_*` record moved there lands no park and sets the record held to
+  `null` alone, over the newer records, whether or not the notice left an id; where nothing proved a move, a subject
+  that would not read, or a notice that left no id and so may have reached nobody, lands none either and leaves the
+  record as it waited. That write keeping the record can be wider than the park's own, and is measured behind the notice
+  like every other: where it does not fit nothing is written and the record waits for a later tick's notice, rather than
+  a park that fits being refused up front and the record waiting on it with nobody told. Every park write is composed
+  over the comment as it stands, keeping and merging what another road wrote behind the notice as every write of the
+  service does, and is measured again with it and not made where another road's write left no room. Only a park that
+  lands sets `awaiting_human` and `park_reason`, sets the record it holds to `null` in its own write -- a
+  `reviewer_unrecorded` park holds none, and leaves the key, or whatever record another road or a hand edit left there,
+  exactly as it found it, and a `reviewer_unverified` park holds the record only where it is the approval of the round
+  and subject its run returned, and posts and writes nothing where it is not -- and reports `park_awaiting_human` once
+  that write is down. Neither park retries itself: a bare `/orchestrator continue` buys a fresh reviewer, and an edit
+  under one nobody replied to waits for that reviewer rather than resuming the developer. Additive and dormant: nothing
+  acts on a ready verdict or parks one yet, no live reviewer round hands its result to that service, and nothing
+  finishes a record a tick left waiting, so no issue carries the key or either park, and an issue without the key has no
   verdict waiting.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no

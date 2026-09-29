@@ -14,7 +14,10 @@ for a human after an agent run owes it, and the funnel those parks go through
 is `guards.py` beside it: `bounded=True` stamps this walk instead of the id of
 the notice the park just posted. The implementing question and checkout parks,
 which post and emit for themselves, stamp it directly, and so do the run-limit
-notice and the refusal a parked `/orchestrator continue` earns.
+notice, the refusal a parked `/orchestrator continue` earns, and the validating
+stage's parks of a returned verdict (`stages/validating/review_parks.py`),
+which post their own notice ahead of the reads that decide whether a park
+lands behind it and report the wait only once their write is down.
 
 `guards.py` reads this owner rather than the other way round, so nothing here
 may reach back for it: the park is built on the watermark, not beside it.

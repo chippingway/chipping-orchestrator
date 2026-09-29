@@ -26,12 +26,13 @@ re-mentioned every poll.
 
 Drift comes next, ahead of the awaiting-human branch, because a body edit
 mid-review means the work under review is answering the wrong requirements;
-the three parks that defer back out of it are the ones whose reply belongs to
-the reviewer or to the operator's round-cap command instead of to the dev. On
-a parked tick the awaiting context -- and its one frozen reply batch -- is
-built first, and the drift check measures the requirements by what that park
-had already read: the replies past it are the batch's to deliver, so they
-reach the awaiting-human branch rather than the drift resume.
+the parks that defer back out of it -- every reviewer-side one and the review
+cap -- are the ones whose reply belongs to the reviewer or to the operator's
+round-cap command instead of to the dev. On a parked tick the awaiting context
+-- and its one frozen reply batch -- is built first, and the drift check
+measures the requirements by what that park had already read: the replies past
+it are the batch's to deliver, so they reach the awaiting-human branch rather
+than the drift resume.
 
 The awaiting-human branch then either finishes the tick or clears the park
 into a fresh reviewer round, which is why it answers in words rather than a
@@ -150,11 +151,12 @@ def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: I
     # User-content drift resume runs before the awaiting-human and reviewer
     # branches: a body edit mid-review must resume the dev on the new body
     # rather than re-review stale work. Returns True when it fully handled the
-    # tick; a reviewer-side (`reviewer_timeout` / `reviewer_failed`) or
-    # `review_cap` park defers to the awaiting-human branch below (that branch
-    # owns the human's "retry" / `/orchestrator add-review-rounds` comment),
-    # recording the round it stood down for so the edit stays behind that
-    # round even once the park is cleared.
+    # tick; a reviewer-side (`reviewer_timeout` / `reviewer_failed` /
+    # `reviewer_unverified` / `reviewer_unrecorded`) or `review_cap` park
+    # defers to the awaiting-human branch below (that branch owns the human's
+    # "retry" / `/orchestrator add-review-rounds` comment), recording the
+    # round it stood down for so the edit stays behind that round even once
+    # the park is cleared.
     parked = (
         _models._AwaitingValidation.build(gh, spec, issue, state)
         if state.get("awaiting_human") else None

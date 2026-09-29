@@ -39,13 +39,15 @@ The dormant disposition service holds a returned verdict to its subject the
 same way (`_verdict_still_stands`) -- ahead of the write persisting it, once
 more before handing it back ready, and on every tick it waits on its evidence
 -- but in the other order: the subject is resolved first and the comment read
-behind it, watching the verdict itself and the pull request the issue points
-at beside the report, so whatever lands during that resolution -- verification
+behind it, watching the verdict itself and the pull request the issue points at
+beside the report, so whatever lands during that resolution -- verification
 evidence included, which the verdict's claim answers for -- is carried rather
-than written back over. A verdict about a pull request the issue no longer
-points at, however long ago the pointer moved, is refused as one whose subject
-moved -- on every road that holds a verdict to its subject, the live
-reviewer's return included (`_subject_still_stands`).
+than written back over. The parks a refused verdict takes ask it in that same
+order behind their notice (`review_parks`), and read the comment last. A
+verdict about a pull request the issue no longer points at, however long ago
+the pointer moved, is refused as one whose subject moved -- on every road that
+holds a verdict to its subject, the live reviewer's return included
+(`_subject_still_stands`).
 
 Nothing here parks or posts. What a refusal owes is the next reviewer
 round's to decide, and that round resolves the subject for itself.
@@ -84,20 +86,28 @@ def _subject_still_stands(
 ) -> bool | None:
     """Whether a verdict of the subject `recorded` names is of the one standing now; None where nobody could read it.
 
-    Asked once `review_comment` has found the report records where they were.
-    The whole subject is resolved again, exactly as it was before the spawn,
-    and has to record as the one the reviewer was handed -- `recorded` is
-    `ReviewSubject.recorded` of it, which a persisted verdict keeps too: the
-    pull request, the head it stands on, the requirements over an issue read
-    afresh, and the report's revision and digest, with its words read again at
-    its location, where an edit or a removal refuses the reading itself. The
-    reviewer ran for minutes, and a push, an edit of the issue, or a human
-    editing or removing the report in that time is a subject nobody reviewed. A reading nobody
-    could take is no proof either way, and is told apart as None: a caller
-    that acts only on a proved subject reads it as not standing, and one
-    holding a persisted verdict holds it rather than dropping it as stale.
-    Nothing is parked here: the next tick resolves the subject for a reviewer
-    of its own, and refuses it there if it has to.
+    Asked on the live reviewer's return once `review_comment` has found the
+    report records where they were. A road holding a persisted verdict to its
+    subject asks it the other way round -- first, with the comment read against
+    the one it last read or wrote behind it, watching the report records, the
+    pull request, the verdict, and (for a park behind its notice) the evidence
+    records -- so what lands during this resolution is carried, and refuses the
+    verdict, rather than missed: the disposition service
+    (`_verdict_still_stands`) and the parks a refused verdict takes behind
+    their notice (`review_parks`). The whole subject is resolved again, exactly
+    as it was before the spawn, and has to record as the one the reviewer was
+    handed -- `recorded` is `ReviewSubject.recorded` of it, which a persisted
+    verdict keeps too: the pull request, the head it stands on, the
+    requirements over an issue read afresh, and the report's revision and
+    digest, with its words read again at its location, where an edit or a
+    removal refuses the reading itself. The reviewer ran for minutes, and a
+    push, an edit of the issue, or a human editing or removing the report in
+    that time is a subject nobody reviewed. A reading nobody could take is no
+    proof either way, and is told apart as None: a caller that acts only on a
+    proved subject reads it as not standing, and one holding a persisted
+    verdict holds it rather than dropping it as stale. Nothing is parked here:
+    the next tick resolves the subject for a reviewer of its own, and refuses
+    it there if it has to.
 
     The pull request the issue points at is asked first, off `state`: pointed
     at another than the subject records -- between ticks, or while the

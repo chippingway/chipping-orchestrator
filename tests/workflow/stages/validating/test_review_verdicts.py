@@ -245,17 +245,19 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
 
     def test_a_named_drop_touches_only_the_one_held(self) -> None:
         # One another road put in its place, or already cleared, stays exactly
-        # as that road left it.
-        for name, carried, dropped in (
-            ("the one held", RETURNED.recorded(), True),
-            ("another in its place", APPROVED.recorded(), False),
-            ("one already cleared", None, False),
+        # as that road left it; and a caller holding none drops nothing, a
+        # record no reader can take -- which reads as none -- included.
+        for name, held, carried, dropped in (
+            ("the one held", RETURNED, RETURNED.recorded(), True),
+            ("another in its place", RETURNED, APPROVED.recorded(), False),
+            ("one already cleared", RETURNED, None, False),
+            ("an unreadable one, held by nobody", None, {"verdict": "maybe"}, False),
         ):
             with self.subTest(name):
                 state = PinnedState(comment_id=1, state_data={_verdicts.RETURNED_VERDICT: carried})
 
                 self.assertEqual(
-                    (_verdicts.drops_the_verdict(state, only=RETURNED), state.data),
+                    (_verdicts.drops_the_verdict(state, only=held), state.data),
                     (dropped, {_verdicts.RETURNED_VERDICT: None if dropped else carried}),
                 )
 

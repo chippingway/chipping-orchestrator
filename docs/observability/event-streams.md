@@ -114,6 +114,12 @@ file is the durable record.
   beside a pinned `park_reason` of null: the event names the classification, and null on the durable field is what
   tells a later tick this park needs a human's actual guidance.
 
+  The returned-verdict parks (`stages/validating/review_parks.py`), which no live round reaches yet, emit for
+  themselves as well, and only once the write that lands the park is down: `reviewer_unverified` and
+  `reviewer_unrecorded` carry the funnelled reviewer parks' fields — `agent_role` (`reviewer`), `session_id`,
+  `review_round`, `retry_count`, and `pr_number` — screened against the same allow-list, and a notice behind which
+  no park lands reports nothing.
+
   The two conversation stages forward the same vocabulary through their own stage funnels, which every ending of
   those stages lands on: `route`, `agent_role` (`question` and `decomposer` respectively — the discussion is the
   decomposer thinking out loud before anything is decomposed), `session_id` (the conversation the next round or

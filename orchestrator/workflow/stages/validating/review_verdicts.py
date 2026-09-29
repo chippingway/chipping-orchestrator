@@ -351,10 +351,12 @@ def drops_the_verdict(state: PinnedState, *, only: object = _WHICHEVER) -> bool:
     given it. `only`, where given, is the verdict the caller holds, and the
     waiting one is dropped only where it reads as exactly that: a verdict
     another road put in its place since, carried onto `state` by a reading of
-    the comment, is that road's to finish, not the caller's to drop. The
-    caller writes.
+    the comment, is that road's to finish, not the caller's to drop. None
+    holds no verdict and drops nothing -- not even a record no reader can
+    take, which reads as none too, but is another road's all the same, or a
+    hand edit's, and is left exactly as it stands. The caller writes.
     """
-    if not state.carries(RETURNED_VERDICT):
+    if not state.carries(RETURNED_VERDICT) or only is None:
         return False
     if only is not _WHICHEVER and read_returned_verdict(state) != only:
         return False

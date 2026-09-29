@@ -54,7 +54,10 @@ worth saying: the park mentioned a human, so the clear posts a follow-up
 retiring that mention rather than leaving it as the thread's last word. A
 reviewer timeout or crash with a reply is the third: the failure left no review
 output for the dev to act on, so the comment buys a fresh REVIEWER rather than
-a dev resume. A transient retry that resolves also answers the publication a
+a dev resume. So does a reply to a returned verdict's park -- an approval
+without the verification evidence it requires, or a verdict the pinned comment
+had no room to record -- which never retries itself: either is the reviewer's
+round to redo. A transient retry that resolves also answers the publication a
 requirements edit was owed, where one was: the fresh review budget an
 `in_review` hand-back recorded is about exactly the publication this retry
 lands -- or finds there was none to land -- so the record of it goes down with
@@ -252,12 +255,12 @@ def _transient_awaiting_action(
 def _reviewer_retry_awaiting_action(
     context: _models._AwaitingValidation,
 ) -> str | None:
-    if not context.comments or context.park_reason not in (
-        _state._REASON_REVIEWER_TIMEOUT, _state._REASON_REVIEWER_FAILED,
-    ):
+    if not context.comments or context.park_reason not in _state._REVIEWER_SIDE_PARK_REASONS:
         return None
-    # A reviewer-side park retries itself with nobody replying, so a reply to
-    # one says something -- short of a bare `/orchestrator continue`.
+    # A reviewer-side park either retries itself with nobody replying or, for
+    # a verdict that came back without its evidence or without room to be
+    # recorded, waits on exactly this reply -- so a reply to one says
+    # something, short of a bare `/orchestrator continue`.
     context.bought_a_round(carries_requirements=not all(
         _messages._is_bare_orchestrator_continue(seen) for seen in context.comments
     ))

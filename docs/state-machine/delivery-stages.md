@@ -334,8 +334,11 @@ Per-stage specifics:
   standing for any OTHER reason hears the refusal, which supersedes it: what the issue waits on now is a decision
   about the commits.
 - For **`workflow:validating`** drift, the handler defers to the awaiting-human branch when `park_reason` is
-  reviewer-side (`reviewer_timeout` / `reviewer_failed`): a "retry" reply after a reviewer failure must re-spawn the
-  reviewer, not the dev. A deferral delivers the edit to nobody, so it records nothing about it — no watermark and
+  reviewer-side (`reviewer_timeout` / `reviewer_failed`, and a returned verdict's `reviewer_unverified` /
+  `reviewer_unrecorded` park — `state._REVIEWER_SIDE_PARK_REASONS`): a "retry" reply after a reviewer failure, or to
+  a verdict whose round the reviewer has to redo, must re-spawn the reviewer, not the dev. The two verdict parks
+  never retry themselves, so an edit under one nobody replied to leaves the park standing and waits for the reviewer
+  that reply buys. A deferral delivers the edit to nobody, so it records nothing about it — no watermark and
   no baseline. What it does record is `validating_reviewer_owes_a_round`, because the park is gone before that
   round runs: the silent recovery clears the flags and ends its tick, a report still owed holds the reviewer behind
   a clear already written, and without the note the edit would take a later tick down the developer's road ahead of
@@ -3600,7 +3603,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        `review_returned_verdict` with that transaction in ONE write before anything is published. A subject that moved
        by then records the run with no verdict, and one nobody could read writes nothing; a verdict whose record would
        not read back as written, or that the comment has no room for beside its transaction, is written and published
-       nowhere, and the service answers which, for its caller to park. The transaction is published through the
+       nowhere, and the service answers which, for its caller to park under `reviewer_unrecorded`. The transaction is
+       published through the
        [evidence reconciliation](#the-verification-evidence-transaction-every-dispatch), and the verdict is ready to act
        on only while the comment still carries it as persisted, its subject -- held to it once more, the comment read
        again last -- still stands, and its claim, judged over that last reading, has settled, or it declared none: a
@@ -3614,7 +3618,29 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        off the comment. Every write it makes is composed over the comment read again just before it, keeping what
        another road wrote there -- a round a reply bought included, both moves of a usage total, its cost tags, or a
        comment-id watermark, and the comment-id ledger merged -- and every drop names only the verdict this road holds,
-       never one another road put in its place. The record is described under [pinned
+       never one another road put in its place. The two parks a verdict takes instead of being acted on are filed in
+       `validating/review_parks.py`, which no round asks yet either: an approval relying on no valid evidence under
+       `reviewer_unverified`, and a verdict that could not be persisted under `reviewer_unrecorded`, with nothing
+       published or acted on -- its notice asking for room on the pinned comment only where room is what refused the
+       verdict, and not where it would not read back as written. Each is measured before its notice is posted at the
+       park's own write -- its flags beside the notice's ledger entry and watermark, each at the widest id, with the
+       verdict it refuses dropped -- and taken over the comment as it stands, the returned run's usage and session
+       unrecorded, where it has no room beside what that run staged, but only while that reading carries the report,
+       pull-request, verdict, and evidence records the tick last read; nothing is posted or written where there is room
+       for no park. Behind the notice the subject is resolved again and the comment read last: a push, a repoint, a
+       later report, a verdict put in the place of the one parked, or a `verification_evidence_*` record moved there
+       lands no park and drops only the verdict held, over the newer records, whether or not the notice left an id;
+       where nothing proved a move, a subject nobody could read, or a notice that left no id and so may have reached
+       nobody, lands none either and leaves the verdict waiting -- in a write measured there, since keeping the verdict
+       can take more room than the park's own write, and not made where it does not fit. The write is composed over the
+       comment as it stands -- a round another road spent behind the notice kept, both moves of a usage total or a
+       watermark kept, the ledger merged -- measured again with what it carries, and not made where that no longer fits.
+       Only a park that lands sets `awaiting_human` and `park_reason`, drops the verdict it holds (a
+       `reviewer_unrecorded` park holds none, and leaves whatever record stands there as it is, and a
+       `reviewer_unverified` park holds only the approval of its run's round and subject, posting and writing nothing
+       where that is not what waits), and reports `park_awaiting_human`, once its write is down. Neither park retries
+       itself: a bare `/orchestrator continue` buys a fresh reviewer, and a reply with words in it is requirements the
+       developer answers first. The record and both parks are described under [pinned
        state](labels-and-state.md#pinned-state).
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.

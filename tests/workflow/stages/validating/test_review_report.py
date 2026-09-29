@@ -649,7 +649,9 @@ class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
         # operator's grant that bought the round -- the grant is the reviewer's
         # to read, the criterion is not -- or written as the very reply that
         # retried a reviewer park, which retries itself unasked and so is
-        # answered in words only where somebody has something to say. Handed
+        # answered in words only where somebody has something to say, or that
+        # answered a returned verdict's park, whose round is the reviewer's to
+        # redo as well. Handed
         # over, it would sit beside a report that never saw it: the round is
         # held with nothing parked or approved and the owed round stood down,
         # and the next tick's drift check resumes the developer on it, whose
@@ -658,6 +660,7 @@ class SubjectCoverageTest(unittest.TestCase, world._ReviewedReports):
             ("after the drift check", "", "", True),
             ("after a grant", world.GRANT_COMMAND, world.CAP_PARK, True),
             ("as the retry reply", LATE_CRITERION, "reviewer_failed", False),
+            ("as the reply to a verdict park", LATE_CRITERION, "reviewer_unverified", False),
         ):
             with self.subTest(name):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)

@@ -20,7 +20,8 @@ has already read it, and, for a requirements-drift resume, what that resume
 was handed, which its report is stamped with.
 
 `_AwaitingValidation` is the awaiting-human context: it snapshots the park
-reason and the one frozen reply batch every route through that park reads --
+reason -- as a word, or none where the comment holds anything else -- and the
+one frozen reply batch every route through that park reads --
 `implementing/resume_batch.py`'s, so the batch the decisions are made from is
 the batch the dev resume behind them delivers and settles. The orchestrator's
 own comments are out of it by recorded id, and a body carrying the hidden
@@ -227,12 +228,17 @@ class _AwaitingValidation:
     def build(
         cls, gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
     ) -> _AwaitingValidation:
+        # A reason is a word as its writers spell it. Anything else -- a hand
+        # edit leaving a list or an object -- names no park a route knows,
+        # exactly as an unknown word does, and is read as none rather than
+        # asked about a set it cannot be a member of.
+        reason = state.get(_state._PARK_REASON)
         return cls(
             gh,
             spec,
             issue,
             state,
-            state.get(_state._PARK_REASON),
+            reason if isinstance(reason, str) else None,
             _resume_batch._freeze(gh, issue, state),
         )
 

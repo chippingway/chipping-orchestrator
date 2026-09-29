@@ -84,6 +84,8 @@ OVERSIZED_RETRY = " ".join((OVERSIZED_HEAD, "x" * PAST_THE_BOUND, OVERSIZED_TAIL
 # The bare control that retries a reviewer-side park and says nothing else.
 RETRY_CONTROL = "/orchestrator continue"
 REVIEW_CAP = "review_cap"
+REVIEWER_UNVERIFIED = "reviewer_unverified"
+REVIEWER_UNRECORDED = "reviewer_unrecorded"
 INVALID_GRANT = "/orchestrator add-review-rounds 0"
 OWES_A_ROUND = "validating_reviewer_owes_a_round"
 ACTION_WATERMARK = 10_000
@@ -117,6 +119,17 @@ REVIEWER_RESPAWN_DETAIL = _fixtures.REVIEWER_RESPAWN_DETAIL
 REVIEWER_TIMEOUT = _fixtures.REVIEWER_TIMEOUT_PARK
 TIMEOUT_EMPTY_DETAIL = _fixtures.TIMEOUT_EMPTY_DETAIL
 TIMEOUT_PUSHED_DETAIL = _fixtures.TIMEOUT_PUSHED_DETAIL
+
+# Every reviewer-side park a bare retry answers with a fresh reviewer, over a
+# body left as it was and over one edited under the park.
+_BARE_RETRIES = tuple(
+    {"park_reason": park_reason, "edited": edited}
+    for park_reason in (REVIEWER_TIMEOUT, REVIEWER_UNVERIFIED, REVIEWER_UNRECORDED)
+    for edited in (False, True)
+)
+
+# Whether an issue is parked, why, and the requirements baseline it holds.
+_PARKED = (AWAITING_HUMAN, PARK_REASON, USER_CONTENT_HASH)
 
 
 class _TransientParkFixtureMixin(
@@ -491,6 +504,44 @@ class ValidatingReviewerParkRecoveryTest(
         reviewer_state = reviewer_gh.pinned_data(VALIDATING_ISSUE)
         self.assertFalse(reviewer_state.get(AWAITING_HUMAN))
         self.assertIsNone(reviewer_state.get(PARK_REASON))
+
+    def test_a_malformed_reason_names_no_park(self) -> None:
+        # A hand edit leaving a list or an object where the park reason
+        # belongs names no park any route knows. Under a human reply the tick
+        # routes it as it routes an unknown word -- the reply's words resume
+        # the developer, and a body edited under it takes the developer's
+        # drift road -- rather than aborting on a reason no set of reasons can
+        # be asked about, or handing either to the reviewer.
+        for malformed in (["reviewer_unverified"], {"reason": "reviewer_unverified"}):
+            for edited in (False, True):
+                with self.subTest(reason=malformed, edited=edited):
+                    self.assertEqual(self._answers_a_malformed_park(malformed, edited=edited), (1, False, edited))
+
+    def _answers_a_malformed_park(self, reason, *, edited: bool) -> tuple:
+        """One tick over a park whose reason a hand edit left as `reason`, and a human's reply to it.
+
+        Where `edited`, the body is edited under the park as well. Answers how
+        many agents ran, whether that was the reviewer, and whether the drift
+        road announced a developer resume.
+        """
+        baseline = _content_hash._compute_user_content_hash(make_issue(VALIDATING_ISSUE), set())
+        parked = self._parked_issue(park_reason=reason, user_content_hash=baseline)
+        if edited:
+            parked[1].body = EDITED_UNDER_PARK
+        parked[1].comments.append(FakeComment(
+            id=HUMAN_REPLY_ID, body="Please cover the empty configuration too.", user=FakeUser(HUMAN_LOGIN),
+        ))
+        ran = self._run_parked_validating(
+            *parked,
+            run_agent=_agent(session_id=DEV_SESSION, last_message=_reported("covered")),
+            head_shas=[PRE_FIX_SHA],
+        )[RUN_AGENT]
+        posted = [said[1] for said in parked[0].posted_comments]
+        return (
+            ran.call_count,
+            ran.call_args.args[0] == config.REVIEW_AGENT,
+            any("resuming dev session" in said for said in posted),
+        )
 
 
 class ValidatingDevParkRecoveryTest(
@@ -924,7 +975,8 @@ class ValidatingDriftDefersToReviewerRecoveryTest(
     _PatchedWorkflowMixin,
 ):
     """Reviewer point 1: when validating is parked with a reviewer-side
-    park reason (`reviewer_timeout` / `reviewer_failed`), a human "retry"
+    park reason (`reviewer_timeout` / `reviewer_failed` /
+    `reviewer_unverified` / `reviewer_unrecorded`), a human "retry"
     comment must re-spawn the REVIEWER, not the dev session. The drift
     check fires first because the human's comment also flips the hash;
     the drift handler must defer to the awaiting-human branch in this
@@ -935,45 +987,73 @@ class ValidatingDriftDefersToReviewerRecoveryTest(
     the reviewer would be handed never saw, so the round they reach is held
     and the developer answers them first."""
 
-    def test_timeout_drift_respawns_reviewer(
-        self,
-    ) -> None:
+    def test_a_bare_retry_respawns_the_reviewer(self) -> None:
         # The human reply changes the user-content hash while the issue
-        # remains parked for reviewer recovery.
-        reviewer_drift_gh, issue = self._parked_reviewer_drift()
+        # remains parked for reviewer recovery -- a timeout, or a returned
+        # verdict parked without its evidence or without room -- and a body
+        # edited under the park moves it as well; the reply still buys the
+        # reviewer first.
+        for retry in _BARE_RETRIES:
+            with self.subTest(**retry):
+                reviewer_drift_gh, issue = self._parked_reviewer_drift(**retry)
 
-        reviewer_drift_mocks = self._run_validating(
-            reviewer_drift_gh,
-            issue,
-            run_agent=_agent(
-                session_id=REVIEW_SESSION,
-                last_message="Looks fine.\n\nVERDICT: APPROVED",
-            ),
-            has_new_commits=False,
-            head_shas=[UNMOVED_HEAD],
-        )
+                spawned = self._run_validating(
+                    reviewer_drift_gh,
+                    issue,
+                    run_agent=_agent(
+                        session_id=REVIEW_SESSION,
+                        last_message="Looks fine.\n\nVERDICT: APPROVED",
+                    ),
+                    has_new_commits=False,
+                    head_shas=[UNMOVED_HEAD],
+                )[RUN_AGENT].call_args[0]
 
-        # The reviewer (REVIEW_AGENT) ran, NOT the dev session. The
-        # agent invocation should have been against the review agent
-        # binary, with a review-style prompt.
-        call_args = reviewer_drift_mocks[RUN_AGENT].call_args
-        self.assertEqual(call_args[0][0], config.REVIEW_AGENT)
-        self.assertIn("automated code reviewer", call_args[0][1])
-        # No drift-style ":pencil2: issue body changed; resuming dev
-        # session" notice was posted -- the drift was deferred.
-        self._assert_no_drift_notice(reviewer_drift_gh)
-        # The reviewer recovery consumed the human comment and cleared
-        # the park flags.
-        reviewer_drift_state = reviewer_drift_gh.pinned_data(1000)
-        self.assertFalse(reviewer_drift_state.get(AWAITING_HUMAN))
-        self.assertIsNone(reviewer_drift_state.get(PARK_REASON))
-        # The baseline moved with the reply the reviewer recovery consumed
-        # -- its own frozen batch settles it -- rather than with the deferral,
-        # which delivered the edit to nobody.
-        self.assertEqual(
-            reviewer_drift_state.get(USER_CONTENT_HASH),
-            _content_hash._compute_user_content_hash(issue, set()),
-        )
+                # The reviewer (REVIEW_AGENT) ran with a review-style prompt,
+                # NOT the dev session, and no drift-style ":pencil2: issue
+                # body changed; resuming dev session" notice was posted --
+                # the drift was deferred. The reviewer recovery consumed the
+                # human comment and cleared the park flags, and the baseline
+                # moved with the reply its own frozen batch settles rather
+                # than with the deferral, which delivered the edit to nobody.
+                self.assertEqual(
+                    (
+                        spawned[0],
+                        "automated code reviewer" in spawned[1],
+                        [body for _, body in reviewer_drift_gh.posted_comments if ":pencil2:" in body],
+                        tuple(map(reviewer_drift_gh.pinned_data(REVIEWER_DRIFT_ISSUE).get, _PARKED)),
+                    ),
+                    (
+                        config.REVIEW_AGENT,
+                        True,
+                        [],
+                        (False, None, _content_hash._compute_user_content_hash(issue, set())),
+                    ),
+                )
+
+    def test_an_edit_waits_on_a_verdict_park(self) -> None:
+        # A returned verdict's park never retries itself, so a body edited
+        # under it with nobody replying is held for the reviewer the park is
+        # waiting to be answered with: no developer is resumed on the edit,
+        # the park stands, and the edit stays outstanding.
+        for park_reason in (REVIEWER_UNVERIFIED, REVIEWER_UNRECORDED):
+            with self.subTest(park_reason=park_reason):
+                github, issue = self._parked_reviewer_drift(said=None, edited=True, park_reason=park_reason)
+
+                ran = [
+                    self._run_validating(
+                        github, issue, run_agent=_agent(), has_new_commits=False, head_shas=[UNMOVED_HEAD],
+                    )[RUN_AGENT].call_count
+                    for _tick in range(2)
+                ]
+
+                self.assertEqual(
+                    (
+                        ran,
+                        [body for _, body in github.posted_comments if ":pencil2:" in body],
+                        tuple(map(github.pinned_data(REVIEWER_DRIFT_ISSUE).get, _PARKED)),
+                    ),
+                    ([0, 0], [], (True, park_reason, self.seeded_hash)),
+                )
 
     def test_the_recovered_round_still_goes_first(self) -> None:
         # A body edit under a reviewer-side park nobody replied to. The first
@@ -1133,12 +1213,3 @@ class ValidatingDriftDefersToReviewerRecoveryTest(
         )
         self.seeded_hash = seed_hash
         return reviewer_drift_gh, issue
-
-    def _assert_no_drift_notice(self, github) -> None:
-        self.assertFalse(
-            any(
-                ":pencil2:" in body
-                and "resuming dev session" in body
-                for _, body in github.posted_comments
-            ),
-        )
