@@ -3272,7 +3272,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      `ALLOWED_ISSUE_AUTHORS` is set — an outsider's command is filtered out before the parse), which resets
      `review_round` to `max(0, MAX_REVIEW_ROUNDS - N)`, clears the park, and falls through to spawn the reviewer this
      same tick. Values at or above the configured maximum grant one full review budget rather than extending the
-     budget past it. A second exception: a bare `/orchestrator continue` on a session-failure dev park (`agent_silent` /
+     budget past it. Nor does a reply to a reviewer-side park — a reviewer timeout or crash, or a returned verdict's
+     `reviewer_unverified` / `reviewer_unrecorded` park — which clears the park into a fresh reviewer round instead
+     (`_reviewer_retry_awaiting_action`): a bare `/orchestrator continue` hands that round the thread through it, while
+     a reply with words in it is requirements the report never saw, so the round is held for the developer to answer
+     them first. The two verdict parks never retry themselves, so that reply is the only thing that ends them. A
+     further exception: a bare `/orchestrator continue` on a session-failure dev park (`agent_silent` /
      `agent_timeout` / `agent_execution_failed`) is intercepted (`_continue_command_action`) and retries the dev on
      the neutral `_DEVELOPER_CONTINUE_RETRY_PROMPT` — NOT the literal command, which the dev has no context for — while
      `_handle_dev_fix_result` still publishes any stranded commit; a bare continue on a park needing a real answer
