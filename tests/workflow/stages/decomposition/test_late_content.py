@@ -1,14 +1,21 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What the two late-local fingerprints count, and what they say changed."""
+"""What the two late-local fingerprints count, and what they say changed.
+
+The issue-wide requirements hash each reading freezes beside them is here too,
+since it is taken off the same read and differs only in whose filter counts.
+"""
 from __future__ import annotations
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _engine_comments
+from orchestrator.workflow.engine import (
+    comments as _engine_comments,
+    content_hash as _content_hash,
+)
 from orchestrator.workflow.late_split import formats as _formats
 from orchestrator.workflow.stages.decomposition import (
     late_content as _late_content,
@@ -33,6 +40,8 @@ BOT_TYPE = "Bot"
 TRACKED_IDS = "orchestrator_comment_ids"
 
 EMPTY_BODY = "   \n "
+
+ADD_RUNS_COMMAND = "/orchestrator add-agent-runs 2"
 
 
 def _issue(**issue_fields):
@@ -101,7 +110,13 @@ class FingerprintTest(unittest.TestCase):
 
 
 class CountedThreadTest(unittest.TestCase):
-    """Whose comments a fingerprint is allowed to count."""
+    """Whose comments one reading counts, late-locally and issue-wide.
+
+    The issue-wide hash is the one a consumer would record as the baseline of
+    what it handled, which the global drift check then compares against. So it
+    has to be that check's own hash, under that check's own filter, of exactly
+    the thread this reading saw.
+    """
 
     def test_only_trusted_human_comments_count(self) -> None:
         # Each of these would otherwise shift a digest or arrive as guidance
@@ -128,19 +143,32 @@ class CountedThreadTest(unittest.TestCase):
         self.assertEqual(
             signal.fingerprint.comment_hash, alone.fingerprint.comment_hash,
         )
+        self.assertEqual(signal.requirements_hash, alone.requirements_hash)
         self.assertEqual(signal.fingerprint.comment_watermark_id, _content_replies.GUIDANCE_ID)
         self.assertEqual([quoted.id for quoted in signal.guidance], [_content_replies.GUIDANCE_ID])
 
-    def test_a_comment_with_no_usable_id_is_dropped(self) -> None:
+    def test_an_unnamed_comment_is_dropped_late_only(self) -> None:
         # The watermark is the only thing that ever consumes a comment, so one
         # it cannot name would arrive as fresh guidance on every tick forever.
+        # That reason is the late fingerprint's alone: the global filter counts
+        # the comment, so an issue-wide hash that skipped it would read as
+        # drift to the very check it was recorded for.
         unnamed = _content_replies.guidance_comment()
         unnamed.id = None
+        issue = _issue(comments=[unnamed])
 
-        signal = _signal(_issue(comments=[unnamed]), late_generation())
+        signal = _signal(issue, late_generation())
 
         self.assertEqual(signal.guidance, ())
         self.assertIsNone(signal.fingerprint.comment_watermark_id)
+        self.assertEqual(
+            signal.requirements_hash,
+            _content_hash._compute_user_content_hash(issue, set()),
+        )
+        self.assertNotEqual(
+            signal.requirements_hash,
+            _signal(_issue(), late_generation()).requirements_hash,
+        )
 
     def test_orchestrator_ids_come_from_the_state(self) -> None:
         # A legacy comment posted before the marker existed is filtered by id,
@@ -148,8 +176,77 @@ class CountedThreadTest(unittest.TestCase):
         issue = _issue(comments=[_content_replies.human_comment(_content_replies.GUIDANCE_ID, ":robot: picked up")])
         tracked = PinnedState(data={TRACKED_IDS: [_content_replies.GUIDANCE_ID]})
 
-        self.assertEqual(_signal(issue, late_generation(), tracked).guidance, ())
+        hidden = _signal(issue, late_generation(), tracked)
+
+        self.assertEqual(hidden.guidance, ())
+        self.assertEqual(
+            hidden.requirements_hash,
+            _signal(_issue(), late_generation()).requirements_hash,
+        )
         self.assertEqual(len(_signal(issue, late_generation()).guidance), 1)
+
+    def test_issue_wide_hash_uses_the_global_filter(self) -> None:
+        # Trusted guidance moves it. A whole-comment operator command does not,
+        # though the late digest beside it counts that command, since there a
+        # command edited after the fact is exactly what it exists to catch. And
+        # a command written beside guidance is guidance, for the same reason
+        # it is to the drift check.
+        plain = _signal(_issue(), late_generation())
+        for body, counted in (
+            (_content_replies.GUIDANCE_BODY, True),
+            (_support.CONTINUE_WITH_GUIDANCE, True),
+            (f"{_content_replies.authorization()}\n\n{_support.OTHER_GUIDANCE}", True),
+            (f"{ADD_RUNS_COMMAND}\n\n{_support.OTHER_GUIDANCE}", True),
+            (_support.BARE_CONTINUE, False),
+            (_content_replies.authorization(), False),
+            (ADD_RUNS_COMMAND, False),
+        ):
+            with self.subTest(comment=body):
+                issue = _issue(comments=[
+                    _content_replies.human_comment(_content_replies.GUIDANCE_ID, body),
+                ])
+
+                signal = _signal(issue, late_generation())
+
+                self.assertEqual(
+                    signal.requirements_hash,
+                    _content_hash._compute_user_content_hash(issue, set()),
+                )
+                self.assertEqual(
+                    signal.requirements_hash != plain.requirements_hash, counted,
+                )
+                self.assertNotEqual(
+                    signal.fingerprint.comment_hash, plain.fingerprint.comment_hash,
+                )
+
+    def test_nothing_after_the_read_is_counted(self) -> None:
+        # A body edit landing just after the body was read, and a reply just
+        # after the thread was, are content nothing consumed. Folded into the
+        # issue-wide hash a consumer records as handled, either would never
+        # reach the drift check that owes the next agent it; folded into one
+        # digest and not the other, the signal would describe two issues. So
+        # each is read once and every digest comes off that one reading --
+        # while any read after it is handed the edit and the reply.
+        issue = _issue(comments=[_content_replies.guidance_comment()])
+        untouched = _signal(issue, late_generation())
+        reads = MagicMock(side_effect=[list(issue.comments), issue.comments])
+        _content_replies.reply(issue, _support.OTHER_GUIDANCE)
+        body = PropertyMock(side_effect=[issue.body, _support.EDITED_BODY])
+
+        with patch.object(issue, "get_comments", reads), \
+                patch.object(type(issue), "body", body):
+            signal = _signal(issue, late_generation())
+        issue.body = _support.EDITED_BODY
+
+        self.assertEqual((reads.call_count, body.call_count), (1, 1))
+        self.assertEqual(
+            (signal.fingerprint, signal.requirements_hash),
+            (untouched.fingerprint, untouched.requirements_hash),
+        )
+        self.assertNotEqual(
+            signal.requirements_hash,
+            _content_hash._compute_user_content_hash(issue, set()),
+        )
 
 
 class DriftReadingTest(unittest.TestCase):

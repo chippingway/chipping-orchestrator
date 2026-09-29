@@ -209,7 +209,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             final release settles a deferred close, preserving the reading through queueing and refetch
     content_hash.py         the user-content hash and filters for pinned records, orchestrator output, bots, untrusted
                             authors, and whole-comment operator commands, over the live thread or a read the caller
-                            already holds; the legacy bare-continue mode recognizes an existing baseline
+                            already holds -- the title and body included, for a caller that digests them too; the
+                            legacy bare-continue mode recognizes an existing baseline
     drift.py                baseline persistence and legacy normalization, the dev resume a requirements edit earns, and
                             the pre-implementation decomposition reset; no road here marks a thread read to its tip,
                             since a tip crosses what a bounded excerpt dropped and what landed while an agent was
@@ -1653,7 +1654,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             than conversation the issue was already carrying. What each reply past that floor IS
                             comes back from `late_content_replies` on the same walk, reported beside the bare
                             `/orchestrator continue` this owner reads for itself, since that one earns a flag and
-                            no record; the digests themselves are the `late_split/identity` owner's
+                            no record; the digests themselves are the `late_split/identity` owner's. The title,
+                            body, and thread are each read once, and that one reading also yields the issue-wide
+                            `user_content_hash` under `engine/content_hash`'s own filter, operator commands
+                            excluded, carried frozen on the signal so nothing arriving after the reading enters it
+                            or splits it from the late fingerprint; this owner writes no pinned state
       late_content_replies.py
                             which fresh reply is a requirement a developer may be resumed against, and which is the
                             whole-comment `/orchestrator authorize-oversized <commit>` that licenses a publication
@@ -1714,8 +1719,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the rationale bound, its truncation marker, and the two verdicts that keep one; an
                             actionable answer remains bound to the exact cycle, generation, and candidate it read
       late_content_models.py
-                            frozen content fingerprints, trusted authorization replies, drift signals, and the outcome
-                            of consuming one reading
+                            frozen content fingerprints, trusted authorization replies, drift signals carrying the
+                            issue-wide requirements hash of the batch they read, and the outcome of consuming one
+                            reading
       late_models.py        mutable tick context, tri-state owner readings, held pull requests, and staged park values
       models.py             the run plan and its worktree policy, the locked session, the split plan, and the child
                             scan

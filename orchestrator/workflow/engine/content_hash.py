@@ -4,7 +4,9 @@
 
 Pinned records, orchestrator output, bots, untrusted authors, and whole-comment
 operator commands are excluded before hashing. The legacy bare-continue mode
-lets the drift owner recognize a baseline without inventing a requirements edit."""
+lets the drift owner recognize a baseline without inventing a requirements edit.
+A caller that already read the title and body for a digest of its own hashes
+those same values, so an edit landing between two reads cannot split them."""
 from __future__ import annotations
 
 import hashlib
@@ -141,8 +143,33 @@ def _compute_user_content_hash(
     filter is a separate, opt-in login gate: an operator who enables it is
     expected to list the reviewer login they post under.
     """
-    parts = [issue.title or "", issue.body or ""]
-    for issue_comment in issue.get_comments() if comments is None else comments:
+    return _hash_requirements(
+        issue.title or "",
+        issue.body or "",
+        issue.get_comments() if comments is None else comments,
+        orchestrator_ids,
+        include_bare_continue=include_bare_continue,
+    )
+
+
+def _hash_requirements(
+    title: str,
+    body: str,
+    comments,
+    orchestrator_ids: set[int],
+    *,
+    include_bare_continue: bool = False,
+) -> str:
+    """The user-content hash of a title, a body, and a comment batch already read.
+
+    `_compute_user_content_hash` reads the title and body off the issue as it
+    hashes. A caller that took them already -- to digest them for something
+    of its own -- hands the same values in here, so its digest and this hash
+    describe one title and one body rather than two reads an edit could land
+    between. What is filtered out is exactly what that entry point filters.
+    """
+    parts = [title, body]
+    for issue_comment in comments:
         comment_body = _comment_body_for_hash(
             issue_comment,
             orchestrator_ids,
