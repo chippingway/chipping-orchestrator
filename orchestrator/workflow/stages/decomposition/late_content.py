@@ -56,6 +56,20 @@ discipline included -- so this owner decides WHICH content is fingerprinted
 and that one decides what a fingerprint IS. Two SHA-256 implementations of
 one contract is exactly the drift the single owner exists to prevent.
 
+The global hash is still asked for here, off the same batch. An owner that consumes
+this reading has to be able to record the issue-wide baseline for what it
+consumed, or the drift check of whatever stage the issue reaches next meets
+already-answered guidance as a fresh edit. So the signal carries
+`user_content_hash` over the very title, body, and comment batch the late
+digests were taken from: the whole batch as read rather than the trusted run
+below, handed to `engine/content_hash` so its own filter -- operator commands
+dropped, where the late digest counts them -- decides what counts, exactly as
+it will when that drift check compares against it. Nothing behind it is read a
+second time -- not the thread, and not the title or body either -- because a
+comment or edit arriving after this reading must not enter a value that
+vouches for having been consumed, nor split it from the late fingerprint taken
+beside it. Carrying it settles nothing; this owner writes no pinned state.
+
 Who counts is the same trust policy the global hash applies, asked through the
 same filter: the pinned-state comment, the orchestrator's own marker and its
 recorded ids, third-party bots, and every author outside `ALLOWED_ISSUE_AUTHORS`
@@ -95,10 +109,33 @@ def _read_content_signal(
 ) -> _LateContentSignal:
     """Read what the human's content now says about this frozen candidate.
 
-    One walk of the thread answers all of it. The fingerprint is what the
-    generation would be re-baselined to; the two drift flags compare the
-    recorded baseline against the same reading; and the guidance is the
-    trusted comments past the watermark that carry something to act on.
+    The title, the body, and the thread are each read exactly once, here, and
+    everything the signal says is computed off those values. An edit landing
+    between two reads of the body would otherwise leave the late fingerprint
+    describing one body and the requirements hash another, and a reply landing
+    between two reads of the thread would enter a hash that vouches for
+    content nothing consumed.
+    """
+    return _signal_of(
+        (issue.title or "", issue.body or ""),
+        list(issue.get_comments()),
+        state,
+        generation,
+    )
+
+
+def _signal_of(
+    text: tuple[str, str], read: list, state: PinnedState,
+    generation: LateGeneration,
+) -> _LateContentSignal:
+    """The signal one reading of the title, body, and thread amounts to.
+
+    The fingerprint is what the generation would be re-baselined to; the two
+    drift flags compare the recorded baseline against the same reading; the
+    guidance is the trusted comments past the watermark that carry something
+    to act on; and the requirements hash is the global filter's reading of
+    the same title, body, and batch, so it describes nothing the rest of the
+    signal did not see.
 
     The counted prefix is taken at the recorded watermark rather than at the
     one this reading produces, because what "drifted" means is a comparison
@@ -111,16 +148,19 @@ def _read_content_signal(
     comment can be uncounted by the baseline and still be no answer to
     anything.
     """
-    trusted = _trusted_thread(issue, state)
+    trusted = _trusted_thread(read, state)
     watermark = generation.comment_watermark_id
     counted = [
         issue_comment for issue_comment in trusted
         if watermark is not None and issue_comment.id <= watermark
     ]
     fresh = _fresh_replies(trusted, state, watermark)
-    fingerprint = _fingerprint(issue, trusted, watermark)
+    fingerprint = _fingerprint(text, trusted, watermark)
     return _LateContentSignal(
         fingerprint=fingerprint,
+        requirements_hash=_content_hash._hash_requirements(
+            *text, read, _comments._orchestrator_ids(state),
+        ),
         baselined=(
             generation.title_body_hash is not None
             and generation.comment_hash is not None
@@ -162,7 +202,7 @@ def _rebaselined(
 
 
 def _fingerprint(
-    issue: Issue, trusted: list, watermark: int | None,
+    text: tuple[str, str], trusted: list, watermark: int | None,
 ) -> _LateFingerprint:
     """The fingerprint the content as it stands would be recorded as.
 
@@ -173,16 +213,14 @@ def _fingerprint(
     """
     ids = [issue_comment.id for issue_comment in trusted]
     return _LateFingerprint(
-        title_body_hash=_identity.title_body_fingerprint(
-            issue.title or "", issue.body or "",
-        ),
+        title_body_hash=_identity.title_body_fingerprint(*text),
         comment_hash=_thread_digest(trusted),
         comment_watermark_id=max([*ids, watermark or 0]) or None,
     )
 
 
-def _trusted_thread(issue: Issue, state: PinnedState) -> list:
-    """The comments on this issue a late fingerprint is allowed to count.
+def _trusted_thread(read: list, state: PinnedState) -> list:
+    """The comments of one thread read a late fingerprint is allowed to count.
 
     The trust filter is the global hash's own, so what counts as a human's
     requirements is decided in one place: an outsider, a third-party bot, and
@@ -196,7 +234,7 @@ def _trusted_thread(issue: Issue, state: PinnedState) -> list:
     orchestrator_ids = _comments._orchestrator_ids(state)
     return [
         issue_comment
-        for issue_comment in issue.get_comments()
+        for issue_comment in read
         if _formats.whole_number(getattr(issue_comment, "id", None))
         and not _content_hash._is_hidden_comment(
             issue_comment, orchestrator_ids,

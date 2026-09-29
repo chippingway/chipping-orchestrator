@@ -5,6 +5,8 @@
 Title/body and conversation drift remain separate readings. Their shared
 watermark identifies which replies a settlement can consume, while the
 optional authorization names the exact candidate and comment that supplied it.
+Each reading also carries the issue-wide requirements hash of the same title,
+body, and comment batch, frozen beside the late-local fingerprints it is not.
 """
 from __future__ import annotations
 
@@ -74,6 +76,16 @@ class _LateContentSignal:
     commit id. The last one a batch carries is the one reported -- a human who
     wrote it twice meant the second -- and only the whole comment is ever one.
 
+    `requirements_hash` is the global `user_content_hash` of exactly what this
+    reading saw -- the title, the body, and the one comment batch the rest of
+    the signal was read off -- under that hash's own filter, operator commands
+    excluded. It is frozen here rather than recomputed by whoever consumes the
+    reading, because an issue-wide baseline recorded for consumed content must
+    describe that content and nothing newer: a second read would fold in an
+    edit or a comment that arrived after this one, which nothing had consumed,
+    and silence the drift the next agent is owed for it. The signal carries
+    it; recording it is the consumer's.
+
     `baselined` is what keeps "nothing to compare against" apart from "the
     requirements moved". A generation whose baseline has still to be taken
     reports both drift flags -- an absent digest equals nothing -- and reading
@@ -82,6 +94,7 @@ class _LateContentSignal:
     """
 
     fingerprint: _LateFingerprint
+    requirements_hash: str
     baselined: bool = False
     title_body_drifted: bool = False
     conversation_drifted: bool = False
