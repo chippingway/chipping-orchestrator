@@ -327,12 +327,15 @@ Per-stage specifics:
   standing for any OTHER reason hears the refusal, which supersedes it: what the issue waits on now is a decision
   about the commits.
 - For **`workflow:validating`** drift, the handler defers to the awaiting-human branch when `park_reason` is
-  reviewer-side (`reviewer_timeout` / `reviewer_failed`): a "retry" reply after a reviewer failure must re-spawn the
-  reviewer, not the dev. A deferral delivers the edit to nobody, so it records nothing about it — no watermark and
-  no baseline. What it does record is `validating_reviewer_owes_a_round`, because the park is gone before that
-  round runs: the silent recovery clears the flags and ends its tick, a report still owed holds the reviewer behind
-  a clear already written, and without the note the edit would take a later tick down the developer's road ahead of
-  the retry the park was taken for. The road that clears such a park into a round writes the same note, with the
+  reviewer-side (`reviewer_timeout` / `reviewer_failed` / `reviewer_unverified` / `reviewer_unrecorded`): a "retry"
+  reply after a reviewer failure must re-spawn the reviewer, not the dev. The last two are a returned verdict's parks,
+  which never retry themselves, so an edit under one nobody replied to waits for the reviewer that park is answered
+  with rather than resuming the developer. A deferral delivers the edit to nobody, so it records nothing about it — no
+  watermark and no baseline. What it does record is `validating_reviewer_owes_a_round`, because the park is gone
+  before that round runs: the silent recovery clears the flags and ends its tick, a report still owed holds the
+  reviewer behind a clear already written, and without the note the edit would take a later tick down the
+  developer's road ahead of the retry the park was taken for. The road that clears such a park into a round writes
+  the same note, with the
   value saying a REPLY bought the round rather than a recovery releasing one — and a deferral never writes over a
   claim already standing, or the round would be left with nothing to record. The round that runs drops the note and
   records what bought it — the retry reply or the operator's grant — off the one read its OWN prompt was
@@ -3373,7 +3376,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      carries what only the round's own write may land, a cap grant's round reset among them, which a launch the run
      circuit refuses has to discard — and run the reviewer with the read-only prompt, which quotes
      that report whole between the issue and the inspection commands (must end with `VERDICT: APPROVED` or
-     `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check
+     `VERDICT: CHANGES_REQUESTED`). The charge that launch takes on the comment is the round's own write, so it is
+     taken into the reading every later write of the round is measured against, and a run another road charges since
+     reads as that road's rather than being written back over. A mid-run `paused` / `backlog` re-check
      (`_paused_during_agent_run`) right after the reviewer returns short-circuits BEFORE the usage fold, session record,
      verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state.
      A reviewer that returns has the subject it was handed staged again as `review_returned_subject` beside its
@@ -3558,6 +3563,25 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        road wrote there -- a round a reply bought included -- and every drop names only the verdict this road holds,
        never one another road put in its place. The record is described under [pinned
        state](labels-and-state.md#pinned-state).
+     - **the returned-verdict parks** (`validating/review_parks.py`), which no road files yet — the disposition answers
+       without parking, and the verify gate and squash above still file their own — are each entry's to call directly:
+       `reviewer_unverified` for an approval no valid evidence backs and `reviewer_unrecorded` for a verdict the
+       comment had no room to persist (nothing published or acted on), both answered by a fresh reviewer, and a failed
+       verify gate's park, all through one funnel (`parks_over_the_subject`), beside the park a failed squash takes
+       (`parks_the_failed_squash`). Each is measured at its widest before its notice is posted, so a comment with no
+       room for it is posted on and written to not at all; one with no room beside what the returned run staged takes
+       the park over the comment as it stands, that run's session and usage unrecorded. Behind the notice the subject
+       is resolved again and the comment read against the one the tick last read or wrote: a push, the issue pointed
+       at another pull request, or a report, verdict, or `verification_evidence_*` record moved there lands no park and
+       drops the verdict over the newer records, while a subject nobody could read, or a notice that left no id, lands
+       none and leaves the verdict waiting for a later tick to park again. A failed squash's park is held behind its
+       notice to the report, evidence, and verdict records in hand (`handoff._holds_its_records`) — and, on the
+       approval road, to the subject that approval was of — retires only the verdict it holds, and is never taken over
+       the comment as it stands, since its write is what makes the squash's own record drop durable. Every park write
+       is composed over the comment as it stands, keeping what another road wrote behind the notice, both moves of a
+       usage total or comment-id watermark (`validating/state._keeps_both_moves`), and both sides of the
+       orchestrator's comment ledger; one that no longer fits beside what moved there writes nothing, and only a park
+       whose write landed reports `park_awaiting_human`.
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.
      On a hit the handler returns WITHOUT running its result handler (`_post_user_content_change_result` /

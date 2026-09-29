@@ -1883,10 +1883,34 @@ The keys that matter for the state machine fall into a few groups:
   it to `null` for a fresh reviewer. Every write the service makes, the record's own included, is composed over the
   comment read again just before it, keeping what another road wrote there -- newer records, and fields no verdict
   stands on, such as a `review_round` a reply bought or the `last_action_comment_id` it read through -- save, where the
-  report records and the record stand, a field the service changed itself. Every drop names the verdict it holds, so one
-  another road put in its place is never the one dropped. Additive and dormant: nothing acts on a ready verdict yet, no
-  live reviewer round hands its result to that service, and nothing finishes a record a tick left waiting, so no issue
-  carries the key, and an issue without it has no verdict waiting.
+  report records and the record stand, a field the service changed itself. A field both moved keeps both moves where
+  they add up or only advance -- the `issue_*` usage totals add, `issue_cost_sources` joins, `last_action_comment_id`
+  and the `pr_last_*` watermarks keep the furthest -- and the `orchestrator_comment_ids` ledger is merged, an id
+  either side recorded kept among the newest 500 the ledger holds, so an id one reading already evicted is evicted
+  again rather than a newer one. The record is held beside the report records and the `pr_number` the issue points
+  at, so the issue pointed at another pull request than the record's subject names -- between ticks or behind the
+  tick's own read -- sets it to `null` as surely as a push. Every drop names the verdict it holds, so one another road
+  put in its place is never the one dropped.
+
+  Two durable park reasons are the parks a record takes instead of being acted on (`stages/validating/review_parks.py`):
+  `reviewer_unverified` for an approval no current, passing evidence backs, and `reviewer_unrecorded` for a verdict
+  the comment had no room to persist, nothing published or acted on. Neither retries itself: a bare
+  `/orchestrator continue` on either buys a fresh reviewer, and an edit under one nobody replied to waits for that
+  reviewer rather than resuming the developer. They, a failed verify gate's park, and a failed squash's are each
+  measured at their widest before the notice is posted -- the park's own write, keeping any record it does not
+  retire, and the one keeping the record beside the notice's ledger entry where the subject would not read -- so
+  nothing is posted or written where there is room for no park; one with no room beside what the returned run staged
+  is taken over the comment as it stands, the run's usage and session unrecorded, save a failed squash's, whose write
+  carries the squash's own record drop. Behind the notice the subject is resolved again and the comment read against
+  the one the tick last read or wrote: a report record, the record itself, `pr_number`, or a
+  `verification_evidence_*` record moved there, like a push, lands no park and sets the record to `null` over the
+  newer records, while a subject that would not read, or a notice that left no id and so may have reached nobody,
+  lands none either and leaves the record as it waited. The park's write is composed over the comment as it stands,
+  as above, keeping a `review_round` another road spent behind the notice, and one that no longer fits beside what
+  moved there is not made. A park that lands sets the record to `null` in its own write and reports
+  `park_awaiting_human` only once that write is down. Additive and dormant: nothing acts on a ready verdict or files
+  those parks yet, no live reviewer round hands its result to that service, and nothing finishes a record a tick left
+  waiting, so no issue carries the key or either reason, and an issue without the key has no verdict waiting.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
   live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the
