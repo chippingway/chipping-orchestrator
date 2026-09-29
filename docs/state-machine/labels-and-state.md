@@ -1038,9 +1038,9 @@ The keys that matter for the state machine fall into a few groups:
   The per-tick base refresh records the claim for each clean auto rebase whose push lands, before it clears its attempt
   or routes to `workflow:validating`, and its crash recovery records the same one on every road that finishes a landed
   head ([Base refresh](#base-refresh)); a rebase that lands nothing records nothing and leaves a standing claim as it
-  is. Its room is measured on the whole announcement write the debt rides, and a proved debt that does not fit parks
-  `auto_base_rebase_unrecorded_debt` before anything is announced or routed, with the attempt left standing for the
-  recovery a reply brings back.
+  is. Its room is measured on the whole announcement write the debt rides and on the comment as it stands, and a
+  proved debt that does not fit either parks `auto_base_rebase_unrecorded_debt` before anything is announced or
+  routed, with the attempt left standing for the recovery a reply brings back.
 - **HITL park.** `awaiting_human`, `last_action_comment_id`, `park_reason`. `_park_awaiting_human` (on the same
   `workflow/engine/guards.py` owner as the two run refusals) sets
   `awaiting_human=True` and clears `park_reason` to `None`; a handler that needs the reason to survive into the next

@@ -141,7 +141,8 @@ def _sync_pr_worktree_to_base(*args: Any, **kwargs: Any) -> None:
     attempt, and relabel to `validating` so the reviewer re-runs
     against the rewritten head -- whose report the validating hold
     asks the developer for first. Where the pinned comment has no room
-    for that debt, measured on the whole announcement write, none of
+    for that debt, measured on the whole announcement write and on the
+    comment as it stands, none of
     the notice, announcement, or relabel happens: the push is kept, the
     attempt stands, and the issue parks `auto_base_rebase_unrecorded_debt`
     until somebody makes room and replies, which brings the recovery
