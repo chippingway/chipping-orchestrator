@@ -25,6 +25,7 @@ from orchestrator.github.pinned_state import MAX_PINNED_BODY
 from orchestrator.workflow.stages.validating import (
     review_claims as _claims,
     review_disposition as _disposition,
+    review_parks as _parks,
     review_verdicts as _verdicts,
 )
 from tests.workflow.reviewed_reports import restate
@@ -93,15 +94,15 @@ _UNRECORDED = (
         "no room for the verdict",
         f"{_LONG}\n\nVERDICT: CHANGES_REQUESTED",
         MAX_PINNED_BODY - len(_LONG),
-        _disposition.NO_ROOM,
+        _parks.NO_ROOM,
     ),
     (
         "no room for its evidence",
         _world.declared_run(exit_status=1, verdict="CHANGES_REQUESTED", output=_LONG),
         MAX_PINNED_BODY - len(_LONG) * 3 // 2,
-        _disposition.NO_ROOM,
+        _parks.NO_ROOM,
     ),
-    ("feedback UTF-8 cannot carry", "1. Handle \ud800 too.\n\nVERDICT: CHANGES_REQUESTED", 0, _disposition.UNREADABLE),
+    ("feedback UTF-8 cannot carry", "1. Handle \ud800 too.\n\nVERDICT: CHANGES_REQUESTED", 0, _parks.UNREADABLE),
 )
 
 

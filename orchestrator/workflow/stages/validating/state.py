@@ -54,13 +54,18 @@ back. Written beside the reset, it goes down or does not with it, which is
 what tells a grant still owed from one already made and stops a command the
 mark was held below resetting every cap the issue later reaches.
 
-`_VERIFY_STATUS_TO_REASON` and `_VALIDATING_TRANSIENT_PARK_REASONS` are the
-two groupings that decide behavior on their own: the first turns a verify
-status into the durable tag a park is filed under, and the second is the set
-a later tick is allowed to retry silently -- membership here is what says a
-condition can resolve without anyone commenting.
+`_VERIFY_STATUS_TO_REASON`, `_VALIDATING_TRANSIENT_PARK_REASONS`, and
+`_REVIEWER_SIDE_PARK_REASONS` are the three groupings that decide behavior on
+their own: the first turns a verify status into the durable tag a park is
+filed under, the second is the set a later tick is allowed to retry silently
+-- membership here is what says a condition can resolve without anyone
+commenting -- and the third is the set whose reply belongs to a fresh reviewer
+rather than to the developer, which the drift check stands down for as well.
+Two of those never retry themselves: an approval parked without valid
+evidence (`reviewer_unverified`) and a verdict parked without room to be
+recorded (`reviewer_unrecorded`) wait for exactly that reply.
 
-`_BOTH_MOVES` is the third. A write laid over the pinned comment as it stands
+`_BOTH_MOVES` is the fourth. A write laid over the pinned comment as it stands
 keeps what another road wrote there and what this tick staged, and where both
 moved one field it is membership here that decides whether both moves are
 kept -- a usage total adding up the runs each folded in, the cost tags beside
@@ -101,6 +106,18 @@ _REASON_REVIEWER_TIMEOUT = "reviewer_timeout"
 _REASON_REVIEWER_FAILED = "reviewer_failed"
 
 _REASON_REVIEW_CAP = "review_cap"
+
+# What an approval that relies on no valid verification evidence parks under.
+# Durable rather than transient: a reviewer that approved without the evidence
+# will not produce it by being spawned again unasked, so the park waits for a
+# human, and the reply to it buys the fresh reviewer that owes the evidence.
+_REASON_REVIEWER_UNVERIFIED = "reviewer_unverified"
+
+# What a returned reviewer's verdict parks under where the pinned comment has no
+# room to persist it, or it would not read back as written: acted on unrecorded,
+# it would be answered again by a second reviewer the moment the tick died.
+# Durable for the same reason as the one above, and answered the same way.
+_REASON_REVIEWER_UNRECORDED = "reviewer_unrecorded"
 
 # What a squash that could not be finished is filed under. Durable rather than
 # event-only, because the recovery ahead of the reviewer retries it on every
@@ -193,6 +210,18 @@ _SHORT_SHA_LEN = 12
 _VALIDATING_TRANSIENT_PARK_REASONS = frozenset(
     (_REASON_PUSH_FAILED, _REASON_AGENT_TIMEOUT, _REASON_REVIEWER_TIMEOUT, _REASON_REVIEWER_FAILED)
 )
+
+# The parks whose round is the reviewer's to redo rather than a developer's to
+# answer: a reviewer that timed out or crashed, and a returned verdict parked
+# without its evidence or without room to be recorded. A reply to any of them
+# buys a fresh reviewer, and the drift check stands down for one rather than
+# resuming the developer on an edit made under it.
+_REVIEWER_SIDE_PARK_REASONS = frozenset((
+    _REASON_REVIEWER_TIMEOUT,
+    _REASON_REVIEWER_FAILED,
+    _REASON_REVIEWER_UNVERIFIED,
+    _REASON_REVIEWER_UNRECORDED,
+))
 
 _VERIFY_STATUS_TO_REASON = MappingProxyType({
     "failed": "verify_failed",

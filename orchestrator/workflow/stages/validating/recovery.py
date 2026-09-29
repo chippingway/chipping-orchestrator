@@ -38,8 +38,11 @@ question, and a relabel taken over one clears the park and hands the checkout
 to a road that stages no debt for the head it publishes.
 
 `push_failed` and `agent_timeout` are the two that actually touch git;
-the reviewer-side reasons clear on sight, because there is no dev work to
-finish, only a reviewer to re-spawn. Every probe fails closed -- a missing
+the reviewer timeout and crash clear on sight, because there is no dev work
+to finish, only a reviewer to re-spawn. The other reviewer-side parks -- an
+approval without valid evidence, a verdict nothing could record -- never reach
+here: neither is a condition that goes away on its own, so each waits for the
+reply that buys that reviewer. Every probe fails closed -- a missing
 worktree, a dirty tree, an unreadable `pre_dev_fix_sha`, a push that fails
 again -- since leaving the park standing costs a poll and publishing blind
 costs the PR. WHICH word it fails closed with says what else may act on the

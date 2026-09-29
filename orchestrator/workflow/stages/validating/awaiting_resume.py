@@ -187,8 +187,9 @@ def _handle_validating_awaiting_human(context: _models._AwaitingValidation) -> s
 
     Returns ``"return"`` when the tick is fully handled (caller must return) or
     ``"spawn_reviewer"`` when the park cleared into a reviewer re-run (review-cap
-    reset, reviewer timeout / silent crash) and the caller should fall through
-    to the round-cap check and reviewer spawn.
+    reset, reviewer timeout / silent crash, or a reply to a returned verdict's
+    `reviewer_unverified` / `reviewer_unrecorded` park) and the caller should
+    fall through to the round-cap check and reviewer spawn.
 
     `context` is the handler's, built before its drift check, so the check and
     every road here read the same frozen reply batch.

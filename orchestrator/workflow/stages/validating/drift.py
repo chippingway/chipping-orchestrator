@@ -8,18 +8,21 @@ fix bumps `review_round` and stays on `validating`: the reviewer has to read
 the updated body against the new diff, and the round it already spent was
 against a head that no longer exists.
 
-Three parks deliberately opt out, and the reason is who owns the human's next
-comment. A reviewer timeout or silent crash produced no review output for the
-dev to act on, so a "retry" reply has to re-spawn the REVIEWER -- and the
-reviewer re-reads the edited body itself when it runs. `review_cap` is
-sharper still: the cap has consumed every round, so resuming the dev would
-just re-park on it, and the operator's `/orchestrator add-review-rounds`
-comment is itself content that moves the drift hash -- without the bypass the
-drift block would fire first and the command would never be parsed. A deferral
-delivers the edit to nobody, so it records nothing about it: the reply it
-stands down for has its own words recorded by the road that acts on them and
-the requirements beside them by the round that runs, and an edit no prompt has
-carried is still an edit on the tick after this one.
+The reviewer-side parks and the review cap deliberately opt out, and the
+reason is who owns the human's next comment. A reviewer timeout or silent
+crash produced no review output for the dev to act on, and an approval parked
+without its verification evidence or a verdict parked without room to be
+recorded is the reviewer's round to redo, so a "retry" reply has to re-spawn
+the REVIEWER -- and the reviewer re-reads the edited body itself when it runs.
+`review_cap` is sharper still: the cap has consumed every round, so resuming
+the dev would just re-park on it, and the operator's
+`/orchestrator add-review-rounds` comment is itself content that moves the
+drift hash -- without the bypass the drift block would fire first and the
+command would never be parsed. A deferral delivers the edit to nobody, so it
+records nothing about it: the reply it stands down for has its own words
+recorded by the road that acts on them and the requirements beside them by the
+round that runs, and an edit no prompt has carried is still an edit on the
+tick after this one.
 What it does record is the round it stood down FOR, because a silent recovery
 clears the park and ends its tick while the round it released runs on the
 next: without that note the edit would take the following tick down this road
@@ -130,14 +133,13 @@ def _defer_validating_drift(state: PinnedState) -> bool:
         return False
     if state.get(_state._REVIEWER_OWES_A_ROUND):
         return True
+    # Only a word names a park: a hand edit leaving a list or an object there
+    # is no reason this road stands down for, as an unknown word is not.
+    reason = state.get(_state._PARK_REASON)
     return bool(
         state.get("awaiting_human")
-        and state.get(_state._PARK_REASON)
-        in (
-            _state._REASON_REVIEWER_TIMEOUT,
-            _state._REASON_REVIEWER_FAILED,
-            _state._REASON_REVIEW_CAP,
-        )
+        and isinstance(reason, str)
+        and reason in _state._REVIEWER_SIDE_PARK_REASONS | {_state._REASON_REVIEW_CAP}
     )
 
 
@@ -201,17 +203,20 @@ def _resume_dev_on_validating_drift(
 
     Returns True when a drift was detected and fully handled (caller must
     return). Returns False when there is no drift, or when the issue is parked
-    with a reviewer-side reason (`reviewer_timeout` / `reviewer_failed`) or on
-    the review-round cap (`review_cap`) -- those defer to the awaiting-human
-    branch. A human "retry" comment on a reviewer-side park must re-spawn the
-    REVIEWER, not the dev: the failure produced no review output for the dev to
-    act on, and the reviewer re-reads the updated `issue.body` + comments via
-    `_build_review_prompt` when it runs. For `review_cap`, the cap has consumed
-    every round, so resuming the dev would re-park on the cap next tick; the
-    operator's `/orchestrator add-review-rounds` command lives in the
-    awaiting-human branch, and the command comment itself bumps the user-content
-    hash, so without this bypass the drift block would fire first and the
-    command would never be parsed. A deferral records nothing about the edit:
+    with a reviewer-side reason (`reviewer_timeout` / `reviewer_failed` /
+    `reviewer_unverified` / `reviewer_unrecorded`) or on the review-round cap
+    (`review_cap`) -- those defer to the awaiting-human branch. A human "retry"
+    comment on a reviewer-side park must re-spawn the REVIEWER, not the dev:
+    the failure produced no review output for the dev to act on -- an approval
+    without its verification evidence, or a verdict nothing could record, is
+    the reviewer's to redo -- and the reviewer re-reads the updated
+    `issue.body` + comments via `_build_review_prompt` when it runs. For
+    `review_cap`, the cap has consumed every round, so resuming the dev would
+    re-park on the cap next tick; the operator's
+    `/orchestrator add-review-rounds` command lives in the awaiting-human
+    branch, and the command comment itself bumps the user-content hash, so
+    without this bypass the drift block would fire first and the command would
+    never be parsed. A deferral records nothing about the edit:
     it delivered the edit to nobody, and the reply it stands down for is
     recorded as answered by that reply's own frozen batch.
 
@@ -224,7 +229,7 @@ def _resume_dev_on_validating_drift(
     `_finish_validating_drift`, and that settlement is the only thing on this
     road that records a new baseline. A live pause, a shutdown kill, and a
     launch the run circuit turned away each return without writing pinned
-    state, so every road that delivered nothing -- the three deferrals
+    state, so every road that delivered nothing -- every deferral
     included -- leaves the edit as unanswered as it found it.
     """
     new_hash = _engine_drift._detect_user_content_change(

@@ -40,12 +40,13 @@ post GitHub refuses or never confirms on every later tick, so a retry reruns no
 reviewer, folds no usage twice, and spends no round. A write GitHub refuses
 raises before anything is published. A verdict that cannot be persisted is
 persisted and published nowhere, and the answer says why
-(`Prepared.unrecorded`): a record that would not read back as written -- words
-UTF-8 cannot carry, say -- or a comment with no room for the verdict or its
-transaction. A disposition nothing durable backs is one a second reviewer
+(`Prepared.unrecorded`, in the words the park that answers it spells): a record
+that would not read back as written -- words UTF-8 cannot carry, say -- or a
+comment with no room for the verdict or its transaction. A disposition nothing durable backs is one a second reviewer
 would answer again, and evidence dropped for room would leave what the
 reviewer reported, a failed check included, off the pull request. The park
-that answers it is its caller's, over the run's records staged here.
+that answers it is its caller's, over the run's records staged here
+(`review_parks.parks_unrecorded`).
 
 Neither verdict is ready until the evidence it relies on has settled: a change
 request handed to a developer moves the head and an approval squashes it, and
@@ -101,18 +102,13 @@ from orchestrator.workflow.stages.validating import (
     review_claims as _claims,
     review_comment as _review_comment,
     review_coverage as _review_coverage,
+    review_parks as _parks,
     review_records as _review_records,
     review_verdicts as _verdicts,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
-
-# Why a returned verdict went unrecorded, in words for the park that answers it.
-UNREADABLE = "its verdict would not read back as written (words UTF-8 cannot carry, for example)"
-
-NO_ROOM = "the pinned comment has no room for its verdict or the verification evidence it declared"
-
 
 @dataclass(frozen=True)
 class VerdictInHand:
@@ -152,9 +148,9 @@ class Prepared:
     it makes. None where this tick has nothing to act on -- the verdict waits
     on its evidence, was dropped, or was never persisted over a subject that
     moved or a reading nobody could take. `unrecorded` says why the verdict
-    could not be persisted at all (`UNREADABLE`, `NO_ROOM`), "" where it was
-    or was never asked: nothing was written or published, and the park that
-    answers it is the caller's write.
+    could not be persisted at all (`review_parks.UNREADABLE`,
+    `review_parks.NO_ROOM`), "" where it was or was never asked: nothing was
+    written or published, and the park that answers it is the caller's write.
     """
 
     ready: VerdictInHand | None = None
@@ -240,9 +236,9 @@ def _persists(
     returned = in_hand.returned()
     unrecorded = ""
     if not returned.reads_back():
-        unrecorded = UNREADABLE
+        unrecorded = _parks.UNREADABLE
     elif not _verdicts.records_the_verdict(state, returned, in_hand.pending):
-        unrecorded = NO_ROOM
+        unrecorded = _parks.NO_ROOM
     if unrecorded:
         log.warning(
             "issue=#%d could not persist its reviewer's verdict (%s); writing "

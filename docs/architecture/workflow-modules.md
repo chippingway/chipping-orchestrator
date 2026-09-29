@@ -261,8 +261,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             same
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read,
                             taken by the funnel's `bounded=True`, by the implementing question and checkout parks
-                            that post for themselves, by the run-limit notice's repair, and by the refusal a parked
-                            `/orchestrator continue` earns: through the comments our id ledger names, stopping at the
+                            that post for themselves, by the run-limit notice's repair, by the refusal a parked
+                            `/orchestrator continue` earns, and by the validating stage's returned-verdict parks
+                            behind their own notice (`review_parks.py`), the mark riding whichever write goes
+                            down behind it: through the comments our id ledger names, stopping at the
                             first it does not -- a reply from the run, one quoting the pinned record's marker (the
                             thread is read by that record's id), or our own sentence whose recording write was lost.
                             It never reads the tip: no floor to walk from (the pickup anchors one), a post the ledger
@@ -3076,7 +3078,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             instead, beside the round reset and in the same write: durable exactly where that
                             reset is, which is what a launch the run circuit refuses discards, and what keeps
                             one comment from resetting every cap the issue later reaches. A
-                            reviewer-side park's retry records nothing at all: that reply belongs to the round it
+                            reviewer-side park -- a returned verdict's `reviewer_unverified` and
+                            `reviewer_unrecorded` among them -- is answered by a fresh reviewer, and its retry
+                            records nothing at all: that reply belongs to the round it
                             buys, which reads it under the round's own bound (`reviewer.py`). Both roads DO write
                             down the round those words bought, since the clear can go out on a tick that runs no
                             round and the reply has moved the requirements by the next one.
@@ -3092,7 +3096,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             way, off a claim taken BEFORE the run, since the resume clears the park it was written
                             beside -- and spending the round `rounds.py` says it does, which is none where the
                             park came back from `in_review` with the budget already reset for it
-      drift.py              a body edit mid-review, the three parks that defer -- which deliver nothing and so
+      drift.py              a body edit mid-review, the parks that defer -- every reviewer-side one and the
+                            review cap, which deliver nothing and so
                             record nothing, baseline included -- the one thing that outranks a deferral, which is
                             a report this stage still owes its pull request: no reviewer runs behind that debt,
                             and the record it is owed was written against requirements a reply has already moved,
@@ -3331,7 +3336,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transaction a published claim names staged in the same write and measured with its
                             settlement beside that reservation, a retry of one already recorded included, a reuse or no
                             claim beside none, or neither; marked handed, or dropped, only where it stands -- and, where
-                            the caller names the verdict it holds, only where the one waiting is exactly that verdict
+                            the caller names the verdict it holds, only where the one waiting is exactly that verdict,
+                            a caller naming none dropping nothing, a record no reader takes included
       review_claims.py      what a returned reviewer's verification declaration earns, asked only by the dormant
                             `review_disposition.py`: commands it ran minted, not recorded, as a reviewer-reported
                             transaction past every spent revision, bound to the handed subject, the reviewed head and
@@ -3346,7 +3352,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             road folded meanwhile, the last requests before the verdict is persisted with its minted
                             transaction in one write -- or, where the record would not read back as written or the
                             comment has no room for either, nothing written or published and an answer that says which
-                            (`UNREADABLE`, `NO_ROOM`), for the caller's park -- then that transaction published through
+                            (`review_parks.UNREADABLE`, `review_parks.NO_ROOM`), for the caller's
+                            `reviewer_unrecorded` park -- then that transaction published through
                             the dispatcher's own reconciliation (`prepares_the_verdict`). A verdict is ready only while
                             the comment carries it as persisted, its subject, held to it once more with the comment read
                             again last, still stands, and its claim, judged over that reading, is settled or it relies
@@ -3356,6 +3363,31 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the record's own subject what the standing one has to record as. Every write is composed
                             over the comment as read just before it, keeping what another road wrote there, and drops
                             only ever the verdict it holds. Acting on a ready verdict is not here
+      review_parks.py       the two parks a verdict takes instead of being acted on, which no live round asks for
+                            yet: `reviewer_unverified` for an approval relying on no valid evidence
+                            (`parks_unverified`, measured against the state it began over) and `reviewer_unrecorded`
+                            for a verdict that could not be persisted (`parks_unrecorded`, measured against the
+                            reading the returned run was resolved over, so what that run staged lands with the park,
+                            over one of the two causes spelled here, `NO_ROOM` and `UNREADABLE` -- its notice asks for
+                            room on the pinned comment only for the first, since freed room does nothing for words no
+                            record can carry), each answered by a fresh reviewer, and the funnel both take
+                            (`parks_over_the_subject`): measured before the notice is posted at the park's own write,
+                            the verdict it refuses dropped -- the write keeping a waiting verdict is measured behind
+                            the notice, where it is asked -- taken over the comment as it stands where it has no room
+                            beside what the returned run staged -- only while that reading still carries the records
+                            the verdict stands on -- and posted and written nowhere where there is room for no park.
+                            Behind the notice the subject is resolved again and the comment read last: a report,
+                            pull-request, verdict, or evidence record moved there, like a push, lands no park and
+                            drops only the verdict held, over the newer records, whether or not the notice left an id,
+                            while -- where nothing proved a move -- a subject that would not read, or a notice that
+                            left no id, lands none either and leaves the verdict waiting. That write is composed over
+                            the comment as it stands, so a field another road wrote behind the notice -- a round spent
+                            -- is kept, measured again once it carries what moved, and not made where another road's
+                            write left no room. Only a park that lands sets its flags, drops the verdict it holds -- a
+                            `reviewer_unrecorded` park holds none, and leaves whatever record stands there as it is,
+                            and a `reviewer_unverified` park holds only the approval of its run's round and subject,
+                            posting and writing nothing where that is not what waits -- and reports
+                            `park_awaiting_human`, once its write is down
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures.
                             A timed-out round is answered by the BRANCH rather than by the run on both its
@@ -3397,7 +3429,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             was ever spent on. Both are asked by the resume that answers such a park and by the
                             silent retry that finishes its push
       models.py             the frozen records several owners in this stage hand each other -- a record one
-                            route builds and reads alone stays beside that route instead -- the park clear
+                            route builds and reads alone stays beside that route instead -- the awaiting context,
+                            whose park reason is a word or none, a hand edit's list or object read as a reason no
+                            route knows rather than asked about a set it cannot join, the park clear
                             every awaiting road takes, which drops the unanswered-edit claim with the park it was
                             written beside, the two settlements an awaiting road may take -- the whole batch, or
                             ONE control comment the orchestrator answered rather than delivered, with every other
@@ -3405,7 +3439,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that such an answer already stands on the thread, and the note a reply's round is
                             owed by; a reviewer run carries the evidence its prompt handed as current, the only
                             evidence a reuse may name
-      state.py              the pinned-state keys, park reasons, and outcome tokens they share, including the
+      state.py              the pinned-state keys, park reasons, and outcome tokens they share -- with the
+                            grouping of the reviewer-side parks whose reply buys a fresh reviewer and that the
+                            drift check stands down for, `reviewer_unverified` and `reviewer_unrecorded` among
+                            them, neither of which retries itself -- including the
                             three that outlive their own tick: the claim that a requirements edit this stage's
                             resume ended without answering is still outstanding, the note left for a reviewer
                             round still owed -- the park it was written beside is gone before that round runs
