@@ -2990,7 +2990,27 @@ rather than preserving.
   worse than handing it none. The record is READ where it matters most: a split refuses outright when the ancestry
   disagrees with the generation's own lineage, because a generation naming a shallower depth or a different root is
   one minted without this record — and a shallower depth is exactly how a lineage would buy itself a generation past
-  `MAX_LINEAGE_DEPTH`.
+  `MAX_LINEAGE_DEPTH`. It is read once more, read-only and still dormant, for an ordinary re-decomposition:
+  `late_split/provenance.py` decides whether that issue's replacement children would inherit a late lineage. An
+  issue no late split charged inherits none. A descendant inherits this group's root and depth, and a root whose own
+  late record proves a split made children is that lineage's root at depth 0. Only a record of the children
+  themselves proves one — the register, or a consumer or child entry on the ledgers, which a retirement keeps after
+  it drops the identity. No phase does: `splitting` is written before the first child exists, and a cancelled cycle
+  that created none is rebuilt at `cleaning_up`. A snapshot entry, recorded before the first child, or a ledger this
+  binary cannot type proves nothing either way; `late_links_announced`, raised once the children's links are
+  announced, says children were made and names none of them. Each of those beside no child record is refused, and
+  so is a child entry that names no issue or any entry naming the issue itself. The snapshot it names is, for an
+  issue that split itself, its own split's while the ledger names that ref exactly once and as `retained`, and none
+  otherwise; for any other descendant it is this group's pointer, and only where that is the ref the group's own
+  parent, cycle, and generation mint. A pinned comment that would not parse (it reads back empty, like an issue
+  nothing touched), any key of this group its reader would drop — a generation that is no count, a ref outside the
+  namespace, a flag that is not `true`, a `null` — a group with no readable parent and cycle, a child receipt in the
+  body with no group beside it, a group whose root, depth, and parent disagree, a late record carrying a cycle,
+  counter, root, current issue, depth, phase, `late_cancelled_phase`, split register, announcement, or ledger its
+  reader would drop (`null` included), a live cycle with no root, current issue, or depth, a record whose cycle is
+  gone beside the fields it still carries, and one written for another issue, still creating children, cancelled
+  while it was (the interrupted boundary `late_cancelled_phase` keeps), naming a root other than the group's whether
+  or not it split, or, having split, naming another depth are each a refusal rather than depth 0.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

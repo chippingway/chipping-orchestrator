@@ -213,7 +213,10 @@ the action depends on lifecycle position:
   late split's generation, which is not manifest tracking: its register, its snapshot, and `late_consumers` survive
   whole and go on naming the orphans, so the umbrella the re-decomposition leaves still proves that ref against them
   (see [what the terminal waits on](#_handle_umbrella-label-workflowumbrella)). The orphans are never adopted,
-  relabelled, or reopened.
+  relabelled, or reopened. Nor does either reset touch the `late_ancestry_*` group. The read-only decision of which
+  late lineage a re-derived manifest's children would inherit (`late_split/provenance.py`, see
+  [inherited lineage](labels-and-state.md#late-generation-state)) is dormant: no decomposition asks it yet, so those
+  children are still created with no ancestry of their own.
 - **`workflow:implementing` / `workflow:validating` / `in_review` / `workflow:resolving_conflict`** (a dev session
   exists and possibly a PR) — post a `:pencil2: issue body changed; resuming dev session` notice (on the issue for
   implementing/validating, on the PR for in_review/resolving_conflict), resume the locked dev session with

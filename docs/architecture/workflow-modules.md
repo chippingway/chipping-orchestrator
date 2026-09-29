@@ -1088,6 +1088,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the body reader that recovers a child's claimed lineage when its pinned write was lost
     lineage.py              durable inherited fields, fail-closed snapshot reads, and parent corroboration; keys and
                             write omission rules preserve ancestry after the child's own generation is retired
+    entitlement.py          what a late record proves its own split made -- children proved only by the register or a
+                            consumer or child entry, never by a phase; a snapshot entry, an unreadable ledger, or the
+                            links announcement alone is ambiguous, and a child that is no other issue is invalid --
+                            and the snapshot a replacement child could be pointed at: a proved split's own ref while
+                            the ledger names it exactly once and `retained`, else, for an issue that never split, the
+                            ancestry's pointer where it is the ref that ancestry's identity mints
+    provenance.py           the read-only, still dormant decision of which late lineage an ordinary decomposition's
+                            children inherit: none for an issue no late split charged; otherwise the root, the depth
+                            already charged, and the entitlement above -- or a refusal when an unparsed comment, an
+                            ancestry field its reader would drop or a `null` one, a body receipt with no ancestry, a
+                            late identity or split-evidence field its reader would drop, a live cycle missing its
+                            root, issue, or depth, a cycle gone beside other fields, a split in flight or cancelled
+                            in flight, an invalid or ambiguous split, a record rooted elsewhere than its ancestry, or a
+                            split at another depth leaves the depth unproven, never read as a fresh root at 0
     exemption_reading.py    exact-commit exemption reads, their key groups, and whole semantic identities; a transferable
                             identity requires the frozen pair, matching exempt candidate, digest, and supported format,
                             while a claimed but unreadable group stays distinct from no record
