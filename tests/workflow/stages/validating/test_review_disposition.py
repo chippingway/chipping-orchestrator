@@ -27,6 +27,7 @@ from orchestrator.workflow.stages.validating import (
     review_disposition as _disposition,
     review_verdicts as _verdicts,
 )
+from tests.workflow.reviewed_reports import restate
 from tests.workflow.stages.validating import review_verdict_readings as _read, review_verdict_test_support as _world
 
 REREAD = "reread_report_location"
@@ -136,18 +137,26 @@ _READY = (
     ("a change request declaring nothing", lambda _case: UNDECLARED_REQUEST, (None, _claims.NO_DECLARATION, 0)),
 )
 
+# Another road pointing the issue at another pull request, leaving the one
+# reviewed standing as it was handed.
+_OTHER_PR = _world.PR + 1
+
+_REPOINTS = partial(restate, pr_number=_OTHER_PR)
+
 # Another road's work behind a request ahead of the verdict's write, and the
 # report revision, round, and current evidence revision the pinned comment
 # carries then: a later report or evidence settling while the reviewed tree is
 # read for the transaction, a later report behind the subject check -- the
 # second reread of the settled report, behind the one the round resolved its
-# subject with -- and a push while the tree is read. The comment is read after
-# the subject, so what settled is carried and never written back over.
+# subject with -- and a push, or the issue pointed at another pull request,
+# while the tree is read. The comment is read after the subject, so what
+# settled is carried and never written back over.
 _BEFORE_THE_WRITE = (
     ("a report during minting", (TREE_READ, bool, _read.settles_a_later_report), (2, 1, None)),
     ("evidence during minting", (TREE_READ, bool, _read.settles_evidence), (1, 0, 1)),
     ("a report behind the subject check", (REREAD, bool, _read.settles_a_later_report, 2), (2, 1, None)),
     ("a push during minting", (TREE_READ, bool, _world.pushes), (1, 0, None)),
+    ("a repoint during minting", (TREE_READ, bool, _REPOINTS), (1, 0, None)),
 )
 
 
@@ -627,6 +636,28 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
                         pinned[REVIEW_ROUND],
                     ),
                     (NOTHING, *expected),
+                )
+
+    def test_a_repointed_issue_drops_the_verdict(self) -> None:
+        # The issue is pointed at another pull request between ticks, or once
+        # a later tick has read the comment: the one reviewed still stands as
+        # it was handed, but every road acting on the verdict reads the pull
+        # request off the comment, so the verdict is dropped for a fresh
+        # reviewer rather than answered on a pull request nobody reviewed --
+        # and the pointer is kept as the other road left it.
+        for name, between_ticks in (("between ticks", True), ("while it waited", False)):
+            with self.subTest(name):
+                self.setUp()
+                _read.seeds_a_verdict(self, _read.settles_evidence(self), reused=True)
+                if between_ticks:
+                    _REPOINTS(self)
+
+                self.finishes(meanwhile=None if between_ticks else _REPOINTS)
+
+                pinned = self.pinned()
+                self.assertEqual(
+                    (self.ready, pinned[_world.RETURNED_VERDICT], pinned["pr_number"]),
+                    (None, None, _OTHER_PR),
                 )
 
     def test_another_roads_verdict_is_left_standing(self) -> None:

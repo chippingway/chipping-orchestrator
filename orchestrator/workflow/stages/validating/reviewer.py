@@ -21,7 +21,16 @@ the reviewer is handed beside it, in a write of their own ahead of the launch
 dies mid-review, still leaves a durable record of which spec ran that round and
 what it was shown, and a config flip mid-flight cannot retroactively rewrite
 the history. Overwriting both every round is correct here precisely because
-the reviewer is spawned fresh each time rather than resumed.
+the reviewer is spawned fresh each time rather than resumed. Ahead of that
+write, the reading the subject was bound to is laid over the state in hand,
+measured from the comment as the tick read it
+(`review_comment._ResolvedSubject.lays_over`), so a run another road charged
+and folded, or a notice it posted, while the subject was resolved is kept by
+every write of the round rather than written back over. The launch charge
+the run circuit writes behind them is the round's own write as well, and is
+taken into the reading the round's return is measured against
+(`_launches`), so a run another road charges while the reviewer runs is kept
+the same way.
 
 After the run, two refusals stand between the reviewer and any disposition,
 and their order is the contract. The live-pause check runs first and returns
@@ -38,14 +47,19 @@ arc, a missing VERDICT line to the no-verdict park, and CHANGES_REQUESTED to
 the fix route. The event is emitted for all of them, before the fan-out, so
 the analytics record exists even for the paths that park. An approval and a
 change request alike are acted on only while the whole subject the reviewer
-was handed -- head, requirements, and report -- still stands; otherwise the
-run is recorded and the next tick's reviewer is handed the subject as it
-stands. The pinned comment is read again as the reviewer returns, before any
-of that is written, for that reason: a report settling while the reviewer
-runs is recorded there and nowhere in the state this tick holds, and every
-write the run makes has to lay itself over that settlement rather than undo
-it -- where the comment will not read, nothing is written at all. Failed-run
-parks
+was handed -- pull request, head, requirements, and report -- still stands;
+otherwise the run is recorded and the next tick's reviewer is handed the
+subject as it stands. The pinned comment is read again as the reviewer
+returns, before any of that is written, for that reason: a report settling or
+the issue pointed at another pull request while the reviewer runs is recorded
+there and nowhere in the state this tick holds, and every write the run makes
+from that state has to lay itself over that rather than undo it -- where the
+comment will not read, nothing is written at all. A change request's developer
+run is a road of its own past this: it writes the state in hand after that run
+without reading the comment again, so what another road wrote meanwhile is
+not kept. Resolving the subject again for a verdict is
+requests of its own, so the comment is read once more behind them before the
+verdict is acted on (`_held_to_its_subject`). Failed-run parks
 (timeout and unknown verdict) enrich the shared park funnel with typed
 correlation fields (`agent_role`, `session_id`, `review_round`, `retry_count`,
 `pr_number`).
@@ -57,6 +71,7 @@ from dataclasses import replace
 from github.Issue import Issue
 
 from orchestrator import config
+from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
@@ -91,8 +106,17 @@ def _run_reviewer_round(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
-    pr_number,
+    read: dict,
 ) -> _models._ReviewerRun | None:
+    """One round over the pull request the tick read the issue pointed at; None to end the tick unwritten.
+
+    `read` is the pinned comment as the tick read it. The reading the round's
+    subject is bound to is laid over `state` measured from it before anything
+    of the round is written (`review_comment._ResolvedSubject.lays_over`): a
+    run another road charged and folded while the subject was resolved is on
+    that reading and nowhere in hand, and every later reading of the round is
+    measured from it, so no later one would see it move.
+    """
     round_n = int(state.get(_state._REVIEW_ROUND) or 0)
     if round_n >= config.MAX_REVIEW_ROUNDS:
         _requested_changes._park_review_cap(gh, issue, state, round_n)
@@ -104,34 +128,111 @@ def _run_reviewer_round(
     )
     delivered = _prompt_context._delivered_thread(gh, issue, state)
     handover = _review_report._resolves_the_subject(
-        gh, issue, state, pr_number, delivered,
+        gh, issue, state, read.get("pr_number"), delivered,
     )
     if handover is None:
         return None
-    handover = _persists_the_launch(gh, issue, state, handover)
-    reviewer_run = _models._ReviewerRun(
+    handover.lays_over(state, read)
+    agent_result, handover = _launches(
+        gh, issue, state, handover,
+        agent_role="reviewer",
+        stage="validating",
+        backend=config.REVIEW_AGENT,
+        prompt=_review_prompt(
+            spec, issue, state, delivered.rendered_text, handover.subject,
+        ),
+        cwd=wt,
+        agent_spec=config.REVIEW_AGENT_SPEC,
+        timeout=config.REVIEW_TIMEOUT,
+        extra_args=config.REVIEW_AGENT_ARGS,
+        review_round=round_n,
+        retry_count=state.get("retry_count"),
+    )
+    return _read_again_on_return(gh, issue, state, _models._ReviewerRun(
         wt=wt,
         round_n=round_n,
-        pr_number=pr_number,
-        agent_result=_usage._run_agent_tracked(
-            gh, _run_charge_state.AgentRunBudget(issue=issue, state=state),
-            agent_role="reviewer",
-            stage="validating",
-            backend=config.REVIEW_AGENT,
-            prompt=_review_prompt(
-                spec, issue, state, delivered.rendered_text, handover.subject,
-            ),
-            cwd=wt,
-            agent_spec=config.REVIEW_AGENT_SPEC,
-            timeout=config.REVIEW_TIMEOUT,
-            extra_args=config.REVIEW_AGENT_ARGS,
-            review_round=round_n,
-            retry_count=state.get("retry_count"),
-        ),
+        pr_number=read.get("pr_number"),
+        agent_result=agent_result,
         delivery=delivered,
         subject=handover.subject,
         resolved_over=handover.resolved_over,
+    ))
+
+
+def _launches(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    handover: _review_comment._ResolvedSubject,
+    **request,
+) -> tuple[AgentResult, _review_comment._ResolvedSubject]:
+    """Write the reviewer spec and its subject BEFORE the spawn, then run the reviewer `request` describes, charged.
+
+    Answers the run's result, and the reading its return is measured against.
+
+    The launch charge writes only the fields it took, so without a write of
+    their own nothing would put the spec and subject down until the reviewer
+    returned, and a round that died mid-review would leave no record of which
+    spec ran or what it was shown. They are written onto the comment as
+    `review_report` read it an instant ago -- carrying the report records in
+    hand -- rather than as the state in hand: that state carries what this
+    tick staged for the round's own write, a cleared park and a cap grant's
+    round reset among them, and a launch the run circuit refuses discards
+    those, which is what lets the grant be honored again once an agent-run
+    grant hands the park back. Both are staged on the state in hand too.
+
+    The run circuit then charges the launch on the comment behind that write,
+    and merges onto `state` only the fields the charge moved. Those are the
+    round's own write as well, so the comment the verdict's return is measured
+    against is the launch's write with them taken into it
+    (`review_comment._ResolvedSubject.carrying`): left out of it, the count
+    would read as a field this tick staged and never wrote, and a reading that
+    keeps this tick's own moves over records that stand would keep this
+    charge's count over a newer one another road's charge wrote meanwhile, and
+    write it back.
+    """
+    durable = PinnedState(
+        comment_id=state.comment_id, state_data=dict(handover.resolved_over),
     )
+    _review_records._records_the_launch(durable, handover.subject)
+    gh.write_pinned_state(issue, durable)
+    # The comment this write landed on is the one every later write of the
+    # round has to reach, rather than a second one pinned beside it.
+    state.comment_id = durable.comment_id
+    _review_records._records_the_launch(state, handover.subject)
+    before = dict(state.data)
+    ran = _usage._run_agent_tracked(
+        gh, _run_charge_state.AgentRunBudget(issue=issue, state=state), **request,
+    )
+    launched = _review_comment._ResolvedSubject(handover.subject, dict(durable.data))
+    return ran, launched.carrying(before, state)
+
+
+def _read_again_on_return(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    reviewer_run: _models._ReviewerRun,
+) -> _models._ReviewerRun | None:
+    """The run, its return recorded and the pinned comment read again; None to end the tick unwritten.
+
+    A run an operator paused under, or one the shutdown sweep killed, ends the
+    tick before that, in that order, around the record of the return.
+
+    The comment is read before anything the run leaves is written -- a park
+    for a timeout or a missing verdict as much as the record of a verdict --
+    since each of those writes goes out from the state in hand, and a report
+    that settled while the reviewer ran is on the comment and nowhere in it.
+    What the comment changed is carried onto that state first, and a report
+    record, or the pull request the issue points at, moved there marks the
+    verdict as one of a subject that no longer stands. The run is measured
+    from then on against the comment as that reading found it, so a later
+    reading of the round does not keep a second time what this one already
+    kept of both roads' moves. A comment
+    that will not read or parse ends the tick with nothing written, as an
+    interrupted run does: the next tick spawns a reviewer over whatever the
+    comment carries then.
+    """
     # Live pause: an operator applied `paused` / `backlog` while the reviewer
     # ran. Dispatch only saw the pre-run labels, so re-check a freshly fetched
     # issue and return WITHOUT folding usage, recording the review session,
@@ -158,63 +259,48 @@ def _run_reviewer_round(
     # branches.
     if _guards._ignore_if_interrupted(issue, reviewer_run.agent_result):
         return None
-    return _read_again_on_return(gh, issue, state, reviewer_run)
-
-
-def _persists_the_launch(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    handover: _review_comment._ResolvedSubject,
-) -> _review_comment._ResolvedSubject:
-    """Write the reviewer spec and its subject BEFORE the spawn; stage both too.
-
-    The launch charge writes only the fields it took, so without a write of
-    their own nothing would put these two down until the reviewer returned,
-    and a round that died mid-review would leave no record of which spec ran
-    or what it was shown. They are written onto the comment as `review_report`
-    read it an instant ago -- carrying the report records in hand -- rather
-    than as the state in hand: that state carries what this tick staged for
-    the round's own write, a cleared park and a cap grant's round reset among
-    them, and a launch the run circuit refuses discards those, which is what
-    lets the grant be honored again once an agent-run grant hands the park
-    back. What was written is what the verdict's return is measured against.
-    """
-    durable = PinnedState(
-        comment_id=state.comment_id, state_data=dict(handover.resolved_over),
+    reread = _review_comment._records_stand(
+        gh, issue, state, reviewer_run.resolved_over,
     )
-    _review_records._records_the_launch(durable, handover.subject)
-    gh.write_pinned_state(issue, durable)
-    # The comment this write landed on is the one every later write of the
-    # round has to reach, rather than a second one pinned beside it.
-    state.comment_id = durable.comment_id
-    _review_records._records_the_launch(state, handover.subject)
-    return replace(handover, resolved_over=dict(durable.data))
+    if reread is None:
+        return None
+    return replace(reviewer_run, subject_moved=not reread.stood, resolved_over=reread.read)
 
 
-def _read_again_on_return(
+def _held_to_its_subject(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
     reviewer_run: _models._ReviewerRun,
 ) -> _models._ReviewerRun | None:
-    """The run, once the pinned comment is read again; None to end the tick unwritten.
+    """The run, its subject resolved again and the pinned comment read behind that; None to end the tick unwritten.
 
-    Read before anything the run leaves is written -- a park for a timeout or
-    a missing verdict as much as the record of a verdict -- since each of
-    those writes goes out from the state in hand, and a report that settled
-    while the reviewer ran is on the comment and nowhere in it. What moved is
-    carried onto that state first, and marks the verdict as one of a subject
-    that no longer stands. A comment that will not read or parse ends the tick
-    with nothing written, as an interrupted run does: the next tick spawns a
-    reviewer over whatever the comment carries then.
+    A verdict is acted on only while the whole subject its reviewer was handed
+    still stands, and resolving it again is requests of its own -- the issue
+    read afresh, the pull request, the report at its location -- long enough
+    for another road to point the issue at another pull request or settle a
+    later report, which lands on the comment and nowhere in hand. So the
+    comment is read once more behind them, last, carrying what moved
+    (`review_comment._records_stand`), and a verdict of a subject that moved
+    -- there, or already at the return's own reading, which asks nothing more
+    -- is marked `subject_moved`, for the caller to record rather than act on.
+    The run is measured from then on against the comment as that reading
+    found it. A comment that will not read or parse ends the tick with
+    nothing written.
     """
-    stood = _review_comment._records_stand(
+    if reviewer_run.subject_moved:
+        return reviewer_run
+    stands = _review_coverage._subject_still_stands(
+        gh, issue, state, reviewer_run.subject.recorded(),
+    )
+    reread = _review_comment._records_stand(
         gh, issue, state, reviewer_run.resolved_over,
     )
-    if stood is None:
+    if reread is None:
         return None
-    return replace(reviewer_run, report_moved=not stood)
+    return replace(
+        reviewer_run, subject_moved=not (stands and reread.stood), resolved_over=reread.read,
+    )
 
 
 def _review_prompt(
@@ -309,7 +395,6 @@ def _dispatch_reviewer_result(
     verdict, body = _completion_verdicts._parse_review_verdict(
         review.last_message,
     )
-    decision = _models._ReviewerDecision(reviewer_run, verdict, body)
     gh.emit_event(
         "review_verdict",
         issue_number=issue.number,
@@ -320,32 +405,34 @@ def _dispatch_reviewer_result(
         session_id=review.session_id,
     )
 
-    if decision.verdict == "unknown":
+    if verdict == "unknown":
         _requested_changes._park_reviewer_no_verdict(
             gh, issue, state, review, reviewer_run=reviewer_run,
         )
         return
 
     # A verdict of a subject that no longer stands as it was handed -- a head
-    # pushed, the issue edited, the report edited, removed, or replaced by a
-    # later settlement while the reviewer ran -- is about work that is not
+    # pushed, the issue edited or pointed at another pull request, the report
+    # edited, removed, or replaced by a later settlement, while the reviewer
+    # ran or while the subject was resolved again -- is about work that is not
     # there: an approval would hand it on, and a change request would pay a
     # developer to answer a review of words the pull request no longer
     # carries. The run is recorded over whatever settled meanwhile, and the
     # next tick's reviewer is handed the subject as it stands, or refused.
-    if reviewer_run.report_moved or not _review_coverage._subject_still_stands(
-        gh, issue, state, reviewer_run.subject.recorded(),
-    ):
+    held = _held_to_its_subject(gh, issue, state, reviewer_run)
+    if held is None:
+        return
+    if held.subject_moved:
         gh.write_pinned_state(issue, state)
         return
 
-    if decision.verdict == "approved":
+    if verdict == "approved":
         # The subject the size gate decides about is built on the road that
         # holds every part of it -- this run's checkout included -- rather
         # than rebuilt a layer down from the pieces.
         _approval._finalize_validating_approval(
-            _late_records._gate(gh, spec, issue, state, reviewer_run.wt),
-            reviewer_run,
+            _late_records._gate(gh, spec, issue, state, held.wt),
+            held,
             _naming._resolve_branch_name(state, spec, issue.number),
         )
         return
@@ -356,5 +443,5 @@ def _dispatch_reviewer_result(
     # on any park the issue stays on `fixing` and the fixing handler owns the
     # awaiting-human rescan.
     _requested_changes._handle_validating_changes_requested(
-        gh, spec, issue, state, decision,
+        gh, spec, issue, state, _models._ReviewerDecision(held, verdict, body),
     )

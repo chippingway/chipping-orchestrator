@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from orchestrator import config
 from orchestrator.config.environment import parse_verify_commands
@@ -33,6 +33,19 @@ AWAITING_HUMAN = "awaiting_human"
 PARK_REASON = "park_reason"
 VERIFY_COMMANDS_SETTING = "VERIFY_COMMANDS"
 REVIEW_SHA = "rev-sha"
+# The pinned pull-request pointer, and a pull request another road points the
+# issue at while the gate runs.
+PR_POINTER = "pr_number"
+OTHER_PR = 9_999
+# A gate that failed, as the verification road reports it.
+FAILED_RUN = VerifyResult(status=VERIFY_FAILED, command=VERIFY_PYTEST, exit_code=2, output="1 failed")
+
+
+def _repoints(gh, issue) -> None:
+    """Another road's write pointing `issue` at another pull request."""
+    state = gh.read_pinned_state(issue)
+    state.set(PR_POINTER, OTHER_PR)
+    gh.write_pinned_state(issue, state)
 
 
 class HandleValidatingVerifyGateTest(
@@ -176,6 +189,30 @@ class HandleValidatingVerifyGateTest(
         self.assertIn(VERIFY_SLOW, last_comment)
         self.assertIn("timed out after 123s", last_comment)
         self.assertNotIn(f"{CURRENT_TIMEOUT_SECONDS}s", last_comment)
+
+    def test_a_repointed_failure_parks_nothing(self) -> None:
+        # The gate fails while the issue is pointed at another pull request:
+        # the result is about a pull request nobody reviews any more, so no
+        # failure notice is posted and no park taken -- the run is recorded
+        # over what moved, and the pointer kept as the other road left it.
+        gh, issue = self._seeded()
+        posted = len(gh.posted_comments)
+        with patch.object(config, VERIFY_COMMANDS_SETTING, (VERIFY_PYTEST,)):
+            self._run_validating(
+                gh,
+                issue,
+                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                head_shas=(REVIEW_SHA,),
+                verify_result=MagicMock(side_effect=lambda *_run: _repoints(gh, issue) or FAILED_RUN),
+            )
+
+        state = gh.pinned_data(ISSUE)
+        parked = (bool(state.get(AWAITING_HUMAN)), state.get(PARK_REASON))
+        self.assertEqual(parked, (False, None))
+        self.assertEqual(
+            (state[PR_POINTER], len(gh.posted_comments)), (OTHER_PR, posted),
+        )
+        self.assertNotIn((ISSUE, LABEL_DOCUMENTING), gh.label_history)
 
     def _assert_failed_comment(self, comment: str) -> None:
         self.assertIn("local verification failed", comment)

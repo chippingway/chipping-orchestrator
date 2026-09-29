@@ -77,15 +77,20 @@ class _ReviewerRun:
     # The pull request, head, requirements, and report this round's prompt
     # handed the reviewer, which is what an approval of it covers.
     subject: _review_subjects.ReviewSubject
-    # The pinned comment as it was read once that subject was resolved, so a
-    # write another road took while the reviewer ran -- a report settling on
-    # the same head -- is told apart from what this tick staged and never
-    # wrote.
+    # The pinned comment the round is measured against: as it was read once
+    # that subject was resolved, with the round's own launch and its charge
+    # written onto it, and from the return on as the return's reading found
+    # it. So a write another road took meanwhile -- a report settling on the
+    # same head, a run it charged -- is told apart from what this tick staged
+    # and never wrote, and a move this tick kept beside another road's is
+    # never kept a second time.
     resolved_over: dict
-    # Whether the comment, read again as the reviewer returned, had moved a
-    # report record: carried onto the state in hand by then, and a verdict
-    # of a subject that no longer stands.
-    report_moved: bool = False
+    # Whether the subject the reviewer was handed no longer stands: a report
+    # record or the pull request the issue points at moved on the comment
+    # read again -- carried onto the state in hand by then -- or the subject,
+    # resolved again, is no longer the one handed. A verdict of it is recorded
+    # and not acted on.
+    subject_moved: bool = False
     # The workflow verification evidence this round's prompt handed the
     # reviewer as current for its subject, which is the only evidence a
     # reuse may name.

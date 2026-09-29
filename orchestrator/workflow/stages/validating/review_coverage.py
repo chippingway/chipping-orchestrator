@@ -9,13 +9,17 @@ moment the approval is acted on, and the head is the one thing the stamps an
 approval leaves behind are keyed on. So an approval is held to the subject
 standing NOW wherever it is about to be relied on.
 
-When the reviewer returns, and again once its approval is verified, the
-report records on the pinned comment are asked first (`review_comment`): a
-report settling on the same head while the reviewer ran is a subject the
-records in hand cannot see, and refuses the verdict. Only where they stand is
-the whole subject resolved again the way `review_report` resolved it before
+When the reviewer returns, the report records and the pull request the issue
+points at on the pinned comment are asked first (`review_comment`): a report
+settling on the same head, or a repoint, while the reviewer ran is a subject
+the records in hand cannot see, and refuses the verdict. Only where they stand
+is the whole subject resolved again the way `review_report` resolved it before
 the spawn -- over the issue read afresh -- and has to record as the one
-handed over, its report's words read again at its location. Later, the
+handed over, its report's words read again at its location. Those are
+requests of their own, so the comment is read once more behind them before a
+verdict is acted on, and again behind the subject resolved once an approval's
+verify gate has passed: whatever landed during them is carried, and a move
+refuses the verdict. Later, the
 approval is held to the
 report recorded as current -- the pinned records have to agree it is the one
 approved, and the report is read at its location once more, since no pinned
@@ -35,9 +39,13 @@ The dormant disposition service holds a returned verdict to its subject the
 same way (`_verdict_still_stands`) -- ahead of the write persisting it, once
 more before handing it back ready, and on every tick it waits on its evidence
 -- but in the other order: the subject is resolved first and the comment read
-behind it, watching the verdict itself beside the report, so whatever lands
-during that resolution -- verification evidence included, which the verdict's
-claim answers for -- is carried rather than written back over.
+behind it, watching the verdict itself and the pull request the issue points
+at beside the report, so whatever lands during that resolution -- verification
+evidence included, which the verdict's claim answers for -- is carried rather
+than written back over. A verdict about a pull request the issue no longer
+points at, however long ago the pointer moved, is refused as one whose subject
+moved -- on every road that holds a verdict to its subject, the live
+reviewer's return included (`_subject_still_stands`).
 
 Nothing here parks or posts. What a refusal owes is the next reviewer
 round's to decide, and that round resolves the subject for itself.
@@ -90,11 +98,25 @@ def _subject_still_stands(
     holding a persisted verdict holds it rather than dropping it as stale.
     Nothing is parked here: the next tick resolves the subject for a reviewer
     of its own, and refuses it there if it has to.
+
+    The pull request the issue points at is asked first, off `state`: pointed
+    at another than the subject records -- between ticks, or while the
+    reviewer ran and carried there by the reading of the comment -- the
+    verdict is proved not to stand without a request, since every road acting
+    on it reads the pull request off the comment and would answer a review of
+    one pull request on another.
     """
+    pr_number = (_review_subjects.ReviewSubject.identity_recorded_in(recorded) or (None,))[0]
+    pointed = _payloads.as_identity(state.get(_PR_NUMBER))
+    if pointed != pr_number:
+        log.warning(
+            "issue=#%d points at PR #%s now, not PR #%s its reviewer's verdict "
+            "is about; not acting on the verdict", issue.number, pointed, pr_number,
+        )
+        return False
     requirements = _fresh_requirements(gh, issue, state)
     if requirements is None:
         return None
-    pr_number = (_review_subjects.ReviewSubject.identity_recorded_in(recorded) or (None,))[0]
     standing, refusal = _review_report._reads_the_subject(
         gh, issue, state, pr_number, requirements,
     )
@@ -135,12 +157,17 @@ def _verdict_still_stands(
     where the comment or the subject would not read: a persisted verdict is
     held for a later tick to ask again, never dropped as stale over a reading
     nobody could take.
+
+    The issue pointed at another pull request than the subject records is a
+    move however long ago it landed: between ticks it is on the state in hand,
+    which `_subject_still_stands` asks, and during these requests it is a
+    record the comment moved.
     """
     stands = _subject_still_stands(gh, issue, state, recorded)
-    stood = _review_comment._records_stand(gh, issue, state, resolved_over, persisted=True)
-    if stood is None:
+    reread = _review_comment._records_stand(gh, issue, state, resolved_over, persisted=True)
+    if reread is None:
         return None
-    return stands if stood else False
+    return stands if reread.stood else False
 
 
 def _approval_stands(gh: GitHubClient, state: PinnedState) -> bool | None:

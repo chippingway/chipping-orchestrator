@@ -13,7 +13,9 @@ whole -- body and any URLs it carries -- before a coding agent can act on it.
 """
 from __future__ import annotations
 
+import itertools
 import unittest
+from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator import config
@@ -35,6 +37,19 @@ _LEDGER_ISSUE_NUMBER = 1010
 _LEDGER_PR_NUMBER = 77
 _THREAD_ISSUE_NUMBER = 1011
 _ISSUE_BODY = "picking up"
+
+# Every comment the ledger's bound holds, and ledgers one entry past it: one
+# carrying an older comment beside them, and one carrying an id twice.
+_NEWEST = tuple(range(1, comments._ORCH_COMMENT_ID_CAP + 1))
+
+_PAST_THE_BOUND = MappingProxyType({
+    "a comment past the bound": (0, *_NEWEST),
+    "an id carried twice": (1, *_NEWEST),
+})
+
+# Records that add nothing to those ledgers: none at all, as a merge of a
+# reading that brings nothing new, and an id they already hold re-recorded.
+_ADDING_NOTHING = ((), (1,))
 
 
 class OrchestratorCommentLedgerTest(unittest.TestCase):
@@ -112,6 +127,13 @@ class OrchestratorCommentLedgerTest(unittest.TestCase):
         self.assertEqual(marked, twice)
         self.assertEqual(twice.count(comments._ORCH_COMMENT_MARKER), 1)
 
+
+class OrchestratorCommentBoundTest(unittest.TestCase):
+    """The ledger's bound keeps the newest comments, by id, however their ids arrive."""
+
+    def setUp(self) -> None:
+        self.state = PinnedState(state_data={})
+
     def test_ledger_evicts_the_oldest_ids_at_the_cap(self) -> None:
         # A long-lived issue would grow the pinned comment unboundedly without
         # this; the newest ids are the ones a fresh feedback scan can still see.
@@ -122,6 +144,51 @@ class OrchestratorCommentLedgerTest(unittest.TestCase):
 
         retained = list(range(1, cap + 1))
         self.assertEqual(self.state.get(_LEDGER_KEY), retained)
+
+    def test_the_oldest_comment_goes_wherever_it_sits(self) -> None:
+        # A report enters the ledger on whichever reading finds it, so an
+        # older id can sit behind newer ones: GitHub ids ascend, and the
+        # smallest is the comment to evict, not the first entry.
+        cap = comments._ORCH_COMMENT_ID_CAP
+        found_late = [*range(2, cap + 1), 1]
+        self.state.set(_LEDGER_KEY, found_late)
+
+        comments._track_orchestrator_comment(self.state, cap + 1)
+
+        retained = list(range(2, cap + 2))
+        self.assertEqual(self.state.get(_LEDGER_KEY), retained)
+
+    def test_a_merge_at_the_cap_keeps_the_newest_ids(self) -> None:
+        # A road merging another reading of a full ledger -- one taken before
+        # its own post evicted the oldest id -- gets that id offered back: it
+        # is evicted again rather than the next oldest in its place, and an
+        # id the other reading added past it is kept, as the newest are.
+        cap = comments._ORCH_COMMENT_ID_CAP
+        read_before = list(range(cap))
+        self.state.set(_LEDGER_KEY, read_before)
+        comments._track_orchestrator_comment(self.state, cap)
+
+        comments._track_orchestrator_comment(self.state, *read_before)
+        unchanged = self.state.get(_LEDGER_KEY)
+        comments._track_orchestrator_comment(self.state, *read_before, cap + 1)
+
+        newest = list(range(2, cap + 2))
+        self.assertEqual(unchanged, list(range(1, cap + 1)))
+        self.assertEqual(self.state.get(_LEDGER_KEY), newest)
+
+    def test_nothing_added_still_bounds_the_ledger(self) -> None:
+        # A ledger past the bound -- an older binary's, a hand edit -- is cut
+        # to the newest ids by the next record, even one that adds nothing. The
+        # bound counts comments rather than entries, so one id carried twice is
+        # an entry past it but no comment: every comment stays, each once,
+        # where it first stands.
+        for name, recorded in itertools.product(_PAST_THE_BOUND, _ADDING_NOTHING):
+            with self.subTest(name, recorded=recorded):
+                self.state.set(_LEDGER_KEY, list(_PAST_THE_BOUND[name]))
+
+                comments._track_orchestrator_comment(self.state, *recorded)
+
+                self.assertEqual(self.state.get(_LEDGER_KEY), list(_NEWEST))
 
 
 class RecentCommentsTrustFilterTest(unittest.TestCase):

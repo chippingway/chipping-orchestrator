@@ -1871,22 +1871,33 @@ The keys that matter for the state machine fall into a few groups:
   and no verdict; one that would not read writes nothing. A record that would not read back as written -- feedback UTF-8
   cannot carry, say -- or one the comment has no room for beside its transaction is written nowhere and nothing is
   published: the service answers which, for the park that is its caller's. The verdict is ready to act on only while the
-  comment carries it as persisted, its subject -- held to it once more, the report records and the record itself read
-  again last -- still stands, and its claim, judged over that last reading, is settled, or it relies on none: a
-  settlement of the very evidence it claims readies it, and a push, a later report, or a later revision superseding that
-  evidence sets it to `null`. A later tick asks the same of a waiting record over the pinned comment alone, since
-  nothing of the run that returned it outlives its tick: the record's own `subject` is what the standing subject has to
-  record as, and the comment as that tick read it is what the record is held against. An owed transaction holds the
-  record for a later tick while its subject stands -- held to it again on every tick it waits -- and sets it to `null`
-  once that subject is proved to have moved, leaving the transaction owed to the reconciliation; a lost claim, whichever
-  the verdict -- a transaction that can never settle, or reused evidence a later revision has superseded since -- sets
-  it to `null` for a fresh reviewer. Every write the service makes, the record's own included, is composed over the
-  comment read again just before it, keeping what another road wrote there -- newer records, and fields no verdict
-  stands on, such as a `review_round` a reply bought or the `last_action_comment_id` it read through -- save, where the
-  report records and the record stand, a field the service changed itself. Every drop names the verdict it holds, so one
-  another road put in its place is never the one dropped. Additive and dormant: nothing acts on a ready verdict yet, no
-  live reviewer round hands its result to that service, and nothing finishes a record a tick left waiting, so no issue
-  carries the key, and an issue without it has no verdict waiting.
+  comment carries it as persisted, its subject -- held to it once more, the report records, the record itself, and
+  `pr_number` read again last -- still stands, and its claim, judged over that last reading, is settled, or it relies on
+  none: a settlement of the very evidence it claims readies it, and a push, a later report, or a later revision
+  superseding that evidence sets it to `null`. A later tick asks the same of a waiting record over the pinned comment
+  alone, since nothing of the run that returned it outlives its tick: the record's own `subject` is what the standing
+  subject has to record as, and the comment as that tick read it is what the record is held against. An owed transaction
+  holds the record for a later tick while its subject stands -- held to it again on every tick it waits -- and sets it
+  to `null` once that subject is proved to have moved, leaving the transaction owed to the reconciliation; a lost
+  claim, whichever the verdict -- a transaction that can never settle, or reused evidence a later revision has
+  superseded since -- sets it to `null` for a fresh reviewer. A `pr_number` naming another pull request than the
+  record's `subject` -- moved while the verdict waited or between ticks -- is such a move too, even where that pull
+  request still stands as it was handed: every road acting on the verdict reads the pull request off the comment. Every
+  write the service makes, the record's own included, is composed over the comment read again just before it, keeping
+  what another road wrote there -- newer records, and fields no verdict stands on, such as a `review_round` a reply
+  bought or the `last_action_comment_id` it read through -- save, where the report records, the record, and `pr_number`
+  stand, a field the service changed itself. A field both it and another road moved keeps both moves where they add up
+  or only advance, however the records went -- the `issue_*` usage totals add, `issue_cost_sources` joins, and
+  `last_action_comment_id` and the `pr_last_*` watermarks keep whichever reading went further, each only over values
+  spelled as their writers spell them -- whole numbers for the run and token counts and the watermarks -- a hand edit
+  being one road's to say -- and the `orchestrator_comment_ids` ledger is merged, an id either side recorded kept
+  once among the newest 500 it holds, an id one reading already evicted evicted again rather than a newer one, a
+  ledger already past 500 -- an older binary's, a hand edit -- cut to it even where the merge adds nothing, and an
+  entry naming no comment -- or a ledger that is no list -- dropped from either side, so no later scan of the ledger
+  fails on it. Every drop names the verdict it holds, so one another road put in its place is never the one dropped.
+  Additive and dormant: nothing acts on a ready verdict yet, no live reviewer round hands its result to that service,
+  and nothing finishes a record a tick left waiting, so no issue carries the key, and an issue without it has no
+  verdict waiting.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
   live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the
@@ -2258,6 +2269,10 @@ The keys that matter for the state machine fall into a few groups:
   `unknown-price` runs add nothing); `issue_cost_sources` is the sorted distinct `cost_source` set a terminal verdict
   reads to mark `(est.)` (any `estimated`) or unpriced `unknown` (any `unknown-price`). The increment rides the
   handler's existing single `write_pinned_state`, so an `interrupted` run that returns without writing never accrues.
+  Where a returned reviewer's write is laid over the pinned comment read again (`stages/validating/review_comment.py`),
+  a total another road folded a run into since the tick read the comment -- while the reviewer's subject was resolved
+  as well as while it ran -- is added to the reviewer's own fold, and the tags join, rather than either road's fold
+  being written away.
   The decomposer / question / discussion stages additionally skip the fold for `interrupted` runs, so even
   their dirty/commits inspection park (which does write pinned state) records no counter.
 - **Agent-run ledger.** `agent_run_allowance` + `agent_runs_used` + `agent_run_reservation` are read by
