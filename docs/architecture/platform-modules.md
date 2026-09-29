@@ -29,7 +29,11 @@ last is held by the loader itself rather than by a check.
   the size gate recorded when a refused push sends the branch back to where it started;
   `base_sync/attempt_records.py` reaches `workflow/late_split/formats.py`, for the
   shape a recorded commit is held to, which spelled twice would let a pinned comment accept what every other reader
-  refuses; the base-sync transfer owners read the higher-layer records only inside their calls:
+  refuses; `base_sync/report_debt.py` reaches `workflow/engine/report_rewrite_debt.py` to stage the report debt a
+  landed rebase leaves, since the record's shape and its retargeting are that owner's to rule on, and
+  `report_rewrite_room.py` to tell a refusal for want of room from any other, and `comments.py` and
+  `report_record_values.py` to measure the announcement write it rides; the base-sync transfer owners read the
+  higher-layer records only inside their calls:
   `transfers.py` reads `workflow/late_split/exemption_reading.py`, `rewrite_reading.py`, and `rewrite_values.py`;
   `transfer_values.py` reads the phase value, `transfer_evidence.py` reads the exemption and rewrite value,
   `transfer_attempts.py` reads the exemption, and `transfer_publication.py` reads
@@ -470,8 +474,10 @@ orchestrator/
                         against the head this owner read, so a checkout something moved between that read and the
                         gate's own refuses rather than publishing one commit while the notice, the event, and the
                         `validating` route name another -- the lease-pinned force-push, and what an accepted push
-                        writes. The rewrite evidence it hands that gate beside the candidate is assembled by
-                        `transfer_evidence`, since the tick that makes the rewrite is not the only one
+                        writes, the report debt its landed head leaves included, staged through `report_debt` ahead
+                        of the announcement write, or parked on with the attempt standing where that write has no
+                        room for it. The rewrite evidence it hands that gate beside the candidate is
+                        assembled by `transfer_evidence`, since the tick that makes the rewrite is not the only one
                         that needs it
       transfer_values.py
                         the bounded transfer handoff vocabulary and settled-phase reading, loaded lazily from the
@@ -549,12 +555,24 @@ orchestrator/
       persistence.py    the parks, the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the
-                        approved commit -- and the recovery finalization that orders notice delivery, the
-                        durable announcement checkpoint, routing, and the final state write, beside the write that
-                        finishes an announced route without announcing it again
+                        approved commit -- and the recovery finalization that orders the report debt the landed
+                        head leaves (or the park where it does not fit), notice delivery, the durable announcement
+                        checkpoint the debt rides, routing, and the final state write, beside the write that
+                        finishes an announced route without announcing it again, which writes that debt ahead of
+                        its relabel where a mark an earlier build left carries
+                        none
       recovery_notices.py
                         format and deliver the successful recovery notices and audit event before the announcement
                         checkpoint; a failed comment is reported while the recovered publication can still be recorded
+      report_debt.py    the report debt a landed rebase leaves its pull request -- the pinned pull request, its
+                        branch, the anchor the push was leased against, and the head that landed -- staged through
+                        the workflow's `report_rewrite_debt` owner by a call-time import, for the finish's
+                        announcement write to make durable before the attempt is cleared or the issue routed. Its
+                        room is measured on that whole write -- the notice's ledger entry, the reset round, and the
+                        mark beside it -- and on the comment as it stands, and a proved debt that does not fit
+                        either answers the notice its caller parks
+                        with, `auto_base_rebase_unrecorded_debt`, before anything is announced. A standing claim the
+                        landed head does not follow is refused there and left standing, and the route goes on
       models.py         the frozen contexts, requests, snapshots, and decisions
       state.py          the pinned-state keys, park reasons, refresh detour labels, and the shared logger
     publication/        what a branch becomes before review reads it
@@ -1055,9 +1073,10 @@ off a facade:
   owns the record one rebase attempt leaves of itself, and every owner
   that writes a member of that record or ends it calls through it rather than spelling a key of its own.
   `attempt_records` owns interrupted-replay validation; `recovery_notices` delivers the notice and audit event in
-  the order `persistence` coordinates with its checkpoint and routing. `transfer_evidence` assembles the rewrite
-  the publisher or recovery hands to the size gate. `transfers` classifies the interrupted permission through
-  `transfer_attempts` and `transfer_publication`, using the bounded handoff values in `transfer_values`.
+  the order `persistence` coordinates with its checkpoint and routing, and `publication` and `persistence` both stage
+  the report debt a landed head leaves through `report_debt` ahead of that checkpoint. `transfer_evidence` assembles
+  the rewrite the publisher or recovery hands to the size gate. `transfers` classifies the interrupted permission
+  through `transfer_attempts` and `transfer_publication`, using the bounded handoff values in `transfer_values`.
   `recovery_holds` reads the refusals the dispatch hold releases for off `refresh_selection` and `frozen`, and
   answers a held anchor through `replay_cleanup` and `replay_publication_parks`. The three keyword-call adapters — the
   PR sync, the conflict route, and the crash recovery — still take the argument lists their callers spell and

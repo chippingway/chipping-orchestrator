@@ -122,7 +122,8 @@ down instead, and takes its own park on the tick after that one clears
 Before any issue is dispatched the tick fetches `<remote>/<base>` once and rebases each existing per-issue worktree
 onto it, so a long-lived worktree does not stay anchored to whatever base looked like when it was added. A pre-PR
 worktree rebases locally; a PR-having one in `workflow:validating` / `workflow:documenting` / `in_review` /
-`workflow:fixing` pushes the clean rebase with a pinned `--force-with-lease`, resets `review_round`, and relabels to
+`workflow:fixing` pushes the clean rebase with a pinned `--force-with-lease`, resets `review_round`, records the report
+the landed head is owed (`developer_report_rewrite_debt`) ahead of the write that clears its attempt, and relabels to
 `workflow:validating`, reaching `workflow:resolving_conflict` only when the rebase actually leaves conflicted files.
 That push goes through the size gate, and where the branch was standing on the commit an authorized settlement
 accepted the refresh hands the gate the same rewrite evidence a squash does, so a replay that contributes what a human
@@ -130,11 +131,16 @@ already ruled on carries the exemption — and the operator authorization that m
 adjudicated again. A transfer of an exemption nothing authorizes is refused, since moving one would hand the rewritten
 commit a permission the accepted one never had. A process lost anywhere in that rebase comes back to the record the
 attempt pinned, and the recovery finishes it on the permit alone — reissuing a push that never went out, receipting one
-that landed through a leased no-op — so the replay is never measured or adjudicated again. The `question` and
-`discussion` labels — and the parks and in-flight discussion records that outlive them — skip both paths. Beside an
-interrupted auto rebase's anchor, of the records and parks that freeze a branch only the late size-gate claims keep the
-refresh away, so its recovery answers the anchor ahead of any stage handler. The failure modes, their durable
-`park_reason` tokens, and the refresh-owned retry are in
+that landed through a leased no-op — so the replay is never measured or adjudicated again. Every road that finishes a
+landed head, the recovered ones included, makes that report debt durable before its relabel, and repeated advances
+carry one debt onto the latest head a push landed; a no-op, a refused push, a reset, or a pull request somebody else
+moved records none and leaves a standing debt as it is. A landed head whose debt the pinned comment has no room for —
+measured on the whole announcement write it rides — is neither announced nor routed: it parks with the attempt
+standing until room is made and a human replies. The `question` and `discussion` labels — and the parks and
+in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto rebase's anchor, of the
+records and parks that freeze a branch only the late size-gate claims keep the refresh away, so its recovery answers
+the anchor ahead of any stage handler. The failure modes, their durable `park_reason` tokens, and the refresh-owned
+retry are in
 [`state-machine/labels-and-state.md#base-refresh`](state-machine/labels-and-state.md#base-refresh).
 
 ### Pollable issues and finalization
@@ -177,9 +183,10 @@ The additive `developer_report_rewrite_debt` claim is the report a rewrite of th
 the pull request, its branch, the head the rewrite replaced, and the exact head it published. While any claim stands,
 readable or not, the dispatcher holds `workflow:documenting` and `in_review`; the validating report hold keeps the
 reviewer off while it resumes the developer for a fresh report of that head, with no human reply, and drops the claim
-once a published report of it, still intact where it settled and written against the current requirements, pays it;
+once a published report of it, still intact where it settled and written against the current requirements, pays it.
 `workflow:resolving_conflict` records one for every head its own push rewrites, off the code-publication receipt that
-push left
+push left, and the base refresh one for each clean auto rebase whose push lands, its crash recovery included, before
+the attempt is cleared or the issue routed to `workflow:validating`
 ([rewritten-head report debt](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)).
 Every key, what writes it, what spends it, and the legacy `codex_session_id` still honored on read are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).

@@ -56,8 +56,11 @@ either head the debt names and pays nothing, a fresh report of the head it
 published is what the debt is owed (`RewriteDebt.owes_a_refresh`). The
 validating stage is where both are asked, and where that report is obtained
 (`stages/validating/report_refresh.py`). The conflict stage records one for
-every head its own push rewrites (`stages/conflicts/report_debt.py`); this
-owner is the record, its reader, its retargeting, and its drop.
+every head its own push rewrites (`stages/conflicts/report_debt.py`), and the
+base refresh one for each clean auto rebase whose push lands, its crash
+recovery included, before the attempt is cleared or the issue routed
+(`git/base_sync/report_debt.py`). This owner is the record, its reader, its
+retargeting, and its drop.
 """
 from __future__ import annotations
 

@@ -109,7 +109,9 @@ def _announces(
     may say only that the announcement was made and must leave every other
     field of the attempt exactly where it is. The clear rides the finish's own
     last write, which is what keeps the anchor standing until every road is
-    behind it.
+    behind it. The report debt both finishes stage for the head they published
+    (`report_debt`) rides this write instead: it is no field of the attempt,
+    and it has to be durable before the route.
     """
     context.state.set(_PENDING_ANNOUNCED_SHA, published)
     context.gh.write_pinned_state(context.issue, context.state)

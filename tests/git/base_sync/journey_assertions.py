@@ -10,7 +10,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.stages.implementing import late_publication_state as _late_publication_state
 from tests.git.base_sync.exemption_git_support import ISSUE, events_of
-from tests.git.base_sync.real_git_test_support import PR_NUMBER
+from tests.git.base_sync.real_git_test_support import PR_BRANCH, PR_NUMBER
 from tests.workflow.fixtures import LABEL_DECOMPOSING, LABEL_VALIDATING
 
 CLEAN_REBASE = "auto_clean_rebase"
@@ -23,6 +23,9 @@ REVIEWER = "reviewer"
 # The record one interrupted attempt leaves, which every finish drops.
 KEY_PENDING_PUSH_SHA = "pending_auto_base_rebase_push_sha"
 KEY_PENDING_REWRITE_SHA = "pending_auto_base_rebase_rewrite_sha"
+
+# The report a rewritten pull-request head is owed, which a landed rebase records.
+KEY_REWRITE_DEBT = "developer_report_rewrite_debt"
 
 
 class JourneyAssertions:
@@ -82,6 +85,20 @@ class JourneyAssertions:
             [record["method"] for record in events_of(self, "base_rebased")],
             list(methods),
         )
+
+    def _assert_owes_a_report(self, published: str) -> None:
+        """The pull request owes `published` a report, from the commit the adjudication accepted.
+
+        No report settles on this journey, so however many rebases landed the
+        debt keeps the head the first one replaced and names the last one
+        pushed.
+        """
+        self.assertEqual(self._durable().get(KEY_REWRITE_DEBT), {
+            "pr": PR_NUMBER,
+            "branch": PR_BRANCH,
+            "previous_head": self.accepted,
+            "rewritten_head": published,
+        })
 
     def _assert_reviewable(self) -> None:
         """The attempt is gone, nothing is parked, and the round is the reviewer's."""

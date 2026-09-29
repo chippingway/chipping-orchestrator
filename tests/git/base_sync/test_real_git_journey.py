@@ -25,7 +25,7 @@ import unittest
 from orchestrator.workflow.late_split import exemption_reading as _exemption_reading
 from tests.git.base_sync.exemption_git_support import events_of
 from tests.git.base_sync.journey_adjudication_support import adjudicates_once
-from tests.git.base_sync.journey_assertions import CLEAN_REBASE, REVIEWER, JourneyAssertions
+from tests.git.base_sync.journey_assertions import CLEAN_REBASE, KEY_REWRITE_DEBT, REVIEWER, JourneyAssertions
 from tests.git.base_sync.journey_git_support import OversizedJourneyRealGitFixture
 from tests.git.base_sync.journey_push_support import BEFORE_THE_REBASE
 from tests.workflow.fixtures import LABEL_DOCUMENTING
@@ -68,6 +68,7 @@ class AdjudicatedRebaseJourneyTest(
         )
         self._assert_rebased_by(CLEAN_REBASE)
         self._assert_reviewable()
+        self._assert_owes_a_report(replayed)
         self._assert_decided_once()
 
     def test_the_review_reruns_on_one_adjudication(self) -> None:
@@ -76,9 +77,14 @@ class AdjudicatedRebaseJourneyTest(
         # journey still counts the one reading, verdict, adjudicator run, and
         # thread. The approval squashes the head again and the exemption is
         # past that rewrite too, so a later reading finds the change decided.
+        # The report of the rebased head the pull request carries is what paid
+        # the debt the rebase recorded, and the claim is left `null`.
         reviewer = self._reviews()
 
         reviewer.assert_called_once()
+        paid = self._durable().data
+        self.assertIn(KEY_REWRITE_DEBT, paid)
+        self.assertIsNone(paid[KEY_REWRITE_DEBT])
         self.assertEqual(
             [record["verdict"] for record in events_of(self, "review_verdict")],
             ["approved"],
@@ -106,6 +112,7 @@ class AdjudicatedRebaseJourneyTest(
         self._assert_rotated_onto(replayed, rotated, transfers=2)
         self._assert_rebased_by(CLEAN_REBASE, CLEAN_REBASE)
         self._assert_reviewable()
+        self._assert_owes_a_report(replayed)
         self._assert_decided_once()
 
 

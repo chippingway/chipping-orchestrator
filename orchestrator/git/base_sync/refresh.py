@@ -161,10 +161,15 @@ def _refresh_base_and_worktrees(
       (the lease compares against the un-rebased remote tip). So
       `_sync_pr_worktree_to_base` attempts the rebase in the refresh
       itself: on a clean rebase it pushes (force-with-lease pinned to
-      the pre-rebase SHA), resets `review_round`, and relabels to
+      the pre-rebase SHA), and a push that lands records the report
+      debt its head is owed, resets `review_round`, and relabels to
       `validating` so the reviewer re-runs against the rewritten
       branch directly; the single docs pass is deferred to the post-
-      approval handoff to `documenting` in `_handle_validating`. Only
+      approval handoff to `documenting` in `_handle_validating`. A
+      landed push whose debt the pinned comment has no room for does
+      none of those three: it parks `auto_base_rebase_unrecorded_debt`
+      with the attempt standing, and the recovery a reply brings back
+      once room is made finishes the route. Only
       when the rebase actually leaves conflicted files does the issue
       get relabeled to `resolving_conflict` -- the
       `_handle_resolving_conflict` handler then drives the dev agent to
@@ -174,8 +179,9 @@ def _refresh_base_and_worktrees(
       those states).
 
     Rebase keeps the PR history linear after sibling PRs land. Every
-    pushed rebase resets `review_round`, so the reviewer must re-run
-    against the rewritten SHA before any merge gate can pass.
+    pushed rebase that is routed on resets `review_round`, so the
+    reviewer must re-run against the rewritten SHA before any merge gate
+    can pass.
 
     Conflicts on the pre-PR path abort the rebase so the worktree stays
     on its original SHA -- conflict resolution still belongs to

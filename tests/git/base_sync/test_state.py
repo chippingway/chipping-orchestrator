@@ -26,6 +26,7 @@ _PINNED_CONTRACT = (
     (state._PENDING_ANNOUNCED_SHA, "pending_auto_base_rebase_announced_sha"),
     (state._REASON_AUTO_BASE_REBASE_FAILED, "auto_base_rebase_failed"),
     (state._REASON_AUTO_BASE_REBASE_PUSH_FAILED, "auto_base_rebase_push_failed"),
+    (state._REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT, "auto_base_rebase_unrecorded_debt"),
 )
 
 _SNIPPET_BUDGET = 120
@@ -40,7 +41,7 @@ class PinnedStateKeyTest(unittest.TestCase):
                 self.assertEqual(constant, published_value)
 
     def test_park_reasons_cover_every_park(self) -> None:
-        # The refresh path parks under three distinct reasons and the
+        # The refresh path parks under four distinct reasons and the
         # unparking sweep recognizes an auto-rebase park by this set alone, so
         # a reason missing here would strand the issue awaiting a human.
         self.assertEqual(
@@ -50,6 +51,7 @@ class PinnedStateKeyTest(unittest.TestCase):
                     state._REASON_AUTO_BASE_REBASE_FAILED,
                     "auto_base_rebase_dirty",
                     state._REASON_AUTO_BASE_REBASE_PUSH_FAILED,
+                    state._REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT,
                 ),
             ),
         )

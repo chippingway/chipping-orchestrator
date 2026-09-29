@@ -6,7 +6,8 @@ Each case runs the real refresh up to one durable boundary, lets the process
 die there, and runs the next real refresh over whatever that left on disk and
 on the pinned comment. Every one of them has to come back to the finish an
 unbroken tick makes: the verdict and the receipt on the replay, the reviewer
-routed to it, and nobody asked to measure or adjudicate the change again.
+routed to it with the report it is owed recorded, and nobody asked to measure
+or adjudicate the change again.
 """
 from __future__ import annotations
 
@@ -45,6 +46,7 @@ class _InterruptedJourney(JourneyAssertions, OversizedJourneyRealGitFixture):
         self._assert_rotated_onto(replayed, self.accepted)
         self._assert_rebased_by(*methods)
         self._assert_reviewable()
+        self._assert_owes_a_report(replayed)
         self._assert_decided_once()
 
 

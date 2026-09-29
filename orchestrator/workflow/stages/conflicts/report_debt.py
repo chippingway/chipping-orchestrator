@@ -47,8 +47,10 @@ from __future__ import annotations
 import logging
 
 from orchestrator.git.worktrees import naming as _naming
-from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import report_rewrite_debt as _rewrite_debt
+from orchestrator.workflow.engine import (
+    report_rewrite_debt as _rewrite_debt,
+    report_rewrite_room as _rewrite_room,
+)
 from orchestrator.workflow.late_split import formats as _formats, payloads as _payloads
 from orchestrator.workflow.stages.conflicts import (
     models as _models,
@@ -144,7 +146,7 @@ def _stages_the_rewrite(ctx: _models._ConflictContext, sha: str) -> bool:
             ctx.issue.number, rewrite.pr_number, sha[:8], rewrite.previous_head[:8],
         )
         return True
-    if _outgrows_the_comment(ctx.state, rewrite):
+    if _rewrite_room.outgrows_the_comment(ctx.state, rewrite):
         _conflict_parks._park_unrecorded_debt(ctx, sha, rewrite.previous_head)
         return False
     log.warning(
@@ -153,24 +155,6 @@ def _stages_the_rewrite(ctx: _models._ConflictContext, sha: str) -> bool:
         ctx.issue.number, rewrite.pr_number, sha,
     )
     return True
-
-
-def _outgrows_the_comment(state: PinnedState, rewrite: _rewrite_debt.RewriteDebt) -> bool:
-    """Whether the debt owner refused `rewrite` for nothing but the comment's room.
-
-    Asked once it has refused. Its other refusals are answered here as
-    themselves -- a record that would not read back as written, a standing
-    claim nobody can read, and one this rewrite cannot extend -- so whatever
-    is left is the room the comment has. A refusal this reading does not know
-    is answered as room too, which holds the handoff rather than letting a
-    proved rewrite through without its debt.
-    """
-    if _rewrite_debt.RewriteDebt.read(rewrite.recorded()) != rewrite:
-        return False
-    if not _rewrite_debt.carries_rewrite_debt(state):
-        return True
-    standing = _rewrite_debt.read_rewrite_debt(state)
-    return standing is not None and standing.retargeted(state, rewrite) is not None
 
 
 def _published_rewrite(
