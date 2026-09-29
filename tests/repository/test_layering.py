@@ -131,6 +131,15 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # no-op is made through, the record a settlement never got to report, and --
 # for a pull request that is over -- the receipt, the debt, the rotation, and
 # the rollback's drop that end an attempt's whole handoff in one write.
+#
+# A landing that is routed to review leaves the pull request on a head no
+# developer report is about, so the finish records that as the workflow's
+# report debt before its route -- through the debt's own owner, since the
+# record's shape and its retargeting are that owner's to rule on. The room it
+# needs is measured on the whole announcement write, so the ledger and the
+# widest id a comment is recorded at are read where they are defined, and a
+# refusal for want of room is told from any other where the conflict stage
+# tells it.
 _CALL_TIME_HOPS = MappingProxyType({
     f"{_BASE_SYNC}.attempt_records": (
         f"{PACKAGE}.workflow.late_split.formats",
@@ -158,6 +167,12 @@ _CALL_TIME_HOPS = MappingProxyType({
     ),
     f"{_BASE_SYNC}.recovery_push": (_LATE_ENTRY,),
     f"{_BASE_SYNC}.recovery_notices": (_COMMENTS,),
+    f"{_BASE_SYNC}.report_debt": (
+        _COMMENTS,
+        f"{PACKAGE}.workflow.engine.report_record_values",
+        f"{PACKAGE}.workflow.engine.report_rewrite_debt",
+        f"{PACKAGE}.workflow.engine.report_rewrite_room",
+    ),
     f"{_BASE_SYNC}.transfers": (_EXEMPTION, _REWRITES, _REWRITE_VALUES),
     f"{_BASE_SYNC}.transfer_permits": (
         _LATE_OVERFLOW, _LATE_RECORDS, _LATE_TRANSFER, _LATE_ENTRY,

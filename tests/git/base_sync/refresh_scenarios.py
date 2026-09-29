@@ -14,9 +14,10 @@ from tests.git.base_sync.refresh_test_support import (
     ISSUE,
     THREE_BEHIND_STDOUT,
     TWO_BEHIND_STDOUT,
-    _git_result,
-    _patch_base_sync,
+    UP_TO_DATE_STDOUT,
+    _RemoteHeadGit,
 )
+from tests.git.base_sync.sync_test_support import _diverged, _git_result, _patch_base_sync
 
 REBASE_PATCH = "rebase"
 PUSH_PATCH = "push"
@@ -64,6 +65,20 @@ def _clean_rebase_scenario(
     )
 
 
+def _noop_rebase_scenario() -> _BaseSyncScenario:
+    """A rebase git reports clean that left the checkout where it was."""
+    return _scenario(
+        dirty=MagicMock(return_value=[]),
+        **{
+            REBASE_PATCH: MagicMock(return_value=(True, [])),
+            PUSH_PATCH: MagicMock(return_value=True),
+        },
+        head_sha=MagicMock(return_value=BEFORE_SHA),
+        git=MagicMock(return_value=_git_result(stdout=TWO_BEHIND_STDOUT)),
+        hardened=MagicMock(return_value=_git_result()),
+    )
+
+
 def _conflict_rebase_scenario() -> _BaseSyncScenario:
     return _scenario(
         dirty=MagicMock(return_value=[]),
@@ -78,4 +93,28 @@ def _conflict_rebase_scenario() -> _BaseSyncScenario:
             return_value=_git_result(stdout=THREE_BEHIND_STDOUT),
         ),
         hardened=MagicMock(return_value=_git_result()),
+    )
+
+
+def _landed_recovery_scenario(
+    landed: str, behind_stdout: str = UP_TO_DATE_STDOUT, *, remote: str = "",
+):
+    """The tick after a push of `landed` reached the pull request.
+
+    The checkout and the remote both stand on it -- unless a case names the
+    `remote` somebody pushed over it, which carries a commit the checkout does
+    not and lacks the one it does. A rebase this tick starts past the
+    recovery, where the base has moved again, leaves the checkout on the
+    commit the size gate proves it to.
+    """
+    rebase = MagicMock(return_value=(True, []))
+    return _scenario(
+        dirty=MagicMock(return_value=[]),
+        rebase=rebase,
+        head_sha=MagicMock(side_effect=lambda *_: AFTER_SHA if rebase.called else landed),
+        ahead_behind=MagicMock(return_value=_diverged(1, 1) if remote else _diverged(0, 0)),
+        fetch=MagicMock(return_value=_git_result()),
+        push=MagicMock(return_value=True),
+        git=MagicMock(return_value=_git_result(stdout=behind_stdout)),
+        hardened=MagicMock(side_effect=_RemoteHeadGit(remote or landed)),
     )

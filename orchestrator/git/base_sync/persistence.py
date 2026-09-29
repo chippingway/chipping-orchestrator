@@ -2,16 +2,22 @@
 # SPDX-License-Identifier: Apache-2.0
 """Persist parks and route recovered rebases through their durable checkpoints.
 
-A successful reset clears abandoned evidence before parking. A finalize sends
-its notice and audit event through recovery_notices, records the announcement
-while its anchor still stands, and only then routes and clears the attempt.
+A successful reset clears abandoned evidence before parking. A finalize stages
+the report debt the landed head leaves -- or parks with the attempt standing
+where the comment has no room for it -- sends its notice and audit event
+through recovery_notices, records the debt with the announcement while its
+anchor still stands, and only then routes and clears the attempt.
 """
 from __future__ import annotations
 
 from github.Issue import Issue
 
 from orchestrator.git import commands
-from orchestrator.git.base_sync import attempts, recovery_notices as _recovery_notices
+from orchestrator.git.base_sync import (
+    attempts,
+    recovery_notices as _recovery_notices,
+    report_debt as _report_debt,
+)
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseRecoveryContext,
@@ -20,6 +26,7 @@ from orchestrator.git.base_sync.state import (
     _AUTO_REBASE_PARK_REASONS,
     _AWAITING_HUMAN,
     _PARK_REASON,
+    _REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT,
     _REVIEW_ROUND,
     log,
 )
@@ -264,12 +271,29 @@ def _write_the_finished_route(
     base lag exactly as the ordinary finish is. A relabel that already landed
     is not made again: writing a label an issue already wears is a transition
     the graph does not describe and a second `stage_enter` on the stream.
+
+    The report debt the landed head leaves went down with the mark, so staging
+    it again replays it and writes nothing. A mark an earlier build wrote
+    carries no debt beside it, though, and the route below may relabel before
+    its own write: that debt is written first, while the anchor still stands,
+    so no relabel reaches `validating` over a head whose debt is not durable.
+    Where the comment has no room for it, the route parks instead with the
+    mark and the attempt standing, and the reply finishes it.
     """
     log.info(
         "issue=#%d auto-rebase recovery: an earlier tick announced %s and died "
         "before its own write; finishing the route without announcing it again",
         context.issue.number, local_head[:8],
     )
+    unrecorded = _report_debt._records_the_rewrite(
+        context, context.pending_pre_rebase_sha, local_head, announcing=False,
+    )
+    if unrecorded:
+        _park_auto_rebase_failure(
+            context.gh, context.issue, context.state,
+            message=unrecorded, reason=_REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT,
+        )
+        return True
     _prepare_recovered_rebase_state(context)
     if context.behind == 0 and context.label == WorkflowLabel.VALIDATING:
         context.gh.write_pinned_state(context.issue, context.state)
@@ -290,9 +314,29 @@ def _finalize_recovered_rebase(
     cleared, so the window between it and the relabel is one a later tick can
     tell from an attempt that never got this far. What the clear rides is
     still the last write, since the anchor is what brings that tick back.
+
+    The report debt the landed head leaves is measured on that announcement
+    write and rides it, so a route to `validating` -- or the rebase the same
+    tick starts from this head when the base has moved again, which carries
+    the debt onto the head it publishes -- never reaches a head whose debt is
+    unrecorded. Where the write has no room for it, nothing is announced: the
+    route parks with the attempt standing, and the reply finishes it. The
+    round is reset ahead of the mark, as the publisher's own finish resets it
+    and as the event already reports it, so the write the room was measured
+    on is the write that goes out.
     """
+    unrecorded = _report_debt._records_the_rewrite(
+        context, context.pending_pre_rebase_sha, local_head, announcing=True,
+    )
+    if unrecorded:
+        _park_auto_rebase_failure(
+            context.gh, context.issue, context.state,
+            message=unrecorded, reason=_REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT,
+        )
+        return True
     _recovery_notices._post_recovered_rebase_notice(context, notice)
     _recovery_notices._emit_recovered_rebase_event(context, local_head, method)
+    context.state.set(_REVIEW_ROUND, 0)
     attempts._announces(context, local_head)
     _prepare_recovered_rebase_state(context)
     return _route_recovered_rebase(context, local_head, method)

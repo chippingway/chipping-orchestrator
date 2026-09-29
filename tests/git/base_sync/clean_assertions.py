@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from tests.git.base_sync import refresh_test_support as support
 from tests.git.base_sync.refresh_scenarios import PUSH_PATCH, REBASE_PATCH
+from tests.git.base_sync.report_debt_test_support import KEY_REWRITE_DEBT, owed
 
 
 def _assert_clean_publication(test_case, fixture, scenario) -> None:
@@ -39,6 +40,10 @@ def _assert_clean_state_comments(test_case, fixture) -> None:
     state = fixture.gh.pinned_data(support.ISSUE)
     test_case.assertEqual(state.get(support.KEY_REVIEW_ROUND), 0)
     test_case.assertIsNone(state.get(support.KEY_CONFLICT_ROUND))
+    # The head the push landed is one no report is about yet.
+    test_case.assertEqual(
+        state.get(KEY_REWRITE_DEBT), owed(support.BEFORE_SHA, support.AFTER_SHA),
+    )
 
 
 def _assert_clean_events(test_case, fixture) -> None:
@@ -109,6 +114,8 @@ def _assert_push_failure_state(test_case, fixture) -> None:
     test_case.assertEqual(fixture.gh.label_history, [])
     state = fixture.gh.pinned_data(support.ISSUE)
     test_case.assertIsNone(state.get(support.KEY_REVIEW_ROUND))
+    # Nothing landed, so no head of the rebase's is owed a report.
+    test_case.assertNotIn(KEY_REWRITE_DEBT, state)
     test_case.assertTrue(state.get(support.KEY_AWAITING_HUMAN))
     test_case.assertEqual(
         state.get(support.KEY_PARK_REASON),

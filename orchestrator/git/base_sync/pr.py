@@ -136,8 +136,16 @@ def _sync_pr_worktree_to_base(*args: Any, **kwargs: Any) -> None:
     with `--force-with-lease` pinned to the pre-rebase SHA (so a
     concurrent foreign update on the remote PR branch rejects the
     push instead of being clobbered), reset `review_round` to 0, post
-    an informational PR notice, and relabel to `validating` so the
-    reviewer re-runs against the rewritten head. Docs do not run on
+    an informational PR notice, make the report debt the landed head
+    is owed durable with the announcement, ahead of clearing the
+    attempt, and relabel to `validating` so the reviewer re-runs
+    against the rewritten head -- whose report the validating hold
+    asks the developer for first. Where the pinned comment has no room
+    for that debt, measured on the whole announcement write, none of
+    the notice, announcement, or relabel happens: the push is kept, the
+    attempt stands, and the issue parks `auto_base_rebase_unrecorded_debt`
+    until somebody makes room and replies, which brings the recovery
+    back to finish the route. Docs do not run on
     this exit -- the single docs pass runs after the next reviewer
     approval via the final-docs handoff to `documenting` in
     `_handle_validating`. This is the only safe pattern for PR-having

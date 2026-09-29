@@ -315,9 +315,9 @@ Two paths depending on whether a PR exists:
   stays linear without publishing a rewrite.
 - **PR-having worktrees** in `workflow:validating` / `workflow:documenting` / `in_review` / `workflow:fixing` go
   through `_sync_pr_worktree_to_base`. A clean rebase pushes (force-with-lease pinned to the pre-rebase SHA so a
-  foreign update rejects rather than being clobbered), resets `review_round`, posts a PR notice, and relabels to
-  `workflow:validating` so the reviewer re-runs against the rewritten head. Only when the rebase actually leaves
-  conflicted files does the helper relabel to `workflow:resolving_conflict`.
+  foreign update rejects rather than being clobbered), resets `review_round`, posts a PR notice, records the report
+  the landed head is owed, and relabels to `workflow:validating` so the reviewer re-runs against the rewritten head.
+  Only when the rebase actually leaves conflicted files does the helper relabel to `workflow:resolving_conflict`.
 
 The `question` and `discussion` labels skip both paths unconditionally (`_issue_skips_base_sync`) — the question
 handler tears down its own worktree, the discussion stage keeps its checkout across every round exit, and merging
@@ -391,7 +391,9 @@ and the ordinary cumulative gate measures the replay exactly as it always did.
 
 Refresh-only failure modes — push rejected (`auto_base_rebase_push_failed`), rebase failed without conflicted files
 (`auto_base_rebase_failed`), dirty-after-clean-rebase (`auto_base_rebase_dirty`) — reset HEAD back to the pre-rebase
-SHA and park awaiting human with a durable `park_reason`. Recovery is refresh-only and gated on a fresh human
+SHA and park awaiting human with a durable `park_reason`; a landed push whose report debt the pinned comment has no
+room for (`auto_base_rebase_unrecorded_debt`, below) parks the same way with nothing reset, since the pull request
+already carries the head. Recovery is refresh-only and gated on a fresh human
 issue-thread comment past `last_action_comment_id`; the actual `awaiting_human` / `park_reason` clear is deferred to the
 same pinned-state write that publishes real progress, so an early-return path cannot silently drop the retry intent.
 Every PR-stage handler short-circuits at its `awaiting_human` gate when `park_reason in _AUTO_REBASE_PARK_REASONS` so
@@ -400,6 +402,38 @@ anchor standing under one is answered all the same: the recovery runs alone, wit
 own behind it, and a finish leaves the stage's park where it was. Under every park, the refresh's own included, the
 pull request is asked for first, and one that merged or closed ends the attempt's whole handoff rather than leaving
 its anchor to hold back the handler that finalizes the issue.
+
+A clean rebase whose push LANDS leaves the pull request on a head no developer report is about, and the reviewer
+road refuses the report of the head before it. So the finish stages the report debt that head leaves
+(`developer_report_rewrite_debt`, see [Pinned state](#pinned-state)) through `git/base_sync/report_debt.py` -- the
+pinned pull request, its branch, the anchor the push was leased against, and the head that landed -- and the debt
+rides the write that records the announcement mark, ahead of the write that clears the attempt and ahead of the
+relabel, so the validating report refresh asks the developer for that head's report with no human reply. The
+recovery records the same debt on every road that finishes a landed head: the push it reissues, the landed push it
+only announces and routes, and the leased no-op that receipts a transfer. The route an announced finish still owes
+stages it again: over a mark this build wrote that replays the debt beside it and writes nothing, and over a mark an
+earlier build left alone it is a new claim, written at once while the anchor stands and before that route's relabel.
+A process lost before the mark comes back to the attempt record itself: its anchor and its replay are the debt's two
+heads, and the anchor holds every stage handler back until a finish has written both. A base that moves
+again before that report is asked for retargets the claim onto the head the next rebase lands, keeping the head the
+settled report is about, so repeated advances leave one debt naming the latest proved head -- and where the recovery
+finds the base behind again, it records the landed head's debt before the same tick rebases it. A rebase that moved
+nothing, a refused push, the reset a park makes, and a pull request somebody else moved never reach a finish, so they
+record nothing and leave a standing claim exactly as it is. A standing claim the landed head does not follow --
+another pull request or branch, a head somebody else pushed in between, a claim nobody can read -- is refused and
+left standing, and the route goes on to the reviewer road, which refuses the stale report it finds as it would with
+no claim.
+
+The room the debt needs is measured on the whole write it rides -- the announcement, which also puts down the notice's
+ledger entry (reserved at the widest id a comment is recorded at), the `review_round` both finishes reset ahead of the
+mark, and the mark -- rather than on the debt alone, and on the comment as it stands as well, since resetting a wide
+round can make the announcement the narrower of the two; the writes past it only clear. A proved debt that does not fit
+stops the finish before it announces anything: no notice, no `base_rebased`, no relabel, and no clear. It parks
+`auto_base_rebase_unrecorded_debt` with the push kept, the anchor and the replay standing, and the anchor holding every
+stage handler back; the park asks for room to be made on the pinned comment and a reply, and the reply brings the
+recovery back to finish the landed head -- recording the debt first, or parking again if there is still no room. A
+standing claim the rewrite cannot be carried onto is no such debt, and `workflow/engine/report_rewrite_room.py` is what
+tells the two refusals apart, for the conflict stage as well.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
@@ -1000,6 +1034,13 @@ The keys that matter for the state machine fall into a few groups:
   `conflict_preamble_sha` in the gate's write so a tick after a crash, or after an adjudication publishes it, records
   the debt from that. A no-op rebase, a failed push, and a body edit's commit record none, and a push the size gate
   held records its debt only once the tick behind its adjudication's publication reads one of those two back.
+
+  The per-tick base refresh records the claim for each clean auto rebase whose push lands, before it clears its attempt
+  or routes to `workflow:validating`, and its crash recovery records the same one on every road that finishes a landed
+  head ([Base refresh](#base-refresh)); a rebase that lands nothing records nothing and leaves a standing claim as it
+  is. Its room is measured on the whole announcement write the debt rides, and a proved debt that does not fit parks
+  `auto_base_rebase_unrecorded_debt` before anything is announced or routed, with the attempt left standing for the
+  recovery a reply brings back.
 - **HITL park.** `awaiting_human`, `last_action_comment_id`, `park_reason`. `_park_awaiting_human` (on the same
   `workflow/engine/guards.py` owner as the two run refusals) sets
   `awaiting_human=True` and clears `park_reason` to `None`; a handler that needs the reason to survive into the next
@@ -1033,7 +1074,7 @@ The keys that matter for the state machine fall into a few groups:
   posted: a transient park that later self-recovers reads it back to decide whether it owes the thread a follow-up
   (see [`delivery-stages.md`](delivery-stages.md), **Recovery follow-up**). Park reasons that route via
   `_park_auto_rebase_failure` (`auto_base_rebase_failed` / `auto_base_rebase_dirty` /
-  `auto_base_rebase_push_failed`) are owned by the per-tick
+  `auto_base_rebase_push_failed` / `auto_base_rebase_unrecorded_debt`) are owned by the per-tick
   base-sync flow — every PR-stage handler short-circuits when `park_reason in _AUTO_REBASE_PARK_REASONS`. The
   exhausted retry budget re-sets `retry_cap` for the same kind of reason — a park nothing can recognize is one the
   next tick re-decides from scratch (see [The retry budget](#the-retry-budget)), and the spent lifetime agent-run
@@ -2143,7 +2184,8 @@ The keys that matter for the state machine fall into a few groups:
   `base_rebased` on the stream and a second notice on the pull request for one publication that happened once. BOTH
   finishes write it and for the same reason — the refresh's own publishing tail, which announces the rebase it just
   pushed, and the recovery, which announces one an earlier tick left — since neither is distinguishable afterwards
-  from an attempt that never got that far. It is
+  from an attempt that never got that far. The report debt the landed head leaves (`developer_report_rewrite_debt`)
+  rides the same write, so it is durable before the attempt is cleared or the issue relabelled. It is
   read by PRESENCE, like every other checkpoint here: the key standing at all says a finish announced THIS attempt's
   replay, so a value naming any other head — or naming no commit — is a mark something took apart rather than an
   answer a reader may give as "nothing was announced".

@@ -9,10 +9,10 @@ unreadable HEAD, a rewrite that moved nothing, a tree that came back dirty
 -- runs before it and hands off to ``guards``, and the lease itself is
 pinned to that same pre-rebase SHA so a foreign update rejects the push
 instead of being clobbered. Only an accepted push earns the tail: the PR
-notice, the audit event, the `validating` relabel, and last the
-`write_pinned_state` that commits the cleared anchor and reset review
-round, so a tick that dies partway leaves the anchor pinned for the next
-one to recover from.
+notice, the audit event, the report debt the landed head leaves, the
+`validating` relabel, and last the `write_pinned_state` that commits the
+cleared anchor and reset review round, so a tick that dies partway leaves
+the anchor pinned for the next one to recover from.
 
 The rebase is also a REWRITE of whatever the branch was standing on, and on
 an issue whose exemption names that commit it is the rewrite that would
@@ -30,9 +30,19 @@ is what a base advance that changed the contribution has to get.
 """
 from __future__ import annotations
 
-from orchestrator.git.base_sync import attempts, guards, transfer_evidence as _transfer_evidence
+from orchestrator.git.base_sync import (
+    attempts,
+    guards,
+    persistence,
+    report_debt as _report_debt,
+    transfer_evidence as _transfer_evidence,
+)
 from orchestrator.git.base_sync.models import _AutoRebaseContext
-from orchestrator.git.base_sync.state import _REVIEW_ROUND, log
+from orchestrator.git.base_sync.state import (
+    _REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT,
+    _REVIEW_ROUND,
+    log,
+)
 from orchestrator.git.verification import probes, status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.state import WorkflowLabel, stage_name
@@ -131,6 +141,10 @@ def _finalize_auto_rebase(
     the event reports the round the reviewer is being asked to spend afresh on
     the rewritten head, and a crash past that write leaves the same 0 the
     finish itself would have written.
+
+    The report debt the caller staged for the landed head rides the
+    announcement's write, so it is durable before the attempt is cleared or
+    the issue routed.
     """
     _post_auto_rebase_notice(context, after_sha)
     context.state.set(_REVIEW_ROUND, 0)
@@ -217,5 +231,32 @@ def _publish_auto_rebase(
         return
     if not published.landed:
         guards._park_failed_auto_rebase_push(context, before_sha, branch)
+        return
+    _finishes_the_landed_rebase(context, branch, before_sha, after_sha)
+
+
+def _finishes_the_landed_rebase(
+    context: _AutoRebaseContext,
+    branch: str,
+    before_sha: str,
+    after_sha: str,
+) -> None:
+    """Stage the report debt a landed push leaves and finalize, or park where it has no room.
+
+    Only a push that landed owes its head a report: the reviewer the finalize
+    routes it to would otherwise refuse the report of `before_sha` and park
+    for a human. The debt is staged for the finalize's announcement write to
+    carry, and where that write has no room for it nothing is announced or
+    routed -- the park keeps the attempt standing for the recovery a reply
+    brings back once somebody has made room.
+    """
+    unrecorded = _report_debt._records_the_rewrite(
+        context, before_sha, after_sha, announcing=True,
+    )
+    if unrecorded:
+        persistence._park_auto_rebase_failure(
+            context.gh, context.issue, context.state,
+            message=unrecorded, reason=_REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT,
+        )
         return
     _finalize_auto_rebase(context, branch, after_sha)

@@ -742,8 +742,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             claim is owed a fresh report of the head it names because the settled report is of either
                             head it names and pays nothing. `dispatch_guards.py` holds the roads past an approval on
                             any claim and `stages/validating/report_refresh.py` holds the reviewer, obtains that
-                            report, and pays it; `stages/conflicts/report_debt.py` records one for every head the
-                            conflict stage's own push rewrites
+                            report, and pays it. `stages/conflicts/report_debt.py` records one for every head the
+                            conflict stage's own push rewrites, and `git/base_sync/report_debt.py` one for each clean
+                            auto rebase of the base refresh whose push lands, crash recovery included
+    report_rewrite_room.py  whether the debt owner refused a rewrite for nothing but the pinned comment's room -- the
+                            one refusal a writer holds on rather than handing the head on -- told from a record that
+                            would not read back and a standing claim the rewrite cannot extend; asked by both writers,
+                            the conflict stage and the base refresh, so their readings cannot differ
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in. The greeting anchors both
                             `pickup_comment_id` and `last_action_comment_id`, the floor the park ending the first
@@ -1260,8 +1265,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             none, and the write that records one goes out ahead of the relabel to validation. A
                             recovered push ahead of a rebase finishes no round, so it hands the gate its head as a
                             spend instead, and the next tick records that head's debt once the receipt names it and
-                            the pull request still stands on it. A proved debt the comment has no room for holds the
-                            handoff behind a park no reply answers, and every later tick tries the write first
+                            the pull request still stands on it. A proved debt the comment has no room for
+                            (`engine/report_rewrite_room.py`) holds the handoff behind a park no reply answers, and
+                            every later tick tries the write first
       models.py             frozen conflict context, checkout and resume results, live replay pairs, and recorded replay
                             values handed between the stage's owners; a body-edit resume's result carries the
                             delivery record its prompt was cut from, since the thread moves while an agent is out

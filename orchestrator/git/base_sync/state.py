@@ -68,6 +68,12 @@ _REASON_AUTO_BASE_REBASE_FAILED = "auto_base_rebase_failed"
 
 _REASON_AUTO_BASE_REBASE_PUSH_FAILED = "auto_base_rebase_push_failed"
 
+# A push that landed and whose head's report debt the pinned comment has no room
+# for. The route stops short of review with the attempt still standing, and a
+# reply -- once somebody has made room -- is what brings the recovery back to
+# record the debt and finish it.
+_REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT = "auto_base_rebase_unrecorded_debt"
+
 _ERROR_SNIPPET_LEN = 120
 
 _AUTO_REBASE_PARK_REASONS = frozenset(
@@ -75,5 +81,6 @@ _AUTO_REBASE_PARK_REASONS = frozenset(
         _REASON_AUTO_BASE_REBASE_FAILED,
         "auto_base_rebase_dirty",
         _REASON_AUTO_BASE_REBASE_PUSH_FAILED,
+        _REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT,
     ),
 )

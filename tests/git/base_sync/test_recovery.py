@@ -129,6 +129,16 @@ _OWED = MappingProxyType({
 _PARK_MESSAGE = "the push did not land"
 _GIT_FAILED = 128
 
+# The report an earlier rebase left the pull request owing: from a head its
+# settled report is about onto the anchor this attempt started from.
+_REPORT_DEBT_KEY = "developer_report_rewrite_debt"
+_REPORT_DEBT = MappingProxyType({
+    "pr": fixtures.PR_NUMBER,
+    "branch": fixtures.BRANCH,
+    "previous_head": "ea41e700" * 5,
+    "rewritten_head": fixtures.PRE_REBASE_SHA,
+})
+
 
 def _handled() -> MagicMock:
     """A collaborator stub that reports the tick as handled."""
@@ -208,6 +218,20 @@ class RolledBackDebtTest(unittest.TestCase):
         self.assertIsNone(pinned[_ANCHOR_KEY])
         self.assertIsNone(pinned[_REPLAY_KEY])
         self.assertIsNone(pinned[_ANNOUNCED_KEY])
+
+    def test_a_landed_reset_keeps_the_report_debt(self) -> None:
+        # No record of this attempt: the reset puts the branch back on the
+        # head the debt names, so that head is still owed its report, and no
+        # head of the abandoned replay's is claimed in its place.
+        owing = fixtures._sync_context(**_OWED, **{_REPORT_DEBT_KEY: dict(_REPORT_DEBT)})
+
+        with self._reset_refusing(0):
+            persistence._reset_clear_and_park(
+                owing, fixtures.PRE_REBASE_SHA,
+                message=_PARK_MESSAGE, reason=fixtures.PARK_PUSH_FAILED,
+            )
+
+        self.assertEqual(owing.gh.pinned_data(fixtures.ISSUE)[_REPORT_DEBT_KEY], _REPORT_DEBT)
 
     @contextlib.contextmanager
     def _reset_refusing(self, returncode: int):

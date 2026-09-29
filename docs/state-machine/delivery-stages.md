@@ -1025,7 +1025,10 @@ because there it is the claim that this stage has already rerouted rather than a
   the reuse guard. The record is described under [pinned state](labels-and-state.md#pinned-state) and owned by
   `workflow/engine/report_rewrite_debt.py`.
   [`_handle_resolving_conflict`](#_handle_resolving_conflict-label-workflowresolving_conflict) records one for every
-  head its own push rewrites; an issue without the record passes through reading nothing.
+  head its own push rewrites, and the per-tick base refresh one for every clean auto rebase whose push lands, before
+  it clears its attempt or routes to `workflow:validating`, its crash recovery recording the same one on every road
+  that finishes a landed head (`git/base_sync/report_debt.py`, see [Base refresh](labels-and-state.md#base-refresh)).
+  An issue without the record passes through reading nothing.
 - **Holds**: `workflow:documenting` and `in_review`, the roads past an approval that would carry a head no report is
   about to the human who merges it. Nothing is written or posted; the claim is left for validating, and the hold is
   logged once a tick.

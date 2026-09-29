@@ -67,6 +67,7 @@ _OWNERS = (
     "orchestrator.git.base_sync.attempt_records",
     "orchestrator.git.base_sync.recovery_holds",
     "orchestrator.git.base_sync.recovery_notices",
+    "orchestrator.git.base_sync.report_debt",
     _MODELS_OWNER, _PRE_PR_OWNER, _REFRESH_OWNER, _REFRESH_SELECTION_OWNER,
     _STATE_OWNER, _PERSISTENCE_OWNER, _OUTCOMES_OWNER, _SNAPSHOT_OWNER,
     _RECOVERY_OWNER, _STARTUP_OWNER, _ELIGIBILITY_OWNER, _PUBLICATION_OWNER,
@@ -111,9 +112,9 @@ _ALLOWED_ROOTS = (
 # direction of the dependency: none may reach the workflow engine and its stage
 # handlers, or an application entrypoint. These prefixes catch that past the
 # label owner the exempt set above allows. The collaborators that do live above
-# this package -- the park guard and the comment poster in the workflow
-# engine -- are reached through call-time imports, which is what keeps them out
-# of this check.
+# this package -- the park guard, the comment poster, and the report debt in
+# the workflow engine -- are reached through call-time imports, which is what
+# keeps them out of this check.
 _FORBIDDEN_PREFIXES = (
     "orchestrator.cli",
     "orchestrator.runtime",
