@@ -76,7 +76,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             below; callers persist the ledger, merging another reading's ids into it several at a
                             time where two roads each added some -- its bound evicts the smallest ids, the oldest
                             comments, wherever they stand, so an id one reading already evicted is evicted again
-                            rather than a newer one -- and shared token accounts are never treated as
+                            rather than a newer one. The bound holds on every record, one that adds nothing
+                            included, so a ledger an older binary or a hand edit left past it is cut to it, and it
+                            counts comments rather than entries: an id carried twice is held once, where it first
+                            stands, before anything is cut, and an entry naming no comment is neither merged into an
+                            id it compares equal to nor taken for one. Shared token accounts are never treated as
                             exclusively automated. The id a report landed as is read off the LOOKUP, which
                             resolves it once when the reading is taken: this records a comment before its caller
                             ever sees the reading, and an id answered afresh to each of them could fail here and
@@ -2946,7 +2950,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded-collapse route it asks behind only those, ahead of every route that could
                             point an agent at the branch -- and the report hold it asks last, behind the drift
                             resume that would supersede a stale report and ahead of the reviewer spawn, writing
-                            a park the awaiting-human branch cleared into a round the hold then stops
+                            a park the awaiting-human branch cleared into a round the hold then stops. It keeps the
+                            pinned comment as the tick read it, before any road below stages a move, and hands it
+                            to the reviewer round, whose binding reading is measured from it
       reviewer.py           the round cap, the tracked reviewer spawn and its two refusals, what a round that
                             RAN records about the reply or grant that bought it -- taken from the one read its
                             OWN prompt was rendered from, under that prompt's bound, never from the unbounded
