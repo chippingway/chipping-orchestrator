@@ -487,7 +487,11 @@ control label comes off; the authorization is not lost meanwhile.
   obligation that is not `reconciled` holds the owner's terminal, so the umbrella stays open and logs what it is
   waiting for on each due dependency poll. A child that stays open forever keeps its ancestor's ref forever, which is
   the deliberate trade — invalidating a live child's only copy of the work it was told to reuse is worse. Closing (or
-  finishing) the child is what lets both go.
+  finishing) the child is what lets both go. That includes a child the umbrella no longer tracks: after an edit
+  re-decomposed the umbrella, the children its drift notice named as ORPHANED are still the ref's recorded consumers,
+  so an orphan left open (or one the orchestrator cannot read) holds the ref and the umbrella after every replacement
+  is done. Close the orphans that no longer apply; the ref goes on the next dependency poll that finds the
+  replacements resolved.
 - An umbrella that will not close with **nothing owed at all** — every obligation `reconciled`, no failure on
   either sink. The issue was split on the far side of publication, and the pull request that split superseded is
   open again (or was merged, or has been pushed to since). Everything the umbrella still had to do was licensed by

@@ -283,8 +283,10 @@ terminal — every child `done` reconciles whatever the issue still owes a remot
 stamps `umbrella_resolved_at`, sets `done`, and closes the issue, since an umbrella has no implementation of its own.
 An umbrella a late split made owes the superseded branch and the snapshot ref its children were cut from, and this is
 the last tick that could settle either — so the park a `rejected` or hand-closed child earns settles the same ledger
-on its way out, since nothing revisits an open umbrella either. Something still owed keeps the label, which is the
-retry. Full flow: [`state-machine/delivery-stages.md`][umbrella].
+on its way out, since nothing revisits an open umbrella either. The ref is proved against the consumers the split
+recorded rather than the children the umbrella tracks, so after a drift reroute has replaced the manifest the
+originals it orphaned — read afresh, never re-tracked — still decide it. Something still owed keeps the label, which
+is the retry. Full flow: [`state-machine/delivery-stages.md`][umbrella].
 
 ### `_handle_implementing` (label `workflow:implementing`)
 

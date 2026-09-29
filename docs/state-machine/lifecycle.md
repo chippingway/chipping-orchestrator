@@ -865,6 +865,18 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   loop it is whole, which is also what lets an
                                   EMPTY list settle a ref no child was cut
                                   from.
+                                  The consumers are the ones the LEDGER
+                                  records, not the children the umbrella
+                                  tracks: once a drift reroute has swapped in
+                                  a replacement manifest, the originals it
+                                  orphaned are read afresh, and one still
+                                  open, reopened, or unreadable (a failed
+                                  lookup, or a lazy state/label read behind
+                                  one) keeps the ref however done the
+                                  replacements are -- read, never relabelled
+                                  or re-tracked. The ref goes on the first
+                                  poll after they end that reaches this row
+                                  or the park row below.
                                   EVERY obligation that is not
                                   `reconciled` holds the terminal (a RETAINED
                                   ref included), as does an opaque RESOURCE
@@ -905,7 +917,10 @@ than a second source of truth: where the two disagree, the handler pages are aut
        | closed without a          ledger on the way out, from the same fresh
        terminal label              scan: both dispositions CLOSED the child
                                    they name, which is what the reclamation
-                                   rule reads, and nothing revisits an OPEN
+                                   rule reads where that child is a recorded
+                                   consumer (a parked REPLACEMENT proves
+                                   nothing; the originals are read as above),
+                                   and nothing revisits an OPEN
                                    umbrella either. It decides no terminal:
                                    the park stands, and the issue stays open
                                    on the label its next dependency poll
