@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.stages.validating import handoff as _handoff
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -57,6 +59,7 @@ REVIEW_ROUND = "review_round"
 LABEL_DOCUMENTING = "workflow:documenting"
 LABEL_IN_REVIEW = "in_review"
 AWAITING_HUMAN = "awaiting_human"
+USAGE_TOKENS = "issue_total_tokens"
 BOT_LOGIN = "orchestrator"
 
 
@@ -532,3 +535,21 @@ class ValidatingToInReviewHandoffTest(
             f"watermark must not regress past consumed PR feedback (got {watermark})",
         )
         self.assertEqual(state.get("pr_last_review_comment_id"), REVIEW_FEEDBACK_WATERMARK)
+
+
+class HeldReadingTest(unittest.TestCase):
+    """The comment an approval's tail last read, once a reading carried what another road wrote onto its state."""
+
+    def test_a_carried_reading_is_the_comment_as_read(self) -> None:
+        # A reading that only carries -- the one behind an approval's verify
+        # gate -- is what the comment said then: a round it carried is the
+        # comment's, a field it dropped is gone, and a usage total it kept both
+        # moves of is the other road's alone, this tick's own run taken back
+        # out so the next reading keeps that run again instead of losing it.
+        before = {USAGE_TOKENS: 120, REVIEW_ROUND: 0, AWAITING_HUMAN: False}
+        held = _handoff._Held(None, {USAGE_TOKENS: 0, REVIEW_ROUND: 0, AWAITING_HUMAN: False})
+        read = PinnedState(comment_id=1, state_data={USAGE_TOKENS: 150, REVIEW_ROUND: 7})
+
+        held.carried(before, read)
+
+        self.assertEqual(held.comment, {USAGE_TOKENS: 30, REVIEW_ROUND: 7})

@@ -103,6 +103,18 @@ _PERSISTED_RECHECKS = (
 )
 
 
+# What the run circuit's launch charge writes, and the counts it reads before
+# the round's launch, once that launch is charged, and once another road
+# charges a launch of its own.
+_CHARGE = "agent_runs_used"
+
+_READ_CHARGE = 3
+
+_LAUNCHED = 4
+
+_THEIR_CHARGE = 5
+
+
 def _reading(durable: PinnedState | Exception) -> MagicMock:
     """A client whose one read of the pinned comment answers `durable`.
 
@@ -170,6 +182,22 @@ class RecordsStandTest(unittest.TestCase):
 
                 self.assertEqual(returned[:2], expected)
 
+    def test_the_launch_charge_is_the_rounds_own(self) -> None:
+        # Taken into the reading the subject was resolved over, the charge
+        # this round landed reads as the comment's, so a later charge another
+        # road writes is carried rather than written back over; measured
+        # without it, this round's older count would be kept.
+        before = {**_HANDED_RECORDS, _CHARGE: _READ_CHARGE, STAGED: STAGED_VALUE}
+        resolved = _review_comment._ResolvedSubject(MagicMock(), {**_HANDED_RECORDS, _CHARGE: _READ_CHARGE})
+        carrying = resolved.carrying(before, _pinned({**before, _CHARGE: _LAUNCHED}))
+
+        kept = [
+            self._charged_over(before, carrying.resolved_over),
+            self._charged_over(before, resolved.resolved_over),
+        ]
+
+        self.assertEqual(kept, [_THEIR_CHARGE, _LAUNCHED])
+
     def test_no_comment_in_hand_carries_nothing(self) -> None:
         # No reading of another comment than the one the tick read says the
         # records stand or is a settlement to keep: a write over a replaced
@@ -178,6 +206,13 @@ class RecordsStandTest(unittest.TestCase):
         for name, durable in NO_COMMENT_IN_HAND:
             with self.subTest(name):
                 self.assertEqual(_returned(durable), (None, _in_hand(), PINNED_ID))
+
+    def _charged_over(self, before: dict, reading: dict) -> int:
+        """The launch count a persisted verdict's write keeps over `reading`, once another road charged a launch."""
+        state = _pinned({**before, _CHARGE: _LAUNCHED})
+        durable = _reading(_pinned({**_HANDED_RECORDS, _CHARGE: _THEIR_CHARGE}))
+        _review_comment._records_stand(durable, MagicMock(number=1), state, reading, persisted=True)
+        return state.data[_CHARGE]
 
 
 class ResolvedOverTest(unittest.TestCase):

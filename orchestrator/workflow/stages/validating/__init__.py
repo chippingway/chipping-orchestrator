@@ -72,7 +72,11 @@ the commands it ran, a claim on the evidence it was handed, or nothing -- and
 claim before anything acts on it. `review_disposition` prepares a returned
 verdict in that order -- persisted with its claim, its evidence published, and
 handed back ready only over settled evidence and the subject still standing,
-or held, or dropped; no round asks any of them yet.
+or held, or dropped; no round asks any of them yet. `review_parks` files the
+parks a verdict of a reviewed subject takes instead of being acted on -- an
+approval without valid evidence, a verdict with no room to be recorded, and an
+approval's failed verify gate or squash -- behind a notice, and only while
+that subject stands; nothing files them yet either.
 `review_records` writes what the round puts down -- the spec and subject ahead
 of the spawn, the session on its return -- and reserves the whole round, at
 its widest, in the measurement a developer report is accepted under.

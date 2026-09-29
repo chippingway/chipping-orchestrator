@@ -14,37 +14,52 @@ carries the report records the state in hand carries (`_resolved_over`), and
 every later road that acts on an approval after requests long enough for that
 to happen asks the same (`_records_in_hand`): the squash handoff once the
 rewrite is published, and the in_review ready ping and the unmergeable park
-beside it once mergeability is read. Where the comment moved them, or will not
-read or parse, the answer is the one that hands nothing over and writes
-nothing: every write from there would be laid over records the tick never
-read, putting back the report they replaced. So is a fresh reading of another
+beside it once mergeability is read. The park a failed squash takes asks it of
+the evidence and verdict records beside the report's
+(`handoff._holds_its_records`). Where the comment moved them, or will not read
+or parse, the answer is the one that hands nothing over and writes nothing:
+every write from there would be laid over records the tick never read, putting
+back the report they replaced. So is a fresh reading of another
 comment than the one the state in hand was read from -- the pinned comment
 replaced, or gone -- since the tick's write goes to the comment it read and
-would pin a second one. The reading that agreed goes on with the subject.
+would pin a second one. The reading that agreed goes on with the subject, and
+takes in the round's own launch charge once that charge is down
+(`_ResolvedSubject.carrying`): the charge lands on the state in hand only the
+fields it wrote, which read against the comment without them would be taken
+for this tick's own, and written back over a later charge another road wrote.
 
 `_records_stand` reads the comment against that reading again, as the reviewer
 returns and once more after an approval is verified, before anything the run
 leaves is written -- a park for a timeout or a missing verdict as much as the
 record of a verdict. The dormant disposition service asks it of more
 (`persisted`) wherever it holds a verdict to its subject
-(`review_coverage._verdict_still_stands`): the returned verdict it persisted
-(`review_verdicts`) beside the report's records, since one another road dropped
-or replaced since is no longer the verdict any write behind this may act on.
+(`review_coverage._verdict_still_stands`), and so does a park behind its
+notice (`review_parks`): the returned verdict it persisted
+(`review_verdicts`) and the pull request the issue points at beside the
+report's records, since a verdict another road dropped or replaced since is no
+longer the one any write behind this may act on, and one about a pull request
+the issue no longer points at is no review of the one it does.
 Every write it makes behind that reading is laid over the comment as it stands,
 so the rest of what the comment changed is carried even where those records
 stand: the workflow verification evidence another road recorded or settled --
 which that service holds the verdict's evidence claim to, over the comment as
 read last, rather than calling a settlement of the very evidence it claims a
 move -- and a round a reply bought, or the thread another road read through,
-none of which a write may put back. Records are compared as the comment's JSON
-spells them, so one written `null` where there was none, or a revision spelled
-`true` where it was `1`, is a move. Records that stand leave the state alone.
-Records that moved refuse the verdict, and everything the comment changed since
-the subject was resolved is carried onto the state in hand, so every write the
-run makes lays itself over the newer settlement. A comment that will not read
-or parse, or is no longer the one the state was read from, carries nothing, and
-the answer is the one that writes nothing: the run is charged, and the next
-tick spawns a reviewer over whatever the comment carries then.
+none of which a write may put back. The ledger of the orchestrator's own
+comments is merged rather than carried or kept, whichever way the records went:
+every road adds to it, and an id either side recorded is a comment every later
+prompt has to know as the orchestrator's, kept among the newest its bound holds.
+So is a field both changed that adds up or only advances -- a usage total, its
+cost tags, a comment-id watermark (`state._keeps_both_moves`).
+Records are compared as the comment's JSON spells them, so one written `null`
+where there was none, or a revision spelled `true` where it was `1`, is a move.
+Records that stand leave the state alone. Records that moved refuse the
+verdict, and everything the comment changed since the subject was resolved is
+carried onto the state in hand, so every write the run makes lays itself over
+the newer settlement. A comment that will not read or parse, or is no longer
+the one the state was read from, carries nothing, and the answer is the one
+that writes nothing: the run is charged, and the next tick spawns a reviewer
+over whatever the comment carries then.
 
 Nothing here parks or posts.
 """
@@ -61,11 +76,12 @@ from github.Issue import Issue
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    comments as _comments,
     report_records as _records,
     review_subjects as _review_subjects,
     verification_records as _evidence_records,
 )
-from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
+from orchestrator.workflow.stages.validating import review_verdicts as _verdicts, state as _state
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -79,9 +95,14 @@ _REPORT_RECORDS = (
     _records.REPORT_HANDOFF,
 )
 
+# The pull request the issue points at, which every road posting or pushing
+# for it reads off the pinned comment.
+_PR_NUMBER = "pr_number"
+
 # What a persisted verdict stands on in the comment beyond the report: the
-# returned verdict itself. The evidence it claims is judged by the claim.
-_VERDICT_RECORDS = (*_REPORT_RECORDS, _verdicts.RETURNED_VERDICT)
+# pull request the issue points at, and the returned verdict itself. The
+# evidence it claims is judged by the claim.
+_VERDICT_RECORDS = (*_REPORT_RECORDS, _PR_NUMBER, _verdicts.RETURNED_VERDICT)
 
 # Every record a verification transaction, its settlement, or its retirement
 # writes.
@@ -111,6 +132,25 @@ class _ResolvedSubject:
     # carries the very report records the subject was resolved from: what
     # the verdict's return measures the comment against.
     resolved_over: dict
+
+    def carrying(self, before: dict, state: PinnedState) -> _ResolvedSubject:
+        """This subject, over its comment with every field `state` changed since `before` taken into it.
+
+        For a write that lands on `state` only the fields it wrote on the
+        comment -- the run circuit's launch charge -- whatever `state` changed
+        since `before` is what the comment says now. Left out of the reading,
+        each would read as a field this tick staged and never wrote, and be
+        written back over a later one another road wrote. Compared as the
+        comment's JSON spells them (`_moved`).
+        """
+        comment = dict(self.resolved_over)
+        for field in _moved(state.data, before, {*before, *state.data}):
+            written = state.data.get(field, _ABSENT)
+            if written is _ABSENT:
+                comment.pop(field, None)
+            else:
+                comment[field] = written
+        return _ResolvedSubject(self.subject, comment)
 
 
 def _resolved_over(
@@ -163,6 +203,9 @@ def _records_stand(
     every field the comment changed since `resolved_over` that `state` has
     not changed itself, evidence records included, is carried onto `state`
     too, so that write keeps it and the caller judges its claim over it.
+    Whichever way the records went, a field both changed keeps both changes
+    where they add up or only advance -- a usage total, its cost tags, a
+    comment-id watermark (`state._keeps_both_moves`).
     """
     durable = _read(
         gh, issue, state, "see whether a report settled while the reviewer ran",
@@ -172,22 +215,29 @@ def _records_stand(
     stand = not _moved(durable.data, resolved_over, _WATCHED[persisted])
     if stand and not persisted:
         return True
-    fields = {*resolved_over, *durable.data}
-    if stand:
-        # Over records that stand, a field this tick changed too is its own
-        # write's to say.
-        fields.difference_update(
-            _moved(state.data, resolved_over, fields | set(state.data)),
-        )
     # Every field the comment changed since `resolved_over`, as `_moved`
     # spells a change: a field Python calls equal -- `true` over `1` -- is
-    # still carried rather than written back over by the run's own write.
-    for field in _moved(durable.data, resolved_over, fields):
+    # still carried rather than written back over by the run's own write...
+    fields = _moved(
+        durable.data, resolved_over, {*resolved_over, *durable.data} - {_comments._ORCH_COMMENT_IDS},
+    )
+    # ...save one this tick changed too, which keeps both changes where they
+    # add up or only advance (`state._BOTH_MOVES`), and is otherwise, over
+    # records that stand, this tick's own write's to say.
+    for field in _moved(state.data, resolved_over, fields):
+        if _state._keeps_its_move(state, field, durable.data, resolved_over, over_theirs=stand):
+            fields.remove(field)
+    for field in fields:
         written = durable.data.get(field, _ABSENT)
         if written is _ABSENT:
             state.data.pop(field, None)
         else:
             state.set(field, written)
+    # The ledger of the orchestrator's own comments is a set every road adds
+    # to, so it is merged rather than carried or kept whole: an id either side
+    # recorded is a comment every later prompt has to know as the orchestrator's,
+    # and one this state's own posts evicted is evicted again (`comments`).
+    _comments._track_orchestrator_comment(state, *sorted(_comments._orchestrator_ids(durable)))
     if not stand:
         log.warning(
             "issue=#%d the records its reviewer's verdict stands on moved on the "

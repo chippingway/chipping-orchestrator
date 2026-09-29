@@ -35,9 +35,13 @@ The dormant disposition service holds a returned verdict to its subject the
 same way (`_verdict_still_stands`) -- ahead of the write persisting it, once
 more before handing it back ready, and on every tick it waits on its evidence
 -- but in the other order: the subject is resolved first and the comment read
-behind it, watching the verdict itself beside the report, so whatever lands
-during that resolution -- verification evidence included, which the verdict's
-claim answers for -- is carried rather than written back over.
+behind it, watching the verdict itself and the pull request the issue points
+at beside the report, so whatever lands during that resolution --
+verification evidence included, which the verdict's claim answers for -- is
+carried rather than written back over, and an issue pointed at another pull
+request than the one reviewed, since then or between ticks, refuses the
+verdict. A park behind its notice (`review_parks`) holds a verdict to its
+subject the same way.
 
 Nothing here parks or posts. What a refusal owes is the next reviewer
 round's to decide, and that round resolves the subject for itself.
@@ -135,11 +139,25 @@ def _verdict_still_stands(
     where the comment or the subject would not read: a persisted verdict is
     held for a later tick to ask again, never dropped as stale over a reading
     nobody could take.
+
+    The subject is read at the pull request it records, so a pinned comment
+    pointing the issue at another since -- during these requests or between
+    ticks -- is a move too: every road posting or pushing for the verdict
+    reads the pull request off the comment, and would answer a review of one
+    pull request on another.
     """
     stands = _subject_still_stands(gh, issue, state, recorded)
     stood = _review_comment._records_stand(gh, issue, state, resolved_over, persisted=True)
     if stood is None:
         return None
+    pointed = _payloads.as_identity(state.get(_PR_NUMBER))
+    about = (_review_subjects.ReviewSubject.identity_recorded_in(recorded) or (None,))[0]
+    if stood and pointed != about:
+        log.warning(
+            "issue=#%d points at PR #%s now, not the pull request its reviewer's "
+            "verdict is about; not acting on the verdict", issue.number, pointed,
+        )
+        return False
     return stands if stood else False
 
 

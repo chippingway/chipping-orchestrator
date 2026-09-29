@@ -123,6 +123,28 @@ class OrchestratorCommentLedgerTest(unittest.TestCase):
         retained = list(range(1, cap + 1))
         self.assertEqual(self.state.get(_LEDGER_KEY), retained)
 
+    def test_a_merge_at_the_cap_keeps_the_newest_ids(self) -> None:
+        # A road merging another reading of a full ledger -- one taken before
+        # its own post evicted the oldest id -- gets that id offered back: it
+        # is evicted again rather than the next oldest in its place, and an
+        # id the other reading added past it is kept, as the newest are.
+        cap = comments._ORCH_COMMENT_ID_CAP
+        read_before = list(range(cap))
+        self.state.set(_LEDGER_KEY, read_before)
+        comments._track_orchestrator_comment(self.state, cap)
+
+        comments._track_orchestrator_comment(self.state, *read_before)
+        unchanged = self.state.get(_LEDGER_KEY)
+        comments._track_orchestrator_comment(self.state, *read_before, cap + 1)
+
+        self.assertEqual(
+            (unchanged, self.state.get(_LEDGER_KEY)),
+            (
+                list(range(1, cap + 1)),
+                list(range(2, cap + 2)),
+            ),
+        )
+
 
 class RecentCommentsTrustFilterTest(unittest.TestCase):
     """The thread read is where the allowlist stops an injected comment."""

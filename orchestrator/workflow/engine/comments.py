@@ -41,25 +41,37 @@ def _orchestrator_ids(state: PinnedState) -> set[int]:
     return {int(comment_id) for comment_id in raw}
 
 
-def _track_orchestrator_comment(state: PinnedState, comment_id: int) -> None:
-    """Record that this orchestrator posted one comment, once.
+def _track_orchestrator_comment(state: PinnedState, *comment_ids: int) -> None:
+    """Record that this orchestrator posted each of `comment_ids`, once each.
 
     Idempotent, because the ledger is a SET of ids kept in a bounded list and
     a second entry for one comment buys nothing while costing a slot. Callers
     layer -- a road that posts through a wrapped client and then through
     `_post_issue_comment` records the same id twice -- so an id already here
     keeps the position it has: what the bound evicts is the oldest comment
-    rather than the least recently re-recorded.
+    rather than the least recently re-recorded. GitHub numbers comments in one
+    ascending space, so the oldest are the smallest ids, wherever each landed
+    in the list. Several at once is a road merging what another reading of
+    the comment recorded -- the ledger is a set every road adds to, so an id
+    either side recorded is kept as long as it is among the newest the bound
+    holds -- appended in the order given behind the ones already here. An id
+    one side already evicted is offered back that way, and is evicted again
+    rather than a newer one in its place.
     """
-    raw = state.get(_ORCH_COMMENT_IDS)
-    ids = list(raw) if isinstance(raw, list) else []
-    identified = int(comment_id)
-    if identified in ids:
+    ids = state.get(_ORCH_COMMENT_IDS)
+    ids = list(ids) if isinstance(ids, list) else []
+    added = [
+        identified for identified in dict.fromkeys(map(int, comment_ids)) if identified not in ids
+    ]
+    if not added:
         return
-    ids.append(identified)
-    if len(ids) > _ORCH_COMMENT_ID_CAP:
-        ids = ids[-_ORCH_COMMENT_ID_CAP:]
-    state.set(_ORCH_COMMENT_IDS, ids)
+    ids.extend(added)
+    # Whatever the bound leaves out goes, oldest first by id; an entry that
+    # names no comment goes before any that does.
+    evicted = sorted(
+        ids, key=lambda entry: entry if isinstance(entry, int) else -1, reverse=True,
+    )[_ORCH_COMMENT_ID_CAP:]
+    state.set(_ORCH_COMMENT_IDS, [kept for kept in ids if kept not in evicted])
 
 
 def _reserve_comment_slot(state: PinnedState, widest: int) -> None:

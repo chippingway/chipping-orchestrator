@@ -34,8 +34,10 @@ started left is nothing, so the tree it would be read on says nothing about it.
 The correlation vocabulary a park reports beside its reason is declared here
 too, and screened here for every road -- including the implementing question
 and checkout parks, which own watermark and state writes `_park_awaiting_human`
-does not and so emit for themselves. One allow-list is what keeps the two
-sinks' payloads bounded and comparable whichever seam wrote them.
+does not and so emit for themselves, and the validating stage's parks of a
+reviewed subject, which report a wait only once their write has landed one.
+One allow-list is what keeps the two sinks' payloads bounded and comparable
+whichever seam wrote them.
 """
 from __future__ import annotations
 

@@ -77,9 +77,10 @@ class _ReviewerRun:
     # The pull request, head, requirements, and report this round's prompt
     # handed the reviewer, which is what an approval of it covers.
     subject: _review_subjects.ReviewSubject
-    # The pinned comment as it was read once that subject was resolved, so a
-    # write another road took while the reviewer ran -- a report settling on
-    # the same head -- is told apart from what this tick staged and never
+    # The pinned comment as it was read once that subject was resolved, with
+    # the round's own launch and its charge written onto it, so a write another
+    # road took while the reviewer ran -- a report settling on the same head,
+    # a run it charged -- is told apart from what this tick staged and never
     # wrote.
     resolved_over: dict
     # Whether the comment, read again as the reviewer returned, had moved a
@@ -99,6 +100,10 @@ class _ReviewerRun:
             commit=self.subject.commit,
             evidence_revision=None if handed is None else handed.revision,
         )
+
+    def measured_over(self, comment: dict) -> _ReviewerRun:
+        """This run, measured from here on against `comment` as the tick last read or wrote it."""
+        return replace(self, resolved_over=dict(comment))
 
 
 @dataclass(frozen=True)

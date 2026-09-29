@@ -28,6 +28,7 @@ from orchestrator.workflow.stages.validating import (
     review_verdicts as _verdicts,
 )
 from tests.workflow.stages.validating import review_verdict_readings as _read, review_verdict_test_support as _world
+from tests.workflow.value_helpers import _open_pr_for
 
 REREAD = "reread_report_location"
 
@@ -36,6 +37,8 @@ PINNED_WRITE = "write_pinned_state"
 POST = "_post_verification_artifact"
 
 REVIEW_ROUND = "review_round"
+
+PR_NUMBER = "pr_number"
 
 TREE_READ = "_tree_sha"
 
@@ -628,6 +631,24 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
                     ),
                     (NOTHING, *expected),
                 )
+
+    def test_a_repointed_issue_drops_its_verdict(self) -> None:
+        # A verdict is a review of the pull request its subject names: the
+        # issue pointed at another between ticks is a move, however the records
+        # the later tick read stand, so the verdict is dropped for a fresh
+        # reviewer rather than acted on beside a pull request nobody reviewed.
+        _read.seeds_a_verdict(self, _read.settles_evidence(self))
+        _open_pr_for(self.github, issue_number=_world.ISSUE, pr_number=_world.PR + 1)
+        state = self.github.read_pinned_state(self.issue)
+        state.set(PR_NUMBER, _world.PR + 1)
+        self.github.write_pinned_state(self.issue, state)
+
+        self.finishes()
+
+        self.assertEqual(
+            (self.ready, self.pinned()[_world.RETURNED_VERDICT], self.pinned()[PR_NUMBER]),
+            (None, None, _world.PR + 1),
+        )
 
     def test_another_roads_verdict_is_left_standing(self) -> None:
         # Another road clears the verdict, or puts a later round's change
