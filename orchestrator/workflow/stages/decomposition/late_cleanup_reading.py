@@ -2,17 +2,23 @@
 # SPDX-License-Identifier: Apache-2.0
 """Read outstanding branches, held snapshots, consumer issues, and snapshot ownership.
 
-Opaque obligations remain blocking, unreadable consumers retain their refs,
-and only the snapshot derived from this generation's identity belongs to it.
+Opaque obligations remain blocking, unreadable consumers retain their refs --
+a lazy issue's state or labels failing past the lookup included -- and only
+the snapshot derived from this generation's identity belongs to it.
+Consumers are the ones the ledger records, never the manifest the caller
+tracks, so an umbrella whose edit replaced its children still reads the
+originals its ref was preserved for.
 """
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 from github.Issue import Issue
 
 from orchestrator.git.snapshots import namespace as _namespace
 from orchestrator.github.client import GitHubClient
+from orchestrator.github.issues import issue_is_closed
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.obligations import LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
@@ -88,7 +94,10 @@ def _our_snapshot(
 
 
 def _consumer_scan(
-    gh: GitHubClient, issue: Issue, generation: LateGeneration,
+    gh: GitHubClient,
+    issue: Issue,
+    generation: LateGeneration,
+    taken: _ChildScan | None = None,
 ) -> _ChildScan:
     """Read every recorded direct consumer as it stands right now.
 
@@ -99,35 +108,97 @@ def _consumer_scan(
     Abandoning the whole pass would instead let one unreadable child hold a
     superseded branch on the remote for as long as it stayed unreadable.
 
+    `taken` is a scan this visit already took, and a consumer it was asked
+    about keeps the answer it got rather than costing a second request. Every
+    other consumer is read here, and that is the half that matters: the
+    umbrella's scan is of the children it tracks NOW, which are this ledger's
+    consumers only while the manifest that made them stands. A genuine edit
+    re-decomposes the parent, the children it tracks after that are
+    replacements nobody cut from this ref, and the originals it orphaned are
+    still the ones the ref was preserved for. So the ledger decides who is
+    read, never the manifest beside it, and an original that is open, was
+    reopened, or cannot be read keeps the ref however finished its
+    replacements are.
+
     Shaped as the parent scan the umbrella hands over, because the rule it
     feeds is the same rule and may not learn a second shape to ask it in.
     """
-    consumer_issues: dict[int, Issue] = {}
-    consumer_labels: dict[int, str | None] = {}
-    for consumer in generation.obligations.consumers:
-        number = int(consumer)
-        consumer_issue = _consumer_issue(gh, issue, number)
-        if consumer_issue is None:
-            continue
-        consumer_issues[number] = consumer_issue
-        consumer_labels[number] = gh.workflow_label(consumer_issue)
-    return _ChildScan(
-        list(generation.obligations.consumers), consumer_issues, consumer_labels,
-    )
+    return _ConsumerReading(gh=gh, issue=issue, taken=taken).scan(generation)
 
 
-def _consumer_issue(
-    gh: GitHubClient, issue: Issue, consumer: int,
-) -> Issue | None:
-    """Fetch one recorded consumer, or None when it could not be asked for."""
-    try:
-        return gh.get_issue(consumer)
-    except Exception:
-        log.exception(
-            "issue=#%s could not read snapshot consumer #%d; its snapshot "
-            "stays retained", issue.number, consumer,
+@dataclass(frozen=True)
+class _ConsumerReading:
+    """One visit's reading of the consumers a snapshot records.
+
+    Held together because every consumer is asked the same two questions on
+    the same visit: whether the scan the caller already took answers for it,
+    and, where it does not, what GitHub says about it now.
+    """
+
+    gh: GitHubClient
+    issue: Issue
+    taken: _ChildScan | None
+
+    def scan(self, generation: LateGeneration) -> _ChildScan:
+        """Read every recorded consumer, leaving out each one that failed."""
+        consumer_issues: dict[int, Issue] = {}
+        consumer_labels: dict[int, str | None] = {}
+        for consumer in generation.obligations.consumers:
+            number = int(consumer)
+            reading = self._read(number)
+            if reading is None:
+                continue
+            consumer_issues[number] = reading[0]
+            consumer_labels[number] = reading[1]
+        return _ChildScan(
+            list(generation.obligations.consumers), consumer_issues, consumer_labels,
         )
-        return None
+
+    def _read(self, consumer: int) -> tuple[Issue, str | None] | None:
+        """One consumer's issue and label, or None where it could not be read.
+
+        A consumer the scan this visit already took was asked about answers
+        with what that scan found -- a failed read included, which stays
+        failed rather than being asked twice on one visit.
+        """
+        if self._asked(consumer):
+            return self._already_read(consumer)
+        try:
+            return self._fetched(consumer)
+        except Exception:
+            log.exception(
+                "issue=#%s could not read snapshot consumer #%d; its snapshot "
+                "stays retained", self.issue.number, consumer,
+            )
+            return None
+
+    def _asked(self, consumer: int) -> bool:
+        """Whether the caller's own scan was asked about this consumer."""
+        if self.taken is None:
+            return False
+        return consumer in {int(number) for number in self.taken.children}
+
+    def _already_read(self, consumer: int) -> tuple[Issue, str | None] | None:
+        """What the caller's own scan found for one consumer it was asked about."""
+        taken_issue = self.taken.issues.get(consumer)
+        if taken_issue is None:
+            return None
+        return taken_issue, self.taken.labels.get(consumer)
+
+    def _fetched(self, consumer: int) -> tuple[Issue, str | None]:
+        """Fetch one consumer and take every read the proof will ask of it.
+
+        The lookup is not the only request. The issue it hands back can be a
+        lazy one, whose first attribute read IS the fetch -- so a consumer
+        whose state or labels cannot be read fails past the lookup, and has
+        to fail here, inside the one guard, rather than raise out of the pass
+        and take the branch half down with it. The state is asked first for
+        that reason alone: it is what the proof reads, and asking it here is
+        what leaves the proof reading an issue that already answered.
+        """
+        fetched = self.gh.get_issue(consumer)
+        issue_is_closed(fetched)
+        return fetched, self.gh.workflow_label(fetched)
 
 
 def _unwritable(generation: LateGeneration) -> bool:

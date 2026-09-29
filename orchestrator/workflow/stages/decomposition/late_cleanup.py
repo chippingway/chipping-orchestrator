@@ -69,6 +69,12 @@ def _settle(
     about which owner drove it: the umbrella's terminal reaches here on
     `umbrella`, and the closed-owner sweep on whichever of the two cleanup
     states its issue was closed on.
+
+    `scan` is whatever the caller already read this visit -- the umbrella's
+    children, or the sweep's consumers -- and it only ever saves a request.
+    Who a held ref is proved against is the ledger's answer, so a consumer
+    the scan was not asked about, the original a replaced manifest orphaned
+    included, is read afresh before anything is taken.
     """
     walk = _late_cleanup_state._Pass(
         gh=gh, spec=spec, issue=issue, state=state, scan=scan,

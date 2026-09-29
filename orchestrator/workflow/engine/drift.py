@@ -207,6 +207,12 @@ def _route_drift_to_decomposing(
     The notice posted on the issue lists the orphan numbers explicitly so
     the operator can close any that no longer apply.
 
+    What drops is the manifest and nothing else. A late generation a split
+    left on the parent is kept exactly as it was: it records which children
+    its snapshot was preserved for and what the remote is still owed, and
+    the umbrella's cleanup goes on proving that ref against those orphans
+    whatever the new manifest tracks.
+
     Caller writes pinned state (`gh.write_pinned_state`) after returning.
     """
     notice = _drift_to_decomposing_notice(orphan_children)

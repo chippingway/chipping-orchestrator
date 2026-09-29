@@ -5,6 +5,8 @@
 Every obligation is preceded by the close barrier. Branch reclamation
 also requires the publication to remain superseded, and unchanged failures
 remain distinguishable from state changes that require a pinned write.
+A held snapshot is selected against the consumers the ledger records rather
+than the manifest the caller scanned.
 """
 from __future__ import annotations
 
@@ -69,7 +71,16 @@ def _asked_snapshots(
     """The held refs this pass may act on, and what qualifies each of them.
 
     Every held ref qualifies once the consumers are proved ended, which is the
-    rule that owns the snapshot.
+    rule that owns the snapshot. The consumers are the ones the ledger
+    RECORDS, read from the pass's scan only where that scan was asked about
+    them -- see `_consumer_scan`. The umbrella's scan is of the manifest it
+    tracks, and a genuine edit can replace that manifest with children this
+    ref was never cut for. Proved off that scan, the originals would be
+    consumers nobody read, so a ref every one of them had finished with would
+    be held for good -- and the terminal with it.
+
+    Nothing is read where nothing is held, which is every visit after the
+    ref is reconciled and every umbrella whose split preserved none.
 
     Past that proof there is exactly one more way in, and it is narrow on
     purpose. An entry reading `reclaiming` or `failed` records a decision that
@@ -82,8 +93,14 @@ def _asked_snapshots(
     from -- and the decision to take it, however durably recorded, does not
     outrank the reading in front of it.
     """
-    if _late_cleanup_proof._reclaimable(walk.state, generation, walk.scan):
-        return _late_cleanup_reading._held_snapshots(generation)
+    held = _late_cleanup_reading._held_snapshots(generation)
+    if not held:
+        return ()
+    consumers = _late_cleanup_reading._consumer_scan(
+        walk.gh, walk.issue, generation, walk.scan,
+    )
+    if _late_cleanup_proof._reclaimable(walk.state, generation, consumers):
+        return held
     return tuple(
         entry.target
         for entry in generation.obligations.resources

@@ -5,6 +5,15 @@
 Child activation, cleanup settlement, and terminal publication each honor
 observed owner closure. A close racing retirement restores the live cycle
 so its cancellation still has the evidence it needs.
+
+The children this poll scans are the manifest it tracks now, which after a
+genuine edit are replacements beside a late split's orphaned originals. The
+settlement is handed that scan and proves a held snapshot against the
+consumers the split recorded, so the originals decide whether the ref may
+go. The replacements decide only when that is asked: the settlement runs on
+a poll that finds every tracked child resolved or one a child's disposition
+parks, so an original that ends earlier frees the ref on the first such
+poll after it -- with the terminal behind the same settlement.
 """
 from __future__ import annotations
 
@@ -272,9 +281,13 @@ def _acted_on_children(
     if _parents._parked_on_children(gh, spec, issue, state, scan):
         # Parked for a human, and still the owner of what its split put on the
         # remote. Every disposition that parks an umbrella closed the child it
-        # names -- a rejection and a manual close both do -- so the rule that
-        # owns the ref has just been satisfied by the very reading that
-        # stopped the tick. Settling here is what keeps that from waiting on a
+        # names -- a rejection and a manual close both do -- so where the
+        # children this scan tracks are the ones the split recorded, the very
+        # reading that stopped the tick may be the one that frees the ref. It
+        # proves nothing by itself: the settlement asks the recorded
+        # consumers, and after a genuine edit those are originals this scan no
+        # longer tracks, any of which still open or unreadable keeps the ref.
+        # Settling here is what keeps a ref that IS free from waiting on a
         # human: nothing else revisits an OPEN umbrella, so a parent parked
         # over a reclaimable ref would hold it for as long as the park stood.
         # It decides no terminal -- the park is the parent's answer, unchanged

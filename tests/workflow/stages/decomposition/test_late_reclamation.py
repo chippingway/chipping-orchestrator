@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """When the snapshot a split preserved may finally be deleted.
 
-The rule is the ref's own: every recorded direct consumer terminal, and the
-umbrella's all-children-resolved branch is both the first moment that becomes
-true for the children a split created and the last that could act on it.
+The rule is the ref's own: every recorded direct consumer terminal. While the
+umbrella tracks the children its split created, its all-children-resolved
+branch is both the first moment that becomes true and the last that could act
+on it. Once a genuine edit has replaced them, the originals the ledger records
+still decide the ref -- `test_late_replaced_manifest` covers that.
 """
 from __future__ import annotations
 
@@ -125,10 +127,11 @@ class UmbrellaReclamationTest(_PatchedWorkflowMixin, unittest.TestCase):
         self.assertFalse(seeded.parent.closed)
 
     def test_a_consumer_nobody_recorded_holds_it_open(self) -> None:
-        # Fail-closed twice over: a consumer the scan cannot speak for may
-        # still be cutting from the ref, so the ref stays -- and a ref that
-        # stays holds the terminal, because an umbrella closed over one is an
-        # object on the remote nothing would ever come back for.
+        # Fail-closed twice over: a consumer the umbrella does not track is
+        # read afresh, and one nobody can read may still be cutting from the
+        # ref, so the ref stays -- and a ref that stays holds the terminal,
+        # because an umbrella closed over one is an object on the remote
+        # nothing would ever come back for.
         seeded = _retaining()
         seeded.github.seed_state(
             _support.PARENT_NUMBER,

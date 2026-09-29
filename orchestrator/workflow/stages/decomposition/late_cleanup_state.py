@@ -42,6 +42,10 @@ class _Pass:
     ordered on the record, carried out against the remote, announced on the
     consumers, and only then recorded -- and every one of those needs the same
     issue, the same pinned comment, and the same scan.
+
+    The scan is the caller's reading, not the consumer list: the umbrella's is
+    of the manifest it tracks, which a genuine edit can replace. The proof
+    reads every recorded consumer that scan was not asked about.
     """
 
     gh: GitHubClient

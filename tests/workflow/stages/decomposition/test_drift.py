@@ -6,6 +6,7 @@ import unittest
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import content_hash as _content_hash
+from orchestrator.workflow.late_split.obligations import LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     blocked as _blocked,
     drift as _drift_reset,
@@ -21,8 +22,10 @@ from tests.support.fakes import (
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     _agent,
+    _manifest,
     _PatchedWorkflowMixin,
 )
+from tests.workflow.stages.decomposition import late_cleanup_support as _late_support
 from tests.workflow.stages.decomposition.decomposition_test_support import (
     _comment_with_marker,
     _comments_for_issue,
@@ -53,6 +56,11 @@ KEY_DECOMPOSER_SESSION_ID = "decomposer_session_id"
 KEY_CHILDREN = "children"
 RESPAWN_NOTICE_MARKER = "re-running decomposer"
 ORPHAN_NOTICE_WORD = "ORPHANED"
+LATE_KEY_PREFIX = "late_"
+REPLACEMENT_MANIFEST = _manifest(
+    '{"decision": "split", "umbrella": true, "rationale": "re-planned", '
+    '"children": [{"title": "A", "body": "a"}, {"title": "B", "body": "b"}]}'
+)
 
 
 def _decomposing_drift_fixture():
@@ -469,3 +477,60 @@ class HandleUmbrellaHashDriftTest(
         self.assertIn("#401", notice)
         self.assertIn("#402", notice)
         self.assertIn(ORPHAN_NOTICE_WORD, notice)
+
+    def test_a_late_split_keeps_what_it_owes(self) -> None:
+        # Two genuine edits, one taken on `umbrella` and one on `decomposing`,
+        # so both resets run before the replacement manifest is split. The
+        # generation is not manifest tracking: its register, snapshot, and
+        # consumer ledger still say who the ref was preserved for, and the
+        # children the edit orphaned are left exactly where they stood.
+        seeded = self._late_split_umbrella()
+        split = self._late_fields(seeded.github)
+
+        _late_support.walk_owner(self, seeded)
+        seeded.parent.body = "edited again before the decomposer ran"
+        self._run(
+            lambda: _decomposing._handle_decomposing(seeded.github, _TEST_SPEC, seeded.parent),
+            run_agent=_agent(session_id="replanned", last_message=REPLACEMENT_MANIFEST),
+        )
+
+        self.assertEqual(self._late_fields(seeded.github), split)
+        self.assertEqual(
+            seeded.github.pinned_data(_late_support.PARENT_NUMBER).get(KEY_CHILDREN),
+            [child.number for child in seeded.github.created_child_issues],
+        )
+        self.assertEqual(
+            sum(
+                RESPAWN_NOTICE_MARKER in body
+                for body in _comments_for_issue(seeded.github, _late_support.PARENT_NUMBER)
+            ),
+            2,
+        )
+        self.assertNotIn(_late_support.CHILD_NUMBER, dict(seeded.github.label_history))
+        self.assertFalse(seeded.github.get_issue(_late_support.CHILD_NUMBER).closed)
+
+    def _late_split_umbrella(self) -> _late_support.SeededUmbrella:
+        """An umbrella a late split made, its child still running, then edited.
+
+        It still owes the branch and still holds the ref, which is what a
+        reset that took the generation with the manifest would lose.
+        """
+        seeded = _late_support.split_umbrella(
+            LateResourceState.PENDING,
+            snapshot=LateResourceState.RETAINED,
+            child_label=_late_support.LABEL_READY,
+            owner=_late_support.OwnerSeed(child_closed=False),
+        )
+        seeded.github.seed_state(_late_support.PARENT_NUMBER, **{
+            **seeded.github.pinned_data(_late_support.PARENT_NUMBER),
+            KEY_USER_CONTENT_HASH: STALE_USER_CONTENT_HASH,
+        })
+        return seeded
+
+    def _late_fields(self, github: FakeGitHubClient) -> dict:
+        """Every late field the parent's pinned comment carries right now."""
+        return {
+            key: recorded
+            for key, recorded in github.pinned_data(_late_support.PARENT_NUMBER).items()
+            if key.startswith(LATE_KEY_PREFIX)
+        }
