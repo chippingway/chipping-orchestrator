@@ -191,7 +191,7 @@ def prepares_the_verdict(
         state, run.agent_result.usage, run.agent_result.session_id, run.subject,
     )
     evidence_moved = _review_comment._moved(state.data, run.resolved_over, _review_comment._EVIDENCE_RECORDS)
-    if run.report_moved or not stands or evidence_moved:
+    if run.subject_moved or not stands or evidence_moved:
         gh.write_pinned_state(issue, state)
         return Prepared()
     in_hand = VerdictInHand(decision, claimed.claim, claimed.refusal, claimed.pending)

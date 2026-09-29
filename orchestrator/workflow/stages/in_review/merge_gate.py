@@ -17,8 +17,9 @@ and a repeated tick on the same head stays silent. The last gate is the
 subject the approval covered, read again at the ping itself: the requests the
 gate makes before it are time in which another road can settle a later report,
 a human can edit that report or the issue, or a push can move the head the
-ping names. The park the gate takes is held to the first of those too, since
-it writes the state in hand.
+ping names -- and another road can point the issue at another pull request
+than the one the ping would name. The park the gate takes is held to the
+first and last of those too, since it writes the state in hand.
 
 Both writes this stage makes to a thread are bounded by the same fact: the
 feedback scan that decided this tick ran several GitHub round-trips ago, and a
@@ -84,8 +85,9 @@ def _handle_mergeable_gate(ctx: _models._InReviewContext) -> None:
         return  # GitHub still computing; try next tick
     if not mergeable:
         # The mergeability request is time another road can settle a later
-        # report in, and the park below writes the state in hand whole: over
-        # a comment that moved, it would put the replaced report back.
+        # report in, or point the issue at another pull request, and the park
+        # below writes the state in hand whole: over a comment that moved, it
+        # would put the replaced report or pointer back.
         if not _review_comment._records_in_hand(
             ctx.gh, ctx.issue, ctx.state, "park its pull request as unmergeable",
         ):
@@ -161,14 +163,16 @@ def _still_ready(ctx: _models._InReviewContext, head_sha: str) -> bool:
 
     The hand-back ahead of the feedback scan asked the approval too, but the
     mergeability and review requests since then are round-trips in which
-    another road can settle a later report, a human can edit or delete the
-    report or edit the issue, or a push can move the pull request off the head
-    those requests approved -- and the ping is the one claim here that what
-    stands was reviewed. So the approval has to cover the report as it reads
-    at its location, the requirements over the issue read afresh, and
-    `head_sha` over the pull request read afresh
-    (`review_coverage._approval_holds`), and -- last, directly ahead of the
-    write -- the pinned comment has to carry the report records in hand.
+    another road can settle a later report or point the issue at another pull
+    request, a human can edit or delete the report or edit the issue, or a
+    push can move the pull request off the head those requests approved -- and
+    the ping is the one claim here that what stands was reviewed. So the
+    approval has to cover the report as it reads at its location, the
+    requirements over the issue read afresh, and `head_sha` over the pull
+    request read afresh (`review_coverage._approval_holds`), and -- last,
+    directly ahead of the write -- the pinned comment has to carry the report
+    records in hand and point the issue at the pull request the state in hand
+    does (`review_comment._records_in_hand`).
     """
     return bool(
         _review_coverage._approval_holds(ctx.gh, ctx.issue, ctx.state, head_sha)

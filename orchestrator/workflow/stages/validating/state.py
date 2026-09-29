@@ -59,12 +59,23 @@ two groupings that decide behavior on their own: the first turns a verify
 status into the durable tag a park is filed under, and the second is the set
 a later tick is allowed to retry silently -- membership here is what says a
 condition can resolve without anyone commenting.
+
+`_BOTH_MOVES` is the third. A write laid over the pinned comment as it stands
+keeps what another road wrote there and what this tick staged, and where both
+moved one field it is membership here that decides whether both moves are
+kept -- a usage total adding up the runs each folded in, the cost tags beside
+it joining, a comment-id watermark keeping whichever reading went further --
+or the field is one road's to say, as every other field both moved is. Both
+are kept only over values spelled as the field's writers spell them: a flag
+where a count belongs, or a word where a list of them does, is a hand edit
+nobody can add to, and that move is one road's to say too.
 """
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from types import MappingProxyType
-from typing import Any
+from typing import Any, NamedTuple
 
 from orchestrator.github.pinned_state import PinnedState
 
@@ -192,6 +203,63 @@ _VERIFY_STATUS_TO_REASON = MappingProxyType({
 })
 
 
+def _is_amount(written: Any) -> bool:
+    """Whether `written` is a cost total as its writer spells it: a number, and no flag."""
+    return not isinstance(written, bool) and isinstance(written, (int, float))
+
+
+def _is_whole(written: Any) -> bool:
+    """Whether `written` is a count or a comment id as its writers spell it: a whole number, and no flag."""
+    return not isinstance(written, bool) and isinstance(written, int)
+
+
+def _adds_up(ours: Any, theirs: Any, since: Any) -> Any:
+    """A total both roads folded runs into: the other road's, with this tick's own fold added."""
+    return theirs + ours - (since or 0)
+
+
+def _is_tag_list(written: Any) -> bool:
+    """Whether `written` is the cost tags as their writer spells them: a list of words."""
+    if not isinstance(written, list):
+        return False
+    return all(isinstance(tag, str) for tag in written)
+
+
+class _BothMoves(NamedTuple):
+    """How a pinned field keeps this tick's move beside another road's, and the shape it keeps them in."""
+
+    # Whether one value is spelled as the field's writers spell it.
+    shaped: Callable[[Any], bool]
+    # The value both moves leave: from this tick's value, the other road's,
+    # and the one both moved from.
+    kept: Callable[[Any, Any, Any], Any]
+
+    def spelled(self, ours: Any, theirs: Any, since: Any) -> bool:
+        """Whether both moves, and the value they moved from where there was one, are spelled as written."""
+        if since is not None and not self.shaped(since):
+            return False
+        return self.shaped(ours) and self.shaped(theirs)
+
+
+# Each pinned field a write keeps both moves of. A usage total adds up the runs
+# each road folded in -- the run and token counts as whole numbers, the cost as
+# any number -- and the cost tags beside those totals join. A comment-id
+# watermark keeps whichever reading went further: moved back past what the
+# other road read, it would hand a comment already answered to the next reader
+# as new, and neither reading went past a comment it had not read.
+_BOTH_MOVES = MappingProxyType({
+    **dict.fromkeys(("issue_agent_runs", "issue_total_tokens"), _BothMoves(_is_whole, _adds_up)),
+    "issue_total_cost_usd": _BothMoves(_is_amount, _adds_up),
+    "issue_cost_sources": _BothMoves(
+        _is_tag_list, lambda ours, theirs, _since: sorted({*ours, *theirs}),
+    ),
+    **dict.fromkeys(
+        ("last_action_comment_id", "pr_last_comment_id", "pr_last_review_comment_id", "pr_last_review_summary_id"),
+        _BothMoves(_is_whole, lambda ours, theirs, _since: max(ours, theirs)),
+    ),
+})
+
+
 def _discharges_the_owed_round(state: PinnedState) -> None:
     """Drop the note that a reviewer round is owed, and what it was due to hand.
 
@@ -203,3 +271,23 @@ def _discharges_the_owed_round(state: PinnedState) -> None:
     state.set(_REVIEWER_OWES_A_ROUND, None)
     if state.get(_ROUND_BOUGHT_THROUGH) is not None:
         state.set(_ROUND_BOUGHT_THROUGH, None)
+
+
+def _keeps_both_moves(state: PinnedState, field: str, read: dict, since: dict) -> bool:
+    """Keep on `state` both moves of `field`: this tick's, and another road's to what the comment `read` holds.
+
+    Both moved from what `since`, the comment as read before, held. True where
+    the field is one of `_BOTH_MOVES` and every value is spelled as its writers
+    spell it (`_BothMoves.spelled`); False, `state` left as it is, for any
+    other field, and for a value the field never records -- a hand edit, a
+    flag where a count belongs, a word where a list of them does -- whose move
+    is one road's to say like any other field's.
+    """
+    both = _BOTH_MOVES.get(field)
+    moves = (
+        state.get(field), read.get(field), since.get(field),
+    )
+    if both is None or not both.spelled(*moves):
+        return False
+    state.set(field, both.kept(*moves))
+    return True

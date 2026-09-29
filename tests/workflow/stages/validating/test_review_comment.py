@@ -4,20 +4,23 @@
 
 The state a validating tick holds was read when the tick began, so a report
 record another road moved since is on the comment and nowhere in hand. A
-subject is bound only to a comment carrying the records it was resolved from.
-The comment is read again when the verdict comes back: records that stand leave
-the state alone, records that moved refuse the verdict and carry everything the
-comment changed since the subject was resolved onto the state -- beside what
-this tick staged and never wrote -- and a comment that will not read or will
-not parse carries nothing and says the tick is to write nothing. So does a
+subject is bound only to a comment carrying the records it was resolved from,
+and pointing the issue at the pull request it was resolved at. The comment is
+read again when the verdict comes back, and everything it changed since the
+subject was resolved is carried onto the state -- beside what this tick staged
+and never wrote, which is the tick's own to say where the records stand --
+while records that moved refuse the verdict. A comment that will not read or
+will not parse carries nothing and says the tick is to write nothing. So does a
 reading of another comment than the one the state was read from -- the pinned
 comment replaced or gone -- whatever records it carries, since the tick's write
 names the comment it read. Records are compared as the comment spells them, so
 one written `null` where there was none, or a revision spelled `true` where it
-was `1`, is a move.
+was `1`, is a move. A persisted verdict's recheck watches the verdict and the
+pull request the issue points at beside the report.
 """
 from __future__ import annotations
 
+import itertools
 import json
 import unittest
 from types import MappingProxyType
@@ -46,6 +49,12 @@ ALSO_SETTLED = "orchestrator_comment_ids"
 EVIDENCE = "verification_evidence_current"
 
 VERDICT = "review_returned_verdict"
+
+# The pull request the issue points at, which a persisted verdict's recheck
+# watches too, and another one it could be pointed at since.
+PR_NUMBER = "pr_number"
+
+OTHER_PR = 17_991
 
 # The pinned comment the tick read, and the one that replaced it since.
 PINNED_ID = 5_579_000_001
@@ -90,10 +99,24 @@ _HANDED_RECORDS = MappingProxyType(_current(HANDED))
 
 _MOVED_EVIDENCE = MappingProxyType({**_HANDED_RECORDS, EVIDENCE: {"revision": SETTLED}})
 
+_EVIDENCE_CARRIED = MappingProxyType({**_MOVED_EVIDENCE, STAGED: STAGED_VALUE})
+
 _PERSISTED_RECHECKS = (
-    ("evidence moved, the return's reading", _MOVED_EVIDENCE, False, (True, _in_hand())),
-    ("evidence moved", _MOVED_EVIDENCE, True, (True, {**_MOVED_EVIDENCE, STAGED: STAGED_VALUE})),
+    ("evidence moved, the return's reading", _MOVED_EVIDENCE, False, (True, _EVIDENCE_CARRIED)),
+    ("evidence moved", _MOVED_EVIDENCE, True, (True, _EVIDENCE_CARRIED)),
     ("the verdict cleared", {**_HANDED_RECORDS, VERDICT: None}, True, (False, {**_in_hand(), VERDICT: None})),
+    (
+        "the verdict replaced",
+        {**_HANDED_RECORDS, VERDICT: {"round": 1}},
+        True,
+        (False, {**_in_hand(), VERDICT: {"round": 1}}),
+    ),
+    (
+        "the issue repointed",
+        {**_HANDED_RECORDS, PR_NUMBER: OTHER_PR},
+        True,
+        (False, {**_in_hand(), PR_NUMBER: OTHER_PR}),
+    ),
     (
         "only other fields moved",
         {**_HANDED_RECORDS, ALSO_SETTLED: [1], STAGED: "another road's"},
@@ -121,10 +144,10 @@ def _returned(
     The state after is its data and the comment it names.
     """
     state = _pinned(_in_hand())
-    stood = _review_comment._records_stand(
+    reread = _review_comment._records_stand(
         _reading(durable), MagicMock(number=1), state, _current(HANDED), persisted=persisted,
     )
-    return stood, state.data, state.comment_id
+    return None if reread is None else reread.stood, state.data, state.comment_id
 
 
 class RecordsStandTest(unittest.TestCase):
@@ -158,12 +181,12 @@ class RecordsStandTest(unittest.TestCase):
                 self.assertEqual(comment_id, PINNED_ID)
 
     def test_a_persisted_verdict_is_composed(self) -> None:
-        # Held for a persisted verdict, the verdict itself is watched beside
-        # the report's records, and where they stand every field another road
-        # changed since is carried too -- evidence included, which the
-        # verdict's claim answers for -- save one this tick changed as well,
-        # which its own write says. The return's own reading carries nothing
-        # where the report stands.
+        # Held for a persisted verdict, the verdict itself and the pull request
+        # are watched beside the report's records, and where they stand every
+        # field another road changed since is carried too -- evidence
+        # included, which the verdict's claim answers for -- save one this tick
+        # changed as well, which its own write says. The return's own reading
+        # carries what moved the same way.
         for name, durable_data, persisted, expected in _PERSISTED_RECHECKS:
             with self.subTest(name):
                 returned = _returned(_pinned(durable_data), persisted=persisted)
@@ -174,18 +197,21 @@ class RecordsStandTest(unittest.TestCase):
         # No reading of another comment than the one the tick read says the
         # records stand or is a settlement to keep: a write over a replaced
         # or deleted comment would pin a second one. Nothing is carried, the
-        # state names the comment it did, and the answer writes nothing.
-        for name, durable in NO_COMMENT_IN_HAND:
-            with self.subTest(name):
-                self.assertEqual(_returned(durable), (None, _in_hand(), PINNED_ID))
+        # state names the comment it did, and the answer writes nothing --
+        # for the return's own reading and a persisted verdict's recheck alike.
+        for (name, durable), persisted in itertools.product(NO_COMMENT_IN_HAND, (False, True)):
+            with self.subTest(name, persisted=persisted):
+                self.assertEqual(_returned(durable, persisted=persisted), (None, _in_hand(), PINNED_ID))
 
 
 class ResolvedOverTest(unittest.TestCase):
     """The comment a subject resolved from the state in hand is bound to.
 
-    A road about to act on an approval asks the same agreement of the state it
-    holds, and is answered only whether the records are in hand. Neither
-    carries anything onto that state: a comment that moved binds nothing.
+    Bound only where the comment carries the report records the state does and
+    points the issue at the same pull request. A road about to act on an
+    approval asks the same agreement of the state it holds, and is answered
+    only whether the records are in hand. Neither carries anything onto that
+    state: a comment that moved binds nothing.
     """
 
     def test_only_agreeing_records_bind(self) -> None:
@@ -197,6 +223,7 @@ class ResolvedOverTest(unittest.TestCase):
                 **agreeing, _records.PENDING_REPORT: None,
             }), None),
             ("a revision spelled true", _pinned(_current(True)), None),
+            ("the issue repointed", _pinned({**agreeing, PR_NUMBER: OTHER_PR}), None),
         ):
             with self.subTest(name):
                 self.assert_binds(durable, bound)

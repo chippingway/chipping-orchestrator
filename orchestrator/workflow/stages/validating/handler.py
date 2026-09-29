@@ -49,6 +49,8 @@ asks ends there, and the reviewer runs once the report has paid the debt.
 """
 from __future__ import annotations
 
+import copy
+
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
@@ -127,7 +129,9 @@ def _ends_before_review(
 
 def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
     state = gh.read_pinned_state(issue)
-    pr_number = state.get("pr_number")
+    # The comment as this tick read it, which the reading a reviewer round is
+    # bound to is measured from: every road below stages its moves on `state`.
+    read = copy.deepcopy(state.data)
 
     if _finalize_validating_terminal(gh, spec, issue, state):
         return
@@ -161,7 +165,7 @@ def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: I
     if _ends_before_review(gh, spec, issue, state, parked):
         return
 
-    reviewer_run = _reviewer._run_reviewer_round(gh, spec, issue, state, pr_number)
+    reviewer_run = _reviewer._run_reviewer_round(gh, spec, issue, state, read)
     if reviewer_run is None:
         return
 

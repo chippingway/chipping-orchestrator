@@ -63,7 +63,9 @@ settled in between is there and nowhere in hand. Where it does not, or will not
 read, the tick ends with nothing handed over and nothing written, since any
 write would put the replaced report back; the next tick resolves the later
 one. That reading is handed on with the subject, and it is what the verdict's
-return measures the comment against.
+return measures the comment against; the reviewer road lays it over the state
+in hand first, so what another road wrote while the subject was resolved is
+kept rather than written back over.
 
 The reading itself posts nothing and parks nothing, so `review_coverage` takes
 it again once an approval comes back and wherever an approval is later acted

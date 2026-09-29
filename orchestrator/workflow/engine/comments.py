@@ -41,25 +41,61 @@ def _orchestrator_ids(state: PinnedState) -> set[int]:
     return {int(comment_id) for comment_id in raw}
 
 
-def _track_orchestrator_comment(state: PinnedState, comment_id: int) -> None:
-    """Record that this orchestrator posted one comment, once.
+def _track_orchestrator_comment(state: PinnedState, *comment_ids: int) -> None:
+    """Record that this orchestrator posted each of `comment_ids`, once each.
 
     Idempotent, because the ledger is a SET of ids kept in a bounded list and
     a second entry for one comment buys nothing while costing a slot. Callers
     layer -- a road that posts through a wrapped client and then through
     `_post_issue_comment` records the same id twice -- so an id already here
     keeps the position it has: what the bound evicts is the oldest comment
-    rather than the least recently re-recorded.
+    rather than the least recently re-recorded. GitHub numbers comments in one
+    ascending space, so the oldest are the smallest ids, wherever each landed
+    in the list.
+
+    Several at once is a road merging what another reading of the comment
+    recorded (`review_comment._Reread.lays_over`): every road adds to the ledger,
+    so an id either side recorded is kept as long as it is among the newest
+    the bound holds, appended in the order given behind the ones already here.
+    An id one side's own post already evicted is offered back that way, and is
+    evicted again rather than a newer one in its place.
+
+    The bound holds on every call, whether or not it adds an id: a ledger
+    already past it -- one an older binary or a hand edit left -- is cut to the
+    newest it holds, so a merge that brings nothing new still leaves a bounded
+    ledger for the write behind it. It counts comments rather than entries: an
+    id a ledger carries twice is held once, where it first stands, before
+    anything is cut, so no comment goes that the bound has room for.
     """
     raw = state.get(_ORCH_COMMENT_IDS)
-    ids = list(raw) if isinstance(raw, list) else []
-    identified = int(comment_id)
-    if identified in ids:
+    entries = raw if isinstance(raw, list) else []
+    # Each comment id once, where it first stands, keyed by the id. An entry
+    # naming no comment -- a hand edit -- keys only itself, so it is neither
+    # merged into an id it compares equal to nor taken for one.
+    held = {
+        (
+            entry
+            if isinstance(entry, int) and not isinstance(entry, bool)
+            else object()
+        ): entry
+        for entry in entries
+    }
+    held.update(
+        (identified, identified)
+        for identified in dict.fromkeys(map(int, comment_ids))
+        if identified not in held
+    )
+    if list(held.values()) == entries and len(entries) <= _ORCH_COMMENT_ID_CAP:
         return
-    ids.append(identified)
-    if len(ids) > _ORCH_COMMENT_ID_CAP:
-        ids = ids[-_ORCH_COMMENT_ID_CAP:]
-    state.set(_ORCH_COMMENT_IDS, ids)
+    # Whatever the bound leaves out goes, oldest first by id; an entry that
+    # names no comment goes before any that does. Cut by key, so exactly the
+    # entries past the bound go, whatever else compares equal to them.
+    newest = set(sorted(
+        held, key=lambda key: key if isinstance(key, int) else -1, reverse=True,
+    )[:_ORCH_COMMENT_ID_CAP])
+    state.set(_ORCH_COMMENT_IDS, [
+        held[key] for key in held if key in newest
+    ])
 
 
 def _reserve_comment_slot(state: PinnedState, widest: int) -> None:
