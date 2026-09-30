@@ -51,9 +51,10 @@ recognize as its own -- a pinned comment that would not parse, a link to
 another parent, text naming any snapshot ref it cannot keep, or any other
 ancestry: a partial group, a field its reader would drop, another lineage --
 refuses the finalize that would start it, with nothing written over what it
-carries. A child of an ordinary split is owed no lineage and is left as it
-stands, unless its text names a snapshot: nothing keeps one for it, so it is
-refused the same way.
+carries. A child of an ordinary split is held to the same recognition: it is
+owed no lineage and no snapshot, so it is left as it stands only where its
+comment parses, its link names this issue or nothing, it carries none of the
+group, and its text names no snapshot ref -- and refused otherwise.
 """
 from __future__ import annotations
 
@@ -251,9 +252,14 @@ class ReplacementLineage:
         return pointed
 
     def repair(
-        self, state: PinnedState, child_number: int, child_state: PinnedState, instructed: frozenset[str],
+        self,
+        state: PinnedState,
+        parent: int,
+        child_number: int,
+        child_state: PinnedState,
+        instructed: frozenset[str],
     ) -> SeedRepair:
-        """What a recovered split does with one recorded child's ancestry.
+        """What a recovered split of `parent` does with one recorded child's ancestry.
 
         `instructed` is every snapshot ref the child's title and body name,
         read as a slice is read before it is created, and it outranks the
@@ -267,24 +273,33 @@ class ReplacementLineage:
         its text names a snapshot nothing keeps for it. That includes every
         child of an ordinary split that names one at all.
 
-        A child owed no lineage and told about no snapshot is left alone.
-        Every other one has to be a
-        child this split can recognize as its own -- see `_unrecognized` --
-        before anything is written to it: one carrying none of the group is
-        then seeded with what it was owed, and one carrying the group carries
-        exactly the lineage it was owed. An instructed child's pointer is
+        Every child has to be one this split can recognize as its own -- see
+        `_unrecognized` -- before anything is written to it or it is
+        finalized, a child of an ordinary split included: that one is owed
+        no lineage, so it is left as it stands once recognized. Any other
+        one carrying none of the group is then seeded with what it was owed,
+        and one carrying the group carries exactly the lineage it was owed.
+        An instructed child's pointer is
         written to be the one it was told about. Any other child's is kept
         where it is none or the one the ledger protects it for, and dropped
         otherwise -- with the ordering stamp, which is a claim about that ref;
         a stamp standing alone, what the child's own guard leaves when it
         drops a pointer, names no ref and is left as it is.
         """
-        if self.ancestry is None and not instructed:
-            return SeedRepair()
-        owed = self._owed(state, child_number, instructed)
-        refusal = _unrecognized(child_state, owed, child_number)
+        # A child told only about the snapshot this split holds is owed that
+        # pointer whatever the ledger says; the repair records it there.
+        owed = self.pointed() if instructed else self.child_ancestry(state, child_number)
+        refusal = _unrecognized(
+            child_state,
+            owed or LateAncestry(),
+            parent,
+            child_number,
+            promised=instructed <= self.told,
+        )
         if refusal is not None:
             return SeedRepair(refusal=_CHILD_NOTICE.format(reason=refusal))
+        if owed is None:
+            return SeedRepair()
         # Owed a pointer the ledger does not name: only an instructed child.
         protect = bool(instructed) and self.child_ancestry(state, child_number) != owed
         if not any(child_state.carries(key) for key in _lineage.LATE_ANCESTRY_KEYS):
@@ -296,21 +311,6 @@ class ReplacementLineage:
         if (recorded.snapshot_ref, recorded.snapshot_sha) in kept:
             return SeedRepair(protect=protect)
         return SeedRepair(ancestry=owed if instructed else _unpointed(recorded), protect=protect)
-
-    def _owed(self, state: PinnedState, child_number: int, instructed: frozenset[str]) -> LateAncestry | None:
-        """The ancestry one recorded child is owed, or None where its instructions name a ref it cannot be.
-
-        A child told about no snapshot is owed what the ledger protects it
-        for, and one told about only the snapshot this split holds is owed
-        that pointer whatever the ledger says -- the repair records it there.
-        Nothing is told of a split holding no snapshot for its children, so
-        any name refuses one of those.
-        """
-        if not instructed:
-            return self.child_ancestry(state, child_number)
-        if instructed <= self.told:
-            return self.pointed()
-        return None
 
 
 def read_replacement_lineage(state: PinnedState, issue: Issue, spec: config.RepoSpec) -> ReplacementLineage:
@@ -383,26 +383,31 @@ def _adjudication_of(state: PinnedState) -> tuple[int, int] | None:
     return (retired, 0) if retired else None
 
 
-def _unrecognized(child_state: PinnedState, owed: LateAncestry | None, child_number: int) -> str | None:
-    """Why a recorded child is not one this split can say it seeded, or None.
+def _unrecognized(
+    child_state: PinnedState, owed: LateAncestry, parent: int, child_number: int, *, promised: bool,
+) -> str | None:
+    """Why a recorded child of `parent` is not one this split can say it seeded, or None.
 
     A pinned comment that would not parse reads back empty, exactly as a
     child nobody seeded does, and writing a seed over it would take whatever
-    it carried with it -- so it is refused before anything is read off it. No
-    owed ancestry at all is a child whose text names a snapshot this split
-    cannot keep for it. A link to another parent is a child another tree claims. And
+    it carried with it -- so it is refused before anything is read off it. A
+    child whose text names a snapshot this split cannot keep for it is not
+    `promised`. A link to another parent is a child another tree claims. And
     an ancestry has to be the whole group, written back exactly as the comment
     carries it -- a field its reader would drop, a `null`, or a key it answers
     with its empty value comes back different -- naming the lineage it was
-    owed, its pointer aside. A child carrying none of the group is recognized:
-    it is the seed a crash deferred.
+    `owed`, its pointer aside; a child of an ordinary split is owed the empty
+    ancestry, which no group names, so any of the group on it is one this
+    split never wrote. A child carrying
+    none of the group is recognized: it is the seed a crash deferred, or all
+    an ordinary split ever seeds.
     """
     if not child_state.parsed:
         return _UNREADABLE_CHILD.format(child=child_number)
-    if owed is None:
+    if not promised:
         return _UNPROMISED.format(child=child_number)
     linked = child_state.get(_state._PARENT_NUMBER)
-    if linked and linked != owed.parent_issue:
+    if linked and linked != parent:
         return _OTHER_PARENT.format(child=child_number, parent=linked)
     if not any(child_state.carries(key) for key in _lineage.LATE_ANCESTRY_KEYS):
         return None

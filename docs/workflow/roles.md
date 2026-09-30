@@ -1941,8 +1941,9 @@ not parse (it reads back empty, exactly like the seed a crash deferred, and noth
 `parent_number` naming another issue, text naming a snapshot ref the split no longer holds or never preserved (or
 another repository's mirror of one), or any other group — part of it, a field its reader would drop, another
 lineage — which a child's own size gate would read as whatever it says. A split of an issue no late split charged
-holds no snapshot for any child, so its recovery reads each recorded child's text the same way and refuses one naming
-any snapshot ref at all. Only once every child passes is the parent
+is held to the same recognition: its children are owed no lineage and no snapshot, so a recorded child of one is left
+as it stands only where its comment parses, its `parent_number` is this issue or absent, it carries none of the
+group, and its text names no snapshot ref at all — and refused otherwise. Only once every child passes is the parent
 finalized into the walk that activates children; a record that no longer proves the lineage, or a child refused,
 parks the same way instead and leaves every child unstarted. A child created and never recorded is the existing
 `decomposition_crash` park: nothing names it, so nothing points it at a snapshot or starts it.

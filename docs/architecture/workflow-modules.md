@@ -1364,12 +1364,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             consumer ledger records the child -- which the child may name by that ref and this
                             repository's mirror of it, and by nothing else; a parent at the bound, an unprovable
                             record, one naming no cycle, or one whose own snapshot is neither held nor released parks
-                            `replacement_lineage_unproved` instead; the recovery's check of each recorded child --
-                            an unparsed comment, a link to another parent, or a title or body naming a snapshot ref
-                            the split cannot keep refused (any ref, for a split that keeps none), a child naming the
-                            one it holds recorded as its consumer again, its ancestry seeded where missing, left
-                            where it is the owed group, an unprotected uninstructed pointer dropped, and any other
-                            group refused
+                            `replacement_lineage_unproved` instead; the recovery's check of each recorded child, an
+                            ordinary split's included -- an unparsed comment, a link to another parent, or a title
+                            or body naming a snapshot ref the split cannot keep refused (any ref, for a split that
+                            keeps none), a child naming the one it holds recorded as its consumer again, its
+                            ancestry seeded where missing, left where it is the owed group, an unprotected
+                            uninstructed pointer dropped, and any other group refused (every group, on a child owed
+                            none)
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
                             recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
                             a pointer -- before it is seeded with its parent link and that lineage, never with the

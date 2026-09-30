@@ -373,6 +373,30 @@ _FOREIGN_SEEDS = MappingProxyType({
     "another parent and no ancestry": MappingProxyType({KEY_PARENT_NUMBER: _OTHER_PARENT}),
 })
 
+# The parents a crashed split is recovered under, each beside whether its
+# replacement is protected and told about a snapshot: the root of a late
+# lineage holding the one its own split preserved, that root once the ref has
+# passed to a reclamation, and an issue no late split charged, whose children
+# are owed no lineage and no snapshot.
+_LATE_ROOT = "a late root"
+
+_GONE_ROOT = "a late root whose ref is gone"
+
+_ORDINARY = "an ordinary issue"
+
+_CRASHED_PARENTS = MappingProxyType({
+    _LATE_ROOT: (_support.own_split(), True),
+    _GONE_ROOT: (_support.own_split(_obligations.LateResourceState.RECONCILED), False),
+    _ORDINARY: (None, False),
+})
+
+# Every foreign seed, on a child of either parent a recognition is asked of.
+_FOREIGN_SEEDED_CHILDREN = tuple(
+    (parent, shape, carried)
+    for parent in (_LATE_ROOT, _ORDINARY)
+    for shape, carried in _FOREIGN_SEEDS.items()
+)
+
 
 class _DiesSeedingAChild:
     """A process that dies at the first write to a child's pinned comment.
@@ -392,19 +416,21 @@ class _DiesSeedingAChild:
 
 
 class _ReplacementRecoveryCase(unittest.TestCase):
-    """A split inside a late lineage, interrupted, and the tick that recovers it.
+    """A split, interrupted, and the tick that recovers it.
 
     The parent is the root of the lineage its own split started, holding the
-    snapshot that split preserved; the decomposer answered with one
-    replacement.
+    snapshot that split preserved, unless a case names another of
+    `_CRASHED_PARENTS`; the decomposer answered with one replacement.
     """
 
-    def setUp(self) -> None:
-        github, issue = _support.late_parent(_support.own_split())
+    def setUp(self, parent: str = _LATE_ROOT) -> None:
+        generation, protected = _CRASHED_PARENTS[parent]
+        github, issue = _support.late_parent(generation)
         self.github = github
         self.issue = issue
+        self.protected = protected
 
-    def _die_seeding(self, *, protected: bool = True) -> int:
+    def _die_seeding(self) -> int:
         """Run the split into the crash between its parent record and its seed.
 
         Reports the child it left: recorded, seeded with nothing at all, and
@@ -415,8 +441,9 @@ class _ReplacementRecoveryCase(unittest.TestCase):
         with dying, self.assertRaises(KeyboardInterrupt):
             _support.redecompose(self.github, self.issue, _support.ONE_REPLACEMENT_MANIFEST)
         child = _support.replacements(self.github)[0]
-        self.assertEqual(child in _support.consumers(self.github), protected)
-        self.assertEqual(_support.SNAPSHOT_REF in self.github.get_issue(child).body, protected)
+        briefed = _support.SNAPSHOT_REF in self.github.get_issue(child).body
+        self.assertEqual(child in _support.consumers(self.github), self.protected)
+        self.assertEqual(briefed, self.protected)
         self.assertEqual(self.github.pinned_data(child), {})
         return child
 
@@ -530,10 +557,8 @@ class ReplacementCrashTest(_ReplacementRecoveryCase):
         # that recovers the crash or by the retry after it.
         for named in (_support.SNAPSHOT_REF, _support.FOREIGN_MIRROR):
             with self.subTest(named=named):
-                github, issue = _support.late_parent()
-                self.github = github
-                self.issue = issue
-                child = self._die_seeding(protected=False)
+                self.setUp(_ORDINARY)
+                child = self._die_seeding()
                 created = self.github.get_issue(child)
                 created.body = f"{created.body}\n\nreuse what {named} holds"
 
@@ -597,10 +622,8 @@ class RecordedSeedTest(_ReplacementRecoveryCase):
         # A child created while the ref was already released was told about
         # no snapshot and recorded as no consumer; a pointer standing on it
         # anyway is one nothing keeps, so it goes with its ordering stamp.
-        github, issue = _support.late_parent(_support.own_split(_obligations.LateResourceState.RECONCILED))
-        self.github = github
-        self.issue = issue
-        child = self._die_seeding(protected=False)
+        self.setUp(_GONE_ROOT)
+        child = self._die_seeding()
         self.github.seed_state(child, **_written(_support.ROOT_REPLACEMENT))
 
         self._recover()
@@ -610,12 +633,16 @@ class RecordedSeedTest(_ReplacementRecoveryCase):
         self.assertEqual(self._labels(child), (LABEL_UMBRELLA, LABEL_BLOCKED))
 
     def test_a_foreign_ancestry_is_never_finalized(self) -> None:
-        for shape, carried in _FOREIGN_SEEDS.items():
-            with self.subTest(shape=shape):
-                self.setUp()
+        # A child of an ordinary split is owed no ancestry at all and no link
+        # but to this issue, so every one of these is refused on it too -- by
+        # the tick that recovers the crash and by the retry after it.
+        for parent, shape, carried in _FOREIGN_SEEDED_CHILDREN:
+            with self.subTest(parent=parent, shape=shape):
+                self.setUp(parent)
                 child = self._die_seeding()
                 self.github.seed_state(child, **carried)
 
+                self._recover()
                 self._recover()
 
                 self.assertEqual(self.github.pinned_data(child), dict(carried))
@@ -642,15 +669,20 @@ class RecordedSeedTest(_ReplacementRecoveryCase):
 
     def test_an_unreadable_seed_is_never_finalized(self) -> None:
         # Nothing on it can be checked, and a seed written over it would take
-        # whatever it carried with it.
-        child = self._die_seeding()
+        # whatever it carried with it -- whether or not its split owes it a
+        # lineage.
+        for parent in (_LATE_ROOT, _ORDINARY):
+            with self.subTest(parent=parent):
+                self.setUp(parent)
+                child = self._die_seeding()
 
-        with patch.object(self.github, "read_pinned_state", side_effect=self._reads_unparsed(child)):
-            self._recover()
+                unparsed = patch.object(self.github, "read_pinned_state", side_effect=self._reads_unparsed(child))
+                with unparsed:
+                    self._recover()
 
-        self.assertEqual(self.github.pinned_data(child), {})
-        self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
-        self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
+                self.assertEqual(self.github.pinned_data(child), {})
+                self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
+                self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
 
     def _reads_unparsed(self, child: int):
         """The client's pinned read, answering for `child` with a comment that would not parse."""

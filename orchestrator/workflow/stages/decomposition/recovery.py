@@ -40,10 +40,11 @@ dropped with its ordering stamp; and a child this split cannot recognize as
 its own -- a pinned comment that would not parse, a link to another parent,
 an ancestry it did not write, text naming any snapshot ref it cannot keep,
 another repository's mirror of its own included -- is refused. A child of an
-ordinary split is owed no lineage, and its text is read the same way: one
-naming any snapshot at all is refused, since nothing keeps one for it. A
-lineage the record can no longer prove, or a child refused, parks instead of
-finalizing, which is what keeps every child of that split unstarted.
+ordinary split is held to the same recognition before its parent link is
+backfilled: it is owed no lineage and no snapshot, so any of the group on it,
+or text naming any snapshot at all, is refused too. A lineage the record can
+no longer prove, or a child refused, parks instead of finalizing, which is
+what keeps every child of that split unstarted.
 """
 from __future__ import annotations
 
@@ -99,14 +100,13 @@ def _seed_orphan_child_state(
     again, and its own size gate reads the lineage it was born into.
 
     Answers why this child may not be finalized, or None once it is repaired.
-    Where the parent's record proves a lineage, the child is held to it before
-    anything is written: its pinned comment has to parse, its parent link has
-    to be this issue or absent, its ancestry has to be the one it was owed,
-    and any snapshot ref its title or body names has to be the one this split
-    can still keep for it -- the reading a slice is held to before it is
-    created. A split that proves no lineage keeps no snapshot for any child,
-    so a child of one whose text names a ref is refused too. A child refused
-    keeps exactly what it carried -- the
+    The child is held to the parent's record before anything is written: its
+    pinned comment has to parse, its parent link has to be this issue or
+    absent, its ancestry has to be the one it was owed -- none, where the
+    record proves no lineage -- and any snapshot ref its title or body names
+    has to be the one this split can still keep for it, which a split owing
+    no lineage has none of -- the reading a slice is held to before it is
+    created. A child refused keeps exactly what it carried -- the
     damage every later reader of it refuses on included. One told about a
     snapshot the consumer ledger no longer names is recorded there again, in
     a write of the parent's own that lands before its seed and before the
@@ -115,7 +115,7 @@ def _seed_orphan_child_state(
     child_issue = gh.get_issue(int(child_number))
     child_state = gh.read_pinned_state(child_issue)
     seed = lineage.repair(
-        state, int(child_number), child_state,
+        state, issue.number, int(child_number), child_state,
         _late_child_content._named_snapshots(getattr(child_issue, "title", None), getattr(child_issue, "body", None)),
     )
     if seed.refusal is not None:

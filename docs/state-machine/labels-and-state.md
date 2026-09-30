@@ -3361,7 +3361,9 @@ rather than preserving.
   a title or body naming a snapshot ref the split no longer holds or never preserved (or another repository's mirror
   of one), or any other group: part of it, a field its reader would drop, another lineage — parks the same way, with
   nothing written over what it carries. A recovered split of an issue no late split charged seeds none of this
-  group, and a child of one whose title or body names any snapshot ref parks the same way.
+  group, and holds its children to the same recognition: a child of one whose pinned comment would not parse, whose
+  `parent_number` names another issue, that carries any of this group, or whose title or body names any snapshot
+  ref parks the same way.
   A snapshot ref recorded twice is a refusal whatever the two entries stand at, released included. Either park
   leaves every child unfinalized and unstarted.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a

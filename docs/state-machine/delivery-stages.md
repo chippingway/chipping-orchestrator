@@ -501,8 +501,9 @@ because there it is the claim that this stage has already rerouted rather than a
   3. **Half-finished decomposition recovery.** If `expected_children_count` is set OR `children` is non-empty (a prior
      tick crashed mid-split), the handler cannot safely respawn the decomposer. When `expected_children_count` is set
      and `len(children) < expected_children_count`, park with `decomposition_crash`. Otherwise repair any child whose
-     pinned `parent_number` was never seeded — and, where the parent sits inside a late lineage, hold every recorded
-     child to the lineage step 7 would have given it: seed one carrying none of the `late_ancestry_*` group (the
+     pinned `parent_number` was never seeded, once every recorded child is recognized as this split's own — and,
+     where the parent sits inside a late lineage, hold every recorded child to the lineage step 7 would have given
+     it: seed one carrying none of the `late_ancestry_*` group (the
      snapshot pointer only where `late_consumers` already names the child), leave one carrying exactly that group or
      that group without its pointer, and drop a pointer the ledger no longer protects, with its
      `late_ancestry_mirror_first` stamp — except on a child whose title or body names the snapshot the split still
@@ -512,9 +513,11 @@ because there it is the claim that this stage has already rerouted rather than a
      as its own — a pinned comment that would not parse, a `parent_number` naming another issue, a title or body
      naming a snapshot ref the split no longer holds or never preserved (or another repository's mirror of one), or
      any other group (part of it, a field its reader would drop, another lineage) — parks
-     `replacement_lineage_unproved` instead, as does a child of a parent outside any late lineage whose title or body
-     names any snapshot ref, since nothing keeps one for it. Nothing is written to that child, so none of its
-     children is finalized into the walk that starts them. Two owners take those markers
+     `replacement_lineage_unproved` instead. A parent outside any late lineage holds its recorded children to the
+     same recognition, owing them no group and no snapshot: one whose comment would not parse, whose
+     `parent_number` names another issue, that carries any of the group, or whose title or body names any snapshot
+     ref parks the same way. Nothing is written to that child, so none of its children is finalized into the walk
+     that starts them. Two owners take those markers
      away from this recovery: an issue already parked awaiting a human, and one carrying a live late generation —
      the split transaction writes the same two markers and resumes from its own durable facts, so finalizing on its
      behalf would hand a parent on before its snapshot, its supersession, or what the remote is owed had been
