@@ -100,6 +100,10 @@ SPLIT_MANIFEST = _manifest(
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = "implemented"
 PARK_DECOMPOSITION_CRASH = "decomposition_crash"
+# An issue that is not the replacement's parent, which a foreign link names.
+_OTHER_PARENT = 999
+# What a pinned comment that would not parse reads back as.
+_UNPARSED = PinnedState(comment_id=1, parsed=False)
 
 
 def _orphan_recovery_fixture():
@@ -336,14 +340,18 @@ def _written(ancestry, **edits) -> dict:
 
 
 # What a recorded child may carry that the crashed split did not seed: part of
-# the group, a field its reader would drop, and a whole group naming another
-# lineage.
+# the group, a field its reader would drop, a whole group naming another
+# lineage, and a link to another parent -- beside the owed ancestry, or alone.
 _FOREIGN_SEEDS = MappingProxyType({
     "part of the group": MappingProxyType({"late_ancestry_depth": 1}),
     "a field its reader would drop": MappingProxyType(
         _written(_support.ROOT_REPLACEMENT, late_ancestry_generation="first"),
     ),
     "another lineage": MappingProxyType(_written(_support.cut_from_ancestor())),
+    "another parent beside the owed ancestry": MappingProxyType(
+        _written(_support.ROOT_REPLACEMENT, **{KEY_PARENT_NUMBER: _OTHER_PARENT}),
+    ),
+    "another parent and no ancestry": MappingProxyType({KEY_PARENT_NUMBER: _OTHER_PARENT}),
 })
 
 
@@ -508,3 +516,20 @@ class RecordedSeedTest(_ReplacementRecoveryCase):
                 self.assertEqual(self.github.pinned_data(child), dict(carried))
                 self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
                 self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
+
+    def test_an_unreadable_seed_is_never_finalized(self) -> None:
+        # Nothing on it can be checked, and a seed written over it would take
+        # whatever it carried with it.
+        child = self._die_seeding()
+
+        with patch.object(self.github, "read_pinned_state", side_effect=self._reads_unparsed(child)):
+            self._recover()
+
+        self.assertEqual(self.github.pinned_data(child), {})
+        self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
+        self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
+
+    def _reads_unparsed(self, child: int):
+        """The client's pinned read, answering for `child` with a comment that would not parse."""
+        read = self.github.read_pinned_state
+        return lambda issue: _UNPARSED if issue.number == child else read(issue)

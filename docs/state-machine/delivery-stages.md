@@ -506,9 +506,10 @@ because there it is the claim that this stage has already rerouted rather than a
      snapshot pointer only where `late_consumers` already names the child), leave one carrying exactly that group or
      that group without its pointer, and drop a pointer the ledger no longer protects — then finalize to
      `workflow:umbrella` (when the flag is true) or `workflow:blocked`. A parent whose record no longer proves that
-     lineage, or a child carrying any other group (part of it, a field its reader would drop, another lineage),
-     parks `replacement_lineage_unproved` instead, so none of its children is finalized into the walk that starts
-     them. Two owners take those markers
+     lineage, or a child it cannot recognize as its own — a pinned comment that would not parse, a `parent_number`
+     naming another issue, or any other group (part of it, a field its reader would drop, another lineage) — parks
+     `replacement_lineage_unproved` instead, with nothing written to that child, so none of its children is
+     finalized into the walk that starts them. Two owners take those markers
      away from this recovery: an issue already parked awaiting a human, and one carrying a live late generation —
      the split transaction writes the same two markers and resumes from its own durable facts, so finalizing on its
      behalf would hand a parent on before its snapshot, its supersession, or what the remote is owed had been

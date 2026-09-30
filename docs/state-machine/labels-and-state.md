@@ -3345,8 +3345,10 @@ rather than preserving.
   written, so nothing is created. A recovered split holds every recorded child to the same lineage before it
   finalizes: a child carrying none of this group is seeded, the pointer included only where the ledger already
   names it; one carrying exactly the group it was owed, or that group without a pointer, is left alone; a pointer
-  the ledger no longer protects is dropped with the lineage beside it kept; and any other group — part of it, a
-  field its reader would drop, another lineage — was not written by that split, so it parks the same way. Either
+  the ledger no longer protects is dropped with the lineage beside it kept; and a child that split cannot recognize
+  as its own — a pinned comment that would not parse, a `parent_number` naming another issue, or any other group:
+  part of it, a field its reader would drop, another lineage — parks the same way, with nothing written over what it
+  carries. A snapshot ref recorded twice is a refusal whatever the two entries stand at, released included. Either
   park leaves every child unfinalized and unstarted.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or

@@ -62,6 +62,9 @@ def _entry(state: LateResourceState, ref: str = REF) -> LateResource:
 
 _HELD = _entry(LateResourceState.RETAINED)
 
+# The reason a ref recorded as neither held nor released is refused on.
+_NEITHER = "neither held nor released"
+
 # Records whose split settled what its snapshot is: held for a new consumer,
 # or passed to a reclamation -- deciding, done, or a delete the remote refused.
 _SETTLED = MappingProxyType({
@@ -75,6 +78,12 @@ _SETTLED = MappingProxyType({
     ),
     "released under an identity a retirement dropped": replace(
         _split(_entry(LateResourceState.RECONCILED)), cycle_id=0, generation=0,
+    ),
+    # Two refs, each once: two cycles' snapshots, not one ref recorded twice.
+    "two cycles released under a dropped identity": replace(
+        _split(_entry(LateResourceState.RECONCILED), _entry(LateResourceState.RECONCILED, EARLIER_REF)),
+        cycle_id=0,
+        generation=0,
     ),
     "no split of its own": LateGeneration(cycle_id=3, generation=1, root_issue=OWNER, current_issue=OWNER),
 })
@@ -94,12 +103,18 @@ _UNSETTLED = MappingProxyType({
         replace(_split(_HELD), obligations=replace(_split(_HELD).obligations, opaque_resources='["x"]')),
         "cannot be told",
     ),
-    "a ref never proved": (_split(_entry(LateResourceState.PENDING)), "neither held nor released"),
+    "a ref never proved": (_split(_entry(LateResourceState.PENDING)), _NEITHER),
     "a ref held and released at once": (
-        _split(_HELD, _entry(LateResourceState.RECONCILED)), "neither held nor released",
+        _split(_HELD, _entry(LateResourceState.RECONCILED)), _NEITHER,
+    ),
+    # Released both times is no more settled: the ledger still disagrees with
+    # itself about the one ref.
+    "a ref released twice": (
+        _split(_entry(LateResourceState.RECONCILED), _entry(LateResourceState.RECONCILED)),
+        _NEITHER,
     ),
     "no entry for its own ref": (
-        _split(_entry(LateResourceState.RETAINED, EARLIER_REF)), "neither held nor released",
+        _split(_entry(LateResourceState.RETAINED, EARLIER_REF)), _NEITHER,
     ),
 })
 

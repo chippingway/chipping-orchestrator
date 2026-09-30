@@ -38,10 +38,11 @@ any child exists, or -- where a crash left children recorded -- before the
 split is finalized and anything could start them. That recovery holds every
 recorded child to the same answer: a child carrying no ancestry is seeded,
 one carrying exactly what it was owed is left alone, a pointer the ledger no
-longer protects is dropped with the lineage beside it kept, and any other
-ancestry -- a partial group, a field its reader would drop, another lineage --
-is one this split did not write, so the finalize that would start the child
-is refused.
+longer protects is dropped with the lineage beside it kept, and a child this
+split cannot recognize as its own -- a pinned comment that would not parse, a
+link to another parent, or any other ancestry: a partial group, a field its
+reader would drop, another lineage -- refuses the finalize that would start
+it, with nothing written over what it carries.
 """
 from __future__ import annotations
 
@@ -66,6 +67,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.ancestry import LateAncestry
 from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH
+from orchestrator.workflow.stages.decomposition import state as _state
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -76,6 +78,10 @@ PARK_LINEAGE_UNPROVED = "replacement_lineage_unproved"
 _AT_THE_BOUND = "it already sits at lineage depth {depth}, and no split may create a child past {bound}"
 
 _NO_ADJUDICATION = "its late record keeps no cycle a child's ancestry could be correlated by"
+
+_UNREADABLE_CHILD = "child #{child} carries a pinned comment that would not parse, so nothing it records can be checked"
+
+_OTHER_PARENT = "child #{child} records `parent_number` {parent!r}, not this issue"
 
 _FOREIGN_SEED = (
     "child #{child} carries a late ancestry this split did not seed -- part of the group, a field its reader would "
@@ -174,24 +180,25 @@ class ReplacementLineage:
     def repair(self, state: PinnedState, child_number: int, child_state: PinnedState) -> SeedRepair:
         """What a recovered split does with one recorded child's ancestry.
 
-        A child owed no lineage is left alone, and one carrying none of the
-        group is seeded with what it was owed. One carrying the group has to
-        carry it whole and name the lineage it was owed -- the root, the
-        depth, the parent, and the adjudication -- since the seed writes the
-        group at once, and anything else was written by something other than
-        this split. The pointer is the one part repaired rather than refused:
-        kept where it is none or the one the ledger protects the child for,
-        and dropped otherwise, because a pointer nothing keeps is one the
-        child's own guard would follow into a ref a reclamation may take.
+        A child owed no lineage is left alone. Every other one has to be a
+        child this split can recognize as its own -- see `_unrecognized` --
+        before anything is written to it: one carrying none of the group is
+        then seeded with what it was owed, and one carrying the group carries
+        exactly the lineage it was owed. The pointer is the one part repaired
+        rather than refused: kept where it is none or the one the ledger
+        protects the child for, and dropped otherwise, because a pointer
+        nothing keeps is one the child's own guard would follow into a ref a
+        reclamation may take.
         """
         owed = self.child_ancestry(state, child_number)
         if owed is None:
             return SeedRepair()
+        refusal = _unrecognized(child_state, owed, child_number)
+        if refusal is not None:
+            return SeedRepair(refusal=refusal)
         if not any(child_state.carries(key) for key in _lineage.LATE_ANCESTRY_KEYS):
             return SeedRepair(ancestry=owed)
-        recorded = _recorded_whole(child_state)
-        if recorded is None or _unpointed(recorded) != _unpointed(owed):
-            return SeedRepair(refusal=_FOREIGN_SEED.format(child=child_number))
+        recorded = _lineage.read_late_ancestry(child_state)
         pointer = (recorded.snapshot_ref, recorded.snapshot_sha)
         if pointer in {("", ""), (owed.snapshot_ref, owed.snapshot_sha)}:
             return SeedRepair()
@@ -268,14 +275,26 @@ def _adjudication_of(state: PinnedState) -> tuple[int, int] | None:
     return (retired, 0) if retired else None
 
 
-def _recorded_whole(child_state: PinnedState) -> LateAncestry | None:
-    """The ancestry a child carries, or None unless it is one that reads back whole.
+def _unrecognized(child_state: PinnedState, owed: LateAncestry, child_number: int) -> str | None:
+    """Why a recorded child is not one this split can say it seeded, or None.
 
-    Whole is the group written back exactly as the comment carries it: a
-    field its reader would drop, a `null`, or a key the reader answers with
-    its empty value comes back different, and a group naming no parent and
-    cycle is no lineage at all.
+    A pinned comment that would not parse reads back empty, exactly as a
+    child nobody seeded does, and writing a seed over it would take whatever
+    it carried with it -- so it is refused before anything is read off it. A
+    link to another parent is a child another tree claims. And an ancestry
+    has to be the whole group, written back exactly as the comment carries
+    it -- a field its reader would drop, a `null`, or a key it answers with
+    its empty value comes back different -- naming the lineage it was owed,
+    its pointer aside. A child carrying none of the group is recognized: it
+    is the seed a crash deferred.
     """
+    if not child_state.parsed:
+        return _UNREADABLE_CHILD.format(child=child_number)
+    linked = child_state.get(_state._PARENT_NUMBER)
+    if linked and linked != owed.parent_issue:
+        return _OTHER_PARENT.format(child=child_number, parent=linked)
+    if not any(child_state.carries(key) for key in _lineage.LATE_ANCESTRY_KEYS):
+        return None
     recorded = _lineage.read_late_ancestry(child_state)
     rewritten = PinnedState()
     _lineage.write_late_ancestry(rewritten, recorded)
@@ -284,7 +303,8 @@ def _recorded_whole(child_state: PinnedState) -> LateAncestry | None:
         for key in _lineage.LATE_ANCESTRY_KEYS
         if child_state.carries(key)
     }
-    return recorded if recorded.is_present and carried == rewritten.data else None
+    owned = recorded.is_present and _unpointed(recorded) == _unpointed(owed)
+    return None if owned and carried == rewritten.data else _FOREIGN_SEED.format(child=child_number)
 
 
 def _unpointed(ancestry: LateAncestry) -> LateAncestry:

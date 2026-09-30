@@ -47,7 +47,7 @@ from enum import Enum
 from orchestrator.git.snapshots import namespace as _namespace
 from orchestrator.workflow.late_split import ancestry as _ancestry
 from orchestrator.workflow.late_split.models import LateGeneration
-from orchestrator.workflow.late_split.obligations import LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split.obligations import LateResource, LateResourceKind, LateResourceState
 
 # What a snapshot entry stands at once a reclamation has decided its ref goes:
 # the decision, its completion, and a delete the remote refused. A split whose
@@ -116,9 +116,10 @@ def unsettled_snapshot(generation: LateGeneration, issue_number: int) -> str | N
     split recorded its snapshot before its first one; any other record holds
     no snapshot of its own to be asked about. None is either settled answer:
     the ref is held -- `SnapshotEntitlement.preserved_by` names it -- or its
-    entry has passed to a reclamation. An identity no ref can be minted from,
-    which is what a retirement leaves, is judged by every snapshot entry the
-    ledger carries, since none of them can be told apart as its own.
+    one entry has passed to a reclamation. An identity no ref can be minted
+    from, which is what a retirement leaves, is judged by every snapshot entry
+    the ledger carries, since none of them can be told apart as its own, and
+    each ref among them has to be recorded once.
     """
     if split_evidence(generation, issue_number) is not SplitEvidence.PROVED:
         return None
@@ -126,14 +127,21 @@ def unsettled_snapshot(generation: LateGeneration, issue_number: int) -> str | N
         return None
     if generation.obligations.opaque_resources is not None:
         return _UNREADABLE_RESOURCES
-    recorded = _snapshot_states(generation, issue_number)
-    if recorded and _RELEASED.issuperset(recorded):
+    entries = _own_snapshot_entries(generation, issue_number)
+    states = tuple(entry.resource_state for entry in entries)
+    recorded_once = len({entry.target for entry in entries}) == len(entries)
+    if entries and recorded_once and _RELEASED.issuperset(states):
         return None
-    return _UNPROTECTABLE if recorded == (LateResourceState.RETAINED,) else _UNSETTLED
+    return _UNPROTECTABLE if states == (LateResourceState.RETAINED,) else _UNSETTLED
 
 
-def _snapshot_states(generation: LateGeneration, issue_number: int) -> tuple[LateResourceState, ...]:
-    """The states the ledger records this split's own snapshot at, one per entry."""
+def _own_snapshot_entries(generation: LateGeneration, issue_number: int) -> tuple[LateResource, ...]:
+    """The snapshot entries the ledger records for this split's own ref.
+
+    Every one of them, so a ref recorded twice -- whatever states the two
+    entries stand at -- is a ledger disagreeing with itself rather than a
+    settled answer.
+    """
     try:
         own = _namespace.snapshot_ref(
             issue_number=issue_number, cycle_id=generation.cycle_id, generation=generation.generation,
@@ -141,7 +149,7 @@ def _snapshot_states(generation: LateGeneration, issue_number: int) -> tuple[Lat
     except _namespace.InvalidSnapshotRef:
         own = None
     return tuple(
-        entry.resource_state
+        entry
         for entry in generation.obligations.resources
         if entry.kind == LateResourceKind.SNAPSHOT_REF and own in {None, entry.target}
     )

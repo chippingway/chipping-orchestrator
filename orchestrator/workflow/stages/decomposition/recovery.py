@@ -34,9 +34,11 @@ decision the split made before creating them -- and holds every recorded
 child to it before anything is finalized: a child missing the ancestry is
 seeded, the snapshot pointer included only where the consumer ledger already
 records that child; a pointer that ledger no longer protects is dropped; and
-an ancestry this split did not write is refused. A lineage the record can no
-longer prove, or a child that carries another one, parks instead of
-finalizing, which is what keeps every child of that split unstarted.
+a child this split cannot recognize as its own -- a pinned comment that would
+not parse, a link to another parent, an ancestry it did not write -- is
+refused. A lineage the record can no longer prove, or a child refused, parks
+instead of finalizing, which is what keeps every child of that split
+unstarted.
 """
 from __future__ import annotations
 
@@ -91,9 +93,11 @@ def _seed_orphan_child_state(
     again, and its own size gate reads the lineage it was born into.
 
     Answers why this child may not be finalized, or None once it is repaired.
-    Its ancestry is held to the lineage the parent's record proves before
-    anything is written to it, so a child refused keeps exactly what it
-    carried -- the damage every later reader of it refuses on included.
+    Where the parent's record proves a lineage, the child is held to it before
+    anything is written: its pinned comment has to parse, its parent link has
+    to be this issue or absent, and its ancestry has to be the one it was
+    owed. A child refused keeps exactly what it carried -- the damage every
+    later reader of it refuses on included.
     """
     child_issue = gh.get_issue(int(child_number))
     child_state = gh.read_pinned_state(child_issue)
