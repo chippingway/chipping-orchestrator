@@ -1529,7 +1529,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the one park every refusal takes
       late_child_content.py child scope, declared budgets, ancestry, immutable-snapshot reuse instructions -- rendered off
                             a pointed ancestry, so a protected replacement's body says the same -- the one reader of
-                            every snapshot ref issue text names, each as spelled, a mirror kept whole with the
+                            every snapshot ref issue text names, each read as the whole ref name git would take it
+                            for -- only the quoting and punctuation around it dropped -- a mirror kept whole with the
                             repository segment it was fetched for, and exact slice receipts; reserved markers in
                             proposed scope are refused before publication
       late_child_records.py retain the child walk, write each child on every parent ledger before seeding its ancestry,

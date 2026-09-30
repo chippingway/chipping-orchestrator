@@ -1924,8 +1924,11 @@ includes the ref a descendant was itself cut from, which its parent's ledger kee
 the children it creates, and every ref where the child is pointed at none: the implementer reads the body, so a slice
 copying reuse instructions from the thread would otherwise hand a child a snapshot nothing keeps for it. It includes
 a mirror under another repository's segment too: a `REPOS` entry sharing the clone fetches its own split of the same
-issue, cycle, and generation numbers there, which may be other work and is on no ledger this parent writes. The
-split parks
+issue, cycle, and generation numbers there, which may be other work and is on no ledger this parent writes. And
+each mention is read as the whole ref name git would take it for — as far as ref characters run on either side of the
+namespace, with only the quotes, backticks, brackets, a refspec's leading `+`, and sentence punctuation around it
+dropped — so a longer name that merely contains the child's ref (`…/gen-1@foreign`, `refs/heads/refs/…`) is the
+different, unkept ref it is. The split parks
 `replacement_lineage_unproved` before `expected_children_count` is written, so no child exists and nothing is left
 for a recovery to finalize; a reply is an edit, and re-runs the decomposer against the thread as it then stands.
 
@@ -1936,8 +1939,8 @@ child — one carrying exactly the group it was owed, or that group without its 
 pointer the ledger no longer protects is dropped, its ordering stamp with it, and the lineage beside it kept. The
 child's own text outranks the ledger there, though, because the title and body are what the implementer reads and
 were written before the record that protects the child. They are read exactly as a slice is before creation — every
-ref named under the namespace, whatever line or line ending it sits on, a mirror standing for the ref only under this
-repository's own segment: a child
+ref named under the namespace, whatever line or line ending it sits on, each as the whole name git would take it for,
+a mirror standing for the ref only under this repository's own segment: a child
 whose text names only the snapshot the split still holds is recorded on `late_consumers` again — in a write of the
 parent's own, ahead of its seed and of the finalize — and pointed at that ref, never left with instructions nothing
 keeps. A child that split cannot recognize as its own is refused rather than overwritten: a pinned comment that would

@@ -178,8 +178,13 @@ class InheritedLineageTest(unittest.TestCase):
 
     def test_a_slice_may_name_its_own_snapshot(self) -> None:
         # The one ref kept for the child is the one its instructions name, by
-        # either name they give it.
-        for named in (_support.SNAPSHOT_REF, _support.OWN_MIRROR):
+        # either name they give it, however the text around it wraps it.
+        for named in (
+            _support.SNAPSHOT_REF,
+            _support.OWN_MIRROR,
+            f"`{_support.SNAPSHOT_REF}`",
+            f"'+{_support.SNAPSHOT_REF}:{_support.OWN_MIRROR}'",
+        ):
             with self.subTest(named=named):
                 github, issue = _support.late_parent(_support.own_split())
 
@@ -279,6 +284,18 @@ _UNSUPPORTED = MappingProxyType({
         _ROOT_SPLIT,
         _slice_naming(_support.FOREIGN_MIRROR),
         _support.FOREIGN_MIRROR,
+    ),
+    # Whole names that contain its own ref, which git would fetch as the
+    # different refs they are.
+    "a root replacement told a ref running on past its own": (
+        _ROOT_SPLIT,
+        _slice_naming(_support.EXTENDED_REF),
+        _support.EXTENDED_REF,
+    ),
+    "a root replacement told its own ref nested under another": (
+        _ROOT_SPLIT,
+        _slice_naming(_support.NESTED_REF),
+        _support.NESTED_REF,
     ),
 })
 

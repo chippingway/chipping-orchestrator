@@ -109,14 +109,22 @@ PARK_LINEAGE_UNPROVED = _replacement_lineage.PARK_LINEAGE_UNPROVED
 # still name.
 _FOREIGN_REF = "refs/orchestrator/late-split/issue-4/cycle-2/gen-1"
 _LABEL_READY = "workflow:ready"
+# The issue field a child's implementer reads its instructions in.
+_BODY = "body"
 # The ways a recorded child's text can name a ref beside, or instead of, the
 # one its split keeps for it -- each by the field it lands in and the edit.
 _FOREIGN_TEXT = MappingProxyType({
-    "instructions repointed at it": ("body", lambda text: text.replace(_support.SNAPSHOT_REF, _FOREIGN_REF)),
-    "prose naming it beside the instructions": ("body", lambda text: f"{text}\n\nsee also {_FOREIGN_REF}"),
+    "instructions repointed at it": (_BODY, lambda text: text.replace(_support.SNAPSHOT_REF, _FOREIGN_REF)),
+    "prose naming it beside the instructions": (_BODY, lambda text: f"{text}\n\nsee also {_FOREIGN_REF}"),
     "a title naming it": ("title", lambda text: f"{text} ({_FOREIGN_REF})"),
     "instructions naming another repository's mirror of the same numbers": (
-        "body", lambda text: text.replace(_support.OWN_MIRROR, _support.FOREIGN_MIRROR),
+        _BODY, lambda text: text.replace(_support.OWN_MIRROR, _support.FOREIGN_MIRROR),
+    ),
+    "instructions naming a ref running on past it": (
+        _BODY, lambda text: text.replace(_support.SNAPSHOT_REF, _support.EXTENDED_REF),
+    ),
+    "instructions nesting it under another ref": (
+        _BODY, lambda text: text.replace(_support.SNAPSHOT_REF, _support.NESTED_REF),
     ),
 })
 # An issue that is not the replacement's parent, which a foreign link names.

@@ -64,6 +64,13 @@ OWN_MIRROR = _snapshot_mirrors.local_snapshot_ref(_TEST_SPEC, SNAPSHOT_REF)
 
 FOREIGN_MIRROR = _snapshot_mirrors.local_snapshot_ref(replace(_TEST_SPEC, slug="another/repository"), SNAPSHOT_REF)
 
+# Whole ref names git would fetch that merely contain that snapshot's: one
+# running on past it, and one nesting it under another namespace. Neither is
+# on any ledger.
+EXTENDED_REF = f"{SNAPSHOT_REF}@foreign"
+
+NESTED_REF = f"refs/heads/{SNAPSHOT_REF}"
+
 # The pinned keys a replacement's seed and its parent's record are read back
 # through.
 KEY_PARENT_NUMBER = "parent_number"

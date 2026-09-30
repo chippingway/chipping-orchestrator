@@ -562,7 +562,8 @@ because there it is the claim that this stage has already rerouted rather than a
        parent's own whose ledger cannot say whether its snapshot is held or released (or that holds it with no
        recorded base for the reuse instructions to name its change from), or a slice whose own title or
        body names a snapshot ref its child would not be kept (any but the one it is pointed at, or this repository's
-       local mirror of it)
+       local mirror of it, each mention read as the whole ref name git would take it for, so a longer name containing
+       it is refused)
        parks `replacement_lineage_unproved` before `expected_children_count` is written, creating nothing. Then for
        each
        child call `gh.create_child_issue(...)` with label `workflow:blocked` (the child's only birth label), record

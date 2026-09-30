@@ -3349,7 +3349,9 @@ rather than preserving.
   refusal like any other, as is a held ref whose record keeps no `late_base_sha` for the instructions to name its
   change from, and so is a slice whose own title or body names a snapshot ref other than the one its
   child is pointed at (or this repository's local mirror of that ref — another repository's mirror of the same
-  numbers is that repository's copy, on no ledger here). A refusal parks `replacement_lineage_unproved` before
+  numbers is that repository's copy, on no ledger here). Each mention is read as the whole ref name git would take
+  it for, only the quoting and punctuation around it dropped, so a longer name that merely contains the child's ref
+  is refused as the different ref it is. A refusal parks `replacement_lineage_unproved` before
   `expected_children_count` is written, so nothing is created. A recovered split holds every recorded child to the
   same lineage before it finalizes: a child carrying none of this group is seeded, the pointer included only where
   the ledger already

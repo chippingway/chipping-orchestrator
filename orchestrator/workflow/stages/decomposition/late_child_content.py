@@ -101,16 +101,30 @@ does not cover, implement normally.
 """
 
 
-# Anything issue text names in the snapshot namespace: a remote ref, or a
-# host's mirror of one -- as far as the path segments a ref is spelled with
-# run, short of a full stop or slash that only ends the sentence around it.
-# Each reads back as spelled. A mirror carries the repository segment it was
+# What a git ref name may be spelled with: anything but whitespace, a control
+# character, and the few characters git refuses anywhere in one.
+_REF_CHARACTER = r"[^\s\x00-\x1f\x7f~^:?*\[\\]"
+
+# Anything issue text names in the snapshot namespace -- a remote ref, or a
+# host's mirror of one -- read as the whole ref name it could be: as far as
+# ref characters run on EITHER side of the namespace, so a name that merely
+# contains an allowed ref (`...gen-1@foreign`, `refs/heads/refs/...`) reads as
+# the different ref it is. A mirror carries the repository segment it was
 # fetched for, and one under another repository's segment is that
 # repository's copy of the same three numbers: possibly other work, and kept
 # by no ledger here. A mention that is no whole ref is no child's either.
 _NAMED_SNAPSHOT = re.compile(
-    rf"{re.escape(_snapshot_namespace.SNAPSHOT_NAMESPACE)}(?:-local)?(?:/[\w.-]*[\w-])*",
+    rf"(?<!{_REF_CHARACTER}){_REF_CHARACTER}*?"
+    rf"{re.escape(_snapshot_namespace.SNAPSHOT_NAMESPACE)}{_REF_CHARACTER}*",
 )
+
+# What text wraps a ref name in, and is dropped from either end of a mention
+# rather than read as part of it: quotes, backticks, and brackets around a
+# name, the `+` a forced refspec opens with, and the punctuation a sentence
+# ends on. A ref may not end in a full stop or a slash at all.
+_OPENS_A_NAME = "`'\"(<+"
+
+_CLOSES_A_NAME = "`'\")>.,;!/"
 
 
 def _forged_receipt(children: tuple) -> str | None:
@@ -241,10 +255,12 @@ def _named_snapshots(*texts: object) -> frozenset[str]:
     A mirror is not read as the remote ref it mirrors, because only this
     repository's own segment makes it that: which names a kept snapshot may
     go by is the lineage's answer -- see `ReplacementLineage.told` -- and
-    anything else named here is a ref nothing keeps for the child.
+    anything else named here is a ref nothing keeps for the child. Nor is a
+    ref read out of a longer name that contains it: git would fetch that
+    longer name, so it is what the text tells a child to reuse.
     """
     return frozenset(
-        match.group()
+        match.group().lstrip(_OPENS_A_NAME).rstrip(_CLOSES_A_NAME)
         for text in texts
         if isinstance(text, str)
         for match in _NAMED_SNAPSHOT.finditer(text)
