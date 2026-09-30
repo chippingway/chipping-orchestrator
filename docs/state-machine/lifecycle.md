@@ -874,7 +874,11 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   lookup, or a lazy state/label read behind
                                   one) keeps the ref however done the
                                   replacements are -- read, never relabelled
-                                  or re-tracked. The ref goes on the first
+                                  or re-tracked. A replacement the split
+                                  POINTED at the ref is on the ledger too,
+                                  recorded in the write that tracked it, so
+                                  one reopened keeps the ref the same way.
+                                  The ref goes on the first
                                   poll after they end that reaches this row
                                   or the park row below.
                                   EVERY obligation that is not

@@ -13,7 +13,10 @@ second time, with no human having written anything in between.
 What must still be an edit is the other half. Words that arrived after the
 reading the revision consumed were acted on by nobody, and the next agent is
 owed them; the controls an operator types and the orchestrator's own comments
-are not requirements at all, and route nothing.
+are not requirements at all, and route nothing. The children the decomposer
+then answers the edit with replace the split's own inside the same lineage:
+one level below the root, pointed at the snapshot the split still holds, and
+recorded as its consumers.
 """
 from __future__ import annotations
 
@@ -29,10 +32,11 @@ from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.stages.decomposition import (
     late_content_replies as _replies,
     late_content_support as _support,
+    late_crash_support as _crash,
     late_revision_support as _revision_support,
     late_test_support as _stage_support,
+    replacement_lineage_support as _replacement,
 )
-from tests.workflow.stages.decomposition.late_crash_support import killed_after
 from tests.workflow.stages.decomposition.late_requirements_support import (
     DRIFT_NOTICE,
     KEY_CHILDREN,
@@ -51,6 +55,21 @@ COUNTED = "and the importer must log every skipped row"
 COUNTED_ID = 9
 
 ALLOWED_AUTHORS = "ALLOWED_ISSUE_AUTHORS"
+
+KEY_CONSUMERS = "late_consumers"
+
+# The lineage and the pointer a child's ancestry records: everything a late
+# split seeds but the slice it declared and the base branch it names.
+_INHERITED_KEYS = (
+    "late_ancestry_root_issue",
+    "late_ancestry_depth",
+    "late_ancestry_parent",
+    "late_ancestry_cycle_id",
+    "late_ancestry_generation",
+    "late_ancestry_snapshot_ref",
+    "late_ancestry_snapshot_sha",
+    "late_ancestry_mirror_first",
+)
 
 # The two slices the adjudicator's split proposes: one set of children is
 # exactly this many issues.
@@ -126,7 +145,7 @@ class GuidedSplitHandoffTest(GuidedSplitCase):
         # The window the relabel guard exists for: `umbrella` on the issue
         # over a generation the pinned comment still reads as live.
         self._revise_oversized()
-        with killed_after(self.github, "set_workflow_label"), self.assertRaises(KeyboardInterrupt):
+        with _crash.killed_after(self.github, "set_workflow_label"), self.assertRaises(KeyboardInterrupt):
             self._split()
         created = self._created()
         self.assertTrue(_late_relabel._adjudication_is_live(
@@ -162,6 +181,23 @@ class LaterRequirementsTest(GuidedSplitCase):
                 decomposer.assert_called_once()
                 self.assertIn(said, decomposer.call_args.args[1])
 
+    def test_replacements_inherit_the_lineage(self) -> None:
+        # The edit is genuine, so the decomposer's answer replaces the split's
+        # own children -- and they are the lineage's second generation, not a
+        # fresh root's first.
+        for shape, change, said in _LATER_EDITS:
+            with self.subTest(shape=shape):
+                self._start()
+                self._revise_oversized()
+                self._split(arriving=change)
+                originals = self._created()
+
+                self._dispatch()
+                decomposer = self._redecompose(_replacement.REPLACEMENT_MANIFEST)
+
+                self.assertIn(said, decomposer.call_args.args[1])
+                self._assert_replaced(originals)
+
     def test_controls_and_our_comments_are_no_edit(self) -> None:
         for shape, body, author in _NOT_REQUIREMENTS:
             with self.subTest(shape=shape):
@@ -178,6 +214,28 @@ class LaterRequirementsTest(GuidedSplitCase):
                 )
                 self.assertEqual(self._pinned()[KEY_CHILDREN], self._created())
                 self.assertFalse(any(DRIFT_NOTICE in comment for comment in self._bodies()))
+
+
+    def _assert_replaced(self, originals: list) -> None:
+        """The replacements are tracked, protected, and cut where the originals were.
+
+        One level below the root, pointed at the one snapshot the split still
+        holds, and recorded beside the originals as its consumers.
+        """
+        replacements = [number for number in self._created() if number not in originals]
+        protected = sorted([*originals, *replacements])
+        inherited = [self._inherited(number) for number in replacements]
+        cut = self._inherited(originals[0])
+        self.assertEqual(self._pinned()[KEY_CHILDREN], replacements)
+        self.assertEqual(len(replacements), _replacement.REPLACEMENT_COUNT)
+        self.assertEqual(self._pinned()[KEY_CONSUMERS], protected)
+        self.assertEqual(cut[_INHERITED_KEYS[1]], 1)
+        self.assertEqual(inherited, [cut for _ in replacements])
+
+    def _inherited(self, number: int) -> dict:
+        """The lineage and pointer one child's pinned comment records."""
+        pinned = self.github.pinned_data(number)
+        return {key: pinned.get(key) for key in _INHERITED_KEYS}
 
 
 class UnrecordedBaselineHandoffTest(GuidedSplitCase):

@@ -223,10 +223,13 @@ the action depends on lifecycle position:
   `late_consumers` survive whole and go on naming the orphans, so the umbrella the re-decomposition leaves still
   proves that ref against them
   (see [what the terminal waits on](#_handle_umbrella-label-workflowumbrella)). The orphans are never adopted,
-  relabelled, or reopened. Nor does either reset touch the `late_ancestry_*` group. The read-only decision of which
-  late lineage a re-derived manifest's children would inherit (`late_split/provenance.py`, see
-  [inherited lineage](labels-and-state.md#late-generation-state)) is dormant: no decomposition asks it yet, so those
-  children are still created with no ancestry of their own.
+  relabelled, or reopened. Nor does either reset touch the `late_ancestry_*` group, which is what the re-derived
+  manifest's children are seeded from: the split that answers the reroute asks which late lineage they inherit
+  (`late_split/provenance.py`, see [inherited lineage](labels-and-state.md#late-generation-state)) before it creates
+  one, and seeds each one level below the parent under the same root rather than as a fresh root at depth 0. Only a
+  replacement pointed at the ref the parent's own split holds joins `late_consumers`, and it joins in the write that
+  records it in `children`, so the ref is kept for it as well as for the orphans. A lineage the record cannot prove,
+  or a parent already at `MAX_LINEAGE_DEPTH`, parks `replacement_lineage_unproved` with no child created.
 - **`workflow:implementing` / `workflow:validating` / `in_review` / `workflow:resolving_conflict`** (a dev session
   exists and possibly a PR) — post a `:pencil2: issue body changed; resuming dev session` notice (on the issue for
   implementing/validating, on the PR for in_review/resolving_conflict), resume the locked dev session with
@@ -497,11 +500,15 @@ because there it is the claim that this stage has already rerouted rather than a
   3. **Half-finished decomposition recovery.** If `expected_children_count` is set OR `children` is non-empty (a prior
      tick crashed mid-split), the handler cannot safely respawn the decomposer. When `expected_children_count` is set
      and `len(children) < expected_children_count`, park with `decomposition_crash`. Otherwise repair any child whose
-     pinned `parent_number` was never seeded, then finalize to `workflow:umbrella` (when the flag is true) or
-     `workflow:blocked`. Two owners take those markers away from this recovery: an issue already parked awaiting a
-     human, and one carrying a live late generation — the split transaction writes the same two markers and resumes
-     from its own durable facts, so finalizing on its behalf would hand a parent on before its snapshot, its
-     supersession, or what the remote is owed had been settled. Either way the tick ends having changed nothing.
+     pinned `parent_number` was never seeded — and, where the parent sits inside a late lineage, any child carrying
+     none of the `late_ancestry_*` group, seeded with the lineage step 7 would have given it (the snapshot pointer only
+     where `late_consumers` already names the child) — then finalize to `workflow:umbrella` (when the flag is true) or
+     `workflow:blocked`. A parent whose record no longer proves that lineage parks `replacement_lineage_unproved`
+     instead, so none of its children is finalized into the walk that starts them. Two owners take those markers
+     away from this recovery: an issue already parked awaiting a human, and one carrying a live late generation —
+     the split transaction writes the same two markers and resumes from its own durable facts, so finalizing on its
+     behalf would hand a parent on before its snapshot, its supersession, or what the remote is owed had been
+     settled. Either way the tick ends having changed nothing.
   4. **DECOMPOSE kill switch.** If `config.DECOMPOSE` is off when this handler runs, clear decomposer-side park flags,
      ratchet `last_action_comment_id` past every visible comment, flip the label to `workflow:implementing`, and fall
      into `_handle_implementing`. Step 3 runs first so orphan children are not abandoned. An issue parked on
@@ -536,11 +543,16 @@ because there it is the claim that this stage has already rerouted rather than a
      - `decision == "single"` → post the collected-context comment (rationale plus the manifest's optional
        `affected_files` / `notes`, built by `_build_single_decision_comment`) so the implementer inherits the
        decomposer's groundwork via `_recent_comments_text`; label `workflow:ready`, stamp `decomposed_at`.
-     - `decision == "split"` → for each child call `gh.create_child_issue(...)` with label `workflow:blocked` (the
-       child's only birth label) and seed the child's pinned state with `parent_number`; persist `children` /
-       `dep_graph` / `umbrella` on the parent; activate no-dep children by flipping `workflow:blocked` →
-       `workflow:ready` (best-effort, since `_handle_blocked` / `_handle_umbrella` also treats no-dep children as
-       deps-satisfied).
+     - `decision == "split"` → first decide the late lineage the children inherit
+       (`stages/decomposition/replacement_lineage.py` over `late_split/provenance.py`): an issue no late split
+       charged inherits none, and an unprovable record or a parent already at `MAX_LINEAGE_DEPTH` parks
+       `replacement_lineage_unproved` before `expected_children_count` is written, creating nothing. Then for each
+       child call `gh.create_child_issue(...)` with label `workflow:blocked` (the child's only birth label), record
+       it in `children` — and in the same write on `late_consumers`, where the parent's own split holds the snapshot
+       it will be pointed at — and seed the child's pinned state with `parent_number` and that lineage, never the
+       parent's measurement, exemption, or authorization; persist `dep_graph` / `umbrella` on the parent; activate
+       no-dep children by flipping `workflow:blocked` → `workflow:ready` (best-effort, since `_handle_blocked` /
+       `_handle_umbrella` also treats no-dep children as deps-satisfied).
 - **Output**: parent → `workflow:ready` / `workflow:blocked` / `workflow:umbrella` / `workflow:implementing`, OR a
   HITL park.
 
@@ -633,8 +645,10 @@ because there it is the claim that this stage has already rerouted rather than a
   only while the children this handler tracks are the ones the split recorded — proved off the child scan this
   handler already took for every consumer that scan was asked about. A recorded consumer it was not asked about is
   read afresh: after a genuine edit re-decomposed the umbrella the scan is of the replacements, and the originals the
-  reroute orphaned are the consumers the ref was preserved for — so one of them still open, reopened, or unreadable
-  keeps the ref (and the terminal) however finished the replacements are. The settlement is asked only where this
+  reroute orphaned are consumers the ref was preserved for — so one of them still open, reopened, or unreadable
+  keeps the ref (and the terminal) however finished the replacements are. A replacement the re-decomposition
+  pointed at the ref is a recorded consumer too, answered off the scan like any tracked child, so a replacement
+  reopened after it resolved keeps the ref the same way. The settlement is asked only where this
   handler reaches it — a poll that finds every tracked child resolved, or one a child's disposition parks — so the
   ref goes on the first such poll after the last original ends, not on the first poll of any kind; an original that
   ends while replacements are still running frees nothing until they resolve or one parks the parent, and the

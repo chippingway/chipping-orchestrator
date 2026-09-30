@@ -5,7 +5,8 @@
 The drift reroute orphans the children the split made, and the ordinary decomposer tracks replacements in their
 place. The snapshot was preserved for the originals, though, and the generation still records them as its
 consumers -- so the ref is proved against them, read afresh because the umbrella's own scan is of the
-replacements, while the branch, which no consumer has a claim on, is reclaimed as it always was.
+replacements, while the branch, which no consumer has a claim on, is reclaimed as it always was. A replacement the
+re-decomposition pointed at that ref is recorded beside them, so it holds the ref until its own work has ended too.
 """
 from __future__ import annotations
 
@@ -17,7 +18,8 @@ from unittest.mock import patch
 
 from orchestrator.git.snapshots.refs import SnapshotOutcome
 from orchestrator.workflow.late_split.obligations import LateResourceState
-from tests.workflow.fixtures import _PatchedWorkflowMixin
+from orchestrator.workflow.stages.decomposition import run as _decomposing
+from tests.workflow.fixtures import _TEST_SPEC, _agent, _manifest, _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition import late_cleanup_support as _support
 from tests.workflow.stages.decomposition.late_cleanup_support import OwnerSeed, RecordedDelete, SeededUmbrella
 
@@ -28,6 +30,17 @@ _AT_LOOKUP = "lookup"
 _PAST_LOOKUP = "labels"
 
 _REFUSED = "the original could not be read"
+
+# What the edited umbrella is re-decomposed into: one replacement, which the
+# split points at the ref the root's own split still holds.
+_REPLACEMENT_MANIFEST = _manifest(
+    '{"decision": "split", "umbrella": true, "rationale": "re-planned", '
+    '"children": [{"title": "A", "body": "the whole of it, as the edit now asks"}]}'
+)
+
+_STALE_BASELINE = "the requirements before the edit"
+
+_RELEASE_MARKER = "<!--orchestrator-late-release owner=41"
 
 
 @dataclass(frozen=True)
@@ -142,6 +155,61 @@ class ReplacedManifestCleanupTest(_PatchedWorkflowMixin, unittest.TestCase):
             side_effect=_OriginalUnreadable(seeded.github, original.failing),
         ) if original.failing else nullcontext()
         with deleted.answering(), unreadable:
+            _support.walk_owner(self, seeded)
+        return deleted
+
+
+class ProtectedReplacementTest(_PatchedWorkflowMixin, unittest.TestCase):
+    """A replacement pointed at the ref keeps it until its own work ends."""
+
+    def test_a_reopened_replacement_keeps_the_ref(self) -> None:
+        seeded, replacement = self._redecomposed()
+        seeded.github.get_issue(_support.CHILD_NUMBER).closed = True
+        # Resolved and put back by a human: the label says `done`, and the
+        # issue is live again.
+        seeded.github.set_workflow_label(replacement, _support.LABEL_DONE, guarded=False)
+
+        held = self._walk(seeded)
+        replacement.closed = True
+        released = self._walk(seeded)
+
+        self.assertEqual(held.refs, [])
+        self.assertEqual(released.refs, [_support.SNAPSHOT_REF])
+        self.assertEqual(
+            _support.resource_states(seeded.github)[_support.SNAPSHOT_REF],
+            _support.STATE_RECONCILED,
+        )
+        self.assertTrue(seeded.parent.closed)
+        self.assertTrue(any(_RELEASE_MARKER in comment.body for comment in replacement.comments))
+
+    def _redecomposed(self):
+        """A root's umbrella an edit re-decomposed into one replacement.
+
+        The root sits at depth 0 and still holds its ref for the original,
+        which is running when the edit lands.
+        """
+        seeded = _support.split_umbrella(
+            LateResourceState.RECONCILED,
+            snapshot=LateResourceState.RETAINED,
+            child_label=_support.LABEL_READY,
+            owner=OwnerSeed(child_closed=False),
+        )
+        seeded.github.seed_state(_support.PARENT_NUMBER, **{
+            **seeded.github.pinned_data(_support.PARENT_NUMBER),
+            "late_lineage_depth": 0,
+            "user_content_hash": _STALE_BASELINE,
+        })
+        _support.walk_owner(self, seeded)
+        self._run(
+            lambda: _decomposing._handle_decomposing(seeded.github, _TEST_SPEC, seeded.parent),
+            run_agent=_agent(session_id="replanned", last_message=_REPLACEMENT_MANIFEST),
+        )
+        return seeded, seeded.github.created_child_issues[0]
+
+    def _walk(self, seeded: SeededUmbrella) -> RecordedDelete:
+        """Run the umbrella's poll, the remote deleting whatever it is asked to."""
+        deleted = RecordedDelete(SnapshotOutcome.DELETED)
+        with deleted.answering():
             _support.walk_owner(self, seeded)
         return deleted
 

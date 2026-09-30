@@ -491,7 +491,8 @@ control label comes off; the authorization is not lost meanwhile.
   re-decomposed the umbrella, the children its drift notice named as ORPHANED are still the ref's recorded consumers,
   so an orphan left open (or one the orchestrator cannot read) holds the ref and the umbrella after every replacement
   is done. Close the orphans that no longer apply; the ref goes on the next dependency poll that finds the
-  replacements resolved.
+  replacements resolved. A replacement that re-decomposition pointed at the ref is a recorded consumer as well, so it
+  holds the ref exactly as an original does until it is closed.
 - An umbrella that will not close with **nothing owed at all** — every obligation `reconciled`, no failure on
   either sink. The issue was split on the far side of publication, and the pull request that split superseded is
   open again (or was merged, or has been pushed to since). Everything the umbrella still had to do was licensed by

@@ -1673,9 +1673,11 @@ delete the only copy of the work it came back for. The issues come off the child
 wherever that scan was asked about them, so the ordinary proof costs no request of its own, and a closed `done`
 covers a nested split too — a child that reached it has published, so its own descendants are past needing the
 ancestor. A recorded consumer the scan was **not** asked about is read afresh instead: a genuine edit re-decomposes
-the umbrella, and from then on its scan is of the replacements while the originals it orphaned are still the
-consumers the ref was preserved for. The ledger decides who is read, never the manifest beside it, and the orphans
-are only read and, once the ref goes, told so — never adopted, relabelled, or reopened. What the ledger does not
+the umbrella, and from then on its scan is of the replacements while the originals it orphaned are still consumers
+the ref was preserved for. The ledger decides who is read, never the manifest beside it, and the orphans are only
+read and, once the ref goes, told so — never adopted, relabelled, or reopened. A replacement the re-decomposition
+pointed at the ref is on that ledger too ([below](#what-an-ordinary-re-decomposition-seeds-inside-a-lineage)), so the
+ref waits for it exactly as it waits for an original. What the ledger does not
 change is *when* the question is asked: only on a tick that finds every tracked child resolved, or one a child's
 disposition parks. So an original that ends while the replacements are still running frees the ref on the first
 such tick after it, not sooner — and the terminal waits behind the same settlement, so nothing closes over the ref
@@ -1868,6 +1870,46 @@ verbatim copy exists to prevent. So does a ledger holding anything at all on a r
 damaged: there is nothing to correlate a reclamation to and no issue number to prove a branch belongs to this
 generation, so the umbrella stays open and says so where an operator reads it. An issue that never entered the late
 gate carries no ledger and answers without a write, which is every umbrella the initial decomposer made.
+
+### What an ordinary re-decomposition seeds inside a lineage
+
+A genuine edit hands the ordinary decomposer an issue that is already inside a late lineage: the umbrella a split
+made, rerouted by a body edit or a trusted comment written after the reading the late path consumed, or a child a
+split made, rerouted before its implementation started. The children the decomposer answers with are cut inside
+that lineage whatever manifest they come from, and children created as ordinary issues would each read as a fresh
+root at depth 0 — which is exactly how a lineage buys itself generations past `MAX_LINEAGE_DEPTH`. So before the
+split writes anything, `replacement_lineage.py` asks `late_split/provenance.py` which lineage the issue's children
+inherit, and the answer is one of three.
+
+**None**, for an issue no late split charged: its children are seeded with a parent link and a creation stamp and
+nothing else, like the children of any split outside a lineage.
+
+**An inherited lineage**: each child is born one level below the parent under the same root, with an ancestry
+naming the parent and a cycle and generation to correlate by — the parent's own where its record keeps one, the one
+its own ancestry names where it has none, and the retired cycle where neither stands. A parent already at
+`MAX_LINEAGE_DEPTH` has no room for a child, so it is a refusal rather than a child at the bound's far side. The
+snapshot pointer is the part that needs protecting: the reclamation deletes a ref once every consumer its owner's
+ledger records has ended, so a child pointed at a ref nothing records is a child whose only copy of the work can be
+taken while it works. A child is therefore pointed only at the snapshot the parent's **own** split still holds —
+the ledger naming it exactly once and `retained` — and only once that ledger records it, in the same write that
+records it in `children`, ahead of its seed. A snapshot another issue's split holds is protected by a ledger only
+that issue writes, and a pinned comment is written whole by whoever writes it, so this issue may not add a consumer
+there: its children are born with the lineage and without that pointer. What never descends is the parent's own
+gate — its measurement, its `late_exempt_sha`, and the `late_override_*` terms an operator authorized one of its
+commits on — so a replacement's first oversized candidate is measured and adjudicated as the lineage's next
+generation, one level below its parent.
+
+**A refusal**, for a record that cannot say which lineage the children would be born into: every shape
+`provenance.py` refuses, a parent at the bound, or a record naming no cycle at all. The split parks
+`replacement_lineage_unproved` before `expected_children_count` is written, so no child exists and nothing is left
+for a recovery to finalize; a reply is an edit, and re-runs the decomposer against the thread as it then stands.
+
+A crash inside the split is repaired to the same answer before anything can start a child. The recovery that
+finalizes a split whose every child was recorded asks the parent's record again, seeds the lineage on any recorded
+child carrying none of the ancestry group — the pointer only where the ledger already names that child — and only
+then finalizes the parent into the walk that activates children. A record that no longer proves the lineage parks
+the same way instead, leaving every child unstarted. A child created and never recorded is the existing
+`decomposition_crash` park: nothing names it, so nothing points it at a snapshot or starts it.
 
 ### What a close mid-cycle ends, and what it still settles
 

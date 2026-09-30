@@ -25,6 +25,15 @@ child satisfies the count but leaves that child without its `parent_number`,
 and probably parked by an earlier tick that read it as an unattributed
 `blocked` issue -- so the parent's walk would flip it to `ready` and the
 implementer would sit waiting on a human reply that is never coming.
+
+The same crash leaves the child without the late ancestry its parent's lineage
+owes it, and that one is worse than a stale park: a child started with no
+ancestry is read by its own size gate as a fresh root at depth 0. So the
+repair asks the parent's record which lineage its children inherit -- the same
+decision the split made before creating them -- and seeds any child still
+missing one, the snapshot pointer included only where the consumer ledger
+already records that child. A lineage the record can no longer prove parks
+instead of finalizing, which is what keeps every child of that split unstarted.
 """
 from __future__ import annotations
 
@@ -36,9 +45,11 @@ from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards, usage as _usage
-from orchestrator.workflow.late_split import state as _late_state
+from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
+from orchestrator.workflow.late_split.ancestry import LateAncestry
 from orchestrator.workflow.stages.decomposition import (
     late_relabel as _late_relabel,
+    replacement_lineage as _replacement_lineage,
     state as _state,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -67,26 +78,52 @@ def _park_incomplete_decomposition(
 
 
 def _seed_orphan_child_state(
-    gh: GitHubClient, issue: Issue, child_number,
+    gh: GitHubClient, issue: Issue, child_number, ancestry: LateAncestry | None,
 ) -> None:
-    """Backfill `parent_number` (and creation stamp / unpark) on an orphan
-    child so the parent's dependency walk can find it again."""
+    """Backfill `parent_number` (and creation stamp / unpark) and the owed
+    ancestry on an orphan child so the parent's dependency walk can find it
+    again, and its own size gate reads the lineage it was born into.
+
+    An ancestry the child already carries any key of is left alone, whether
+    or not it reads: the seed writes the whole group at once, so a child
+    carrying part of one was written by something else, and overwriting it
+    would hide the damage every reader of it refuses on.
+    """
     child_issue = gh.get_issue(int(child_number))
     child_state = gh.read_pinned_state(child_issue)
-    if not child_state.get(_state._PARENT_NUMBER):
-        child_state.set(_state._PARENT_NUMBER, issue.number)
-        if not child_state.get(_state._CREATED_AT):
-            child_state.set(_state._CREATED_AT, _usage._now_iso())
-        child_state.set(_state._AWAITING_HUMAN, False)
-        child_state.set(_state._PARK_REASON, None)
-        gh.write_pinned_state(child_issue, child_state)
+    unseeded = ancestry is not None and not any(
+        child_state.carries(key) for key in _lineage.LATE_ANCESTRY_KEYS
+    )
+    attributed = bool(child_state.get(_state._PARENT_NUMBER))
+    if attributed and not unseeded:
+        return
+    if not attributed:
+        _attribute_orphan(child_state, issue.number)
+    if unseeded:
+        _lineage.write_late_ancestry(child_state, ancestry)
+    gh.write_pinned_state(child_issue, child_state)
+
+
+def _attribute_orphan(child_state: PinnedState, parent_number: int) -> None:
+    """Link an orphan to its parent, taking the unattributed-child park with it."""
+    child_state.set(_state._PARENT_NUMBER, parent_number)
+    if not child_state.get(_state._CREATED_AT):
+        child_state.set(_state._CREATED_AT, _usage._now_iso())
+    child_state.set(_state._AWAITING_HUMAN, False)
+    child_state.set(_state._PARK_REASON, None)
 
 
 def _repair_recovered_child(
-    gh: GitHubClient, issue: Issue, state: PinnedState, child_number,
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    child_number,
+    lineage: _replacement_lineage.ReplacementLineage,
 ) -> bool:
     try:
-        _seed_orphan_child_state(gh, issue, child_number)
+        _seed_orphan_child_state(
+            gh, issue, child_number, lineage.child_ancestry(state, int(child_number)),
+        )
     except Exception:
         log.exception(
             "issue=#%s could not repair orphan child #%s during "
@@ -95,9 +132,9 @@ def _repair_recovered_child(
         _guards._park_awaiting_human(
             gh, issue, state,
             f"{config.HITL_MENTIONS} could not repair child #{child_number} "
-            "during decomposition recovery (seed `parent_number` on its "
-            "pinned state); manual intervention needed (check orchestrator "
-            "logs).",
+            "during decomposition recovery (seed `parent_number`, and any "
+            "late lineage it inherits, on its pinned state); manual "
+            "intervention needed (check orchestrator logs).",
             reason="child_seed_failed",
         )
         gh.write_pinned_state(issue, state)
@@ -108,8 +145,19 @@ def _repair_recovered_child(
 def _repair_recovered_children(
     gh: GitHubClient, issue: Issue, state: PinnedState, children: list,
 ) -> bool:
+    """Repair every recorded child, or park where their lineage is unproved.
+
+    The lineage is asked before any child is touched, because a repair that
+    seeded some children and then refused the rest would leave a split half
+    one lineage and half none -- and the park that refusal takes is what keeps
+    all of them from being finalized into the walk that starts them.
+    """
+    lineage = _replacement_lineage.read_replacement_lineage(state, issue)
+    if lineage.refusal is not None:
+        _replacement_lineage.park_unproved(gh, issue, state, lineage.refusal)
+        return False
     return all(
-        _repair_recovered_child(gh, issue, state, child_number)
+        _repair_recovered_child(gh, issue, state, child_number, lineage)
         for child_number in children
     )
 
@@ -179,12 +227,13 @@ def _recover_stale_manifest(
     # state was never seeded. A SIGKILL between the parent's
     # incremental `children` write and the child-state write at
     # the LAST child satisfies `len(children) == expected_children_count`
-    # but leaves that child orphaned: no `parent_number`, and likely
-    # already parked with `awaiting_human=True` by a prior
-    # `_handle_blocked` tick that saw it as "unattributed blocked".
+    # but leaves that child orphaned: no `parent_number`, no late
+    # ancestry, and likely already parked with `awaiting_human=True` by a
+    # prior `_handle_blocked` tick that saw it as "unattributed blocked".
     # Without repair, the parent's later walk flips the orphan to
     # `ready`, but `_handle_implementing` reads the stale park and
-    # sits waiting for a human reply that never comes.
+    # sits waiting for a human reply that never comes -- and a size gate
+    # that did reach it would mint it a fresh lineage at depth 0.
     if not _repair_recovered_children(gh, issue, state, children_recorded):
         return True
     # `umbrella=True` is persisted alongside `expected_children_count`

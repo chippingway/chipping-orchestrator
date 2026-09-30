@@ -53,6 +53,7 @@ _OWNERS = (
     "late_hold_reading",
     "late_hold_release",
 
+    "replacement_lineage",
     "child_creation",
     "late_authorization_proof",
     "late_result_payloads",

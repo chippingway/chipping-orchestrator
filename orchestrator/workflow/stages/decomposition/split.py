@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Prepare ordinary split plans, create their children, and publish the parent summary.
 
-The parent records the expected child count before creation. Only children
+The lineage the children inherit is decided before anything is written, and a
+lineage that cannot be proved parks the split with no child created. The
+parent then records the expected child count before creation. Only children
 without dependencies are activated after the summary and parent label land.
 """
 from __future__ import annotations
@@ -14,7 +16,11 @@ from github.Issue import Issue
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments
-from orchestrator.workflow.stages.decomposition import child_creation as _child_creation, state as _state
+from orchestrator.workflow.stages.decomposition import (
+    child_creation as _child_creation,
+    replacement_lineage as _replacement_lineage,
+    state as _state,
+)
 from orchestrator.workflow.stages.decomposition.models import _SplitPlan
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -35,24 +41,36 @@ def _create_child_issues(
 ) -> _SplitPlan | None:
     """Crash-safe child issue creation loop for a `split` manifest.
 
-    Returns the populated split plan on success, or None when a create/seed
-    step failed and the parent was parked (caller must return).
+    Returns the populated split plan on success, or None when the lineage
+    could not be proved or a create/seed step failed and the parent was
+    parked (caller must return).
 
     Crash-safe sequence:
+      0. Decide the late lineage the children inherit, off the record this
+         tick already holds. One that cannot be proved parks here, before
+         any marker is written -- so nothing is created, and the resume a
+         reply buys asks the decomposer again rather than recovering a
+         split that never started.
       1. Persist `expected_children_count` (and the umbrella flag) BEFORE
          creating any child. The half-finished recovery uses these to tell
          a partial loop apart from a completed one, and to finalize to the
          right label after a mid-loop SIGKILL.
       2. For each child: create the GitHub issue, then IMMEDIATELY record
-         its number in parent state (before any further non-idempotent
-         work). A SIGKILL between these two steps is unavoidable; persisting
-         first means the worst case is an orphan child without seeded
-         `parent_number`, not a duplicate child created by a decomposer
-         respawn.
-      3. Seed child pinned state. Failure here parks but parent state
-         already records the child, so no respawn happens.
+         its number in parent state -- on the snapshot's consumer ledger
+         too, where the child is owed a pointer -- before any further
+         non-idempotent work. A SIGKILL between these two steps is
+         unavoidable; persisting first means the worst case is an orphan
+         child with nothing seeded and nothing pointing it at a snapshot,
+         not a duplicate child created by a decomposer respawn.
+      3. Seed child pinned state: the parent link, and the lineage decided
+         in step 0. Failure here parks but parent state already records
+         the child, so no respawn happens.
     """
-    plan = _SplitPlan.start(children_manifest, is_umbrella)
+    lineage = _replacement_lineage.read_replacement_lineage(state, issue)
+    if lineage.refusal is not None:
+        _replacement_lineage.park_unproved(gh, issue, state, lineage.refusal)
+        return None
+    plan = _SplitPlan.start(children_manifest, is_umbrella, lineage)
     _prepare_split_plan(gh, issue, state, plan)
     for idx, _child in enumerate(children_manifest):
         if not _child_creation._create_planned_child(gh, issue, state, plan, idx):

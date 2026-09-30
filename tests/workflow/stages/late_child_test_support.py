@@ -17,6 +17,12 @@ the bypass over the very commit the slice below is committed at, so a child
 that inherited either would publish unmeasured -- and every case here is the
 same tick either way, which is what makes the absence worth asserting.
 
+The other road into the same lineage is an ordinary re-decomposition: a
+genuine edit hands the umbrella that split back to the decomposer, and the
+child its answer creates replaces the split's own. That child is created by
+the real decomposing tick too, over a parent carrying the same bypass, so
+what its gate reads is what that split seeded it with.
+
 Past the split the child is an ordinary implementing issue with a real
 checkout under it, and the reading its gate takes is git's own: the seed the
 tick runs under is the production count pointed at that worktree, so what
@@ -43,6 +49,7 @@ from tests.workflow.stages.decomposition import (
     late_reply_support as _reply_support,
     late_seam_support as _seams,
     late_test_support as _late,
+    replacement_lineage_support as _replacement,
 )
 from tests.workflow.stages.implementing import late_gate_test_support as _gate
 
@@ -105,9 +112,15 @@ class _SliceGateCase(_gate._GateCase):
             ),
         )
         self.issue = _split_off_a_child(self.github, self.parent)
-        # What the split wrote to the child and nothing else, kept before any
-        # tick runs: the cases about what a child inherits assert against this
-        # rather than against a literal, so they are about the seeding.
+        self._pick_up()
+
+    def _pick_up(self) -> None:
+        """Hand the child the split created to the implementer.
+
+        What the split wrote to the child and nothing else is kept before any
+        tick runs: the cases about what a child inherits assert against it
+        rather than against a literal, so they are about the seeding.
+        """
         self.seeded = dict(self.github.pinned_data(self.issue.number))
         # Past that snapshot, because it is not the split's: a child whose
         # slice is already committed is a tick over an earlier run's work, and
@@ -187,3 +200,29 @@ class _SliceGateCase(_gate._GateCase):
         measurements = self._records(_gate.EVENT_LATE_MEASUREMENT)
         self.assertEqual(len(measurements), 1)
         return measurements[0].get("additions")
+
+
+class _ReplacementGateCase(_SliceGateCase):
+    """The same tick over the child an ordinary re-decomposition created.
+
+    The parent is the root of a lineage its own late split started, handed
+    back to the decomposer by an edit and still holding the snapshot that
+    split preserved; the decomposer answers with one replacement.
+    """
+
+    def setUp(self) -> None:
+        self.checkout = _slice.SliceCheckout()
+        self.checkout.prepare(self)
+        github, parent = _replacement.late_parent(
+            _replacement.own_split(),
+            **_fixtures._authorized_exemption(
+                self.checkout.candidate, self.checkout.base,
+            ),
+        )
+        _replacement.redecompose(
+            github, parent, _replacement.ONE_REPLACEMENT_MANIFEST,
+        )
+        self.github = github
+        self.parent = parent
+        self.issue = github.created_child_issues[0]
+        self._pick_up()

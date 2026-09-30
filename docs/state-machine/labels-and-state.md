@@ -3219,7 +3219,10 @@ rather than preserving.
   since the reclamation rule asks about each of them once — and it is read from the other end too, as the one record
   that can vouch for a child claiming this split in a body marker anybody can paste. It is not `children`, and a drift
   reroute that replaces that manifest leaves it naming the originals the ref was preserved for: the proof reads any
-  consumer the umbrella's scan of the replacements was not asked about afresh. Only a positive whole number is
+  consumer the umbrella's scan of the replacements was not asked about afresh. The ordinary split that answers the
+  reroute adds each replacement it points at the ref, in the same write that records the replacement in `children`,
+  so the ref waits on those too; it is the only road outside the split transaction that adds to this ledger, and it
+  writes no other late key. Only a positive whole number is
   one — `True`, `2.5`,
   and `"7"` are not issues anything can ask GitHub about, and neither the reader nor `with_consumers` will convert
   one into a consumer id. Neither ledger is ever *reduced* to what this binary understood: an entry it cannot type, or a
@@ -3305,8 +3308,9 @@ rather than preserving.
   worse than handing it none. The record is READ where it matters most: a split refuses outright when the ancestry
   disagrees with the generation's own lineage, because a generation naming a shallower depth or a different root is
   one minted without this record — and a shallower depth is exactly how a lineage would buy itself a generation past
-  `MAX_LINEAGE_DEPTH`. It is read once more, read-only and still dormant, for an ordinary re-decomposition:
-  `late_split/provenance.py` decides whether that issue's replacement children would inherit a late lineage. An
+  `MAX_LINEAGE_DEPTH`. It is read once more for an ordinary re-decomposition: `late_split/provenance.py` decides
+  which late lineage that issue's replacement children inherit, and `stages/decomposition/replacement_lineage.py`
+  asks it before the split creates a child and again before a recovered split is finalized. An
   issue no late split charged inherits none. A descendant inherits this group's root and depth, and a root whose own
   late record proves a split made children is that lineage's root at depth 0. Only a record of the children
   themselves proves one — the register, or a consumer or child entry on the ledgers, which a retirement keeps after
@@ -3325,7 +3329,17 @@ rather than preserving.
   reader would drop (`null` included), a live cycle with no root, current issue, or depth, a record whose cycle is
   gone beside the fields it still carries, and one written for another issue, still creating children, cancelled
   while it was (the interrupted boundary `late_cancelled_phase` keeps), naming a root other than the group's whether
-  or not it split, or, having split, naming another depth are each a refusal rather than depth 0.
+  or not it split, or, having split, naming another depth are each a refusal rather than depth 0. What an inherited
+  lineage seeds on each replacement is this group and nothing more: the root, one past the depth already charged, the
+  parent, and a cycle and generation to correlate by — the parent's own where its record keeps one, its ancestry's
+  where it has none, and `late_retired_cycle_id` where neither stands. A parent already at `MAX_LINEAGE_DEPTH` has no
+  room for a child, and one naming no cycle anywhere has nothing to correlate one by. The snapshot pair and
+  `late_ancestry_mirror_first` go only on a replacement `late_consumers` records, and only for the ref the parent's
+  own split holds: a pointer another issue's ledger protects is one this issue cannot record a consumer on, so its
+  replacements are born with the lineage and without it. A refusal parks `replacement_lineage_unproved` before
+  `expected_children_count` is written, so nothing is created; a recovered split whose record no longer proves the
+  lineage parks the same way instead of finalizing, so nothing is started. A recovery otherwise seeds the lineage on
+  any recorded child that carries none of this group, the pointer included only where the ledger already names it.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

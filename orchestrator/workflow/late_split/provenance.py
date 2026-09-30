@@ -39,10 +39,9 @@ Each of those could hide a depth already charged, and reading one as an
 ordinary issue would start the lineage over at 0.
 
 Read-only and local: the pinned comment and the body the caller already holds
-are the whole of the evidence, and nothing here writes either.
-
-Dormant: no decomposition asks it yet, so replacement children are still
-created without a lineage until the split that seeds them reads this first.
+are the whole of the evidence, and nothing here writes either. The ordinary
+split asks it through `stages/decomposition/replacement_lineage.py` before it
+creates a child, and again before a recovered split is finalized.
 """
 from __future__ import annotations
 

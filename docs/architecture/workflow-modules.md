@@ -1118,8 +1118,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the snapshot a replacement child could be pointed at: a proved split's own ref while
                             the ledger names it exactly once and `retained`, else, for an issue that never split, the
                             ancestry's pointer where it is the ref that ancestry's identity mints
-    provenance.py           the read-only, still dormant decision of which late lineage an ordinary decomposition's
-                            children inherit: none for an issue no late split charged; otherwise the root, the depth
+    provenance.py           the read-only decision of which late lineage an ordinary decomposition's children
+                            inherit, asked by `stages/decomposition/replacement_lineage.py` before a split creates
+                            or finalizes any: none for an issue no late split charged; otherwise the root, the depth
                             already charged, and the entitlement above -- or a refusal when an unparsed comment, an
                             ancestry field its reader would drop or a `null` one, a body receipt with no ancestry, a
                             late identity or split-evidence field its reader would drop, a live cycle missing its
@@ -1352,14 +1353,26 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       validation.py         bounded nonempty child envelopes, umbrella flags, and graph acyclicity after child validation
       outcomes.py           the live-pause and timeout settlement before the worktree check, and the three manifest
                             dispositions after it: the unparsed park, the `single` finalize, and the `split` hand-off
+      replacement_lineage.py
+                            the late lineage an ordinary split seeds its children with, off the `late_split/`
+                            provenance decision: one level below the parent under the same root and never past
+                            `MAX_LINEAGE_DEPTH`, correlated by the parent's own cycle (else its ancestry's, else the
+                            retired one), and pointed only at the snapshot the parent's own split holds, once its
+                            consumer ledger records the child; a parent at the bound, an unprovable record, or one
+                            naming no cycle parks `replacement_lineage_unproved` instead
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
-                            recorded on its parent before seeding, and either failure parks the parent for repair
-      split.py              persist the expected count, create the planned children, and publish the summary and parent
+                            recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
+                            a pointer -- before it is seeded with its parent link and that lineage, never with the
+                            parent's measurement, exemption, or authorization, and either failure parks the parent
+                            for repair
+      split.py              decide the children's lineage and park an unprovable one before any marker, then persist
+                            the expected count, create the planned children, and publish the summary and parent
                             label before activating children without dependencies
       recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the orphan-child
-                            repair, the incomplete park, and the two owners that hold those markers instead -- a
-                            human the issue is parked awaiting, and the late transaction while its generation is
-                            live
+                            repair -- the parent link and the owed lineage, asked of the parent's record again and
+                            parked rather than finalized where it no longer proves one -- the incomplete park, and
+                            the two owners that hold those markers instead -- a human the issue is parked awaiting,
+                            and the late transaction while its generation is live
       parents.py            the fresh child scan, the rejected and manually-closed parks it earns -- published
                             apart from the scan, since one caller settles its ledger on the way out of them -- and
                             the parent's own drift reroute
@@ -1535,7 +1548,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             generation-derived snapshot ownership; a consumer whose lookup, state, or labels cannot be
                             read retains its ref without failing the pass, and a recorded consumer the caller's scan
                             was not asked about -- an original a replaced manifest orphaned -- is read afresh rather
-                            than taken from the manifest
+                            than taken from the manifest, while a replacement that manifest pointed at the ref is on
+                            the ledger beside it
       late_cleanup_proof.py prove the complete consumer ledger from its recorded phase, count, or cancellation seal,
                             then require every consumer to be freshly known closed before reclaiming its snapshot
       late_branch_reclamation.py
@@ -1802,8 +1816,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             issue-wide requirements hash of the batch they read, and the outcome of consuming one
                             reading
       late_models.py        mutable tick context, tri-state owner readings, held pull requests, and staged park values
-      models.py             the run plan and its worktree policy, the locked session, the split plan, and the child
-                            scan
+      models.py             the run plan and its worktree policy, the locked session, the split plan with the
+                            lineage it seeds, and the child scan
       state.py              the pinned-state field names the owners share, the held-child alias, and the
                             issue-reference renderer
     discussion/             `discussion`
