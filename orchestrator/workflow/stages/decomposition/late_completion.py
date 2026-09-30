@@ -76,7 +76,15 @@ _TIMEOUT_PARK = "late decomposer timed out after {seconds}s"
 def _settle(
     context: _LateContext, agent_result: AgentResult, worktree: Path,
 ) -> _LateAdjudicationRun:
-    """Fold this run's usage and decline the outcomes that are not answers."""
+    """Fold this run's usage and decline the outcomes that are not answers.
+
+    What the run quoted whole is NOT repaid here. Only a verdict recorded
+    over those replies has answered them (`late_verdict`), and every refusal
+    below -- a timeout, a contaminated worktree, a CLI that stopped on its
+    quota before it said anything, a reply nothing could parse -- leaves them
+    owed to the retry its park earns rather than recorded as read by a run
+    that acted on none of them.
+    """
     if _guards._paused_during_agent_run(context.gh, context.issue):
         return _late_outcome._finished(context, _LateDisposition.DEFERRED)
     context.state.set(_LAST_AGENT_ACTION_AT, _usage._now_iso())

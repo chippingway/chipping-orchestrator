@@ -58,6 +58,27 @@ CONTINUE_COMMAND = "/orchestrator continue"
 
 GUIDANCE = "split it by module"
 
+# The command arriving with the words that explain it, in one comment.
+CONTINUE_COMMAND_WITH_GUIDANCE = f"{GUIDANCE}\n\n{CONTINUE_COMMAND}"
+
+# The same comment carrying background past what a prompt's thread excerpt
+# holds, so an excerpt of the thread's tail would lose the instruction.
+BACKGROUND_WORDS = 700
+
+BACKGROUND = "background " * BACKGROUND_WORDS
+
+OVERLONG_CONTINUE = f"{CONTINUE_COMMAND_WITH_GUIDANCE}\n\n{BACKGROUND}"
+
+# An instruction a human posted while the budget was running out, with the
+# same background behind it.
+UNREAD_INSTRUCTION = "and the importer must log every skipped row"
+
+OVERLONG_UNREAD = f"{UNREAD_INSTRUCTION}\n\n{BACKGROUND}"
+
+LABEL_UMBRELLA = "workflow:umbrella"
+
+PARK_CONTENT_DRIFT = "late_content_drift"
+
 STAGE_DECOMPOSING = "decomposing"
 
 PARK_RETRY_CAP = _retry_values.PARK_RETRY_CAP

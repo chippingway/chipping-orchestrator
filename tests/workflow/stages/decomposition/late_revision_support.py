@@ -58,6 +58,12 @@ DEV_QUESTION = "should the migration keep the old column as well?"
 
 DEV_SILENT = ""
 
+# The exit a CLI stopped on its account's quota with, before it read a word of
+# its prompt: a failure, and nothing said.
+QUOTA_EXIT = 3
+
+QUOTA_NOTICE = "You've hit your session limit · resets 10pm (Asia/Novosibirsk)"
+
 NON_ANSWERS = (
     ("prose without the marker", DEV_SOUNDS_LIKE_ACK),
     ("a question", DEV_QUESTION),

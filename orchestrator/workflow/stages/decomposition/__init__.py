@@ -33,8 +33,8 @@ and the implementation one the work is already on where it was entered past it
 -- `late_session` owns the run's pinned record and the tracked spawn over it,
 `late_content` fingerprints the requirements the candidate was frozen against
 and `late_content_replies` tells the fresh replies it counted apart -- what is
-work for an agent, and what is one of the two operator controls that are a
-decision about the candidate instead -- while `late_guidance` decides what a
+work for an agent, and what is one of the three operator controls that are no
+requirement instead -- while `late_guidance` decides what a
 change to those requirements or an answer about them earns, `late_revision`
 owns the developer run guidance buys and the followup it is resumed with --
 with `late_revision_obligations` holding the refusal a candidate the last
@@ -59,9 +59,16 @@ for, and `late_handback` hands the label on and retires the cycle --
 gate its one spawn is charged to, and the hold that keeps a park nothing
 supersedes ahead of the evidence probe, the pull-request hold, and the content
 read -- `late_notice` owns the sentence any late park still owes the thread,
-`late_park_state` the reasons, standing claim, watermark, and durable write,
+`late_park_state` the reasons, standing claim, the baselines a consumed reading
+moves -- the issue-wide `user_content_hash` among them -- and durable write,
 `late_park_delivery` the release and reconciliation of that sentence, and
 `late_parks` the decisions that take, stage, retire, or answer the park.
+`late_owed_replies` owns the replies consumed on an adjudication's behalf
+that no run has yet been handed whole, which every late prompt quotes, and
+`late_issue_baseline` how far a late baseline may reach: no further than the
+issue-wide `user_content_hash` already covers, and the reading an adjudication
+carries on over where none is recorded, kept as observed rather than
+recorded as that baseline.
 `late_coordinator` owns their order: `late_admission` recovers owed effects and
 asks `late_evidence` to prove the record and frozen pair before taking the hold.
 `late_attempt` records the

@@ -223,7 +223,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             since a tip crosses what a bounded excerpt dropped and what landed while an agent was
                             out. On a parked tick the check measures the
                             requirements by what the park had already read (`answered`), so replies to the park are
-                            the frozen batch's, not drift
+                            the frozen batch's, not drift. With no baseline recorded it compares against
+                            `observed_user_content_hash` where a stage kept one, rather than taking the thread as found
     drift_delivery.py       the prompt a requirements edit is answered with and the record of what it quoted, frozen
                             together off ONE read and settled by whoever disposes the run: context the excerpt bound
                             dropped holds the watermark below it, a reply written while the agent was out is in
@@ -1367,8 +1368,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             cycle when a close is observed inside the retirement window; its scan of the tracked
                             manifest is handed to cleanup, which proves a held snapshot against the recorded consumers
       late_coordinator.py   the late mode's order: admission, park retirement, content settlement, then reuse
-                            a recorded answer or buy one fresh adjudication; only the completion guard can
-                            hand a cleared split to the transaction
+                            a recorded answer -- never while a reply is still owed a whole quote -- or buy one fresh
+                            adjudication; only the completion guard can hand a cleared split to the transaction
       late_admission.py     recover owed owner reads and park notices before the live-generation gate;
                             hold a spent-budget park ahead of the frozen-evidence proof and pull-request hold;
                             the explicit live-generation predicate leaves initial decomposition to its own gate
@@ -1383,7 +1384,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             around its durable attempt record
       late_completion.py    account usage, refuse unstarted, timed-out, interrupted, or mutated-candidate answers,
                             and record the session and verdict; re-read the owner for every completed or reused answer
-                            before settlement, handing only a guarded split to the transaction
+                            before settlement, handing only a guarded split to the transaction; none of its
+                            refusals repays the owed replies a run was quoted, which only a recorded verdict does
       late_retry_cap.py     the same standing park on the adjudication's own road: the gate its fresh spawn is
                             charged to, the refusal staged through this mode's park owner so the generation,
                             the frozen pair, and the hold on the pull request the candidate stands under all ride
@@ -1394,7 +1396,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             replay -- and the trusted `/orchestrator continue` that
                             renews the budget for exactly one adjudication -- written down before the spawn it
                             pays for, and needing no session retirement of its own, since the pre-spawn record
-                            opens a fresh conversation for every run that is not answering a question
+                            opens a fresh conversation for every run that is not answering a question. The grant
+                            cuts its batch from one reading of the title, body, and thread and consumes that
+                            reading whole -- words beside the command are owed the adjudicator it buys, and a first
+                            late baseline still to be taken is taken over what the issue-wide one covers -- unless
+                            it shows drift, withholds guidance, or is not covered at all, where only the shared
+                            watermark moves
       late_run_reading.py   read the pinned role, locked spec, session, source pair, and validated verdict payload,
                             with a rationale only beside a `single` or `split` and within its bound, absent otherwise;
                             recover adjudications and resume only a session bound to this candidate generation
@@ -1402,7 +1409,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             encode verdicts, bounded rationales, and child estimates, and measure the actual
                             serialized pinned payload against the whole-comment budget with notice headroom
       late_session.py       persist spawn, bounded session, and result records and invoke the tracked adjudicator;
-                            every discarded answer drops its publication override, and preflight reserves session room
+                            every discarded answer drops its publication override, and preflight reserves session room;
+                            the conversation it is handed is `late_owed_replies`' excerpt-plus-quotes
+      late_owed_replies.py  the trusted replies an adjudication still owes a whole quote: recorded by the question
+                            answer and the retry-cap continue that consume them ahead of the spawn gates, quoted in
+                            full after the bounded thread excerpt to every late run, and repaid only by a verdict
+                            an adjudicator recorded over them or by the candidate a developer revision's
+                            reconciliation re-measures off a run that neither timed out nor stopped before it worked
       late_hold_text.py     exact cycle-marked descriptions for unpublished, published, and superseded hold forms
       late_hold_reading.py  choose the held, published, or issue-recorded pull request, read it once, and require plan
                             provenance for the issue pointer; missing or unreadable evidence refuses the hold
@@ -1411,7 +1424,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_hold.py          preserve the chosen pull request's identity, head, and body before applying its hold;
                             refuse unrecorded or displaced descriptions and report moved heads without restamping them
       late_verdict.py       what one finished reply decides: the lineage-bound refusal recorded as the categorized
-                            question it actually is, the record written and persisted before anything is posted,
+                            question it actually is, the record written and persisted before anything is posted
+                            and repaying, in that write, the owed replies it is the one answer taken over,
                             and the announcement a recorded question is reconciled by -- made past the owner
                             guard rather than beside the record, and suppressed where a park already stands. All
                             three sentences a read reply hands the issue back under are worded here -- the
@@ -1440,8 +1454,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             human's answer clears its own park and any sentence that park still owes
       late_park_state.py    the park reasons, pinned keys, standing-claim predicates, and shared generation write
                             every late writer uses. The consumed-comment watermark ratchets here so a spent reply
-                            cannot become fresh feedback in a later stage. Repeated parks read both the flag and
-                            the owed notice, since a flag whose comment failed has told nobody anything
+                            cannot become fresh feedback in a later stage, and every consumed content reading is
+                            recorded here on all three baselines at once -- the late fingerprints, that watermark,
+                            and `user_content_hash` from the hash the reading froze -- so the stage the issue
+                            reaches next does not read answered guidance as an edit. A reading that still
+                            withholds guidance a park's notice held back, handed on undelivered, moves the shared
+                            watermark alone, so those words stay unread for the reading that hands them to an
+                            agent. Repeated parks read both the flag and the owed notice, since a flag whose
+                            comment failed has told nobody anything
       late_park_delivery.py the release, redelivery, and reconciliation of a persisted park's notice. A delivered
                             comment is recognized on the thread when its settling write failed, so recovery
                             discharges the obligation without saying it twice. The shared spawn budget's
@@ -1478,7 +1498,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             owner close or an unprovable step leaves the transaction at the boundary it reached
       late_retirement.py    retire the generation with the umbrella label before activating children through
                             the shared guarded walk, then reconcile the recorded branch obligation; cleanup
-                            failures remain on the ledger for the umbrella terminal to retry
+                            failures remain on the ledger for the umbrella terminal to retry. The retirement write
+                            carries the requirements baseline the last consumed reading recorded -- or, on an
+                            issue with none, the reading the adjudication carried on over, kept as observed -- and
+                            reads nothing
+                            again, so the umbrella's first drift check does not orphan the children it was handed
       late_split_notices.py forward links and cycle-bound supersession notices naming the snapshot and ordered children;
                             thread receipts recover announcements whose pinned writes were interrupted
       late_supersession_state.py
@@ -1562,8 +1586,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recompute the frozen contribution for trusted consent and retained publication overrides;
                             every frozen term and the digest must still match before publishing unsplit
       late_authorize.py     consume trusted whole-comment oversized authorizations against the recorded single verdict;
-                            record the override, clear the park, and consume its reply in one write; refusals are
-                            receipted per reading, and an unreadable contribution leaves the command unread
+                            record the override, clear the park, and consume its reading through `late_park_state` in
+                            one write; refusals are receipted per reading, and an unreadable contribution leaves the
+                            command unread; guidance the park's notice withheld outranks any command, resuming the
+                            developer with it rather than publishing past it
       late_unsplit.py       the park a `single` hands the issue to a human under: the sentence naming the frozen
                             candidate, the reading that stopped it, the two replies that end it -- words that change
                             the work, and the command spelled out against this candidate -- and what the verdict
@@ -1667,7 +1693,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             body, and thread are each read once, and that one reading also yields the issue-wide
                             `user_content_hash` under `engine/content_hash`'s own filter, operator commands
                             excluded, carried frozen on the signal so nothing arriving after the reading enters it
-                            or splits it from the late fingerprint; this owner writes no pinned state
+                            or splits it from the late fingerprint. The trusted guidance between the watermark and
+                            the reply floor -- written before a park's notice, so no reply to it -- is reported as
+                            withheld rather than dropped; this owner writes no pinned state
       late_content_replies.py
                             which fresh reply is a requirement a developer may be resumed against, and which is the
                             whole-comment `/orchestrator authorize-oversized <commit>` that licenses a publication
@@ -1675,23 +1703,51 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             commit below a mistyped one is what a human who wrote both meant, and carried forward
                             with a malformed argument intact so the owner that refuses one has the command to
                             refuse. Neither that command nor a bare continue is guidance, because nothing hands an
-                            agent a decision about the candidate that already exists as work to do, and prose
-                            around either is guidance because neither is the whole comment then. Both are
-                            recognized through `engine/messages` rather than re-read here, and neither is kept out
-                            of the digest the owner above takes -- a counted command edited after the fact is
-                            exactly what that digest exists to catch
+                            agent a decision about the candidate that already exists as work to do, and nor is a
+                            bare `/orchestrator add-agent-runs N`, which is the run-limit hold's to answer;
+                            prose around any of them is guidance because none is the whole comment then. They are
+                            recognized through `engine/messages` and `engine/run_grant_request` rather than re-read
+                            here, and none is kept out of the digest the owner above takes -- a counted command
+                            edited after the fact is exactly what that digest exists to catch
       late_guidance.py      initial content baselines, drift parks, and routing of trusted guidance or bare continues
-                            over the same frozen candidate
+                            over the same frozen candidate; a first baseline is taken over what `late_issue_baseline`
+                            says the issue-wide one covers, routing what lies past it, and parks where nothing does --
+                            and drift over the baseline that park took is asked of that owner again, so an edit taken
+                            back retakes the baseline on the covered prefix and reads as the revert it is; a baseline
+                            that counts what the issue-wide one does not cover is taken again the same way, and a
+                            quiet reading the adjudication carries on over is recorded as observed
+      late_issue_baseline.py
+                            the longest prefix of a reading that reproduces the recorded `user_content_hash` beside
+                            the title and body as they now read (either hashing algorithm), which is all a first late
+                            baseline may cover; None where no prefix does, which is drift, and the baseline that
+                            drift parks on then counts no comment and holds the title and body to the recorded hash,
+                            which a drifted reading of it is searched against again, since only that finds a revert;
+                            no comment at all where no hash is recorded, since nothing is known to have been read.
+                            It never records that hash itself. A generation with no `late_baseline_bounded` was
+                            baselined over the whole thread and gives up what it counts before any comparison,
+                            drifted or not -- cleared to be baselined again where a hash is recorded, and keeping
+                            only its title and body fingerprint where none is -- and where none is recorded the
+                            reading an adjudication carries on over is kept, in memory, as
+                            `observed_user_content_hash` for the next stage's drift check
       late_answers.py       parked-answer dispatch, reverted edits, certification, question reopening, and reply consumption;
-                            every consumed reading rebaselines and persists its watermark, while a bare continue cannot
-                            answer a decomposer question
+                            every consumed reading is recorded through `late_park_state` and persisted in one write,
+                            while a bare continue cannot answer a decomposer question; a revert, a certificate, or
+                            an answered question that finds guidance its park's notice withheld resumes the
+                            developer with it rather than an adjudication consumed for ahead of its spawn gates
       late_revision.py      the developer run guidance buys -- the locked session resumed under `agent_role=developer`
                             and `stage=decomposing`, with a latched close asked on BOTH sides of it, since a resume
                             is the same step a spawn is and the run takes hours -- and the followup it is resumed
-                            with, quoting the issue as it reads NOW, carrying the developer report contract, and
+                            with, quoting the issue as it reads NOW and every guidance comment the run folds --
+                            any a park's notice withheld ahead of the fresh ones -- carrying the developer report
+                            contract, and
                             asking for the `ACK:` marker an UNCHANGED commit needs before it counts as an answer,
-                            offered only while the report needs no change either. The two entry points are this
-                            owner's own --
+                            offered only while the report needs no change either. The reading is consumed once the
+                            run is back and made durable only by the reconciliation's write, so a paused,
+                            interrupted, refused, or close-latched run leaves every baseline where it was, and so
+                            does one whose CLI stopped before it worked -- on its quota, any provider refusal
+                            (`agents/provider_failures`' wider verdict, a 401 or 429 included), or a
+                            failed exit with nothing said -- whose park stands over guidance still unread. The two
+                            entry points are this owner's own --
                             the guidance that buys a run, and the reply to a revision that stalled -- and each asks
                             the two owners below in turn rather than re-exporting what they hold
       late_revision_obligations.py
@@ -1710,8 +1766,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             proved through (which carries none of the last generation's split receipts, and none of
                             the authorization an operator gave the answer this re-freeze retires -- an acknowledged
                             unchanged candidate comes back matching every term of it), the reading of the `ACK:`
-                            marker that decides whether an UNCHANGED commit is an answer at all, and the fresh owner
-                            read a landed reconciliation and a parked one alike ride out past
+                            marker that decides whether an UNCHANGED commit is an answer at all, the fresh owner
+                            read a landed reconciliation and a parked one alike ride out past, and the owed replies
+                            only a landed one repays, and only off a run the caller says worked to the end
       late_relabel.py       the `workflow:decomposing` label a live generation pins -- one still oversized, or one
                             whose owner read is still owed: the kill-switch route it refuses, and the dispatch it
                             refuses -- with the hand relabel it repairs -- when a human has moved the label out from

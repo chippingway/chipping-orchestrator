@@ -191,7 +191,10 @@ Non-human content is filtered eight ways:
   ceiling, authorizes an oversized committed candidate to publish unsplit, nor reaches any agent prompt.
 
 `_detect_user_content_change` durably persists the baseline on its FIRST encounter via `gh.write_pinned_state`, so an
-early-return tick cannot silently absorb a later edit as the new baseline. It also carries a **legacy-hash
+early-return tick cannot silently absorb a later edit as the new baseline. Where a stage recorded a reading it acted on
+without consuming any of it as `observed_user_content_hash` — a late adjudication carrying on over a quiet reading of
+an issue with no baseline — that first encounter compares against the observed reading instead: the current value is
+persisted only where it still matches, and anything written since is reported as drift. It also carries a **legacy-hash
 normalization** path: a baseline written by the pre-issue-#729 algorithm counted a bare `/orchestrator continue`
 comment, so after deploy it would compare unequal to the new hash even with no real edit. Before reporting drift the
 helper recomputes with the old algorithm (`_compute_user_content_hash(..., include_bare_continue=True)`); if that
@@ -209,9 +212,16 @@ the action depends on lifecycle position:
   `workflow:decomposing` via `_route_drift_to_decomposing`: same state-wipe + notice, plus a label flip to
   `workflow:decomposing`. `decomposer_agent` is preserved across this transition so a mid-flight `DECOMPOSE_AGENT` env
   flip cannot retarget an in-flight issue. Any previously-tracked children are listed in the notice as ORPHANED — the
-  orchestrator no longer tracks them, so the operator must close any that no longer apply. Neither reset touches a
-  late split's generation, which is not manifest tracking: its register, its snapshot, and `late_consumers` survive
-  whole and go on naming the orphans, so the umbrella the re-decomposition leaves still proves that ref against them
+  orchestrator no longer tracks them, so the operator must close any that no longer apply. On an umbrella a late
+  split made, what the check compares against is the baseline the late adjudication recorded when it last consumed a
+  reply — frozen off the reading that reply arrived in, and durable before the split's handoff — so guidance a
+  developer revision already answered is not an edit here, while a comment or edit written after that reading is. An
+  issue that had no baseline and consumed no reply carries the reading the adjudication went on over as
+  `observed_user_content_hash`, which this first check compares against, so a comment or edit written while the
+  adjudicator ran is an edit here too.
+  Neither reset touches a late split's generation, which is not manifest tracking: its register, its snapshot, and
+  `late_consumers` survive whole and go on naming the orphans, so the umbrella the re-decomposition leaves still
+  proves that ref against them
   (see [what the terminal waits on](#_handle_umbrella-label-workflowumbrella)). The orphans are never adopted,
   relabelled, or reopened. Nor does either reset touch the `late_ancestry_*` group. The read-only decision of which
   late lineage a re-derived manifest's children would inherit (`late_split/provenance.py`, see

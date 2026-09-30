@@ -40,6 +40,22 @@ command, since what it would buy is agent time on somebody else's word.
 What one command buys is one attempt. The grant is durable before the spawn
 and the spend is not, so a tick that dies -- or a run a mid-run `paused` or a
 shutdown declines -- leaves the attempt where the human put it, unspent.
+
+The command may arrive with words, and they are spent on the adjudicator the
+grant buys: recorded as owed it a whole quote (`late_owed_replies`), since
+that run reads the thread through a bounded excerpt of its tail and a gate
+may stop it outright. So the grant consumes the reading it found the command
+in whole -- the late fingerprints, the shared watermark, and the issue-wide
+requirements baseline -- or the umbrella a split made over those words would
+meet them as an edit on its first poll and orphan the children it was just
+given. That holds on a generation whose first late baseline is still to be
+taken as well: there is nothing yet to compare against, and the baseline the
+content read would take next is the very reading consumed here. Two readings
+move the shared watermark alone instead. One shows an edit under a baseline
+that exists, which the content read has to park on and nothing has answered.
+The other still withholds guidance a park's notice held back, which only a
+developer is handed -- and with this park answered, the content read below
+hands it to one.
 """
 from __future__ import annotations
 
@@ -55,10 +71,14 @@ from orchestrator.workflow.engine import (
     retry_values as _retry_values,
 )
 from orchestrator.workflow.stages.decomposition import (
+    late_content as _late_content,
+    late_issue_baseline as _late_issue_baseline,
     late_notice as _late_notice,
+    late_owed_replies as _late_owed_replies,
     late_park_state as _late_park_state,
     late_parks as _late_parks,
 )
+from orchestrator.workflow.stages.decomposition.late_content_models import _LateContentSignal
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
 
 log = logging.getLogger("orchestrator.workflow")
@@ -203,6 +223,19 @@ def _continuation_is_bought(context: _LateContext) -> bool:
     validating -> in_review handoff as fresh PR feedback. What is left
     unconsumed is an outsider's, which the next tick filters out again.
 
+    The words the batch carries are spent as requirements too, on the
+    adjudicator the grant buys -- which is why the reading is consumed whole, the requirements baseline included,
+    unbaselined or not -- and why the words are recorded as owed a whole
+    quote beside it: the adjudicator reads a bounded excerpt of the thread's
+    tail, and a long reply spent on it would otherwise be read only in part,
+    or by nobody if a gate stops the run. A reading that shows the
+    requirements moved under a baseline is not consumed: the content read
+    below parks on that edit, and rebaselining here would swallow it, so the
+    shared watermark moves alone and the words beside the command join the
+    withheld guidance whoever answers that park is handed. Nor is one that
+    still withholds guidance: those words are the developer's, so they stay
+    for the content read below, which with this park answered hands them on.
+
     No session is retired with the park, and that is this road's own answer
     rather than an omission. The record a late run is started under drops the
     pinned session for every run that is not continuing a question the human
@@ -212,16 +245,14 @@ def _continuation_is_bought(context: _LateContext) -> bool:
     Mutates in memory only. The caller writes, so the grant and the watermark
     that says which words bought it land in one write rather than two.
     """
-    answered = _trusted_replies(context)
+    answered, reading = _trusted_replies(context)
     if not _messages._parse_orchestrator_continue(answered):
         return False
     log.info(
         "issue=#%d was continued by a trusted operator command; granting one "
         "more late adjudication attempt", context.issue.number,
     )
-    _late_park_state._mark_replies_read(
-        context, max(reply.id for reply in answered),
-    )
+    _spend(context, answered, reading)
     _late_parks._answer_park(context)
     _retry_budget._grant_continuation(
         context.gh, context.issue, context.state,
@@ -229,8 +260,63 @@ def _continuation_is_bought(context: _LateContext) -> bool:
     return True
 
 
-def _trusted_replies(context: _LateContext) -> list:
+def _spend(
+    context: _LateContext, answered: list, reading: _LateContentSignal,
+) -> None:
+    """Consume what the grant may, and leave the rest for what hands it on.
+
+    A generation whose first late baseline is still to be taken takes it
+    here, over what the issue-wide baseline already covers
+    (`late_issue_baseline`): the reading is then judged the way a baselined
+    one is, so a comment past that point is withheld rather than folded. One
+    no part of which the issue-wide baseline reproduces has moved since it
+    was settled -- the title, the body, or a comment it covered -- and the
+    grant takes no baseline over it: the shared watermark moves past the
+    command, the words beside it are owed a whole quote, and the content read
+    below parks on the move as drift. A baseline taken over the whole thread
+    before baselines were bounded gives up what it counts first, the way the
+    content read has it do, so the grant never records as read a comment that
+    baseline counted and no stage consumed.
+    """
+    through = max(reply.id for reply in answered)
+    judged = reading
+    retaken = _late_issue_baseline._retaken(
+        context.state, context.generation, reading,
+    )
+    if retaken is not None:
+        context.generation = retaken
+        judged = _late_content._signal_of(
+            reading.text, list(reading.read), context.state, retaken,
+        )
+    if not judged.baselined:
+        covered = _late_issue_baseline._covered(
+            context.state, context.generation, judged,
+        )
+        if covered is None:
+            _late_park_state._mark_replies_read(context, through)
+            _late_owed_replies._owe(context, judged.guidance)
+            return
+        context.generation = covered
+        judged = _late_content._signal_of(
+            reading.text, list(reading.read), context.state, covered,
+        )
+    if judged.withheld or judged.drifted:
+        _late_park_state._mark_replies_read(context, through)
+        return
+    _late_park_state._consume_reading(context, judged)
+    _late_owed_replies._owe(context, judged.guidance)
+
+
+def _trusted_replies(
+    context: _LateContext,
+) -> tuple[list, _LateContentSignal | None]:
     """What trusted humans have said since this park consumed the thread.
+
+    Reported beside the late content signal of the same reading. The title,
+    the body, and the thread are read once and both answers are cut from that
+    one read, so the requirements a grant records are the ones the command
+    was found among: a comment landing after it reaches neither the batch the
+    grant spends nor the baseline it writes.
 
     A read that could not be taken answers nothing said, which holds the park
     for the tick. The two failures are not symmetric: a park held one poll too
@@ -238,14 +324,27 @@ def _trusted_replies(context: _LateContext) -> list:
     nobody could read would spend an attempt no human asked for.
     """
     try:
-        thread = context.gh.comments_after(
-            context.issue, context.state.get(_LAST_ACTION_COMMENT_ID),
-        )
+        return _read_replies(context)
     except Exception:
         log.exception(
             "issue=#%d could not be read for the command that lifts a "
             "retry-cap park; holding the park this tick",
             context.issue.number,
         )
-        return []
-    return filter_trusted(thread)
+        return [], None
+
+
+def _read_replies(
+    context: _LateContext,
+) -> tuple[list, _LateContentSignal]:
+    """Take the one reading `_trusted_replies` answers from."""
+    text = (context.issue.title or "", context.issue.body or "")
+    read = list(context.issue.get_comments())
+    thread = context.gh.comments_after(
+        context.issue,
+        context.state.get(_LAST_ACTION_COMMENT_ID),
+        comments=read,
+    )
+    return filter_trusted(thread), _late_content._signal_of(
+        text, read, context.state, context.generation,
+    )

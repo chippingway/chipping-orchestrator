@@ -27,7 +27,7 @@ from types import MappingProxyType
 from typing import Self
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.late_split import state as _late_state
+from orchestrator.workflow.late_split import keys as _late_keys, state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration, LateVerdict
 from orchestrator.workflow.stages.decomposition import (
     late_content as _late_content,
@@ -138,6 +138,7 @@ def late_issue(
     comments: tuple = (),
     generation: LateGeneration = None,
     baseline: bool = True,
+    bounded: bool = True,
     **extra_state,
 ) -> tuple[FakeGitHubClient, FakeIssue]:
     """A late issue carrying an oversized generation, baselined by default.
@@ -148,7 +149,9 @@ def late_issue(
 
     `baseline=False` is the generation a candidate was just frozen into and
     whose content fingerprints have still to be taken -- the one state in
-    which nothing on the thread counts as drift.
+    which nothing on the thread counts as drift. `bounded=False` is a baseline
+    taken over the whole thread before baselines were held to the issue-wide
+    one, as a generation recorded then still carries it.
     """
     github = FakeGitHubClient()
     issue = make_issue(
@@ -164,6 +167,9 @@ def late_issue(
         recorded = baselined(recorded, issue)
     written = PinnedState(data=dict(extra_state))
     _late_state.write_late_generation(written, recorded)
+    if not bounded:
+        # Recorded before the flag existed, so the key is simply not there.
+        written.data.pop(_late_keys.BASELINE_BOUNDED, None)
     github.seed_state(_support.LATE_ISSUE_NUMBER, **written.data)
     return github, issue
 

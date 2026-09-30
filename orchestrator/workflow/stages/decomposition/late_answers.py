@@ -3,15 +3,16 @@
 """What trusted answers to late parks earn and the watermark they consume.
 
 Certification, reverted edits, and question replies preserve their distinct
-effects. Consumption rebaselines the same frozen generation and persists
-the reply watermark; a bare continue cannot answer a decomposer question.
+effects. Consumption rebaselines the same frozen generation and persists the
+reply watermark and the issue-wide requirements baseline off that one reading;
+a bare continue cannot answer a decomposer question.
 """
 from __future__ import annotations
 
 from orchestrator.workflow.engine import comments as _comments, messages as _messages
 from orchestrator.workflow.stages.decomposition import (
     late_authorize as _late_authorize,
-    late_content as _late_content,
+    late_owed_replies as _late_owed_replies,
     late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_revision as _late_revision,
@@ -86,6 +87,14 @@ def _reverted(
     it. Absorbing it here instead would consume a human's instruction without
     acting on it and then reuse an answer nobody re-earned.
 
+    Guidance the park's notice WITHHELD routes the same way, and the revert is
+    what lets it. Written before the human was told the issue had parked, it
+    was never an answer to the park -- but the park is not what ends here:
+    the requirements taking the edit back are, and with nothing left standing
+    those words are what any unanswered instruction is. Settling without them
+    would fold them into every baseline and reuse a verdict no agent took
+    over them, so they are quoted to the developer beside any fresh guidance.
+
     A revert with nothing to act on is an answer nobody had to write: the
     candidate matches the issue again, so the park is cleared and the recorded
     verdict -- taken against exactly these requirements -- still stands.
@@ -93,7 +102,7 @@ def _reverted(
     is the flag that suppresses the announcement a question verdict earns, so
     a reverted edit would silence a question recorded and never said out loud.
     """
-    if signal.guidance:
+    if signal.guidance or signal.withheld:
         return _late_revision._revise_from_guidance(context, signal)
     _late_parks._answer_park(context)
     _comments._post_issue_comment(
@@ -117,6 +126,12 @@ def _certified(
     that have since moved -- and acting on one would be the very thing the
     drift rule refuses, a step later: a split creating children that describe
     a scope nobody is asking for any more.
+
+    Reached only with nothing withheld. Guidance the park's notice held back
+    goes to the developer once a certificate answers the park, since the
+    adjudication a certificate buys can still be stopped at any of its spawn
+    gates -- and a consumption written ahead of those would spend words no
+    agent had read.
     """
     _late_session._drop_late_result(context.state)
     _late_parks._answer_park(context)
@@ -138,12 +153,25 @@ def _answered_question(
     follows continues the conversation that asked rather than opening one that
     would have to be told the question before it could be told the answer.
 
+    The answer is consumed here, ahead of the spawn gates, so it is also
+    recorded as owed a whole quote: the reopened run reads the thread through
+    a bounded excerpt of its tail, and a long answer would otherwise be spent
+    on a run that read only its end -- or, stopped at a gate, nothing.
+
+    An answer beside guidance the question's notice WITHHELD goes to the
+    developer instead, with both quoted. The adjudication an answer reopens
+    is consumed for before it passes its spawn gates, so words written before
+    the question was put would be spent on a run that may never start; the
+    developer run is consumed for only once it has run.
+
     A bare continue is refused rather than absorbed. It carries no answer, and
     letting it through would leave the workflow choosing between a `single` it
     was never told to record and a spawn asking the same question again --
     which is why the command is consumed, the refusal is posted once, and the
     park stays exactly where it is.
     """
+    if signal.guidance and signal.withheld:
+        return _late_revision._revise_from_guidance(context, signal)
     if signal.guidance:
         _late_session._drop_late_result(context.state)
         context.answering = True
@@ -151,6 +179,7 @@ def _answered_question(
         _comments._post_issue_comment(
             context.gh, context.issue, context.state, _REOPENED_NOTICE,
         )
+        _late_owed_replies._owe(context, signal.guidance)
         return _consumed(context, signal)
     if signal.bare_continue:
         # Nothing handed over to consume: `_consumed` below settles the shared
@@ -175,19 +204,15 @@ def _consumed(
 ) -> _LateContentSettlement:
     """Fold fresh trusted conversation into the baselines that cover it.
 
-    Both of them, because two different readers walk the same thread. This
-    mode's own fingerprints stop the comment coming back as fresh guidance;
-    the shared `last_action_comment_id` stops the later validating ->
-    in_review handoff finding it as fresh PR feedback and routing the pull
-    request to `fixing` over an answer this mode has already spent. Every path
-    that reads a reply arrives here, so neither watermark can be left behind
-    by one of them.
+    All three of them, in the one write: this mode's own fingerprints, the
+    shared `last_action_comment_id`, and the issue-wide `user_content_hash`,
+    each taken off the same frozen reading -- see `late_park_state` for which
+    reader each one stops. Every park answer that reads a reply arrives here,
+    so none of the three can be left behind by one of them. A reading handed
+    on undelivered while it still withholds guidance moves the shared one
+    alone: nothing this answer runs reads those words, so they are kept for
+    the reading that will.
     """
-    context.generation = _late_content._rebaselined(
-        context.generation, signal.fingerprint,
-    )
-    _late_park_state._mark_replies_read(
-        context, signal.fingerprint.comment_watermark_id,
-    )
+    _late_park_state._consume_reading(context, signal)
     _late_park_state._persist(context)
     return _LateContentSettlement(disposition=disposition, persisted=True)

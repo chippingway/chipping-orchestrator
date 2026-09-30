@@ -29,6 +29,7 @@ from tests.workflow.stages.decomposition.late_observation_seams import (
     ISSUE_COMMENT,
     latches_on_call,
 )
+from tests.workflow.stages.decomposition.late_requirements_support import KEY_USER_CONTENT_HASH
 from tests.workflow.stages.decomposition.late_revision_support import (
     DEV_ACK,
     RevisionCase,
@@ -42,6 +43,14 @@ from tests.workflow.stages.decomposition.late_test_support import (
 _WORKFLOW_LOG = "orchestrator.workflow"
 
 REPO_SLUG = _TEST_SPEC.slug
+
+KEY_OWED_REPLIES = "late_owed_replies"
+
+# The requirements baseline and the reply still owed a whole quote that the
+# tick before this one left recorded.
+RECORDED_HASH = "recorded-requirements"
+
+OWED_ID = 7
 
 
 class LatchedBeforeTheResumeTest(
@@ -98,12 +107,20 @@ class LatchedInsideTheNoticeTest(
         self._seed_drifted()
 
     def test_no_developer_is_resumed(self) -> None:
+        # The cancellation is written, and the guidance is not consumed by it:
+        # no run acted on the reply, so neither the late watermark nor the
+        # issue-wide requirements baseline may say one did.
+        before = self._pinned().get(KEY_COMMENT_WATERMARK)
+
         with self.assertLogs(_WORKFLOW_LOG), self._closing():
             outcome, spawn = self._revise()
 
         spawn.assert_not_called()
         self.assertEqual(outcome.disposition, _LateDisposition.CANCELLED)
-        self.assertTrue(self._pinned()[KEYS.cancelled])
+        pinned = self._pinned()
+        self.assertTrue(pinned[KEYS.cancelled])
+        self.assertEqual(pinned.get(KEY_COMMENT_WATERMARK), before)
+        self.assertNotIn(KEY_USER_CONTENT_HASH, pinned)
 
     def _closing(self):
         """Latch the close inside the notice this call posts."""
@@ -135,6 +152,26 @@ class LatchedDuringTheResumeTest(
         self.assertEqual(outcome.disposition, _LateDisposition.CANCELLED)
         self.assertTrue(pinned[KEYS.cancelled])
         self.assertEqual(pinned[KEYS.candidate_sha], self._frozen())
+
+    def test_the_reading_is_left_unsettled(self) -> None:
+        # What the run left is not reconciled, so what it read is not settled
+        # either: the cancellation writes the requirements baseline, the late
+        # watermark, and the replies still owed as the prior tick left them.
+        self.github.seed_state(LATE_ISSUE_NUMBER, **{
+            **self._pinned(),
+            KEY_USER_CONTENT_HASH: RECORDED_HASH,
+            KEY_OWED_REPLIES: [OWED_ID],
+        })
+        before = self._pinned().get(KEY_COMMENT_WATERMARK)
+
+        with self.assertLogs(_WORKFLOW_LOG):
+            outcome, _ = self._revise(reply=_LatchesWhileRunning(self))
+
+        pinned = self._pinned()
+        self.assertEqual(outcome.disposition, _LateDisposition.CANCELLED)
+        self.assertEqual(pinned[KEY_USER_CONTENT_HASH], RECORDED_HASH)
+        self.assertEqual(pinned[KEY_OWED_REPLIES], [OWED_ID])
+        self.assertEqual(pinned.get(KEY_COMMENT_WATERMARK), before)
 
     def _frozen(self) -> str:
         """The commit the generation was carrying before this tick ran."""

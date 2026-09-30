@@ -28,10 +28,25 @@ instead, are decided where the checkout is.
 
 Nothing before that reconciliation is durable. The guidance is consumed, the
 park is cleared, and the session is recorded in memory; the write that keeps
-any of it is the one the reconciliation itself makes. A mid-run pause and a
-shutdown sweep therefore leave the issue exactly as the prior tick did, with
-the human's guidance still unread -- which costs one repeated developer run
-and never a dropped instruction.
+any of it is the one the reconciliation itself makes. A mid-run pause, a
+shutdown sweep, and a launch the run circuit refused therefore leave the issue
+exactly as the prior tick did, with the human's guidance still unread -- which
+costs one repeated developer run and never a dropped instruction. A run whose
+CLI stopped before it worked -- on its account's quota, on any refusal its
+provider answered with, or with a failed exit and nothing said -- is
+reconciled like any other, but consumes nothing: the park it earns stands over
+guidance still unread, and whatever answers that park hands it to the
+developer whole.
+
+What that consumption covers is the reading the guidance came off, on all
+three baselines `late_park_state` keeps for it -- the issue-wide
+`user_content_hash` included. The run the guidance bought is what answers it,
+so a candidate this revision re-freezes and a later adjudication splits hands
+its umbrella a baseline the guidance is already inside, and the first poll of
+that umbrella does not orphan the children over an edit nobody made. It is
+taken once the run is back and past the close latch asked then, so a close
+latched inside that notice, or while the developer ran, cancels the cycle
+with the guidance still unread.
 
 Two owners carry the halves this one asks for rather than performs.
 `late_revision_obligations` decides whether the committed candidate may be
@@ -49,6 +64,7 @@ import logging
 from github.Issue import Issue
 
 from orchestrator import config
+from orchestrator.agents import models as _agent_models, provider_failures as _provider_failures
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import (
     comments as _comments,
@@ -59,7 +75,6 @@ from orchestrator.workflow.engine import (
     usage as _usage,
 )
 from orchestrator.workflow.stages.decomposition import (
-    late_content as _late_content,
     late_owner as _late_owner,
     late_park_state as _late_park_state,
     late_parks as _late_parks,
@@ -69,7 +84,7 @@ from orchestrator.workflow.stages.decomposition import (
 from orchestrator.workflow.stages.decomposition.late_content_models import _LateContentSettlement, _LateContentSignal
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
-from orchestrator.workflow.stages.implementing import resume as _dev_resume
+from orchestrator.workflow.stages.implementing import resume as _dev_resume, session_read as _session_read
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -124,15 +139,25 @@ def _revise_from_guidance(
 ) -> _LateContentSettlement:
     """Resume the locked developer session with this guidance, then remeasure.
 
-    The guidance is consumed in memory before the run, so the comments quoted
-    into the prompt and the ones the watermark covers are the same set, and it
-    becomes durable only on a path that reconciles what the run left. That is
+    The guidance is consumed in memory off the reading the prompt quoted, so
+    the comments quoted into the prompt and the ones the watermark covers are
+    the same set, and it becomes durable only on a path that reconciles what
+    the run left. That set
+    includes any guidance a park's notice withheld: the run folds it into
+    every baseline, so it is quoted too, ahead of the fresh replies. That is
     the same order every stage that resumes on a human reply keeps: a mid-run
     pause and a shutdown sweep both mean this tick did not happen, and a
     consumption made durable by one of them would drop a human's instruction
     on the floor with nothing left on the issue pointing at it. The cost is
     the one every declined run has -- the next tick resumes the developer
     again on the same reply, and it sees its own prior commit.
+
+    The replies an earlier consumption left owed a whole quote are quoted
+    too, and they are repaid only where the reconciliation lands on this
+    run's answer. A run its timeout killed, one that stopped before it
+    worked, and one whose reconciliation parked -- a question over an
+    unchanged commit among them -- have answered none of them, so they stay
+    owed to the next.
 
     The park this answers goes the same way. Clearing it is staged here so a
     run that then fails re-parks with the reason it actually failed for rather
@@ -158,9 +183,8 @@ def _revise_from_guidance(
     _comments._post_issue_comment(
         context.gh, context.issue, context.state, _REVISING_NOTICE,
     )
-    _consume(context, signal)
     _late_parks._answer_park(context)
-    return _resumed(context, signal)
+    return _resumed(context, signal.delivered())
 
 
 def _resumed(
@@ -172,6 +196,13 @@ def _resumed(
     can observe the close inside either -- which is why the latch is asked
     once more here, immediately against the resume, and once again when the
     run comes back.
+
+    The reading is consumed once the run is back and past the latch asked
+    then, and nowhere earlier: a close caught on either side cancels a cycle
+    whose run nothing will reconcile, and the cancellation's write must carry
+    no consumption of guidance nothing acted on -- no requirements baseline
+    moved, no owed reply repaid. Nor may the park a run that never started
+    work earns.
     """
     latched = _latched_close(context)
     if latched is not None:
@@ -193,6 +224,7 @@ def _resumed(
     latched = _latched_close(context)
     if latched is not None:
         return latched
+    repays = _read_by(context, signal, agent_result)
     if agent_result.timed_out:
         log.warning(
             "issue=#%d the developer revision timed out after %ds; reading "
@@ -200,8 +232,41 @@ def _resumed(
             context.issue.number, config.AGENT_TIMEOUT,
         )
     return _late_reconciliation._reconcile_revised_candidate(
-        context, worktree, agent_result,
+        context, worktree, agent_result, repays=repays,
     )
+
+
+def _read_by(
+    context: _LateContext,
+    signal: _LateContentSignal,
+    agent_result: _agent_models.AgentResult,
+) -> bool:
+    """Stage the reading this run was handed as consumed, if it worked on it.
+
+    Reports whether the run's answer may repay the replies it was quoted
+    whole. It is an answer only once the reconciliation lands on it, so the
+    repayment is that owner's to stage: a question over an unchanged commit,
+    a dirty tree, or a measurement nothing could take parks with the replies
+    still owed to the run the answer to that park buys.
+
+    A CLI that stopped before it started -- a quota notice, any refusal its
+    provider answered the turn with (an auth refusal or a rate limit as much
+    as an outage), a failed exit with nothing said -- read none of it, so
+    nothing is consumed and nothing owed is repaid: the park that run earns
+    stands over guidance still unread. A timeout did work on the reading, and
+    what it left is reconciled as its answer, so its guidance is consumed the
+    way every stage consumes a timed-out batch; what it was quoted whole stays
+    owed, since a run stopped short has acted on none of it for certain.
+    """
+    said = (agent_result.last_message or "").strip()
+    if (
+        _session_read._is_session_limit_message(agent_result)
+        or _provider_failures.is_provider_refusal(agent_result)
+        or (agent_result.exit_code != 0 and not said and not agent_result.timed_out)
+    ):
+        return False
+    _late_park_state._consume_reading(context, signal)
+    return not agent_result.timed_out
 
 
 def _latched_close(
@@ -232,42 +297,24 @@ def _retry_revision(
     failed was the reading of what it left -- so the checkout is re-read, the
     commit re-frozen, and the size measured again, with no agent spawned at
     all.
+
+    Unless guidance the park's notice withheld is still unread. The continue
+    ends the park, and a re-read runs no agent: a candidate it re-measured
+    under the ceiling would go straight to publication, where the next agent
+    sees the thread only through a bounded excerpt. So the continue buys the
+    developer run instead, with those words quoted whole.
     """
-    if signal.guidance:
+    if signal.guidance or (signal.bare_continue and signal.withheld):
         return _revise_from_guidance(context, signal)
     if not signal.bare_continue:
         return _LateContentSettlement(disposition=_LateDisposition.PARKED)
     stranded = _late_obligations._stranded_by_effects(context)
     if stranded is not None:
         return stranded
-    _consume(context, signal)
+    _late_park_state._consume_reading(context, signal)
     return _late_reconciliation._reconcile_revised_candidate(
         context,
         _worktree_paths._worktree_path(context.spec, context.issue.number),
-    )
-
-
-def _consume(context: _LateContext, signal: _LateContentSignal) -> None:
-    """Record the conversation this tick is acting on as read.
-
-    Two watermarks, because two different consumers read the same thread. The
-    generation's own covers the late fingerprints, so the same comments do not
-    come back as fresh guidance. The issue-wide `last_action_comment_id` is
-    ratcheted for the reason every other developer resume ratchets it: the dev
-    has seen these comments, and the later validating -> in_review handoff
-    would otherwise replay them as fresh PR feedback and resume it a second
-    time on input it already handled.
-
-    Both cover the whole trusted run this reading folded in rather than the
-    guidance alone. A bare continue that re-read the checkout was acted on
-    just as a quoted comment was, and leaving it behind the shared watermark
-    would hand it to that same handoff as feedback nobody had answered.
-    """
-    context.generation = _late_content._rebaselined(
-        context.generation, signal.fingerprint,
-    )
-    _late_park_state._mark_replies_read(
-        context, signal.fingerprint.comment_watermark_id,
     )
 
 

@@ -84,6 +84,23 @@ class LateGeneration:
     `split_children` is ordered and positional for the same reason: entry `i`
     is the child that owns slice `i` of this manifest.
 
+    `baseline_bounded` says the three content fingerprints above were taken
+    no further than the issue-wide `user_content_hash` covered -- every late
+    baseline and every consumption since that rule has been. A generation
+    without it was baselined over the whole thread and may count comments no
+    stage consumed, which is why the late content read takes its baseline
+    again before comparing anything against it.
+
+    `owed_replies` names, by comment id, the trusted replies this generation
+    consumed on an adjudication's behalf -- a categorized question's answer,
+    the words beside a retry-cap continue -- and that no run has yet been
+    handed whole. The adjudicator reads the thread through a bounded excerpt
+    of its tail, and the consumption lands before its spawn gates, so without
+    this list a long reply would be recorded as answered while the agent it
+    was spent on read only its end, or nothing at all. It lives on the
+    generation because a reply is owed to the adjudication of THIS candidate:
+    a revision carries it forward, and the record's retirement drops it.
+
     `owner_check_pending` is the one field that records an unfinished READ
     rather than a fact about the candidate: a completed run whose owner could
     not be re-read leaves it set, and while it is set no later tick may treat
@@ -155,6 +172,7 @@ class LateGeneration:
     title_body_hash: str | None = None
     comment_hash: str | None = None
     comment_watermark_id: int | None = None
+    baseline_bounded: bool = False
     plan_pr_number: int | None = None
     plan_pr_head: str = ""
     plan_pr_body: str | None = None
@@ -162,6 +180,7 @@ class LateGeneration:
     obligations: LateObligations = field(default_factory=LateObligations)
     split_children: tuple[int, ...] = ()
     links_announced: bool = False
+    owed_replies: tuple[int, ...] = ()
     owner_check_pending: bool = False
     cancelled: bool = False
     cancelled_at: str | None = None

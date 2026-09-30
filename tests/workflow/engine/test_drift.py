@@ -8,6 +8,8 @@ import unittest
 from orchestrator.workflow.engine import content_hash as _content_hash, drift
 from tests.workflow.engine import drift_test_support as support
 
+OBSERVED = "observed_user_content_hash"
+
 
 class ComputeUserContentHashTest(unittest.TestCase):
     """The hash must include user-visible content (title, body, human
@@ -108,6 +110,19 @@ class ComputeUserContentHashTest(unittest.TestCase):
         )
 
 
+def _observed_issue(*, edited: bool):
+    """An issue whose one recorded reading is an observed one, edited since or not."""
+    gh = support.FakeGitHubClient()
+    issue = support.make_issue(1)
+    gh.add_issue(issue)
+    gh.seed_state(1, **{
+        OBSERVED: _content_hash._compute_user_content_hash(issue, set()),
+    })
+    if edited:
+        issue.body = support.NEW_BODY
+    return gh, issue
+
+
 class DetectUserContentChangeTest(unittest.TestCase):
     def test_first_call_persists_and_returns_none(self) -> None:
         # The first encounter has no baseline; we record the current value
@@ -131,6 +146,26 @@ class DetectUserContentChangeTest(unittest.TestCase):
             gh.pinned_data(1).get(support.KEY_USER_CONTENT_HASH),
             state.get(support.KEY_USER_CONTENT_HASH),
         )
+
+    def test_an_observed_reading_stands_in(self) -> None:
+        # A stage that acted on a reading without consuming it recorded it as
+        # observed. With no baseline recorded, the first call compares against
+        # that: an unchanged thread is persisted as the baseline, and an edit
+        # made since is the drift it is rather than the baseline.
+        for edited in (False, True):
+            with self.subTest(edited=edited):
+                gh, issue = _observed_issue(edited=edited)
+
+                detected_hash = drift._detect_user_content_change(
+                    gh, issue, gh.read_pinned_state(issue),
+                )
+
+                current = _content_hash._compute_user_content_hash(issue, set())
+                self.assertEqual(detected_hash, current if edited else None)
+                self.assertEqual(
+                    gh.pinned_data(1).get(support.KEY_USER_CONTENT_HASH),
+                    None if edited else current,
+                )
 
     def test_unchanged_returns_none(self) -> None:
         gh = support.FakeGitHubClient()

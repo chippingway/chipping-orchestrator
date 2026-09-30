@@ -6,6 +6,10 @@ The generation and umbrella label are written together before any child runs.
 Activation preserves the shared walk's owner and publication barriers; cleanup
 runs afterwards and records failures for the umbrella's terminal to retry.
 The transaction calls these effects only after its fresh supersession checks.
+The requirements baseline the umbrella's drift check reads is not taken here:
+it is the one the last consumed reply already made durable -- or, on an issue
+that had none and consumed no reply, the reading the adjudication carried on
+over, recorded as observed -- and the handoff writes it through unchanged.
 """
 from __future__ import annotations
 
@@ -57,6 +61,20 @@ def _handed_to_children(
     still owes the remote is recorded in that write as well, so the obligation
     is durable before the cleanup that reconciles it is attempted -- and the
     activation that follows can therefore never be waiting on it.
+
+    What that write does NOT do is read the thread again. The umbrella's first
+    poll runs the ordinary drift check, and the `user_content_hash` it compares
+    against is the one the late path recorded when it last consumed a reply,
+    off the reading that reply came in on -- or, on an issue that had none and
+    consumed no reply, `observed_user_content_hash`, the reading the
+    adjudication carried on over, which that check compares against in place
+    of the missing baseline. Either is durable since the write that recorded
+    it, so a death
+    between the label and this write, which the relabel guard repairs by
+    re-entering the transaction, finds it already there.
+    Re-reading here would be the one way to break it: a comment written since
+    that reading was acted on by nobody, and folding it in would silence the
+    drift the next agent is owed for it.
 
     Reports the disposition that ended the cycle, or None where the children
     were started. The retirement write is itself a request, and a close

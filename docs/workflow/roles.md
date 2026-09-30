@@ -1082,14 +1082,17 @@ exempt on a record nobody authorized, counted strictly past `MAX_ADDED_LINES`. I
 hash has to leave both out — the tick that reads one answers it and hands the same issue on to a stage handler, so a
 hash counting it would meet that handler as a body edit nobody made.
 
-Every term of the command follows from what it licenses. It names the exact commit, because a bare "yes" would
-authorize whatever the worktree ends on next. It has to be the WHOLE comment: a line of it under a paragraph is prose
-that mentions the command, and prose about an oversized candidate is guidance, which resumes the developer against it.
-`/orchestrator continue` is refused rather than absorbed — "do that step again" is not a decision about a change
-anybody read. Who may say it is the allowlist every other workflow-driving comment goes through, applied where the
-thread is read, so an outsider's comment is not in the reading this owner is handed at all. And WHEN they may say it
-is bounded like every other reply: a comment below the park's own notice was written before the question was put, so
-it goes stale rather than authorizing the candidate it happens to name.
+Every term of the command follows from what it licenses. It names the exact commit, because a bare "yes" would authorize
+whatever the worktree ends on next. It has to be the WHOLE comment: a line of it under a paragraph is prose that
+mentions the command, and prose about an oversized candidate is guidance, which resumes the developer against it.
+`/orchestrator continue` is refused rather than absorbed — "do that step again" is not a decision about a change anybody
+read. Who may say it is the allowlist every other workflow-driving comment goes through, applied where the thread is
+read, so an outsider's comment is not in the reading this owner is handed at all. And WHEN they may say it is bounded
+like every other reply: a comment below the park's own notice was written before the question was put, so it goes stale
+rather than authorizing the candidate it happens to name. Nor does a valid command publish past guidance written under
+that notice: those words were held back from answering the park, no agent has read them, and the stage a publication
+hands the issue to reads the thread only through a bounded excerpt — so the developer is resumed with them quoted whole
+instead, and nothing publishes.
 
 A command that is all of those things is proved and then recorded. The commit it names has to be the generation's
 frozen candidate; the adjudication it publishes has to still be on the record as a `single` for this cycle,
@@ -1608,7 +1611,13 @@ become an umbrella has no candidate to measure, and a record still answering "ov
 `workflow:decomposing` and would have the relabel guard put the umbrella label back on every dispatch. Activation
 runs after that write for the reason the initial split's does: a crash between them must not leave a runnable child
 under a parent still labelled `decomposing`, and a child this pass could not flip is picked up by the umbrella's own
-walk as the retry.
+walk as the retry. What that write does *not* do is read the thread again. The issue-wide `user_content_hash` it
+carries is the one the last reply this mode consumed already made durable, off the reading that reply came in on
+([below](#what-the-humans-can-still-change-while-a-candidate-is-frozen)) — so the umbrella's first drift check meets
+guidance a developer revision already answered as its baseline rather than as an edit, and does not orphan the children
+this split just made to decompose the same work again. A crash between the label and the write changes nothing about
+that: the relabel guard puts `workflow:decomposing` back, the transaction is re-entered from the recorded verdict and
+adopts the children it already made, and the baseline was durable before any of it.
 
 It runs *through* that walk rather than through the initial split's one-shot flip, and the difference is the
 supersession above it: that step can park for as long as a human takes to settle a pull request, so by the time
@@ -2085,8 +2094,52 @@ words is that hash's own trust filter all the same, so an outsider, a third-part
 comments shift nothing. The fields themselves are in
 [`../state-machine/labels-and-state.md#late-generation-state`][late-state].
 
-The first tick of an adjudication takes the baseline: whatever the issue says then is what the candidate was frozen
-against, and nothing on the thread counts as an answer to it. Every tick after that compares.
+Separate is not unrelated, though. Every path below that **acts** on a reading — a park answered, a candidate certified,
+a question reopened, a stalled revision re-read, the developer resumed, an authorization recorded or refused, a spent
+budget continued — records the global `user_content_hash` in the same write as the shared watermark, taken off that very
+reading of the title, body, and thread under the global hash's own filter. Without it the stage the issue reaches next
+would meet already-answered guidance as an edit: the umbrella a split hands the issue to would orphan the children it
+was just given and decompose the same work a second time. Nothing is read again for it, so a comment or an edit that
+arrived after the reading — during the developer's run, during the adjudication, before the handoff — is still drift for
+that stage, and still reaches whichever agent it routes to. Guidance a park's notice withheld keeps it where it was the
+same way, until an agent has been handed that guidance (below). What only *observes* a reading leaves
+`user_content_hash` where it was: the baseline a generation takes on its first tick records the local fingerprints
+alone, and a drift park nobody has answered moves no baseline but the shared watermark, past the notice it posts.
+Nothing writes it without a consumption; an issue with none has the reading an adjudication carries on over kept as
+observed instead (below). Nor
+does a developer run that did not happen move it: the consumption rides the write that reconciles what the run left, so
+a pause, a shutdown sweep, a launch the run circuit refused, or a close latched before the resume or while the run was
+out leaves `user_content_hash`, the local watermark, and the replies still owed where the prior tick left them — the
+park a refused launch takes may still move the shared one past its own notice. So does a run whose CLI stopped before it
+worked — on its account's quota, on any refusal its provider answered with (a 401 or a 429 as much as a 529), or with a
+failed exit and nothing said: what it left is reconciled and parks as any unanswered revision does, but over guidance
+still unread, so the continue that answers that park hands it to the developer whole.
+
+The first tick of an adjudication takes the baseline — over what the issue-wide `user_content_hash` covers, which is
+what the developer last worked against, and no further (`late_issue_baseline.py`). Comments are append-only, so that is
+the longest prefix of the thread that, beside the title and body as they now read, reproduces the recorded hash. A
+comment past it — written while the developer's last run was out, or under a notice since — was read by nobody, so it
+stays uncounted and is handed to the developer whole, as fresh or withheld guidance (below), rather than folded into the
+baseline. A reading no prefix of which reproduces the recorded hash is one whose title, body, or covered comments moved
+since, which is drift: it parks exactly as an edit under a baseline would. It parks on a baseline that counts no
+comment, since which of them the recorded hash covered can no longer be told, and holds the title and body to that
+recorded hash itself, which keeps the reading drifted until a human answers or the edit is taken back. Every trusted
+comment is therefore withheld or fresh guidance meanwhile — one written under the drift park's own notice included — and
+whatever answers the park hands them to the developer whole. Where that hash covered a comment, no title and body alone
+reproduce it, so a drifted reading of that baseline is compared against the recorded hash once more: a thread that again
+has a prefix reproducing it had its edit taken back, the baseline is retaken on that prefix, and the park clears as the
+revert below does, with anything past the prefix still handed to the developer whole. An issue with no recorded hash has
+recorded nothing as read, so its first baseline counts no comment at all: every trusted comment on the thread is handed
+to an agent whole before anything records it read. Nothing records `user_content_hash` for it, since nothing was
+consumed: an adjudication that carries on over a quiet reading keeps that reading as `observed_user_content_hash`
+instead, and the drift check of the stage the issue reaches next — its split's umbrella — compares against it while no
+baseline is recorded, so a comment or edit made during the run is an edit there rather than the baseline that first
+poll takes. A generation baselined over the whole thread before its baselines were held to the issue-wide one — it
+carries no `late_baseline_bounded` — may count comments no stage consumed, and once the title or body has moved which
+ones cannot be told. So it gives up what it counts before anything is compared, drifted or not: baselined again as a
+first reading is where a hash is recorded, and holding its own title and body fingerprint where none is. Those
+comments then reach the developer before any split, from the reading itself or from whatever answers the drift park,
+rather than being certified over. Every tick after that compares.
 
 **A spent spawn budget outranks even drift.** An adjudication is charged to the issue's shared daily spawn budget,
 and a budget with nothing left in it parks the issue as `retry_cap` before any of the reading below happens. What
@@ -2095,6 +2148,17 @@ is not — so the tick ends at the park, the fingerprints are not even read, and
 the recorded generation, and the hold all stay where they are. The one reply that lifts it is a trusted
 `/orchestrator continue`, and what it buys is one adjudication; the notice explaining the park has to have reached
 the thread before any comment on it is read as that answer, since saying it is what moves the response boundary.
+The grant spends the batch the command came in, words beside it included, on the adjudicator it buys — and since that
+run reads the thread through a bounded excerpt of its tail, the words are also recorded as owed a whole quote (below).
+So it consumes that reading whole: the local fingerprints, the shared watermark, and `user_content_hash` — on a
+generation whose first late baseline is still to be taken as well, which takes it here, over what the issue-wide
+baseline covers. A reading of such a generation that the recorded hash no longer reproduces moves the shared watermark
+alone, owes the adjudicator the words beside the command, and leaves the content read below to park on the move as
+drift. A reading that shows an edit under a baseline that exists, which the content read below is about to park on,
+moves the shared watermark alone — rebaselining would swallow the edit, and nothing has answered it — and leaves the
+words beside the command withheld guidance for whoever answers that park. So does a reading that still withholds
+guidance: that is the developer's to be handed, not an adjudication's, and with the park answered the content read below
+hands it on.
 The budget itself is in [`../state-machine/labels-and-state.md#the-retry-budget`][retry-budget].
 
 **Drift outranks every answer.** An edit to the title, the body, or a comment already counted into the baseline
@@ -2106,10 +2170,27 @@ until a human says what the edit meant. A comment rewritten in place is drift fo
 it moves no comment id, so there is no new comment to read the change out of.
 
 The park is a *response boundary*, not a one-tick delay. What counts as a reply is read against the higher of the
-generation's own comment watermark and the issue-wide `last_action_comment_id`, which every announced park advances
-past the notice it just posted — so an answer written before the human was told anything cannot resolve the park on
-the next poll either. Nothing advances that watermark without consuming what it advances past, so the conservative
-reading costs no real reply.
+generation's own comment watermark and the issue-wide `last_action_comment_id`, which every announced park advances past
+the notice it just posted — so an answer written before the human was told anything cannot resolve the park on the next
+poll either. Nothing else advances that watermark without consuming what it advances past, and what a notice advances
+it past is held back rather than lost (below), so the conservative reading costs no real reply.
+
+What the boundary holds back is not thrown away, though. Trusted guidance past the local watermark and under a notice —
+words a human wrote while the issue was being parked, which no agent has read — is reported as *withheld*. It never
+answers the park that withheld it, but it is never folded into a baseline on the way past either. Every developer
+revision quotes it ahead of the fresh guidance, since the run folds both. A reverted edit that finds any routes it to
+the developer, exactly as guidance beside the revert would: the requirements ended the park, and with nothing left for
+those words to answer they are an unread instruction. So does an issue whose park has gone — retired by a fresh attempt,
+or lifted by a retry-cap continue — with some still on the thread. So, too, does a certificate or an answered question
+that finds any: the adjudication either would buy is consumed for before its spawn gates — the budget, the run limit, a
+pause, a close — and a run stopped at one would have spent the words on nobody, while a developer run is consumed for
+only once it has run. So, finally, do the two answers that would end a park with no agent at all: an authorization,
+which would hand the issue to publication where the next agent reads the thread through a bounded excerpt, and a
+continue on a stalled revision, whose re-read could settle the candidate under the ceiling and hand it there too — the
+developer is resumed with the words quoted whole instead, and nothing publishes. A continue refused while its park
+stands spends its own reply through the shared watermark and nothing else: the local fingerprints and
+`user_content_hash` stay where they were, so the withheld words are still there for the next reading to hand on and
+still an edit to the drift check of whatever stage the issue reaches first.
 
 **Then the reply resolves it, and the two kinds of reply mean opposite things.** A bare `/orchestrator continue` is a
 certificate: the committed work still answers the updated issue, so the fingerprints are re-baselined onto the content
@@ -2159,11 +2240,24 @@ applying to the new. Folding the comment into the baseline instead would consume
 The one reply that lands here with nothing to do is a bare `/orchestrator continue`: no park is waiting on it and no
 candidate needs certifying.
 
-**A categorized question is reopened only by a real answer.** Substantive trusted guidance drops the recorded outcome
-— the record is exactly what suppresses the next spawn — so the adjudicator runs again against what the human said. A
-bare continue may not: a question is not a step that failed, and "proceed" is not an answer to "which half of this is
-in scope". The command is consumed, the refusal is posted once, and the issue stays parked on the question it is
-really waiting on.
+**A categorized question is reopened only by a real answer.** Substantive trusted guidance drops the recorded outcome —
+the record is exactly what suppresses the next spawn — so the adjudicator runs again against what the human said, quoted
+whole (below). A bare continue may not: a question is not a step that failed, and "proceed" is not an answer to "which
+half of this is in scope". The command is consumed, the refusal is posted once, and the issue stays parked on the
+question it is really waiting on. An answer that finds guidance the question's notice withheld resumes the developer
+with both quoted instead, for the reason given below.
+
+**What an adjudication is owed.** The late adjudicator reads the thread through the same bounded excerpt of its tail
+every conversation-carrying prompt carries, and the two replies consumed on its behalf — a question's answer and the
+words beside a retry-cap continue — are consumed ahead of its spawn gates. So both are also recorded as owed
+(`late_owed_replies`) and quoted whole after the excerpt to every late run until one has answered them: the
+adjudication repays them with the verdict it records over them, and a developer revision, which quotes them too, with
+the candidate its reconciliation re-measures off its answer. Nothing short of that repays them — a run refused at a
+gate, paused, or killed; one stopped by its timeout; one whose CLI stopped on its quota or a provider refusal before it
+said anything; a reply nothing could parse; a revision whose reconciliation parked, a question over an unchanged commit
+among them — so the run its park earns is quoted them again, and a recorded answer is not reused while any reply is
+owed. So a long reply the late watermark and `user_content_hash` already count as read is still handed
+whole to the next agent that runs over this candidate, rather than to a run that sees only its end.
 
 **Nothing outside the adjudication may decide it either.** While a generation is live — recorded, not cancelled, and
 either oversized or still owing an owner read — `workflow:decomposing` is the label it sits on, and both ways that can

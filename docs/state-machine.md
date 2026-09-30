@@ -238,7 +238,12 @@ fingerprint of the read its own prompt was built from, whether that prompt is th
 the frozen batch of the reply continuing it — and no reviewer
 runs until the pull request carries it. `in_review` runs the same contract on its own drift resume, recording the
 report under its own route ahead of the size gate and publishing a report with no commit onto the head the pull
-request carries; the issue then goes back to `workflow:validating`, which is where that reviewer waits.
+request carries; the issue then goes back to `workflow:validating`, which is where that reviewer waits. A late
+adjudication on `workflow:decomposing` runs no check of its own, but every reply it acts on records the baseline off
+the one reading it acted on — short of an edit in that reading nobody has answered yet, or guidance a park's notice
+withheld that nothing the answer runs has read — so the umbrella a late split hands the issue to meets guidance a
+developer revision or a continued budget already spent as the baseline rather than as a change, and a comment or edit
+written after that reading as one.
 `_handle_fixing`, `_handle_question`, and
 `_handle_discussion` deliberately skip the check. The eight non-human filters (including the untrusted-author filter
 and the whole-comment operator-command exclusions — `/orchestrator continue`, `/orchestrator add-agent-runs N`, and

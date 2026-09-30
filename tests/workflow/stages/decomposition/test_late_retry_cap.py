@@ -21,11 +21,19 @@ from tests.workflow.fixtures import _iso_hours_ago
 from tests.workflow.stages.decomposition import late_retry_cap_support as _support
 from tests.workflow.stages.decomposition.late_content_replies import HUMAN, PARK_NOTICE_ID
 from tests.workflow.stages.decomposition.late_content_support import EDITED_BODY, OUTSIDER
+from tests.workflow.stages.decomposition.late_requirements_support import (
+    DRIFT_NOTICE,
+    KEY_CHILDREN,
+    KEY_USER_CONTENT_HASH,
+    poll,
+    requirements,
+)
 from tests.workflow.stages.decomposition.late_retry_cap_support import (
     LateRetryCapCase,
     PausedDuringRun,
     UnreadableThread,
 )
+from tests.workflow.stages.decomposition.late_revision_support import DEV_PIN, DEV_SESSION
 from tests.workflow.stages.decomposition.late_test_support import (
     CANDIDATE_SHA,
     KEYS,
@@ -179,7 +187,7 @@ class ContinuationTest(LateRetryCapCase):
         # A decision that arrives with an explanation is still the decision,
         # and the explanation reaches the fresh adjudicator through the late
         # prompt rather than being refused for arriving together.
-        self._park(_support.trusted(f"{_support.GUIDANCE}\n\n{_support.CONTINUE_COMMAND}"))
+        self._park(_support.trusted(_support.CONTINUE_COMMAND_WITH_GUIDANCE))
 
         spawn = self._tick()
 
@@ -215,6 +223,147 @@ class ContinuationTest(LateRetryCapCase):
             **_support.GRANT_SPENT, KEYS.retry_count: 0, KEYS.retry_grant: 1,
         })
         self.assertEqual(self._bodies(), [])
+
+
+class ContinuedSplitTest(LateRetryCapCase):
+    """What a continue's own words are to the umbrella its adjudication splits into."""
+
+    def test_a_guided_continue_keeps_its_split(self) -> None:
+        # The words beside the command reach the adjudicator the grant buys,
+        # and it splits over them -- so the umbrella that split hands the
+        # issue to has to meet them as its baseline, not as an edit that
+        # orphans the children it was just given and decomposes them again.
+        # A park lifted before the generation's first late baseline is the
+        # same: that baseline is the reading the grant consumes.
+        for baselined in (True, False):
+            with self.subTest(baselined=baselined):
+                self._continue_on(
+                    _support.CONTINUE_COMMAND_WITH_GUIDANCE, baseline=baselined,
+                )
+
+                outcome, _spawn = self._run(SPLIT_REPLY, transact=True)
+                created = [child.number for child in self.github.created_child_issues]
+                poll(self.github, self.issue)
+
+                self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
+                self.assertEqual(self._pinned()[KEY_USER_CONTENT_HASH], requirements(self.issue))
+                self.assertEqual(self.github.workflow_label(self.issue), _support.LABEL_UMBRELLA)
+                self.assertEqual(self._pinned()[KEY_CHILDREN], created)
+                self.assertFalse(any(DRIFT_NOTICE in body for body in self._bodies()))
+
+    def test_a_continue_over_an_edit_keeps_the_hash(self) -> None:
+        # The grant still buys its attempt, but the edit beside the command is
+        # the content read's to park on, and nothing has answered it: the
+        # requirements baseline stays where the pickup left it.
+        self._continue_on(_support.CONTINUE_COMMAND)
+        picked_up = self._pinned()[KEY_USER_CONTENT_HASH]
+        self.issue.body = EDITED_BODY
+
+        spawn = self._tick()
+
+        spawn.assert_not_called()
+        pinned = self._pinned()
+        self.assertEqual(pinned[KEYS.park_reason], _support.PARK_CONTENT_DRIFT)
+        self.assertEqual(pinned[KEY_USER_CONTENT_HASH], picked_up)
+
+    def test_an_unread_edit_parks_before_any_split(self) -> None:
+        # With no late baseline yet, nothing in the reading says the body
+        # changed except the issue-wide baseline, which no part of the thread
+        # reproduces any more. The grant takes no baseline over that and
+        # records nothing: the content read parks on it as drift.
+        self._continue_on(_support.CONTINUE_COMMAND_WITH_GUIDANCE, baseline=False)
+        picked_up = self._pinned()[KEY_USER_CONTENT_HASH]
+        self.issue.body = EDITED_BODY
+
+        spawn = self._tick()
+
+        spawn.assert_not_called()
+        pinned = self._pinned()
+        self.assertEqual(pinned[KEYS.park_reason], _support.PARK_CONTENT_DRIFT)
+        self.assertEqual(pinned[KEY_USER_CONTENT_HASH], picked_up)
+
+    def test_an_unread_comment_goes_to_the_developer(self) -> None:
+        # A comment written after the issue-wide baseline and before the
+        # park's notice was read by nobody. The late baseline stops short of
+        # it, so it is withheld guidance -- quoted whole to the developer
+        # rather than folded into a reading an adjudicator sees only the end of.
+        # With no issue-wide baseline recorded at all, nothing is known to be
+        # read, so the late baseline counts no comment and the same holds.
+        for recorded in (True, False):
+            with self.subTest(recorded=recorded):
+                unread = _support.trusted(_support.OVERLONG_UNREAD, comment_id=PARK_NOTICE_ID // 2)
+                self._continue_on(
+                    _support.CONTINUE_COMMAND_WITH_GUIDANCE,
+                    baseline=False, unread=(unread,), recorded=recorded, **DEV_PIN,
+                )
+
+                spawn = self._tick()
+
+                spawn.assert_called_once()
+                self.assertEqual(spawn.call_args.kwargs["resume_session_id"], DEV_SESSION)
+                self.assertIn(_support.OVERLONG_UNREAD, spawn.call_args.args[1])
+
+    def test_an_overlong_continue_is_quoted_whole(self) -> None:
+        # The adjudicator reads the thread through a bounded excerpt of its
+        # tail, so a reply longer than that excerpt loses its head -- which is
+        # where the instruction is. It is quoted whole beside the excerpt, so
+        # the run the grant buys reads what the baseline now counts as read --
+        # on a generation with no late baseline and an issue with no recorded
+        # requirements baseline as much as on a settled one.
+        for settled in (True, False):
+            with self.subTest(settled=settled):
+                self._continue_on(
+                    _support.OVERLONG_CONTINUE, baseline=settled, recorded=settled,
+                )
+
+                outcome, spawn = self._run(SPLIT_REPLY, transact=True)
+                created = [child.number for child in self.github.created_child_issues]
+                poll(self.github, self.issue)
+
+                self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
+                self.assertIn(_support.GUIDANCE, spawn.call_args.args[1])
+                self.assertEqual(self._pinned()[KEY_CHILDREN], created)
+                self.assertEqual(self.github.workflow_label(self.issue), _support.LABEL_UMBRELLA)
+
+    def _continue_on(self, body: str, *, unread=(), recorded: bool = True, **fields) -> None:
+        """Park on the spent budget as a pickup left it, then answer it.
+
+        The requirements baseline is taken before the answer is on the
+        thread, which is what makes any words in it an edit to a reader that
+        never spent them; `recorded=False` is an issue that never recorded
+        one. `baseline=False` among `fields` is a generation whose own late
+        baseline has still to be taken when the park is lifted, and `unread`
+        is conversation that landed after the issue-wide baseline and before
+        the park's notice, which nothing has read.
+        """
+        self._park(**fields)
+        if recorded:
+            self.github.seed_state(self.issue.number, **{
+                **self._pinned(), KEY_USER_CONTENT_HASH: requirements(self.issue),
+            })
+        self.issue.comments.extend(unread)
+        self.issue.comments.append(_support.trusted(body))
+
+
+class WithheldContinuationTest(LateRetryCapCase):
+    """A continue over words the park's own notice held back."""
+
+    def test_the_developer_is_handed_them(self) -> None:
+        # A comment written before the notice is no answer to the park, and
+        # the grant does not spend it on the adjudication it buys either --
+        # that run can still be stopped at its spawn gates. With the park
+        # answered, the content read hands it to the developer instead.
+        self._park(**DEV_PIN)
+        self.issue.comments.append(
+            _support.trusted(_support.GUIDANCE, comment_id=PARK_NOTICE_ID - 1),
+        )
+        self.issue.comments.append(_support.trusted(_support.CONTINUE_COMMAND))
+
+        spawn = self._tick()
+
+        spawn.assert_called_once()
+        self.assertEqual(spawn.call_args.kwargs["resume_session_id"], DEV_SESSION)
+        self.assertIn(_support.GUIDANCE, spawn.call_args.args[1])
 
 
 class OwedNoticeTest(LateRetryCapCase):

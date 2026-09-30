@@ -55,6 +55,13 @@ would find the same comment unread and resume the developer a second time,
 against a checkout nobody has cleaned. The park, the consumption, and the
 owed read are therefore one write, made here, before the read.
 
+The replies a developer was quoted whole because an adjudication still owed
+them (`late_owed_replies`) are repaid on the one result that answers them: a
+re-measured candidate, in its own write, and only where the caller says the
+run behind it worked to the end. Every park here leaves them owed -- a
+question over an unchanged commit is the developer asking rather than
+answering -- and so does a re-read no developer ran for.
+
 Nothing here reaches back to the entry coordinator. Both roads in -- the
 guidance that bought a developer run, and the bare continue that re-reads a
 run which already finished -- call in from there, and a reconciliation that
@@ -80,6 +87,7 @@ from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
     late_content_models as _late_content_models,
     late_outcome as _late_outcome,
+    late_owed_replies as _late_owed_replies,
     late_owner as _late_owner,
     late_park_state as _late_park_state,
     late_parks as _late_parks,
@@ -134,7 +142,7 @@ _UNANSWERED_PARK = (
 
 
 def _reconcile_revised_candidate(
-    context: _LateContext, worktree: Path, agent_result=None,
+    context: _LateContext, worktree: Path, agent_result=None, *, repays: bool = False,
 ) -> _late_content_models._LateContentSettlement:
     """Prove the tree clean, freeze what it ends on, and measure it again.
 
@@ -155,6 +163,10 @@ def _reconcile_revised_candidate(
     acknowledgment in that case: the human has read the park and accepted the
     commit as it stands, which is exactly what the marker says on the path
     where an agent is the one speaking.
+
+    `repays` is the caller's word that the run worked to the end on a prompt
+    that quoted the owed replies whole, so a candidate re-measured off it
+    answers them; nothing that parks here does.
     """
     tree = _worktree_status._worktree_status(worktree)
     if not tree.readable or tree.paths:
@@ -176,7 +188,7 @@ def _reconcile_revised_candidate(
             _UNANSWERED_PARK.format(reply=_quoted_reply(agent_result)),
             reason=_late_park_state.PARK_REVISION_UNANSWERED,
         )
-    return _remeasured(context, worktree, revised)
+    return _remeasured(context, worktree, revised, repays=repays)
 
 
 def _vouched_for(agent_result) -> bool:
@@ -206,7 +218,7 @@ def _quoted_reply(agent_result) -> str:
 
 
 def _remeasured(
-    context: _LateContext, worktree: Path, revised: str,
+    context: _LateContext, worktree: Path, revised: str, *, repays: bool,
 ) -> _late_content_models._LateContentSettlement:
     """Re-freeze this candidate under the ceiling as it stands now.
 
@@ -266,6 +278,8 @@ def _remeasured(
         # the issue.
         owner_check_pending=True,
     )
+    if repays:
+        _late_owed_replies._repaid(context)
     _overrides.clear_publication_override(context.state)
     _late_parks._answer_park(context)
     _late_park_state._persist(context)

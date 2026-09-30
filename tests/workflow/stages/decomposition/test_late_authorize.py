@@ -32,6 +32,10 @@ from tests.workflow.stages.decomposition.late_published_support import (
     published_generation,
     seed_published_pr,
 )
+from tests.workflow.stages.decomposition.late_requirements_support import (
+    KEY_USER_CONTENT_HASH,
+    requirements,
+)
 from tests.workflow.stages.decomposition.late_run_support import WorktreeSeed
 
 
@@ -72,7 +76,9 @@ class AuthorizedPublicationTest(_authorize_case._AuthorizeCase):
     def test_the_park_and_the_reply_go_down_too(self) -> None:
         # One write, because each half alone is a state the next tick reads
         # wrong: a park left standing asks a human a question they answered,
-        # and an unconsumed command authorizes whatever is parked next.
+        # and an unconsumed command authorizes whatever is parked next. The
+        # requirements baseline rides it too, so the stage the publication
+        # hands the issue to meets the thread this decision was read off.
         self._tick()
 
         pinned = self._pinned()
@@ -81,6 +87,7 @@ class AuthorizedPublicationTest(_authorize_case._AuthorizeCase):
         self.assertGreaterEqual(
             pinned.get(_authorize_case.KEY_LAST_ACTION_COMMENT_ID), self.commanded.id,
         )
+        self.assertEqual(pinned.get(KEY_USER_CONTENT_HASH), requirements(self.issue))
 
     def test_a_repeated_command_publishes_once(self) -> None:
         # A human who wrote it twice made one decision. The second reading
@@ -126,6 +133,11 @@ class RefusedAuthorizationTest(_authorize_case._AuthorizeCase):
                 # The sentence carries the commit that WOULD have worked, so
                 # the human's next comment is one this park can act on.
                 self.assertIn(_stage_support.CANDIDATE_SHA, said)
+                # Refused, but read: the requirements baseline takes the
+                # reading the refusal consumed.
+                self.assertEqual(
+                    self._pinned()[KEY_USER_CONTENT_HASH], requirements(self.issue),
+                )
 
     def test_a_bare_continue_is_refused(self) -> None:
         _content_replies.reply(self.issue, _support.BARE_CONTINUE)
