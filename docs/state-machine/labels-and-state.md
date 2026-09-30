@@ -3350,9 +3350,9 @@ rather than preserving.
   change from, and so is a slice whose own title or body names a snapshot ref other than the one its
   child is pointed at (or this repository's local mirror of that ref — another repository's mirror of the same
   numbers is that repository's copy, on no ledger here). Each mention is read as the whole ref name it could be:
-  only quoting closed on both sides, a refspec's leading `+`, and a trailing full stop or slash are taken off, so a
-  longer name that merely contains the child's ref — `…/gen-1!` inside backticks included — is refused as the
-  different ref it is. A refusal parks `replacement_lineage_unproved` before
+  only quoting closed on both sides, one refspec's leading `+`, and a trailing full stop or slash are taken off, so
+  a longer name that merely contains the child's ref — `…/gen-1!` inside backticks, an unclosed quote, or a second
+  `+` included — is refused as the different ref it is. A refusal parks `replacement_lineage_unproved` before
   `expected_children_count` is written, so nothing is created. A recovered split holds every recorded child to the
   same lineage before it finalizes: a child carrying none of this group is seeded, the pointer included only where
   the ledger already
@@ -3371,8 +3371,10 @@ rather than preserving.
   ref parks the same way.
   A snapshot ref recorded twice is a refusal whatever the two entries stand at, released included. Either park
   leaves every child unfinalized and unstarted. The dependency walk that releases an ordinary split's children
-  later asks the same decision off this record in front of every release, so a proof that lapsed after creation
-  releases no dependent and parks the parent, once.
+  later asks the same decision off this record in front of every walk, and holds each child's own pointer to what
+  this ledger still keeps for it in front of its release — a ref no longer held, or a child `late_consumers` no
+  longer records — so a proof or a protection that lapsed after creation releases no further dependent and parks
+  the parent, once.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

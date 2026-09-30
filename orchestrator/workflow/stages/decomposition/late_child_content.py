@@ -111,23 +111,23 @@ _REF_CHARACTER = r"[^\x00-\x20\x7f~^:?*\[\\]"
 # host's mirror of one -- read as the whole ref name it could be: as far as
 # ref characters run on EITHER side of the namespace, so a name that merely
 # contains an allowed ref (`...gen-1@foreign`, `...gen-1!`,
-# `refs/heads/refs/...`) reads as the different ref it is. What opens the
-# mention -- quotes, backticks, or brackets, and the `+` a forced refspec
-# starts with -- is `lead`, since no ref under `refs/` begins with one. A
-# mirror carries the repository segment it was fetched for, and one under
-# another repository's segment is that repository's copy of the same three
-# numbers: possibly other work, and kept by no ledger here. A mention that is
-# no whole ref is no child's either.
+# `refs/heads/refs/...`) reads as the different ref it is. The quotes,
+# backticks, or brackets that open the mention are `lead`, and one `+` behind
+# them is a forced refspec's; a second `+` is part of the name. A mirror
+# carries the repository segment it was fetched for, and one under another
+# repository's segment is that repository's copy of the same three numbers:
+# possibly other work, and kept by no ledger here. A mention that is no whole
+# ref is no child's either.
 _NAMED_SNAPSHOT = re.compile(
-    rf"(?<!{_REF_CHARACTER})(?P<lead>[`'\"(<+]*)"
+    rf"(?<!{_REF_CHARACTER})(?P<lead>[`'\"(<]*)\+?"
     rf"(?P<name>{_REF_CHARACTER}*?{re.escape(_snapshot_namespace.SNAPSHOT_NAMESPACE)}{_REF_CHARACTER}*)",
 )
 
-# What closes each opening a mention may lead with; a forced refspec's `+`
-# closes nothing. Only the closers a mention's own lead calls for, in the
-# order it calls for them, are dropped from its end -- any other character a
-# ref may contain, however much it looks like punctuation, is part of the name.
-_CLOSER_OF = str.maketrans("`'\"(<", "`'\")>", "+")
+# What closes each opening a mention may lead with. A lead is wrapping only
+# where the mention ends on exactly the closers it calls for, in the order it
+# calls for them; one left open is part of the name, as is any other character
+# a ref may contain, however much it looks like punctuation.
+_CLOSER_OF = str.maketrans("`'\"(<", "`'\")>")
 
 # What no ref name may end in, so a mention ending in one is the sentence
 # around it rather than the ref.
@@ -265,8 +265,9 @@ def _named_snapshots(*texts: object) -> frozenset[str]:
     anything else named here is a ref nothing keeps for the child. Nor is a
     ref read out of a longer name that contains it: git would fetch that
     longer name, so it is what the text tells a child to reuse. Only wrapping
-    closed on both sides is taken off -- `` `ref` `` and `(ref)` name `ref`,
-    while `` `ref!` `` and `ref,` name the refs spelled that way.
+    closed on both sides and a single refspec `+` are taken off -- `` `ref` ``,
+    `(ref)`, and `+ref` name `ref`, while `` `ref!` ``, `ref,`, `'ref`, and
+    `++ref` name the refs spelled that way.
     """
     mentions = (
         match
@@ -278,7 +279,10 @@ def _named_snapshots(*texts: object) -> frozenset[str]:
     for mention in mentions:
         closers = "".join(reversed(mention.group("lead"))).translate(_CLOSER_OF)
         name = mention.group("name").rstrip(_NEVER_ENDS_A_REF)
-        named.add(name.removesuffix(closers).rstrip(_NEVER_ENDS_A_REF))
+        if name.endswith(closers):
+            named.add(name.removesuffix(closers).rstrip(_NEVER_ENDS_A_REF))
+        else:
+            named.add(mention.group().rstrip(_NEVER_ENDS_A_REF))
     return frozenset(named)
 
 

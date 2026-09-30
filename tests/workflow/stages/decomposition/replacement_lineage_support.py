@@ -75,6 +75,13 @@ EXCLAIMED_REF = f"{SNAPSHOT_REF}!"
 # name on as surely as `!` does -- however much it reads like a word break.
 SPACED_REF = f"{SNAPSHOT_REF}\u00a0foreign"
 
+# Spellings whose wrapping is not the kind that is taken off: a refspec with a
+# second `+` -- one is a forced refspec's, the other is the name's -- and a
+# quote opened in front of the ref and never closed.
+DOUBLED_REFSPEC = f"++{SNAPSHOT_REF}"
+
+UNCLOSED_REF = f"'{SNAPSHOT_REF}"
+
 NESTED_REF = f"refs/heads/{SNAPSHOT_REF}"
 
 # The pinned keys a replacement's seed and its parent's record are read back

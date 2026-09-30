@@ -129,6 +129,12 @@ _FOREIGN_TEXT = MappingProxyType({
     "instructions running on past it through a non-breaking space": (
         _BODY, lambda text: text.replace(f"`{_support.SNAPSHOT_REF}`", f"`{_support.SPACED_REF}`"),
     ),
+    "instructions fetching it with a second `+`": (
+        _BODY, lambda text: text.replace(f"+{_support.SNAPSHOT_REF}:", f"{_support.DOUBLED_REFSPEC}:"),
+    ),
+    "instructions opening a quote in front of it and never closing it": (
+        _BODY, lambda text: text.replace(f"`{_support.SNAPSHOT_REF}`", _support.UNCLOSED_REF),
+    ),
     "instructions nesting it under another ref": (
         _BODY, lambda text: text.replace(_support.SNAPSHOT_REF, _support.NESTED_REF),
     ),

@@ -1400,9 +1400,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a caller cannot answer it a child scan too early and a parent that never entered the
                             gate pays nothing, that ask itself a request and so the latch taken on BOTH sides of
                             it, the one behind having nothing between it and the relabel, the ordinary split's
-                            lineage and snapshot proved again in front of any walk over its children -- parking the
-                            parent, once, rather than releasing a dependent under a proof that lapsed -- and the
-                            held-dependency line it logs
+                            lineage and snapshot proved again in front of any walk over its children, and each
+                            child's own pointer held to what the parent's ledger still keeps for it in front of its
+                            release -- parking the parent, once, rather than releasing a dependent under a proof or a
+                            protection that lapsed -- and the held-dependency line it logs
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
                             consumed-comment ratchet; a parent whose children all resolved settles what a late split
                             still owes the remote before it goes back to its own work, and waits on `blocked` while a
@@ -1532,7 +1533,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_child_content.py child scope, declared budgets, ancestry, immutable-snapshot reuse instructions -- rendered off
                             a pointed ancestry, so a protected replacement's body says the same -- the one reader of
                             every snapshot ref issue text names, each read as the whole ref name it could be -- only
-                            quoting closed on both sides, a refspec's `+`, and a trailing full stop or slash taken
+                            quoting closed on both sides, one refspec `+`, and a trailing full stop or slash taken
                             off -- a mirror kept whole with the
                             repository segment it was fetched for, and exact slice receipts; reserved markers in
                             proposed scope are refused before publication

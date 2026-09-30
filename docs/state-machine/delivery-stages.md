@@ -562,8 +562,8 @@ because there it is the claim that this stage has already rerouted rather than a
        parent's own whose ledger cannot say whether its snapshot is held or released (or that holds it with no
        recorded base for the reuse instructions to name its change from), or a slice whose own title or
        body names a snapshot ref its child would not be kept (any but the one it is pointed at, or this repository's
-       local mirror of it, each mention read as the whole ref name it could be — only quoting closed on both sides, a
-       refspec's `+`, and a trailing full stop or slash taken off — so a longer name containing it is refused)
+       local mirror of it, each mention read as the whole ref name it could be — only quoting closed on both sides,
+       one refspec `+`, and a trailing full stop or slash taken off — so a longer name containing it is refused)
        parks `replacement_lineage_unproved` before `expected_children_count` is written, creating nothing. Then for
        each
        child call `gh.create_child_issue(...)` with label `workflow:blocked` (the child's only birth label), record
@@ -615,7 +615,10 @@ because there it is the claim that this stage has already rerouted rather than a
      an ordinary split created — anything but a late split's own register — are released only while the lineage and
      snapshot decision their split was proved on still holds off the parent's record: a refusal (a snapshot entry no
      longer held or released, a base gone, an ancestry damaged) releases none and parks the parent
-     `replacement_lineage_unproved`, once. `_handle_umbrella` walks through the same check.
+     `replacement_lineage_unproved`, once. In front of each release the pointer the child itself carries is held to
+     what the parent's ledger still keeps for it: a pointer at a ref no longer held, one `late_consumers` no longer
+     records the child against, or a child comment that will not parse stops the walk and parks the same way.
+     `_handle_umbrella` walks through the same checks.
 - **Output**: parent → `workflow:ready` (all done and nothing a late split recorded still held), OR a sibling
   unblocked, OR a HITL park, OR a no-op for a child still waiting on its dependencies or a parent still holding a
   ref.
