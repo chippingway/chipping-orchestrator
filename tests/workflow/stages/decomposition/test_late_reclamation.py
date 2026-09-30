@@ -18,12 +18,13 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split.obligations import LateObligations, LateResourceState
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
+    blocked as _blocked,
     late_cleanup_proof as _late_cleanup_proof,
 )
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
 from tests.workflow.fixtures import _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition import late_cleanup_support as _support
-from tests.workflow.stages.decomposition.late_cleanup_support import RecordedDelete
+from tests.workflow.stages.decomposition.late_cleanup_support import OwnerSeed, RecordedDelete
 
 _OPAQUE_CONSUMERS = '["?"]'
 
@@ -272,6 +273,19 @@ class UnprovableObligationTest(_PatchedWorkflowMixin, unittest.TestCase):
 
         self.assertFalse(seeded.parent.closed)
         self.assertEqual(seeded.github.deleted_remote_branches, [])
+
+    def test_a_damaged_identity_holds_the_parent(self) -> None:
+        # A parent going back to its own work is the other hand-off nothing
+        # returns from. No identity, no typed entry, and a consumer list
+        # nobody can read: that list is still an obligation, so the parent
+        # waits on `blocked` exactly as the umbrella's terminal would.
+        seeded = _support.split_umbrella(None, owner=OwnerSeed(label=_support.LABEL_BLOCKED))
+        self._seed_resources(seeded.github, resources=None, damaged=True, consumers=_OPAQUE_CONSUMERS)
+
+        with self.assertLogs(_support.WORKFLOW_LOG, level="ERROR"):
+            _support.walk_owner(self, seeded, _blocked._handle_blocked)
+
+        self.assertEqual(seeded.github.workflow_label(seeded.parent), _support.LABEL_BLOCKED)
 
     def test_a_damaged_identity_owing_nothing_closes(self) -> None:
         # Every umbrella the initial decomposer made carries no ledger at all,

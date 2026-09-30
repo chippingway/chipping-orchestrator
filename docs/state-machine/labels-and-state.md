@@ -3340,12 +3340,14 @@ rather than preserving.
   late split's reuse instructions for that ref after its declared body, since the body — not this group — is what
   its implementer reads. A parent the re-decomposition left `blocked` with work of its own settles this ledger
   before its all-children-resolved flip to `workflow:ready`, and stays `blocked` while a recorded consumer still
-  holds the ref. A ref the parent's own split no longer holds is settled
+  holds the ref — and, like the umbrella's terminal, while a record whose cycle identity is gone still carries any
+  ledger, a `late_consumers` nobody can read included. A ref the parent's own split no longer holds is settled
   only where its entry has passed to a reclamation (`reclaiming`, `reconciled`, `failed`), and its replacements are
   born without the pointer; a split whose ledger cannot say whether the ref is held or released — a resource ledger
   this binary cannot read, a held ref no consumer can be recorded against (an unreadable `late_consumers`, no
   candidate, no identity to mint it from), an entry never proved or recorded twice, or none for its own ref — is a
-  refusal like any other, and so is a slice whose own title or body names a snapshot ref other than the one its
+  refusal like any other, as is a held ref whose record keeps no `late_base_sha` for the instructions to name its
+  change from, and so is a slice whose own title or body names a snapshot ref other than the one its
   child is pointed at (or this repository's local mirror of that ref — another repository's mirror of the same
   numbers is that repository's copy, on no ledger here). A refusal parks `replacement_lineage_unproved` before
   `expected_children_count` is written, so nothing is created. A recovered split holds every recorded child to the

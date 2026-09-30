@@ -8,7 +8,8 @@ publication to settle; damaged identities with uncorrelated obligations remain
 held. A `blocked` parent whose children all resolved is the other hand-off: a
 genuine edit can re-decompose a late split's umbrella into a manifest that
 keeps implementation for the parent, and its return to that implementation is
-the last point anything settles what the split still owes the remote.
+the last point anything settles what the split still owes the remote -- so a
+damaged identity holds it on the same terms it holds the umbrella's terminal.
 """
 from __future__ import annotations
 
@@ -155,17 +156,19 @@ def _settled_before_implementation(
     since ended -- the originals a re-decomposition orphaned, and the
     replacements it pointed at that ref -- would be held for good. False keeps
     the parent on `blocked`, whose next dependency poll asks again, and says
-    what it waits on. A record with no cycle identity cannot correlate a
-    reclamation, so what it still owes holds the parent rather than being
-    reclaimed; an issue that never entered the late gate owes nothing and
-    answers without a request.
+    what it waits on. A record with no cycle identity is held to exactly what
+    holds the umbrella's terminal: any ledger at all, typed or not, is one
+    nothing can correlate a reclamation to, so it holds the parent rather than
+    being reclaimed or read past; an issue that never entered the late gate
+    owes nothing and answers without a request.
 
     What it does not ask is the umbrella's publication question: the parent is
     going back to implement, not closing over the change its split superseded.
     """
     generation = _late_state.read_late_generation(state)
-    settled = _settle(gh, spec, issue, state, scan) if generation.is_present else generation
-    held = _late_cleanup_reading._blocking(settled)
+    if not generation.is_present:
+        return _owes_nothing_uncorrelated(issue, generation)
+    held = _late_cleanup_reading._blocking(_settle(gh, spec, issue, state, scan))
     if held:
         log.info(
             "issue=#%d holds its return to implementation on: %s", issue.number, ", ".join(held),
@@ -196,25 +199,29 @@ def _unsettled_publication(
 def _owes_nothing_uncorrelated(
     issue: Issue, generation: LateGeneration,
 ) -> bool:
-    """Whether an issue with no cycle identity may still close.
+    """Whether an issue with no cycle identity may still be handed on.
 
-    An issue that never entered the late gate carries no ledger either, and
-    answers True without a write -- which is every umbrella the initial
-    decomposer made.
+    Asked by both hand-offs: the umbrella's close, and a `blocked` parent's
+    return to its own work -- after either, nothing comes back to this
+    record. An issue that never entered the late gate carries no ledger
+    either, and answers True without a write -- which is every umbrella the
+    initial decomposer made, and every parent of an ordinary split.
 
     A ledger with entries on a record whose identity is damaged is the other
-    case, and it may not close. There is nothing to correlate a reclamation
-    to, no issue number to prove a branch belongs to this generation, and no
-    record either sink would accept -- so the only safe answer is to stay open
-    and say so where an operator reads it. The write that damaged the identity
-    kept the ledger on purpose; closing over it would finish the job.
+    case, and it may not be handed on -- a consumer list nobody can read
+    included, whatever typed entries stand beside it. There is nothing to
+    correlate a reclamation to, no issue number to prove a branch belongs to
+    this generation, and no record either sink would accept -- so the only
+    safe answer is to stay where it is and say so where an operator reads it.
+    The write that damaged the identity kept the ledger on purpose; handing
+    the issue on over it would finish the job.
     """
     if not generation.obligations.resources and not generation.obligations.is_opaque:
         return True
 
     log.error(
         "issue=#%d still records external obligations under a damaged late "
-        "identity; holding the umbrella open rather than closing over them",
+        "identity; holding it where it stands rather than handing it on over them",
         issue.number,
     )
     return False

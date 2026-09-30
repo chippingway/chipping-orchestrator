@@ -56,6 +56,9 @@ _GRANDPARENT = 40
 # names no parent and cycle, so no lineage can be read off it.
 _STRAY_ANCESTRY_KEY = "late_ancestry_depth"
 
+# The seeding a case names the parent's own late record under.
+_GENERATION = "generation"
+
 # What every seed carries beside the lineage, and the group that lineage is.
 _SEEDED_LINK = frozenset((_support.KEY_PARENT_NUMBER, _support.KEY_CREATED_AT))
 
@@ -127,15 +130,21 @@ _REFUSALS = MappingProxyType({
         "no split may create a child past depth",
     ),
     "an ancestry that names no parent": (
-        MappingProxyType({"generation": _support.own_split(), _STRAY_ANCESTRY_KEY: 1}),
+        MappingProxyType({_GENERATION: _support.own_split(), _STRAY_ANCESTRY_KEY: 1}),
         _UNREAD_LINEAGE,
     ),
     # The parent's own split holds its snapshot, and its consumer ledger is one
     # no replacement can be recorded on: not the same thing as a ref gone, and
     # nothing to do with the lineage, which is proved.
     "a held snapshot no consumer can be added to": (
-        MappingProxyType({"generation": _support.own_split(), _support.KEY_CONSUMERS: [_support.ORIGINAL, "#57"]}),
+        MappingProxyType({_GENERATION: _support.own_split(), _support.KEY_CONSUMERS: [_support.ORIGINAL, "#57"]}),
         "lineage this issue's children inherit is proved, and the snapshot",
+    ),
+    # Held and protectable, and its instructions would name the candidate's
+    # change as a range from a base nobody recorded.
+    "a held snapshot recorded with no base": (
+        MappingProxyType({_GENERATION: _support.own_split(base_sha="")}),
+        "recorded with no base its candidate was cut against",
     ),
     "a child receipt with no ancestry": (
         MappingProxyType({
@@ -249,7 +258,7 @@ def _slice_naming(*refs: str) -> str:
 
 
 # A root whose own split holds the snapshot its replacements are pointed at.
-_ROOT_SPLIT = MappingProxyType({"generation": _support.own_split()})
+_ROOT_SPLIT = MappingProxyType({_GENERATION: _support.own_split()})
 
 # Slices whose own text tells a child to reuse a snapshot nothing keeps for it,
 # by the parent's record and the ref the slice names.

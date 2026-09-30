@@ -1913,7 +1913,10 @@ generation, one level below its parent.
 may be pointed at: every shape `provenance.py` refuses, a parent at the bound, a record naming no cycle at all, or
 a split of the parent's own whose ledger cannot say whether its snapshot is held or released — a ledger this binary
 cannot read, a held ref no consumer can be recorded against, an entry never proved or recorded twice (released
-twice included), or none for its own ref (`late_split/entitlement.py`). A manifest is refused the same way when a
+twice included), or none for its own ref (`late_split/entitlement.py`) — or a split of the parent's own holding its
+snapshot with no `late_base_sha`, since the reuse instructions name the candidate's change as the range from that
+base and a range from nothing is read against whatever the child's checkout holds. A manifest is refused the same
+way when a
 slice's own title or body names a snapshot ref its child would not be kept — anything under
 `refs/orchestrator/late-split` other than the one ref the child is pointed at and this repository's mirror of it. That
 includes the ref a descendant was itself cut from, which its parent's ledger keeps for the descendant and for none of

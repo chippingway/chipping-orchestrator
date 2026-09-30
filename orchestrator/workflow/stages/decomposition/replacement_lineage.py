@@ -32,7 +32,9 @@ so a child is born without that pointer rather than with one nothing keeps; a
 child whose parent record never landed has no pointer to lose. A parent whose
 own split's record cannot say whether its snapshot is still there for a new
 consumer is not the same as one whose ref is settled gone, and it is refused
-rather than read as the second.
+rather than read as the second -- as is one holding it with no base recorded,
+since the instructions name what the candidate adds as the range from that
+base, and a range from nothing is read against whatever a checkout holds.
 
 What a seed never carries is anything of the parent's own size gate -- its
 measurement, its exemption, or an exact-commit authorization. Each is a claim
@@ -129,6 +131,14 @@ _SNAPSHOT_NOTICE = (
     "decomposer not to split it."
 )
 
+_BASE_NOTICE = (
+    "the late lineage this issue's children inherit is proved, and the snapshot its own split holds for them is "
+    "recorded with no base its candidate was cut against. A child pointed at it is told to read what that "
+    "candidate adds as a diff from its base, and a diff from no base is read against whatever the child's checkout "
+    "holds; seeded without it, a child would give up work it may still be owed. So none is created or started "
+    "while that stands. Repair `late_base_sha` on this issue's late record, or ask the decomposer not to split it."
+)
+
 _CHILD_NOTICE = (
     "this issue's split recorded its children, and one of them is not a child it can say it seeded: {reason}. "
     "Finalizing would start children whose lineage, parent, or snapshot nothing vouches for, so none of them is "
@@ -192,7 +202,10 @@ class ReplacementLineage:
         from and whose ledger it asks: a pointer at another split's ref would
         name a consumer ledger this issue never wrote a child onto. `base_sha`
         is what that split's candidate was cut against, kept only beside a
-        snapshot a child is pointed at.
+        snapshot a child is pointed at -- and required there, since the
+        instructions name the candidate's change as the range from it: a
+        record keeping none is refused rather than read as a pointer with
+        instructions nobody can follow, or as no pointer at all.
 
         So is what a child may call it: exactly the names its reuse
         instructions give it -- the ref on the remote and this repository's
@@ -207,6 +220,8 @@ class ReplacementLineage:
         named = (ancestry.parent_issue, ancestry.cycle_id, ancestry.generation)
         if (held.owner_issue, held.cycle_id, held.generation) != named:
             return cls(ancestry=ancestry)
+        if not base_sha:
+            return cls(refusal=_BASE_NOTICE)
         kept = cls(ancestry=ancestry, snapshot=held, base_sha=base_sha)
         instructions = _late_child_content._reuse_block(spec, kept.pointed(), base_sha)
         return replace(kept, told=_late_child_content._named_snapshots(instructions))

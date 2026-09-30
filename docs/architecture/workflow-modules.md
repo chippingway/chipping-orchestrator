@@ -1363,7 +1363,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             retired one), and pointed only at the snapshot the parent's own split holds, once its
                             consumer ledger records the child -- which the child may name by that ref and this
                             repository's mirror of it, and by nothing else; a parent at the bound, an unprovable
-                            record, one naming no cycle, or one whose own snapshot is neither held nor released parks
+                            record, one naming no cycle, or one whose own snapshot is neither held nor released --
+                            or is held with no recorded base for the instructions to name its change from -- parks
                             `replacement_lineage_unproved` instead; the recovery's check of each recorded child, an
                             ordinary split's included -- an unparsed comment, a link to another parent, or a title
                             or body naming a snapshot ref the split cannot keep refused (any ref, for a split that
@@ -1403,7 +1404,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
                             consumed-comment ratchet; a parent whose children all resolved settles what a late split
                             still owes the remote before it goes back to its own work, and waits on `blocked` while a
-                            recorded consumer keeps a ref
+                            recorded consumer keeps a ref or a record with no cycle identity still carries a ledger
       umbrella_terminal.py  resolution text, usage totals, and cycle/generation receipts for published late splits;
                             retire the live cycle while retaining its obligations, then label done and close
       umbrella.py           the `workflow:umbrella` poll and barriers around child activation, cleanup, and completion;

@@ -229,8 +229,8 @@ the action depends on lifecycle position:
   one, and seeds each one level below the parent under the same root rather than as a fresh root at depth 0. Only a
   replacement pointed at the ref the parent's own split holds joins `late_consumers`, and it joins in the write that
   records it in `children`, so the ref is kept for it as well as for the orphans. A lineage the record cannot prove,
-  a parent already at `MAX_LINEAGE_DEPTH`, or a snapshot the parent's own ledger cannot say is held or released
-  parks `replacement_lineage_unproved` with no child created.
+  a parent already at `MAX_LINEAGE_DEPTH`, a snapshot the parent's own ledger cannot say is held or released, or
+  one held with no recorded base parks `replacement_lineage_unproved` with no child created.
 - **`workflow:implementing` / `workflow:validating` / `in_review` / `workflow:resolving_conflict`** (a dev session
   exists and possibly a PR) — post a `:pencil2: issue body changed; resuming dev session` notice (on the issue for
   implementing/validating, on the PR for in_review/resolving_conflict), resume the locked dev session with
@@ -559,7 +559,8 @@ because there it is the claim that this stage has already rerouted rather than a
      - `decision == "split"` → first decide the late lineage the children inherit
        (`stages/decomposition/replacement_lineage.py` over `late_split/provenance.py`): an issue no late split
        charged inherits none, and an unprovable record, a parent already at `MAX_LINEAGE_DEPTH`, a split of the
-       parent's own whose ledger cannot say whether its snapshot is held or released, or a slice whose own title or
+       parent's own whose ledger cannot say whether its snapshot is held or released (or that holds it with no
+       recorded base for the reuse instructions to name its change from), or a slice whose own title or
        body names a snapshot ref its child would not be kept (any but the one it is pointed at, or this repository's
        local mirror of it)
        parks `replacement_lineage_unproved` before `expected_children_count` is written, creating nothing. Then for
@@ -604,8 +605,10 @@ because there it is the claim that this stage has already rerouted rather than a
      [what the terminal waits on](#_handle_umbrella-label-workflowumbrella)): nothing revisits that ledger once the
      parent has gone back to implementation, so a ref still held for a recorded consumer that has not ended — an
      orphaned original, or a replacement pointed at the ref — keeps the parent on `blocked`, which the next due poll
-     asks again, and a reason is logged each time. An issue that never entered the late gate owes nothing and flips
-     at once.
+     asks again, and a reason is logged each time. A record whose cycle identity is gone is held exactly as the
+     umbrella's terminal holds it: any ledger left on it — typed entries, or a `late_consumers` nobody can read —
+     has nothing to correlate a reclamation to, so the parent stays `blocked` and the error is logged. An issue that
+     never entered the late gate owes nothing and flips at once.
   7. Walk children: any `workflow:blocked` child whose recorded dependencies are all `done` gets relabeled
      `workflow:ready`. A child with no recorded deps is also flipped (vacuous all-done over an empty list).
 - **Output**: parent → `workflow:ready` (all done and nothing a late split recorded still held), OR a sibling
