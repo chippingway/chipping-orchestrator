@@ -23,7 +23,9 @@ so on an unchanged commit they would advertise the new report as already
 reviewed, documented, and announced.
 `ReviewSubject.widest` is the subject any of them is at its widest, which a
 developer report's acceptance leaves room for
-(`stages/validating/review_records.py`).
+(`stages/validating/review_records.py`), and `ReviewSubject.is_on_pull_request`
+whether a run's pull request is, read as a recorded one, the one a subject is
+on (`stages/validating/review_disposition.py`).
 
 `approval_covers_current` is the question every reader of an approval asks:
 whether the report this issue records as current is still the one the approval
@@ -132,6 +134,18 @@ class ReviewSubject:
             self.report.report_revision,
             self.report.content_revision,
         )
+
+    def is_on_pull_request(self, pr_number: object) -> bool:
+        """Whether `pr_number` names, as a whole number, the very pull request this subject is on.
+
+        Each is read as a recorded pull request is (`payloads.as_identity`)
+        before they are compared: Python's `==` calls `True` the pull request
+        `1` and a float the whole number it equals, and a verdict carried out
+        on a pull request named either way would post and push where no record
+        says anything was reviewed.
+        """
+        named = _payloads.as_identity(pr_number)
+        return named is not None and named == _payloads.as_identity(self.pr_number)
 
     @classmethod
     def widest(cls) -> ReviewSubject:

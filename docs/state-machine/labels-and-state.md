@@ -1925,14 +1925,18 @@ The keys that matter for the state machine fall into a few groups:
   transaction was minted, and a reuse named its evidence, over the records it replaced -- writes the run's own records
   and no verdict; one that would not read writes nothing. A record that would not read back as written -- feedback UTF-8
   cannot carry, say -- or one the comment has no room for beside its transaction is written nowhere and nothing is
-  published: the service answers which, and its caller parks it under `reviewer_unrecorded`. The verdict is ready to act
-  on only while the
-  comment carries it as persisted, its subject -- held to it once more, the report records, the record itself, and
-  `pr_number` read again last -- still stands, and its claim, judged over that last reading, is settled, or it relies on
-  none: a settlement of the very evidence it claims readies it, and a push, a later report, or a later revision
-  superseding that evidence sets it to `null`. A later tick asks the same of a waiting record over the pinned comment
-  alone, since nothing of the run that returned it outlives its tick: the record's own `subject` is what the standing
-  subject has to record as, and the comment as that tick read it is what the record is held against. An owed transaction
+  published: the service answers which, and parks it under `reviewer_unrecorded` (below). A returned run that does not
+  name, as a whole number, the pull request its `subject` is on is refused before anything is minted, written, or
+  published. The verdict is ready to act on only while the comment carries it as persisted, its subject -- held to it
+  once more, the report records, the record itself, and `pr_number` read again last -- still stands, and its claim,
+  judged over that last reading, is settled, or it relies on none: a settlement of the very evidence it claims readies
+  it, and a push, a later report, or a later revision superseding that evidence sets it to `null`. A later tick asks the
+  same of a waiting record over the pinned comment alone, since nothing of the run that returned it outlives its tick:
+  the record's own `subject` is what the standing subject has to record as, and the comment as that tick read it is what
+  the record is held against. That tick acts on a ready record only beside a run its caller rebuilt of the record's own
+  `round` and `subject`, naming the pull request that `subject` is on, each read as the record spells it; through any
+  other -- a round `False` for `0` or a report revision `True` for `1` included -- it acts on nothing and writes
+  nothing. An owed transaction
   holds the record for a later tick while its subject stands -- held to it again on every tick it waits -- and sets it
   to `null` once that subject is proved to have moved, leaving the transaction owed to the reconciliation; a lost
   claim, whichever the verdict -- a transaction that can never settle, or reused evidence a later revision has
@@ -1978,7 +1982,7 @@ The keys that matter for the state machine fall into a few groups:
   and subject its run returned, and posts and writes nothing where it is not -- and reports `park_awaiting_human` once
   that write is down. Neither park retries itself: a bare `/orchestrator continue` buys a fresh reviewer, and an edit
   under one nobody replied to waits for that reviewer rather than resuming the developer.
-  A change request is to be handed over (`review_handoffs.py`) through the decision it was persisted from -- the
+  A change request is handed over (`review_handoffs.py`) through the decision it was persisted from -- the
   record's own `round`, `verdict`, `subject`, and `feedback` -- in the tick its reviewer returned, or from the record
   alone on a later tick, which holds no decision, either way on that subject's pull request: another round's decision,
   an approval, or other words hand nothing over, and its feedback is posted first, a post that failed or left no
@@ -2013,9 +2017,9 @@ The keys that matter for the state machine fall into a few groups:
   whose anchor is spelled as anything but a whole id -- a float over the same number included, which the fixing stage's
   replay refuses -- is held -- nothing relabelled, launched, or written -- since no failed run could replay the
   feedback, or one would replay another comment to the developer as the reviewer's feedback. Additive and dormant:
-  nothing acts on a ready verdict, parks one, or hands one over yet, no live reviewer round hands its result to that
-  service, and nothing finishes a record a tick left waiting, so no issue carries the key or either park, and an issue
-  without the key has no verdict waiting.
+  the service acts on a ready verdict, parks it, or hands it over, and finishes a record a tick left waiting, but no
+  live reviewer round hands its result to that service and nothing asks it to finish one, so no issue carries the key
+  or either park, and an issue without the key has no verdict waiting.
   An approval record is acted on only over evidence proved current (`stages/validating/unverified_approvals.py`), and
   only the record of the run's own round, `approved` verdict, and subject -- a run whose record another road replaced
   or dropped is refused, having nothing to prove -- over the claim that record names, never one handed in beside it,
@@ -2030,6 +2034,10 @@ The keys that matter for the state machine fall into a few groups:
   read last behind the proof, a report record, `pr_number`, the record, or a `verification_evidence_*` record moved
   there refusing it too. A refusal comes back in the words a `reviewer_unverified` park carries, and a proof nobody
   could read -- the pull request, the artifact's thread, or the comment -- holds the record untouched for a later tick.
+  The service parks a refused record only once it has held it to its subject and claim again, measured from the comment
+  its readiness was proved over, and sets it to `null` where either moved there, for a fresh reviewer; an approval whose
+  declaration earned no evidence parks, in the tick its reviewer returned, with no proof asked and in the words that
+  tick has for why -- a later tick's refusal names only what is true of every such declaration.
   The approval arc a proved record reaches holds only the record of its own run's round, `approved` verdict, and
   subject, and sets it to `null` in whichever write it makes -- the park a failed verify gate or squash lands, the
   write recording its run where the subject moved behind the gate or behind the approval comment, the squash tail's
@@ -2038,8 +2046,8 @@ The keys that matter for the state machine fall into a few groups:
   which keeps it; a record another road put in its place is left as it stands. The squash recovery holds none, and a
   record waiting beside the handoff it finishes holds the move to `workflow:documenting` while the handoff record
   ends. One persisted while that move runs lands past it, and the `workflow:documenting` tick that finds a readable
-  record waiting hands the issue back to `workflow:validating` before any docs pass. No disposition hands a record
-  to that proof yet, so this too is dormant.
+  record waiting hands the issue back to `workflow:validating` before any docs pass. Only the dormant disposition
+  service hands a record to that proof, so this too is dormant.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
   live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the
@@ -2713,7 +2721,7 @@ drives the real handlers against a spent ledger so an unwired road is caught as 
   classify the run by.
 - **A launch owed once is held to it on the circuit's own readings.** A caller whose launch is owed exactly once names
   it (`OwedLaunch`): the lifetime count it is owed at — a persisted change request's developer, handed at `handed`,
-  whose handoff nothing calls yet — and the caller's hold on it, the requests its standing takes beyond the pinned
+  whose handoff no live round calls — and the caller's hold on it, the requests its standing takes beyond the pinned
   comment (`resolves`) and a judgment of each reading of the comment (`stands`). The circuit writes that count as
   `agent_run_owed_started` in the same write that moves such a launch to `started`, and on the fresh read the charge is
   taken on, that record naming the count it is owed at — where the caller's own state does not carry it — is that launch

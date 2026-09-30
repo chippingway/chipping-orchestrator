@@ -51,9 +51,10 @@ behind this puts the older records back, and report, pull-request, verdict, or
 evidence records moved there refuse the approval, which no longer rests on
 what the proof was taken over.
 
-Nothing here parks, and no live reviewer round asks it: the dormant
-disposition service is its one caller to be (`review_disposition`), so live
-reviewer results never pass through it.
+Nothing here parks -- the disposition parks a refusal, once it has held the
+approval to its subject and claim again -- and no live reviewer round asks it:
+the dormant disposition service is its one caller (`review_disposition`), so
+live reviewer results never pass through it.
 """
 from __future__ import annotations
 

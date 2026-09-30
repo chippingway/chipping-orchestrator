@@ -794,9 +794,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,
                             where recording the approval also retires the head-keyed `docs_verdict` and `ready_ping_sha`
                             an earlier one left; the widest subject any of the three can be written at
-                            (`ReviewSubject.widest`), which the report settlement's measurement reserves; and the
-                            question every later reader of an approval asks, whether the report recorded as current is
-                            the one it covered, compared on the pinned records alone. An approval with no record covers
+                            (`ReviewSubject.widest`), which the report settlement's measurement reserves; whether a
+                            number names, read as a recorded pull request is, the one a subject is on
+                            (`ReviewSubject.is_on_pull_request`); and the question every later reader of an approval
+                            asks, whether the report recorded as current is the one it covered, compared on the pinned
+                            records alone. An approval with no record covers
                             only an issue with no report either -- one approved before the record existed over a pull
                             request that has settled a report goes back for a fresh review -- and a record nobody can
                             read covers nothing: it is read whole, exactly the five members its writer spells, each in
@@ -3456,27 +3458,38 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             claim's commands cover every configured command exactly, and where its evidence stands --
                             settled or owed under the configured context at the latest revision spent, or lost --
                             which `review_handoffs.py` asks too
-      review_disposition.py the preparation a returned verdict is acted on behind, which no live round calls yet: its
-                            evidence minted, then held to the subject standing and the pinned comment read again behind
-                            that resolution -- an evidence record moved since refusing it as a report does -- then the
-                            run's own records staged over that reading, its usage folded over whatever usage another
-                            road folded meanwhile, the last requests before the verdict is persisted with its minted
-                            transaction in one write -- or, where the record would not read back as written or the
-                            comment has no room for either, nothing written or published and an answer that says which
-                            (`review_parks.UNREADABLE`, `review_parks.NO_ROOM`), for the caller's
-                            `reviewer_unrecorded` park -- then that transaction published through
-                            the dispatcher's own reconciliation (`prepares_the_verdict`). A verdict is ready only while
-                            the comment carries it as persisted, its subject, held to it once more with the comment read
-                            again last, still stands, and its claim, judged over that reading, is settled or it relies
-                            on none: a settlement of the very evidence it claims readies it, an owed transaction holds
-                            it, and a lost claim -- published or reused, superseded included -- drops it. A later tick
-                            asks the same of a waiting verdict over the pinned comment alone (`waiting_verdict_ready`),
-                            the record's own subject what the standing one has to record as. Every write is composed
-                            over the comment as read just before it, keeping what another road wrote there, and drops
-                            only ever the verdict it holds. Acting on a ready verdict is not here, and nothing hands a
-                            ready change request to its handoff (`review_handoffs.py`) yet
-      review_handoffs.py    a persisted change request handed to the one developer it owes, which nothing calls yet --
-                            the dormant disposition is to, right behind proving it ready: only a change request the
+      review_disposition.py the returned-verdict disposition, which no live round calls yet: a returned run's verdict
+                            persisted and prepared, then acted on or parked (`disposes_of_the_verdict`), and a waiting
+                            one finished by a later tick (`finishes_the_verdict`). A run that does not name, as a whole
+                            number, the pull request its subject is on is refused before anything is minted. The
+                            preparation (`prepares_the_verdict`) mints the evidence, then holds the subject to what
+                            stands with the pinned comment read again behind that resolution -- an evidence record moved
+                            since refusing it as a report does -- then stages the run's own records over that reading,
+                            its usage folded over whatever usage another road folded meanwhile, the last requests before
+                            the verdict is persisted with its minted transaction in one write -- or, where the record
+                            would not read back as written or the comment has no room for either, nothing written or
+                            published and an answer that says which (`review_parks.UNREADABLE`, `review_parks.NO_ROOM`),
+                            which parks under `reviewer_unrecorded` -- then publishes that transaction through the
+                            dispatcher's own reconciliation. A verdict is ready only while the comment carries it as
+                            persisted, its subject, held to it once more with the comment read again last, still stands,
+                            and its claim, judged over that reading, is settled or it relies on none: a settlement of
+                            the very evidence it claims readies it, an owed transaction holds it, and a lost claim --
+                            published or reused, superseded included -- drops it. A later tick asks the same of a
+                            waiting verdict over the pinned comment alone (`waiting_verdict_ready`), the record's own
+                            subject what the standing one has to record as, and finishes a ready one only beside a run
+                            its caller rebuilt of the verdict's own round and subject, naming that subject's pull
+                            request, each read as the record spells it -- through any other, a round `False` for `0` or
+                            a report revision `True` for `1` included, it acts on nothing and writes nothing. A ready
+                            change request goes to `review_handoffs.py`, through the decision in the tick its reviewer
+                            returned and from the record on a later tick. A ready approval goes to
+                            `unverified_approvals.py` over a gate built on its run's checkout: an unread proof holds it,
+                            and a refusal -- or a declaration that earned no evidence, parked with no proof asked --
+                            parks it under `reviewer_unverified` only once the approval is held to its subject and claim
+                            again, measured from the comment its readiness was proved over, a move there dropping it for
+                            a fresh reviewer instead. Every write is composed over the comment as read just before it,
+                            keeping what another road wrote there, and drops only ever the verdict it holds
+      review_handoffs.py    a persisted change request handed to the one developer it owes, which only the dormant
+                            disposition calls, right behind proving it ready: only a change request the
                             pinned comment carries, through the decision it was persisted from -- round, verdict,
                             subject, and feedback -- in the tick its reviewer returned (`hands_the_request_over`), or
                             from the record and the issue's checkout alone on a later tick, which holds no decision
@@ -3562,7 +3575,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the configured one, and its artifact, re-read on the pull request it was published on,
                             still the one that settled, passing and covering the configuration; unread holds
       unverified_approvals.py whether an approval rests on evidence it may be acted on over, asked only of a
-                            persisted approval, by the dormant disposition to be: the approval proved is the one the
+                            persisted approval, by the dormant disposition: the approval proved is the one the
                             comment has waiting, only where that is the run's own -- its round and subject, the verdict
                             the arc retires (`handoff._Held`) -- and refused where none of the run's waits, and the
                             claim proved is the one that record names, never one handed in beside it, through

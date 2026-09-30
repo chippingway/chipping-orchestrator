@@ -8,10 +8,10 @@ current is that same revision -- on the same commit or any other. An approval
 with no record covers only an issue with no report either, and a record nobody
 can read covers nothing: a subject is read back whole -- every member in the
 shape its writer spells, a head that is a commit, both report members or
-neither -- or not at all. Recording an approval retires the head-keyed
-docs verdict and ready ping an earlier approval left, and gives an issue that
-never carried them no key; recording the subject a reviewer is handed retires
-neither.
+neither -- or not at all, and a pull request is a subject's only as the whole
+number it records. Recording an approval retires the head-keyed docs verdict
+and ready ping an earlier approval left, and gives an issue that never carried
+them no key; recording the subject a reviewer is handed retires neither.
 """
 from __future__ import annotations
 
@@ -181,6 +181,19 @@ class ApprovalCoverageTest(unittest.TestCase):
                 self.assertFalse(review_subjects.approval_covers_current(state))
 
 
+# A subject, what names a pull request against it, and whether that names the
+# one it is on.
+_NAMED = (
+    ("its own number", _subject(None, pr_number=1), 1, True),
+    ("True for 1", _subject(None, pr_number=1), True, False),
+    ("a float", _subject(None, pr_number=1), 1.0, False),
+    ("a string", _subject(None, pr_number=1), "1", False),
+    ("another number", _subject(None, pr_number=1), _OTHER_PR_NUMBER, False),
+    ("none", _subject(None, pr_number=1), None, False),
+    ("a subject on True", _subject(None, pr_number=True), 1, False),
+)
+
+
 class RecordSubjectTest(unittest.TestCase):
     """What a recorded subject is written as, read back as, and retires."""
 
@@ -221,6 +234,15 @@ class RecordSubjectTest(unittest.TestCase):
             (state.get(_DOCS_VERDICT), state.get(_READY_PING_SHA)),
             (stamps[_DOCS_VERDICT], stamps[_READY_PING_SHA]),
         )
+
+    def test_a_pull_request_is_named_as_recorded(self) -> None:
+        # Only the whole number the subject is on names its pull request, as a
+        # recorded one reads: `True` and a float Python calls equal to it, a
+        # string of it, another number, and none do not, and nothing names
+        # the pull request of a subject whose own is no whole number.
+        for name, subject, named, names_it in _NAMED:
+            with self.subTest(name):
+                self.assertEqual(subject.is_on_pull_request(named), names_it)
 
     def test_a_written_subject_reads_back(self) -> None:
         # Every shape the writer spells: a report or none, a head of either
