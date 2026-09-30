@@ -141,8 +141,9 @@ _BASE_NOTICE = (
 
 _CHILD_NOTICE = (
     "this issue's split recorded its children, and one of them is not a child it can say it seeded: {reason}. "
-    "Finalizing would start children whose lineage, parent, or snapshot nothing vouches for, so none of them is "
-    "started while that stands. Repair or close that child."
+    "Starting it would run a child whose lineage, parent, or snapshot nothing vouches for, so no child of this "
+    "split is started -- by a recovery's finalize or a later release -- while that stands. Repair or close that "
+    "child."
 )
 
 
@@ -275,6 +276,9 @@ class ReplacementLineage:
         instructed: frozenset[str],
     ) -> SeedRepair:
         """What a recovered split of `parent` does with one recorded child's ancestry.
+
+        A deferred release asks the same of each child it would start, and
+        starts only one that needs nothing: no refusal, and nothing to write.
 
         `instructed` is every snapshot ref the child's title and body name,
         read as a slice is read before it is created, and it outranks the

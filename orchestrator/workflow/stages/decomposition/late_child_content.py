@@ -119,7 +119,7 @@ _REF_CHARACTER = r"[^\x00-\x20\x7f~^:?*\[\\]"
 # possibly other work, and kept by no ledger here. A mention that is no whole
 # ref is no child's either.
 _NAMED_SNAPSHOT = re.compile(
-    rf"(?<!{_REF_CHARACTER})(?P<lead>[`'\"(<]*)\+?"
+    rf"(?<!{_REF_CHARACTER})(?P<lead>[`'\"(<\[]*)\+?"
     rf"(?P<name>{_REF_CHARACTER}*?{re.escape(_snapshot_namespace.SNAPSHOT_NAMESPACE)}{_REF_CHARACTER}*)",
 )
 
@@ -127,7 +127,7 @@ _NAMED_SNAPSHOT = re.compile(
 # where the mention ends on exactly the closers it calls for, in the order it
 # calls for them; one left open is part of the name, as is any other character
 # a ref may contain, however much it looks like punctuation.
-_CLOSER_OF = str.maketrans("`'\"(<", "`'\")>")
+_CLOSER_OF = str.maketrans("`'\"(<[", "`'\")>]")
 
 # What no ref name may end in, so a mention ending in one is the sentence
 # around it rather than the ref.
@@ -266,8 +266,8 @@ def _named_snapshots(*texts: object) -> frozenset[str]:
     ref read out of a longer name that contains it: git would fetch that
     longer name, so it is what the text tells a child to reuse. Only wrapping
     closed on both sides and a single refspec `+` are taken off -- `` `ref` ``,
-    `(ref)`, and `+ref` name `ref`, while `` `ref!` ``, `ref,`, `'ref`, and
-    `++ref` name the refs spelled that way.
+    `(ref)`, `[ref]`, and `+ref` name `ref`, while `` `ref!` ``, `ref,`,
+    `'ref`, `ref]`, and `++ref` name the refs spelled that way.
     """
     mentions = (
         match

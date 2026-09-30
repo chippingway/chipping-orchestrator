@@ -1928,12 +1928,12 @@ issue, cycle, and generation numbers there, which may be other work and is on no
 each mention is read as the whole ref name it could be — as far as ref characters run on either side of the
 namespace, which is anything but an ASCII space or control character and the few characters git refuses, so a
 non-breaking space runs a name on as surely as `@` does. What is taken off is only what no ref under `refs/` can
-hold: quotes, backticks, or brackets that open the mention and are closed at its end, one forced refspec's leading
-`+`, and a trailing full stop or slash. An opener left unclosed, a second `+`, and every other character a ref may
-contain are part of the name, so a longer name that merely contains the child's ref (`…/gen-1@foreign`,
-`` `…/gen-1!` ``, `…/gen-1,`, `'…/gen-1` with no closing quote, `++…/gen-1`, `refs/heads/refs/…`) is the different,
-unkept ref it is. The instructions themselves spell the fetch as an unquoted `+ref:mirror` refspec, so
-they read back as exactly the ref and its mirror. The split parks
+hold: quotes, backticks, or round, angle, or square brackets that open the mention and are closed at its end, one
+forced refspec's leading `+`, and a trailing full stop or slash. An opener left unclosed, a second `+`, and every
+other character a ref may contain are part of the name, so a longer name that merely contains the child's ref
+(`…/gen-1@foreign`, `` `…/gen-1!` ``, `…/gen-1,`, `'…/gen-1` with no closing quote, `++…/gen-1`,
+`refs/heads/refs/…`) is the different, unkept ref it is. The instructions themselves spell the fetch as an unquoted
+`+ref:mirror` refspec, so they read back as exactly the ref and its mirror. The split parks
 `replacement_lineage_unproved` before `expected_children_count` is written, so no child exists and nothing is left
 for a recovery to finalize; a reply is an edit, and re-runs the decomposer against the thread as it then stands.
 
@@ -1959,9 +1959,12 @@ group, and its text names no snapshot ref at all — and refused otherwise. Only
 finalized into the walk that activates children; a record that no longer proves the lineage, or a child refused,
 parks the same way instead and leaves every child unstarted. That walk asks the same decision again before it
 releases any of them — a dependent child starts polls after its split, off a record that may have changed since —
-and, in front of each release, holds the pointer the child itself carries to what the parent's ledger still keeps
-for it: a pointer at a ref no longer held, one `late_consumers` no longer records the child against, or a pinned
-comment that will not parse stops the walk. Either refusal releases none of the rest and parks the parent, once. A
+and, in front of each release, holds the child as it then reads to the recognition a recovery applies: its pinned
+comment has to parse, its `parent_number` has to be this issue, its ancestry has to be the whole group it was owed,
+its pointer only one the parent's ledger still keeps for it (the ref held, the child on `late_consumers`), and its
+title and body may name no ref but that one. A child a recovery would have to refuse or repair — a seed taken off,
+a pointer at a released ref, a consumer slot lost, another issue's ref added to its body — stops the walk. Either
+refusal releases none of the rest and parks the parent, once. A
 child created and never recorded is the existing `decomposition_crash` park: nothing names it, so nothing points it
 at a snapshot or starts it.
 

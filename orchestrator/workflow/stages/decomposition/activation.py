@@ -35,10 +35,11 @@ Children an ordinary split created are released on the lineage and snapshot
 that split proved before creating them, and a dependent one is released polls
 later, off a record that may have changed since. So that decision is asked
 again, off the parent's record and for no request, in front of every walk
-over them -- and in front of each release, the pointer the child itself
-carries is held to it: a pointer at a ref the parent's split no longer holds,
-or one its consumer ledger no longer records the child against, is a child
-told to reuse work nothing keeps for it. Either refusal releases none of the
+over them -- and in front of each release, the child itself is held to the
+recognition a recovery holds it to: its pinned comment, its parent link, the
+whole ancestry it was owed, a pointer only its parent's ledger still keeps
+for it, and the refs its title and body name. A child a recovery would have
+to repair or refuse is not one to start. Either refusal releases none of the
 rest and parks the parent once. A late split's own children are released on
 that split's licence instead.
 
@@ -52,7 +53,7 @@ quiet.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from github.Issue import Issue
 
@@ -61,8 +62,9 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import observations as _observations
-from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
+from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
+    late_child_content as _late_child_content,
     late_publication as _late_publication,
     models as _models,
     replacement_lineage as _replacement_lineage,
@@ -72,12 +74,12 @@ from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
-_UNPROTECTED_CHILD = (
-    "child #{child} would be released carrying a snapshot pointer this issue's split does not keep for it -- the "
-    "ref is no longer held, `late_consumers` no longer records the child, or its pinned comment will not parse so "
-    "the pointer cannot be checked. Released, it would be told to reuse work nothing keeps while it runs, so no "
-    "further child is started while that stands. Record the child as a consumer again, clear its pointer, or "
-    "close it."
+_UNSEEDED_CHILD = (
+    "child #{child} would be released without exactly the lineage and snapshot protection its split owes it -- "
+    "its late ancestry is missing or no longer whole, or it carries a snapshot pointer this split no longer keeps "
+    "for it (the ref no longer held, or `late_consumers` no longer recording the child). Released like that, its "
+    "size gate or its reuse instructions would act on a record nothing vouches for, so no further child is "
+    "started while that stands. Repair the child's seed or record it as a consumer again, or close it."
 )
 
 
@@ -89,7 +91,7 @@ class _ChildActivation:
     state: PinnedState
     scan: _models._ChildScan
     held: list[_state._HeldChild]
-    lineage: _replacement_lineage.ReplacementLineage = field(default_factory=_replacement_lineage.ReplacementLineage)
+    lineage: _replacement_lineage.ReplacementLineage | None = None
     refusal: str | None = None
     relabeled: bool = False
     stopped: bool = False
@@ -104,7 +106,8 @@ class _ChildActivation:
         scan: _models._ChildScan,
     ) -> _ChildActivation:
         lineage = _release_lineage(spec, owner, state, scan)
-        return cls(gh, owner, spec.slug, state, scan, [], lineage, lineage.refusal)
+        refusal = None if lineage is None else lineage.refusal
+        return cls(gh, owner, spec.slug, state, scan, [], lineage, refusal)
 
     def parent_is_gone(self) -> bool:
         """Whether a poll saw the parent closed since this walk began.
@@ -159,35 +162,39 @@ class _ChildActivation:
         self.stopped = True
         return True
 
-    def protection_lapsed(self, child: Issue, number: int) -> bool:
-        """Whether the pointer this child carries is one its parent's split no longer keeps for it.
+    def entitlement_lapsed(self, child: Issue, number: int) -> bool:
+        """Whether this child is no longer one its split's lineage vouches for, as it stands now.
 
-        Asked of the child's own pinned comment in front of its release,
-        because that pointer is what its guard and its instructions act on,
-        and the parent's record decides whether anything still keeps it: a
-        pointer is kept only while the split holds the ref and its consumer
-        ledger records this child -- the rule the pointer was written under.
-        A child carrying no pointer is owed nothing here, and a parent whose
-        lineage points no child at a snapshot spends no request. A comment
-        that will not parse cannot say which it is, and is held with the
-        rest. A lapse latches, and says why for the parent to park on.
+        Asked of the child as it reads in front of its release, because its
+        pinned comment is what its size gate and reuse guard act on and its
+        title and body are what its implementer reads -- and any of them may
+        have changed since the split wrote them. It is held to exactly what a
+        recovery holds it to (`ReplacementLineage.repair`): anything that
+        recovery would refuse, and anything it would have to write -- a seed
+        gone, a pointer the ledger no longer keeps, a consumer slot lost -- is
+        a child that may not start as it stands. A child of an issue no late
+        split charged is owed no lineage, so only its text is read, and it
+        costs a request only where that text names a snapshot. A lapse
+        latches, and says why for the parent to park on.
         """
         if self.stopped:
             return True
-        if self.lineage.ancestry is None:
+        if self.lineage is None:
             return False
-        child_state = self.gh.read_pinned_state(child)
-        carried = _lineage.read_late_ancestry(child_state)
-        kept = self.lineage.child_ancestry(self.state, number)
-        # No pointer at all, or exactly the one the ledger still protects.
-        owed = {("", ""), (kept.snapshot_ref, kept.snapshot_sha)}
-        if child_state.parsed and (carried.snapshot_ref, carried.snapshot_sha) in owed:
+        texts = (getattr(child, "title", None), getattr(child, "body", None))
+        instructed = _late_child_content._named_snapshots(*texts)
+        if self.lineage.ancestry is None and not instructed:
+            return False
+        seed = self.lineage.repair(
+            self.state, self.owner.number, number, self.gh.read_pinned_state(child), instructed,
+        )
+        if seed == _replacement_lineage.SeedRepair():
             return False
         log.error(
-            "repo=%s issue=#%s may release no child: #%s carries a pointer nothing keeps for it",
+            "repo=%s issue=#%s may release no child: #%s is not as its split's lineage owes it",
             self.slug, self.owner.number, number,
         )
-        self.refusal = _UNPROTECTED_CHILD.format(child=number)
+        self.refusal = seed.refusal or _UNSEEDED_CHILD.format(child=number)
         self.stopped = True
         return True
 
@@ -221,7 +228,7 @@ class _ChildActivation:
         if pending:
             self.held.append((number, pending))
             return
-        if self.protection_lapsed(child, number) or not self.may_release():
+        if self.entitlement_lapsed(child, number) or not self.may_release():
             self.held.append((number, []))
             return
         self.gh.set_workflow_label(child, WorkflowLabel.READY)
@@ -280,8 +287,8 @@ def _activate_ready_children(
 
 def _release_lineage(
     spec: _config_models.RepoSpec, issue: Issue, state: PinnedState, scan: _models._ChildScan,
-) -> _replacement_lineage.ReplacementLineage:
-    """The decision an ordinary split's children here are released on, asked afresh.
+) -> _replacement_lineage.ReplacementLineage | None:
+    """The decision an ordinary split's children here are released on, asked afresh, or None.
 
     The lineage and snapshot an ordinary split proved before creating them are
     what licenses starting them, and a dependent child starts polls later,
@@ -292,13 +299,13 @@ def _release_lineage(
     parent with the notice its creation would have parked on.
 
     A late split's own children -- exactly the ones its register records --
-    answer the ordinary lineage: they were never created under this
-    decision, and what licenses releasing them is that split's own, asked by
-    `licence_lapsed`.
+    answer None: they were never created under this decision, their bodies
+    carry that split's own reuse instructions, and what licenses releasing
+    them is that split's own, asked by `licence_lapsed`.
     """
     register = _late_state.read_late_generation(state).split_children
     if tuple(int(number) for number in scan.children) == register:
-        return _replacement_lineage.ReplacementLineage()
+        return None
     return _replacement_lineage.read_replacement_lineage(state, issue, spec)
 
 

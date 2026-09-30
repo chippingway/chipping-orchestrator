@@ -139,6 +139,12 @@ _FOREIGN_TEXT = MappingProxyType({
         _BODY, lambda text: text.replace(_support.SNAPSHOT_REF, _support.NESTED_REF),
     ),
 })
+# Ways a recorded child's instructions can be respelled and still name only
+# the ref its split keeps: other line endings, and other closed wrapping.
+_RESPELLED = MappingProxyType({
+    "CRLF line endings": ("\n", "\r\n"),
+    "square brackets": (f"`{_support.SNAPSHOT_REF}`", f"[{_support.SNAPSHOT_REF}]"),
+})
 # An issue that is not the replacement's parent, which a foreign link names.
 _OTHER_PARENT = 999
 # What a pinned comment that would not parse reads back as.
@@ -525,21 +531,24 @@ class ReplacementCrashTest(_ReplacementRecoveryCase):
         self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT)
         self.assertIn(_support.SNAPSHOT_REF, prompt)
 
-    def test_crlf_instructions_are_protected_again(self) -> None:
+    def test_respelled_instructions_are_protected(self) -> None:
         # The instructions read the same whatever line endings the body came
-        # back with, so the lost slot is restored before the next poll
-        # releases the child.
-        child = self._die_seeding()
-        created = self.github.get_issue(child)
-        created.body = created.body.replace("\n", "\r\n")
-        self._unprotect()
+        # back with, and whatever closed wrapping names the ref, so the lost
+        # slot is restored before the next poll releases the child.
+        for shape, (spelled, respelled) in _RESPELLED.items():
+            with self.subTest(shape=shape):
+                self.setUp()
+                child = self._die_seeding()
+                created = self.github.get_issue(child)
+                created.body = created.body.replace(spelled, respelled)
+                self._unprotect()
 
-        self._recover()
-        _support.redecompose(self.github, self.issue, tick=_umbrella._handle_umbrella)
+                self._recover()
+                _support.redecompose(self.github, self.issue, tick=_umbrella._handle_umbrella)
 
-        self.assertIn(child, _support.consumers(self.github))
-        self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT)
-        self.assertEqual(self._labels(child), (LABEL_UMBRELLA, _LABEL_READY))
+                self.assertIn(child, _support.consumers(self.github))
+                self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT)
+                self.assertEqual(self._labels(child), (LABEL_UMBRELLA, _LABEL_READY))
 
     def test_an_unproved_lineage_is_not_finalized(self) -> None:
         # The record the split was proved on no longer proves it: a stray

@@ -3371,10 +3371,10 @@ rather than preserving.
   ref parks the same way.
   A snapshot ref recorded twice is a refusal whatever the two entries stand at, released included. Either park
   leaves every child unfinalized and unstarted. The dependency walk that releases an ordinary split's children
-  later asks the same decision off this record in front of every walk, and holds each child's own pointer to what
-  this ledger still keeps for it in front of its release — a ref no longer held, or a child `late_consumers` no
-  longer records — so a proof or a protection that lapsed after creation releases no further dependent and parks
-  the parent, once.
+  later asks the same decision off this record in front of every walk, and holds each child to the recovery's
+  recognition in front of its release — the whole group it was owed, a pointer this ledger still keeps for it, and
+  text naming no other ref — so a proof, a seed, a protection, or instructions that changed after creation release
+  no further dependent and park the parent, once.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

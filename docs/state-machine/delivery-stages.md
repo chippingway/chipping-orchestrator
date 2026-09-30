@@ -615,9 +615,10 @@ because there it is the claim that this stage has already rerouted rather than a
      an ordinary split created — anything but a late split's own register — are released only while the lineage and
      snapshot decision their split was proved on still holds off the parent's record: a refusal (a snapshot entry no
      longer held or released, a base gone, an ancestry damaged) releases none and parks the parent
-     `replacement_lineage_unproved`, once. In front of each release the pointer the child itself carries is held to
-     what the parent's ledger still keeps for it: a pointer at a ref no longer held, one `late_consumers` no longer
-     records the child against, or a child comment that will not parse stops the walk and parks the same way.
+     `replacement_lineage_unproved`, once. In front of each release the child is held to the recognition step 3's
+     recovery applies: a comment that will not parse, a `parent_number` naming another issue, an ancestry that is
+     not the whole group it was owed, a pointer the parent's ledger no longer keeps for it (the ref released, or the
+     child off `late_consumers`), or a title or body naming any other ref stops the walk and parks the same way.
      `_handle_umbrella` walks through the same checks.
 - **Output**: parent → `workflow:ready` (all done and nothing a late split recorded still held), OR a sibling
   unblocked, OR a HITL park, OR a no-op for a child still waiting on its dependencies or a parent still holding a

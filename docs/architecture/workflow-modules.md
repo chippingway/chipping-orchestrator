@@ -1401,9 +1401,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             gate pays nothing, that ask itself a request and so the latch taken on BOTH sides of
                             it, the one behind having nothing between it and the relabel, the ordinary split's
                             lineage and snapshot proved again in front of any walk over its children, and each
-                            child's own pointer held to what the parent's ledger still keeps for it in front of its
-                            release -- parking the parent, once, rather than releasing a dependent under a proof or a
-                            protection that lapsed -- and the held-dependency line it logs
+                            child held to the recovery's recognition in front of its release -- whole seed, a pointer
+                            the parent's ledger still keeps, text naming no other ref -- parking the parent, once,
+                            rather than releasing a dependent under a record that changed, and the held-dependency
+                            line it logs
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
                             consumed-comment ratchet; a parent whose children all resolved settles what a late split
                             still owes the remote before it goes back to its own work, and waits on `blocked` while a
