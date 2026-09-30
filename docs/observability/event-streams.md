@@ -763,6 +763,11 @@ is the whole of what keeps the stream a count of what an issue spent rather than
 
 - A launch honoring a **reservation** an earlier tick left standing pays for no new run, so it records `started` and
   no second `reserved`.
+- A launch **owed once** — a handed change request's developer, whose handoff nothing calls yet — refused on the
+  circuit's reading before its charge, because another road already started it or the caller's hold no longer
+  stands, records nothing. Refused on the reading behind its charge, it records its `reserved` and no `started`: the
+  charge stands for that launch's replay, which records `started` alone, and one no replay reuses is a `reserved` no
+  `started` ever follows.
 - A **standing park** records nothing. An exhausted issue meets the same refusal on every launch it has left and the
   dispatcher's hold meets it on every dispatch, so a record per meeting would report one ending as a stream of them;
   what says a park went on holding is the `agent_run_limit` event's `standing` phase. A park re-taken while it still
