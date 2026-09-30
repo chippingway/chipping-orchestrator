@@ -367,10 +367,13 @@ prompt. A report that is missing, moved, edited, cut short, untrusted, out of st
 the head or the requirements parks `report_undeliverable` for the developer instead, and one nobody could read holds the
 tick. What the reviewer was handed — pull request, head, requirements, and report — is written to `review_subject`
 before the spawn and again to `review_returned_subject` once that reviewer returns (a launch the run budget refuses
-leaves only the first), and an approval's subject to `review_approved_subject` once the verify gate passes, retiring the
-head-keyed docs verdict and ready ping an earlier approval left. That approval is acted on only while its subject still
-stands: rechecked as the reviewer returns, after verification, and before the squash tail or a settled squash handoff
-moves the label, so a new report on an unchanged head always reaches a fresh reviewer.
+leaves only the first), and an approval's subject to `review_approved_subject` once the verify gate has passed and the
+approval comment is posted, retiring the head-keyed docs verdict and ready ping an earlier approval left. That approval
+is acted on only while its subject still stands: rechecked as the reviewer returns, after verification, behind the
+approval comment, and before the squash tail or a settled squash handoff moves the label, so a new report on an
+unchanged head always reaches a fresh reviewer. A failed verify gate or squash on that road parks only over that
+subject still standing (both filed in `stages/validating/review_parks.py`); a failure over work nobody reviewed parks
+nobody, and the next tick answers the subject as it stands.
 
 A squash this issue began and did not finish is answered ahead of all of that, behind only the terminals and ahead of
 every route that could point an agent at the branch: a branch mid-rewrite is not one a reviewer or a body-edit resume
