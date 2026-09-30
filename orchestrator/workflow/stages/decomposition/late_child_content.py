@@ -81,7 +81,7 @@ only place to read it from.
 Read it, from this repository:
 
 ```sh
-git fetch {remote} '+{ref}:{mirror}'       # only if the ref is not here yet
+git fetch {remote} +{ref}:{mirror}         # only if the ref is not here yet
 git log --oneline {base_sha}..{sha}
 git diff {base_sha}...{sha}                # three dots: what it ADDS
 ```
@@ -108,23 +108,28 @@ _REF_CHARACTER = r"[^\s\x00-\x1f\x7f~^:?*\[\\]"
 # Anything issue text names in the snapshot namespace -- a remote ref, or a
 # host's mirror of one -- read as the whole ref name it could be: as far as
 # ref characters run on EITHER side of the namespace, so a name that merely
-# contains an allowed ref (`...gen-1@foreign`, `refs/heads/refs/...`) reads as
-# the different ref it is. A mirror carries the repository segment it was
-# fetched for, and one under another repository's segment is that
-# repository's copy of the same three numbers: possibly other work, and kept
-# by no ledger here. A mention that is no whole ref is no child's either.
+# contains an allowed ref (`...gen-1@foreign`, `...gen-1!`,
+# `refs/heads/refs/...`) reads as the different ref it is. What opens the
+# mention -- quotes, backticks, or brackets, and the `+` a forced refspec
+# starts with -- is `lead`, since no ref under `refs/` begins with one. A
+# mirror carries the repository segment it was fetched for, and one under
+# another repository's segment is that repository's copy of the same three
+# numbers: possibly other work, and kept by no ledger here. A mention that is
+# no whole ref is no child's either.
 _NAMED_SNAPSHOT = re.compile(
-    rf"(?<!{_REF_CHARACTER}){_REF_CHARACTER}*?"
-    rf"{re.escape(_snapshot_namespace.SNAPSHOT_NAMESPACE)}{_REF_CHARACTER}*",
+    rf"(?<!{_REF_CHARACTER})(?P<lead>[`'\"(<+]*)"
+    rf"(?P<name>{_REF_CHARACTER}*?{re.escape(_snapshot_namespace.SNAPSHOT_NAMESPACE)}{_REF_CHARACTER}*)",
 )
 
-# What text wraps a ref name in, and is dropped from either end of a mention
-# rather than read as part of it: quotes, backticks, and brackets around a
-# name, the `+` a forced refspec opens with, and the punctuation a sentence
-# ends on. A ref may not end in a full stop or a slash at all.
-_OPENS_A_NAME = "`'\"(<+"
+# What closes each opening a mention may lead with; a forced refspec's `+`
+# closes nothing. Only the closers a mention's own lead calls for, in the
+# order it calls for them, are dropped from its end -- any other character a
+# ref may contain, however much it looks like punctuation, is part of the name.
+_CLOSER_OF = str.maketrans("`'\"(<", "`'\")>", "+")
 
-_CLOSES_A_NAME = "`'\")>.,;!/"
+# What no ref name may end in, so a mention ending in one is the sentence
+# around it rather than the ref.
+_NEVER_ENDS_A_REF = "./"
 
 
 def _forged_receipt(children: tuple) -> str | None:
@@ -257,14 +262,22 @@ def _named_snapshots(*texts: object) -> frozenset[str]:
     go by is the lineage's answer -- see `ReplacementLineage.told` -- and
     anything else named here is a ref nothing keeps for the child. Nor is a
     ref read out of a longer name that contains it: git would fetch that
-    longer name, so it is what the text tells a child to reuse.
+    longer name, so it is what the text tells a child to reuse. Only wrapping
+    closed on both sides is taken off -- `` `ref` `` and `(ref)` name `ref`,
+    while `` `ref!` `` and `ref,` name the refs spelled that way.
     """
-    return frozenset(
-        match.group().lstrip(_OPENS_A_NAME).rstrip(_CLOSES_A_NAME)
+    mentions = (
+        match
         for text in texts
         if isinstance(text, str)
         for match in _NAMED_SNAPSHOT.finditer(text)
     )
+    named = set()
+    for mention in mentions:
+        closers = "".join(reversed(mention.group("lead"))).translate(_CLOSER_OF)
+        name = mention.group("name").rstrip(_NEVER_ENDS_A_REF)
+        named.add(name.removesuffix(closers).rstrip(_NEVER_ENDS_A_REF))
+    return frozenset(named)
 
 
 def _declared_scope(child: dict) -> str:

@@ -1925,10 +1925,13 @@ the children it creates, and every ref where the child is pointed at none: the i
 copying reuse instructions from the thread would otherwise hand a child a snapshot nothing keeps for it. It includes
 a mirror under another repository's segment too: a `REPOS` entry sharing the clone fetches its own split of the same
 issue, cycle, and generation numbers there, which may be other work and is on no ledger this parent writes. And
-each mention is read as the whole ref name git would take it for — as far as ref characters run on either side of the
-namespace, with only the quotes, backticks, brackets, a refspec's leading `+`, and sentence punctuation around it
-dropped — so a longer name that merely contains the child's ref (`…/gen-1@foreign`, `refs/heads/refs/…`) is the
-different, unkept ref it is. The split parks
+each mention is read as the whole ref name it could be — as far as ref characters run on either side of the
+namespace. What is taken off is only what no ref under `refs/` can hold: quotes, backticks, or brackets that open the
+mention and are closed at its end, a forced refspec's leading `+`, and a trailing full stop or slash. Every other
+character a ref may contain is part of the name, so a longer name that merely contains the child's ref
+(`…/gen-1@foreign`, `` `…/gen-1!` ``, `…/gen-1,`, `refs/heads/refs/…`) is the different, unkept ref it is. The
+instructions themselves spell the fetch as an unquoted `+ref:mirror` refspec, so they read back as exactly the ref
+and its mirror. The split parks
 `replacement_lineage_unproved` before `expected_children_count` is written, so no child exists and nothing is left
 for a recovery to finalize; a reply is an edit, and re-runs the decomposer against the thread as it then stands.
 

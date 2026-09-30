@@ -123,6 +123,9 @@ _FOREIGN_TEXT = MappingProxyType({
     "instructions naming a ref running on past it": (
         _BODY, lambda text: text.replace(_support.SNAPSHOT_REF, _support.EXTENDED_REF),
     ),
+    "instructions running on past it inside backticks": (
+        _BODY, lambda text: text.replace(f"`{_support.SNAPSHOT_REF}`", f"`{_support.EXCLAIMED_REF}`"),
+    ),
     "instructions nesting it under another ref": (
         _BODY, lambda text: text.replace(_support.SNAPSHOT_REF, _support.NESTED_REF),
     ),

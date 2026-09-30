@@ -183,7 +183,8 @@ class InheritedLineageTest(unittest.TestCase):
             _support.SNAPSHOT_REF,
             _support.OWN_MIRROR,
             f"`{_support.SNAPSHOT_REF}`",
-            f"'+{_support.SNAPSHOT_REF}:{_support.OWN_MIRROR}'",
+            f"(`{_support.OWN_MIRROR}`).",
+            f"+{_support.SNAPSHOT_REF}:{_support.OWN_MIRROR}",
         ):
             with self.subTest(named=named):
                 github, issue = _support.late_parent(_support.own_split())
@@ -291,6 +292,11 @@ _UNSUPPORTED = MappingProxyType({
         _ROOT_SPLIT,
         _slice_naming(_support.EXTENDED_REF),
         _support.EXTENDED_REF,
+    ),
+    "a root replacement told a ref running on past its own inside backticks": (
+        _ROOT_SPLIT,
+        _slice_naming(f"`{_support.EXCLAIMED_REF}`"),
+        _support.EXCLAIMED_REF,
     ),
     "a root replacement told its own ref nested under another": (
         _ROOT_SPLIT,
