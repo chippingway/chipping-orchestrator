@@ -21,7 +21,9 @@ is a claim about a snapshot.
 A pointer is. A child may be pointed only at the snapshot the parent's own
 split still holds, and only once the parent's consumer ledger records it, in
 the same write that records it in `children` -- so the reclamation that could
-take the ref counts the child as one more consumer that has to end first. A
+take the ref counts the child as one more consumer that has to end first. Its
+body carries the same pointer as instructions, rendered the way a late
+split's own children are told, since the body is what its implementer reads. A
 snapshot another issue holds is protected by a ledger only that issue writes,
 so a child is born without that pointer rather than with one nothing keeps; a
 child whose parent record never landed has no pointer to lose. A parent whose
@@ -140,12 +142,14 @@ class ReplacementLineage:
     The defaults are the ordinary issue, whose children carry a parent link
     and nothing more. An ancestry is the lineage every child is born into,
     with no pointer on it; a snapshot is the one this issue's own split holds
-    and may protect; and a refusal is the notice saying why neither could be
-    told -- never beside either.
+    and may protect, beside the base its candidate was cut against; and a
+    refusal is the notice saying why neither could be told -- never beside
+    either.
     """
 
     ancestry: LateAncestry | None = None
     snapshot: _entitlement.SnapshotEntitlement | None = None
+    base_sha: str = ""
     refusal: str | None = None
 
     @classmethod
@@ -157,20 +161,34 @@ class ReplacementLineage:
 
     @classmethod
     def born_under(
-        cls, ancestry: LateAncestry, held: _entitlement.SnapshotEntitlement | None,
+        cls, ancestry: LateAncestry, held: _entitlement.SnapshotEntitlement | None, base_sha: str,
     ) -> ReplacementLineage:
         """The lineage `ancestry` names, pointed at `held` only where this issue's ledger keeps it.
 
         Held to the exact identity the child's ancestry names, owner included,
         because that is what every later reading of the pointer mints the ref
         from and whose ledger it asks: a pointer at another split's ref would
-        name a consumer ledger this issue never wrote a child onto.
+        name a consumer ledger this issue never wrote a child onto. `base_sha`
+        is what that split's candidate was cut against, kept only beside a
+        snapshot a child is pointed at.
         """
         if held is None:
             return cls(ancestry=ancestry)
         named = (ancestry.parent_issue, ancestry.cycle_id, ancestry.generation)
-        owner = (held.owner_issue, held.cycle_id, held.generation)
-        return cls(ancestry=ancestry, snapshot=held if owner == named else None)
+        if (held.owner_issue, held.cycle_id, held.generation) != named:
+            return cls(ancestry=ancestry)
+        return cls(ancestry=ancestry, snapshot=held, base_sha=base_sha)
+
+    def pointed(self) -> LateAncestry | None:
+        """The lineage with the pointer a protected child carries, or None where none is owed."""
+        if self.ancestry is None or self.snapshot is None:
+            return None
+        return replace(
+            self.ancestry,
+            snapshot_ref=self.snapshot.snapshot_ref,
+            snapshot_sha=self.snapshot.snapshot_sha,
+            mirror_first=self.snapshot.mirror_first,
+        )
 
     def protect(self, state: PinnedState, child_number: int) -> None:
         """Record one child on the consumer ledger of the snapshot it is owed.
@@ -195,17 +213,11 @@ class ReplacementLineage:
         a crash deferred is repaired from the same record, and a child created
         before that record could protect it is seeded without one.
         """
-        if self.ancestry is None:
-            return None
+        pointed = self.pointed()
         consumers = _late_state.read_late_generation(state).obligations.consumers
-        if self.snapshot is None or child_number not in consumers:
+        if pointed is None or child_number not in consumers:
             return self.ancestry
-        return replace(
-            self.ancestry,
-            snapshot_ref=self.snapshot.snapshot_ref,
-            snapshot_sha=self.snapshot.snapshot_sha,
-            mirror_first=self.snapshot.mirror_first,
-        )
+        return pointed
 
     def repair(self, state: PinnedState, child_number: int, child_state: PinnedState) -> SeedRepair:
         """What a recovered split does with one recorded child's ancestry.
@@ -263,7 +275,8 @@ def read_replacement_lineage(state: PinnedState, issue: Issue) -> ReplacementLin
     adjudication = _adjudication_of(state)
     if adjudication is None:
         return ReplacementLineage.unproved(_NO_ADJUDICATION)
-    unsettled = _entitlement.unsettled_snapshot(_late_state.read_late_generation(state), issue.number)
+    generation = _late_state.read_late_generation(state)
+    unsettled = _entitlement.unsettled_snapshot(generation, issue.number)
     if unsettled is not None:
         return ReplacementLineage(refusal=_SNAPSHOT_NOTICE.format(reason=unsettled))
     return ReplacementLineage.born_under(LateAncestry(
@@ -272,7 +285,7 @@ def read_replacement_lineage(state: PinnedState, issue: Issue) -> ReplacementLin
         parent_issue=issue.number,
         cycle_id=adjudication[0],
         generation=adjudication[1],
-    ), provenance.snapshot)
+    ), provenance.snapshot, generation.base_sha)
 
 
 def park_unproved(gh: GitHubClient, issue: Issue, state: PinnedState, notice: str) -> None:

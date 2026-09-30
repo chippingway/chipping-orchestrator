@@ -3,9 +3,12 @@
 """Prepare ordinary split plans, create their children, and publish the parent summary.
 
 The lineage the children inherit is decided before anything is written, and a
-lineage that cannot be proved parks the split with no child created. The
-parent then records the expected child count before creation. Only children
-without dependencies are activated after the summary and parent label land.
+lineage that cannot be proved parks the split with no child created. A child
+owed the snapshot its parent's own split holds is created with instructions
+for reading it after its slice, since the body is what its implementer is
+shown. The parent then records the expected child count before creation. Only
+children without dependencies are activated after the summary and parent
+label land.
 """
 from __future__ import annotations
 
@@ -13,11 +16,13 @@ import logging
 
 from github.Issue import Issue
 
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.decomposition import (
     child_creation as _child_creation,
+    late_child_content as _late_child_content,
     replacement_lineage as _replacement_lineage,
     state as _state,
 )
@@ -35,9 +40,26 @@ def _prepare_split_plan(
     gh.write_pinned_state(issue, state)
 
 
+def _briefed(
+    spec: _config_models.RepoSpec, lineage: _replacement_lineage.ReplacementLineage, children: list,
+) -> list:
+    """The manifest's children, each owed a snapshot told where it is.
+
+    After the slice the manifest declared, exactly as a late split's own
+    children are told, because the pinned pointer is what the child's guard
+    reads and the body is what its implementer reads -- one without the other
+    is a snapshot nobody uses, or instructions nothing protects. A child owed
+    no snapshot is created with the body it was declared with.
+    """
+    pointed = lineage.pointed()
+    if pointed is None:
+        return list(children)
+    reuse = _late_child_content._reuse_block(spec, pointed, lineage.base_sha)
+    return [{**child, "body": f"{child['body']}\n\n{reuse}"} for child in children]
+
+
 def _create_child_issues(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
-    children_manifest: list, is_umbrella: bool,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState, parsed: dict,
 ) -> _SplitPlan | None:
     """Crash-safe child issue creation loop for a `split` manifest.
 
@@ -70,9 +92,10 @@ def _create_child_issues(
     if lineage.refusal is not None:
         _replacement_lineage.park_unproved(gh, issue, state, lineage.refusal)
         return None
-    plan = _SplitPlan.start(children_manifest, is_umbrella, lineage)
+    children = _briefed(spec, lineage, parsed[_state._CHILDREN])
+    plan = _SplitPlan.start(children, bool(parsed.get(_state._UMBRELLA)), lineage)
     _prepare_split_plan(gh, issue, state, plan)
-    for idx, _child in enumerate(children_manifest):
+    for idx, _child in enumerate(children):
         if not _child_creation._create_planned_child(gh, issue, state, plan, idx):
             return None
     return plan

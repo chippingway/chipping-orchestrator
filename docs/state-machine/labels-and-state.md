@@ -3336,7 +3336,11 @@ rather than preserving.
   room for a child, and one naming no cycle anywhere has nothing to correlate one by. The snapshot pair and
   `late_ancestry_mirror_first` are seeded only on a replacement `late_consumers` records, and only for the ref the
   parent's own split holds: a pointer another issue's ledger protects is one this issue cannot record a consumer on,
-  so its replacements are born with the lineage and without it. A ref the parent's own split no longer holds is settled
+  so its replacements are born with the lineage and without it. A replacement given the pointer is also given the
+  late split's reuse instructions for that ref after its declared body, since the body — not this group — is what
+  its implementer reads. A parent the re-decomposition left `blocked` with work of its own settles this ledger
+  before its all-children-resolved flip to `workflow:ready`, and stays `blocked` while a recorded consumer still
+  holds the ref. A ref the parent's own split no longer holds is settled
   only where its entry has passed to a reclamation (`reclaiming`, `reconciled`, `failed`), and its replacements are
   born without the pointer; a split whose ledger cannot say whether the ref is held or released — a resource ledger
   this binary cannot read, a held ref no consumer can be recorded against (an unreadable `late_consumers`, no

@@ -1661,7 +1661,10 @@ in the transaction — an issue that has become an umbrella never reaches the tr
 bring a tick back to it. `late_cleanup.py` is asked at the one boundary where an unsettled obligation still matters:
 every umbrella tick that finds every child resolved settles whatever is still owed, and the parent closes only once
 nothing is. A refusal keeps the label, which *is* the retry, and leaves the parent visibly open instead of closed
-over a remote nobody will ever reap.
+over a remote nobody will ever reap. A genuine edit can re-decompose that umbrella into a manifest that keeps work
+for the parent, which then waits on `blocked` rather than `umbrella`; its all-children-resolved tick is the same
+boundary — past it the parent goes back to implementation and nothing revisits the ledger — so it runs the same
+settlement, and stays `blocked` while anything it names is still held.
 
 That boundary is also the first at which the **snapshot** can go, and under the rule that owns it: a ref may be
 deleted only once every recorded direct consumer has **ended**, and all-children-resolved is exactly when that
@@ -1895,7 +1898,10 @@ taken while it works. A child is therefore pointed only at the snapshot the pare
 the ledger naming it exactly once and `retained` — and only once that ledger records it, in the same write that
 records it in `children`, ahead of its seed. A snapshot another issue's split holds is protected by a ledger only
 that issue writes, and a pinned comment is written whole by whoever writes it, so this issue may not add a consumer
-there: its children are born with the lineage and without that pointer. A ref the parent's own split no longer
+there: its children are born with the lineage and without that pointer. A child that is pointed at the ref is also
+told about it where its implementer reads: the same reuse instructions a late split's own children carry — the ref,
+its local mirror, the commit, the base it was cut against, and how to cherry-pick or copy from it — are appended to
+its declared body when it is created. A ref the parent's own split no longer
 holds is settled only where its entry has passed to a reclamation — `reclaiming`, `reconciled`, or a `failed`
 delete — and its replacements are then born without it; a ledger that cannot say whether the ref is held or
 released is not that answer, and is refused below. What never descends is the parent's own

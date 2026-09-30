@@ -22,12 +22,16 @@ from orchestrator.workflow.late_split import (
     models as _late_models,
     obligations as _obligations,
 )
-from orchestrator.workflow.stages.decomposition import replacement_lineage as _replacement_lineage
+from orchestrator.workflow.stages.decomposition import blocked as _blocked, replacement_lineage as _replacement_lineage
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.fixtures import _authorized_exemption
+from tests.workflow.fixtures import _TEST_SPEC, _agent, _authorized_exemption, _PatchedWorkflowMixin, _reported
 from tests.workflow.stages.decomposition import replacement_lineage_support as _support
 
 RUN_AGENT = "run_agent"
+
+# The heading a child's reuse instructions open under, naming the parent whose
+# own split preserved the snapshot.
+_REUSE_HEADING = f"## Reusing the work already committed for #{_support.PARENT}"
 
 # What a descendant that never split is cut from: two levels below the root,
 # through an issue that is not the root.
@@ -168,11 +172,41 @@ class InheritedLineageTest(unittest.TestCase):
         created = _support.replacements(github)
         seeded = [_seeded(github, number) for number in created]
         protected = sorted([*recorded, *created]) if lineage.protected else recorded
+        briefed = {_REUSE_HEADING in github.get_issue(number).body for number in created}
         self.assertEqual(len(created), _support.REPLACEMENT_COUNT)
         self.assertEqual(github.pinned_data(_support.PARENT)[_support.KEY_CHILDREN], created)
         self.assertEqual(github.workflow_label(github.get_issue(_support.PARENT)), WorkflowLabel.UMBRELLA)
         self.assertEqual(_support.consumers(github), protected)
         self.assertEqual(set(seeded), {lineage.born})
+        # Told where the snapshot is exactly where it is pointed at one.
+        self.assertEqual(briefed, {lineage.protected})
+
+
+class ReuseInstructionsTest(_PatchedWorkflowMixin, unittest.TestCase):
+    """What the implementer of a protected replacement is shown about its snapshot."""
+
+    def test_the_implementer_reads_the_snapshot(self) -> None:
+        # The slice first, then the reuse instructions for the one ref the
+        # child's pointer names: the implementer reads the body, never the
+        # pinned comment the pointer is recorded on.
+        github, issue = _support.late_parent(_support.own_split())
+        _support.redecompose(github, issue, _support.ONE_REPLACEMENT_MANIFEST)
+
+        prompt = self._implementer_prompt(github)
+
+        self.assertLess(prompt.index("the whole of it, as the edit now asks"), prompt.index(_REUSE_HEADING))
+        for named in (_support.SNAPSHOT_REF, _support.CANDIDATE_SHA, _support.BASE_SHA):
+            with self.subTest(named=named):
+                self.assertIn(named, prompt)
+
+    def _implementer_prompt(self, github) -> str:
+        """Pick the replacement up, and hand back what its implementer is asked."""
+        child = github.created_child_issues[0]
+        mocks = self._run(
+            lambda: _blocked._handle_ready(github, _TEST_SPEC, child),
+            run_agent=_agent(last_message=_reported()),
+        )
+        return mocks[RUN_AGENT].call_args.args[1]
 
 
 class UnprovedLineageTest(unittest.TestCase):

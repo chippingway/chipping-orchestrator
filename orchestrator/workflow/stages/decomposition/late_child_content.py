@@ -4,9 +4,13 @@
 
 Each child names the exact preserved candidate and its declared budget.
 Reserved receipt markers in proposed scope are refused before publication.
+The reuse instructions are rendered off a child's pointed ancestry, so an
+ordinary split that points a replacement at the same snapshot tells it the
+same thing.
 """
 from __future__ import annotations
 
+from orchestrator.config import models as _config_models
 from orchestrator.git.snapshots import mirrors as _snapshot_mirrors
 from orchestrator.github import comments as _github_comments
 from orchestrator.workflow.late_split import (
@@ -175,24 +179,34 @@ def _child_body(
         _declared_scope(child),
         _budget_block(child),
         _child_marker(generation, index),
-        _REUSE_BLOCK.format(
-            parent=generation.current_issue,
-            ref=snapshot_ref,
-            mirror=_snapshot_mirrors.local_snapshot_ref(
-                context.spec, snapshot_ref,
-            ),
-            sha=generation.candidate_sha,
-            base_sha=generation.base_sha,
-            base_branch=context.spec.base_branch,
-            remote=context.spec.remote_name,
-            root=generation.root_issue,
-            depth=_identity.child_lineage_depth(generation.lineage_depth),
-            bound=_late_models.MAX_LINEAGE_DEPTH,
-            cycle=generation.cycle_id,
-            generation=generation.generation,
-        ),
+        _reuse_block(context.spec, _child_ancestry(context, child, snapshot_ref), generation.base_sha),
     )
     return "\n\n".join(section for section in sections if section)
+
+
+def _reuse_block(spec: _config_models.RepoSpec, pointed: _ancestry.LateAncestry, base_sha: str) -> str:
+    """How a child reads the snapshot its ancestry points it at, and what it may reuse.
+
+    Everything named comes off the pointer and the lineage beside it -- the
+    owner, the ref, the commit, the root, the depth, and the adjudication --
+    so the instructions and the record a child's own guard reads can never
+    name two different snapshots. `base_sha` is what the preserved candidate
+    was cut against, which no ancestry records.
+    """
+    return _REUSE_BLOCK.format(
+        parent=pointed.parent_issue,
+        ref=pointed.snapshot_ref,
+        mirror=_snapshot_mirrors.local_snapshot_ref(spec, pointed.snapshot_ref),
+        sha=pointed.snapshot_sha,
+        base_sha=base_sha,
+        base_branch=spec.base_branch,
+        remote=spec.remote_name,
+        root=pointed.root_issue,
+        depth=pointed.lineage_depth,
+        bound=_late_models.MAX_LINEAGE_DEPTH,
+        cycle=pointed.cycle_id,
+        generation=pointed.generation,
+    )
 
 
 def _budget_block(child: dict) -> str:

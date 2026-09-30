@@ -45,7 +45,6 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.decomposition import (
     manifest as _manifest,
     split as _split,
-    state as _state,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -134,6 +133,7 @@ def _finalize_single_decision(
 
 def _dispatch_decomposer_manifest(
     gh: GitHubClient,
+    spec: config.RepoSpec,
     issue: Issue,
     state: PinnedState,
     decomposer_result: AgentResult,
@@ -156,13 +156,7 @@ def _dispatch_decomposer_manifest(
         return
 
     # decision == "split".
-    split_plan = _split._create_child_issues(
-        gh,
-        issue,
-        state,
-        parsed[_state._CHILDREN],
-        bool(parsed.get(_state._UMBRELLA)),
-    )
+    split_plan = _split._create_child_issues(gh, spec, issue, state, parsed)
     if split_plan is None:
         return
     _split._finalize_split(gh, issue, state, split_plan)

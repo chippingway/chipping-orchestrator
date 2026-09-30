@@ -1,10 +1,14 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Settle and report late-split cleanup, and guard the umbrella's terminal on its debts.
+"""Settle and report late-split cleanup, and guard a parent's hand-off on its debts.
 
 A pass persists only changed resource states while reporting attempted
-failures. The terminal requires all obligations and the superseded publication
-to settle; damaged identities with uncorrelated obligations remain held.
+failures. The umbrella's terminal requires all obligations and the superseded
+publication to settle; damaged identities with uncorrelated obligations remain
+held. A `blocked` parent whose children all resolved is the other hand-off: a
+genuine edit can re-decompose a late split's umbrella into a manifest that
+keeps implementation for the parent, and its return to that implementation is
+the last point anything settles what the split still owes the remote.
 """
 from __future__ import annotations
 
@@ -67,11 +71,13 @@ def _settle(
     The stage both sinks record is read off the issue rather than named by the
     caller, because it is a fact about where the reclamation happened and not
     about which owner drove it: the umbrella's terminal reaches here on
-    `umbrella`, and the closed-owner sweep on whichever of the two cleanup
-    states its issue was closed on.
+    `umbrella`, a parent going back to its own work on `blocked`, and the
+    closed-owner sweep on whichever of the two cleanup states its issue was
+    closed on.
 
     `scan` is whatever the caller already read this visit -- the umbrella's
-    children, or the sweep's consumers -- and it only ever saves a request.
+    or the blocked parent's children, or the sweep's consumers -- and it only
+    ever saves a request.
     Who a held ref is proved against is the ledger's answer, so a consumer
     the scan was not asked about, the original a replaced manifest orphaned
     included, is read afresh before anything is taken.
@@ -132,6 +138,39 @@ def _settled_for_terminal(
         "issue=#%d holds its terminal on: %s", issue.number, ", ".join(held),
     )
     return False
+
+
+def _settled_before_implementation(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    scan: _ChildScan,
+) -> bool:
+    """Whether a `blocked` parent may go back to its own implementation.
+
+    The same settlement the umbrella's terminal runs, and for the same reason:
+    once the parent leaves `blocked` for `ready`, no pass comes back to what a
+    late split recorded on it, so a ref still held for consumers that have
+    since ended -- the originals a re-decomposition orphaned, and the
+    replacements it pointed at that ref -- would be held for good. False keeps
+    the parent on `blocked`, whose next dependency poll asks again, and says
+    what it waits on. A record with no cycle identity cannot correlate a
+    reclamation, so what it still owes holds the parent rather than being
+    reclaimed; an issue that never entered the late gate owes nothing and
+    answers without a request.
+
+    What it does not ask is the umbrella's publication question: the parent is
+    going back to implement, not closing over the change its split superseded.
+    """
+    generation = _late_state.read_late_generation(state)
+    settled = _settle(gh, spec, issue, state, scan) if generation.is_present else generation
+    held = _late_cleanup_reading._blocking(settled)
+    if held:
+        log.info(
+            "issue=#%d holds its return to implementation on: %s", issue.number, ", ".join(held),
+        )
+    return not held
 
 
 def _unsettled_publication(

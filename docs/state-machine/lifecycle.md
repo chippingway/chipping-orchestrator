@@ -844,7 +844,11 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    by hand to drive such an issue again
 
    workflow:blocked (each due dependency poll, open issues only; DEPENDENCY_POLL_EVERY_N_TICKS):
-     all children = done       ─► parent=workflow:ready
+     all children = done       ─► parent=workflow:ready -- once a late
+                                  split's ledger on it is settled (the
+                                  umbrella row's rule); a ref still held
+                                  for a live recorded consumer keeps it
+                                  on workflow:blocked for the next poll
      any child = rejected      ─► park HITL on parent
      dep_graph walk: any workflow:blocked child with all deps=done
                                ─► child=workflow:ready

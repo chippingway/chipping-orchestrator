@@ -557,7 +557,10 @@ because there it is the claim that this stage has already rerouted rather than a
        child call `gh.create_child_issue(...)` with label `workflow:blocked` (the child's only birth label), record
        it in `children` — and in the same write on `late_consumers`, where the parent's own split holds the snapshot
        it will be pointed at — and seed the child's pinned state with `parent_number` and that lineage, never the
-       parent's measurement, exemption, or authorization; persist `dep_graph` / `umbrella` on the parent; activate
+       parent's measurement, exemption, or authorization. A child owed that snapshot is created with the reuse
+       instructions a late split's own children carry appended to its declared body — the ref, its local mirror, the
+       commit, the base it was cut against, and how to read and reuse it — since the body is what its implementer
+       reads; persist `dep_graph` / `umbrella` on the parent; activate
        no-dep children by flipping `workflow:blocked` → `workflow:ready` (best-effort, since `_handle_blocked` /
        `_handle_umbrella` also treats no-dep children as deps-satisfied).
 - **Output**: parent → `workflow:ready` / `workflow:blocked` / `workflow:umbrella` / `workflow:implementing`, OR a
@@ -585,11 +588,19 @@ because there it is the claim that this stage has already rerouted rather than a
   5. Any child closed but its label is not `done` / `rejected` / `in_review` → retry `_finalize_if_pr_merged` (covers
      an externally-merged child whose own handler has not yet finalized) before falling through to the manually-closed
      park.
-  6. Every child `done` → flip parent → `workflow:ready`.
+  6. Every child `done` → flip parent → `workflow:ready`. A parent that still records a late split's generation —
+     the umbrella a split made, re-decomposed by a genuine edit into a manifest that keeps work for the parent — first
+     runs the settlement the umbrella's terminal runs (see
+     [what the terminal waits on](#_handle_umbrella-label-workflowumbrella)): nothing revisits that ledger once the
+     parent has gone back to implementation, so a ref still held for a recorded consumer that has not ended — an
+     orphaned original, or a replacement pointed at the ref — keeps the parent on `blocked`, which the next due poll
+     asks again, and a reason is logged each time. An issue that never entered the late gate owes nothing and flips
+     at once.
   7. Walk children: any `workflow:blocked` child whose recorded dependencies are all `done` gets relabeled
      `workflow:ready`. A child with no recorded deps is also flipped (vacuous all-done over an empty list).
-- **Output**: parent → `workflow:ready` (all done), OR a sibling unblocked, OR a HITL park, OR a no-op for a child
-  still waiting on its dependencies.
+- **Output**: parent → `workflow:ready` (all done and nothing a late split recorded still held), OR a sibling
+  unblocked, OR a HITL park, OR a no-op for a child still waiting on its dependencies or a parent still holding a
+  ref.
 
 ## `_handle_umbrella` (label `workflow:umbrella`)
 - **Trigger**: each tick `DEPENDENCY_POLL_EVERY_N_TICKS` makes due while the issue is open on `workflow:umbrella`, on

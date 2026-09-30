@@ -1372,9 +1372,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a pointer -- before it is seeded with its parent link and that lineage, never with the
                             parent's measurement, exemption, or authorization, and either failure parks the parent
                             for repair
-      split.py              decide the children's lineage and park an unprovable one before any marker, then persist
-                            the expected count, create the planned children, and publish the summary and parent
-                            label before activating children without dependencies
+      split.py              decide the children's lineage and park an unprovable one before any marker, append the
+                            snapshot's reuse instructions to the body of each child owed it, then persist the expected
+                            count, create the planned children, and publish the summary and parent label before
+                            activating children without dependencies
       recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the orphan-child
                             repair -- the parent link and the owed lineage, asked of the parent's record again and
                             parked rather than finalized where it no longer proves one or a child is not one the
@@ -1394,7 +1395,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it, the one behind having nothing between it and the relabel, and the
                             held-dependency line it logs
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
-                            consumed-comment ratchet
+                            consumed-comment ratchet; a parent whose children all resolved settles what a late split
+                            still owes the remote before it goes back to its own work, and waits on `blocked` while a
+                            recorded consumer keeps a ref
       umbrella_terminal.py  resolution text, usage totals, and cycle/generation receipts for published late splits;
                             retire the live cycle while retaining its obligations, then label done and close
       umbrella.py           the `workflow:umbrella` poll and barriers around child activation, cleanup, and completion;
@@ -1517,8 +1520,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             identity names, the obligation written ahead of the push and again behind the proof, the
                             create-or-verify that never overwrites, the fetch that proves a child could obtain it,
                             and the one park every refusal takes
-      late_child_content.py child scope, declared budgets, ancestry, immutable-snapshot reuse instructions, and exact
-                            slice receipts; reserved markers in proposed scope are refused before publication
+      late_child_content.py child scope, declared budgets, ancestry, immutable-snapshot reuse instructions -- rendered off
+                            a pointed ancestry, so a protected replacement's body says the same -- and exact slice
+                            receipts; reserved markers in proposed scope are refused before publication
       late_child_records.py retain the child walk, write each child on every parent ledger before seeding its ancestry,
                             and seal a cancelled consumer ledger only once possible unrecorded children are accounted for
       late_child_adoption.py
@@ -1573,7 +1577,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             entries separately so unchanged failures require no pinned-state rewrite; a held snapshot
                             is selected against the ledger's consumers, never the manifest the caller scanned
       late_cleanup.py       settle and report attempts, persist changed entries, and hold the umbrella terminal until
-                            every obligation and the superseded publication settle; opaque uncorrelated debts stay held
+                            every obligation and the superseded publication settle; opaque uncorrelated debts stay held;
+                            the same settlement gates a `blocked` parent's return to its own implementation
       late_reuse_reading.py snapshot reuse verdicts from the owner's reclamation receipt, corroborated ancestry,
                             trusted local mirror, and exact remote ref; unreadable evidence defers the dispatch
       late_reuse.py         hold or park the child before its label handler runs, distinguishing reclaimed and repointed
