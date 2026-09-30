@@ -504,7 +504,9 @@ because there it is the claim that this stage has already rerouted rather than a
      and `len(children) < expected_children_count`, look for the one child a crash between a create and the write
      recording it can leave behind: an issue this orchestrator opened whose body carries the receipt naming this
      parent, its `split_attempt`, and the next slice. One found open, still `workflow:blocked`, and carrying no other
-     receipt is recorded in `children` (a parent write of its own) and repaired below with the rest. Park with
+     receipt is recorded in `children` — in a parent write of its own that also records it on `late_consumers`
+     wherever the parent's proved lineage points its children at a snapshot, read off that lineage rather than off
+     the child's text, which may have been edited since — and repaired below with the rest. Park with
      `decomposition_crash` when the register is still short — the rest were never created, and the manifest is not
      kept to create them from — when no `split_attempt` names this split (an older binary's), or when the candidate
      was closed, relabelled, or carries a second receipt, naming it without adopting it. Otherwise repair any child

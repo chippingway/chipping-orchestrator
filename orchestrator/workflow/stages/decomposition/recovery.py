@@ -21,8 +21,10 @@ Equal counts mean the loop finished and only the label flip was lost, so the
 parent finalizes to whatever the manifest asked for. Fewer mean the loop
 stopped short, and the one child it can have left behind unrecorded -- the
 create a crash returned into, ahead of the write that records it -- is found
-by the receipt the split stamped into it and recorded (`split_receipts`), so a
-crash at the last child completes the register and finalizes like any other.
+by the receipt the split stamped into it and recorded (`split_receipts`) --
+on the snapshot's consumer ledger too, wherever the parent's proved lineage
+points its children at one, whatever the child's text now says -- so a crash
+at the last child completes the register and finalizes like any other.
 Short of that the rest were never created, and the manifest they were
 declared in is not kept to create them from, so the parent parks -- as it
 does where the candidate is one a human closed or relabelled, or whose
@@ -264,7 +266,7 @@ def _recover_stale_manifest(
     if _markers_not_ours(issue, state):
         return True
     if expected_raw is not None and len(children_recorded) < int(expected_raw):
-        adoption = _split_receipts.adopt_unrecorded(gh, issue, state, children_recorded)
+        adoption = _split_receipts.adopt_unrecorded(gh, spec, issue, state, children_recorded)
         if adoption.stranded is not None or len(adoption.children) < int(expected_raw):
             _park_incomplete_decomposition(gh, issue, state, expected_raw, adoption)
             return True

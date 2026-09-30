@@ -16,9 +16,13 @@ A recovery that finds the parent short of its count looks for the one slice a
 crash can leave unrecorded: the next one, since the loop records each child
 before it creates another. An issue this orchestrator opened carrying that
 receipt and no other, open and still on the label a child is born with, is
-recorded on the parent -- and from there it is a recorded child like any
-other, held to the recovery's recognition, protected, and seeded before
-anything finalizes the split. One closed, relabelled, or carrying a second
+recorded on the parent -- and, in that same write, on the consumer ledger of
+the snapshot the parent's proved lineage points its children at, exactly as
+the write the crash lost would have recorded it. The entitlement comes from
+that lineage rather than from the child's text, which anyone may have edited
+since: every child of a split that points is owed the pointer. From there it
+is a recorded child like any other, held to the recovery's recognition and
+seeded before anything finalizes the split. One closed, relabelled, or carrying a second
 receipt is something a human acted on or nothing can attribute, so it is
 neither adopted nor created again: the split parks. A split an older binary
 prepared minted no attempt, which leaves nothing to look for.
@@ -32,10 +36,15 @@ from dataclasses import dataclass
 
 from github.Issue import Issue
 
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.stages.decomposition import child_creation as _child_creation, state as _state
+from orchestrator.workflow.stages.decomposition import (
+    child_creation as _child_creation,
+    replacement_lineage as _replacement_lineage,
+    state as _state,
+)
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -86,14 +95,20 @@ def stamped(children: list, issue_number: int, attempt: str, reuse: str) -> list
     return receipted
 
 
-def adopt_unrecorded(gh: GitHubClient, issue: Issue, state: PinnedState, recorded: list) -> Adoption:
+def adopt_unrecorded(
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState, recorded: list,
+) -> Adoption:
     """Record the child a crash left created and unrecorded, where there is one to find.
 
     Asked only of a parent short of its expected count. The lookup walks the
     repository's issues in every state, the price of a marker nobody indexed,
     and a recovery asks it once: the answer either completes the register or
-    parks the split. The adopted child is recorded in its own parent write, so
-    a crash behind it leaves a register the next recovery reads as complete.
+    parks the split. The adopted child is recorded -- and protected, where the
+    lineage asked off the parent's record now points its children at a
+    snapshot -- in its own parent write, so a crash behind it leaves a
+    register the next recovery reads as complete and a ref kept for the child
+    it names. A lineage that no longer points, or no longer proves, protects
+    nothing here; the recovery that follows seeds or refuses the child on it.
     """
     attempt = state.get(_state._SPLIT_ATTEMPT)
     if not isinstance(attempt, str) or _ATTEMPT.fullmatch(attempt) is None:
@@ -111,6 +126,7 @@ def adopt_unrecorded(gh: GitHubClient, issue: Issue, state: PinnedState, recorde
     )
     adopted = [*recorded, orphan.number]
     state.set(_state._CHILDREN, adopted)
+    _replacement_lineage.read_replacement_lineage(state, issue, spec).protect(state, orphan.number)
     gh.write_pinned_state(issue, state)
     return Adoption(adopted)
 

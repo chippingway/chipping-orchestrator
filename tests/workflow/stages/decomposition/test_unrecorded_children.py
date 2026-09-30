@@ -156,6 +156,26 @@ class AdoptionTest(_UnrecordedChildCase):
                 self.assertEqual((finalized, self._labels(orphan)), (_FINALIZED, _RELEASED))
                 self.assertEqual(_support.parks(self.github), [])
 
+    def test_an_orphan_told_nothing_is_protected(self) -> None:
+        # The orphan's reuse instructions are cut out of its body before the
+        # recovery, its receipt kept. What it is owed comes from the parent's
+        # proved lineage rather than its text, so it goes onto the ledger with
+        # its record and is seeded with its pointer before anything starts it.
+        orphan = self._die_recording()
+        created = self.github.get_issue(orphan)
+        attempt = self.github.pinned_data(_support.PARENT)[KEY_SPLIT_ATTEMPT]
+        receipt = _split_receipts.child_marker(_support.PARENT, attempt, 0)
+        cut = created.body.index(receipt) + len(receipt)
+        created.body = created.body[:cut]
+
+        self._recover()
+        _support.redecompose(self.github, self.issue, tick=_umbrella._handle_umbrella)
+
+        self.assertNotIn(_support.SNAPSHOT_REF, created.body)
+        self.assertIn(orphan, _support.consumers(self.github))
+        self.assertEqual(_seed(self.github, orphan), (_support.PARENT, self.owed))
+        self.assertEqual(self._labels(orphan), _RELEASED)
+
     def test_a_dying_recovery_is_retried(self) -> None:
         # The recovery's own record of the child lands and the process dies
         # behind it: the retry reads a complete register and protects, seeds,
@@ -195,12 +215,14 @@ class StrandedTest(_UnrecordedChildCase):
     def test_a_short_register_parks(self) -> None:
         # The crash lands on the first of two: adopting it leaves a slice
         # nobody created, and the manifest it was declared in is not kept, so
-        # the split parks with the orphan recorded and opens nothing.
+        # the split parks with the orphan recorded -- and its ref kept for it
+        # -- and opens nothing.
         orphan = self._die_recording(_support.REPLACEMENT_MANIFEST)
 
         self._recover()
 
         self.assertEqual(self._register(), ([orphan], [orphan]))
+        self.assertIn(orphan, _support.consumers(self.github))
         self.assertEqual(self._labels(orphan), _UNFINALIZED)
         self.assertEqual(self._parked("1 of 2"), (_CRASH_PARKED, True))
 

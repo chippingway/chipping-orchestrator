@@ -1381,8 +1381,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       split_receipts.py     the hidden receipt every ordinary split child's body carries -- the parent, the split's
                             freshly minted `split_attempt`, and the slice -- and the recovery's adoption of the one
                             child a crash can leave created and unrecorded: found by that receipt among the issues
-                            this orchestrator opened and recorded on the parent, unless it was closed, relabelled, or
-                            carries a second receipt, or the parent names no attempt
+                            this orchestrator opened and recorded on the parent -- and, in the same write, on the
+                            consumer ledger wherever the parent's proved lineage points its children at a snapshot,
+                            whatever the child's text now says -- unless it was closed, relabelled, or carries a
+                            second receipt, or the parent names no attempt
       split.py              decide the children's lineage and park an unprovable one before any marker -- or a slice
                             naming a snapshot ref its child would not be kept -- stamp each child's receipt and
                             append the snapshot's reuse instructions to the body of each child owed it, then persist

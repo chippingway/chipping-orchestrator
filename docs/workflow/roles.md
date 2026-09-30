@@ -1977,8 +1977,11 @@ again by what the split put in it. Every child's body carries a hidden receipt n
 minted for that split alone, and its slice, and the attempt goes onto the parent in the same write as the expected
 count and the whole dependency graph, before the first child exists. A recovery whose register is short looks for
 the next slice's receipt among the issues this orchestrator opened, and records the one it finds — open, still
-`workflow:blocked`, carrying no other receipt — in a parent write of its own, after which the recovery above holds
-it to the same lineage, protects it, and seeds it before anything finalizes. A candidate a human closed or
+`workflow:blocked`, carrying no other receipt — in a parent write of its own. That write also records it on
+`late_consumers` wherever the parent's proved lineage points its children at a snapshot, exactly as the write the
+crash lost would have: every child of such a split is owed the pointer, so the entitlement is read off that lineage
+rather than off the child's text, which may have been edited since. The recovery above then holds it to the same
+lineage and seeds it before anything finalizes. A candidate a human closed or
 relabelled, one carrying a second receipt, a register still short once it is recorded (the rest were never created,
 and the manifest is not kept to create them from), and a split an older binary prepared with no attempt all park
 `decomposition_crash` instead, so nothing points an unrecorded child at a snapshot or starts it.

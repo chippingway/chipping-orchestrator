@@ -3377,7 +3377,9 @@ rather than preserving.
   whose title or body names any snapshot ref parks the same way.
   A snapshot ref recorded twice is a refusal whatever the two entries stand at, released included. Either park
   leaves every child unfinalized and unstarted. A child the crash left created and never recorded is found by its
-  `split_attempt` receipt and recorded first, then held to the same recognition as the rest. The dependency walk
+  `split_attempt` receipt and recorded first — on `late_consumers` too, in the same write, wherever this record's
+  lineage points its children at a snapshot, whatever the child's text now says — then held to the same
+  recognition as the rest. The dependency walk
   that releases an ordinary split's children — the split's own same-tick release of its no-dependency children
   included — asks the same decision off this record in front of every walk, and holds every child it would release
   to the recovery's recognition before the first is relabelled: a `parent_number` that is exactly this issue's
