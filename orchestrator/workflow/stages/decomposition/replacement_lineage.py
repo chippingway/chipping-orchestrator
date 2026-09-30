@@ -72,10 +72,9 @@ from orchestrator.workflow.stages.decomposition import state as _state
 log = logging.getLogger("orchestrator.workflow")
 
 # The reason the `park_awaiting_human` audit record carries for a split whose
-# children's lineage could not be proved.
+# children's lineage -- or the snapshot it would point them at -- could not be
+# proved.
 PARK_LINEAGE_UNPROVED = "replacement_lineage_unproved"
-
-_AT_THE_BOUND = "it already sits at lineage depth {depth}, and no split may create a child past {bound}"
 
 _NO_ADJUDICATION = "its late record keeps no cycle a child's ancestry could be correlated by"
 
@@ -88,12 +87,35 @@ _FOREIGN_SEED = (
     "drop, or another lineage"
 )
 
-_UNPROVED_PARK = (
-    "{mentions} this issue's children cannot be seeded with the late lineage "
-    "they inherit: {refusal}. A child seeded without it would start a fresh "
-    "lineage at depth 0 and buy the split a generation past the bound, so none "
-    "is created or started while that stands. Repair this issue's pinned "
-    "record, or ask the decomposer not to split it."
+# What a park says, one sentence per thing that did not hold, because each
+# asks a human for something different: a lineage nobody can read, a bound
+# already reached, a snapshot nobody can promise, and a recorded child nobody
+# can vouch for.
+_LINEAGE_NOTICE = (
+    "this issue's children cannot be seeded with the late lineage they inherit: {reason}. A child seeded "
+    "without it would read as a fresh lineage at depth 0 and buy the split a generation past the bound, so none "
+    "is created or started while that stands. Repair this issue's pinned record, or ask the decomposer not to "
+    "split it."
+)
+
+_BOUND_NOTICE = (
+    "this issue already sits at lineage depth {depth}, and no split may create a child past depth {bound}, so "
+    "none of the children the decomposer proposed is created. Its work lands as one change: ask the decomposer "
+    "not to split it."
+)
+
+_SNAPSHOT_NOTICE = (
+    "the late lineage this issue's children inherit is proved, and the snapshot its own split preserved is not "
+    "one a child can safely be promised: {reason}. Pointed at that ref, a child could lose it while it works; "
+    "seeded without it, a child would give up work it may still be owed. So none is created or started while "
+    "that stands. Repair this issue's late record so the snapshot reads as held or released, or ask the "
+    "decomposer not to split it."
+)
+
+_CHILD_NOTICE = (
+    "this issue's split recorded its children, and one of them is not a child it can say it seeded: {reason}. "
+    "Finalizing would start children whose lineage or parent nothing vouches for, so none of them is started "
+    "while that stands. Repair or close that child."
 )
 
 
@@ -103,7 +125,8 @@ class SeedRepair:
 
     The defaults are a child that needs nothing: seeded as it was owed, or
     owed no lineage at all. An ancestry is the group to write, and a refusal
-    says why this child may not be finalized -- never beside an ancestry.
+    is the notice saying why this child may not be finalized -- never beside
+    an ancestry.
     """
 
     ancestry: LateAncestry | None = None
@@ -117,13 +140,20 @@ class ReplacementLineage:
     The defaults are the ordinary issue, whose children carry a parent link
     and nothing more. An ancestry is the lineage every child is born into,
     with no pointer on it; a snapshot is the one this issue's own split holds
-    and may protect; and a refusal says why neither could be told -- never
-    beside either.
+    and may protect; and a refusal is the notice saying why neither could be
+    told -- never beside either.
     """
 
     ancestry: LateAncestry | None = None
     snapshot: _entitlement.SnapshotEntitlement | None = None
     refusal: str | None = None
+
+    @classmethod
+    def unproved(cls, reason: str | None) -> ReplacementLineage:
+        """The ordinary lineage where nothing is refused, else the refusal of an unreadable one."""
+        if reason is None:
+            return cls()
+        return cls(refusal=_LINEAGE_NOTICE.format(reason=reason))
 
     @classmethod
     def born_under(
@@ -198,7 +228,7 @@ class ReplacementLineage:
             return SeedRepair()
         refusal = _unrecognized(child_state, owed, child_number)
         if refusal is not None:
-            return SeedRepair(refusal=refusal)
+            return SeedRepair(refusal=_CHILD_NOTICE.format(reason=refusal))
         if not any(child_state.carries(key) for key in _lineage.LATE_ANCESTRY_KEYS):
             return SeedRepair(ancestry=owed)
         recorded = _lineage.read_late_ancestry(child_state)
@@ -217,24 +247,25 @@ def read_replacement_lineage(state: PinnedState, issue: Issue) -> ReplacementLin
     how a lineage starts over at 0. The bound is asked before anything is
     named, because a child it forbids has no ancestry to be given. A split of
     this issue's own whose snapshot cannot be told held or released is a
-    refusal too: seeding its children without a pointer would read a record
-    nobody can read as one that settled the ref gone.
+    refusal too, though the lineage beside it is proved: seeding its children
+    without a pointer would read a record nobody can read as one that settled
+    the ref gone. Each refusal is the notice its park posts.
     """
     provenance = _provenance.read_provenance(state, issue.number, issue.body)
     if not provenance.is_inherited:
-        return ReplacementLineage(refusal=provenance.refusal)
+        return ReplacementLineage.unproved(provenance.refusal)
     try:
         depth = _identity.child_lineage_depth(provenance.lineage_depth)
     except _identity.LineageDepthExceeded:
-        return ReplacementLineage(refusal=_AT_THE_BOUND.format(
+        return ReplacementLineage(refusal=_BOUND_NOTICE.format(
             depth=provenance.lineage_depth, bound=MAX_LINEAGE_DEPTH,
         ))
     adjudication = _adjudication_of(state)
-    refusal = _NO_ADJUDICATION if adjudication is None else _entitlement.unsettled_snapshot(
-        _late_state.read_late_generation(state), issue.number,
-    )
-    if refusal is not None:
-        return ReplacementLineage(refusal=refusal)
+    if adjudication is None:
+        return ReplacementLineage.unproved(_NO_ADJUDICATION)
+    unsettled = _entitlement.unsettled_snapshot(_late_state.read_late_generation(state), issue.number)
+    if unsettled is not None:
+        return ReplacementLineage(refusal=_SNAPSHOT_NOTICE.format(reason=unsettled))
     return ReplacementLineage.born_under(LateAncestry(
         root_issue=provenance.root_issue,
         lineage_depth=depth,
@@ -244,15 +275,13 @@ def read_replacement_lineage(state: PinnedState, issue: Issue) -> ReplacementLin
     ), provenance.snapshot)
 
 
-def park_unproved(gh: GitHubClient, issue: Issue, state: PinnedState, refusal: str) -> None:
-    """Hand the split to a human, naming the evidence that did not hold."""
+def park_unproved(gh: GitHubClient, issue: Issue, state: PinnedState, notice: str) -> None:
+    """Hand the split to a human, with the notice its refusal carries."""
     log.warning(
-        "issue=#%s may create or start no child: %s", issue.number, refusal,
+        "issue=#%s may create or start no child: %s", issue.number, notice,
     )
     _guards._park_awaiting_human(
-        gh, issue, state,
-        _UNPROVED_PARK.format(mentions=config.HITL_MENTIONS, refusal=refusal),
-        reason=PARK_LINEAGE_UNPROVED,
+        gh, issue, state, f"{config.HITL_MENTIONS} {notice}", reason=PARK_LINEAGE_UNPROVED,
     )
     gh.write_pinned_state(issue, state)
 

@@ -42,6 +42,9 @@ _SEEDED_LINK = frozenset((_support.KEY_PARENT_NUMBER, _support.KEY_CREATED_AT))
 
 _ANCESTRY_KEYS = frozenset(_lineage.LATE_ANCESTRY_KEYS)
 
+# What the park says where the lineage itself could not be read.
+_UNREAD_LINEAGE = "would read as a fresh lineage at depth 0"
+
 
 @dataclass(frozen=True)
 class _Lineage:
@@ -98,23 +101,32 @@ _LINEAGES = MappingProxyType({
 
 # Parents whose children's lineage cannot be proved, as each is seeded.
 _REFUSALS = MappingProxyType({
-    "a parent already at the bound": MappingProxyType({
-        "ancestry": _support.cut_from_ancestor(depth=_late_models.MAX_LINEAGE_DEPTH, parent=_GRANDPARENT),
-    }),
-    "an ancestry that names no parent": MappingProxyType({
-        "generation": _support.own_split(), _STRAY_ANCESTRY_KEY: 1,
-    }),
+    "a parent already at the bound": (
+        MappingProxyType({
+            "ancestry": _support.cut_from_ancestor(depth=_late_models.MAX_LINEAGE_DEPTH, parent=_GRANDPARENT),
+        }),
+        "no split may create a child past depth",
+    ),
+    "an ancestry that names no parent": (
+        MappingProxyType({"generation": _support.own_split(), _STRAY_ANCESTRY_KEY: 1}),
+        _UNREAD_LINEAGE,
+    ),
     # The parent's own split holds its snapshot, and its consumer ledger is one
-    # no replacement can be recorded on: not the same thing as a ref gone.
-    "a held snapshot no consumer can be added to": MappingProxyType({
-        "generation": _support.own_split(), _support.KEY_CONSUMERS: [_support.ORIGINAL, "#57"],
-    }),
-    "a child receipt with no ancestry": MappingProxyType({
-        "body": "\n\n".join((
-            _support.EDITED_BODY,
-            _ancestry.child_marker(issue=_support.ANCESTOR, cycle=_support.ANCESTOR_CYCLE, generation=1, index=0),
-        )),
-    }),
+    # no replacement can be recorded on: not the same thing as a ref gone, and
+    # nothing to do with the lineage, which is proved.
+    "a held snapshot no consumer can be added to": (
+        MappingProxyType({"generation": _support.own_split(), _support.KEY_CONSUMERS: [_support.ORIGINAL, "#57"]}),
+        "lineage this issue's children inherit is proved, and the snapshot",
+    ),
+    "a child receipt with no ancestry": (
+        MappingProxyType({
+            "body": "\n\n".join((
+                _support.EDITED_BODY,
+                _ancestry.child_marker(issue=_support.ANCESTOR, cycle=_support.ANCESTOR_CYCLE, generation=1, index=0),
+            )),
+        }),
+        _UNREAD_LINEAGE,
+    ),
 })
 
 
@@ -167,22 +179,23 @@ class UnprovedLineageTest(unittest.TestCase):
     """A lineage that cannot be proved parks the split before any child exists."""
 
     def test_nothing_is_created_or_started(self) -> None:
-        for shape, seeded in _REFUSALS.items():
+        for shape, (seeded, said) in _REFUSALS.items():
             with self.subTest(shape=shape):
                 github, issue = _support.late_parent(**seeded)
 
-                mocks = _support.redecompose(github, issue)
+                _support.redecompose(github, issue)[RUN_AGENT].assert_called_once()
 
-                mocks[RUN_AGENT].assert_called_once()
-                self._assert_held(github)
+                self._assert_held(github, said)
 
-    def _assert_held(self, github) -> None:
+    def _assert_held(self, github, said: str) -> None:
         """Nothing created or relabelled, and the park ahead of every marker.
 
         Ahead of the markers a recovery would read as a split, so the next
-        answer is the decomposer's again.
+        answer is the decomposer's again -- and its notice says which of the
+        things a split needs did not hold.
         """
         pinned = github.pinned_data(_support.PARENT)
+        self.assertIn(said, github.posted_comments[-1][1])
         self.assertEqual(github.created_child_issues, [])
         self.assertEqual(github.label_history, [])
         self.assertTrue(pinned[_support.KEY_AWAITING_HUMAN])

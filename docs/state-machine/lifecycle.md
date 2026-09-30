@@ -878,9 +878,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   POINTED at the ref is on the ledger too,
                                   recorded in the write that tracked it, so
                                   one reopened keeps the ref the same way.
-                                  The ref goes on the first
-                                  poll after they end that reaches this row
-                                  or the park row below.
+                                  The ref goes on the first poll after the
+                                  last recorded consumer ends that reaches
+                                  this row or the park row below.
                                   EVERY obligation that is not
                                   `reconciled` holds the terminal (a RETAINED
                                   ref included), as does an opaque RESOURCE

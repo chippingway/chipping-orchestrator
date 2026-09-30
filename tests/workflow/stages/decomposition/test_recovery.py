@@ -517,6 +517,7 @@ class RecordedSeedTest(_ReplacementRecoveryCase):
                 self.assertEqual(self.github.pinned_data(child), dict(carried))
                 self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
                 self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
+                self.assertIn(f"#{child}", self.github.posted_comments[-1][1])
 
     def test_an_unreadable_seed_is_never_finalized(self) -> None:
         # Nothing on it can be checked, and a seed written over it would take

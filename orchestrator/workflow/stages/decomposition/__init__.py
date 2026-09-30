@@ -20,7 +20,8 @@ tick asks the others in and `outcomes` the three dispositions its reply earns,
 `recovery` owns what a tick that died mid-split left behind, `split` owns the
 crash-safe order children are created in, `replacement_lineage` owns the late
 lineage those children are seeded with when the issue sits inside one -- and
-the park when that lineage cannot be proved -- and `parents`, `activation`,
+the park when that lineage, or the snapshot it would point them at, cannot be
+proved -- and `parents`, `activation`,
 `blocked`, and `umbrella` own the parent-side polling that drives the tree to
 completion.
 

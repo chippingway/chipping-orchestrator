@@ -655,11 +655,12 @@ because there it is the claim that this stage has already rerouted rather than a
   reroute orphaned are consumers the ref was preserved for — so one of them still open, reopened, or unreadable
   keeps the ref (and the terminal) however finished the replacements are. A replacement the re-decomposition
   pointed at the ref is a recorded consumer too, answered off the scan like any tracked child, so a replacement
-  reopened after it resolved keeps the ref the same way. The settlement is asked only where this
-  handler reaches it — a poll that finds every tracked child resolved, or one a child's disposition parks — so the
-  ref goes on the first such poll after the last original ends, not on the first poll of any kind; an original that
-  ends while replacements are still running frees nothing until they resolve or one parks the parent, and the
-  terminal is behind the same settlement, so nothing closes over the ref in between. "Ended" is the consumer's
+  reopened after it resolved keeps the ref the same way. The settlement is asked only where this handler reaches it
+  — a poll that finds every tracked child resolved, or one a child's disposition parks — so the ref goes on the first
+  such poll after the last recorded consumer (an original, or a replacement pointed at the ref) ends, not on the
+  first poll of any kind; an original that ends while replacements are still running frees nothing until they
+  resolve or one parks the parent, and the terminal is behind the same settlement, so nothing closes over the ref in
+  between. "Ended" is the consumer's
   own issue state, not its label: reaching `done`, being `rejected`, and a human closing it all close the issue, and
   reopening preserves the label — so a child reopened while still wearing `done` is live again and keeps the ref. A
   branch target outside the orchestrator namespace or belonging to another issue is refused rather than deleted; a

@@ -1677,11 +1677,12 @@ the umbrella, and from then on its scan is of the replacements while the origina
 the ref was preserved for. The ledger decides who is read, never the manifest beside it, and the orphans are only
 read and, once the ref goes, told so — never adopted, relabelled, or reopened. A replacement the re-decomposition
 pointed at the ref is on that ledger too ([below](#what-an-ordinary-re-decomposition-seeds-inside-a-lineage)), so the
-ref waits for it exactly as it waits for an original. What the ledger does not
-change is *when* the question is asked: only on a tick that finds every tracked child resolved, or one a child's
-disposition parks. So an original that ends while the replacements are still running frees the ref on the first
-such tick after it, not sooner — and the terminal waits behind the same settlement, so nothing closes over the ref
-in between. Anything that cannot be
+ref waits for it exactly as it waits for an original, and a replacement reopened after it resolved keeps the ref the
+same way. What the ledger does not change is *when* the question is asked: only on a tick that finds every tracked
+child resolved, or one a child's disposition parks. So the ref goes on the first such tick after the last recorded
+consumer — an original, or a replacement pointed at the ref — has ended, not sooner; an original that ends while
+the replacements are still running frees nothing until they resolve or one parks the parent, and the terminal waits
+behind the same settlement, so nothing closes over the ref in between. Anything that cannot be
 proved keeps the ref: a consumer that is open or was reopened, one whose read failed, or a consumer ledger this
 binary could not type. All of that
 is about the consumers the ledger *names*, so the prior question is whether it names all of them, and the record's
