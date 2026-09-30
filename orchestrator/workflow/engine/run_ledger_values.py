@@ -3,7 +3,8 @@
 """Validated pinned fields for the lifetime agent-run ledger.
 
 The used count is floored by the legacy usage meter. Missing allowances defer
-to configuration, and malformed counts or reservation phases grant no evidence."""
+to configuration, and malformed counts or reservation phases grant no evidence.
+A launch owed exactly once leaves the count it was owed at beside its start."""
 from __future__ import annotations
 
 from typing import Any
@@ -36,6 +37,13 @@ AGENT_RUN_RESERVATION = "agent_run_reservation"
 # phase alone says a charge is standing and not what it is standing for, and a
 # charge nothing can identify is one any launch could claim.
 AGENT_RUN_FINGERPRINT = "agent_run_fingerprint"
+
+# The count the last launch owed exactly once was owed at -- a handed change
+# request's developer -- written with that launch's start and by nothing
+# else: the one record that says the launch it names reached a process,
+# whatever other launches were charged beside or after it. Absent where no
+# such launch has started.
+AGENT_RUN_OWED_STARTED = "agent_run_owed_started"
 
 # The per-issue meter the usage accounting folds every parsed agent exit onto.
 # Read here as the seed and the floor of the count above, never written.
@@ -91,6 +99,16 @@ def _reservation(state: PinnedState) -> _run_ledger_models.RunPhase | None:
         return _run_ledger_models.RunPhase(state.get(AGENT_RUN_RESERVATION))
     except ValueError:
         return None
+
+
+def _owed_started(state: PinnedState) -> int | None:
+    """The count the last launch owed exactly once was owed at, where one has started.
+
+    A count read any other way -- the used count past it -- cannot say which
+    launch moved it: a reviewer or any other road's run charged meanwhile
+    moves it just the same. Anything but a real whole count is no such start.
+    """
+    return _counted(state.get(AGENT_RUN_OWED_STARTED))
 
 
 def _fingerprint(state: PinnedState) -> str | None:

@@ -191,9 +191,10 @@ def run_launch(
     *,
     outcome: AgentResult | Exception | None = None,
     allowance: int = ALLOWANCE,
+    owed_at: int | None = None,
     **request_fields,
 ) -> Launch:
-    """Drive one tracked run, recording what the process saw."""
+    """Drive one tracked run, recording what the process saw; owed once at `owed_at` where it names a count."""
     named = {
         "agent_role": ROLE,
         "stage": STAGE,
@@ -202,7 +203,9 @@ def run_launch(
         "cwd": WORKTREE,
     }
     budget = _run_charge_state.AgentRunBudget(
-        issue=launch.issue, state=launch.state,
+        issue=launch.issue,
+        state=launch.state,
+        owed=None if owed_at is None else _run_charge_state.OwedLaunch(owed_at),
     )
     with patch.object(config, "MAX_AGENT_RUNS_PER_ISSUE", allowance), \
             patch.object(

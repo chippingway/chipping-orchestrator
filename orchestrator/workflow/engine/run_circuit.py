@@ -2,9 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Reserve and start a lifetime agent-run charge before invoking any process.
 
-Only the logical launch holding a reserved charge can reuse it. The state owner
-reads and persists each step before its budget event is emitted; exhaustion
-parks the issue on that same durable reading and always refuses invocation."""
+Only the logical launch holding a reserved charge can reuse it, and a launch
+owed once is refused on any reading that shows another road already made it
+or that it no longer stands, its start written over a reading taken behind
+its charge. The state owner reads and persists each step before its budget
+event is emitted; exhaustion parks the issue on that same durable reading and
+always refuses invocation."""
 from __future__ import annotations
 
 import logging
@@ -77,9 +80,17 @@ def _charge_launch(
     for and refusing it would spend the charge on nothing. Every other launch
     is a new attempt: it is refused where the allowance has nothing left, and
     otherwise reserved, started, and let through.
+
+    A launch owed once is asked first, over that same reading
+    (`_owed_stands`): whatever its caller checked was read requests ago, and a
+    launch another road started since would otherwise be charged and made a
+    second time, while one whose standing moved would be made over what
+    nobody owes it. It is refused with nothing written. Its start is written
+    over a reading of its own, taken behind the charge
+    (`_read_behind_the_charge`).
     """
     durable = _run_charge_state._durable_state(gh, budget.issue)
-    if durable is None:
+    if durable is None or not _owed_stands(budget, durable):
         return False
     ledger = _run_ledger._read_ledger(durable)
     if not ledger.pending_for(launch.fingerprint):
@@ -88,7 +99,64 @@ def _charge_launch(
             return False
         if not _reserve(gh, budget, durable, launch):
             return False
-    return _start(gh, budget, durable, launch)
+    if budget.owed is not None:
+        durable = _read_behind_the_charge(gh, budget, launch)
+    return durable is not None and _start(gh, budget, durable, launch)
+
+
+def _owed_stands(budget: _run_charge_state.AgentRunBudget, reading: PinnedState) -> bool:
+    """Whether a launch owed once is still its caller's to make on `reading`; every other launch is.
+
+    Not where the reading records the start of that very launch, which
+    another road made (`AgentRunBudget.made_elsewhere`), and not where the
+    caller's own hold says the launch no longer stands on it
+    (`OwedLaunch.stands`).
+    """
+    owed = budget.owed
+    if owed is None:
+        return True
+    if budget.made_elsewhere(reading):
+        log.info(
+            "issue=#%d the launch its caller owed once was already made by "
+            "another road; invoking nothing", budget.issue.number,
+        )
+        return False
+    return owed.stands is None or owed.stands(reading)
+
+
+def _read_behind_the_charge(
+    gh: GitHubClient,
+    budget: _run_charge_state.AgentRunBudget,
+    launch: AgentRunLaunch,
+) -> PinnedState | None:
+    """The reading a launch owed once is started over, taken behind its charge; None refuses it.
+
+    The reading the charge was taken on is a write old by now, long enough
+    for another road to start that very launch, or to charge a run of its
+    own over the reservation: a start staged over it would write those back
+    to what this road read -- a second developer invoked, the count run
+    backwards -- so the start is written over the comment read again, and
+    only while it still carries this launch's own reservation and the launch
+    still stands there (`_owed_stands`). Whatever else the launch stands on
+    is resolved first (`OwedLaunch.resolves`), so what lands during those
+    requests is on this reading. A refusal starts and invokes nothing, and
+    leaves a charge of this launch's own standing unstarted, for the launch it
+    was taken for.
+    """
+    owed = budget.owed
+    if owed.resolves is not None and not owed.resolves():
+        return None
+    fresh = _run_charge_state._durable_state(gh, budget.issue)
+    if fresh is None:
+        return None
+    if not _run_ledger._read_ledger(fresh).pending_for(launch.fingerprint):
+        log.info(
+            "issue=#%d the charge its caller's launch owed once was taken "
+            "under no longer stands unstarted; starting and invoking nothing",
+            budget.issue.number,
+        )
+        return None
+    return fresh if _owed_stands(budget, fresh) else None
 
 
 def _reserve(
@@ -123,10 +191,12 @@ def _start(
 
     Recorded once per charge rather than once per launch that reached here: a
     launch honoring a reservation an earlier tick left standing pays for no
-    new run, so the only budget transition it has to report is this one.
+    new run, so the only budget transition it has to report is this one. A
+    launch owed once records the count it was owed at in the same write
+    (`run_ledger_values.AGENT_RUN_OWED_STARTED`).
     """
     recorded = dict(durable.data)
-    _run_ledger._start_reserved_run(durable)
+    _run_ledger._start_reserved_run(durable, budget.owed_at)
     if not _run_charge_state._persist(gh, budget, durable, recorded):
         return False
     _run_budget._emit_charge(

@@ -24,10 +24,13 @@ the record and are closed by the write that settles the report.
 
 The reviewer-feedback comment's id is recorded because a session-failure park
 on this route has to be retryable by `/orchestrator continue`, and the fixing
-handler replays that exact comment to reconstruct the batch. It is a
-standalone key rather than part of the in_review bookmark pair, since
-`pending_fix_at` is what tells that route's round RESET from this route's
-bump.
+handler replays that exact comment to reconstruct the batch. It is the one
+durable copy of the feedback once a persisted verdict is handed on, so that
+handoff (`review_handoffs`) goes on only behind a post whose id it read, while
+a change request nothing persisted has no later tick to post from and goes on
+without one. It is a standalone key rather than part of the in_review bookmark
+pair, since `pending_fix_at` is what tells that route's round RESET from this
+route's bump.
 
 A reviewer that emitted no VERDICT line is the other verdict, and it splits by
 whose failure it was. An empty last message with a non-zero exit is a crash,
@@ -57,6 +60,7 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     messages as _messages,
     prompts as _prompts,
+    report_record_values as _record_values,
     report_records as _records,
     usage as _usage,
 )
@@ -169,16 +173,26 @@ def _park_reviewer_no_verdict(
     gh.write_pinned_state(issue, state)
 
 
-def _post_reviewer_feedback(context: _models._RequestedChanges) -> None:
-    reviewer_run = context.decision.run
-    if reviewer_run.pr_number is None:
-        return
-    round_display = reviewer_run.round_n + 1
-    feedback = context.decision.feedback
+def _post_reviewer_feedback(context: _models._RequestedChanges) -> int | None:
+    """Post the reviewer's feedback on the PR; the id it landed as, or None where none was read.
+
+    The id is the replay anchor a `/orchestrator continue` on a later park of
+    this route hands a fresh developer, and it is its caller's to stage: this
+    route stages it at once, while a persisted verdict's handoff goes on only
+    behind one and stages it beside the handoff, once the subject is held
+    again behind the post (`review_handoffs`). An issue with no pull request
+    to post on, a post that failed, and one whose response named no comment
+    -- no positive whole id, that is -- all answer None. Only the post's entry
+    in the orchestrator's comment ledger is staged here.
+    """
+    if context.pr_number is None:
+        return None
+    round_display = context.round_n + 1
+    feedback = context.feedback
     try:
         reviewer_comment = _comments._post_pr_comment(
             context.gh,
-            int(reviewer_run.pr_number),
+            int(context.pr_number),
             context.state,
             f":eyes: {config.REVIEW_AGENT} review "
             f"(round {round_display}/"
@@ -189,16 +203,26 @@ def _post_reviewer_feedback(context: _models._RequestedChanges) -> None:
         log.exception(
             "issue=#%s could not post review to PR #%s",
             context.issue.number,
-            reviewer_run.pr_number,
+            context.pr_number,
         )
-        return
-    anchor_id = getattr(reviewer_comment, "id", None)
-    if anchor_id is not None:
-        context.state.set("pending_fix_reviewer_comment_id", int(anchor_id))
+        return None
+    # A whole, positive comment id and nothing else: a flag or a fraction
+    # coerced to one would anchor a replay to some other comment.
+    return _record_values.as_recorded_number(getattr(reviewer_comment, "id", None))
 
 
-def _run_requested_fix(context: _models._RequestedChanges) -> _models._AwaitingDevAttempt:
-    before_sha = _verification_probes._head_sha(context.decision.run.wt)
+def _run_requested_fix(
+    context: _models._RequestedChanges, **resume: object,
+) -> _models._AwaitingDevAttempt:
+    """Resume the developer on the reviewer's feedback under `workflow:fixing`.
+
+    `resume` is what a persisted request's handoff (`review_handoffs`) adds to
+    the resume: `owed`, the launch it owes once -- the run count it was handed
+    at and what it stands on -- which the run circuit holds the launch to on
+    the readings it charges and starts it from. The live round adds nothing,
+    since it owes the launch once by construction.
+    """
+    before_sha = _verification_probes._head_sha(context.wt)
     # The caller flipped the label validating -> fixing just before this.
     # Pass `fixing` explicitly rather than let the resume helper read the
     # label back off the issue: on any object that flip did not go through it
@@ -209,9 +233,10 @@ def _run_requested_fix(context: _models._RequestedChanges) -> _models._AwaitingD
         context.spec,
         context.issue,
         context.state,
-        _prompts._build_fix_prompt(context.decision.feedback),
+        _prompts._build_fix_prompt(context.feedback),
         stage=stage_name(WorkflowLabel.FIXING),
         pause_guard=True,
+        **resume,
     )
     context.state.set("last_agent_action_at", _usage._now_iso())
     return _models._AwaitingDevAttempt(
@@ -251,7 +276,7 @@ def _finish_requested_fix(
     """
     if attempt.paused:
         return
-    owed = _rounds._spends_a_requested_round(context.decision.run.round_n)
+    owed = _rounds._spends_a_requested_round(context.round_n)
     outcome = _fix_reports._post_requested_fix_result(
         context.gh,
         context.spec,
@@ -333,8 +358,13 @@ def _handle_validating_changes_requested(
     is a standalone key cleared on the pushed-fix exit here and inside
     `_clear_pending_fix_bookmarks`.
     """
-    context = _models._RequestedChanges(gh, spec, issue, state, decision)
-    _post_reviewer_feedback(context)
+    run = decision.run
+    context = _models._RequestedChanges(
+        gh, spec, issue, state, run.wt, run.round_n, run.pr_number, decision.feedback,
+    )
+    anchor_id = _post_reviewer_feedback(context)
+    if anchor_id is not None:
+        state.set("pending_fix_reviewer_comment_id", anchor_id)
     gh.set_workflow_label(issue, WorkflowLabel.FIXING)
     gh.write_pinned_state(issue, state)
     _finish_requested_fix(context, _run_requested_fix(context))

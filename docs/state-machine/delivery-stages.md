@@ -3736,8 +3736,38 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        the proof, has to carry the report, pull-request, verdict, and evidence records the proof was taken over. A
        refusal comes back in the words the `reviewer_unverified` park carries, for the disposition to park; a proof
        nobody could read holds the verdict, untouched, for a later tick; and a proved approval is handed to the arc
-       measured from that last reading. The record and both parks are described under [pinned
-       state](labels-and-state.md#pinned-state).
+       measured from that last reading. A ready change request is to reach its developer through its handoff
+       (`validating/review_handoffs.py`), which nothing calls yet either: only the decision the request was persisted
+       from -- its round, verdict, subject, and feedback -- is handed over in the tick its reviewer returned, and a
+       later tick, holding no decision, hands the request over from the record alone, the feedback posted on that
+       subject's pull request, and a post that failed, left no positive whole id, or had no such pull request to go on
+       holds the verdict unhanded with nothing written; the subject -- with the pull request the issue points at and the
+       evidence the request claims -- is held again behind that post; the verdict is written as `handed`, with the id of
+       that post as its `anchor`, beside the `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to
+       `workflow:fixing`; and the launch -- subject, evidence, run ledger, and anchor, over the comment read again -- is
+       held to what stands before that relabel and once more before the developer launch, so the issue is never
+       relabelled for a launch another write behind the handed one already ruled out, a move behind any of those
+       requests dropping the verdict and the anchor naming its post over the newer records -- unless the reading that
+       proved the move records `agent_run_owed_started` at `handed`: that developer's own push moved it, and the verdict
+       is retired as launched (below), its anchor kept for that developer's replay. A verdict already `handed`
+       posts nothing again, and relabels and launches that developer — or, where `agent_run_owed_started` records that
+       developer's start at `handed`, drops the verdict over the comment read again, keeping what another road wrote
+       since, the developer already launched (another run charged meanwhile, a reviewer's say, records no such start,
+       and a charge still standing as an unstarted `agent_run_reservation` recorded none: the launch stays owed,
+       honoring that reservation), which is asked again right before every launch so a developer another road launched
+       behind the relabel is not launched twice -- and once more by the run circuit, on the readings it charges and
+       starts the launch from, which refuse it with nothing started or written over them where another road started that
+       developer, or charged a run over its reservation, after the handoff's last reading, pinned another comment in its
+       place, or where the verdict, the anchor, the report records, the pull request the issue points at, or the claimed
+       evidence moved there, the whole subject resolved again right behind the charge
+       (`validating/review_launch_hold.py`; [The agent-run circuit](labels-and-state.md#the-agent-run-circuit)). What
+       else another road wrote on a reading the launch stands on is carried onto the state the developer's run is
+       written back from, so that run's writes keep it. Either launch is made only behind that anchor, still naming, as
+       a whole comment id, the post the verdict records, which the fixing stage clears with the round's other bookmarks:
+       a handoff that lost it, whose anchor names another comment, whose anchor is no whole id, or recorded before
+       handoffs anchored their post, naming none, is held, nothing relabelled or launched, since no failed run could
+       replay the feedback, or one would replay another comment as it. The record and both parks are described under
+       [pinned state](labels-and-state.md#pinned-state).
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.
      On a hit the handler returns WITHOUT running its result handler (`_post_user_content_change_result` /

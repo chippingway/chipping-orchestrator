@@ -10,8 +10,8 @@ verdict ready to be acted on, or nothing. `waiting_verdict_ready` answers the
 same of a verdict a later tick finds waiting, from the pinned comment alone:
 the process keeps nothing between ticks, so nothing of the run that returned
 the verdict is there to ask. Acting on a ready verdict -- the approval arc, a
-change request's handoff to a developer, the parks -- is not this owner's, and
-nothing asks either entry yet.
+change request's handoff to its developer (`review_handoffs`), the parks
+(`review_parks`) -- is not this owner's, and nothing asks either entry yet.
 
 A verdict is persisted only while the whole subject the reviewer was handed --
 head, requirements, and report -- still stands. A verdict of a subject that

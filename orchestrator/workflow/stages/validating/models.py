@@ -32,8 +32,10 @@ consumed through the ordinary pinned settlement, recording ONE answered
 control comment and nothing else through the same settlement, and writing
 down that a reply has bought a reviewer round the tick may not get to run. `_RequestedChanges` and
 `_AwaitingDevAttempt` bracket the fix that follows a verdict: the first
-freezes what the CHANGES_REQUESTED route needs, the second reports whether
-the resume that ran was cut short by a live pause.
+freezes what the CHANGES_REQUESTED route hands the developer -- nothing of
+the reviewer's run beyond it, so a later tick rebuilds it from the persisted
+verdict alone -- the second reports whether the resume that ran was cut short
+by a live pause.
 
 `_dev_fix_run` validates rather than carries. Both fix-disposition entry
 points still accept the historical positional call, so it binds one of those
@@ -212,11 +214,23 @@ class _DevFixRun:
 
 @dataclass(frozen=True)
 class _RequestedChanges:
+    """What a reviewer's change request hands the developer who answers it, beside the tick's own context.
+
+    The checkout that developer resumes in, the round it answers, the pull
+    request its feedback is posted on and its fix pushed to, and the feedback
+    itself -- all a handoff needs, and nothing of the reviewer's run beyond
+    them, so a later tick holding no decision builds one from the persisted
+    verdict and the issue's checkout alone.
+    """
+
     gh: _client.GitHubClient
     spec: _config_models.RepoSpec
     issue: Issue
     state: _pinned_state.PinnedState
-    decision: _ReviewerDecision
+    wt: Path
+    round_n: int
+    pr_number: Any
+    feedback: str
 
 
 @dataclass(frozen=True)

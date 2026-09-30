@@ -2,17 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 """Fresh pinned reads and durable state writes at the agent-launch charge boundary.
 
-A failed or unreadable record refuses the launch. Only fields changed by this
-charge are merged back into the caller state, preserving its staged changes."""
+A failed or unreadable record refuses the launch, and so does one showing a
+launch its caller owed once already made by another road, or no longer
+standing on what its caller holds it to. Only fields changed by this charge
+are merged back into the caller state, preserving its staged changes."""
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from github.Issue import Issue
 
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -21,6 +25,26 @@ log = logging.getLogger("orchestrator.workflow")
 # pinned state legitimately carries, so it cannot stand for one that is not
 # there.
 _UNSET = object()
+
+
+@dataclass(frozen=True)
+class OwedLaunch:
+    """A launch owed exactly once -- a handed change request's developer -- and what else it stands on.
+
+    `at` is the lifetime run count it is owed at, which its start records
+    (`run_ledger_values.AGENT_RUN_OWED_STARTED`). Whatever its caller held
+    the launch to is requests old by the time the circuit charges and starts
+    it, so the circuit asks again at that boundary: `resolves` makes the
+    requests its standing takes beyond the pinned comment -- the subject
+    resolved again -- right behind the charge, and `stands` judges each
+    reading of the comment the charge is written from, the one its start is
+    written over last. False from either refuses the launch. None of either is
+    a launch standing on nothing but its count.
+    """
+
+    at: int
+    resolves: Callable[[], bool] | None = None
+    stands: Callable[[PinnedState], bool] | None = None
 
 
 @dataclass(frozen=True)
@@ -33,10 +57,41 @@ class AgentRunBudget:
     `state` is the caller's own in-memory object, which the charge is merged
     back into so the write that dispositions the run at the end of it does not
     hand the issue back the count of one that never launched.
+
+    `owed` is for a caller whose launch is owed exactly once, and names the
+    count it is owed at and what else it stands on; None for every launch
+    owed however often it is asked for.
     """
 
     issue: Issue
     state: PinnedState
+    owed: OwedLaunch | None = None
+
+    @property
+    def owed_at(self) -> int | None:
+        """The lifetime run count the launch is owed at, where it is owed exactly once."""
+        return None if self.owed is None else self.owed.at
+
+    def made_elsewhere(self, durable: PinnedState) -> bool:
+        """Whether `durable` shows the launch this budget is owed once already made by another road.
+
+        Asked on the very reading the charge is taken on, since whatever the
+        caller checked before it is requests old by then, and a launch another
+        road started in between is there alone to see. That launch is the one
+        whose start recorded `owed_at` (`run_ledger_values._owed_started`) --
+        not merely a count past it, which a reviewer or any other road's run
+        moves just the same -- save a start the caller's own state carries:
+        every write this circuit takes is merged back onto that state, so a
+        continuation of the launch -- a poisoned session's fresh retry, a
+        recovery prompt -- is its own, not another road's. A charge standing
+        unstarted recorded no start, and a reservation taken for this very
+        launch is honored.
+        """
+        owed_at = self.owed_at
+        if owed_at is None:
+            return False
+        own = _run_ledger_values._owed_started(self.state) == owed_at
+        return not own and _run_ledger_values._owed_started(durable) == owed_at
 
 
 def _durable_state(gh: GitHubClient, issue: Issue) -> PinnedState | None:

@@ -2,17 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 """The charge a launch takes at the boundary a process is invoked from.
 
-Five promises are pinned here, each one something the lifetime ceiling above
+Six promises are pinned here, each one something the lifetime ceiling above
 this owner is worth nothing without: a charge that is durable before the
 process exists, a crash window a later launch can recognize, a refusal that
-invokes nothing at all, a caller whose own staged fields are not published by
-somebody else's write, and a run whose ending -- exception, interruption, or
+invokes nothing at all, a launch owed once refused on the very reading that
+shows another road made it, a caller whose own staged fields are not published
+by somebody else's write, and a run whose ending -- exception, interruption, or
 an ordinary exit -- never hands the charge back.
 """
 from __future__ import annotations
 
 import unittest
 
+from orchestrator.github.pinned_state import PinnedState
 from tests.workflow.engine import (
     run_budget_test_support as budget,
     run_circuit_test_support as support,
@@ -308,6 +310,75 @@ class ChargeRecordTest(unittest.TestCase):
         )
 
         self.assertEqual(budget.audited(launch.gh), [])
+
+
+# What the start of a launch owed once records beside its phase.
+OWED_STARTED = "agent_run_owed_started"
+
+# A launch owed once at one run: the ledger the circuit reads, the one the
+# caller's own state carries, and then how many processes were invoked, how
+# many runs the issue durably records, and the count the last start of a launch
+# owed once recorded. Another road's start of that launch is the launch made;
+# a start recording no such count -- some other run, a reviewer's -- is not;
+# an unstarted charge recorded no start at all, and this launch's own is
+# honored; and a start the caller's state carries is its own, which a
+# continuation of the launch is charged past.
+_OWED_ONCE = (
+    (
+        "another road's start of the launch",
+        {support.USED: 2, support.RESERVATION: support.STARTED, support.FINGERPRINT: support.OTHER_LAUNCH,
+         OWED_STARTED: 1},
+        {support.USED: 1},
+        (0, 2, 1),
+    ),
+    (
+        "another road's unrelated start",
+        {support.USED: 2, support.RESERVATION: support.STARTED, support.FINGERPRINT: support.OTHER_LAUNCH},
+        {support.USED: 1},
+        (1, 3, 1),
+    ),
+    (
+        "this launch's unstarted charge",
+        {support.USED: 2, support.RESERVATION: support.RESERVED, support.FINGERPRINT: support.fingerprint()},
+        {support.USED: 2, support.RESERVATION: support.RESERVED, support.FINGERPRINT: support.fingerprint()},
+        (1, 2, 1),
+    ),
+    (
+        "the caller's own start",
+        {support.USED: 2, support.RESERVATION: support.STARTED, support.FINGERPRINT: support.fingerprint(),
+         OWED_STARTED: 1},
+        {support.USED: 2, support.RESERVATION: support.STARTED, support.FINGERPRINT: support.fingerprint(),
+         OWED_STARTED: 1},
+        (1, 3, 1),
+    ),
+)
+
+
+class OwedOnceLaunchTest(unittest.TestCase):
+    """A launch owed once is held to it on the very reading its charge is taken on."""
+
+    def test_only_another_roads_process_refuses_it(self) -> None:
+        # Whatever the caller checked was read before the circuit's own
+        # reading, and a process another road started in between is on that
+        # reading alone: seen there, nothing is charged, written, or invoked,
+        # and the answer is a run that never ran.
+        for name, durable, own, expected in _OWED_ONCE:
+            with self.subTest(name):
+                launch = support.seeded(**own)
+                launch.gh.write_pinned_state(
+                    launch.issue, PinnedState(comment_id=launch.state.comment_id, state_data=dict(durable)),
+                )
+                launch.gh.writes.clear()
+
+                support.run_launch(launch, owed_at=1)
+
+                self.assertEqual(
+                    (launch.invocations, launch.spent, launch.durable.get(OWED_STARTED)), expected,
+                )
+                self.assertEqual(
+                    (launch.answer.invoked, bool(launch.gh.writes)),
+                    (bool(expected[0]), bool(expected[0])),
+                )
 
 
 class CallerStateTest(unittest.TestCase):
