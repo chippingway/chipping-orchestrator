@@ -385,7 +385,8 @@ def _written(ancestry, **edits) -> dict:
 # What a recorded child may carry that the crashed split did not seed: part of
 # the group, a field its reader would drop, a whole group naming another
 # lineage, a link to another parent, and a link that is no issue number even
-# where it compares equal to this one -- beside the owed ancestry, or alone.
+# where it compares equal to this one or is carried as `null` -- beside the
+# owed ancestry, or alone.
 _FOREIGN_SEEDS = MappingProxyType({
     "part of the group": MappingProxyType({"late_ancestry_depth": 1}),
     "a field its reader would drop": MappingProxyType(
@@ -401,6 +402,10 @@ _FOREIGN_SEEDS = MappingProxyType({
     ),
     "this parent as a float and no ancestry": MappingProxyType({KEY_PARENT_NUMBER: float(_support.PARENT)}),
     "a boolean link and no ancestry": MappingProxyType({KEY_PARENT_NUMBER: False}),
+    "a null link beside the owed ancestry": MappingProxyType(
+        _written(_support.ROOT_REPLACEMENT, **{KEY_PARENT_NUMBER: None}),
+    ),
+    "a null link and no ancestry": MappingProxyType({KEY_PARENT_NUMBER: None}),
 })
 
 # The parents a crashed split is recovered under, each beside whether its

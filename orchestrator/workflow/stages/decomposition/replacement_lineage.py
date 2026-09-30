@@ -53,10 +53,11 @@ recognize as its own -- a pinned comment that would not parse, a link to
 anything but this issue's number, text naming any snapshot ref it cannot
 keep, or any other ancestry: a partial group, a field its reader would drop,
 another lineage -- refuses the finalize that would start it, with nothing
-written over what it carries. A child of an ordinary split is held to the same recognition: it is
-owed no lineage and no snapshot, so it is left as it stands only where its
-comment parses, its link names this issue or nothing, it carries none of the
-group, and its text names no snapshot ref -- and refused otherwise.
+written over what it carries. A child of an ordinary split is held to the
+same recognition: it is owed no lineage and no snapshot, so it is left as it
+stands only where its comment parses, its link names this issue or is not
+carried at all (a `null` link is refused), it carries none of the group, and
+its text names no snapshot ref -- and refused otherwise.
 """
 from __future__ import annotations
 
@@ -412,9 +413,10 @@ def _unrecognized(
     it carried with it -- so it is refused before anything is read off it. A
     child whose text names a snapshot this split cannot keep for it is not
     `promised`. A link proves parentage only as this issue's number: one
-    naming another is a child another tree claims, and a float, a bool, or
-    any other value a hand edit leaves is no issue number, whatever it
-    compares equal to. And
+    naming another is a child another tree claims, and a float, a bool, a
+    `null`, or any other value a hand edit leaves is no issue number, whatever
+    it compares equal to. Only a link the comment does not carry at all is
+    the one a crash deferred. And
     an ancestry has to be the whole group, written back exactly as the comment
     carries it -- a field its reader would drop, a `null`, or a key it answers
     with its empty value comes back different -- naming the lineage it was
@@ -429,7 +431,7 @@ def _unrecognized(
     if not promised:
         return _UNPROMISED.format(child=child_number)
     linked = child_state.get(_state._PARENT_NUMBER)
-    if linked is not None and not _state._links_to(linked, parent):
+    if child_state.carries(_state._PARENT_NUMBER) and not _state._links_to(linked, parent):
         return _OTHER_PARENT.format(child=child_number, parent=linked)
     if not any(child_state.carries(key) for key in _lineage.LATE_ANCESTRY_KEYS):
         return None

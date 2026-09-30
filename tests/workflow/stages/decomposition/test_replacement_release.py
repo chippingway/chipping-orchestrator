@@ -81,6 +81,9 @@ _CHANGES = MappingProxyType({
     "the dependent's parent link rewritten as a float": (
         _Change(added=_FLOAT_LINK), WorkflowLabel.BLOCKED, _PARKED_ONCE,
     ),
+    "the dependent's parent link rewritten as null": (
+        _Change(added=((_support.KEY_PARENT_NUMBER, None),)), WorkflowLabel.BLOCKED, _PARKED_ONCE,
+    ),
     # What the text is held to is naming no ref the split cannot keep: a
     # protected child told nothing about its ref is still one it keeps.
     "the reuse instructions taken out of the dependent's body": (_Change(bare=True), WorkflowLabel.READY, ()),

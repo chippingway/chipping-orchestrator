@@ -114,11 +114,12 @@ def _seed_orphan_child_state(
     Answers why this child may not be finalized, or None once it is repaired.
     The child is held to the parent's record before anything is written: its
     pinned comment has to parse, its parent link has to be this issue's
-    number or absent, its ancestry has to be the one it was owed -- none,
-    where the record proves no lineage -- and any snapshot ref its title or
-    body names has to be the one this split can still keep for it, which a
-    split owing no lineage has none of -- the reading a slice is held to
-    before it is created. A child refused keeps exactly what it carried -- the
+    number or not carried at all (a `null` is a value, and no issue number),
+    its ancestry has to be the one it was owed -- none, where the record
+    proves no lineage -- and any snapshot ref its title or body names has to
+    be the one this split can still keep for it, which a split owing no
+    lineage has none of -- the reading a slice is held to before it is
+    created. A child refused keeps exactly what it carried -- the
     damage every later reader of it refuses on included. One told about a
     snapshot the consumer ledger no longer names is recorded there again, in
     a write of the parent's own that lands before its seed and before the

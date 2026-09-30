@@ -520,7 +520,8 @@ because there it is the claim that this stage has already rerouted rather than a
      seed and the finalize) and which is pointed at that ref — then finalize to `workflow:umbrella` (when the flag is
      true) or `workflow:blocked`. A parent whose record no longer proves that lineage, or a child it cannot recognize
      as its own — a pinned comment that would not parse, a `parent_number` that is not this issue's number (another
-     issue's, or no positive integer at all: a float or a bool that compares equal to it included), a title or body
+     issue's, or no positive integer at all: a `null`, or a float or a bool that compares equal to it, included — only
+     a comment carrying no `parent_number` key is backfilled), a title or body
      naming a snapshot ref the split no longer holds or never preserved (or another repository's mirror of one), or
      any other group (part of it, a field its reader would drop, another lineage) — parks
      `replacement_lineage_unproved` instead. A parent outside any late lineage holds its recorded children to the

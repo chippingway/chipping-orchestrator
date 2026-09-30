@@ -1955,10 +1955,11 @@ a bool compares equal to one without being one — text naming a snapshot ref th
 preserved (or another repository's mirror of one), or any other group — part of it, a field its reader would drop,
 another lineage — which a child's own size gate would read as whatever it says. A split of an issue no late split
 charged is held to the same recognition: its children are owed no lineage and no snapshot, so a recorded child of one
-is left as it stands only where its comment parses, its `parent_number` is this issue's number or absent, it carries
-none of the group, and its text names no snapshot ref at all — and refused otherwise. Only once every child passes
-is the parent finalized into the walk that activates children; a record that no longer proves the lineage, or a
-child refused, parks the same way instead and leaves every child unstarted. That walk — which is also how the split
+is left as it stands only where its comment parses, its `parent_number` is this issue's number or not carried at
+all (a `null` is refused like any other non-number), it carries none of the group, and its text names no snapshot
+ref at all — and refused otherwise. Only once every child passes is the parent finalized into the walk that
+activates children; a record that no longer proves the lineage, or a child refused, parks the same way instead and
+leaves every child unstarted. That walk — which is also how the split
 itself releases its children with no dependency, in the tick that created them — asks the same decision again before
 it releases any of them, since a child starts off a record that may have changed since its seed, and, before the
 first release, holds every child it would release, as each then reads, to the recognition a recovery applies: its

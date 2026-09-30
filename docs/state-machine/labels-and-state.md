@@ -3368,13 +3368,14 @@ rather than preserving.
   holds (read as a slice is before creation), in which case `late_consumers` records the child again, in the
   parent's own write ahead of its seed and of the finalize, and the child is pointed at that ref; and a child that
   split cannot recognize as its own — a pinned comment that would not parse, a `parent_number` that is not this
-  issue's number (another issue's, or no positive integer at all: a float or a bool that compares equal to it
-  included), a title or body naming a snapshot ref the split no longer holds or never preserved (or another
-  repository's mirror of one), or any other group: part of it, a field its reader would drop, another lineage —
-  parks the same way, with nothing written over what it carries. A recovered split of an issue no late split
-  charged seeds none of this group, and holds its children to the same recognition: a child of one whose pinned
-  comment would not parse, whose `parent_number` is not this issue's number, that carries any of this group, or
-  whose title or body names any snapshot ref parks the same way.
+  issue's number (another issue's, or no positive integer at all: a `null`, or a float or a bool that compares equal
+  to it, included — only a comment carrying no `parent_number` key has it backfilled), a title or body naming a
+  snapshot ref the split no longer holds or never preserved (or another repository's mirror of one), or any other
+  group: part of it, a field its reader would drop, another lineage — parks the same way, with nothing written
+  over what it carries. A recovered split of an issue no late split charged seeds none of this group, and holds its
+  children to the same recognition: a child of one whose pinned comment would not parse, whose `parent_number` is
+  not this issue's number, that carries any of this group, or whose title or body names any snapshot ref parks the
+  same way.
   A snapshot ref recorded twice is a refusal whatever the two entries stand at, released included. Either park
   leaves every child unfinalized and unstarted. A child the crash left created and never recorded is found by its
   `split_attempt` receipt and recorded first — on `late_consumers` too, in the same write, wherever this record's
