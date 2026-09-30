@@ -1871,9 +1871,10 @@ Two more things block it outright, and both are the same rule: nothing that cann
 terminal fire. An obligation ledger this orchestrator could not fully type blocks whatever the typed view says — the
 entries it could not read are still obligations, and closing on the strength of a projection is the reading the
 verbatim copy exists to prevent. So does a ledger holding anything at all on a record whose cycle identity is
-damaged: there is nothing to correlate a reclamation to and no issue number to prove a branch belongs to this
-generation, so the umbrella stays open and says so where an operator reads it. An issue that never entered the late
-gate carries no ledger and answers without a write, which is every umbrella the initial decomposer made.
+damaged, a consumer list with no resource entry beside it included: there is nothing to correlate a reclamation to
+and no issue number to prove a branch belongs to this generation, so the umbrella stays open and says so where an
+operator reads it. An issue that never entered the late gate carries no ledger and answers without a write, which is
+every umbrella the initial decomposer made.
 
 ### What an ordinary re-decomposition seeds inside a lineage
 

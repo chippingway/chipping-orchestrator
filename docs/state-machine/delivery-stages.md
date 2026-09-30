@@ -606,7 +606,7 @@ because there it is the claim that this stage has already rerouted rather than a
      parent has gone back to implementation, so a ref still held for a recorded consumer that has not ended — an
      orphaned original, or a replacement pointed at the ref — keeps the parent on `blocked`, which the next due poll
      asks again, and a reason is logged each time. A record whose cycle identity is gone is held exactly as the
-     umbrella's terminal holds it: any ledger left on it — typed entries, or a `late_consumers` nobody can read —
+     umbrella's terminal holds it: any ledger left on it — typed entries, or a `late_consumers` list, read or not —
      has nothing to correlate a reclamation to, so the parent stays `blocked` and the error is logged. An issue that
      never entered the late gate owes nothing and flips at once.
   7. Walk children: any `workflow:blocked` child whose recorded dependencies are all `done` gets relabeled
@@ -1196,8 +1196,8 @@ because there it is the claim that this stage has already rerouted rather than a
   reading under which an object still on the remote is settled, and an umbrella closed over one is an object nothing
   would ever come back for: the parent is `done` by then and no pass revisits it. Keeping the label *is* the retry,
   and the reason it is held is logged on every dependency poll that holds, since a hold attempts nothing and so
-  writes and emits nothing. An opaque *resource* ledger blocks outright, and so does any ledger entry on a record
-  whose cycle identity
+  writes and emits nothing. An opaque *resource* ledger blocks outright, and so does any entry on either ledger — a
+  recorded consumer with no resource entry beside it included — on a record whose cycle identity
   is damaged; an umbrella with no recorded generation and no ledger owes nothing and answers without a write. An
   opaque *consumer* ledger is refused separately, because the two are preserved and written separately: it is what a
   snapshot's proof would be taken from, so the ref stays — while the superseded branch, which owes no consumer

@@ -208,15 +208,17 @@ def _owes_nothing_uncorrelated(
     initial decomposer made, and every parent of an ordinary split.
 
     A ledger with entries on a record whose identity is damaged is the other
-    case, and it may not be handed on -- a consumer list nobody can read
-    included, whatever typed entries stand beside it. There is nothing to
+    case, and it may not be handed on -- either ledger counts, a consumer list
+    with no resource entry beside it included, read or not: each names
+    children cut from a ref nothing can now mint or prove. There is nothing to
     correlate a reclamation to, no issue number to prove a branch belongs to
     this generation, and no record either sink would accept -- so the only
     safe answer is to stay where it is and say so where an operator reads it.
     The write that damaged the identity kept the ledger on purpose; handing
     the issue on over it would finish the job.
     """
-    if not generation.obligations.resources and not generation.obligations.is_opaque:
+    owed = generation.obligations
+    if not (owed.resources or owed.consumers or owed.is_opaque):
         return True
 
     log.error(

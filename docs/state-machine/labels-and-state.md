@@ -3341,7 +3341,7 @@ rather than preserving.
   its implementer reads. A parent the re-decomposition left `blocked` with work of its own settles this ledger
   before its all-children-resolved flip to `workflow:ready`, and stays `blocked` while a recorded consumer still
   holds the ref — and, like the umbrella's terminal, while a record whose cycle identity is gone still carries any
-  ledger, a `late_consumers` nobody can read included. A ref the parent's own split no longer holds is settled
+  ledger, a `late_consumers` list included, read or not. A ref the parent's own split no longer holds is settled
   only where its entry has passed to a reclamation (`reclaiming`, `reconciled`, `failed`), and its replacements are
   born without the pointer; a split whose ledger cannot say whether the ref is held or released — a resource ledger
   this binary cannot read, a held ref no consumer can be recorded against (an unreadable `late_consumers`, no

@@ -1586,7 +1586,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             entries separately so unchanged failures require no pinned-state rewrite; a held snapshot
                             is selected against the ledger's consumers, never the manifest the caller scanned
       late_cleanup.py       settle and report attempts, persist changed entries, and hold the umbrella terminal until
-                            every obligation and the superseded publication settle; opaque uncorrelated debts stay held;
+                            every obligation and the superseded publication settle; uncorrelated debts stay held, a
+                            bare consumer list included;
                             the same settlement gates a `blocked` parent's return to its own implementation
       late_reuse_reading.py snapshot reuse verdicts from the owner's reclamation receipt, corroborated ancestry,
                             trusted local mirror, and exact remote ref; unreadable evidence defers the dispatch
