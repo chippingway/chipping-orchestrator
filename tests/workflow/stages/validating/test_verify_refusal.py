@@ -8,6 +8,7 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.git.verification.models import VerifyResult
 from tests.workflow.fixtures import (
+    DEFAULT_PR_HEAD_SHA,
     LABEL_DOCUMENTING,
     LABEL_IN_REVIEW,
     REVIEW_APPROVED_MESSAGE,
@@ -21,7 +22,9 @@ from tests.workflow.stages.validating import (
 
 ISSUE = 7
 DEV_SESSION = "dev-sess"
-REVIEW_SHA = "rev-sha"
+# The head the round's checkout stands on: the one its pull request carries,
+# which is the head the reviewer is handed.
+REVIEW_SHA = DEFAULT_PR_HEAD_SHA
 VERIFY_PYTEST = "pytest -q"
 VERIFY_FAILED = "failed"
 VERIFY_HEAD_CHANGED = "head_changed"

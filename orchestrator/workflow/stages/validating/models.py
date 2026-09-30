@@ -106,6 +106,10 @@ class _ReviewerRun:
             evidence_revision=None if handed is None else handed.revision,
         )
 
+    def measured_over(self, comment: dict) -> _ReviewerRun:
+        """This run, measured from here on against `comment` as the tick last read or wrote it."""
+        return replace(self, resolved_over=dict(comment))
+
 
 @dataclass(frozen=True)
 class _ReviewerDecision:

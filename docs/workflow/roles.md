@@ -2296,7 +2296,9 @@ commands, not an agent role, so no `*_AGENT` env var applies. The gate runs befo
 comment, the squash, the watermark seeding, and the `workflow:documenting` (final-docs) label flip. A clean run
 advances the issue, and so does an empty `VERIFY_COMMANDS`, whose `not_run` result is not evidence that anything
 passed; any failure parks on `workflow:validating` with a typed `park_reason` (`verify_failed` / `verify_timeout` /
-`verify_dirty` / `verify_head_changed` / `verify_tree_changed`). See
+`verify_dirty` / `verify_head_changed` / `verify_tree_changed`) -- only where the subject the reviewer approved still
+stands behind the gate and behind the park's own notice, since a failure over work nobody reviewed is a fresh
+reviewer's to answer. See
 [`../configuration.md#local-verification-gate`](../configuration.md#local-verification-gate) for the env-var
 reference.
 

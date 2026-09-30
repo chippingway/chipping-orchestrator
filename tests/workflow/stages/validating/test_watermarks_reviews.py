@@ -128,6 +128,7 @@ class ValidatingHandoffSeedsAllWatermarksTest(
             gh,
             issue,
             run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            head_shas=(REVIEWED_SHA,),
         )
         state = gh.pinned_data(ALL_WATERMARKS_ISSUE)
         self.assertIn("pr_last_review_summary_id", state)
@@ -181,6 +182,7 @@ class ValidatingHandoffSeedsAllWatermarksTest(
             gh,
             issue,
             run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            head_shas=(REVIEWED_SHA,),
         )
         state = gh.pinned_data(ALL_WATERMARKS_ISSUE)
         self.assertIn("pr_last_review_comment_id", state)
@@ -275,6 +277,7 @@ class HandoffInlineIdCollisionTest(unittest.TestCase, _PatchedWorkflowMixin):
             gh,
             issue,
             run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            head_shas=(REVIEWED_SHA,),
         )
         state = gh.pinned_data(WATERMARK_ISSUE)
         self.assertLess(

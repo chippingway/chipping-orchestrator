@@ -7,10 +7,18 @@ unanchored. Drift comes next, ahead of the parked-no-input fast path, so a body
 edit still unwinds an issue that is sitting parked -- the reverse order would
 leave a stale approval standing behind a park nobody replied to.
 
-The tick opens by ending the handoff record that brought the issue here, if
-one is still standing: the approval that moved the label drops it in a write
-behind that move, so a record this stage can see is that write having failed,
-and only this stage's having the issue proves the move itself landed.
+Right behind the preconditions -- a pull request merged or closed ends the
+tick whatever else the comment carries -- and ahead of drift and the docs
+pass, the tick hands the issue back to `validating` where the comment
+still carries a record only that stage answers -- a returned reviewer verdict,
+or a squash handoff: the approval that moved the label retires its own verdict
+ahead of that move and ends its own handoff behind it, so one this stage can
+see is that write having failed, a handoff left over records that moved
+during the move, or another road's put down then -- and nothing here can tell
+which. So does an approval that no longer covers the developer report --
+as recorded, or as it reads at its location -- or the evidence it was proved
+over, which is all an approval that collapsed nothing, or a report edited in
+place, leaves to say that something moved during its relabel.
 
 After the run the order matters just as much: the interruption and live-pause
 refusals both precede the disposition and both return WITHOUT writing pinned
@@ -106,16 +114,20 @@ def _handle_documenting(gh: GitHubClient, spec: _config_models.RepoSpec, issue: 
     state = gh.read_pinned_state(issue)
     pr_number = state.get("pr_number")
 
-    # A handoff record `validating` left behind is one whose relabel landed --
-    # this stage has the issue -- and whose cleanup write did not. Ended here
-    # because nothing else can: the route that reads it back cannot tell that
-    # record from one whose relabel never happened, and would answer a drift
-    # unwind's re-review by relabelling the unchanged head straight back.
-    _handoff._ends_the_validating_handoff(gh, issue, state)
-
     if _preconditions._documenting_preconditions_handled(
         gh, spec, issue, state, pr_number,
     ):
+        return
+
+    # A reviewer verdict or squash handoff standing here is `validating`'s to
+    # answer: its cleanup write failed behind the relabel, it was left over
+    # records that moved during the relabel, or another road put it down then.
+    # So is an approval that no longer covers the report or evidence the
+    # comment carries. Nothing here can tell which, and a docs pass over any of
+    # them documents a head that stage has not finished with. Asked behind the
+    # terminals, so a merged or closed pull request finalizes whatever the
+    # approval's reading would have said.
+    if _handoff._hands_back_what_validating_owes(gh, issue, state):
         return
 
     ctx = _models._DocumentingContext(

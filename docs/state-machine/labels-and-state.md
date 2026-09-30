@@ -1093,7 +1093,13 @@ The keys that matter for the state machine fall into a few groups:
   (see the **Returned reviewer verdict** bullet below). A `park_reason` spelled as anything but a word -- a hand edit
   leaving a list or an object -- names no park the `workflow:validating` awaiting and drift routes know, exactly as
   an unknown word does: a reply to it resumes the developer, and an edit under it takes the drift road. A failed
-  squash-on-approval re-sets `squash_failed`,
+  verify gate's `verify_*` reason is set in the park's own write too, through the funnel a returned verdict's parks
+  take (`stages/validating/review_parks.py`): only over the approved subject still standing behind the gate and
+  behind the park's notice, and only behind a notice that was identified. A failed squash-on-approval sets
+  `squash_failed` in the park's own write as well (`review_parks.parks_the_failed_squash`), measured before its
+  notice, landing only behind one identified, over the report, `pr_number`, `review_returned_verdict`, and
+  `verification_evidence_*` records the squash tail holds -- and, on the approval road, over the approved subject
+  standing behind that notice --
   and what reads it back is the recovery that took it: that route retries on every tick and stays silent while its
   own reason stands, so the reason is what tells a notice already on the thread from one to post afresh — and a park
   worded by the size gate behind it, which says its own piece on every reading it cannot take, is held for a human
@@ -1821,9 +1827,13 @@ The keys that matter for the state machine fall into a few groups:
   RETURNS: `review_subject` goes down before the run budget is asked, so a launch that budget refused, or a process
   that died before the spawn, leaves the report named there with no reviewer ever invoked, and this is the record
   that says one really read it. Additive: an issue without it records no reviewer that returned under this build.
-  `review_approved_subject` is the same object for the latest approval, staged once the verify gate passes and
-  written by whichever write the squash tail makes. Every later reader that would act on an approval -- the settled
-  squash handoff on `workflow:validating`, and the stale-approval hand-back on `in_review` -- holds it to the report
+  `review_approved_subject` is the same object for the latest approval, staged once the verify gate has passed and
+  the approval comment is posted -- the subject resolved again behind that comment, the round's checkout proved to
+  stand on the `sha` it names with nothing left uncommitted, and the pinned comment read last
+  still carrying the report records, `pr_number`, `review_returned_verdict`, and `verification_evidence_*` records the
+  gate's own reading left -- and written by whichever write the squash tail makes. Every later reader that would act
+  on an approval -- the settled squash handoff on `workflow:validating`, and the stale-approval hand-back on
+  `in_review` -- holds it to the report
   `developer_report_current` records now: another revision, other words, or a report where the approval saw none is
   a subject nobody reviewed, and so is a current report `developer_report_handoff` no longer describes -- the pair a
   settlement writes together, which a reviewer spawn refuses too -- so the handoff is dropped for a fresh reviewer
@@ -1832,7 +1842,8 @@ The keys that matter for the state machine fall into a few groups:
   and hold rather than act where the location could not be read. The in_review stage, which would advertise the
   approval as ready to merge, also holds its `requirements` to `user_content_hash`, handing the issue back where they
   differ, and at the ready ping reads the issue afresh against that baseline, the pull request afresh for the head
-  the ping names, and -- last -- the pinned comment for the report records in hand. The squash tail and the settled
+  the ping names, and -- last -- the pinned comment for the report and verification evidence records in hand. The
+  squash tail and the settled
   handoff read the issue afresh too before moving the label to `workflow:documenting`, against that baseline and
   against the approval's own `requirements` both (a baseline moved on to an edit since the approval says nothing
   about what the reviewer read), and the pull request afresh against the commit the move is owed over -- the one the
@@ -1851,6 +1862,26 @@ The keys that matter for the state machine fall into a few groups:
   included, covers nothing. That reader takes the record whole: exactly the five members its writer spells, each in
   that writer's shape -- a whole commit id as `sha` wherever `pr` names a pull request, and both report members or
   neither -- so a record short of its `sha` or its `requirements` is no approval either.
+  `review_approved_evidence` is the evidence claim that approval was proved over, written beside
+  `review_approved_subject` in the same write and in the shape `review_returned_verdict` carries its `evidence` in
+  (`stages/validating/approved_evidence.py`). Only an approval proved over evidence records one -- no live round
+  does, and a live approval drops one an earlier approval left -- so an issue without the key has an approval held to
+  no evidence. Past the squash the evidence can no longer be proved against the pull request, which stands on a
+  commit it was never bound to, so every road that would move the approval on -- the squash tail's relabel, the
+  settled handoff, the recovery of a squash an earlier tick did not finish, the `workflow:documenting` tick's opening,
+  and the merge gate -- holds it to this record and to every part of the proof the rewrite left standing
+  (`approved_evidence.stands`, through `review_coverage._approval_holds` on all but the documenting opening): the claim
+  has to
+  name `verification_evidence_current` exactly -- receipt, revision, and digest -- that evidence has to have passed,
+  no revision past it may have been spent (a newer transaction raises the floor the moment it is recorded, whether it
+  settled or is still owed as `verification_evidence_pending`), `verification_evidence_handoff` has to still
+  describe it, and it has to have been minted under the verification context configured now; and its artifact,
+  re-read at the recorded `comment_id` on the pull request it was published on -- which no rewrite of the branch
+  touches -- has to still be the one that settled, passing and covering `VERIFY_COMMANDS`. A later revision recorded
+  or settled, the current record retired, `VERIFY_COMMANDS` or `VERIFY_TIMEOUT` changed, the artifact deleted or
+  edited, or a record that will not read holds the move -- and the ready ping -- and the settled handoff behind it is
+  dropped for a fresh reviewer; an artifact or pull request nobody could read holds them for a later tick. Additive,
+  and dormant with the proof that writes it.
 - **Returned reviewer verdict.** `review_returned_verdict` is the verdict a returned reviewer left and nothing has
   disposed of yet (`stages/validating/review_verdicts.py`): `round` (the round it ran as), `verdict` (`approved` or
   `changes_requested`), `subject` (exactly as `review_subject` spells it), `feedback` (the words a change request hands
@@ -1942,6 +1973,30 @@ The keys that matter for the state machine fall into a few groups:
   acts on a ready verdict or parks one yet, no live reviewer round hands its result to that service, and nothing
   finishes a record a tick left waiting, so no issue carries the key or either park, and an issue without the key has no
   verdict waiting.
+  An approval record is acted on only over evidence proved current (`stages/validating/unverified_approvals.py`), and
+  only the record of the run's own round, `approved` verdict, and subject -- a run whose record another road replaced
+  or dropped is refused, having nothing to prove -- over the claim that record names, never one handed in beside it,
+  so a record whose `evidence` is `null` is refused however valid the evidence the pull request carries. Its
+  `evidence` claim has to name `verification_evidence_current` exactly -- receipt, revision, and digest -- that
+  evidence has to prove current again, its artifact re-read at the recorded `comment_id` has to be the one that
+  settled with `passed` holding there, and its commands have to cover every configured `VERIFY_COMMANDS` command
+  exactly, exiting 0 -- the proof `stages/validating/approved_evidence.py` takes, and takes again for the arc behind
+  the verify gate and behind the approval comment, since the artifact can be deleted or edited on the pull request
+  where no record shows it. The claim's own `passed` and `covers` refuse it early and never stand in for the artifact; a
+  claim still named by `verification_evidence_pending` refuses as evidence never published; and the pinned comment is
+  read last behind the proof, a report record, `pr_number`, the record, or a `verification_evidence_*` record moved
+  there refusing it too. A refusal comes back in the words a `reviewer_unverified` park carries, and a proof nobody
+  could read -- the pull request, the artifact's thread, or the comment -- holds the record untouched for a later tick.
+  The approval arc a proved record reaches holds only the record of its own run's round, `approved` verdict, and
+  subject, and sets it to `null` in whichever write it makes -- the park a failed verify gate or squash lands, the
+  write recording its run where the subject moved behind the gate or behind the approval comment, the squash tail's
+  handoff write, or, where the records the tail holds moved behind one of its requests, a write of the comment as read
+  with nothing else in it but the ledger entries of what the tail posted -- save where the subject would not read,
+  which keeps it; a record another road put in its place is left as it stands. The squash recovery holds none, and a
+  record waiting beside the handoff it finishes holds the move to `workflow:documenting` while the handoff record
+  ends. One persisted while that move runs lands past it, and the `workflow:documenting` tick that finds a readable
+  record waiting hands the issue back to `workflow:validating` before any docs pass. No disposition hands a record
+  to that proof yet, so this too is dormant.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
   live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the
@@ -3616,7 +3671,11 @@ rather than preserving.
   `workflow:validating` with the record simply dropped is one the next tick runs a second reviewer on, over a branch
   already approved, squashed, and published. It names the commit the move is owed over, which is the whole of what
   the move needs and the only thing that says it is owed. The validating recovery route reads it ahead of the
-  reviewer, moves the label, and drops it in a write of its own behind that label — and spends it only while the
+  reviewer, moves the label, and drops it in a write of its own behind that label — laid over the comment read again
+  once the label has moved, and only where it still names the commit that handoff finished beside the report,
+  `pr_number`, verdict, and evidence records the move was taken over, so a record another road wrote during the
+  relabel stands, and so does this one where those records moved; the `workflow:documenting` tick that finds either
+  hands the issue back here without ending it — and spends it only while the
   pull request is still standing on the commit it names, since anything that moved the publication on has moved the
   work past the round the record was about, and the branch then goes to the reviewer rather than on to
   `documenting` unread. It is deliberately NOT a member of the group above: nothing about the rewrite is

@@ -16,6 +16,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.decomposition import blocked as _blocked
 from orchestrator.workflow.stages.in_review import handler as _in_review
 from orchestrator.workflow.stages.validating import handler as _validating
+from tests.support.fakes import DEFAULT_PR_HEAD_SHA
 from tests.workflow import published_reports as _published_reports
 from tests.workflow.engine import drift_test_support as support
 
@@ -180,6 +181,8 @@ class BareAddAgentRunsIsNotDriftTest(
             run_agent=support._agent(
                 last_message=support.REVIEW_APPROVED_MESSAGE,
             ),
+            # The round's checkout stands on the head its reviewer approved.
+            head_shas=(DEFAULT_PR_HEAD_SHA,),
         )
 
         prompt = mocks[support.RUN_AGENT].call_args.args[1]

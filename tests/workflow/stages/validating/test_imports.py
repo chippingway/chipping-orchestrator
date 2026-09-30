@@ -22,6 +22,7 @@ _HANDLER_OWNER = "handler"
 
 _OWNERS = (
     "approval",
+    "approved_evidence",
     "collapse",
     "awaiting",
     "awaiting_resume",
@@ -48,8 +49,10 @@ _OWNERS = (
     "review_parks",
     "review_verdicts",
     "reviewer",
+    "squash_writes",
     "state",
     "stranded",
+    "unverified_approvals",
     "verify",
     "watermarks",
 )

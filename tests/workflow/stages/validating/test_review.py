@@ -7,6 +7,7 @@ from contextlib import ExitStack
 
 from orchestrator.agents.models import ToolLifecycle
 from orchestrator.workflow.engine import report_delivery as _report_delivery
+from tests.support.fakes import DEFAULT_PR_HEAD_SHA
 from tests.workflow.stages.validating import (
     validating_review_test_support as review_support,
 )
@@ -101,6 +102,8 @@ class HandleValidatingFreshReviewTest(
             gh,
             issue,
             run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            # The round's checkout stands on the head its reviewer approved.
+            head_shas=(DEFAULT_PR_HEAD_SHA,),
         )
 
         self.assertEqual(mocks[RUN_AGENT].call_count, 1)

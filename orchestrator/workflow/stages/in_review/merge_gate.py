@@ -167,12 +167,17 @@ def _still_ready(ctx: _models._InReviewContext, head_sha: str) -> bool:
     request, a human can edit or delete the report or edit the issue, or a
     push can move the pull request off the head those requests approved -- and
     the ping is the one claim here that what stands was reviewed. So the
-    approval has to cover the report as it reads at its location, the
-    requirements over the issue read afresh, and `head_sha` over the pull
+    approval has to cover the evidence it was proved over, where it was
+    proved over any -- its records and its artifact -- the report as it reads
+    at its location,
+    the requirements over the issue read afresh, and `head_sha` over the pull
     request read afresh (`review_coverage._approval_holds`), and -- last,
     directly ahead of the write -- the pinned comment has to carry the report
-    records in hand and point the issue at the pull request the state in hand
-    does (`review_comment._records_in_hand`).
+    and verification evidence records in hand and point the issue at the pull
+    request the state in hand does (`review_comment._records_in_hand`): the
+    evidence and report reads are requests long enough for another road to
+    record a later verification revision, and the ping's write of the state
+    in hand would put the older revision floor back over it.
     """
     return bool(
         _review_coverage._approval_holds(ctx.gh, ctx.issue, ctx.state, head_sha)

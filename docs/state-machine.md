@@ -341,11 +341,15 @@ gate, a hold, the push, and the recorded SHAs all name the replacement. Both thi
 handed to the shared normalization, so a subject the agent left carrying the issue's own reference — alone, or beside
 one an earlier publication appended — sheds it, while a subject that already reads as the normalization would write it
 is published as it is. Drift
-during the hop unwinds the worktree and relabels back to `workflow:validating` without spawning. The tick opens by
-ending the
-handoff record that brought the issue here, if one is still standing: this stage having the issue is the only proof
-the relabel behind that handoff landed, and left standing the record would answer a drift unwind's re-review by
-sending the unchanged head straight back. Full flow:
+during the hop unwinds the worktree and relabels back to `workflow:validating` without spawning. Past the terminal
+checks -- a merged or closed pull request finalizes first -- and ahead of drift and the docs pass, the tick hands the
+issue back to `workflow:validating`, writing nothing, where the comment still carries a squash handoff
+record or a waiting reviewer verdict: the approval that moved the label retires both of its own, so one standing here
+is that approval's cleanup write having failed or another road's written during the relabel, and only `validating`
+answers either -- its recovery re-checks the approval over the head a handoff names, and a verdict holds the label
+there. So does an approval that no longer covers the current developer report -- as recorded, or as it reads at
+its location -- or whose evidence no longer stands, since one that collapsed nothing leaves no record to say what
+moved during its relabel, and an edit in place moves no record at all. Full flow:
 [`state-machine/delivery-stages.md`][documenting].
 
 ### `_handle_validating` (label `workflow:validating`)

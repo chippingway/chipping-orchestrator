@@ -68,7 +68,11 @@ from orchestrator.workflow.engine import (
     review_subjects as _review_subjects,
 )
 from orchestrator.workflow.late_split import payloads as _payloads
-from orchestrator.workflow.stages.validating import review_comment as _review_comment, review_report as _review_report
+from orchestrator.workflow.stages.validating import (
+    approved_evidence as _approved_evidence,
+    review_comment as _review_comment,
+    review_report as _review_report,
+)
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -213,14 +217,28 @@ def _approval_stands(gh: GitHubClient, state: PinnedState) -> bool | None:
 def _approval_holds(
     gh: GitHubClient, issue: Issue, state: PinnedState, head: str | None,
 ) -> bool | None:
-    """Whether the recorded approval covers the report, requirements, and head standing now.
+    """Whether the recorded approval covers the evidence, report, requirements, and head standing now.
 
-    Asked by every road about to move an approval on: `_approval_stands`
-    first, then `_requirements_stand` over the issue read afresh, and then
-    `_head_stands` over the pull request read afresh, which has to stand on
-    `head` -- the commit the move is owed over. False where any has moved,
-    None where any could not be read.
+    Asked by every road about to move an approval on: the evidence it was
+    proved over first -- still the current evidence on the records, exactly,
+    outranked by no later revision, described by its handoff, and minted
+    under the context configured now, and its artifact, re-read on the pull
+    request it was published on, still the one that settled and passing,
+    which is every part of its proof a squash leaves standing
+    (`approved_evidence.stands`) -- then `_approval_stands`, then
+    `_requirements_stand` over the issue read afresh, and then `_head_stands`
+    over the pull request read afresh, which has to stand on `head` -- the
+    commit the move is owed over. False where any has moved, None where any
+    could not be read.
     """
+    proved = _approved_evidence.stands(gh, state)
+    if not proved:
+        log.info(
+            "issue=#%d the verification evidence its approval was proved over "
+            "no longer stands, or could not be read; not acting on that "
+            "approval this tick", issue.number,
+        )
+        return proved
     covered = _approval_stands(gh, state)
     if not covered:
         return covered

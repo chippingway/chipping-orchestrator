@@ -150,6 +150,7 @@ class ValidatingHandoffPreservesHumanFeedbackTest(
             gh,
             issue,
             run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            head_shas=(REVIEWED_SHA,),
         )
         # Validating's approval flips through `documenting` first (the
         # final-docs hop); the watermark must already be seeded past the

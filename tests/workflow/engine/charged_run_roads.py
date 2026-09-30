@@ -264,6 +264,8 @@ def _drive_validating(
     _support._open_pr_for(
         github, issue_number=VALIDATING_ISSUE, pr_number=_VALIDATING_PR,
     )
+    # The round's checkout stands on the head its reviewer is handed.
+    opts.setdefault("head_shas", (_support.DEFAULT_PR_HEAD_SHA,))
     mocks = case._run_validating(
         github, issue, run_agent=agent_result, **opts,
     )

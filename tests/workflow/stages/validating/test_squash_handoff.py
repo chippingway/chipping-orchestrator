@@ -27,6 +27,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import report_delivery as _report_delivery
+from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
 from tests.support.fakes import LazyPullRequest
 from tests.workflow import published_reports as _published_reports
 from tests.workflow.stages.validating import squash_approval_support as _support
@@ -56,6 +57,11 @@ LAZY_HEAD = "head"
 NOT_A_COMMIT = "not-a-sha"
 
 PR_NUMBER_KEY = "pr_number"
+
+REVIEW_ROUND = "review_round"
+
+# The approval whose squash is recorded, whose subject a later round reviews.
+APPROVED_SUBJECT = "review_approved_subject"
 
 
 class _RefusesTheNotice:
@@ -130,6 +136,37 @@ class SquashHandoffTest(
         self.assertEqual(writes.labels_when(_support.HANDOFF_KEY), [0])
         self.assertEqual(writes.writes[-1][0], 1)
         self.assertNotIn(_support.HANDOFF_KEY, github.pinned_data(_support.APPROVAL_ISSUE))
+
+    def test_a_later_verdict_outlives_the_recovery(self) -> None:
+        # A verdict persisted after the approval whose squash is recorded -- a
+        # later round's change request, beside the round it spent -- is no
+        # verdict that approval finishes: the recovery finishes the rewrite
+        # and ends its records, but leaves that verdict waiting and the label
+        # where it is, for the road that finishes the verdict.
+        github, issue, _pr = self._setup()
+        self._records_a_collapse(github)
+        later = _verdicts.ReturnedVerdict(
+            1,
+            _verdicts.CHANGES_REQUESTED,
+            github.read_pinned_state(issue).get(APPROVED_SUBJECT),
+            "A later round's feedback.",
+        )
+        self._pins(github, _verdicts.RETURNED_VERDICT, later.recorded())
+        self._pins(github, REVIEW_ROUND, 1)
+
+        self._lands_a_collapse(github, issue)
+
+        written = github.read_pinned_state(issue)
+        self.assertEqual(
+            (
+                _verdicts.read_returned_verdict(written),
+                written.get(REVIEW_ROUND),
+                _support.COLLAPSE_KEY in written.data,
+                _support.HANDOFF_KEY in written.data,
+                HANDED_ON in github.label_history,
+            ),
+            (later, 1, False, False, False),
+        )
 
     def test_a_refused_notice_keeps_the_record(self) -> None:
         # The count the notice is worded from is on that record and nowhere

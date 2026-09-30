@@ -47,6 +47,8 @@ HANDOFF_PR = 11
 HANDOFF_BRANCH = "orchestrator/chippingway__orchestrator/issue-5"
 SECOND_HANDOFF_ISSUE = 99
 SECOND_HANDOFF_PR = 50
+# The head the second handoff's pull request, and the round's checkout, stand on.
+SECOND_HANDOFF_HEAD = "cafe9999" * 5
 SECOND_HANDOFF_BRANCH = "orchestrator/chippingway__orchestrator/issue-99"
 CONSUMED_FEEDBACK_ID = 2000
 REVIEW_FEEDBACK_WATERMARK = 4242
@@ -492,7 +494,7 @@ class ValidatingToInReviewHandoffTest(
         pr = FakePR(
             number=SECOND_HANDOFF_PR,
             head_branch=SECOND_HANDOFF_BRANCH,
-            head=FakePRRef(sha="cafe9999" * 5),
+            head=FakePRRef(sha=SECOND_HANDOFF_HEAD),
             issue_comments=[
                 FakeComment(
                     id=CONSUMED_FEEDBACK_ID,
@@ -519,6 +521,7 @@ class ValidatingToInReviewHandoffTest(
             gh,
             issue,
             run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            head_shas=(SECOND_HANDOFF_HEAD,),
         )
 
         # Approval relabels to `documenting` (the final-docs hop); the

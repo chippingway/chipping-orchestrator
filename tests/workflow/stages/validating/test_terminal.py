@@ -31,7 +31,8 @@ CLOSED_ISSUE_BRANCH = "orchestrator/chippingway__orchestrator/issue-121"
 APPROVAL_ISSUE = 9
 APPROVAL_PR = 91
 APPROVAL_BRANCH = "orchestrator/chippingway__orchestrator/issue-9"
-REVIEWED_SHA = "ae91" * 10
+# The head the pull request stands on: the one its reviewer is handed, the
+# round's checkout stands on, and the squash reports it published.
 SQUASHED_SHA = "5091" * 10
 PICKUP_COMMENT_ID = 901
 PR_OPEN_COMMENT_ID = 902
@@ -180,7 +181,7 @@ class ApprovalThroughDocumentingTest(
                 gh,
                 issue,
                 run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
-                head_shas=(REVIEWED_SHA,),
+                head_shas=(SQUASHED_SHA,),
                 squash_result=(True, SQUASHED_SHA, 2, None),
             )
 
@@ -214,7 +215,7 @@ class ApprovalThroughDocumentingTest(
                 gh,
                 issue,
                 run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
-                head_shas=(REVIEWED_SHA,),
+                head_shas=(SQUASHED_SHA,),
                 verify_result=VerifyResult(
                     status="failed",
                     command="pytest -q",
@@ -241,7 +242,7 @@ class ApprovalThroughDocumentingTest(
                 gh,
                 issue,
                 run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
-                head_shas=(REVIEWED_SHA,),
+                head_shas=(SQUASHED_SHA,),
                 squash_result=(False, None, 0, "force-with-lease rejected"),
             )
 
