@@ -30,6 +30,12 @@ from orchestrator.workflow.state import WorkflowLabel
 
 _USER_CONTENT_HASH = "user_content_hash"
 
+# What a stage read and acted on without consuming any of it, on an issue with
+# no `user_content_hash` recorded: the reading a late adjudication carried on
+# over. Compared against in that hash's place until one is recorded, so what
+# was written after that reading is drift rather than the first baseline.
+_OBSERVED_USER_CONTENT_HASH = "observed_user_content_hash"
+
 
 def _detect_user_content_change(
     gh: GitHubClient, issue: Issue, state: PinnedState, *, answered=None,
@@ -38,7 +44,11 @@ def _detect_user_content_change(
     prior stored value, or None when unchanged.
 
     On the FIRST call for an issue (no prior hash in pinned state), persist
-    the current value via `gh.write_pinned_state` immediately. Doing it
+    the current value via `gh.write_pinned_state` immediately -- unless a
+    stage recorded the reading it acted on as `observed_user_content_hash`,
+    which then stands in for the missing baseline: the current value is
+    persisted only where it still matches, and anything written after that
+    reading is reported as the drift it is. Doing it
     in-memory only would lose the baseline whenever the calling handler's
     early-return path (awaiting-human-with-no-new-comments, debounce,
     child-waiting-on-deps, …) skips its own state write; the very next
@@ -70,9 +80,11 @@ def _detect_user_content_change(
     current = _content_hash._compute_user_content_hash(issue, orchestrator_ids)
     prior = state.get(_USER_CONTENT_HASH)
     if not isinstance(prior, str):
-        state.set(_USER_CONTENT_HASH, current)
-        gh.write_pinned_state(issue, state)
-        return None
+        prior = state.get(_OBSERVED_USER_CONTENT_HASH)
+        if not isinstance(prior, str) or prior == current:
+            state.set(_USER_CONTENT_HASH, current)
+            gh.write_pinned_state(issue, state)
+            return None
     if current == prior:
         return None
     legacy = _content_hash._compute_user_content_hash(

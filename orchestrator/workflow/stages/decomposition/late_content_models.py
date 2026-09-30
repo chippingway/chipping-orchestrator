@@ -6,11 +6,12 @@ Title/body and conversation drift remain separate readings. Their shared
 watermark identifies which replies a settlement can consume, while the
 optional authorization names the exact candidate and comment that supplied it.
 Each reading also carries the issue-wide requirements hash of the same title,
-body, and comment batch, frozen beside the late-local fingerprints it is not.
+body, and comment batch, frozen beside the late-local fingerprints it is not,
+and the guidance a park's response boundary held back from being a reply.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from orchestrator.workflow.stages.decomposition import late_result_models as _late_result_models
 
@@ -69,6 +70,23 @@ class _LateContentSignal:
     at all: they are filtered out where the thread is read, so nothing an
     outsider posts becomes guidance, moves the watermark, or shifts a digest.
 
+    `withheld` is the guidance the response boundary held back: trusted
+    comments past the watermark that carry something to act on, but that sit
+    at or below the floor a park's notice moved past them -- words a human
+    wrote while the issue was being parked, before anybody had told them
+    anything. They are not a reply, so they never answer the park that held
+    them back. They are not answered either, though: nothing has read them,
+    and a consumption that folded them in would spend a human's instruction
+    on nobody. So a reading carrying any is one no consumer may fold whole
+    until it has handed them to an agent -- see `delivered`.
+
+    `owed` is the trusted comments the generation records as still owed a
+    whole quote: replies an earlier consumption spent on an adjudication that
+    no run has yet been handed in full. They are already folded into every
+    baseline; what the reading carries them for is the developer revision,
+    which quotes them too, so a debt a gate left outstanding is repaid by
+    whichever agent runs first.
+
     `authorization` is the operator command that publishes an oversized
     candidate as it stands, reported apart from the guidance for the same
     reason the bare continue is: it is a control rather than a requirement,
@@ -86,6 +104,11 @@ class _LateContentSignal:
     and silence the drift the next agent is owed for it. The signal carries
     it; recording it is the consumer's.
 
+    `text` and `read` are the reading itself -- the title and body, and the
+    comment batch as read -- so an owner that has to derive something more
+    from the same reading takes it off these rather than off a second read an
+    edit or a comment could land between.
+
     `baselined` is what keeps "nothing to compare against" apart from "the
     requirements moved". A generation whose baseline has still to be taken
     reports both drift flags -- an absent digest equals nothing -- and reading
@@ -99,8 +122,31 @@ class _LateContentSignal:
     title_body_drifted: bool = False
     conversation_drifted: bool = False
     guidance: tuple = ()
+    withheld: tuple = ()
+    owed: tuple = ()
     bare_continue: bool = False
     authorization: _LateAuthorization | None = None
+    text: tuple[str, str] = ("", "")
+    read: tuple = ()
+
+    def delivered(self) -> _LateContentSignal:
+        """This reading, as a consumer that hands the withheld guidance on reads it.
+
+        The owed replies go first and the withheld comments next, ahead of the
+        fresh guidance, where the thread put them, and nothing is left
+        withheld: the caller is the developer revision, which quotes every one
+        of them and makes its consumption durable only once the run has read
+        them -- so folding them into every baseline is what consuming them
+        there means. A comment both owed and withheld is quoted once. Nothing
+        else is handed the withheld ones: an adjudication is consumed for
+        before its spawn gates, and a run stopped at one would have spent them
+        on nobody.
+        """
+        handed = {
+            issue_comment.id: issue_comment
+            for issue_comment in (*self.owed, *self.withheld, *self.guidance)
+        }
+        return replace(self, guidance=tuple(handed.values()), withheld=())
 
     @property
     def drifted(self) -> bool:

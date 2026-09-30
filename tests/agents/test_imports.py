@@ -52,6 +52,7 @@ _OWNER_ANNOTATED_FUNCS = (
     _agent_runner.build_agent_result,
     _agent_runner.log_agent_spawn,
     _agent_provider_failures.is_transient_provider_failure,
+    _agent_provider_failures.is_provider_refusal,
 )
 
 

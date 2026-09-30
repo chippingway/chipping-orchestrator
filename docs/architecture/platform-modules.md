@@ -357,7 +357,9 @@ orchestrator/
     provider_failures.py
                         the transient-provider verdict every stage that reads a final message as the agent's
                         own asks first: the backend's `is_error` flag where the run gave one, and the
-                        server-refusal message prefix beside a non-zero exit where it did not
+                        server-refusal message prefix beside a non-zero exit where it did not; and the wider
+                        verdict of any provider refusal, 4xx included, for a caller settling whether a run got
+                        to its prompt at all, where the prefix alone decides when no flag was given
     process_groups.py   what a child started into its own process group costs to tear down, apart from any
                         record of which ones are in flight: the bounded drain that reports a pipe a descendant
                         still holds open rather than blocking on it, the `killpg(_, 0)` probe that answers

@@ -11,6 +11,7 @@ bare continue, reading the same checkout with no second developer run.
 """
 from __future__ import annotations
 
+from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values, run_limit_values as _run_limit_values
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition import (
@@ -18,6 +19,7 @@ from tests.workflow.stages.decomposition import (
     late_content_support as _support,
     late_revision_support as _stage_support,
 )
+from tests.workflow.stages.decomposition.late_requirements_support import KEY_USER_CONTENT_HASH, requirements
 from tests.workflow.stages.decomposition.late_revision_support import PausedDuringRun, RevisionCase
 from tests.workflow.stages.decomposition.late_run_support import (
     WorktreeSeed,
@@ -28,9 +30,23 @@ from tests.workflow.stages.decomposition.late_test_support import (
     EVENT_LATE_FAILURE,
     GENERATION_NUMBER,
     KEYS,
+    LATE_ISSUE_NUMBER,
     NEXT_GENERATION,
     PLAN_PR_BODY,
     QUESTION_REPLY,
+)
+
+# An allowance the issue has already spent to its last run.
+_SPENT = 4
+
+# Every way a developer's CLI stops before it reads its prompt: on its quota,
+# with the notice or without it, and on a refusal its provider answered the
+# turn with -- an auth refusal on a failed exit, a rate limit on a clean one.
+_STOPPED_RUNS = (
+    ("a silent quota stop", _stage_support.DEV_SILENT, _stage_support.QUOTA_EXIT),
+    ("a quota notice", _stage_support.QUOTA_NOTICE, _stage_support.QUOTA_EXIT),
+    ("an auth refusal", "API Error: 401 Unauthorized", 1),
+    ("a rate limit", "API Error: 429 Too Many Requests", 0),
 )
 
 
@@ -106,7 +122,86 @@ class DeveloperResumeTest(RevisionCase):
                 self.assertEqual(outcome.disposition, _LateDisposition.DEFERRED)
                 pinned = self._pinned()
                 self.assertNotIn(_support.KEY_COMMENT_WATERMARK, pinned)
+                self.assertNotIn(KEY_USER_CONTENT_HASH, pinned)
                 self.assertTrue(pinned[KEYS.awaiting])
+
+    def test_a_refused_launch_consumes_nothing(self) -> None:
+        # The run circuit writes its own park before refusing, and that write
+        # is taken off a fresh read: nothing this tick staged rides it, so the
+        # guidance is still unread behind a park that says why.
+        self._seed_drifted()
+        self.github.seed_state(LATE_ISSUE_NUMBER, **{
+            **self._pinned(),
+            _run_ledger_values.AGENT_RUN_ALLOWANCE: _SPENT,
+            _run_ledger_values.AGENT_RUNS_USED: _SPENT,
+        })
+
+        outcome, spawn = self._revise()
+
+        spawn.assert_not_called()
+        self.assertEqual(outcome.disposition, _LateDisposition.DEFERRED)
+        pinned = self._pinned()
+        self.assertEqual(pinned[KEYS.park_reason], _run_limit_values.PARK_AGENT_RUN_LIMIT)
+        self.assertNotIn(_support.KEY_COMMENT_WATERMARK, pinned)
+        self.assertNotIn(KEY_USER_CONTENT_HASH, pinned)
+
+
+class StoppedRunTest(RevisionCase):
+    """A developer run whose CLI stopped before it worked consumes nothing."""
+
+    def test_the_continue_hands_the_guidance_on(self) -> None:
+        # The retry the park waits for is a human's continue once the quota
+        # resets or the provider serves again, and the guidance nobody read
+        # is what it resumes on.
+        for shape, said, exited in _STOPPED_RUNS:
+            with self.subTest(run=shape):
+                self._seed(**_stage_support.DEV_PIN)
+                _content_replies.reply(self.issue)
+                self._stopped(said, exited)
+                _content_replies.reply(self.issue, _support.BARE_CONTINUE)
+
+                revised, resumed = self._revise()
+
+                self.assertEqual(revised.disposition, _LateDisposition.REVISED)
+                self.assertIn(_content_replies.GUIDANCE_BODY, resumed.call_args.args[1])
+                self.assertEqual(self._pinned()[KEY_USER_CONTENT_HASH], requirements(self.issue))
+
+    def test_an_unread_edit_is_asked_about_again(self) -> None:
+        # The edit the guidance answered reached no agent either, so the
+        # continue meets it as the drift it still is, and the answer to that
+        # park is what resumes the developer with the guidance whole.
+        self._seed_drifted()
+        self._stopped(_stage_support.DEV_SILENT, _stage_support.QUOTA_EXIT)
+        _content_replies.reply(self.issue, _support.BARE_CONTINUE)
+        _asked, unspawned = self._revise()
+        unspawned.assert_not_called()
+        self.assertEqual(self._pinned()[KEYS.park_reason], _support.PARK_CONTENT_DRIFT)
+        _content_replies.reply(self.issue, _support.BARE_CONTINUE)
+
+        revised, resumed = self._revise()
+
+        self.assertEqual(revised.disposition, _LateDisposition.REVISED)
+        prompt = resumed.call_args.args[1]
+        self.assertIn(_content_replies.GUIDANCE_BODY, prompt)
+        self.assertIn(_support.EDITED_TITLE, prompt)
+
+    def _stopped(self, said: str, exited: int) -> None:
+        """Run the developer the guidance bought, and have its CLI stop before it works.
+
+        The run parks as one that answered nothing, over guidance still
+        unread: no late watermark moved and no requirements baseline was
+        recorded.
+        """
+        outcome, _spawn = self._revise(
+            reply=agent_reply(said, exit_code=exited),
+            seed=_stage_support.UNCHANGED,
+            measurement=_stage_support.ACKNOWLEDGED,
+        )
+        self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
+        pinned = self._pinned()
+        self.assertEqual(pinned[KEYS.park_reason], _support.PARK_REVISION_UNANSWERED)
+        self.assertNotIn(_support.KEY_COMMENT_WATERMARK, pinned)
+        self.assertNotIn(KEY_USER_CONTENT_HASH, pinned)
 
 
 class RevisedCandidateTest(RevisionCase):

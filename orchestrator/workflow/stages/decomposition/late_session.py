@@ -17,7 +17,6 @@ from orchestrator import config
 from orchestrator.agents.models import AgentResult
 from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
-    prompt_context as _prompt_context,
     run_charge_state as _run_charge_state,
     usage as _usage,
 )
@@ -26,6 +25,7 @@ from orchestrator.workflow.late_split import (
     overrides as _overrides,
 )
 from orchestrator.workflow.stages.decomposition import (
+    late_owed_replies as _late_owed_replies,
     late_prompt as _prompt,
     late_result_payloads as _late_result_payloads,
     late_run_reading as _late_run_reading,
@@ -280,6 +280,11 @@ def _spawn_late_adjudicator(
     that, not this call -- so an answer to a categorized question reaches the
     agent that asked it. `None` opens a fresh conversation, which is what
     every run that is not answering one gets.
+
+    The conversation is the bounded excerpt every such prompt carries, with
+    the replies this generation still owes an adjudication quoted whole
+    after it -- an answer, or the words beside a continue, that the excerpt's
+    tail could have cut.
     """
     return _usage._run_agent_tracked(
         context.gh,
@@ -292,7 +297,7 @@ def _spawn_late_adjudicator(
         prompt=_prompt._build_late_decompose_prompt(
             context.spec,
             context.issue,
-            _prompt_context._recent_comments_text(context.issue),
+            _late_owed_replies._conversation(context.generation, context.issue),
             context.generation,
             config.default_repo_specs(),
         ),

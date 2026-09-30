@@ -43,6 +43,7 @@ from orchestrator.workflow.late_split import events as _events
 from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
+    late_owed_replies as _late_owed_replies,
     late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_reply as _late_reply,
@@ -143,6 +144,12 @@ def _recorded(
     explanation it cannot block off is `late_notice`'s own answer, and it
     keeps every word of it.
 
+    A kept outcome is also what repays the replies the run was quoted whole
+    (`late_owed_replies`), in this same write: it is the one answer taken
+    over them, and the one a later tick may reuse. Nothing short of it -- a
+    park, an unparsable reply, an outcome too large to hold -- has answered
+    them, so they stay owed to the run that does.
+
     What it deliberately does NOT do is announce. The announcement is an
     external effect on the issue, and whether the issue is still there is the
     owner guard's question -- which is asked between this write and anything
@@ -150,7 +157,9 @@ def _recorded(
     while the agent was answering it.
     """
     kept = _late_session._record_late_result(context.state, adjudication)
-    if not kept:
+    if kept:
+        _late_owed_replies._repaid(context)
+    else:
         log.error(
             "issue=#%d the late outcome does not fit the pinned comment; "
             "refusing to record part of it",

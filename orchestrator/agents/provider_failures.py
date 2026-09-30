@@ -9,9 +9,17 @@ rather than the agent's words. Every stage that reads a final message as the
 agent's own has to ask that first, which is why the policy sits beside the
 parsers rather than inside one stage -- and apart from them, because what the
 stream held is a parse and what it means for the run is a judgement.
+
+Two verdicts are taken off the same evidence, because two questions are asked
+of it. Whether a retry on a fresh session recovers is the transient one, over
+the server-side family alone. Whether the agent got to its prompt at all is
+the wider one: a 401 or a 429 is no more the agent's words than a 529 is, and
+a caller settling what a run was handed has to know that whatever a retry
+could do about it.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from orchestrator.agents import models as _agent_models, sessions as _agent_sessions
@@ -31,6 +39,10 @@ _TRANSIENT_PROVIDER_MESSAGE_MARKERS: tuple[str, ...] = (
     "api error: overloaded",
 )
 
+# Every refusal the provider answers a turn with, retryable or not: the CLI
+# prints each HTTP error it was handed under this one prefix.
+_PROVIDER_REFUSAL_MARKER = "api error:"
+
 
 def _has_transient_provider_marker(message: Any) -> bool:
     """True iff `message` OPENS with a known transient provider refusal."""
@@ -39,7 +51,16 @@ def _has_transient_provider_marker(message: Any) -> bool:
     return message.strip().lower().startswith(_TRANSIENT_PROVIDER_MESSAGE_MARKERS)
 
 
-def _structured_provider_verdict(jsonl_output: str) -> bool | None:
+def _has_provider_refusal_marker(message: Any) -> bool:
+    """True iff `message` OPENS with any provider refusal at all."""
+    if not isinstance(message, str):
+        return False
+    return message.strip().lower().startswith(_PROVIDER_REFUSAL_MARKER)
+
+
+def _structured_provider_verdict(
+    jsonl_output: str, refused: Callable[[Any], bool],
+) -> bool | None:
     """Return the backend's OWN verdict on a run, or None when it gave none.
 
     Claude's terminal result event carries `is_error`, which is the only
@@ -55,9 +76,7 @@ def _structured_provider_verdict(jsonl_output: str) -> bool | None:
         return None
     if terminal_event["is_error"] is not True:
         return False
-    return _has_transient_provider_marker(
-        _agent_sessions.claude_result_text(terminal_event),
-    )
+    return refused(_agent_sessions.claude_result_text(terminal_event))
 
 
 def is_transient_provider_failure(
@@ -78,9 +97,35 @@ def is_transient_provider_failure(
     or output nothing parsed -- the marker is only honored beside a NON-ZERO
     exit, so a clean run is never reclassified on its prose alone.
     """
-    structured_verdict = _structured_provider_verdict(agent_result.stdout or "")
+    structured_verdict = _structured_provider_verdict(
+        agent_result.stdout or "", _has_transient_provider_marker,
+    )
     if structured_verdict is not None:
         return structured_verdict
     if agent_result.exit_code == 0:
         return False
     return _has_transient_provider_marker(agent_result.last_message)
+
+
+def is_provider_refusal(agent_result: _agent_models.AgentResult) -> bool:
+    """True iff this run ended on any refusal the provider answered it with.
+
+    Wider than `is_transient_provider_failure`: an auth refusal, a rate limit,
+    and a request the provider would not take are all turns the agent never
+    got to, and a caller settling what a run was handed -- whether the replies
+    quoted into its prompt were read -- asks this rather than whether a retry
+    would help.
+
+    The structured `is_error` flag still wins where the run gave one, so a
+    turn that quoted a refusal back as its subject stays an answer. Without
+    one, the prefix alone decides, whatever the exit code: the question's
+    costs are lopsided, since a refusal read as an answer drops a human's
+    words while an answer read as a refusal hands them over once more, and an
+    agent's own final message does not open with its provider's error line.
+    """
+    structured_verdict = _structured_provider_verdict(
+        agent_result.stdout or "", _has_provider_refusal_marker,
+    )
+    if structured_verdict is not None:
+        return structured_verdict
+    return _has_provider_refusal_marker(agent_result.last_message)

@@ -670,8 +670,15 @@ The keys that matter for the state machine fall into a few groups:
   prompt fingerprinted, and the two short-circuits that write no pinned state at all discard both. The `documenting`
   unwind writes it without delivering anything, and there it is a claim about the REROUTE rather than about the
   conversation: no agent ran, so no feedback watermark moves and the comments stay unread for the reviewer the
-  relabel hands the issue to. What a run may cross on the issue thread is bounded beside it —
-  see [the drift section](delivery-stages.md#user-content-drift-detection).
+  relabel hands the issue to. A late adjudication on `workflow:decomposing` writes it too, whenever it consumes a
+  content reading — the same write that moves its local watermark and the shared `last_action_comment_id`, to the
+  hash that one reading froze (see [the local fingerprints](#late-generation-state)). What a run may cross on the
+  issue thread is bounded beside it — see [the drift section](delivery-stages.md#user-content-drift-detection).
+- **Observed reading.** `observed_user_content_hash` — the same fingerprint over a reading a stage acted on without
+  consuming any of it, written only where no `user_content_hash` is recorded: by a late adjudication carrying on over a
+  quiet reading. It moves no baseline. The drift check compares against it in place of the missing one, recording
+  `user_content_hash` where the thread still matches and reporting drift where it does not, and ignores it once a
+  baseline is recorded — so an umbrella a late split made meets a comment written while the adjudicator ran as an edit.
 - **The developer report a pull request is owed and the one it carries.** The additive
   `developer_report_delivery` / `developer_report_pending` / `developer_report_current` /
   `developer_report_handoff` group, each one nested object, and each absent on every issue that predates it. They
@@ -2410,7 +2417,8 @@ The keys that matter for the state machine fall into a few groups:
   would spend the watermark a trusted operator's command is read against. A bare command is also kept out of the
   `user_content_hash` (`run_grant_request._is_bare_command`, one of the filters in
   [the drift hash](delivery-stages.md#user-content-drift-detection)), since the tick that answers it is the tick the
-  stage handler runs on. Nothing here returns a spent run.
+  stage handler runs on, and out of the guidance a late adjudication resumes its developer on (`late_content_replies`),
+  since a number is no requirement to revise against. Nothing here returns a spent run.
 - **Terminal usage verdict.** `_format_issue_usage_verdict` renders those counters into one visible receipt line
   (`:receipt: this issue: N agent runs · T tokens · $X.XX`, `(est.)` appended when any `estimated` contributed,
   `unknown` in place of the figure when an `unknown-price` run leaves the total incomplete). It returns nothing when
@@ -2833,32 +2841,89 @@ rather than preserving.
   reachable. Absence is the same answer — no misses and no failure is what every pinned comment written before the
   pair says, so the write leaves both off rather than spelling that state a second way.
 - **Local fingerprints.** `late_title_body_hash`, and `late_comment_hash` beside the `late_comment_watermark_id` it
-  covers from, are what tell a scope edit apart from a trusted answer arriving after the late baseline. They are
-  local by design: the global `user_content_hash` above keeps its single baseline and its meaning unchanged, so
-  nothing here moves a baseline the re-decompose and dev-resume routes read. Who counts is that hash's own trust
-  filter, asked through the same predicate — the pinned-state comment, the orchestrator's marker and its recorded
-  ids, third-party bots, and every author outside `ALLOWED_ISSUE_AUTHORS` are dropped before anything is digested, so
-  nothing an outsider posts shifts a fingerprint, becomes guidance, or moves the watermark. A comment with no usable
-  id is dropped beside them, because the watermark is the only thing that ever consumes one. The three fields move
-  together or not at all: advancing the watermark without the digest would leave a prefix nothing had hashed, and
-  advancing the digest alone would let the comments it covers arrive as fresh guidance a second time. The watermark
-  only ever rises, so a deleted comment cannot lower it and replay conversation an agent already answered, and the
-  digest is taken over the counted prefix rather than trusted to the watermark — a comment rewritten in place moves
-  no id at all, and reading that as drift is what keeps an edit with no new comment behind it from being lost. Both
-  fingerprints absent is a generation whose baseline has still to be taken, which is why "no baseline" is a separate
-  answer from "the requirements moved": an absent digest equals nothing, and reading that as an edit would park the
-  first tick of every adjudication. Every path that ACTS on a reply moves the shared `last_action_comment_id` with
-  the local watermark, because two readers walk the same thread: a question answered, a candidate certified, a
-  stalled revision re-read, or a developer resumed are all comments this mode has spent, and leaving the shared one
-  behind would hand them to the later validating → in_review handoff as fresh PR feedback — routing the pull request
-  to `fixing`, or resuming the developer on input it already handled. It moves to the highest *trusted* comment
-  folded in, so an untrusted one sitting above it stays unconsumed exactly as it does on every other resume, and it
-  is a one-way ratchet. What counts as a *reply* is a third reading again, taken against the higher of
-  `late_comment_watermark_id` and the shared `last_action_comment_id` above — which every announced park advances past
-  the notice it posted, making it the response boundary a park needs. A comment written before a park is not an answer
-  to it, so a park that fires while somebody is mid-sentence is not resolved on the next tick by the sentence they had
-  already sent. What each comparison earns is in
+  covers from, are what tell a scope edit apart from a trusted answer arriving after the late baseline. They are local
+  by design: the global `user_content_hash` above keeps its single baseline and its meaning unchanged, so no fingerprint
+  moves a baseline the re-decompose and dev-resume routes read. Who counts is that hash's own trust filter, asked
+  through the same predicate — the pinned-state comment, the orchestrator's marker and its recorded ids, third-party
+  bots, and every author outside `ALLOWED_ISSUE_AUTHORS` are dropped before anything is digested, so nothing an outsider
+  posts shifts a fingerprint, becomes guidance, or moves the watermark. A comment with no usable id is dropped beside
+  them, because the watermark is the only thing that ever consumes one. The three fields move together or not at all:
+  advancing the watermark without the digest would leave a prefix nothing had hashed, and advancing the digest alone
+  would let the comments it covers arrive as fresh guidance a second time. The watermark only ever rises, so a deleted
+  comment cannot lower it and replay conversation an agent already answered, and the digest is taken over the counted
+  prefix rather than trusted to the watermark — a comment rewritten in place moves no id at all, and reading that as
+  drift is what keeps an edit with no new comment behind it from being lost. Both fingerprints absent is a generation
+  whose baseline has still to be taken, which is why "no baseline" is a separate answer from "the requirements moved":
+  an absent digest equals nothing, and reading that as an edit would park the first tick of every adjudication. What
+  that first tick takes is held to the issue-wide `user_content_hash` instead: the baseline covers the longest prefix of
+  the thread that, beside the title and body as they now read, reproduces the recorded hash, so a comment past it — one
+  no stage has consumed — stays uncounted and reaches the developer whole, while a reading no prefix of which reproduces
+  it moved since the developer last worked against it and parks as `late_content_drift` — on a baseline that counts no
+  comment and holds `late_title_body_hash` to the recorded `user_content_hash` itself, so the reading stays drifted
+  until a human answers and every trusted comment reaches the developer whole with that answer. The one exception is
+  the edit taken back: a hash that covered a comment is one no title and body alone reproduce, so a drifted reading of
+  that baseline is searched for the covering prefix again, and one found retakes the baseline on it and clears the
+  park as any revert does. An issue with no
+  recorded hash has recorded nothing as read, so its first baseline counts no comment at all, and every trusted comment
+  on the thread reaches an agent whole before anything records it read. Nothing records `user_content_hash` for it,
+  since nothing was consumed; a quiet reading the adjudication carries on over is kept as `observed_user_content_hash`
+  instead, which leaves every later comment or edit as drift for the stage the issue reaches next rather than something
+  that stage's first poll takes as its initial baseline. Every late baseline taken this way, and every consumption,
+  sets `late_baseline_bounded`. A generation without it was baselined over the whole thread and may count comments no
+  stage consumed, which cannot be told once the title or body has moved, so it gives up what it counts before anything
+  is compared — drifted or not. With a hash recorded it is baselined again as a first reading is, over the covered
+  prefix or as a drift park counting no comment; with none it keeps its title and body fingerprint and counts no
+  comment. Either way those comments reach an agent before a split, handed on by the reading or by whatever answers
+  the drift park, rather than certified over, lost to the umbrella's first poll, or orphaning its children. Every path
+  that ACTS on a reply moves the shared
+  `last_action_comment_id` with the local watermark, because two readers walk the same thread: a question answered, a
+  candidate certified, a stalled revision re-read, or a developer resumed are all comments this mode has spent, and
+  leaving the shared one behind would hand them to the later validating → in_review handoff as fresh PR feedback —
+  routing the pull request to `fixing`, or resuming the developer on input it already handled. It moves to the highest
+  *trusted* comment folded in, so an untrusted one sitting above it stays unconsumed exactly as it does on every other
+  resume, and it is a one-way ratchet. The same write records `user_content_hash` too, for a reader past both of them:
+  the drift check of whatever stage the issue reaches next. It is the hash the late reading itself froze over the title,
+  body, and comment batch it was taken from — under the global filter, so operator commands the local digest counts are
+  left out — and never a second read, so a comment or edit that arrived after the reading is still drift for that stage.
+  Without it an umbrella a late split made would read guidance a developer revision already answered as an edit on its
+  first poll, orphan the children it was just handed, and decompose the same work again. Only a consumption moves it,
+  and each of these leaves it unchanged: a first baseline, which records the local fingerprints alone;
+  an unanswered `late_content_drift` park, whose notice may move the shared watermark past itself; and a developer run
+  that was paused, killed by a shutdown, refused by the run circuit, or ended by a close latched before the resume or
+  during the run — or whose CLI stopped before it worked, on its quota, any provider refusal (`API Error:` of any
+  status), or a failed exit with nothing said, which is reconciled and parks over guidance still unread.
+  Nothing writes it without a consumption: an issue with none has the reading an adjudication carries on over kept as
+  `observed_user_content_hash` (above), which moves no baseline.
+  The trusted continue that lifts a `retry_cap` park consumes its reading whole — the words beside the command are owed
+  the adjudicator it buys (below), and a generation whose first late baseline is still to be taken takes it here, over
+  what the issue-wide baseline covers — unless the reading shows drift under a baseline that exists, withholds guidance,
+  or is one the recorded hash no longer reproduces, where it moves the shared watermark alone. What counts as a *reply*
+  is a third reading again, taken against the higher of `late_comment_watermark_id` and the shared
+  `last_action_comment_id` above — which every announced park advances past the notice it posted, making it the response
+  boundary a park needs. A comment written before a park is not an answer to it, so a park that fires while somebody is
+  mid-sentence is not resolved on the next tick by the sentence they had already sent. The trusted guidance in that gap
+  — past the local watermark, at or below the shared one, on a generation that has taken its baseline — is *withheld*,
+  and no consumption folds it until a developer has been handed it: every developer revision quotes it, and whatever
+  ends the park it sat under — a revert, a certificate, an answered question, a retry-cap continue, an authorization, a
+  continue on a stalled revision — or finds no park standing resumes the developer with it, rather than spending it on
+  an adjudication consumed for ahead of spawn gates that may stop it or on a publication whose next agent reads only a
+  bounded excerpt. A continue refused while its park stands moves the shared watermark alone, leaving the local
+  fingerprints and `user_content_hash` where they were. What each comparison earns is in
   [`../workflow/roles.md`](../workflow/roles.md#what-a-late-adjudication-is-asked-and-what-it-may-answer).
+- **Owed replies.** `late_owed_replies` is the ordered list of trusted comment ids this generation consumed on an
+  adjudication's behalf — the answer that reopened a categorized question, and the words beside a retry-cap continue —
+  that no run has yet been handed whole. The adjudicator reads the thread through the bounded excerpt of its tail every
+  conversation-carrying prompt shares, and both consumptions land ahead of its spawn gates, so without the list a long
+  reply would be recorded as read — `user_content_hash` included — while the agent it was spent on saw only its end, or
+  nothing if a gate refused the run. Every late run quotes the owed replies whole after that excerpt until one has
+  answered them. An adjudicator repays them only with a verdict recorded over them, in the write that records it; a
+  developer revision only with the candidate its reconciliation re-measures off its answer, in that write, and never
+  where it timed out or its CLI stopped before it worked. Every other run repays nothing — refused at a gate, paused,
+  killed, timed out, stopped on its quota or a provider refusal, answering with a reply nothing could parse, or a
+  revision whose reconciliation parked, a question over an unchanged commit among them — so the run its park earns is
+  quoted them again. A recorded answer is not reused while any reply is owed, since it was taken without it. The list
+  lives on the generation, so a revision carries it forward and the retirement a split's handoff writes drops it, and it
+  is read all-or-nothing like the split register.
 - **Held PR.** `late_plan_pr_number`, `late_plan_pr_head`, and `late_plan_pr_body` — the pull request whose body a
   cycle-marked hold replaced, the head it was standing on when that happened, and the body it replaced, kept so the
   original can be restored. The `plan_pr` spelling is what live pinned comments carry and stays for that reason; what

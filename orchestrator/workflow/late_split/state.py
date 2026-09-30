@@ -103,6 +103,7 @@ def read_late_generation(state: PinnedState) -> LateGeneration:
         comment_watermark_id=_payloads.as_identity(
             state.get(_keys.COMMENT_WATERMARK_ID),
         ),
+        baseline_bounded=_payloads.as_flag(state.get(_keys.BASELINE_BOUNDED)),
         plan_pr_number=_payloads.as_identity(state.get(_keys.PLAN_PR_NUMBER)),
         plan_pr_head=_payloads.as_hex(
             state.get(_keys.PLAN_PR_HEAD), _formats.COMMIT_LENGTHS,
@@ -125,6 +126,7 @@ def read_late_generation(state: PinnedState) -> LateGeneration:
         ),
         split_children=_ledgers.read_register(state.get(_keys.SPLIT_CHILDREN)),
         links_announced=_payloads.as_flag(state.get(_keys.LINKS_ANNOUNCED)),
+        owed_replies=_ledgers.read_register(state.get(_keys.OWED_REPLIES)),
         owner_check_pending=_payloads.as_flag(
             state.get(_keys.OWNER_CHECK_PENDING),
         ),

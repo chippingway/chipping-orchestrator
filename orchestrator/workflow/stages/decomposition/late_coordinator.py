@@ -32,7 +32,10 @@ every retry re-reconciles the same pull request rather than mutating it
 again. Then a result already recorded for this cycle, generation, and exact
 commit short circuits the spawn entirely: an agent that finished is not paid
 for twice because the tick that read its answer died before acting on it, and
-a second run is free to decide differently. Either way, the park a previous
+a second run is free to decide differently. Unless a reply is still owed a
+whole quote (`late_owed_replies`): an answer recorded without it is one no
+adjudicator took over the words that reply was consumed for, so a run is
+paid for to read them. Either way, the park a previous
 attempt left is retired the moment the hold reconciles -- that attempt is the
 answer to it, and a stale `awaiting_human` would go on to silence the
 announcement a question verdict earns, whether the question came from this run
@@ -158,7 +161,7 @@ def _adjudicate_late_generation(
         return _late_outcome._finished(context, settled.disposition)
     retired = retired and not settled.persisted
     recorded = _late_run_reading._read_late_run(state)
-    if recorded.answers(context.generation):
+    if recorded.answers(context.generation) and not context.generation.owed_replies:
         log.info(
             "issue=#%d late generation %d already decided as %s; not "
             "spawning a second adjudication",

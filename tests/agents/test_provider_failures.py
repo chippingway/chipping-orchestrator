@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Transient-provider verdict owner tests."""
+"""Provider-refusal verdict owner tests: the transient one and the wider one."""
 
 from __future__ import annotations
 
@@ -124,3 +124,61 @@ class TransientProviderFailureTest(unittest.TestCase):
                         _agent_result(last_message, exit_code=1),
                     ),
                 )
+
+
+# Refusals of every kind the provider answers a turn with, 4xx included.
+_REFUSALS = (
+    _agent_cases._OVERLOADED_RESULT,
+    "API Error: 400 Bad Request",
+    "API Error: 401 Unauthorized",
+    "  api error: 429 Too Many Requests",
+)
+
+
+class ProviderRefusalTest(unittest.TestCase):
+    """Whether a run got to its prompt at all, whatever a retry could do.
+
+    Asked by a caller settling what a run was handed, where a refusal read as
+    an answer drops a human's words: so every `API Error:` counts, and the
+    prefix decides on a clean exit too where the backend gave no flag.
+    """
+
+    def test_every_refusal_counts_on_any_exit(self) -> None:
+        for last_message in _REFUSALS:
+            for exit_code in (0, 1):
+                with self.subTest(last_message=last_message, exit_code=exit_code):
+                    self.assertTrue(
+                        _provider_failures.is_provider_refusal(
+                            _agent_result(last_message, exit_code=exit_code),
+                        ),
+                    )
+
+    def test_the_agents_own_words_are_left_alone(self) -> None:
+        # A mention mid-answer is prose, and a flagged `is_error: false` turn
+        # quoting a refusal back is an answer however it opens.
+        unflagged = ("", _agent_cases._OVERLOADED_MENTION, "Should I prefer ruff or black for this?")
+        for last_message in unflagged:
+            with self.subTest(last_message=last_message):
+                self.assertFalse(
+                    _provider_failures.is_provider_refusal(
+                        _agent_result(last_message, exit_code=1),
+                    ),
+                )
+        quoted = _agent_result(
+            _REFUSALS[-1],
+            stdout=_claude_result_event(
+                _REFUSALS[-1], **{_agent_cases._IS_ERROR_FIELD: False},
+            ),
+        )
+        self.assertFalse(_provider_failures.is_provider_refusal(quoted))
+
+    def test_a_flagged_refusal_counts(self) -> None:
+        refusal = "API Error: 401 Unauthorized"
+        flagged = _agent_result(
+            refusal,
+            stdout=_claude_result_event(
+                refusal, **{_agent_cases._IS_ERROR_FIELD: True},
+            ),
+        )
+        self.assertTrue(_provider_failures.is_provider_refusal(flagged))
+        self.assertFalse(_provider_failures.is_transient_provider_failure(flagged))

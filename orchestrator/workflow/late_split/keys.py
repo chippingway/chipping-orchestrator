@@ -41,6 +41,7 @@ PHASE = "late_phase"
 TITLE_BODY_HASH = "late_title_body_hash"
 COMMENT_HASH = "late_comment_hash"
 COMMENT_WATERMARK_ID = "late_comment_watermark_id"
+BASELINE_BOUNDED = "late_baseline_bounded"
 PLAN_PR_NUMBER = "late_plan_pr_number"
 PLAN_PR_HEAD = "late_plan_pr_head"
 PLAN_PR_BODY = "late_plan_pr_body"
@@ -52,6 +53,7 @@ RESOURCES = "late_resources"
 CONSUMERS = "late_consumers"
 SPLIT_CHILDREN = "late_split_children"
 LINKS_ANNOUNCED = "late_links_announced"
+OWED_REPLIES = "late_owed_replies"
 OWNER_CHECK_PENDING = "late_owner_check_pending"
 CANCELLED = "late_cancelled"
 CANCELLED_AT = "late_cancelled_at"
@@ -80,6 +82,7 @@ LATE_STATE_KEYS = (
     TITLE_BODY_HASH,
     COMMENT_HASH,
     COMMENT_WATERMARK_ID,
+    BASELINE_BOUNDED,
     PLAN_PR_NUMBER,
     PLAN_PR_HEAD,
     PLAN_PR_BODY,
@@ -91,6 +94,7 @@ LATE_STATE_KEYS = (
     CONSUMERS,
     SPLIT_CHILDREN,
     LINKS_ANNOUNCED,
+    OWED_REPLIES,
     OWNER_CHECK_PENDING,
     CANCELLED,
     CANCELLED_AT,

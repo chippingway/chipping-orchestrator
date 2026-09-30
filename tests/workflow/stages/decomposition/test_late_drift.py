@@ -12,6 +12,9 @@ from tests.workflow.stages.decomposition import (
     late_content_support as _support,
 )
 from tests.workflow.stages.decomposition.late_content_support import LateContentCase
+from tests.workflow.stages.decomposition.late_requirements_support import KEY_USER_CONTENT_HASH, requirements
+from tests.workflow.stages.decomposition.late_revision_support import DEV_ACK, REMEASURED
+from tests.workflow.stages.decomposition.late_run_support import WorktreeSeed
 from tests.workflow.stages.decomposition.late_test_support import (
     CANDIDATE_SHA,
     KEYS,
@@ -26,7 +29,13 @@ class ContentBaselineTest(LateContentCase):
     """The first tick of an adjudication records what it was frozen on."""
 
     def test_the_baseline_is_taken_and_run_carries_on(self) -> None:
+        # A thread the issue-wide requirements baseline already covers is
+        # what the candidate was written against, comment and all.
         self._seed(baseline=False, comments=(_content_replies.guidance_comment(),))
+        settled = requirements(self.issue)
+        self.github.seed_state(self.issue.number, **{
+            **self._pinned(), KEY_USER_CONTENT_HASH: settled,
+        })
 
         outcome, spawn = self._run()
 
@@ -36,6 +45,8 @@ class ContentBaselineTest(LateContentCase):
         self.assertTrue(pinned[_support.KEY_TITLE_BODY_HASH])
         self.assertTrue(pinned[_support.KEY_COMMENT_HASH])
         self.assertEqual(pinned[_support.KEY_COMMENT_WATERMARK], _content_replies.guidance_comment().id)
+        # Observed, not consumed: the issue-wide baseline is left as it was.
+        self.assertEqual(pinned[KEY_USER_CONTENT_HASH], settled)
 
 
 class TitleBodyDriftTest(LateContentCase):
@@ -52,6 +63,7 @@ class TitleBodyDriftTest(LateContentCase):
         pinned = self._pinned()
         self.assertTrue(pinned[KEYS.awaiting])
         self.assertEqual(pinned[KEYS.park_reason], _support.PARK_CONTENT_DRIFT)
+        self.assertNotIn(KEY_USER_CONTENT_HASH, pinned)
 
     def test_the_evidence_a_later_tick_needs_survives(self) -> None:
         # The park is a claim about the requirements, not about the evidence:
@@ -86,8 +98,10 @@ class TitleBodyDriftTest(LateContentCase):
         # Not a one-tick delay. An answer written before the human was told
         # anything is not a reply to what they were then told, so it must not
         # resolve the park on the next poll either -- and the boundary holds a
-        # reply out rather than closing the door, so the same human saying it
-        # again once they have read the notice IS an answer.
+        # reply out rather than closing the door, so the same human answering
+        # once they have read the notice IS an answer. Held out is not thrown
+        # away, though: the certificate ends the park, and the words written
+        # before it are then handed to the developer rather than spent.
         self._seed_with_plan_pr()
         self.issue.title = _support.EDITED_TITLE
         self.issue.comments.append(_content_replies.guidance_comment())
@@ -95,12 +109,16 @@ class TitleBodyDriftTest(LateContentCase):
 
         stale, held = self._run()
         _content_replies.reply(self.issue, _support.BARE_CONTINUE)
-        answered, resumed = self._run()
+        answered, resumed = self._run(
+            DEV_ACK,
+            worktree=WorktreeSeed(head=_support.REVISED_SHA),
+            measurement=REMEASURED,
+        )
 
         self.assertEqual(stale.disposition, _LateDisposition.PARKED)
         held.assert_not_called()
-        self.assertEqual(answered.disposition, _LateDisposition.DECIDED)
-        resumed.assert_called_once()
+        self.assertEqual(answered.disposition, _LateDisposition.REVISED)
+        self.assertIn(_content_replies.GUIDANCE_BODY, resumed.call_args.args[1])
         self.assertFalse(self._pinned()[KEYS.awaiting])
 
     def test_nothing_a_park_recognizes_resolves_it(self) -> None:
@@ -147,6 +165,7 @@ class TitleBodyDriftTest(LateContentCase):
         self.assertFalse(pinned[KEYS.awaiting])
         self.assertIsNone(pinned[KEYS.park_reason])
         self.assertEqual(len(self._bodies()), 1)
+        self.assertEqual(pinned[KEY_USER_CONTENT_HASH], requirements(self.issue))
 
 
 class CertifiedCandidateTest(LateContentCase):

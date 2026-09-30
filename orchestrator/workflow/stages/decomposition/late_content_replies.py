@@ -11,26 +11,28 @@ about the thread and is held to a trust policy and a watermark, while this one
 is about a single body and is held to the command vocabulary the whole
 workflow shares.
 
-Nothing is parsed here. Both controls are recognized by `engine/messages`,
-asked through it rather than re-read, so what `/orchestrator continue` and
-`/orchestrator authorize-oversized <commit>` MEAN is spelled in one place and
-a late reading cannot drift from the gate that acts on them.
+Nothing is parsed here. The controls are recognized by the owners that act on
+them, asked through those rather than re-read: `engine/messages` for
+`/orchestrator continue` and `/orchestrator authorize-oversized <commit>`, and
+`engine/run_grant_request` for `/orchestrator add-agent-runs N`. So what each
+command MEANS is spelled in one place, and a late reading cannot drift from the
+gate that acts on it -- nor from the drift hash, which filters the same three.
 
-Only the WHOLE comment is either command, which is the same rule read in both
+Only the WHOLE comment is a command, which is the same rule read in both
 directions. Prose around the authorization is prose -- that is what keeps a
 paragraph mentioning the command from becoming a bypass of the size gate --
 and the same paragraph is still guidance, because a human who wrote a
 sentence about a command wrote a sentence to act on.
 
 What this owner does NOT decide is whether a comment counts toward a digest.
-Both controls are trusted comments on the thread, so their bodies are
+The controls are trusted comments on the thread, so their bodies are
 fingerprinted beside everyone else's by the owner above; being no requirement
 is a statement about what an agent may be handed, not about what an edit after
 the fact is allowed to hide.
 """
 from __future__ import annotations
 
-from orchestrator.workflow.engine import messages as _messages
+from orchestrator.workflow.engine import messages as _messages, run_grant_request as _run_grant_request
 from orchestrator.workflow.stages.decomposition.late_content_models import _LateAuthorization
 
 
@@ -68,13 +70,18 @@ def _is_guidance(issue_comment) -> bool:
     guidance for the same reason and one of its own: it is a decision about
     the candidate that already exists, so handing it to a developer would
     answer a question about scope with a commit id and re-freeze the very
-    change an operator just said may publish. Prose AROUND either command is
-    guidance, since neither is the whole comment then.
+    change an operator just said may publish. A bare `/orchestrator
+    add-agent-runs N` is not guidance either: it widens what the issue may
+    spend, which is the run-limit hold's to answer, and handed to a developer
+    it would buy a revision over a number. Prose AROUND any of the three is
+    guidance, since none is the whole comment then.
     An empty body is not guidance either -- a reaction or an attachment with
     no text in it says nothing a developer could revise against.
     """
     if _messages._is_bare_orchestrator_continue(issue_comment):
         return False
     if _messages._authorized_oversized_candidate(issue_comment) is not None:
+        return False
+    if _run_grant_request._is_bare_command(issue_comment):
         return False
     return bool((issue_comment.body or "").strip())

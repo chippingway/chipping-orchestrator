@@ -4,7 +4,9 @@
 
 The command must name the parked candidate and answer its recorded single
 verdict. Refusals retain their comment marker and consume only the reading
-that supplied the decision.
+that supplied the decision. Either way the reading is consumed through
+`late_park_state`, so the stage an authorized publication hands the issue to
+inherits the requirements baseline of that reading and nothing newer.
 """
 from __future__ import annotations
 
@@ -21,7 +23,6 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition import (
     late_authorization_proof as _late_authorization_proof,
-    late_content as _late_content,
     late_content_models as _late_content_models,
     late_park_state as _late_park_state,
     late_parks as _late_parks,
@@ -92,9 +93,16 @@ def _answered_single(
     adjudicated again. An operator who meant the authorization says it on its
     own, which is the only shape it is ever read from anyway.
 
+    Guidance the park's notice WITHHELD outranks an authorization the same
+    way, even though it never answers the park. The authorization would end
+    the park and hand the issue to publication, where the next agent sees the
+    thread only through a bounded excerpt -- so a human's words nobody has
+    read would be published past and could be lost to that excerpt. They are
+    quoted whole to the developer instead, and nothing publishes.
+
     A reply that is none of the three leaves the park exactly where it is.
     """
-    if signal.guidance:
+    if signal.guidance or (signal.withheld and signal.authorization is not None):
         return _late_revision._revise_from_guidance(context, signal)
     if signal.authorization is not None:
         return _authorized(context, signal, signal.authorization)
@@ -168,7 +176,7 @@ def _authorized(
         ),
     )
     _late_parks._answer_park(context)
-    _consume(context, signal)
+    _late_park_state._consume_reading(context, signal)
     _late_park_state._persist(context)
     return _late_content_models._LateContentSettlement(persisted=True)
 
@@ -253,7 +261,7 @@ def _refused(
         )
     if not still_waiting:
         _late_parks._answer_park(context)
-    _consume(context, signal)
+    _late_park_state._consume_reading(context, signal)
     _late_park_state._persist(context)
     return _late_content_models._LateContentSettlement(
         disposition=_LateDisposition.PARKED if still_waiting else None,
@@ -272,22 +280,4 @@ def _already_answered(context: _LateContext, marker: str) -> bool:
         context.issue.get_comments(),
         marker,
         bot_login=getattr(context.gh, "_bot_login", None),
-    )
-
-
-def _consume(context: _LateContext, signal: _late_content_models._LateContentSignal) -> None:
-    """Record the conversation this tick acted on as read, both ways.
-
-    The generation's own fingerprints stop the command coming back as a fresh
-    authorization on the next poll, which for a record that bypasses the size
-    gate is the difference between a decision and a standing permission. The
-    issue-wide `last_action_comment_id` stops the stage this settlement hands
-    the issue to reading the same comment as fresh feedback it has to resume
-    somebody over.
-    """
-    context.generation = _late_content._rebaselined(
-        context.generation, signal.fingerprint,
-    )
-    _late_park_state._mark_replies_read(
-        context, signal.fingerprint.comment_watermark_id,
     )

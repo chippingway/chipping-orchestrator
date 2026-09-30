@@ -10,12 +10,20 @@ follow that write; its own recovery owner reads the same state predicates.
 The consumed-comment watermark is shared with later workflow stages. A reply
 spent here must never become fresh feedback when the issue advances, and a
 malformed or older reading must never lower the watermark.
+
+The requirements baseline is shared the same way. A content reading this mode
+consumes is recorded as `user_content_hash` beside the watermarks it moves,
+from the frozen reading itself, so the stage the issue reaches next -- the
+umbrella a split hands it to, or the one a publication hands it back to --
+does not meet guidance already answered here as a fresh edit and re-derive
+work over it.
 """
 from __future__ import annotations
 
 from orchestrator.workflow.engine import retry_values as _retry_values
 from orchestrator.workflow.late_split import formats as _formats, state as _late_state
-from orchestrator.workflow.stages.decomposition import late_notice as _late_notice
+from orchestrator.workflow.stages.decomposition import late_content as _late_content, late_notice as _late_notice
+from orchestrator.workflow.stages.decomposition.late_content_models import _LateContentSignal
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
 
 _AWAITING_HUMAN = "awaiting_human"
@@ -27,6 +35,11 @@ _PARK_REASON = "park_reason"
 # mode read and acted on is one the later validating -> in_review handoff must
 # not find again as fresh PR feedback.
 _LAST_ACTION_COMMENT_ID = "last_action_comment_id"
+
+# The issue-wide requirements baseline every stage's drift check compares
+# against. Written here only from a reading this mode consumed, never from one
+# it merely observed -- which `late_issue_baseline` records beside it instead.
+_USER_CONTENT_HASH = "user_content_hash"
 
 # Every way this mode hands an issue back, spelled once because each is a
 # durable pinned value and because the set below is read against them.
@@ -173,6 +186,62 @@ def _stands_parked(context: _LateContext) -> bool:
     the issue is already waiting on a human for is not asked twice.
     """
     return bool(context.state.get(_AWAITING_HUMAN))
+
+
+def _consume_reading(
+    context: _LateContext, signal: _LateContentSignal,
+) -> None:
+    """Record one content reading as consumed, on every baseline that reads it.
+
+    Three of them, because three readers walk the same issue. The generation's
+    own fingerprints stop the replies coming back here as fresh guidance -- or
+    an authorization as a standing permission; the shared watermark stops the
+    later validating -> in_review handoff replaying them as PR feedback; and
+    the requirements baseline stops the next stage's drift check reading them
+    as an edit. That last one is what hands a split over cleanly: without it
+    the first umbrella poll finds the guidance a developer revision already
+    answered, orphans the children the split just made, and decomposes the
+    same work again.
+
+    All three cover the whole reading rather than the replies alone, since
+    that is what was acted on, and all three come off the reading itself. The
+    requirements hash in particular is the one frozen on the signal, never
+    recomputed here: a comment or an edit that landed after the reading was
+    taken was acted on by nobody, and it has to stay drift for the stage that
+    reads the issue next.
+
+    Guidance the reading still WITHHOLDS is the one thing that stops the
+    whole of it. Those are a human's words no agent has been handed -- written
+    before a park's notice, so no reply to it -- and a consumer that could
+    hand them on says so by passing the reading `delivered`. One that cannot,
+    a control answered with no agent behind it, spends only the reply it
+    read: the shared watermark moves past it, so it is not read twice, while
+    the late fingerprints and `user_content_hash` stay where they were. The
+    withheld comments therefore stay withheld for the next reading, which is
+    where a developer is handed them, and stay an edit to the drift check of
+    whatever stage the issue reaches first.
+
+    In memory only. Each caller's own write is what makes the consumption
+    durable, so what it records lands together or not at all, and a road that
+    writes nothing consumes nothing -- a developer run that a pause, a
+    shutdown sweep, or a refused launch cut short among them -- and a
+    developer run a latched close ended, or whose CLI stopped before it
+    worked, is never handed here by `late_revision`, whatever its cancellation
+    or its park writes. A reading merely observed never
+    arrives here, and leaves `user_content_hash` where it was: the first
+    baseline a generation takes records the late fingerprints alone, and a
+    drift park nobody has answered records neither those nor this -- the only
+    watermark it moves is the shared one, past the notice it posted. Where no
+    baseline is recorded, a reading an adjudication carries on over is kept
+    as `observed_user_content_hash` beside it, which moves no baseline.
+    """
+    _mark_replies_read(context, signal.fingerprint.comment_watermark_id)
+    if signal.withheld:
+        return
+    context.generation = _late_content._rebaselined(
+        context.generation, signal.fingerprint,
+    )
+    context.state.set(_USER_CONTENT_HASH, signal.requirements_hash)
 
 
 def _mark_replies_read(context: _LateContext, through) -> None:
