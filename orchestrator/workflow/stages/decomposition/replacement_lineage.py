@@ -38,11 +38,11 @@ any child exists, or -- where a crash left children recorded -- before the
 split is finalized and anything could start them. That recovery holds every
 recorded child to the same answer: a child carrying no ancestry is seeded,
 one carrying exactly what it was owed is left alone, a pointer the ledger no
-longer protects is dropped with the lineage beside it kept, and a child this
-split cannot recognize as its own -- a pinned comment that would not parse, a
-link to another parent, or any other ancestry: a partial group, a field its
-reader would drop, another lineage -- refuses the finalize that would start
-it, with nothing written over what it carries.
+longer protects is dropped with its ordering stamp and the lineage beside it
+kept, and a child this split cannot recognize as its own -- a pinned comment
+that would not parse, a link to another parent, or any other ancestry: a
+partial group, a field its reader would drop, another lineage -- refuses the
+finalize that would start it, with nothing written over what it carries.
 """
 from __future__ import annotations
 
@@ -188,7 +188,10 @@ class ReplacementLineage:
         rather than refused: kept where it is none or the one the ledger
         protects the child for, and dropped otherwise, because a pointer
         nothing keeps is one the child's own guard would follow into a ref a
-        reclamation may take.
+        reclamation may take. The ordering stamp goes with a pointer dropped
+        here, since it is a claim about that ref; one standing alone -- what
+        the child's own guard leaves when it drops a pointer -- names no ref
+        and is left as it is.
         """
         owed = self.child_ancestry(state, child_number)
         if owed is None:
@@ -202,7 +205,7 @@ class ReplacementLineage:
         pointer = (recorded.snapshot_ref, recorded.snapshot_sha)
         if pointer in {("", ""), (owed.snapshot_ref, owed.snapshot_sha)}:
             return SeedRepair()
-        return SeedRepair(ancestry=recorded.without_snapshot())
+        return SeedRepair(ancestry=_unpointed(recorded))
 
 
 def read_replacement_lineage(state: PinnedState, issue: Issue) -> ReplacementLineage:

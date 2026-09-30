@@ -504,7 +504,8 @@ because there it is the claim that this stage has already rerouted rather than a
      pinned `parent_number` was never seeded — and, where the parent sits inside a late lineage, hold every recorded
      child to the lineage step 7 would have given it: seed one carrying none of the `late_ancestry_*` group (the
      snapshot pointer only where `late_consumers` already names the child), leave one carrying exactly that group or
-     that group without its pointer, and drop a pointer the ledger no longer protects — then finalize to
+     that group without its pointer, and drop a pointer the ledger no longer protects, with its
+     `late_ancestry_mirror_first` stamp — then finalize to
      `workflow:umbrella` (when the flag is true) or `workflow:blocked`. A parent whose record no longer proves that
      lineage, or a child it cannot recognize as its own — a pinned comment that would not parse, a `parent_number`
      naming another issue, or any other group (part of it, a field its reader would drop, another lineage) — parks

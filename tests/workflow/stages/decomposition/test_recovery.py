@@ -493,14 +493,15 @@ class RecordedSeedTest(_ReplacementRecoveryCase):
 
     def test_an_unprotected_pointer_is_dropped(self) -> None:
         # The seed landed with its pointer, and the ledger that protected it
-        # no longer names the child: the lineage stands and the pointer goes.
+        # no longer names the child: the lineage stands, and the pointer goes
+        # with the ordering stamp that was a claim about it.
         child = self._die_seeding()
         self.github.seed_state(child, **_written(_support.ROOT_REPLACEMENT))
         self._unprotect()
 
         self._recover()
 
-        self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT.without_snapshot())
+        self.assertEqual(self._seeded(child), _support.ROOT_LINEAGE)
         self.assertEqual(_support.consumers(self.github), [_support.ORIGINAL])
         self.assertEqual(self._labels(child), (LABEL_UMBRELLA, LABEL_BLOCKED))
 

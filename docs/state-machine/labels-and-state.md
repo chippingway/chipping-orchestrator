@@ -3334,9 +3334,9 @@ rather than preserving.
   parent, and a cycle and generation to correlate by — the parent's own where its record keeps one, its ancestry's
   where it has none, and `late_retired_cycle_id` where neither stands. A parent already at `MAX_LINEAGE_DEPTH` has no
   room for a child, and one naming no cycle anywhere has nothing to correlate one by. The snapshot pair and
-  `late_ancestry_mirror_first` go only on a replacement `late_consumers` records, and only for the ref the parent's
-  own split holds: a pointer another issue's ledger protects is one this issue cannot record a consumer on, so its
-  replacements are born with the lineage and without it. A ref the parent's own split no longer holds is settled
+  `late_ancestry_mirror_first` are seeded only on a replacement `late_consumers` records, and only for the ref the
+  parent's own split holds: a pointer another issue's ledger protects is one this issue cannot record a consumer on,
+  so its replacements are born with the lineage and without it. A ref the parent's own split no longer holds is settled
   only where its entry has passed to a reclamation (`reclaiming`, `reconciled`, `failed`), and its replacements are
   born without the pointer; a split whose ledger cannot say whether the ref is held or released — a resource ledger
   this binary cannot read, a held ref no consumer can be recorded against (an unreadable `late_consumers`, no
@@ -3344,8 +3344,10 @@ rather than preserving.
   refusal like any other. A refusal parks `replacement_lineage_unproved` before `expected_children_count` is
   written, so nothing is created. A recovered split holds every recorded child to the same lineage before it
   finalizes: a child carrying none of this group is seeded, the pointer included only where the ledger already
-  names it; one carrying exactly the group it was owed, or that group without a pointer, is left alone; a pointer
-  the ledger no longer protects is dropped with the lineage beside it kept; and a child that split cannot recognize
+  names it; one carrying exactly the group it was owed, or that group without a pointer, is left alone — a
+  `late_ancestry_mirror_first` standing with no pair beside it, which is what the child's own reuse guard leaves
+  when it drops a pointer, names no ref and stays; a pointer the ledger no longer protects is dropped together with
+  that stamp, the lineage beside them kept; and a child that split cannot recognize
   as its own — a pinned comment that would not parse, a `parent_number` naming another issue, or any other group:
   part of it, a field its reader would drop, another lineage — parks the same way, with nothing written over what it
   carries. A snapshot ref recorded twice is a refusal whatever the two entries stand at, released included. Either

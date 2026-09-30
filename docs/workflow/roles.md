@@ -1915,11 +1915,11 @@ A crash inside the split is repaired to the same answer before anything can star
 finalizes a split whose every child was recorded asks the parent's record again and holds every recorded child to
 it: a child carrying none of the ancestry group is seeded — the pointer only where the ledger already names that
 child — one carrying exactly the group it was owed, or that group without its pointer, is left as it stands, and a
-pointer the ledger no longer protects is dropped with the lineage beside it kept. A child that split cannot
-recognize as its own is refused rather than overwritten: a pinned comment that would not parse (it reads back
-empty, exactly like the seed a crash deferred, and nothing on it can be checked), a `parent_number` naming another
-issue, or any other group — part of it, a field its reader would drop, another lineage — which a child's own size
-gate would read as whatever it says. Only once every child passes is the parent
+pointer the ledger no longer protects is dropped, its ordering stamp with it, and the lineage beside it kept. A child
+that split cannot recognize as its own is refused rather than overwritten: a pinned comment that would not parse (it
+reads back empty, exactly like the seed a crash deferred, and nothing on it can be checked), a `parent_number` naming
+another issue, or any other group — part of it, a field its reader would drop, another lineage — which a child's own
+size gate would read as whatever it says. Only once every child passes is the parent
 finalized into the walk that activates children; a record that no longer proves the lineage, or a child refused,
 parks the same way instead and leaves every child unstarted. A child created and never recorded is the existing
 `decomposition_crash` park: nothing names it, so nothing points it at a snapshot or starts it.

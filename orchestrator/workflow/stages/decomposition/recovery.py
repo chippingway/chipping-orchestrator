@@ -33,12 +33,12 @@ repair asks the parent's record which lineage its children inherit -- the same
 decision the split made before creating them -- and holds every recorded
 child to it before anything is finalized: a child missing the ancestry is
 seeded, the snapshot pointer included only where the consumer ledger already
-records that child; a pointer that ledger no longer protects is dropped; and
-a child this split cannot recognize as its own -- a pinned comment that would
-not parse, a link to another parent, an ancestry it did not write -- is
-refused. A lineage the record can no longer prove, or a child refused, parks
-instead of finalizing, which is what keeps every child of that split
-unstarted.
+records that child; a pointer that ledger no longer protects is dropped with
+its ordering stamp; and a child this split cannot recognize as its own -- a
+pinned comment that would not parse, a link to another parent, an ancestry it
+did not write -- is refused. A lineage the record can no longer prove, or a
+child refused, parks instead of finalizing, which is what keeps every child of
+that split unstarted.
 """
 from __future__ import annotations
 
