@@ -122,7 +122,7 @@ class _DevResumeContext:
         return _coordinate_developer_run(
             self.gh,
             _run_charge_state.AgentRunBudget(
-                issue=self.issue, state=self.state,
+                issue=self.issue, state=self.state, owed=self.options.owed,
             ),
             issue=self.issue,
             state=self.state,

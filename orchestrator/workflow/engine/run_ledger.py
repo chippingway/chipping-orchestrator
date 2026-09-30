@@ -52,16 +52,22 @@ def _reserve_run(state: PinnedState, fingerprint: str) -> _run_ledger_models.Age
     return _read_ledger(state)
 
 
-def _start_reserved_run(state: PinnedState) -> bool:
+def _start_reserved_run(state: PinnedState, owed_at: int | None = None) -> bool:
     """Move a standing reservation to the phase a launch that ran is in.
 
     Returns whether there was one to move. An issue holding no reservation is
     not given one here: the charge is what a reservation stands for, and one
-    minted at the spawn would be a launch nothing paid for.
+    minted at the spawn would be a launch nothing paid for. A launch owed
+    exactly once records the count it was owed at, `owed_at`, in this same
+    staging (`run_ledger_values.AGENT_RUN_OWED_STARTED`), so its start is told
+    apart from any other road's charge -- and a caller reserving room for that
+    start measures it through this writer.
     """
     if _run_ledger_values._reservation(state) is None:
         return False
     state.set(_run_ledger_values.AGENT_RUN_RESERVATION, _run_ledger_models.RunPhase.STARTED)
+    if owed_at is not None:
+        state.set(_run_ledger_values.AGENT_RUN_OWED_STARTED, owed_at)
     return True
 
 

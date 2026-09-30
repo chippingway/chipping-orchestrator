@@ -20,7 +20,7 @@ from orchestrator.workflow.engine import (
     verification_record_state as _record_state,
     verification_records as _records,
 )
-from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
+from orchestrator.workflow.stages.validating import models as _models, review_verdicts as _verdicts
 from tests.workflow import published_reports as _published_reports
 from tests.workflow.stages.validating import review_verdict_test_support as _world
 
@@ -101,26 +101,30 @@ def settles_evidence(
 
 
 def seeds_a_verdict(
-    case, settled: _records.PendingEvidence, verdict: str = _verdicts.APPROVED, *, reused: bool = False,
-) -> None:
+    case, settled: _records.PendingEvidence | None, verdict: str = _verdicts.APPROVED, *, reused: bool = False,
+) -> _models._ReviewerRun:
     """Leave waiting `verdict` of the standing subject, whose claim names `settled` and says it passed and covers.
 
     The claim is the transaction's own publication, or a reuse of it where
-    `reused` says so: the record a tick finishes a verdict from, returned by a
-    reviewer handed that subject -- a change request with the feedback the
-    world's reviewer asks for.
+    `reused` says so, and no claim at all where `settled` is None: the record
+    a tick finishes a verdict from, returned by a reviewer handed that subject
+    -- a change request with the feedback the world's reviewer asks for. The
+    answer is the run it was returned from, for a case handing it on.
     """
     state = case.github.read_pinned_state(case.issue)
-    claim = _verdicts.EvidenceClaim(
-        use=_verdicts.EvidenceUse.REUSED if reused else _verdicts.EvidenceUse.PUBLISHED,
-        receipt=settled.receipt,
-        revision=settled.revision,
-        digest=settled.content_revision,
-        passed=True,
-        covers=True,
-    )
+    claim = None
+    if settled is not None:
+        claim = _verdicts.EvidenceClaim(
+            use=_verdicts.EvidenceUse.REUSED if reused else _verdicts.EvidenceUse.PUBLISHED,
+            receipt=settled.receipt,
+            revision=settled.revision,
+            digest=settled.content_revision,
+            passed=True,
+            covers=True,
+        )
     feedback = _world.REQUESTED if verdict == _verdicts.CHANGES_REQUESTED else ""
     run = _world.returned_run(case, state, f"{feedback}\n\nVERDICT: {verdict.upper()}")
     returned = _verdicts.ReturnedVerdict(0, verdict, run.subject.recorded(), feedback, claim)
     state.set(_verdicts.RETURNED_VERDICT, returned.recorded())
     case.github.write_pinned_state(case.issue, state)
+    return run

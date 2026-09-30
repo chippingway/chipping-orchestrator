@@ -38,11 +38,12 @@ is written -- a park for a timeout or a missing verdict as much as the record of
 a verdict. It watches the report's records and the pull request the issue
 points at, since a verdict about one pull request is no review of another the
 issue points at now. The approval arc behind its verify gate, the approval
-proof, and the dormant disposition service wherever it holds a verdict to its
-subject (`review_coverage._verdict_still_stands`) ask it of more
-(`persisted`): the returned verdict persisted (`review_verdicts`) beside them,
-since one another road dropped or replaced since is no longer the one any
-write behind this may act on. Records that moved
+proof, and the dormant disposition service and the change-request handoff
+behind it wherever they hold a verdict to its subject
+(`review_coverage._verdict_still_stands`) ask it of more (`persisted`): the
+returned verdict persisted (`review_verdicts`) beside them, since one another
+road dropped or replaced since is no longer the one any write behind this may
+act on. Records that moved
 refuse the verdict. Either way every write made from the state behind the
 reading is laid over the comment as it stands, so everything the comment
 changed since is carried onto the state in hand: a later report settled over the one the reviewer was handed, the

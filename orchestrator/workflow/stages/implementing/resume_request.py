@@ -25,6 +25,7 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow import state as _workflow_state
+from orchestrator.workflow.engine.run_charge_state import OwedLaunch
 from orchestrator.workflow.stages.implementing import state as _state
 
 
@@ -69,11 +70,17 @@ class _DevResumeOptions:
     # empty string is a frozen conversation with nothing in it, and is quoted
     # as that.
     thread_text: str | None = None
+    # The launch the resume is, where it is owed exactly once -- a handed
+    # change request's developer: the lifetime run count it is owed at and
+    # what else it stands on, which the run circuit holds it to on the
+    # readings it charges and starts it from (`run_charge_state.OwedLaunch`).
+    # None for every other resume.
+    owed: OwedLaunch | None = None
 
     @classmethod
     def from_fields(cls, fields: dict) -> _DevResumeOptions:
         unknown = set(fields) - {
-            "followup_has_tracked_repos", "pause_guard", "thread_text",
+            "followup_has_tracked_repos", "pause_guard", "thread_text", "owed",
         }
         if unknown:
             raise TypeError(f"unexpected resume option(s): {sorted(unknown)!r}")

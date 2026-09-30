@@ -1896,18 +1896,26 @@ The keys that matter for the state machine fall into a few groups:
   `verification_evidence_pending` does, either bound under the configured verification context and at the latest
   revision the issue has spent, and lost otherwise -- a later transaction, settled or not, supersedes it. `handed` is
   `null` until a change request is handed to `workflow:fixing`, and then the `agent_runs_used` count as that handoff was
-  written, no wider than the count its room is reserved at; an approval carrying one does not read. The reader takes
-  the record whole -- exactly those six members, a claim of exactly its six, each in its writer's shape -- or reads no
-  verdict at all, and nothing that reader refuses is staged. It is staged only where
-  the comment has room for it at the widest write it is part of: a change request's handoff, with its count, the
-  `pending_fix_reviewer_comment_id` anchor, and that comment's ledger entry, and the developer launch's
-  `agent_runs_used` / `agent_run_reservation` / `agent_run_fingerprint` charge composed over it, each reserved at the
-  widest a recorded number or fingerprint is spelled. A `published` claim is staged only in the same write as exactly
+  written, no wider than the count its room is reserved at; an approval carrying one does not read. Once handed, the
+  record carries a seventh member, `anchor`: the id of the reviewer-feedback comment the request was handed over with,
+  written by that same handoff and no wider than the id its room is reserved at. A record waiting to be handed carries
+  only the six, and one with `anchor` and no `handed` does not read. One with `handed` and no `anchor` is the shape a
+  handoff wrote before it anchored its post: it reads as handed beside no post, and its launch is held for good, since
+  no pinned anchor can be vouched for as its feedback -- and nothing stages that shape. The reader takes the record
+  whole -- exactly those six members, or those seven once handed beside a post, a claim of exactly its six, each in its
+  writer's shape -- or reads no verdict at all, and nothing that reader refuses is staged. It is staged only where the
+  comment has room for it at the widest write it is part of: a change request's handoff, with its count and `anchor`,
+  the `pending_fix_reviewer_comment_id` anchor, and that comment's ledger entry, and the developer launch's
+  `agent_runs_used` / `agent_run_reservation` / `agent_run_fingerprint` charge composed over it and the start behind
+  that charge, which records `agent_run_owed_started` -- each reserved at the widest a recorded number or fingerprint is
+  spelled, the charge and the start through the very ledger writers the run circuit writes them with. A `published`
+  claim is staged only in the same write as exactly
   the transaction it names -- its receipt, revision, digest, and `passed` -- measured with its settlement beside that
   reservation, a retry of the one the comment already carries included, and a `reused` claim or none only beside no
-  transaction; where the pair does not match or either has no room, neither is staged. Its one writer is the dormant
-  disposition service (`review_disposition.py`): the transaction is minted first, since reading the reviewed tree is a
-  request of its own, and the record and that transaction go down in one write with the returned run's own records, over
+  transaction; where the pair does not match or either has no room, neither is staged. Its writers are the dormant
+  disposition service (`review_disposition.py`) and the change-request handoff below. In the service the transaction
+  is minted first, since reading the reviewed tree is a request of its own, and the record and that transaction go
+  down in one write with the returned run's own records, over
   the pinned comment read again once the subject has been resolved -- the last requests before that write -- BEFORE the
   evidence is published through the dispatcher's own reconciliation. The service stages those run records itself --
   `last_review_session_id`, `last_review_at`, `review_returned_subject`, and the reviewer's usage folded into
@@ -1969,10 +1977,45 @@ The keys that matter for the state machine fall into a few groups:
   exactly as it found it, and a `reviewer_unverified` park holds the record only where it is the approval of the round
   and subject its run returned, and posts and writes nothing where it is not -- and reports `park_awaiting_human` once
   that write is down. Neither park retries itself: a bare `/orchestrator continue` buys a fresh reviewer, and an edit
-  under one nobody replied to waits for that reviewer rather than resuming the developer. Additive and dormant: nothing
-  acts on a ready verdict or parks one yet, no live reviewer round hands its result to that service, and nothing
-  finishes a record a tick left waiting, so no issue carries the key or either park, and an issue without the key has no
-  verdict waiting.
+  under one nobody replied to waits for that reviewer rather than resuming the developer.
+  A change request is to be handed over (`review_handoffs.py`) through the decision it was persisted from -- the
+  record's own `round`, `verdict`, `subject`, and `feedback` -- in the tick its reviewer returned, or from the record
+  alone on a later tick, which holds no decision, either way on that subject's pull request: another round's decision,
+  an approval, or other words hand nothing over, and its feedback is posted first, a post that failed or left no
+  positive whole id -- or a run naming no pull request, or another -- relabelling, launching, and writing nothing, and
+  leaving `handed` `null`; the whole subject is held again behind that post, and the record written with `handed` and
+  `anchor` set, beside a `pending_fix_reviewer_comment_id` naming the same post, BEFORE the relabel to
+  `workflow:fixing`; the launch -- the subject, the evidence the request claims, `agent_run_owed_started`, and
+  `pending_fix_reviewer_comment_id`, over the comment read again -- is held to what stands before that relabel and once
+  more right before the developer launch, so no relabel announces a launch another write behind the handed one already
+  ruled out, and the writes after that launch set the record to `null`. Every hold counts the issue pointed at another
+  pull request, or a later evidence revision superseding the evidence the request claims, as moves, and a move sets the
+  record to `null` in a write that keeps the newer records, clearing `pending_fix_reviewer_comment_id` where it still
+  names that post and keeping one another road wrote meanwhile -- which the post never stages over, since the anchor
+  goes down only with the handed write. A move proved by a reading that records `agent_run_owed_started` at `handed` is
+  that developer's own push and drops nothing: the record is retired as launched, as below, and the pinned anchor kept
+  for that developer's replay. A record already `handed` posts no feedback again: it is relabelled and its developer
+  launched, or -- where `agent_run_owed_started` records the start of that developer at `handed`, that developer already
+  launched -- set to `null` in a write composed over the comment read again, so a later report or anything else another
+  road wrote since the tick's reading is kept (any other run charged meanwhile, a reviewer's say, records no such start,
+  and a charge still standing as an unstarted `agent_run_reservation` recorded none: the launch stays owed, and the run
+  circuit honors that reservation rather than charging again), which is asked again right before every launch, so a
+  developer another road launched behind the relabel is never launched a second time -- and once more by the run
+  circuit, on the readings it charges and starts the launch from, which refuse it with nothing started or written over
+  them where another road started that developer, or charged a run over its `agent_run_reservation`, after the handoff
+  last read the comment, pinned another comment in its place, or where the record, `pending_fix_reviewer_comment_id`,
+  the report records, `pr_number`, or the claimed evidence moved there, the whole subject resolved again right behind
+  the charge (`review_launch_hold.py`; see [the agent-run circuit](#the-agent-run-circuit)). Whatever else another road
+  wrote on a reading the launch stands on is carried onto the state the developer's run is written back from, so that
+  run's writes keep it -- a run allowance granted, a usage total folded. Either launch is made only while
+  `pending_fix_reviewer_comment_id` names, as a whole comment id, the comment the record's `anchor` does: the fixing
+  stage clears it with the round's other bookmarks, and a handoff that lost it, whose anchor names another comment, or
+  whose anchor is spelled as anything but a whole id -- a float over the same number included, which the fixing stage's
+  replay refuses -- is held -- nothing relabelled, launched, or written -- since no failed run could replay the
+  feedback, or one would replay another comment to the developer as the reviewer's feedback. Additive and dormant:
+  nothing acts on a ready verdict, parks one, or hands one over yet, no live reviewer round hands its result to that
+  service, and nothing finishes a record a tick left waiting, so no issue carries the key or either park, and an issue
+  without the key has no verdict waiting.
   An approval record is acted on only over evidence proved current (`stages/validating/unverified_approvals.py`), and
   only the record of the run's own round, `approved` verdict, and subject -- a run whose record another road replaced
   or dropped is refused, having nothing to prove -- over the claim that record names, never one handed in beside it,
@@ -2139,7 +2182,9 @@ The keys that matter for the state machine fall into a few groups:
   anchor. The rebuilt batch is what the `/orchestrator continue`
   operator command replays when retrying a session-failure park (see
   [`_handle_fixing`](delivery-stages.md#_handle_fixing-label-workflowfixing)); the anchor is cleared on a
-  pushed fix and inside `_clear_pending_fix_bookmarks`.
+  pushed fix and inside `_clear_pending_fix_bookmarks`. A persisted change request's handoff stages it only in the
+  write that hands the request over, from a post whose id it read, and launches its developer only while it names the
+  comment the record's `anchor` does (see the returned reviewer verdict above).
 
   `fixing_round_settled` is a bare `true` a report transaction's settlement puts up when the record it settles froze
   it, and it says the one thing that write cannot do for itself: move a label. A settlement closes `pending_fix_at`,
@@ -2390,7 +2435,11 @@ The keys that matter for the state machine fall into a few groups:
   digest of the request's own identity (role, stage, backend, spec, resumed session, review round, retry count), never
   of its prompt, which is rebuilt every tick and would make one launch look like a new one every poll. The charge is
   taken before the spawn, so a run that crashed, timed out, or was killed mid-flight is still spent; settling a
-  reservation drops the phase and the fingerprint together, never the charge. This owner decides nothing and posts
+  reservation drops the phase and the fingerprint together, never the charge. `agent_run_owed_started` is the count
+  the last launch owed exactly once was owed at — a persisted change request's developer, at its `handed` count —
+  written in the very write that moves that launch to `started` and by nothing else, so it says that launch reached a
+  process whatever other runs were charged beside or after it; additive, absent until such a launch starts, and not
+  kept by a projection, which rebuilds an issue with no launch outstanding. This owner decides nothing and posts
   nothing — the reading is taken and acted on at the tracked spawn boundary
   ([The agent-run circuit](#the-agent-run-circuit)), and the one writer of `agent_run_allowance` is the operator
   command below.
@@ -2662,6 +2711,22 @@ drives the real handlers against a spent ledger so an unwired road is caught as 
   durable `agent_run_limit` park the refusal had just taken** with a reason about a process that never existed. Each
   of those roads therefore asks `guards._ignore_if_never_invoked` first, ahead of every reading it would otherwise
   classify the run by.
+- **A launch owed once is held to it on the circuit's own readings.** A caller whose launch is owed exactly once names
+  it (`OwedLaunch`): the lifetime count it is owed at — a persisted change request's developer, handed at `handed`,
+  whose handoff nothing calls yet — and the caller's hold on it, the requests its standing takes beyond the pinned
+  comment (`resolves`) and a judgment of each reading of the comment (`stands`). The circuit writes that count as
+  `agent_run_owed_started` in the same write that moves such a launch to `started`, and on the fresh read the charge is
+  taken on, that record naming the count it is owed at — where the caller's own state does not carry it — is that launch
+  already made by another road after the caller last looked: nothing is charged, written, or invoked, and the answer is
+  `invoked=False`, as it is where the caller's hold says the launch no longer stands on that reading. A count merely
+  past it proves nothing, since a reviewer or any other road's run moves it just the same. The starts this circuit
+  merged onto the caller's state are its own, so a continuation of the same launch — a poisoned session's fresh retry,
+  an AGY recovery prompt — is charged as usual, and a `reserved` charge taken for this very launch is still honored. The
+  start is written over a reading of its own, taken behind the charge and behind the requests the caller's hold
+  resolves, and only while that reading still carries this launch's `reserved` charge, records no start of it by another
+  road, and still stands by the caller's hold: staged over the reading the charge was taken on, it would write back a
+  start or a charge another road landed in between — a second process invoked, the count run backwards. A refusal there
+  invokes nothing and leaves the charge standing `reserved` for the launch it was taken for.
 - **What is charged is a process, not a tick.** A developer resume that lands on a transcript the backend has lost
   buys a second spawn in the same tick — a fresh one, in the same worktree — and pays for it, because it is a second
   run. A run the shutdown sweep killed and a run an operator paused mid-flight are charged too: both cost the same
