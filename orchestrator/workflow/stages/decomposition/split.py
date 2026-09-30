@@ -15,12 +15,10 @@ label land.
 from __future__ import annotations
 
 import logging
-import re
 
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.snapshots import mirrors as _snapshot_mirrors, namespace as _snapshot_namespace
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments
@@ -35,10 +33,8 @@ from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
-# A snapshot ref as a slice's own text can name one: remote, or this host's
-# mirror of one, as far as the characters a ref is spelled with run -- short of
-# a full stop or slash that only ends the sentence around it.
-_NAMED_SNAPSHOT = re.compile(rf"{re.escape(_snapshot_namespace.SNAPSHOT_NAMESPACE)}(?:[\w./-]*[\w-])?")
+# The parts of a declared slice its child's implementer reads.
+_DECLARED = ("title", "body")
 
 _UNSUPPORTED_REUSE = (
     "the decomposer's slice {index} ({title!r}) names a snapshot its child would not be kept: `{ref}`. A "
@@ -75,29 +71,25 @@ def _planned(
     return _SplitPlan.start(children, bool(parsed.get(_state._UMBRELLA)), lineage)
 
 
-def _unsupported_reuse(
-    spec: _config_models.RepoSpec, lineage: _replacement_lineage.ReplacementLineage, parsed: dict,
-) -> str | None:
+def _unsupported_reuse(lineage: _replacement_lineage.ReplacementLineage, parsed: dict) -> str | None:
     """The park notice for the first slice naming a snapshot its child would not be kept, or None.
 
     Asked of the slice as the decomposer declared it, before the instructions
-    this split appends, and of every ref its title and body name. Kept is the
-    one ref the child is pointed at and this host's mirror of it; a child owed
-    no pointer is kept none, and that includes every child of an issue no
-    late split charged. A ref a descendant was itself cut from is exactly
-    that: protected for the descendant by its parent's ledger, and for none
-    of the children it goes on to create.
+    this split appends, and of every ref its title and body name however they
+    name it -- the same reading a recovery holds a recorded child's text to.
+    Kept is the one ref the child is pointed at, a mirror of it included; a
+    child owed no pointer is kept none, and that includes every child of an
+    issue no late split charged. A ref a descendant was itself cut from is
+    exactly that: protected for the descendant by its parent's ledger, and for
+    none of the children it goes on to create.
     """
     pointed = lineage.pointed()
-    kept = {""}
-    if pointed is not None:
-        kept = {pointed.snapshot_ref, _snapshot_mirrors.local_snapshot_ref(spec, pointed.snapshot_ref)}
-    return next((
-        _UNSUPPORTED_REUSE.format(index=index, title=child.get("title"), ref=ref)
-        for index, child in enumerate(parsed[_state._CHILDREN])
-        for ref in _NAMED_SNAPSHOT.findall(f"{child.get('title')}\n{child.get('body')}")
-        if ref not in kept
-    ), None)
+    kept = frozenset() if pointed is None else frozenset((pointed.snapshot_ref,))
+    for index, child in enumerate(parsed[_state._CHILDREN]):
+        foreign = _late_child_content._named_snapshots(*map(child.get, _DECLARED)) - kept
+        if foreign:
+            return _UNSUPPORTED_REUSE.format(index=index, title=child["title"], ref=min(foreign))
+    return None
 
 
 def _create_child_issues(
@@ -132,7 +124,7 @@ def _create_child_issues(
          the child, so no respawn happens.
     """
     lineage = _replacement_lineage.read_replacement_lineage(state, issue)
-    refusal = lineage.refusal or _unsupported_reuse(spec, lineage, parsed)
+    refusal = lineage.refusal or _unsupported_reuse(lineage, parsed)
     if refusal is not None:
         _replacement_lineage.park_unproved(gh, issue, state, refusal)
         return None

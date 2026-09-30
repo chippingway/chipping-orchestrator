@@ -41,11 +41,11 @@ split is finalized and anything could start them. That recovery holds every
 recorded child to the same answer: a child carrying no ancestry is seeded,
 one carrying exactly what it was owed is left alone, a pointer the ledger no
 longer protects is dropped with its ordering stamp and the lineage beside it
-kept -- unless the child's body tells it to reuse the snapshot this split
-still holds, since the body is what its implementer reads: that child is
-recorded on the ledger again and pointed at the ref -- and a child this split
-cannot recognize as its own -- a pinned comment that would not parse, a link
-to another parent, instructions for a snapshot it cannot keep, or any other
+kept -- unless the child's title or body names the snapshot this split still
+holds, since that text is what its implementer reads: that child is recorded
+on the ledger again and pointed at the ref -- and a child this split cannot
+recognize as its own -- a pinned comment that would not parse, a link to
+another parent, text naming any snapshot ref it cannot keep, or any other
 ancestry: a partial group, a field its reader would drop, another lineage --
 refuses the finalize that would start it, with nothing written over what it
 carries.
@@ -89,7 +89,7 @@ _UNREADABLE_CHILD = "child #{child} carries a pinned comment that would not pars
 _OTHER_PARENT = "child #{child} records `parent_number` {parent!r}, not this issue"
 
 _UNPROMISED = (
-    "child #{child} is told in its body to reuse a snapshot this issue's split cannot keep for it -- one it no "
+    "child #{child} names in its title or body a snapshot this issue's split cannot keep for it -- one it no "
     "longer holds, or not its own"
 )
 
@@ -235,15 +235,16 @@ class ReplacementLineage:
     ) -> SeedRepair:
         """What a recovered split does with one recorded child's ancestry.
 
-        `instructed` is every snapshot ref the child's body tells it to reuse,
-        and it outranks the ledger: the body is written before the record that
-        protects the child, and is what its implementer reads whatever the
-        pinned comment says. A child told to reuse the one snapshot this
-        issue's split can still promise is owed that pointer, and is recorded
-        on the consumer ledger again where the ledger lost it -- before its
-        seed, and before anything could start it. A child told to reuse any
-        other ref, or one this split can no longer promise, is refused: its
-        instructions name a snapshot nothing keeps for it.
+        `instructed` is every snapshot ref the child's title and body name,
+        read as a slice is read before it is created, and it outranks the
+        ledger: the text is written before the record that protects the
+        child, and is what its implementer reads whatever the pinned comment
+        says. A child naming only the one snapshot this issue's split can
+        still promise is owed that pointer, and is recorded on the consumer
+        ledger again where the ledger lost it -- before its seed, and before
+        anything could start it. A child naming any other ref, or one this
+        split can no longer promise, is refused: its text names a snapshot
+        nothing keeps for it.
 
         A child owed no lineage is left alone. Every other one has to be a
         child this split can recognize as its own -- see `_unrecognized` --
@@ -365,8 +366,8 @@ def _unrecognized(child_state: PinnedState, owed: LateAncestry | None, child_num
     A pinned comment that would not parse reads back empty, exactly as a
     child nobody seeded does, and writing a seed over it would take whatever
     it carried with it -- so it is refused before anything is read off it. No
-    owed ancestry at all is a child told to reuse a snapshot this split cannot
-    keep for it. A link to another parent is a child another tree claims. And
+    owed ancestry at all is a child whose text names a snapshot this split
+    cannot keep for it. A link to another parent is a child another tree claims. And
     an ancestry has to be the whole group, written back exactly as the comment
     carries it -- a field its reader would drop, a `null`, or a key it answers
     with its empty value comes back different -- naming the lineage it was

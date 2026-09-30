@@ -505,13 +505,13 @@ because there it is the claim that this stage has already rerouted rather than a
      child to the lineage step 7 would have given it: seed one carrying none of the `late_ancestry_*` group (the
      snapshot pointer only where `late_consumers` already names the child), leave one carrying exactly that group or
      that group without its pointer, and drop a pointer the ledger no longer protects, with its
-     `late_ancestry_mirror_first` stamp — except on a child whose body carries the reuse instructions for the
-     snapshot the split still holds, which `late_consumers` records again (a parent write ahead of the seed and the
-     finalize) and which is pointed at that ref — then finalize to `workflow:umbrella` (when the flag is true) or
-     `workflow:blocked`. A parent whose record no longer proves that lineage, or a child it cannot recognize as its
-     own — a pinned comment that would not parse, a `parent_number` naming another issue, reuse instructions for a
-     snapshot the split no longer holds or never preserved, or any other group (part of it, a field its reader would
-     drop, another lineage) — parks
+     `late_ancestry_mirror_first` stamp — except on a child whose title or body names the snapshot the split still
+     holds (read as a slice is before creation), which `late_consumers` records again (a parent write ahead of the
+     seed and the finalize) and which is pointed at that ref — then finalize to `workflow:umbrella` (when the flag is
+     true) or `workflow:blocked`. A parent whose record no longer proves that lineage, or a child it cannot recognize
+     as its own — a pinned comment that would not parse, a `parent_number` naming another issue, a title or body
+     naming a snapshot ref the split no longer holds or never preserved, or any other group (part of it, a field its
+     reader would drop, another lineage) — parks
      `replacement_lineage_unproved` instead, with nothing written to that child, so none of its children is
      finalized into the walk that starts them. Two owners take those markers
      away from this recovery: an issue already parked awaiting a human, and one carrying a live late generation —

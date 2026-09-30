@@ -6,15 +6,16 @@ Each child names the exact preserved candidate and its declared budget.
 Reserved receipt markers in proposed scope are refused before publication.
 The reuse instructions are rendered off a child's pointed ancestry, so an
 ordinary split that points a replacement at the same snapshot tells it the
-same thing -- and read back off a body by the ref they name, so a recovery can
-tell which snapshot a child was already told to reuse.
+same thing. What any issue text names in the snapshot namespace is read by one
+reader, so a split refusing a slice and a recovery repairing a child hold that
+text to the same answer.
 """
 from __future__ import annotations
 
 import re
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.snapshots import mirrors as _snapshot_mirrors
+from orchestrator.git.snapshots import mirrors as _snapshot_mirrors, namespace as _snapshot_namespace
 from orchestrator.github import comments as _github_comments
 from orchestrator.workflow.late_split import (
     ancestry as _ancestry,
@@ -99,8 +100,14 @@ does not cover, implement normally.
 """
 
 
-# The one line of the reuse block that names the ref, as a body carries it.
-_INSTRUCTED_REF = re.compile(r"^- ancestor snapshot ref, on the remote: `(?P<ref>[^`\n]+)`$", re.MULTILINE)
+# Anything issue text names in the snapshot namespace: a remote ref, or this
+# host's mirror of one under its repository segment -- read as the remote ref
+# it mirrors -- as far as the path segments a ref is spelled with run, short of
+# a full stop or slash that only ends the sentence around it. A mention that
+# is no whole ref reads back as the namespace itself, which is no child's.
+_NAMED_SNAPSHOT = re.compile(
+    rf"{re.escape(_snapshot_namespace.SNAPSHOT_NAMESPACE)}(?:-local/[\w.-]+)?(?P<tail>(?:/[\w.-]*[\w-])*)",
+)
 
 
 def _forged_receipt(children: tuple) -> str | None:
@@ -217,16 +224,23 @@ def _reuse_block(spec: _config_models.RepoSpec, pointed: _ancestry.LateAncestry,
     )
 
 
-def _instructed_refs(body: object) -> frozenset[str]:
-    """Every snapshot ref a body's reuse instructions name, or none.
+def _named_snapshots(*texts: object) -> frozenset[str]:
+    """Every snapshot ref the given issue texts name, however they name it.
 
-    Read back rather than remembered: the body is written before the record
-    that protects its child, so a recovery has only what it says to tell a
-    child told to reuse a snapshot from one that was not.
+    Asked of a title and a body together, because both are what an
+    implementer reads. Not only the line the reuse instructions spell a ref
+    on: a ref copied into prose, a line ending the instructions were not
+    written with, or a mirror name all tell a child where a snapshot is, and
+    a reader that saw only one spelling would let the rest through. Read back
+    rather than remembered, since a child's body is written before the record
+    that protects it.
     """
-    if not isinstance(body, str):
-        return frozenset()
-    return frozenset(match.group("ref") for match in _INSTRUCTED_REF.finditer(body))
+    return frozenset(
+        f"{_snapshot_namespace.SNAPSHOT_NAMESPACE}{match.group('tail')}"
+        for text in texts
+        if isinstance(text, str)
+        for match in _NAMED_SNAPSHOT.finditer(text)
+    )
 
 
 def _declared_scope(child: dict) -> str:

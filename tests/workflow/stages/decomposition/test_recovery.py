@@ -108,6 +108,14 @@ PARK_LINEAGE_UNPROVED = _replacement_lineage.PARK_LINEAGE_UNPROVED
 # A ref no split of this lineage's parent preserved, which an edited body can
 # still name.
 _FOREIGN_REF = "refs/orchestrator/late-split/issue-4/cycle-2/gen-1"
+_LABEL_READY = "workflow:ready"
+# The ways a recorded child's text can name a ref beside, or instead of, the
+# one its split keeps for it -- each by the field it lands in and the edit.
+_FOREIGN_TEXT = MappingProxyType({
+    "instructions repointed at it": ("body", lambda text: text.replace(_support.SNAPSHOT_REF, _FOREIGN_REF)),
+    "prose naming it beside the instructions": ("body", lambda text: f"{text}\n\nsee also {_FOREIGN_REF}"),
+    "a title naming it": ("title", lambda text: f"{text} ({_FOREIGN_REF})"),
+})
 # An issue that is not the replacement's parent, which a foreign link names.
 _OTHER_PARENT = 999
 # What a pinned comment that would not parse reads back as.
@@ -467,6 +475,22 @@ class ReplacementCrashTest(_ReplacementRecoveryCase):
         self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT)
         self.assertIn(_support.SNAPSHOT_REF, prompt)
 
+    def test_crlf_instructions_are_protected_again(self) -> None:
+        # The instructions read the same whatever line endings the body came
+        # back with, so the lost slot is restored before the next poll
+        # releases the child.
+        child = self._die_seeding()
+        created = self.github.get_issue(child)
+        created.body = created.body.replace("\n", "\r\n")
+        self._unprotect()
+
+        self._recover()
+        _support.redecompose(self.github, self.issue, tick=_umbrella._handle_umbrella)
+
+        self.assertIn(child, _support.consumers(self.github))
+        self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT)
+        self.assertEqual(self._labels(child), (LABEL_UMBRELLA, _LABEL_READY))
+
     def test_an_unproved_lineage_is_not_finalized(self) -> None:
         # The record the split was proved on no longer proves it: a stray
         # ancestry key with no parent beside it.
@@ -574,18 +598,22 @@ class RecordedSeedTest(_ReplacementRecoveryCase):
                 self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
                 self.assertIn(f"#{child}", self.github.posted_comments[-1][1])
 
-    def test_foreign_instructions_are_never_finalized(self) -> None:
-        # A body telling the child to reuse a ref this split never preserved
-        # names a snapshot nothing here keeps for it.
-        child = self._die_seeding()
-        created = self.github.get_issue(child)
-        created.body = created.body.replace(_support.SNAPSHOT_REF, _FOREIGN_REF)
+    def test_foreign_refs_are_never_finalized(self) -> None:
+        # Any ref this split never preserved, wherever the child's text names
+        # it, is a snapshot nothing here keeps for the child that reads it --
+        # the same reading a slice is held to before it is created.
+        for shape, (field, edit) in _FOREIGN_TEXT.items():
+            with self.subTest(shape=shape):
+                self.setUp()
+                child = self._die_seeding()
+                created = self.github.get_issue(child)
+                setattr(created, field, edit(getattr(created, field)))
 
-        self._recover()
+                self._recover()
 
-        self.assertEqual(self.github.pinned_data(child), {})
-        self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
-        self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
+                self.assertEqual(self.github.pinned_data(child), {})
+                self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
+                self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
 
     def test_an_unreadable_seed_is_never_finalized(self) -> None:
         # Nothing on it can be checked, and a seed written over it would take
