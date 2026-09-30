@@ -29,6 +29,15 @@ recorded twice -- held in one entry and reconciled in another -- is a ledger
 disagreeing with itself, and it entitles nothing. An issue whose record never
 split offers the pointer its ancestry carries instead, and only where that
 pointer is the ref the ancestry's own identity mints.
+
+Entitling nothing is two different answers, though, and a split that seeds a
+replacement has to tell them apart. A ref whose entry a reclamation has taken
+past `retained` is settled: nothing new may be pointed at it, and a child
+seeded without it loses nothing it was owed. Every other refusal -- a ledger
+this binary cannot read or add a consumer to, an entry never proved or proved
+twice, a held ref no identity names -- is a record that cannot say whether the
+ref is still there for the child, which that caller refuses rather than reads
+as the settled answer.
 """
 from __future__ import annotations
 
@@ -39,6 +48,30 @@ from orchestrator.git.snapshots import namespace as _namespace
 from orchestrator.workflow.late_split import ancestry as _ancestry
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.obligations import LateResourceKind, LateResourceState
+
+# What a snapshot entry stands at once a reclamation has decided its ref goes:
+# the decision, its completion, and a delete the remote refused. A split whose
+# own entry is at one of these has settled that no consumer is added to it.
+_RELEASED = frozenset((
+    LateResourceState.RECLAIMING,
+    LateResourceState.RECONCILED,
+    LateResourceState.FAILED,
+))
+
+_UNREADABLE_RESOURCES = (
+    "its resource ledger carries an entry this binary cannot read, so whether its split still holds its snapshot "
+    "cannot be told"
+)
+
+_UNPROTECTABLE = (
+    "its split still holds a snapshot that no child can be recorded as a consumer of -- its consumer ledger "
+    "carries an entry this binary cannot read, or its record names no candidate or no ref of its own"
+)
+
+_UNSETTLED = (
+    "its split's ledger records its snapshot as neither held nor released -- never proved, recorded twice, "
+    "or not recorded at all"
+)
 
 
 class SplitEvidence(Enum):
@@ -74,6 +107,44 @@ def split_evidence(generation: LateGeneration, issue_number: int) -> SplitEviden
     if obligations.is_opaque or generation.links_announced or LateResourceKind.SNAPSHOT_REF in kinds:
         return SplitEvidence.AMBIGUOUS
     return SplitEvidence.NONE
+
+
+def unsettled_snapshot(generation: LateGeneration, issue_number: int) -> str | None:
+    """Why this record cannot say whether its own split's snapshot is there for a new consumer, or None.
+
+    Asked only of a record that proves its split made children, since that
+    split recorded its snapshot before its first one; any other record holds
+    no snapshot of its own to be asked about. None is either settled answer:
+    the ref is held -- `SnapshotEntitlement.preserved_by` names it -- or its
+    entry has passed to a reclamation. An identity no ref can be minted from,
+    which is what a retirement leaves, is judged by every snapshot entry the
+    ledger carries, since none of them can be told apart as its own.
+    """
+    if split_evidence(generation, issue_number) is not SplitEvidence.PROVED:
+        return None
+    if SnapshotEntitlement.preserved_by(generation, issue_number) is not None:
+        return None
+    if generation.obligations.opaque_resources is not None:
+        return _UNREADABLE_RESOURCES
+    recorded = _snapshot_states(generation, issue_number)
+    if recorded and _RELEASED.issuperset(recorded):
+        return None
+    return _UNPROTECTABLE if recorded == (LateResourceState.RETAINED,) else _UNSETTLED
+
+
+def _snapshot_states(generation: LateGeneration, issue_number: int) -> tuple[LateResourceState, ...]:
+    """The states the ledger records this split's own snapshot at, one per entry."""
+    try:
+        own = _namespace.snapshot_ref(
+            issue_number=issue_number, cycle_id=generation.cycle_id, generation=generation.generation,
+        )
+    except _namespace.InvalidSnapshotRef:
+        own = None
+    return tuple(
+        entry.resource_state
+        for entry in generation.obligations.resources
+        if entry.kind == LateResourceKind.SNAPSHOT_REF and own in {None, entry.target}
+    )
 
 
 def _child_number(target: str) -> int | None:

@@ -1894,21 +1894,31 @@ taken while it works. A child is therefore pointed only at the snapshot the pare
 the ledger naming it exactly once and `retained` — and only once that ledger records it, in the same write that
 records it in `children`, ahead of its seed. A snapshot another issue's split holds is protected by a ledger only
 that issue writes, and a pinned comment is written whole by whoever writes it, so this issue may not add a consumer
-there: its children are born with the lineage and without that pointer. What never descends is the parent's own
+there: its children are born with the lineage and without that pointer. A ref the parent's own split no longer
+holds is settled only where its entry has passed to a reclamation — `reclaiming`, `reconciled`, or a `failed`
+delete — and its replacements are then born without it; a ledger that cannot say whether the ref is held or
+released is not that answer, and is refused below. What never descends is the parent's own
 gate — its measurement, its `late_exempt_sha`, and the `late_override_*` terms an operator authorized one of its
 commits on — so a replacement's first oversized candidate is measured and adjudicated as the lineage's next
 generation, one level below its parent.
 
-**A refusal**, for a record that cannot say which lineage the children would be born into: every shape
-`provenance.py` refuses, a parent at the bound, or a record naming no cycle at all. The split parks
+**A refusal**, for a record that cannot say which lineage the children would be born into or which snapshot they
+may be pointed at: every shape `provenance.py` refuses, a parent at the bound, a record naming no cycle at all, or
+a split of the parent's own whose ledger cannot say whether its snapshot is held or released — a ledger this binary
+cannot read, a held ref no consumer can be recorded against, an entry never proved or recorded twice, or none for
+its own ref (`late_split/entitlement.py`). The split parks
 `replacement_lineage_unproved` before `expected_children_count` is written, so no child exists and nothing is left
 for a recovery to finalize; a reply is an edit, and re-runs the decomposer against the thread as it then stands.
 
 A crash inside the split is repaired to the same answer before anything can start a child. The recovery that
-finalizes a split whose every child was recorded asks the parent's record again, seeds the lineage on any recorded
-child carrying none of the ancestry group — the pointer only where the ledger already names that child — and only
-then finalizes the parent into the walk that activates children. A record that no longer proves the lineage parks
-the same way instead, leaving every child unstarted. A child created and never recorded is the existing
+finalizes a split whose every child was recorded asks the parent's record again and holds every recorded child to
+it: a child carrying none of the ancestry group is seeded — the pointer only where the ledger already names that
+child — one carrying exactly the group it was owed, or that group without its pointer, is left as it stands, and a
+pointer the ledger no longer protects is dropped with the lineage beside it kept. Any other group — part of it, a
+field its reader would drop, another lineage — was not written by that split, and a child's own size gate would read
+it as whatever it says, so it is refused rather than overwritten. Only once every child passes is the parent
+finalized into the walk that activates children; a record that no longer proves the lineage, or a child refused,
+parks the same way instead and leaves every child unstarted. A child created and never recorded is the existing
 `decomposition_crash` park: nothing names it, so nothing points it at a snapshot or starts it.
 
 ### What a close mid-cycle ends, and what it still settles

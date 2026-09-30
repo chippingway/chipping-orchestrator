@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
+from unittest.mock import patch
 
+from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.late_split import lineage as _lineage
+from orchestrator.workflow.stages.decomposition.replacement_lineage import PARK_LINEAGE_UNPROVED
 from tests.support.fakes import (
     FakeGitHubClient,
     make_issue,
@@ -14,8 +19,13 @@ from tests.workflow.fixtures import (
     KEY_PARENT_NUMBER,
     LABEL_BLOCKED,
     LABEL_DECOMPOSING,
+    LABEL_UMBRELLA,
     _agent,
     _manifest,
+)
+from tests.workflow.stages.decomposition import (
+    late_crash_support as _crash,
+    replacement_lineage_support as _support,
 )
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _DecomposingWorkflowMixin,
@@ -89,6 +99,7 @@ SPLIT_MANIFEST = _manifest(
 )
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = "implemented"
+PARK_DECOMPOSITION_CRASH = "decomposition_crash"
 
 
 def _orphan_recovery_fixture():
@@ -315,3 +326,185 @@ class DecompositionRecoveryTest(
             gh.pinned_data(HEALTHY_CHILD_NUMBER).get(KEY_PARENT_NUMBER),
             ORPHAN_REPAIR_PARENT_NUMBER,
         )
+
+
+def _written(ancestry, **edits) -> dict:
+    """The pinned fields one ancestry is written as, `edits` landing over them."""
+    recorded = PinnedState()
+    _lineage.write_late_ancestry(recorded, ancestry)
+    return {**recorded.data, **edits}
+
+
+# What a recorded child may carry that the crashed split did not seed: part of
+# the group, a field its reader would drop, and a whole group naming another
+# lineage.
+_FOREIGN_SEEDS = MappingProxyType({
+    "part of the group": MappingProxyType({"late_ancestry_depth": 1}),
+    "a field its reader would drop": MappingProxyType(
+        _written(_support.ROOT_REPLACEMENT, late_ancestry_generation="first"),
+    ),
+    "another lineage": MappingProxyType(_written(_support.cut_from_ancestor())),
+})
+
+
+class _DiesSeedingAChild:
+    """A process that dies at the first write to a child's pinned comment.
+
+    The parent's own writes land, which is what puts the child in `children`
+    and on the consumer ledger: the crash is the one between that record and
+    the seed.
+    """
+
+    def __init__(self, client) -> None:
+        self._wrote = client.write_pinned_state
+
+    def __call__(self, issue, state):
+        if issue.number != _support.PARENT:
+            raise KeyboardInterrupt("seed")
+        return self._wrote(issue, state)
+
+
+class _ReplacementRecoveryCase(unittest.TestCase):
+    """A split inside a late lineage, interrupted, and the tick that recovers it.
+
+    The parent is the root of the lineage its own split started, holding the
+    snapshot that split preserved; the decomposer answered with one
+    replacement.
+    """
+
+    def setUp(self) -> None:
+        github, issue = _support.late_parent(_support.own_split())
+        self.github = github
+        self.issue = issue
+
+    def _die_seeding(self) -> int:
+        """Run the split into the crash between its parent record and its seed.
+
+        Reports the child it left: recorded, protected, and seeded with
+        nothing at all.
+        """
+        dying = patch.object(self.github, "write_pinned_state", _DiesSeedingAChild(self.github))
+        with dying, self.assertRaises(KeyboardInterrupt):
+            _support.redecompose(self.github, self.issue, _support.ONE_REPLACEMENT_MANIFEST)
+        child = _support.replacements(self.github)[0]
+        self.assertIn(child, _support.consumers(self.github))
+        self.assertEqual(self.github.pinned_data(child), {})
+        return child
+
+    def _recover(self) -> None:
+        """The next decomposing tick, which a recovery answers without the decomposer."""
+        _support.redecompose(self.github, self.issue)[RUN_AGENT].assert_not_called()
+
+    def _unprotect(self) -> None:
+        """Take every replacement back off the parent's consumer ledger."""
+        unprotected = {**self.github.pinned_data(_support.PARENT), _support.KEY_CONSUMERS: [_support.ORIGINAL]}
+        self.github.seed_state(_support.PARENT, **unprotected)
+
+    def _seeded(self, child: int):
+        """The ancestry one child's pinned comment records."""
+        return _lineage.read_late_ancestry(self.github.read_pinned_state(self.github.get_issue(child)))
+
+    def _labels(self, child: int) -> tuple:
+        """Where the parent and one of its children stand."""
+        return (
+            self.github.workflow_label(self.issue),
+            self.github.workflow_label(self.github.get_issue(child)),
+        )
+
+
+class ReplacementCrashTest(_ReplacementRecoveryCase):
+    """A split a crash interrupted is repaired to its lineage before anything starts."""
+
+    def test_a_deferred_seed_is_repaired_first(self) -> None:
+        child = self._die_seeding()
+
+        self._recover()
+
+        self.assertEqual(_support.replacements(self.github), [child])
+        self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT)
+        self.assertEqual(self.github.pinned_data(child)[KEY_PARENT_NUMBER], _support.PARENT)
+        # Finalized only once repaired; the walk that starts it comes later.
+        self.assertEqual(self._labels(child), (LABEL_UMBRELLA, LABEL_BLOCKED))
+
+    def test_an_unprotected_child_gets_no_pointer(self) -> None:
+        # Recorded by a split that never put it on the ledger: the lineage is
+        # still owed to it, and a pointer nothing keeps is not.
+        child = self._die_seeding()
+        self._unprotect()
+
+        self._recover()
+
+        self.assertEqual(self._seeded(child), _support.ROOT_LINEAGE)
+        self.assertEqual(_support.consumers(self.github), [_support.ORIGINAL])
+
+    def test_an_unproved_lineage_is_not_finalized(self) -> None:
+        # The record the split was proved on no longer proves it: a stray
+        # ancestry key with no parent beside it.
+        child = self._die_seeding()
+        damaged = {**self.github.pinned_data(_support.PARENT), "late_ancestry_depth": 1}
+        self.github.seed_state(_support.PARENT, **damaged)
+
+        self._recover()
+
+        self.assertEqual(self.github.pinned_data(child), {})
+        self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
+        self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
+
+    def test_an_unrecorded_child_is_never_started(self) -> None:
+        # The crash before the parent record: the child exists, and nothing
+        # on the parent names it -- not `children`, and not the ledger.
+        with _crash.killed_after(self.github, "create_child_issue"), self.assertRaises(KeyboardInterrupt):
+            _support.redecompose(self.github, self.issue, _support.ONE_REPLACEMENT_MANIFEST)
+        orphan = _support.replacements(self.github)[0]
+
+        self._recover()
+
+        self.assertEqual(_support.consumers(self.github), [_support.ORIGINAL])
+        self.assertEqual(self.github.pinned_data(orphan), {})
+        self.assertEqual(self._labels(orphan), (LABEL_DECOMPOSING, LABEL_BLOCKED))
+        self.assertEqual(_support.parks(self.github), [PARK_DECOMPOSITION_CRASH])
+
+
+class RecordedSeedTest(_ReplacementRecoveryCase):
+    """A child the crashed split recorded is held to the ancestry it was owed.
+
+    What it already carries is asked about before anything is written to it
+    or the split is finalized: only the seed it was owed, whole, lets it
+    through as it stands.
+    """
+
+    def test_a_whole_seed_is_left_as_owed(self) -> None:
+        # The seed landed and the finalize did not.
+        child = self._die_seeding()
+        self.github.seed_state(child, **_written(_support.ROOT_REPLACEMENT))
+
+        self._recover()
+
+        self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT)
+        self.assertEqual(self._labels(child), (LABEL_UMBRELLA, LABEL_BLOCKED))
+
+    def test_an_unprotected_pointer_is_dropped(self) -> None:
+        # The seed landed with its pointer, and the ledger that protected it
+        # no longer names the child: the lineage stands and the pointer goes.
+        child = self._die_seeding()
+        self.github.seed_state(child, **_written(_support.ROOT_REPLACEMENT))
+        self._unprotect()
+
+        self._recover()
+
+        self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT.without_snapshot())
+        self.assertEqual(_support.consumers(self.github), [_support.ORIGINAL])
+        self.assertEqual(self._labels(child), (LABEL_UMBRELLA, LABEL_BLOCKED))
+
+    def test_a_foreign_ancestry_is_never_finalized(self) -> None:
+        for shape, carried in _FOREIGN_SEEDS.items():
+            with self.subTest(shape=shape):
+                self.setUp()
+                child = self._die_seeding()
+                self.github.seed_state(child, **carried)
+
+                self._recover()
+
+                self.assertEqual(self.github.pinned_data(child), dict(carried))
+                self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
+                self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])

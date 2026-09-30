@@ -91,6 +91,16 @@ DECOMPOSER_SESSION = "replanned"
 
 EDITED_BODY = "the issue, as a human last edited it"
 
+PARK_EVENT = "park_awaiting_human"
+
+# What a replacement of the root's split is born with: its lineage, and that
+# lineage pointed at the snapshot the root's own split holds for it.
+ROOT_LINEAGE = _ancestry.LateAncestry(
+    root_issue=PARENT, lineage_depth=1, parent_issue=PARENT, cycle_id=CYCLE, generation=GENERATION,
+)
+
+ROOT_REPLACEMENT = replace(ROOT_LINEAGE, snapshot_ref=SNAPSHOT_REF, snapshot_sha=CANDIDATE_SHA, mirror_first=True)
+
 
 def own_split(
     ref_state: _obligations.LateResourceState = _obligations.LateResourceState.RETAINED, **overrides,
@@ -151,18 +161,19 @@ def late_parent(
 
     Baselined at its content as it stands, which is what the reroute that
     sent it here recorded -- so the decomposing tick runs the decomposer
-    rather than meeting the edit a second time.
+    rather than meeting the edit a second time. `extra_state` lands over the
+    groups as written, the way a hand edit or another binary's write would.
     """
     github = FakeGitHubClient()
     issue = make_issue(PARENT, label=LABEL_DECOMPOSING, body=body)
     github.add_issue(issue)
-    recorded = PinnedState(data=dict(extra_state))
+    recorded = PinnedState()
     if generation is not None:
         _late_state.write_late_generation(recorded, generation)
     if ancestry is not None:
         _lineage.write_late_ancestry(recorded, ancestry)
     recorded.set("user_content_hash", _content_hash._compute_user_content_hash(issue, set()))
-    github.seed_state(PARENT, **recorded.data)
+    github.seed_state(PARENT, **{**recorded.data, **extra_state})
     return github, issue
 
 
@@ -179,9 +190,13 @@ def replacements(github: FakeGitHubClient) -> list[int]:
     return [child.number for child in github.created_child_issues]
 
 
-def seeded_ancestry(github: FakeGitHubClient, number: int) -> _ancestry.LateAncestry:
-    """The ancestry one child's pinned comment records."""
-    return _lineage.read_late_ancestry(github.read_pinned_state(github.get_issue(number)))
+def parks(github: FakeGitHubClient) -> list:
+    """What every park on the parent was filed under."""
+    return [
+        record.get("reason")
+        for record in github.recorded_events
+        if record.get("event") == PARK_EVENT and record.get("issue") == PARENT
+    ]
 
 
 def consumers(github: FakeGitHubClient) -> list:

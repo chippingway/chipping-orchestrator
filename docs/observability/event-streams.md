@@ -89,7 +89,8 @@ file is the durable record.
   leave the branch on — so the push behind it would carry neither a lease nor a named candidate),
   `reviewer_timeout`, `reviewer_failed`, `reviewer_no_verdict`, `decomposer_timeout`, `decomposer_silent`,
   `decomposer_question`, `decomposer_invalid_manifest`, `decomposer_dirty`, `replacement_lineage_unproved` (a split
-  whose children's late lineage the issue's record cannot prove, or whose parent is already at the lineage bound),
+  whose children's late lineage or snapshot the issue's record cannot prove, whose parent is already at the lineage
+  bound, or whose recovery found a child carrying an ancestry that split did not seed),
   `verify_failed` / `verify_timeout` /
   `verify_dirty` / `verify_head_changed` / `verify_tree_changed`, `agent_run_limit` (the issue has spent every agent
   run its lifetime ceiling allows), `question_*`, `discussion_*`, ...). Failed-run parks in validating and decomposing

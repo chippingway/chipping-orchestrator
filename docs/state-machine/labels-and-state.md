@@ -3336,10 +3336,18 @@ rather than preserving.
   room for a child, and one naming no cycle anywhere has nothing to correlate one by. The snapshot pair and
   `late_ancestry_mirror_first` go only on a replacement `late_consumers` records, and only for the ref the parent's
   own split holds: a pointer another issue's ledger protects is one this issue cannot record a consumer on, so its
-  replacements are born with the lineage and without it. A refusal parks `replacement_lineage_unproved` before
-  `expected_children_count` is written, so nothing is created; a recovered split whose record no longer proves the
-  lineage parks the same way instead of finalizing, so nothing is started. A recovery otherwise seeds the lineage on
-  any recorded child that carries none of this group, the pointer included only where the ledger already names it.
+  replacements are born with the lineage and without it. A ref the parent's own split no longer holds is settled
+  only where its entry has passed to a reclamation (`reclaiming`, `reconciled`, `failed`), and its replacements are
+  born without the pointer; a split whose ledger cannot say whether the ref is held or released — a resource ledger
+  this binary cannot read, a held ref no consumer can be recorded against (an unreadable `late_consumers`, no
+  candidate, no identity to mint it from), an entry never proved or recorded twice, or none for its own ref — is a
+  refusal like any other. A refusal parks `replacement_lineage_unproved` before `expected_children_count` is
+  written, so nothing is created. A recovered split holds every recorded child to the same lineage before it
+  finalizes: a child carrying none of this group is seeded, the pointer included only where the ledger already
+  names it; one carrying exactly the group it was owed, or that group without a pointer, is left alone; a pointer
+  the ledger no longer protects is dropped with the lineage beside it kept; and any other group — part of it, a
+  field its reader would drop, another lineage — was not written by that split, so it parks the same way. Either
+  park leaves every child unfinalized and unstarted.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

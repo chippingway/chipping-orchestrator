@@ -24,7 +24,10 @@ the same write that records it in `children` -- so the reclamation that could
 take the ref counts the child as one more consumer that has to end first. A
 snapshot another issue holds is protected by a ledger only that issue writes,
 so a child is born without that pointer rather than with one nothing keeps; a
-child whose parent record never landed has no pointer to lose.
+child whose parent record never landed has no pointer to lose. A parent whose
+own split's record cannot say whether its snapshot is still there for a new
+consumer is not the same as one whose ref is settled gone, and it is refused
+rather than read as the second.
 
 What a seed never carries is anything of the parent's own size gate -- its
 measurement, its exemption, or an exact-commit authorization. Each is a claim
@@ -32,7 +35,13 @@ about one commit on one issue, and a child is neither.
 
 A lineage the record cannot prove is a refusal, and it parks the parent before
 any child exists, or -- where a crash left children recorded -- before the
-split is finalized and anything could start them.
+split is finalized and anything could start them. That recovery holds every
+recorded child to the same answer: a child carrying no ancestry is seeded,
+one carrying exactly what it was owed is left alone, a pointer the ledger no
+longer protects is dropped with the lineage beside it kept, and any other
+ancestry -- a partial group, a field its reader would drop, another lineage --
+is one this split did not write, so the finalize that would start the child
+is refused.
 """
 from __future__ import annotations
 
@@ -47,6 +56,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.late_split import (
     endings as _endings,
+    entitlement as _entitlement,
     identity as _identity,
     keys as _keys,
     ledger_encoding as _ledger_encoding,
@@ -55,7 +65,6 @@ from orchestrator.workflow.late_split import (
     state as _late_state,
 )
 from orchestrator.workflow.late_split.ancestry import LateAncestry
-from orchestrator.workflow.late_split.entitlement import SnapshotEntitlement
 from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH
 
 log = logging.getLogger("orchestrator.workflow")
@@ -68,6 +77,11 @@ _AT_THE_BOUND = "it already sits at lineage depth {depth}, and no split may crea
 
 _NO_ADJUDICATION = "its late record keeps no cycle a child's ancestry could be correlated by"
 
+_FOREIGN_SEED = (
+    "child #{child} carries a late ancestry this split did not seed -- part of the group, a field its reader would "
+    "drop, or another lineage"
+)
+
 _UNPROVED_PARK = (
     "{mentions} this issue's children cannot be seeded with the late lineage "
     "they inherit: {refusal}. A child seeded without it would start a fresh "
@@ -75,6 +89,19 @@ _UNPROVED_PARK = (
     "is created or started while that stands. Repair this issue's pinned "
     "record, or ask the decomposer not to split it."
 )
+
+
+@dataclass(frozen=True)
+class SeedRepair:
+    """What recovery writes onto one recorded child's ancestry before it finalizes.
+
+    The defaults are a child that needs nothing: seeded as it was owed, or
+    owed no lineage at all. An ancestry is the group to write, and a refusal
+    says why this child may not be finalized -- never beside an ancestry.
+    """
+
+    ancestry: LateAncestry | None = None
+    refusal: str | None = None
 
 
 @dataclass(frozen=True)
@@ -89,8 +116,25 @@ class ReplacementLineage:
     """
 
     ancestry: LateAncestry | None = None
-    snapshot: SnapshotEntitlement | None = None
+    snapshot: _entitlement.SnapshotEntitlement | None = None
     refusal: str | None = None
+
+    @classmethod
+    def born_under(
+        cls, ancestry: LateAncestry, held: _entitlement.SnapshotEntitlement | None,
+    ) -> ReplacementLineage:
+        """The lineage `ancestry` names, pointed at `held` only where this issue's ledger keeps it.
+
+        Held to the exact identity the child's ancestry names, owner included,
+        because that is what every later reading of the pointer mints the ref
+        from and whose ledger it asks: a pointer at another split's ref would
+        name a consumer ledger this issue never wrote a child onto.
+        """
+        if held is None:
+            return cls(ancestry=ancestry)
+        named = (ancestry.parent_issue, ancestry.cycle_id, ancestry.generation)
+        owner = (held.owner_issue, held.cycle_id, held.generation)
+        return cls(ancestry=ancestry, snapshot=held if owner == named else None)
 
     def protect(self, state: PinnedState, child_number: int) -> None:
         """Record one child on the consumer ledger of the snapshot it is owed.
@@ -127,6 +171,32 @@ class ReplacementLineage:
             mirror_first=self.snapshot.mirror_first,
         )
 
+    def repair(self, state: PinnedState, child_number: int, child_state: PinnedState) -> SeedRepair:
+        """What a recovered split does with one recorded child's ancestry.
+
+        A child owed no lineage is left alone, and one carrying none of the
+        group is seeded with what it was owed. One carrying the group has to
+        carry it whole and name the lineage it was owed -- the root, the
+        depth, the parent, and the adjudication -- since the seed writes the
+        group at once, and anything else was written by something other than
+        this split. The pointer is the one part repaired rather than refused:
+        kept where it is none or the one the ledger protects the child for,
+        and dropped otherwise, because a pointer nothing keeps is one the
+        child's own guard would follow into a ref a reclamation may take.
+        """
+        owed = self.child_ancestry(state, child_number)
+        if owed is None:
+            return SeedRepair()
+        if not any(child_state.carries(key) for key in _lineage.LATE_ANCESTRY_KEYS):
+            return SeedRepair(ancestry=owed)
+        recorded = _recorded_whole(child_state)
+        if recorded is None or _unpointed(recorded) != _unpointed(owed):
+            return SeedRepair(refusal=_FOREIGN_SEED.format(child=child_number))
+        pointer = (recorded.snapshot_ref, recorded.snapshot_sha)
+        if pointer in {("", ""), (owed.snapshot_ref, owed.snapshot_sha)}:
+            return SeedRepair()
+        return SeedRepair(ancestry=recorded.without_snapshot())
+
 
 def read_replacement_lineage(state: PinnedState, issue: Issue) -> ReplacementLineage:
     """Decide what this issue's children are seeded with, or why they may not be.
@@ -135,7 +205,10 @@ def read_replacement_lineage(state: PinnedState, issue: Issue) -> ReplacementLin
     issue no late split charged answers the ordinary lineage, and a refused
     provenance answers its own refusal, since reading either as the other is
     how a lineage starts over at 0. The bound is asked before anything is
-    named, because a child it forbids has no ancestry to be given.
+    named, because a child it forbids has no ancestry to be given. A split of
+    this issue's own whose snapshot cannot be told held or released is a
+    refusal too: seeding its children without a pointer would read a record
+    nobody can read as one that settled the ref gone.
     """
     provenance = _provenance.read_provenance(state, issue.number, issue.body)
     if not provenance.is_inherited:
@@ -147,16 +220,18 @@ def read_replacement_lineage(state: PinnedState, issue: Issue) -> ReplacementLin
             depth=provenance.lineage_depth, bound=MAX_LINEAGE_DEPTH,
         ))
     adjudication = _adjudication_of(state)
-    if adjudication is None:
-        return ReplacementLineage(refusal=_NO_ADJUDICATION)
-    ancestry = LateAncestry(
+    refusal = _NO_ADJUDICATION if adjudication is None else _entitlement.unsettled_snapshot(
+        _late_state.read_late_generation(state), issue.number,
+    )
+    if refusal is not None:
+        return ReplacementLineage(refusal=refusal)
+    return ReplacementLineage.born_under(LateAncestry(
         root_issue=provenance.root_issue,
         lineage_depth=depth,
         parent_issue=issue.number,
         cycle_id=adjudication[0],
         generation=adjudication[1],
-    )
-    return ReplacementLineage(ancestry=ancestry, snapshot=_protectable(provenance.snapshot, ancestry))
+    ), provenance.snapshot)
 
 
 def park_unproved(gh: GitHubClient, issue: Issue, state: PinnedState, refusal: str) -> None:
@@ -181,7 +256,7 @@ def _adjudication_of(state: PinnedState) -> tuple[int, int] | None:
     the adjudication its ancestry names, and a record a retirement took the
     identity off still says which cycle that was. A pair taken anywhere but
     the parent's own record names no ref this issue minted, and it is never
-    written beside a pointer -- see `_protectable`.
+    written beside a pointer -- see `ReplacementLineage.born_under`.
     """
     generation = _late_state.read_late_generation(state)
     if generation.is_present:
@@ -193,17 +268,25 @@ def _adjudication_of(state: PinnedState) -> tuple[int, int] | None:
     return (retired, 0) if retired else None
 
 
-def _protectable(
-    held: SnapshotEntitlement | None, ancestry: LateAncestry,
-) -> SnapshotEntitlement | None:
-    """The snapshot a child may be pointed at, where this issue's ledger keeps it.
+def _recorded_whole(child_state: PinnedState) -> LateAncestry | None:
+    """The ancestry a child carries, or None unless it is one that reads back whole.
 
-    Held to the exact identity the child's ancestry names, owner included,
-    because that is what every later reading of the pointer mints the ref
-    from and whose ledger it asks: a pointer at another split's ref would
-    name a consumer ledger this issue never wrote a child onto.
+    Whole is the group written back exactly as the comment carries it: a
+    field its reader would drop, a `null`, or a key the reader answers with
+    its empty value comes back different, and a group naming no parent and
+    cycle is no lineage at all.
     """
-    if held is None:
-        return None
-    named = (ancestry.parent_issue, ancestry.cycle_id, ancestry.generation)
-    return held if (held.owner_issue, held.cycle_id, held.generation) == named else None
+    recorded = _lineage.read_late_ancestry(child_state)
+    rewritten = PinnedState()
+    _lineage.write_late_ancestry(rewritten, recorded)
+    carried = {
+        key: child_state.get(key)
+        for key in _lineage.LATE_ANCESTRY_KEYS
+        if child_state.carries(key)
+    }
+    return recorded if recorded.is_present and carried == rewritten.data else None
+
+
+def _unpointed(ancestry: LateAncestry) -> LateAncestry:
+    """What places an ancestry in a lineage: everything but the pointer and its ordering stamp."""
+    return replace(ancestry, snapshot_ref="", snapshot_sha="", mirror_first=False)

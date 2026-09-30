@@ -229,7 +229,8 @@ the action depends on lifecycle position:
   one, and seeds each one level below the parent under the same root rather than as a fresh root at depth 0. Only a
   replacement pointed at the ref the parent's own split holds joins `late_consumers`, and it joins in the write that
   records it in `children`, so the ref is kept for it as well as for the orphans. A lineage the record cannot prove,
-  or a parent already at `MAX_LINEAGE_DEPTH`, parks `replacement_lineage_unproved` with no child created.
+  a parent already at `MAX_LINEAGE_DEPTH`, or a snapshot the parent's own ledger cannot say is held or released
+  parks `replacement_lineage_unproved` with no child created.
 - **`workflow:implementing` / `workflow:validating` / `in_review` / `workflow:resolving_conflict`** (a dev session
   exists and possibly a PR) — post a `:pencil2: issue body changed; resuming dev session` notice (on the issue for
   implementing/validating, on the PR for in_review/resolving_conflict), resume the locked dev session with
@@ -500,11 +501,14 @@ because there it is the claim that this stage has already rerouted rather than a
   3. **Half-finished decomposition recovery.** If `expected_children_count` is set OR `children` is non-empty (a prior
      tick crashed mid-split), the handler cannot safely respawn the decomposer. When `expected_children_count` is set
      and `len(children) < expected_children_count`, park with `decomposition_crash`. Otherwise repair any child whose
-     pinned `parent_number` was never seeded — and, where the parent sits inside a late lineage, any child carrying
-     none of the `late_ancestry_*` group, seeded with the lineage step 7 would have given it (the snapshot pointer only
-     where `late_consumers` already names the child) — then finalize to `workflow:umbrella` (when the flag is true) or
-     `workflow:blocked`. A parent whose record no longer proves that lineage parks `replacement_lineage_unproved`
-     instead, so none of its children is finalized into the walk that starts them. Two owners take those markers
+     pinned `parent_number` was never seeded — and, where the parent sits inside a late lineage, hold every recorded
+     child to the lineage step 7 would have given it: seed one carrying none of the `late_ancestry_*` group (the
+     snapshot pointer only where `late_consumers` already names the child), leave one carrying exactly that group or
+     that group without its pointer, and drop a pointer the ledger no longer protects — then finalize to
+     `workflow:umbrella` (when the flag is true) or `workflow:blocked`. A parent whose record no longer proves that
+     lineage, or a child carrying any other group (part of it, a field its reader would drop, another lineage),
+     parks `replacement_lineage_unproved` instead, so none of its children is finalized into the walk that starts
+     them. Two owners take those markers
      away from this recovery: an issue already parked awaiting a human, and one carrying a live late generation —
      the split transaction writes the same two markers and resumes from its own durable facts, so finalizing on its
      behalf would hand a parent on before its snapshot, its supersession, or what the remote is owed had been
@@ -545,7 +549,8 @@ because there it is the claim that this stage has already rerouted rather than a
        decomposer's groundwork via `_recent_comments_text`; label `workflow:ready`, stamp `decomposed_at`.
      - `decision == "split"` → first decide the late lineage the children inherit
        (`stages/decomposition/replacement_lineage.py` over `late_split/provenance.py`): an issue no late split
-       charged inherits none, and an unprovable record or a parent already at `MAX_LINEAGE_DEPTH` parks
+       charged inherits none, and an unprovable record, a parent already at `MAX_LINEAGE_DEPTH`, or a split of the
+       parent's own whose ledger cannot say whether its snapshot is held or released parks
        `replacement_lineage_unproved` before `expected_children_count` is written, creating nothing. Then for each
        child call `gh.create_child_issue(...)` with label `workflow:blocked` (the child's only birth label), record
        it in `children` — and in the same write on `late_consumers`, where the parent's own split holds the snapshot

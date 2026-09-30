@@ -1117,7 +1117,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             links announcement alone is ambiguous, and a child that is no other issue is invalid --
                             and the snapshot a replacement child could be pointed at: a proved split's own ref while
                             the ledger names it exactly once and `retained`, else, for an issue that never split, the
-                            ancestry's pointer where it is the ref that ancestry's identity mints
+                            ancestry's pointer where it is the ref that ancestry's identity mints -- and, for a proved
+                            split that entitles nothing, whether that is settled (its entry passed to a reclamation)
+                            or a ledger that cannot say whether the ref is held, which a replacement is refused on
     provenance.py           the read-only decision of which late lineage an ordinary decomposition's children
                             inherit, asked by `stages/decomposition/replacement_lineage.py` before a split creates
                             or finalizes any: none for an issue no late split charged; otherwise the root, the depth
@@ -1358,8 +1360,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             provenance decision: one level below the parent under the same root and never past
                             `MAX_LINEAGE_DEPTH`, correlated by the parent's own cycle (else its ancestry's, else the
                             retired one), and pointed only at the snapshot the parent's own split holds, once its
-                            consumer ledger records the child; a parent at the bound, an unprovable record, or one
-                            naming no cycle parks `replacement_lineage_unproved` instead
+                            consumer ledger records the child; a parent at the bound, an unprovable record, one
+                            naming no cycle, or one whose own snapshot is neither held nor released parks
+                            `replacement_lineage_unproved` instead; the recovery's check of each recorded child's
+                            ancestry -- seeded where missing, left where it is the owed group, its unprotected
+                            pointer dropped, and anything else refused
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
                             recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
                             a pointer -- before it is seeded with its parent link and that lineage, never with the
@@ -1370,7 +1375,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             label before activating children without dependencies
       recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the orphan-child
                             repair -- the parent link and the owed lineage, asked of the parent's record again and
-                            parked rather than finalized where it no longer proves one -- the incomplete park, and
+                            parked rather than finalized where it no longer proves one or a child carries an
+                            ancestry the split did not seed -- the incomplete park, and
                             the two owners that hold those markers instead -- a human the issue is parked awaiting,
                             and the late transaction while its generation is live
       parents.py            the fresh child scan, the rejected and manually-closed parks it earns -- published
