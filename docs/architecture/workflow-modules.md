@@ -3495,17 +3495,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             run circuit's unstarted reservation recorded none, the launch staying owed and that
                             reservation honored -- which is asked again right before the launch, so a developer another
                             road launched behind the relabel is not launched twice, and by the run circuit on the
-                            readings it charges and starts from, the launch owed at the handed count behind the hold
-                            of `review_launch_hold.py`. Either launch is made only
-                            behind the pinned anchor still naming, as a whole comment id, the post the verdict records,
-                            which the fixing stage clears with the round's other bookmarks: a handoff that lost it,
-                            whose anchor names another comment, or whose anchor is no whole id, is held, nothing
-                            relabelled, launched, or written, since no failed run could replay the feedback, or one
-                            would replay another comment as it. A moved subject drops the verdict this road holds, and
-                            the anchor where it still names this road's post, over the newer records -- never a verdict
-                            or anchor another road put in their place, and never where the reading that proved the move
-                            records the start of the developer the request owes, whose own push that move is: the
-                            verdict is retired as launched, its anchor kept for that developer's replay
+                            readings it charges and starts from, the launch owed at the handed count behind the hold of
+                            `review_launch_hold.py`. Either launch is made only behind the pinned anchor still naming,
+                            as a whole comment id, the post the verdict records, which the fixing stage clears with the
+                            round's other bookmarks: a handoff that lost it, whose anchor names another comment, whose
+                            anchor is no whole id, or recorded before handoffs anchored their post, naming none, is
+                            held, nothing relabelled, launched, or written, since no failed run could replay the
+                            feedback, or one would replay another comment as it. A moved subject drops the verdict this
+                            road holds, and the anchor where it still names this road's post, over the newer records --
+                            never a verdict or anchor another road put in their place, and never where the reading that
+                            proved the move records the start of the developer the request owes, whose own push that
+                            move is: the verdict is retired as launched, its anchor kept for that developer's replay
       review_launch_hold.py the hold a handed change request's developer launch is made behind at the run circuit
                             (`owed_launch`): the launch owed once at the count the request was handed at, the whole
                             subject resolved again right behind its charge, and every reading its charge and start are
