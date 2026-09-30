@@ -573,8 +573,9 @@ because there it is the claim that this stage has already rerouted rather than a
        instructions a late split's own children carry appended to its declared body — the ref, its local mirror, the
        commit, the base it was cut against, and how to read and reuse it — since the body is what its implementer
        reads; persist `dep_graph` / `umbrella` on the parent; activate
-       no-dep children by flipping `workflow:blocked` → `workflow:ready` (best-effort, since `_handle_blocked` /
-       `_handle_umbrella` also treats no-dep children as deps-satisfied).
+       no-dep children through the dependency walk `_handle_blocked` / `_handle_umbrella` run — the same lineage
+       recheck and per-child recognition as any later release — flipping `workflow:blocked` → `workflow:ready`
+       (best-effort, since that walk also treats no-dep children as deps-satisfied on the next poll).
 - **Output**: parent → `workflow:ready` / `workflow:blocked` / `workflow:umbrella` / `workflow:implementing`, OR a
   HITL park.
 
@@ -616,10 +617,12 @@ because there it is the claim that this stage has already rerouted rather than a
      snapshot decision their split was proved on still holds off the parent's record: a refusal (a snapshot entry no
      longer held or released, a base gone, an ancestry damaged) releases none and parks the parent
      `replacement_lineage_unproved`, once. In front of each release the child is held to the recognition step 3's
-     recovery applies: a comment that will not parse, a `parent_number` naming another issue, an ancestry that is
-     not the whole group it was owed, a pointer the parent's ledger no longer keeps for it (the ref released, or the
-     child off `late_consumers`), or a title or body naming any other ref stops the walk and parks the same way.
-     `_handle_umbrella` walks through the same checks.
+     recovery applies, with its parent link required rather than backfilled: a comment that will not parse, a
+     `parent_number` that does not name this parent, an ancestry that is not the whole group it was owed (any of
+     it, for an issue no late split charged), a pointer the parent's ledger no longer keeps for it (the ref
+     released, or the child off `late_consumers`), or a title or body naming any other ref stops the walk and parks
+     the same way. That costs one pinned read per released child. `_handle_umbrella` walks through the same checks,
+     and so does the split's own same-tick release.
 - **Output**: parent → `workflow:ready` (all done and nothing a late split recorded still held), OR a sibling
   unblocked, OR a HITL park, OR a no-op for a child still waiting on its dependencies or a parent still holding a
   ref.

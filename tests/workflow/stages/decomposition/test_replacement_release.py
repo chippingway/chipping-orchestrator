@@ -1,20 +1,22 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A dependent replacement is released only while its split's lineage still vouches for it.
+"""A split's child is released only while its split's lineage still vouches for it.
 
 An ordinary split inside a late lineage proves its children's lineage and
-snapshot before it creates them, and starts only the ones with no dependency.
-A dependent one is released by a dependency poll later, off a parent record and
-a child that may both have changed since: so the same decision is asked again
-in front of that release, and the child is held to what a recovery would hold
-it to. A child that decision no longer vouches for stays `blocked`, and the
-parent parks once rather than on every poll that holds it.
+snapshot before it creates them. It releases the ones with no dependency in
+the same tick, and a dependency poll releases the rest later -- each off a
+parent record and a child that may have changed since the proof. So every
+release, the first included, asks the same decision again and holds the child
+to what a recovery would hold it to; an ordinary split's children, owed no
+lineage, are held to the same recognition. A child that no longer passes stays
+`blocked`, and the parent parks once rather than on every poll that holds it.
 """
 from __future__ import annotations
 
 import unittest
 from dataclasses import dataclass
 from types import MappingProxyType
+from unittest.mock import patch
 
 from orchestrator.workflow.late_split import lineage as _lineage
 from orchestrator.workflow.stages.decomposition import (
@@ -30,21 +32,29 @@ _FOREIGN_REF = "refs/orchestrator/late-split/issue-4/cycle-2/gen-1"
 # The ledger key the parent's snapshot entries are pinned under.
 _RESOURCES = "late_resources"
 
+# A key of the ancestry group standing with none of the rest.
+_STRAY_ANCESTRY_KEY = "late_ancestry_depth"
+
 _PARKED_ONCE = (_replacement_lineage.PARK_LINEAGE_UNPROVED,)
 
 
 @dataclass(frozen=True)
 class _Change:
-    """What changed between the split and the poll that would release its dependent replacement.
+    """What changed between the split and the poll that would release its dependent child.
 
-    The defaults change nothing: the parent's own snapshot entry `retained`,
-    the dependent on its consumer ledger, its seed whole, and its body as the
-    split wrote it. `named` is a ref added to that body.
+    The defaults change nothing, on a parent whose own split holds the
+    snapshot: its snapshot entry `retained`, the dependent on its consumer
+    ledger, and the dependent's pinned record and body as the split wrote
+    them. `ordinary` splits an issue no late split charged instead.
+    `stripped` are keys taken off the dependent's pinned record, `added` are
+    keys put on it, and `named` is a ref added to its body.
     """
 
+    ordinary: bool = False
     entry_state: str = "retained"
     kept: bool = True
-    stripped: bool = False
+    stripped: tuple[str, ...] = ()
+    added: tuple[tuple[str, int], ...] = ()
     named: str = ""
 
 
@@ -56,15 +66,54 @@ _CHANGES = MappingProxyType({
     "a snapshot entry no longer proved": (_Change(entry_state="pending"), WorkflowLabel.BLOCKED, _PARKED_ONCE),
     "a snapshot reclaimed": (_Change(entry_state="reconciled"), WorkflowLabel.BLOCKED, _PARKED_ONCE),
     "the dependent off the consumer ledger": (_Change(kept=False), WorkflowLabel.BLOCKED, _PARKED_ONCE),
-    "the dependent's late ancestry taken off": (_Change(stripped=True), WorkflowLabel.BLOCKED, _PARKED_ONCE),
+    "the dependent's late ancestry taken off": (
+        _Change(stripped=tuple(_lineage.LATE_ANCESTRY_KEYS)), WorkflowLabel.BLOCKED, _PARKED_ONCE,
+    ),
+    "the dependent's parent link taken off": (
+        _Change(stripped=(_support.KEY_PARENT_NUMBER,)), WorkflowLabel.BLOCKED, _PARKED_ONCE,
+    ),
     "another issue's snapshot named in the dependent's body": (
         _Change(named=_FOREIGN_REF), WorkflowLabel.BLOCKED, _PARKED_ONCE,
+    ),
+    "nothing, under an ordinary split": (_Change(ordinary=True), WorkflowLabel.READY, ()),
+    "a stray ancestry key on an ordinary split's dependent": (
+        _Change(ordinary=True, added=((_STRAY_ANCESTRY_KEY, 1),)), WorkflowLabel.BLOCKED, _PARKED_ONCE,
     ),
 })
 
 
+class _SeedsWithoutAncestry:
+    """A client whose every child seed lands without the late ancestry group.
+
+    What the tick that created a child reads back in front of releasing it,
+    where anything had taken that group off in between.
+    """
+
+    def __init__(self, client) -> None:
+        self._wrote = client.write_pinned_state
+
+    def __call__(self, issue, state):
+        if issue.number != _support.PARENT:
+            for key in _lineage.LATE_ANCESTRY_KEYS:
+                state.data.pop(key, None)
+        return self._wrote(issue, state)
+
+
 class DeferredReleaseTest(unittest.TestCase):
-    """A dependency poll starts a replacement only as its lineage stands at that poll."""
+    """A child is started only as its split's lineage and its own record stand at the release."""
+
+    def test_a_same_tick_release_is_held_to_its_seed(self) -> None:
+        # The split releases a child with no dependency in the tick that
+        # created it; a seed read back without its lineage there is held
+        # exactly as a later poll would hold it.
+        github, issue = _support.late_parent(_support.own_split())
+
+        with patch.object(github, "write_pinned_state", _SeedsWithoutAncestry(github)):
+            _support.redecompose(github, issue, _support.ONE_REPLACEMENT_MANIFEST)
+
+        child = _support.replacements(github)[0]
+        self.assertEqual(github.workflow_label(github.get_issue(child)), WorkflowLabel.BLOCKED)
+        self.assertEqual(_support.parks(github), list(_PARKED_ONCE))
 
     def test_only_a_vouched_dependent_is_released(self) -> None:
         for shape, (change, *expected) in _CHANGES.items():
@@ -80,7 +129,7 @@ class DeferredReleaseTest(unittest.TestCase):
         at it, the first one then finishes, and `change` is made before the
         polls that would release the second.
         """
-        github, issue = _support.late_parent(_support.own_split())
+        github, issue = _support.late_parent(None if change.ordinary else _support.own_split())
         _support.redecompose(github, issue, _support.DEPENDENT_MANIFEST)
         first, second = _support.replacements(github)
         github.set_workflow_label(github.get_issue(first), WorkflowLabel.DONE, guarded=False)
@@ -93,6 +142,8 @@ class DeferredReleaseTest(unittest.TestCase):
 
     def _change_parent(self, github, change: _Change, dependent: int) -> None:
         """Put the parent's own snapshot entry at the change's state, and its dependent off the ledger unless kept."""
+        if (change.entry_state, change.kept) == (_Change.entry_state, _Change.kept):
+            return
         pinned = github.pinned_data(_support.PARENT)
         restated = [
             {**entry, "state": change.entry_state} if entry.get("target") == _support.SNAPSHOT_REF else entry
@@ -103,14 +154,13 @@ class DeferredReleaseTest(unittest.TestCase):
         github.seed_state(_support.PARENT, **{**pinned, _RESOURCES: restated, _support.KEY_CONSUMERS: consumers})
 
     def _change_dependent(self, github, change: _Change, dependent: int) -> None:
-        """Take the dependent's seed off, and name a ref in its body, where the change says so."""
-        if change.stripped:
-            kept = {
-                key: carried
-                for key, carried in github.pinned_data(dependent).items()
-                if key not in _lineage.LATE_ANCESTRY_KEYS
-            }
-            github.seed_state(dependent, **kept)
+        """Take keys off the dependent's pinned record, put keys on it, and name a ref in its body."""
+        kept = {
+            key: carried
+            for key, carried in github.pinned_data(dependent).items()
+            if key not in change.stripped
+        }
+        github.seed_state(dependent, **kept, **dict(change.added))
         if change.named:
             created = github.get_issue(dependent)
             created.body = f"{created.body}\n\nsee also {change.named}"

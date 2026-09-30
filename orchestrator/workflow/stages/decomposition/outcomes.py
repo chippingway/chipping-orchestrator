@@ -159,7 +159,7 @@ def _dispatch_decomposer_manifest(
     split_plan = _split._create_child_issues(gh, spec, issue, state, parsed)
     if split_plan is None:
         return
-    _split._finalize_split(gh, issue, state, split_plan)
+    _split._finalize_split(gh, spec, issue, state, split_plan)
 
 
 

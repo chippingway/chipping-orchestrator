@@ -1957,14 +1957,17 @@ is held to the same recognition: its children are owed no lineage and no snapsho
 as it stands only where its comment parses, its `parent_number` is this issue or absent, it carries none of the
 group, and its text names no snapshot ref at all — and refused otherwise. Only once every child passes is the parent
 finalized into the walk that activates children; a record that no longer proves the lineage, or a child refused,
-parks the same way instead and leaves every child unstarted. That walk asks the same decision again before it
-releases any of them — a dependent child starts polls after its split, off a record that may have changed since —
-and, in front of each release, holds the child as it then reads to the recognition a recovery applies: its pinned
+parks the same way instead and leaves every child unstarted. That walk — which is also how the split itself
+releases its children with no dependency, in the tick that created them — asks the same decision again before it
+releases any of them, since a child starts off a record that may have changed since its seed, and, in front of each
+release, holds the child as it then reads to the recognition a recovery applies: its pinned
 comment has to parse, its `parent_number` has to be this issue, its ancestry has to be the whole group it was owed,
 its pointer only one the parent's ledger still keeps for it (the ref held, the child on `late_consumers`), and its
 title and body may name no ref but that one. A child a recovery would have to refuse or repair — a seed taken off,
-a pointer at a released ref, a consumer slot lost, another issue's ref added to its body — stops the walk. Either
-refusal releases none of the rest and parks the parent, once. A
+a pointer at a released ref, a consumer slot lost, another issue's ref added to its body — stops the walk. A child
+of an ordinary split is held to the same recognition, owed no lineage and no snapshot, so every child either walk
+releases costs one read of its pinned comment. Either refusal releases none of the rest and parks the parent,
+once. A
 child created and never recorded is the existing `decomposition_crash` park: nothing names it, so nothing points it
 at a snapshot or starts it.
 

@@ -10,7 +10,8 @@ shown -- and a slice whose own text names any other snapshot ref parks the
 split too, because nothing keeps that ref for the child it would tell to reuse
 it. The parent then records the expected child count before creation. Only
 children without dependencies are activated after the summary and parent
-label land.
+label land, and through the same walk a later dependency poll runs, so the
+first release is held to exactly what any later one is.
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.decomposition import (
+    activation as _activation,
     child_creation as _child_creation,
     late_child_content as _late_child_content,
     replacement_lineage as _replacement_lineage,
@@ -156,27 +158,35 @@ def _split_summary(plan: _SplitPlan) -> tuple[str, WorkflowLabel]:
 
 
 def _activate_initial_split_children(
-    gh: GitHubClient, issue: Issue, plan: _SplitPlan,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    plan: _SplitPlan,
 ) -> None:
-    # Activation: flip no-dep children from `blocked` to `ready`.
-    # Best-effort -- if any flip fails the parent's `_handle_blocked`
-    # walk handles it on its next dependency poll (the walk treats a
-    # child with no recorded deps as deps-satisfied).
-    for idx, (child_number, _) in enumerate(plan.created):
-        if str(idx) in plan.dep_graph:
-            continue
-        try:
-            gh.set_workflow_label(gh.get_issue(child_number), WorkflowLabel.READY)
-        except Exception:
-            log.exception(
-                "issue=#%s could not flip child #%d to ready; the parent's "
-                "_handle_blocked walk will retry on its next dependency poll",
-                issue.number, child_number,
-            )
+    """Release the children with no dependency, through the walk the parent's polls run.
+
+    That walk, over the children this tick just created and still wear their
+    birth label, so the first release is held to exactly what a later one
+    is: the lineage decision asked again off the parent's record, and each
+    child as it reads now -- its link, its seed, its pointer, its text --
+    since anything may have moved between the seed and here. Best-effort: a
+    failure leaves the children `blocked`, and the parent's next dependency
+    poll walks them again, treating a child with no recorded deps as
+    deps-satisfied.
+    """
+    children = [number for number, _ in plan.created]
+    try:
+        _activation._activate_created_children(gh, spec, issue, state, children)
+    except Exception:
+        log.exception(
+            "issue=#%s could not release its new children; the parent's dependency walk will retry on its next poll",
+            issue.number,
+        )
 
 
 def _finalize_split(
-    gh: GitHubClient, issue: Issue, state: PinnedState, plan: _SplitPlan,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState, plan: _SplitPlan,
 ) -> None:
     """Post the split summary, flip the parent label, and activate children.
 
@@ -185,10 +195,12 @@ def _finalize_split(
     `blocked` (or `umbrella` when the parent has no implementation work of
     its own), then activate no-dep children. Activation only runs AFTER the
     final parent-state write, so a crash here cannot leave a runnable
-    orphan child against a `decomposing`-labeled parent.
+    orphan child against a `decomposing`-labeled parent; and it is the
+    dependency walk's own, so a child is released here only as that walk
+    would release it.
     """
     summary_intro, final_label = _split_summary(plan)
     _comments._post_issue_comment(gh, issue, state, summary_intro)
     gh.set_workflow_label(issue, final_label)
     gh.write_pinned_state(issue, state)
-    _activate_initial_split_children(gh, issue, plan)
+    _activate_initial_split_children(gh, spec, issue, state, plan)

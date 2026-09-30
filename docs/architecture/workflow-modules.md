@@ -1381,7 +1381,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             naming a snapshot ref its child would not be kept -- append the snapshot's reuse
                             instructions to the body of each child owed it, then persist the expected count, create
                             the planned children, and publish the summary and parent label before activating children
-                            without dependencies
+                            without dependencies through `activation.py`'s walk
       recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the orphan-child
                             repair -- the parent link and the owed lineage, asked of the parent's record again and
                             parked rather than finalized where it no longer proves one or a child is not one the
@@ -1401,10 +1401,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             gate pays nothing, that ask itself a request and so the latch taken on BOTH sides of
                             it, the one behind having nothing between it and the relabel, the ordinary split's
                             lineage and snapshot proved again in front of any walk over its children, and each
-                            child held to the recovery's recognition in front of its release -- whole seed, a pointer
-                            the parent's ledger still keeps, text naming no other ref -- parking the parent, once,
-                            rather than releasing a dependent under a record that changed, and the held-dependency
-                            line it logs
+                            child held to the recovery's recognition in front of its release -- its parent link, the
+                            whole seed, a pointer the parent's ledger still keeps, text naming no other ref --
+                            parking the parent, once, rather than releasing a child under a record that changed; the
+                            same walk the split's own same-tick release runs; and the held-dependency line it logs
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
                             consumed-comment ratchet; a parent whose children all resolved settles what a late split
                             still owes the remote before it goes back to its own work, and waits on `blocked` while a

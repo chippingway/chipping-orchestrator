@@ -39,8 +39,10 @@ over them -- and in front of each release, the child itself is held to the
 recognition a recovery holds it to: its pinned comment, its parent link, the
 whole ancestry it was owed, a pointer only its parent's ledger still keeps
 for it, and the refs its title and body name. A child a recovery would have
-to repair or refuse is not one to start. Either refusal releases none of the
-rest and parks the parent once. A late split's own children are released on
+to repair or refuse is not one to start, and that includes a link it would
+backfill. Either refusal releases none of the rest and parks the parent once.
+The split's own release of its no-dependency children, in the tick that
+created them, is this walk too. A late split's own children are released on
 that split's licence instead.
 
 Held children are logged rather than parked, because the tree is still making
@@ -75,11 +77,12 @@ from orchestrator.workflow.state import WorkflowLabel
 log = logging.getLogger("orchestrator.workflow")
 
 _UNSEEDED_CHILD = (
-    "child #{child} would be released without exactly the lineage and snapshot protection its split owes it -- "
-    "its late ancestry is missing or no longer whole, or it carries a snapshot pointer this split no longer keeps "
-    "for it (the ref no longer held, or `late_consumers` no longer recording the child). Released like that, its "
-    "size gate or its reuse instructions would act on a record nothing vouches for, so no further child is "
-    "started while that stands. Repair the child's seed or record it as a consumer again, or close it."
+    "child #{child} would be released without exactly what its split owes it -- its `parent_number` does not "
+    "name this issue, its late ancestry is missing or no longer whole, or it carries a snapshot pointer this "
+    "split no longer keeps for it (the ref no longer held, or `late_consumers` no longer recording the child). "
+    "Released like that, its handler, size gate, or reuse instructions would act on a record nothing vouches "
+    "for, so no further child is started while that stands. Repair the child's seed or record it as a consumer "
+    "again, or close it."
 )
 
 
@@ -172,23 +175,25 @@ class _ChildActivation:
         recovery holds it to (`ReplacementLineage.repair`): anything that
         recovery would refuse, and anything it would have to write -- a seed
         gone, a pointer the ledger no longer keeps, a consumer slot lost -- is
-        a child that may not start as it stands. A child of an issue no late
-        split charged is owed no lineage, so only its text is read, and it
-        costs a request only where that text names a snapshot. A lapse
-        latches, and says why for the parent to park on.
+        a child that may not start as it stands. That includes the parent
+        link a recovery backfills: a child that does not name this issue as
+        its parent is one the parent's walk -- and its own handler -- cannot
+        find again. A child of an issue no late split charged is owed no
+        lineage and is held to the same recognition, so every child released
+        here costs one read of its pinned comment. A lapse latches, and says
+        why for the parent to park on.
         """
         if self.stopped:
             return True
         if self.lineage is None:
             return False
         texts = (getattr(child, "title", None), getattr(child, "body", None))
-        instructed = _late_child_content._named_snapshots(*texts)
-        if self.lineage.ancestry is None and not instructed:
-            return False
+        child_state = self.gh.read_pinned_state(child)
         seed = self.lineage.repair(
-            self.state, self.owner.number, number, self.gh.read_pinned_state(child), instructed,
+            self.state, self.owner.number, number, child_state, _late_child_content._named_snapshots(*texts),
         )
-        if seed == _replacement_lineage.SeedRepair():
+        linked = child_state.get(_state._PARENT_NUMBER) == self.owner.number
+        if linked and seed == _replacement_lineage.SeedRepair():
             return False
         log.error(
             "repo=%s issue=#%s may release no child: #%s is not as its split's lineage owes it",
@@ -283,6 +288,24 @@ def _activate_ready_children(
     elif activation.relabeled:
         gh.write_pinned_state(issue, state)
     return activation.held
+
+
+def _activate_created_children(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    children: list[int],
+) -> None:
+    """Run this walk over children a split created this tick, the first release of them.
+
+    Read as the split left them -- every one still wearing the birth label
+    it was created with -- so the release a split makes is held to exactly
+    what a later dependency poll's is.
+    """
+    issues = {number: gh.get_issue(number) for number in children}
+    scan = _models._ChildScan(children, issues, dict.fromkeys(children, WorkflowLabel.BLOCKED))
+    _activate_ready_children(gh, spec, issue, state, scan)
 
 
 def _release_lineage(
