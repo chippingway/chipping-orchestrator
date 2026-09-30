@@ -243,7 +243,9 @@ adjudication on `workflow:decomposing` runs no check of its own, but every reply
 the one reading it acted on — short of an edit in that reading nobody has answered yet, or guidance a park's notice
 withheld that nothing the answer runs has read — so the umbrella a late split hands the issue to meets guidance a
 developer revision or a continued budget already spent as the baseline rather than as a change, and a comment or edit
-written after that reading as one.
+written after that reading as one. An issue with no baseline recorded at all keeps the reading the adjudication carried
+on over as `observed_user_content_hash` instead, which that first check compares against in its place, so an edit
+made while the adjudicator ran is a change there too rather than the baseline it takes.
 `_handle_fixing`, `_handle_question`, and
 `_handle_discussion` deliberately skip the check. The eight non-human filters (including the untrusted-author filter
 and the whole-comment operator-command exclusions — `/orchestrator continue`, `/orchestrator add-agent-runs N`, and

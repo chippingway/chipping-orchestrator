@@ -2238,7 +2238,8 @@ verdict, is still work a human can ask to be different — so the developer is r
 candidate that comes back advances the generation, which is what stops a verdict taken over the old work from
 applying to the new. Folding the comment into the baseline instead would consume an instruction without acting on it.
 The one reply that lands here with nothing to do is a bare `/orchestrator continue`: no park is waiting on it and no
-candidate needs certifying.
+candidate needs certifying. A bare `/orchestrator add-agent-runs N` is no guidance either — what it widens is the run
+allowance, which the run-limit hold answers — so it resumes no developer, and the adjudication carries on past it.
 
 **A categorized question is reopened only by a real answer.** Substantive trusted guidance drops the recorded outcome —
 the record is exactly what suppresses the next spawn — so the adjudicator runs again against what the human said, quoted
