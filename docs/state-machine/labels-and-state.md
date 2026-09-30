@@ -3370,7 +3370,9 @@ rather than preserving.
   `parent_number` names another issue, that carries any of this group, or whose title or body names any snapshot
   ref parks the same way.
   A snapshot ref recorded twice is a refusal whatever the two entries stand at, released included. Either park
-  leaves every child unfinalized and unstarted.
+  leaves every child unfinalized and unstarted. The dependency walk that releases an ordinary split's children
+  later asks the same decision off this record in front of every release, so a proof that lapsed after creation
+  releases no dependent and parks the parent, once.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

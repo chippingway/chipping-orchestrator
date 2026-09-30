@@ -1399,7 +1399,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             children out from under asked in the same place and off this parent's own record, so
                             a caller cannot answer it a child scan too early and a parent that never entered the
                             gate pays nothing, that ask itself a request and so the latch taken on BOTH sides of
-                            it, the one behind having nothing between it and the relabel, and the
+                            it, the one behind having nothing between it and the relabel, the ordinary split's
+                            lineage and snapshot proved again in front of any walk over its children -- parking the
+                            parent, once, rather than releasing a dependent under a proof that lapsed -- and the
                             held-dependency line it logs
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
                             consumed-comment ratchet; a parent whose children all resolved settles what a late split

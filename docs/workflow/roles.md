@@ -1926,12 +1926,13 @@ copying reuse instructions from the thread would otherwise hand a child a snapsh
 a mirror under another repository's segment too: a `REPOS` entry sharing the clone fetches its own split of the same
 issue, cycle, and generation numbers there, which may be other work and is on no ledger this parent writes. And
 each mention is read as the whole ref name it could be — as far as ref characters run on either side of the
-namespace. What is taken off is only what no ref under `refs/` can hold: quotes, backticks, or brackets that open the
-mention and are closed at its end, a forced refspec's leading `+`, and a trailing full stop or slash. Every other
-character a ref may contain is part of the name, so a longer name that merely contains the child's ref
-(`…/gen-1@foreign`, `` `…/gen-1!` ``, `…/gen-1,`, `refs/heads/refs/…`) is the different, unkept ref it is. The
-instructions themselves spell the fetch as an unquoted `+ref:mirror` refspec, so they read back as exactly the ref
-and its mirror. The split parks
+namespace, which is anything but an ASCII space or control character and the few characters git refuses, so a
+non-breaking space runs a name on as surely as `@` does. What is taken off is only what no ref under `refs/` can
+hold: quotes, backticks, or brackets that open the mention and are closed at its end, a forced refspec's leading `+`,
+and a trailing full stop or slash. Every other character a ref may contain is part of the name, so a longer name
+that merely contains the child's ref (`…/gen-1@foreign`, `` `…/gen-1!` ``, `…/gen-1,`, `refs/heads/refs/…`) is the
+different, unkept ref it is. The instructions themselves spell the fetch as an unquoted `+ref:mirror` refspec, so
+they read back as exactly the ref and its mirror. The split parks
 `replacement_lineage_unproved` before `expected_children_count` is written, so no child exists and nothing is left
 for a recovery to finalize; a reply is an edit, and re-runs the decomposer against the thread as it then stands.
 
@@ -1955,7 +1956,9 @@ is held to the same recognition: its children are owed no lineage and no snapsho
 as it stands only where its comment parses, its `parent_number` is this issue or absent, it carries none of the
 group, and its text names no snapshot ref at all — and refused otherwise. Only once every child passes is the parent
 finalized into the walk that activates children; a record that no longer proves the lineage, or a child refused,
-parks the same way instead and leaves every child unstarted. A child created and never recorded is the existing
+parks the same way instead and leaves every child unstarted. That walk asks the same decision again before it
+releases any of them — a dependent child starts polls after its split, off a record that may have changed since —
+and a refusal there releases none and parks the parent, once. A child created and never recorded is the existing
 `decomposition_crash` park: nothing names it, so nothing points it at a snapshot or starts it.
 
 ### What a close mid-cycle ends, and what it still settles

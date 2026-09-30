@@ -31,6 +31,13 @@ in front, where it costs nothing to refuse early, and once behind, where a
 close a poll observed during the lookup would otherwise reach nothing before
 the relabel lands.
 
+Children an ordinary split created are released on the lineage and snapshot
+that split proved before creating them, and a dependent one is released polls
+later, off a record that may have changed since. So that decision is asked
+again, off the parent's record and for no request, in front of every walk
+over them; a refusal releases none and parks the parent once. A late split's
+own children are released on that split's licence instead.
+
 Held children are logged rather than parked, because the tree is still making
 progress: their siblings run concurrently and are what will eventually release
 them. The line names the exact unfinished dependencies so an operator reading a
@@ -50,11 +57,13 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import observations as _observations
+from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     late_publication as _late_publication,
+    models as _models,
+    replacement_lineage as _replacement_lineage,
     state as _state,
 )
-from orchestrator.workflow.stages.decomposition.models import _ChildScan
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -66,7 +75,7 @@ class _ChildActivation:
     owner: Issue
     slug: str
     state: PinnedState
-    scan: _ChildScan
+    scan: _models._ChildScan
     held: list[_state._HeldChild]
     relabeled: bool = False
     stopped: bool = False
@@ -78,7 +87,7 @@ class _ChildActivation:
         spec: _config_models.RepoSpec,
         owner: Issue,
         state: PinnedState,
-        scan: _ChildScan,
+        scan: _models._ChildScan,
     ) -> _ChildActivation:
         return cls(gh, owner, spec.slug, state, scan, [])
 
@@ -190,7 +199,7 @@ def _activate_ready_children(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
-    scan: _ChildScan,
+    scan: _models._ChildScan,
 ) -> list:
     """Dep-graph activation walk shared by `_handle_blocked` / `_handle_umbrella`.
 
@@ -210,12 +219,47 @@ def _activate_ready_children(
     split superseded these children out from under is asked about in the same
     place and stops the walk the same way.
     """
+    if _lineage_unproved(gh, spec, issue, state, scan):
+        return []
     activation = _ChildActivation.start(gh, spec, issue, state, scan)
     for idx, child_number in enumerate(scan.children):
         activation.consider(idx, child_number)
     if activation.relabeled:
         gh.write_pinned_state(issue, state)
     return activation.held
+
+
+def _lineage_unproved(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    scan: _models._ChildScan,
+) -> bool:
+    """Whether an ordinary split's children here may no longer be released, parking the parent once if so.
+
+    The lineage and snapshot an ordinary split proved before creating them are
+    what licenses starting them, and a dependent child starts polls later,
+    off a record that may have changed since: a snapshot entry that no longer
+    reads as held or released, a base gone, an ancestry damaged. So the same
+    decision is asked again, off the parent's record and without a request,
+    in front of every walk; a refusal releases none of them and parks the
+    parent with the notice its creation would have parked on -- once, since a
+    parent already awaiting a human is held rather than re-parked.
+
+    A late split's own children -- exactly the ones its register records --
+    are not asked: they were never created under this decision, and what
+    licenses releasing them is that split's own, asked by `licence_lapsed`.
+    """
+    register = _late_state.read_late_generation(state).split_children
+    if tuple(int(number) for number in scan.children) == register:
+        return False
+    refusal = _replacement_lineage.read_replacement_lineage(state, issue, spec).refusal
+    if refusal is None:
+        return False
+    if not state.get(_state._AWAITING_HUMAN):
+        _replacement_lineage.park_unproved(gh, issue, state, refusal)
+    return True
 
 
 def _held_dependency_line(child_number: object, pending: list) -> str:

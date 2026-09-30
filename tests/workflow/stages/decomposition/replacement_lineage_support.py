@@ -71,6 +71,10 @@ EXTENDED_REF = f"{SNAPSHOT_REF}@foreign"
 
 EXCLAIMED_REF = f"{SNAPSHOT_REF}!"
 
+# Git refuses only ASCII spaces in a ref name, so a non-breaking one runs the
+# name on as surely as `!` does -- however much it reads like a word break.
+SPACED_REF = f"{SNAPSHOT_REF}\u00a0foreign"
+
 NESTED_REF = f"refs/heads/{SNAPSHOT_REF}"
 
 # The pinned keys a replacement's seed and its parent's record are read back
@@ -102,6 +106,14 @@ REPLACEMENT_MANIFEST = _manifest(
 ONE_REPLACEMENT_MANIFEST = _manifest(
     '{"decision": "split", "umbrella": true, "rationale": "re-planned", "children": ['
     '{"title": "A", "body": "the whole of it, as the edit now asks"}]}'
+)
+
+# The same answer over two replacements, the second waiting on the first:
+# released by a dependency poll after the split, not by the split itself.
+DEPENDENT_MANIFEST = _manifest(
+    '{"decision": "split", "umbrella": true, "rationale": "re-planned", "children": ['
+    '{"title": "A", "body": "the groundwork, as the edit now asks"}, '
+    '{"title": "B", "body": "the rest of it, on top", "depends_on": [0]}]}'
 )
 
 DECOMPOSER_SESSION = "replanned"

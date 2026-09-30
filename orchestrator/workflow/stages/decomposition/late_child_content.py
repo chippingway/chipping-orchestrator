@@ -101,9 +101,11 @@ does not cover, implement normally.
 """
 
 
-# What a git ref name may be spelled with: anything but whitespace, a control
-# character, and the few characters git refuses anywhere in one.
-_REF_CHARACTER = r"[^\s\x00-\x1f\x7f~^:?*\[\\]"
+# What a git ref name may be spelled with: anything but an ASCII space or
+# control character and the few characters git refuses anywhere in one. Git
+# refuses bytes, not Unicode classes, so a non-breaking or any other non-ASCII
+# space is part of a name it would fetch -- and is read as part of one here.
+_REF_CHARACTER = r"[^\x00-\x20\x7f~^:?*\[\\]"
 
 # Anything issue text names in the snapshot namespace -- a remote ref, or a
 # host's mirror of one -- read as the whole ref name it could be: as far as

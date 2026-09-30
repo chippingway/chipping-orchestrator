@@ -23,7 +23,11 @@ from orchestrator.workflow.late_split import (
     models as _late_models,
     obligations as _obligations,
 )
-from orchestrator.workflow.stages.decomposition import blocked as _blocked, replacement_lineage as _replacement_lineage
+from orchestrator.workflow.stages.decomposition import (
+    blocked as _blocked,
+    replacement_lineage as _replacement_lineage,
+    umbrella as _umbrella,
+)
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import (
     _TEST_SPEC,
@@ -298,6 +302,11 @@ _UNSUPPORTED = MappingProxyType({
         _slice_naming(f"`{_support.EXCLAIMED_REF}`"),
         _support.EXCLAIMED_REF,
     ),
+    "a root replacement told a ref running on past its own through a non-breaking space": (
+        _ROOT_SPLIT,
+        _slice_naming(f"`{_support.SPACED_REF}`"),
+        _support.SPACED_REF,
+    ),
     "a root replacement told its own ref nested under another": (
         _ROOT_SPLIT,
         _slice_naming(_support.NESTED_REF),
@@ -306,8 +315,17 @@ _UNSUPPORTED = MappingProxyType({
 })
 
 
+# What the parent's own snapshot entry reads as at the poll that would release
+# a dependent replacement -- as its split left it, and no longer proved -- each
+# beside the label that replacement ends on and the parks the parent takes.
+_DEFERRED = MappingProxyType({
+    "held": ("retained", WorkflowLabel.READY, []),
+    "no longer proved": ("pending", WorkflowLabel.BLOCKED, [_replacement_lineage.PARK_LINEAGE_UNPROVED]),
+})
+
+
 class UnprovedLineageTest(unittest.TestCase):
-    """A lineage that cannot be proved parks the split before any child exists."""
+    """A lineage that cannot be proved parks the split before any child exists, or before a later one starts."""
 
     def test_unsupported_reuse_creates_nothing(self) -> None:
         # The implementer reads the body, so a slice pointing at a ref the
@@ -327,6 +345,40 @@ class UnprovedLineageTest(unittest.TestCase):
                 _support.redecompose(github, issue)[RUN_AGENT].assert_called_once()
 
                 self._assert_held(github, said)
+
+    def test_a_lapsed_proof_releases_no_dependent(self) -> None:
+        # A dependent replacement is released polls after the split proved
+        # its lineage, off the parent's record as it stands then -- so the
+        # proof is asked again in front of that release, and the parent parks
+        # once rather than on every poll that holds it.
+        for shape, (entry_state, label, parked) in _DEFERRED.items():
+            with self.subTest(shape=shape):
+                self.assertEqual(self._released_after(entry_state), (label, parked))
+
+    def _released_after(self, entry_state: str) -> tuple:
+        """Where the dependent replacement and the parent's parks stand after two dependency polls.
+
+        The split lands with the snapshot held, the first replacement then
+        finishes, and the parent's own snapshot entry is put at `entry_state`
+        before the polls that would release the second.
+        """
+        github, issue = _support.late_parent(_support.own_split())
+        _support.redecompose(github, issue, _support.DEPENDENT_MANIFEST)
+        first, second = _support.replacements(github)
+        github.set_workflow_label(github.get_issue(first), WorkflowLabel.DONE, guarded=False)
+        self._restate_snapshot(github, entry_state)
+        for _ in range(2):
+            _support.redecompose(github, issue, tick=_umbrella._handle_umbrella)
+        return github.workflow_label(github.get_issue(second)), _support.parks(github)
+
+    def _restate_snapshot(self, github, entry_state: str) -> None:
+        """Put the parent's own snapshot entry at `entry_state`, every other entry as it stands."""
+        pinned = github.pinned_data(_support.PARENT)
+        restated = [
+            {**entry, "state": entry_state} if entry.get("target") == _support.SNAPSHOT_REF else entry
+            for entry in pinned["late_resources"]
+        ]
+        github.seed_state(_support.PARENT, **{**pinned, "late_resources": restated})
 
     def _refused(self, seeded, answer: str):
         """Seed the parent, run the decomposing tick it answers, and hand back its client."""

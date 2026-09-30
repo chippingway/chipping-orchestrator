@@ -611,7 +611,11 @@ because there it is the claim that this stage has already rerouted rather than a
      has nothing to correlate a reclamation to, so the parent stays `blocked` and the error is logged. An issue that
      never entered the late gate owes nothing and flips at once.
   7. Walk children: any `workflow:blocked` child whose recorded dependencies are all `done` gets relabeled
-     `workflow:ready`. A child with no recorded deps is also flipped (vacuous all-done over an empty list).
+     `workflow:ready`. A child with no recorded deps is also flipped (vacuous all-done over an empty list). Children
+     an ordinary split created — anything but a late split's own register — are released only while the lineage and
+     snapshot decision their split was proved on still holds off the parent's record: a refusal (a snapshot entry no
+     longer held or released, a base gone, an ancestry damaged) releases none and parks the parent
+     `replacement_lineage_unproved`, once. `_handle_umbrella` walks through the same check.
 - **Output**: parent → `workflow:ready` (all done and nothing a late split recorded still held), OR a sibling
   unblocked, OR a HITL park, OR a no-op for a child still waiting on its dependencies or a parent still holding a
   ref.
