@@ -67,6 +67,17 @@ def _ledger_is_sealed(sealed: Any, cycle_id: int) -> bool:
     return sealed == cycle_id
 
 
+def _links_to(linked: Any, parent: int) -> bool:
+    """Whether a recorded `parent_number` is exactly `parent`'s issue number.
+
+    Spelled once because recovery, recognition, and release all take the link
+    as proof of parentage, and only an issue number proves it: JSON carries
+    `41.0` and `true` as values Python compares equal to 41 and 1, and neither
+    is one any writer here produced, so each names no parent at all.
+    """
+    return _formats.whole_number(linked) and linked > 0 and linked == parent
+
+
 def _issue_ref_list(numbers: list) -> str:
     """Render issue/child numbers as a `#a, #b` comma-joined reference list."""
     return ", ".join(f"#{number}" for number in numbers)

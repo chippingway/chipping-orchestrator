@@ -3362,20 +3362,21 @@ rather than preserving.
   that stamp, the lineage beside them kept — unless the child's title or body names the snapshot the split still
   holds (read as a slice is before creation), in which case `late_consumers` records the child again, in the
   parent's own write ahead of its seed and of the finalize, and the child is pointed at that ref; and a child that
-  split cannot recognize as its own — a pinned comment that would not parse, a `parent_number` naming another issue,
-  a title or body naming a snapshot ref the split no longer holds or never preserved (or another repository's mirror
-  of one), or any other group: part of it, a field its reader would drop, another lineage — parks the same way, with
-  nothing written over what it carries. A recovered split of an issue no late split charged seeds none of this
-  group, and holds its children to the same recognition: a child of one whose pinned comment would not parse, whose
-  `parent_number` names another issue, that carries any of this group, or whose title or body names any snapshot
-  ref parks the same way.
+  split cannot recognize as its own — a pinned comment that would not parse, a `parent_number` that is not this
+  issue's number (another issue's, or no positive integer at all: a float or a bool that compares equal to it
+  included), a title or body naming a snapshot ref the split no longer holds or never preserved (or another
+  repository's mirror of one), or any other group: part of it, a field its reader would drop, another lineage —
+  parks the same way, with nothing written over what it carries. A recovered split of an issue no late split
+  charged seeds none of this group, and holds its children to the same recognition: a child of one whose pinned
+  comment would not parse, whose `parent_number` is not this issue's number, that carries any of this group, or
+  whose title or body names any snapshot ref parks the same way.
   A snapshot ref recorded twice is a refusal whatever the two entries stand at, released included. Either park
   leaves every child unfinalized and unstarted. The dependency walk that releases an ordinary split's children —
   the split's own same-tick release of its no-dependency children included — asks the same decision off this
   record in front of every walk, and holds each child to the recovery's recognition in front of its release: a
-  `parent_number` naming this issue, the whole group it was owed (none, for an issue no late split charged), a
-  pointer this ledger still keeps for it, and text naming no other ref. A proof, a link, a seed, a protection, or
-  instructions that changed after creation release no further child and park the parent, once.
+  `parent_number` that is exactly this issue's number, the whole group it was owed (none, for an issue no late split
+  charged), a pointer this ledger still keeps for it, and text naming no other ref. A proof, a link, a seed, a
+  protection, or instructions that changed after creation release no further child and park the parent, once.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

@@ -510,14 +510,15 @@ because there it is the claim that this stage has already rerouted rather than a
      holds (read as a slice is before creation), which `late_consumers` records again (a parent write ahead of the
      seed and the finalize) and which is pointed at that ref — then finalize to `workflow:umbrella` (when the flag is
      true) or `workflow:blocked`. A parent whose record no longer proves that lineage, or a child it cannot recognize
-     as its own — a pinned comment that would not parse, a `parent_number` naming another issue, a title or body
+     as its own — a pinned comment that would not parse, a `parent_number` that is not this issue's number (another
+     issue's, or no positive integer at all: a float or a bool that compares equal to it included), a title or body
      naming a snapshot ref the split no longer holds or never preserved (or another repository's mirror of one), or
      any other group (part of it, a field its reader would drop, another lineage) — parks
      `replacement_lineage_unproved` instead. A parent outside any late lineage holds its recorded children to the
      same recognition, owing them no group and no snapshot: one whose comment would not parse, whose
-     `parent_number` names another issue, that carries any of the group, or whose title or body names any snapshot
-     ref parks the same way. Nothing is written to that child, so none of its children is finalized into the walk
-     that starts them. Two owners take those markers
+     `parent_number` is not this issue's number, that carries any of the group, or whose title or body names any
+     snapshot ref parks the same way. Nothing is written to that child, so none of its children is finalized into
+     the walk that starts them. Two owners take those markers
      away from this recovery: an issue already parked awaiting a human, and one carrying a live late generation —
      the split transaction writes the same two markers and resumes from its own durable facts, so finalizing on its
      behalf would hand a parent on before its snapshot, its supersession, or what the remote is owed had been
@@ -618,11 +619,11 @@ because there it is the claim that this stage has already rerouted rather than a
      longer held or released, a base gone, an ancestry damaged) releases none and parks the parent
      `replacement_lineage_unproved`, once. In front of each release the child is held to the recognition step 3's
      recovery applies, with its parent link required rather than backfilled: a comment that will not parse, a
-     `parent_number` that does not name this parent, an ancestry that is not the whole group it was owed (any of
-     it, for an issue no late split charged), a pointer the parent's ledger no longer keeps for it (the ref
-     released, or the child off `late_consumers`), or a title or body naming any other ref stops the walk and parks
-     the same way. That costs one pinned read per released child. `_handle_umbrella` walks through the same checks,
-     and so does the split's own same-tick release.
+     `parent_number` that is not this parent's number (a float or a bool equal to it included), an ancestry that is
+     not the whole group it was owed (any of it, for an issue no late split charged), a pointer the parent's ledger
+     no longer keeps for it (the ref released, or the child off `late_consumers`), or a title or body naming any
+     other ref stops the walk and parks the same way. That costs one pinned read per released child.
+     `_handle_umbrella` walks through the same checks, and so does the split's own same-tick release.
 - **Output**: parent → `workflow:ready` (all done and nothing a late split recorded still held), OR a sibling
   unblocked, OR a HITL park, OR a no-op for a child still waiting on its dependencies or a parent still holding a
   ref.

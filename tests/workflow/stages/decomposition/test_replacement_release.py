@@ -37,6 +37,10 @@ _STRAY_ANCESTRY_KEY = "late_ancestry_depth"
 
 _PARKED_ONCE = (_replacement_lineage.PARK_LINEAGE_UNPROVED,)
 
+# The parent's number as JSON can spell it and no writer here does: equal to
+# the issue number in Python, and no issue number at all.
+_FLOAT_LINK = ((_support.KEY_PARENT_NUMBER, float(_support.PARENT)),)
+
 
 @dataclass(frozen=True)
 class _Change:
@@ -47,14 +51,15 @@ class _Change:
     ledger, and the dependent's pinned record and body as the split wrote
     them. `ordinary` splits an issue no late split charged instead.
     `stripped` are keys taken off the dependent's pinned record, `added` are
-    keys put on it, and `named` is a ref added to its body.
+    keys put on it over whatever it carries, and `named` is a ref added to its
+    body.
     """
 
     ordinary: bool = False
     entry_state: str = "retained"
     kept: bool = True
     stripped: tuple[str, ...] = ()
-    added: tuple[tuple[str, int], ...] = ()
+    added: tuple[tuple[str, object], ...] = ()
     named: str = ""
 
 
@@ -72,12 +77,18 @@ _CHANGES = MappingProxyType({
     "the dependent's parent link taken off": (
         _Change(stripped=(_support.KEY_PARENT_NUMBER,)), WorkflowLabel.BLOCKED, _PARKED_ONCE,
     ),
+    "the dependent's parent link rewritten as a float": (
+        _Change(added=_FLOAT_LINK), WorkflowLabel.BLOCKED, _PARKED_ONCE,
+    ),
     "another issue's snapshot named in the dependent's body": (
         _Change(named=_FOREIGN_REF), WorkflowLabel.BLOCKED, _PARKED_ONCE,
     ),
     "nothing, under an ordinary split": (_Change(ordinary=True), WorkflowLabel.READY, ()),
     "a stray ancestry key on an ordinary split's dependent": (
         _Change(ordinary=True, added=((_STRAY_ANCESTRY_KEY, 1),)), WorkflowLabel.BLOCKED, _PARKED_ONCE,
+    ),
+    "an ordinary split's dependent linked by a float": (
+        _Change(ordinary=True, added=_FLOAT_LINK), WorkflowLabel.BLOCKED, _PARKED_ONCE,
     ),
 })
 
@@ -160,7 +171,7 @@ class DeferredReleaseTest(unittest.TestCase):
             for key, carried in github.pinned_data(dependent).items()
             if key not in change.stripped
         }
-        github.seed_state(dependent, **kept, **dict(change.added))
+        github.seed_state(dependent, **{**kept, **dict(change.added)})
         if change.named:
             created = github.get_issue(dependent)
             created.body = f"{created.body}\n\nsee also {change.named}"

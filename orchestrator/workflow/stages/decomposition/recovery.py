@@ -37,9 +37,10 @@ records that child; a child whose title or body names that snapshot is
 recorded on the ledger again where it went missing, since that text is what
 its implementer reads; any other pointer that ledger no longer protects is
 dropped with its ordering stamp; and a child this split cannot recognize as
-its own -- a pinned comment that would not parse, a link to another parent,
-an ancestry it did not write, text naming any snapshot ref it cannot keep,
-another repository's mirror of its own included -- is refused. A child of an
+its own -- a pinned comment that would not parse, a link to anything but
+this issue's number, an ancestry it did not write, text naming any
+snapshot ref it cannot keep, another repository's mirror of its own
+included -- is refused. A child of an
 ordinary split is held to the same recognition before its parent link is
 backfilled: it is owed no lineage and no snapshot, so any of the group on it,
 or text naming any snapshot at all, is refused too. A lineage the record can
@@ -101,12 +102,12 @@ def _seed_orphan_child_state(
 
     Answers why this child may not be finalized, or None once it is repaired.
     The child is held to the parent's record before anything is written: its
-    pinned comment has to parse, its parent link has to be this issue or
-    absent, its ancestry has to be the one it was owed -- none, where the
-    record proves no lineage -- and any snapshot ref its title or body names
-    has to be the one this split can still keep for it, which a split owing
-    no lineage has none of -- the reading a slice is held to before it is
-    created. A child refused keeps exactly what it carried -- the
+    pinned comment has to parse, its parent link has to be this issue's
+    number or absent, its ancestry has to be the one it was owed -- none,
+    where the record proves no lineage -- and any snapshot ref its title or
+    body names has to be the one this split can still keep for it, which a
+    split owing no lineage has none of -- the reading a slice is held to
+    before it is created. A child refused keeps exactly what it carried -- the
     damage every later reader of it refuses on included. One told about a
     snapshot the consumer ledger no longer names is recorded there again, in
     a write of the parent's own that lands before its seed and before the
@@ -123,7 +124,7 @@ def _seed_orphan_child_state(
     if seed.protect:
         lineage.protect(state, int(child_number))
         gh.write_pinned_state(issue, state)
-    attributed = bool(child_state.get(_state._PARENT_NUMBER))
+    attributed = _state._links_to(child_state.get(_state._PARENT_NUMBER), issue.number)
     if attributed and seed.ancestry is None:
         return None
     if not attributed:

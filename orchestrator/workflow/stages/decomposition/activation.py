@@ -192,7 +192,7 @@ class _ChildActivation:
         seed = self.lineage.repair(
             self.state, self.owner.number, number, child_state, _late_child_content._named_snapshots(*texts),
         )
-        linked = child_state.get(_state._PARENT_NUMBER) == self.owner.number
+        linked = _state._links_to(child_state.get(_state._PARENT_NUMBER), self.owner.number)
         if linked and seed == _replacement_lineage.SeedRepair():
             return False
         log.error(

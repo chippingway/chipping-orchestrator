@@ -50,10 +50,10 @@ kept -- unless the child's title or body names the snapshot this split still
 holds, since that text is what its implementer reads: that child is recorded
 on the ledger again and pointed at the ref -- and a child this split cannot
 recognize as its own -- a pinned comment that would not parse, a link to
-another parent, text naming any snapshot ref it cannot keep, or any other
-ancestry: a partial group, a field its reader would drop, another lineage --
-refuses the finalize that would start it, with nothing written over what it
-carries. A child of an ordinary split is held to the same recognition: it is
+anything but this issue's number, text naming any snapshot ref it cannot
+keep, or any other ancestry: a partial group, a field its reader would drop,
+another lineage -- refuses the finalize that would start it, with nothing
+written over what it carries. A child of an ordinary split is held to the same recognition: it is
 owed no lineage and no snapshot, so it is left as it stands only where its
 comment parses, its link names this issue or nothing, it carries none of the
 group, and its text names no snapshot ref -- and refused otherwise.
@@ -94,7 +94,7 @@ _NO_ADJUDICATION = "its late record keeps no cycle a child's ancestry could be c
 
 _UNREADABLE_CHILD = "child #{child} carries a pinned comment that would not parse, so nothing it records can be checked"
 
-_OTHER_PARENT = "child #{child} records `parent_number` {parent!r}, not this issue"
+_OTHER_PARENT = "child #{child} records `parent_number` {parent!r}, which is not this issue's number"
 
 _UNPROMISED = (
     "child #{child} names in its title or body a snapshot this issue's split cannot keep for it -- one it does "
@@ -411,7 +411,10 @@ def _unrecognized(
     child nobody seeded does, and writing a seed over it would take whatever
     it carried with it -- so it is refused before anything is read off it. A
     child whose text names a snapshot this split cannot keep for it is not
-    `promised`. A link to another parent is a child another tree claims. And
+    `promised`. A link proves parentage only as this issue's number: one
+    naming another is a child another tree claims, and a float, a bool, or
+    any other value a hand edit leaves is no issue number, whatever it
+    compares equal to. And
     an ancestry has to be the whole group, written back exactly as the comment
     carries it -- a field its reader would drop, a `null`, or a key it answers
     with its empty value comes back different -- naming the lineage it was
@@ -426,7 +429,7 @@ def _unrecognized(
     if not promised:
         return _UNPROMISED.format(child=child_number)
     linked = child_state.get(_state._PARENT_NUMBER)
-    if linked and linked != parent:
+    if linked is not None and not _state._links_to(linked, parent):
         return _OTHER_PARENT.format(child=child_number, parent=linked)
     if not any(child_state.carries(key) for key in _lineage.LATE_ANCESTRY_KEYS):
         return None
