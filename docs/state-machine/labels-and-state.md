@@ -3351,11 +3351,14 @@ rather than preserving.
   names it; one carrying exactly the group it was owed, or that group without a pointer, is left alone — a
   `late_ancestry_mirror_first` standing with no pair beside it, which is what the child's own reuse guard leaves
   when it drops a pointer, names no ref and stays; a pointer the ledger no longer protects is dropped together with
-  that stamp, the lineage beside them kept; and a child that split cannot recognize
-  as its own — a pinned comment that would not parse, a `parent_number` naming another issue, or any other group:
-  part of it, a field its reader would drop, another lineage — parks the same way, with nothing written over what it
-  carries. A snapshot ref recorded twice is a refusal whatever the two entries stand at, released included. Either
-  park leaves every child unfinalized and unstarted.
+  that stamp, the lineage beside them kept — unless the child's body carries the reuse instructions for the snapshot
+  the split still holds, in which case `late_consumers` records the child again, in the parent's own write ahead of
+  its seed and of the finalize, and the child is pointed at that ref; and a child that split cannot recognize as its
+  own — a pinned comment that would not parse, a `parent_number` naming another issue, reuse instructions for a
+  snapshot the split no longer holds or never preserved, or any other group: part of it, a field its reader would
+  drop, another lineage — parks the same way, with nothing written over what it carries. A snapshot ref recorded
+  twice is a refusal whatever the two entries stand at, released included. Either park leaves every child
+  unfinalized and unstarted.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

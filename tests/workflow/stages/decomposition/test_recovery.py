@@ -7,8 +7,12 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.late_split import lineage as _lineage
-from orchestrator.workflow.stages.decomposition.replacement_lineage import PARK_LINEAGE_UNPROVED
+from orchestrator.workflow.late_split import lineage as _lineage, obligations as _obligations
+from orchestrator.workflow.stages.decomposition import (
+    blocked as _blocked,
+    replacement_lineage as _replacement_lineage,
+    umbrella as _umbrella,
+)
 from tests.support.fakes import (
     FakeGitHubClient,
     make_issue,
@@ -100,6 +104,10 @@ SPLIT_MANIFEST = _manifest(
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = "implemented"
 PARK_DECOMPOSITION_CRASH = "decomposition_crash"
+PARK_LINEAGE_UNPROVED = _replacement_lineage.PARK_LINEAGE_UNPROVED
+# A ref no split of this lineage's parent preserved, which an edited body can
+# still name.
+_FOREIGN_REF = "refs/orchestrator/late-split/issue-4/cycle-2/gen-1"
 # An issue that is not the replacement's parent, which a foreign link names.
 _OTHER_PARENT = 999
 # What a pinned comment that would not parse reads back as.
@@ -385,23 +393,31 @@ class _ReplacementRecoveryCase(unittest.TestCase):
         self.github = github
         self.issue = issue
 
-    def _die_seeding(self) -> int:
+    def _die_seeding(self, *, protected: bool = True) -> int:
         """Run the split into the crash between its parent record and its seed.
 
-        Reports the child it left: recorded, protected, and seeded with
-        nothing at all.
+        Reports the child it left: recorded, seeded with nothing at all, and
+        protected and told about the snapshot exactly where the parent's split
+        still held one to point it at.
         """
         dying = patch.object(self.github, "write_pinned_state", _DiesSeedingAChild(self.github))
         with dying, self.assertRaises(KeyboardInterrupt):
             _support.redecompose(self.github, self.issue, _support.ONE_REPLACEMENT_MANIFEST)
         child = _support.replacements(self.github)[0]
-        self.assertIn(child, _support.consumers(self.github))
+        self.assertEqual(child in _support.consumers(self.github), protected)
+        self.assertEqual(_support.SNAPSHOT_REF in self.github.get_issue(child).body, protected)
         self.assertEqual(self.github.pinned_data(child), {})
         return child
 
     def _recover(self) -> None:
         """The next decomposing tick, which a recovery answers without the decomposer."""
         _support.redecompose(self.github, self.issue)[RUN_AGENT].assert_not_called()
+
+    def _implementer_prompt(self, child: int) -> str:
+        """Pick one released child up, and hand back what its implementer is asked."""
+        picked = self.github.get_issue(child)
+        mocks = _support.redecompose(self.github, picked, IMPLEMENTED_MESSAGE, _blocked._handle_ready)
+        return mocks[RUN_AGENT].call_args.args[1]
 
     def _unprotect(self) -> None:
         """Take every replacement back off the parent's consumer ledger."""
@@ -434,16 +450,22 @@ class ReplacementCrashTest(_ReplacementRecoveryCase):
         # Finalized only once repaired; the walk that starts it comes later.
         self.assertEqual(self._labels(child), (LABEL_UMBRELLA, LABEL_BLOCKED))
 
-    def test_an_unprotected_child_gets_no_pointer(self) -> None:
-        # Recorded by a split that never put it on the ledger: the lineage is
-        # still owed to it, and a pointer nothing keeps is not.
+    def test_a_lost_consumer_slot_is_restored(self) -> None:
+        # The child's body tells it to reuse the ref, and the ledger no longer
+        # records it: protection goes back on before anything can start it,
+        # so the implementer the next poll releases reads instructions for a
+        # ref that is kept for it.
         child = self._die_seeding()
         self._unprotect()
 
         self._recover()
+        protected = _support.consumers(self.github)
+        _support.redecompose(self.github, self.issue, tick=_umbrella._handle_umbrella)
+        prompt = self._implementer_prompt(child)
 
-        self.assertEqual(self._seeded(child), _support.ROOT_LINEAGE)
-        self.assertEqual(_support.consumers(self.github), [_support.ORIGINAL])
+        self.assertEqual(protected, sorted([_support.ORIGINAL, child]))
+        self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT)
+        self.assertIn(_support.SNAPSHOT_REF, prompt)
 
     def test_an_unproved_lineage_is_not_finalized(self) -> None:
         # The record the split was proved on no longer proves it: a stray
@@ -452,6 +474,22 @@ class ReplacementCrashTest(_ReplacementRecoveryCase):
         damaged = {**self.github.pinned_data(_support.PARENT), "late_ancestry_depth": 1}
         self.github.seed_state(_support.PARENT, **damaged)
 
+        self._recover()
+
+        self.assertEqual(self.github.pinned_data(child), {})
+        self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
+        self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
+
+    def test_unkeepable_instructions_never_start(self) -> None:
+        # The child was told to reuse the ref, and the split no longer holds
+        # it: nothing can keep what its instructions name, so the split is
+        # not finalized -- and a later tick does not finalize it either.
+        child = self._die_seeding()
+        pinned = self.github.pinned_data(_support.PARENT)
+        released = [{**entry, "state": "reconciled"} for entry in pinned["late_resources"]]
+        self.github.seed_state(_support.PARENT, **{**pinned, "late_resources": released})
+
+        self._recover()
         self._recover()
 
         self.assertEqual(self.github.pinned_data(child), {})
@@ -491,13 +529,30 @@ class RecordedSeedTest(_ReplacementRecoveryCase):
         self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT)
         self.assertEqual(self._labels(child), (LABEL_UMBRELLA, LABEL_BLOCKED))
 
-    def test_an_unprotected_pointer_is_dropped(self) -> None:
+    def test_an_instructed_pointer_is_protected_again(self) -> None:
         # The seed landed with its pointer, and the ledger that protected it
-        # no longer names the child: the lineage stands, and the pointer goes
-        # with the ordering stamp that was a claim about it.
+        # no longer names the child. Its body tells it to reuse that ref, so
+        # the slot goes back rather than the pointer going.
         child = self._die_seeding()
         self.github.seed_state(child, **_written(_support.ROOT_REPLACEMENT))
         self._unprotect()
+
+        self._recover()
+
+        protected = sorted([_support.ORIGINAL, child])
+        self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT)
+        self.assertEqual(_support.consumers(self.github), protected)
+        self.assertEqual(self._labels(child), (LABEL_UMBRELLA, LABEL_BLOCKED))
+
+    def test_an_uninstructed_pointer_is_dropped(self) -> None:
+        # A child created while the ref was already released was told about
+        # no snapshot and recorded as no consumer; a pointer standing on it
+        # anyway is one nothing keeps, so it goes with its ordering stamp.
+        github, issue = _support.late_parent(_support.own_split(_obligations.LateResourceState.RECONCILED))
+        self.github = github
+        self.issue = issue
+        child = self._die_seeding(protected=False)
+        self.github.seed_state(child, **_written(_support.ROOT_REPLACEMENT))
 
         self._recover()
 
@@ -518,6 +573,19 @@ class RecordedSeedTest(_ReplacementRecoveryCase):
                 self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
                 self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
                 self.assertIn(f"#{child}", self.github.posted_comments[-1][1])
+
+    def test_foreign_instructions_are_never_finalized(self) -> None:
+        # A body telling the child to reuse a ref this split never preserved
+        # names a snapshot nothing here keeps for it.
+        child = self._die_seeding()
+        created = self.github.get_issue(child)
+        created.body = created.body.replace(_support.SNAPSHOT_REF, _FOREIGN_REF)
+
+        self._recover()
+
+        self.assertEqual(self.github.pinned_data(child), {})
+        self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
+        self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
 
     def test_an_unreadable_seed_is_never_finalized(self) -> None:
         # Nothing on it can be checked, and a seed written over it would take

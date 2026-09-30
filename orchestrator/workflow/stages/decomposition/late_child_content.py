@@ -6,9 +6,12 @@ Each child names the exact preserved candidate and its declared budget.
 Reserved receipt markers in proposed scope are refused before publication.
 The reuse instructions are rendered off a child's pointed ancestry, so an
 ordinary split that points a replacement at the same snapshot tells it the
-same thing.
+same thing -- and read back off a body by the ref they name, so a recovery can
+tell which snapshot a child was already told to reuse.
 """
 from __future__ import annotations
+
+import re
 
 from orchestrator.config import models as _config_models
 from orchestrator.git.snapshots import mirrors as _snapshot_mirrors
@@ -96,6 +99,10 @@ does not cover, implement normally.
 """
 
 
+# The one line of the reuse block that names the ref, as a body carries it.
+_INSTRUCTED_REF = re.compile(r"^- ancestor snapshot ref, on the remote: `(?P<ref>[^`\n]+)`$", re.MULTILINE)
+
+
 def _forged_receipt(children: tuple) -> str | None:
     """The first declared slice carrying a receipt marker of ours, described.
 
@@ -175,9 +182,10 @@ def _child_body(
     number nobody estimated.
     """
     generation = context.generation
+    budget = _budget.declared_budget(child)
     sections = (
         _declared_scope(child),
-        _budget_block(child),
+        "" if budget is None else _BUDGET_BLOCK.format(budget=budget),
         _child_marker(generation, index),
         _reuse_block(context.spec, _child_ancestry(context, child, snapshot_ref), generation.base_sha),
     )
@@ -209,12 +217,16 @@ def _reuse_block(spec: _config_models.RepoSpec, pointed: _ancestry.LateAncestry,
     )
 
 
-def _budget_block(child: dict) -> str:
-    """What this slice was sized at, or nothing where nobody sized it."""
-    budget = _budget.declared_budget(child)
-    if budget is None:
-        return ""
-    return _BUDGET_BLOCK.format(budget=budget)
+def _instructed_refs(body: object) -> frozenset[str]:
+    """Every snapshot ref a body's reuse instructions name, or none.
+
+    Read back rather than remembered: the body is written before the record
+    that protects its child, so a recovery has only what it says to tell a
+    child told to reuse a snapshot from one that was not.
+    """
+    if not isinstance(body, str):
+        return frozenset()
+    return frozenset(match.group("ref") for match in _INSTRUCTED_REF.finditer(body))
 
 
 def _declared_scope(child: dict) -> str:

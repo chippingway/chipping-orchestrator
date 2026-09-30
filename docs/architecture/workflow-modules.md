@@ -1364,9 +1364,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             consumer ledger records the child; a parent at the bound, an unprovable record, one
                             naming no cycle, or one whose own snapshot is neither held nor released parks
                             `replacement_lineage_unproved` instead; the recovery's check of each recorded child --
-                            an unparsed comment or a link to another parent refused, its ancestry seeded where
-                            missing, left where it is the owed group, its unprotected pointer dropped, and any other
-                            group refused
+                            an unparsed comment, a link to another parent, or reuse instructions for a snapshot the
+                            split cannot keep refused, a child told to reuse the one it holds recorded as its
+                            consumer again, its ancestry seeded where missing, left where it is the owed group, an
+                            unprotected uninstructed pointer dropped, and any other group refused
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
                             recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
                             a pointer -- before it is seeded with its parent link and that lineage, never with the
@@ -1521,8 +1522,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             create-or-verify that never overwrites, the fetch that proves a child could obtain it,
                             and the one park every refusal takes
       late_child_content.py child scope, declared budgets, ancestry, immutable-snapshot reuse instructions -- rendered off
-                            a pointed ancestry, so a protected replacement's body says the same -- and exact slice
-                            receipts; reserved markers in proposed scope are refused before publication
+                            a pointed ancestry, so a protected replacement's body says the same, and read back off a
+                            body by the ref they name -- and exact slice receipts; reserved markers in proposed scope
+                            are refused before publication
       late_child_records.py retain the child walk, write each child on every parent ledger before seeding its ancestry,
                             and seal a cancelled consumer ledger only once possible unrecorded children are accounted for
       late_child_adoption.py

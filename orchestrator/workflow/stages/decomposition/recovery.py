@@ -33,10 +33,13 @@ repair asks the parent's record which lineage its children inherit -- the same
 decision the split made before creating them -- and holds every recorded
 child to it before anything is finalized: a child missing the ancestry is
 seeded, the snapshot pointer included only where the consumer ledger already
-records that child; a pointer that ledger no longer protects is dropped with
-its ordering stamp; and a child this split cannot recognize as its own -- a
-pinned comment that would not parse, a link to another parent, an ancestry it
-did not write -- is refused. A lineage the record can no longer prove, or a
+records that child; a child whose body was told to reuse that snapshot is
+recorded on the ledger again where it went missing, since the instructions
+are what its implementer reads; any other pointer that ledger no longer
+protects is dropped with its ordering stamp; and a child this split cannot
+recognize as its own -- a pinned comment that would not parse, a link to
+another parent, an ancestry it did not write, instructions for a snapshot it
+can no longer keep -- is refused. A lineage the record can no longer prove, or a
 child refused, parks instead of finalizing, which is what keeps every child of
 that split unstarted.
 """
@@ -52,6 +55,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards, usage as _usage
 from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
 from orchestrator.workflow.stages.decomposition import (
+    late_child_content as _late_child_content,
     late_relabel as _late_relabel,
     replacement_lineage as _replacement_lineage,
     state as _state,
@@ -95,15 +99,25 @@ def _seed_orphan_child_state(
     Answers why this child may not be finalized, or None once it is repaired.
     Where the parent's record proves a lineage, the child is held to it before
     anything is written: its pinned comment has to parse, its parent link has
-    to be this issue or absent, and its ancestry has to be the one it was
-    owed. A child refused keeps exactly what it carried -- the damage every
-    later reader of it refuses on included.
+    to be this issue or absent, its ancestry has to be the one it was owed,
+    and any snapshot its body tells it to reuse has to be one this split can
+    still keep for it. A child refused keeps exactly what it carried -- the
+    damage every later reader of it refuses on included. One told about a
+    snapshot the consumer ledger no longer names is recorded there again, in
+    a write of the parent's own that lands before its seed and before the
+    finalize that would let anything start it.
     """
     child_issue = gh.get_issue(int(child_number))
     child_state = gh.read_pinned_state(child_issue)
-    seed = lineage.repair(state, int(child_number), child_state)
+    seed = lineage.repair(
+        state, int(child_number), child_state,
+        _late_child_content._instructed_refs(getattr(child_issue, "body", None)),
+    )
     if seed.refusal is not None:
         return seed.refusal
+    if seed.protect:
+        lineage.protect(state, int(child_number))
+        gh.write_pinned_state(issue, state)
     attributed = bool(child_state.get(_state._PARENT_NUMBER))
     if attributed and seed.ancestry is None:
         return None

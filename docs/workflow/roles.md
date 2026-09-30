@@ -1922,11 +1922,15 @@ A crash inside the split is repaired to the same answer before anything can star
 finalizes a split whose every child was recorded asks the parent's record again and holds every recorded child to
 it: a child carrying none of the ancestry group is seeded — the pointer only where the ledger already names that
 child — one carrying exactly the group it was owed, or that group without its pointer, is left as it stands, and a
-pointer the ledger no longer protects is dropped, its ordering stamp with it, and the lineage beside it kept. A child
-that split cannot recognize as its own is refused rather than overwritten: a pinned comment that would not parse (it
-reads back empty, exactly like the seed a crash deferred, and nothing on it can be checked), a `parent_number` naming
-another issue, or any other group — part of it, a field its reader would drop, another lineage — which a child's own
-size gate would read as whatever it says. Only once every child passes is the parent
+pointer the ledger no longer protects is dropped, its ordering stamp with it, and the lineage beside it kept. The
+body outranks the ledger there, though, because the body is what the implementer reads and it was written before the
+record that protects the child: a child whose body tells it to reuse the snapshot the split still holds is recorded
+on `late_consumers` again — in a write of the parent's own, ahead of its seed and of the finalize — and pointed at
+that ref, never left with instructions nothing keeps. A child that split cannot recognize as its own is refused
+rather than overwritten: a pinned comment that would not parse (it reads back empty, exactly like the seed a crash
+deferred, and nothing on it can be checked), a `parent_number` naming another issue, instructions for a snapshot the
+split no longer holds or never preserved, or any other group — part of it, a field its reader would drop, another
+lineage — which a child's own size gate would read as whatever it says. Only once every child passes is the parent
 finalized into the walk that activates children; a record that no longer proves the lineage, or a child refused,
 parks the same way instead and leaves every child unstarted. A child created and never recorded is the existing
 `decomposition_crash` park: nothing names it, so nothing points it at a snapshot or starts it.

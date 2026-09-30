@@ -177,10 +177,19 @@ def late_parent(
     return github, issue
 
 
-def redecompose(github: FakeGitHubClient, issue: FakeIssue, answer: str = REPLACEMENT_MANIFEST):
-    """One decomposing tick whose decomposer answers `answer`; the mocks it ran under."""
+def redecompose(
+    github: FakeGitHubClient,
+    issue: FakeIssue,
+    answer: str = REPLACEMENT_MANIFEST,
+    tick=_decomposing._handle_decomposing,
+):
+    """One tick whose agent answers `answer`; the mocks it ran under.
+
+    The decomposing tick unless a case names another handler -- the parent
+    poll that follows a split, or the pickup of a child it created.
+    """
     return _patch_and_run(
-        lambda: _decomposing._handle_decomposing(github, _TEST_SPEC, issue),
+        lambda: tick(github, _TEST_SPEC, issue),
         _WorkflowRunContext(run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=answer)),
     )
 
