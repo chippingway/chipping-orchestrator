@@ -445,8 +445,12 @@ Check current consumption with `curl -H "Authorization: Bearer $TOKEN" https://a
 When the reviewer agent emits `VERDICT: APPROVED`, `_handle_validating` runs the configured `VERIFY_COMMANDS` in the
 per-issue worktree **before** posting the approval comment, squashing, seeding watermarks, or relabeling to
 `workflow:documenting`. A clean run advances the issue as usual; any failure parks the issue on `workflow:validating`
-with `awaiting_human=True` and a typed `park_reason`, so an operator can fix the breakage and resume. An empty
-`VERIFY_COMMANDS` advances too, but its result is an explicit `not_run` rather than evidence that anything passed.
+with `awaiting_human=True` and a typed `park_reason`, so an operator can fix the breakage and resume. The park lands
+only while the subject the reviewer approved still stands behind the gate and behind the park's own notice: a push, an
+issue or report edit, or a later report landing while the commands ran makes the failure one about work nobody
+reviewed, so the run is recorded without a park and the next tick's fresh reviewer answers the head as it stands. An
+empty `VERIFY_COMMANDS` advances too, but its result is an explicit `not_run` rather than evidence that anything
+passed.
 
 A run records the commit and full tree it tested, both read before the first command; the exact ordered
 `VERIFY_COMMANDS`; each attempted command's outcome, exit code, and redacted, bounded output; `VERIFY_TIMEOUT`; and a
