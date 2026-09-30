@@ -115,6 +115,9 @@ _FOREIGN_TEXT = MappingProxyType({
     "instructions repointed at it": ("body", lambda text: text.replace(_support.SNAPSHOT_REF, _FOREIGN_REF)),
     "prose naming it beside the instructions": ("body", lambda text: f"{text}\n\nsee also {_FOREIGN_REF}"),
     "a title naming it": ("title", lambda text: f"{text} ({_FOREIGN_REF})"),
+    "instructions naming another repository's mirror of the same numbers": (
+        "body", lambda text: text.replace(_support.OWN_MIRROR, _support.FOREIGN_MIRROR),
+    ),
 })
 # An issue that is not the replacement's parent, which a foreign link names.
 _OTHER_PARENT = 999
@@ -519,6 +522,28 @@ class ReplacementCrashTest(_ReplacementRecoveryCase):
         self.assertEqual(self.github.pinned_data(child), {})
         self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
         self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
+
+    def test_an_ordinary_child_naming_a_ref_parks(self) -> None:
+        # A parent no late split charged keeps no snapshot for any child, so
+        # a recorded child whose body names one -- this lineage's ref or
+        # another repository's copy of it -- is not finalized, by the tick
+        # that recovers the crash or by the retry after it.
+        for named in (_support.SNAPSHOT_REF, _support.FOREIGN_MIRROR):
+            with self.subTest(named=named):
+                github, issue = _support.late_parent()
+                self.github = github
+                self.issue = issue
+                child = self._die_seeding(protected=False)
+                created = self.github.get_issue(child)
+                created.body = f"{created.body}\n\nreuse what {named} holds"
+
+                self._recover()
+                self._recover()
+
+                self.assertEqual(self.github.pinned_data(created.number), {})
+                self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
+                self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
+                self.assertIn(f"#{child}", self.github.posted_comments[-1][1])
 
     def test_an_unrecorded_child_is_never_started(self) -> None:
         # The crash before the parent record: the child exists, and nothing

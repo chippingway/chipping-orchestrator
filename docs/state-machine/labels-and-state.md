@@ -3346,7 +3346,8 @@ rather than preserving.
   this binary cannot read, a held ref no consumer can be recorded against (an unreadable `late_consumers`, no
   candidate, no identity to mint it from), an entry never proved or recorded twice, or none for its own ref — is a
   refusal like any other, and so is a slice whose own title or body names a snapshot ref other than the one its
-  child is pointed at (or that ref's local mirror). A refusal parks `replacement_lineage_unproved` before
+  child is pointed at (or this repository's local mirror of that ref — another repository's mirror of the same
+  numbers is that repository's copy, on no ledger here). A refusal parks `replacement_lineage_unproved` before
   `expected_children_count` is written, so nothing is created. A recovered split holds every recorded child to the
   same lineage before it finalizes: a child carrying none of this group is seeded, the pointer included only where
   the ledger already
@@ -3357,8 +3358,10 @@ rather than preserving.
   holds (read as a slice is before creation), in which case `late_consumers` records the child again, in the
   parent's own write ahead of its seed and of the finalize, and the child is pointed at that ref; and a child that
   split cannot recognize as its own — a pinned comment that would not parse, a `parent_number` naming another issue,
-  a title or body naming a snapshot ref the split no longer holds or never preserved, or any other group: part of it,
-  a field its reader would drop, another lineage — parks the same way, with nothing written over what it carries.
+  a title or body naming a snapshot ref the split no longer holds or never preserved (or another repository's mirror
+  of one), or any other group: part of it, a field its reader would drop, another lineage — parks the same way, with
+  nothing written over what it carries. A recovered split of an issue no late split charged seeds none of this
+  group, and a child of one whose title or body names any snapshot ref parks the same way.
   A snapshot ref recorded twice is a refusal whatever the two entries stand at, released included. Either park
   leaves every child unfinalized and unstarted.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a

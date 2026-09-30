@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from orchestrator.git.snapshots import mirrors as _snapshot_mirrors
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.late_split import (
@@ -55,6 +56,13 @@ CANDIDATE_SHA = "a" * SHA_LENGTH
 BASE_SHA = "b" * SHA_LENGTH
 
 SNAPSHOT_REF = "refs/orchestrator/late-split/issue-41/cycle-3/gen-1"
+
+# This repository's copy of that snapshot, which a child's instructions name
+# beside the ref, and another repository's copy of the same three numbers: a
+# `REPOS` entry sharing the clone, whose own issue 41 split into other work.
+OWN_MIRROR = _snapshot_mirrors.local_snapshot_ref(_TEST_SPEC, SNAPSHOT_REF)
+
+FOREIGN_MIRROR = _snapshot_mirrors.local_snapshot_ref(replace(_TEST_SPEC, slug="another/repository"), SNAPSHOT_REF)
 
 # The pinned keys a replacement's seed and its parent's record are read back
 # through.

@@ -168,14 +168,17 @@ class InheritedLineageTest(unittest.TestCase):
                 self._assert_born(github, lineage, recorded)
 
     def test_a_slice_may_name_its_own_snapshot(self) -> None:
-        # The one ref kept for the child is the one its instructions name.
-        github, issue = _support.late_parent(_support.own_split())
+        # The one ref kept for the child is the one its instructions name, by
+        # either name they give it.
+        for named in (_support.SNAPSHOT_REF, _support.OWN_MIRROR):
+            with self.subTest(named=named):
+                github, issue = _support.late_parent(_support.own_split())
 
-        _support.redecompose(github, issue, _slice_naming(_support.SNAPSHOT_REF))
+                _support.redecompose(github, issue, _slice_naming(named))
 
-        child = _support.replacements(github)[0]
-        self.assertIn(child, _support.consumers(github))
-        self.assertEqual(_seeded(github, child), _support.ROOT_REPLACEMENT)
+                child = _support.replacements(github)[0]
+                self.assertIn(child, _support.consumers(github))
+                self.assertEqual(_seeded(github, child), _support.ROOT_REPLACEMENT)
 
     def test_a_seed_carries_nothing_of_the_gate(self) -> None:
         # The parent carries the whole bypass an operator granted a commit of
@@ -245,6 +248,9 @@ def _slice_naming(*refs: str) -> str:
     }))
 
 
+# A root whose own split holds the snapshot its replacements are pointed at.
+_ROOT_SPLIT = MappingProxyType({"generation": _support.own_split()})
+
 # Slices whose own text tells a child to reuse a snapshot nothing keeps for it,
 # by the parent's record and the ref the slice names.
 _UNSUPPORTED = MappingProxyType({
@@ -254,9 +260,16 @@ _UNSUPPORTED = MappingProxyType({
         _ANCESTOR_REF,
     ),
     "a root replacement told a foreign ref beside its own": (
-        MappingProxyType({"generation": _support.own_split()}),
+        _ROOT_SPLIT,
         _slice_naming(_support.SNAPSHOT_REF, _FOREIGN_REF),
         _FOREIGN_REF,
+    ),
+    # The same three numbers, fetched for another repository sharing the
+    # clone: that repository's work, and on no ledger this parent writes.
+    "a root replacement told another repository's mirror of its own ref": (
+        _ROOT_SPLIT,
+        _slice_naming(_support.FOREIGN_MIRROR),
+        _support.FOREIGN_MIRROR,
     ),
 })
 

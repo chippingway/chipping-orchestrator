@@ -1915,11 +1915,13 @@ a split of the parent's own whose ledger cannot say whether its snapshot is held
 cannot read, a held ref no consumer can be recorded against, an entry never proved or recorded twice (released
 twice included), or none for its own ref (`late_split/entitlement.py`). A manifest is refused the same way when a
 slice's own title or body names a snapshot ref its child would not be kept — anything under
-`refs/orchestrator/late-split` other than the one ref the child is pointed at and this host's mirror of it. That
+`refs/orchestrator/late-split` other than the one ref the child is pointed at and this repository's mirror of it. That
 includes the ref a descendant was itself cut from, which its parent's ledger keeps for the descendant and for none of
 the children it creates, and every ref where the child is pointed at none: the implementer reads the body, so a slice
-copying reuse instructions from the thread would otherwise hand a child a snapshot nothing keeps for it. The split
-parks
+copying reuse instructions from the thread would otherwise hand a child a snapshot nothing keeps for it. It includes
+a mirror under another repository's segment too: a `REPOS` entry sharing the clone fetches its own split of the same
+issue, cycle, and generation numbers there, which may be other work and is on no ledger this parent writes. The
+split parks
 `replacement_lineage_unproved` before `expected_children_count` is written, so no child exists and nothing is left
 for a recovery to finalize; a reply is an edit, and re-runs the decomposer against the thread as it then stands.
 
@@ -1930,14 +1932,17 @@ child — one carrying exactly the group it was owed, or that group without its 
 pointer the ledger no longer protects is dropped, its ordering stamp with it, and the lineage beside it kept. The
 child's own text outranks the ledger there, though, because the title and body are what the implementer reads and
 were written before the record that protects the child. They are read exactly as a slice is before creation — every
-ref named under the namespace, whatever line or line ending it sits on, a mirror read as the ref it mirrors: a child
+ref named under the namespace, whatever line or line ending it sits on, a mirror standing for the ref only under this
+repository's own segment: a child
 whose text names only the snapshot the split still holds is recorded on `late_consumers` again — in a write of the
 parent's own, ahead of its seed and of the finalize — and pointed at that ref, never left with instructions nothing
 keeps. A child that split cannot recognize as its own is refused rather than overwritten: a pinned comment that would
 not parse (it reads back empty, exactly like the seed a crash deferred, and nothing on it can be checked), a
-`parent_number` naming another issue, text naming a snapshot ref the split no longer holds or never preserved, or any
-other group — part of it, a field its reader would drop, another lineage — which a child's own size gate would read
-as whatever it says. Only once every child passes is the parent
+`parent_number` naming another issue, text naming a snapshot ref the split no longer holds or never preserved (or
+another repository's mirror of one), or any other group — part of it, a field its reader would drop, another
+lineage — which a child's own size gate would read as whatever it says. A split of an issue no late split charged
+holds no snapshot for any child, so its recovery reads each recorded child's text the same way and refuses one naming
+any snapshot ref at all. Only once every child passes is the parent
 finalized into the walk that activates children; a record that no longer proves the lineage, or a child refused,
 parks the same way instead and leaves every child unstarted. A child created and never recorded is the existing
 `decomposition_crash` park: nothing names it, so nothing points it at a snapshot or starts it.

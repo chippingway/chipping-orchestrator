@@ -38,10 +38,12 @@ recorded on the ledger again where it went missing, since that text is what
 its implementer reads; any other pointer that ledger no longer protects is
 dropped with its ordering stamp; and a child this split cannot recognize as
 its own -- a pinned comment that would not parse, a link to another parent,
-an ancestry it did not write, text naming any snapshot ref it cannot keep --
-is refused. A lineage the record can no longer prove, or a
-child refused, parks instead of finalizing, which is what keeps every child of
-that split unstarted.
+an ancestry it did not write, text naming any snapshot ref it cannot keep,
+another repository's mirror of its own included -- is refused. A child of an
+ordinary split is owed no lineage, and its text is read the same way: one
+naming any snapshot at all is refused, since nothing keeps one for it. A
+lineage the record can no longer prove, or a child refused, parks instead of
+finalizing, which is what keeps every child of that split unstarted.
 """
 from __future__ import annotations
 
@@ -102,7 +104,9 @@ def _seed_orphan_child_state(
     to be this issue or absent, its ancestry has to be the one it was owed,
     and any snapshot ref its title or body names has to be the one this split
     can still keep for it -- the reading a slice is held to before it is
-    created. A child refused keeps exactly what it carried -- the
+    created. A split that proves no lineage keeps no snapshot for any child,
+    so a child of one whose text names a ref is refused too. A child refused
+    keeps exactly what it carried -- the
     damage every later reader of it refuses on included. One told about a
     snapshot the consumer ledger no longer names is recorded there again, in
     a write of the parent's own that lands before its seed and before the
@@ -170,7 +174,7 @@ def _repair_recovered_child(
 
 
 def _repair_recovered_children(
-    gh: GitHubClient, issue: Issue, state: PinnedState, children: list,
+    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState, children: list,
 ) -> bool:
     """Repair every recorded child, or park where their lineage is unproved.
 
@@ -181,7 +185,7 @@ def _repair_recovered_children(
     whose own ancestry is refused stops the walk the same way; the children
     seeded before it carry exactly what they were owed either way.
     """
-    lineage = _replacement_lineage.read_replacement_lineage(state, issue)
+    lineage = _replacement_lineage.read_replacement_lineage(state, issue, spec)
     if lineage.refusal is not None:
         _replacement_lineage.park_unproved(gh, issue, state, lineage.refusal)
         return False
@@ -215,7 +219,7 @@ def _markers_not_ours(issue: Issue, state: PinnedState) -> bool:
 
 
 def _recover_stale_manifest(
-    gh: GitHubClient, issue: Issue, state: PinnedState
+    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
 ) -> bool:
     """Half-finished decomposition recovery / stale manifest cleanup.
 
@@ -263,7 +267,7 @@ def _recover_stale_manifest(
     # `ready`, but `_handle_implementing` reads the stale park and
     # sits waiting for a human reply that never comes -- and a size gate
     # that did reach it would mint it a fresh lineage at depth 0.
-    if not _repair_recovered_children(gh, issue, state, children_recorded):
+    if not _repair_recovered_children(gh, spec, issue, state, children_recorded):
         return True
     # `umbrella=True` is persisted alongside `expected_children_count`
     # before any child is created, so the recovery path here picks

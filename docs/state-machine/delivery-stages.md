@@ -510,10 +510,11 @@ because there it is the claim that this stage has already rerouted rather than a
      seed and the finalize) and which is pointed at that ref — then finalize to `workflow:umbrella` (when the flag is
      true) or `workflow:blocked`. A parent whose record no longer proves that lineage, or a child it cannot recognize
      as its own — a pinned comment that would not parse, a `parent_number` naming another issue, a title or body
-     naming a snapshot ref the split no longer holds or never preserved, or any other group (part of it, a field its
-     reader would drop, another lineage) — parks
-     `replacement_lineage_unproved` instead, with nothing written to that child, so none of its children is
-     finalized into the walk that starts them. Two owners take those markers
+     naming a snapshot ref the split no longer holds or never preserved (or another repository's mirror of one), or
+     any other group (part of it, a field its reader would drop, another lineage) — parks
+     `replacement_lineage_unproved` instead, as does a child of a parent outside any late lineage whose title or body
+     names any snapshot ref, since nothing keeps one for it. Nothing is written to that child, so none of its
+     children is finalized into the walk that starts them. Two owners take those markers
      away from this recovery: an issue already parked awaiting a human, and one carrying a live late generation —
      the split transaction writes the same two markers and resumes from its own durable facts, so finalizing on its
      behalf would hand a parent on before its snapshot, its supersession, or what the remote is owed had been
@@ -556,7 +557,8 @@ because there it is the claim that this stage has already rerouted rather than a
        (`stages/decomposition/replacement_lineage.py` over `late_split/provenance.py`): an issue no late split
        charged inherits none, and an unprovable record, a parent already at `MAX_LINEAGE_DEPTH`, a split of the
        parent's own whose ledger cannot say whether its snapshot is held or released, or a slice whose own title or
-       body names a snapshot ref its child would not be kept (any but the one it is pointed at, or its local mirror)
+       body names a snapshot ref its child would not be kept (any but the one it is pointed at, or this repository's
+       local mirror of it)
        parks `replacement_lineage_unproved` before `expected_children_count` is written, creating nothing. Then for
        each
        child call `gh.create_child_issue(...)` with label `workflow:blocked` (the child's only birth label), record

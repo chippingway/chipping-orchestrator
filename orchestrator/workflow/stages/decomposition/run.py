@@ -78,7 +78,7 @@ def _prepare_decomposer_run(
     # was edited during a crash window.
     _drift._reset_decomposing_on_drift(gh, issue, state)
 
-    if _recovery._recover_stale_manifest(gh, issue, state):
+    if _recovery._recover_stale_manifest(gh, spec, issue, state):
         return _DecomposerRunPlan(agent_result=None)
 
     if _handoff._route_disabled_to_implementing(gh, spec, issue, state):

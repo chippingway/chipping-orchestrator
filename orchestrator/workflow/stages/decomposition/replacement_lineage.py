@@ -23,8 +23,11 @@ split still holds, and only once the parent's consumer ledger records it, in
 the same write that records it in `children` -- so the reclamation that could
 take the ref counts the child as one more consumer that has to end first. Its
 body carries the same pointer as instructions, rendered the way a late
-split's own children are told, since the body is what its implementer reads. A
-snapshot another issue holds is protected by a ledger only that issue writes,
+split's own children are told, since the body is what its implementer reads --
+and they name that ref and this repository's mirror of it, the only two names
+a child's text may give a snapshot. A mirror under another repository's
+segment is that repository's copy of the same numbers, kept by no ledger here.
+A snapshot another issue holds is protected by a ledger only that issue writes,
 so a child is born without that pointer rather than with one nothing keeps; a
 child whose parent record never landed has no pointer to lose. A parent whose
 own split's record cannot say whether its snapshot is still there for a new
@@ -48,7 +51,9 @@ recognize as its own -- a pinned comment that would not parse, a link to
 another parent, text naming any snapshot ref it cannot keep, or any other
 ancestry: a partial group, a field its reader would drop, another lineage --
 refuses the finalize that would start it, with nothing written over what it
-carries.
+carries. A child of an ordinary split is owed no lineage and is left as it
+stands, unless its text names a snapshot: nothing keeps one for it, so it is
+refused the same way.
 """
 from __future__ import annotations
 
@@ -73,7 +78,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.ancestry import LateAncestry
 from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH
-from orchestrator.workflow.stages.decomposition import state as _state
+from orchestrator.workflow.stages.decomposition import late_child_content as _late_child_content, state as _state
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -89,8 +94,8 @@ _UNREADABLE_CHILD = "child #{child} carries a pinned comment that would not pars
 _OTHER_PARENT = "child #{child} records `parent_number` {parent!r}, not this issue"
 
 _UNPROMISED = (
-    "child #{child} names in its title or body a snapshot this issue's split cannot keep for it -- one it no "
-    "longer holds, or not its own"
+    "child #{child} names in its title or body a snapshot this issue's split cannot keep for it -- one it does "
+    "not hold, or another repository's copy of one"
 )
 
 _FOREIGN_SEED = (
@@ -125,8 +130,8 @@ _SNAPSHOT_NOTICE = (
 
 _CHILD_NOTICE = (
     "this issue's split recorded its children, and one of them is not a child it can say it seeded: {reason}. "
-    "Finalizing would start children whose lineage or parent nothing vouches for, so none of them is started "
-    "while that stands. Repair or close that child."
+    "Finalizing would start children whose lineage, parent, or snapshot nothing vouches for, so none of them is "
+    "started while that stands. Repair or close that child."
 )
 
 
@@ -153,14 +158,15 @@ class ReplacementLineage:
     The defaults are the ordinary issue, whose children carry a parent link
     and nothing more. An ancestry is the lineage every child is born into,
     with no pointer on it; a snapshot is the one this issue's own split holds
-    and may protect, beside the base its candidate was cut against; and a
-    refusal is the notice saying why neither could be told -- never beside
-    either.
+    and may protect, beside the base its candidate was cut against and every
+    name a child's text may give it -- see `born_under`; and a refusal is the
+    notice saying why neither could be told -- never beside either.
     """
 
     ancestry: LateAncestry | None = None
     snapshot: _entitlement.SnapshotEntitlement | None = None
     base_sha: str = ""
+    told: frozenset[str] = frozenset()
     refusal: str | None = None
 
     @classmethod
@@ -172,7 +178,11 @@ class ReplacementLineage:
 
     @classmethod
     def born_under(
-        cls, ancestry: LateAncestry, held: _entitlement.SnapshotEntitlement | None, base_sha: str,
+        cls,
+        ancestry: LateAncestry,
+        held: _entitlement.SnapshotEntitlement | None,
+        base_sha: str,
+        spec: config.RepoSpec,
     ) -> ReplacementLineage:
         """The lineage `ancestry` names, pointed at `held` only where this issue's ledger keeps it.
 
@@ -182,13 +192,23 @@ class ReplacementLineage:
         name a consumer ledger this issue never wrote a child onto. `base_sha`
         is what that split's candidate was cut against, kept only beside a
         snapshot a child is pointed at.
+
+        So is what a child may call it: exactly the names its reuse
+        instructions give it -- the ref on the remote and this repository's
+        mirror of it -- read back through the reader a child's own text is
+        held to, so the two can never disagree about a spelling. Another
+        repository sharing the clone mirrors the same three numbers under its
+        own segment, and that copy may hold other work and is kept by no
+        ledger this issue writes -- so no other name is one.
         """
         if held is None:
             return cls(ancestry=ancestry)
         named = (ancestry.parent_issue, ancestry.cycle_id, ancestry.generation)
         if (held.owner_issue, held.cycle_id, held.generation) != named:
             return cls(ancestry=ancestry)
-        return cls(ancestry=ancestry, snapshot=held, base_sha=base_sha)
+        kept = cls(ancestry=ancestry, snapshot=held, base_sha=base_sha)
+        instructions = _late_child_content._reuse_block(spec, kept.pointed(), base_sha)
+        return replace(kept, told=_late_child_content._named_snapshots(instructions))
 
     def pointed(self) -> LateAncestry | None:
         """The lineage with the pointer a protected child carries, or None where none is owed."""
@@ -240,13 +260,15 @@ class ReplacementLineage:
         ledger: the text is written before the record that protects the
         child, and is what its implementer reads whatever the pinned comment
         says. A child naming only the one snapshot this issue's split can
-        still promise is owed that pointer, and is recorded on the consumer
-        ledger again where the ledger lost it -- before its seed, and before
-        anything could start it. A child naming any other ref, or one this
-        split can no longer promise, is refused: its text names a snapshot
-        nothing keeps for it.
+        still promise -- by the names in `told` -- is owed that pointer, and
+        is recorded on the consumer ledger again where the ledger lost it --
+        before its seed, and before anything could start it. A child naming
+        any other ref, or one this split can no longer promise, is refused:
+        its text names a snapshot nothing keeps for it. That includes every
+        child of an ordinary split that names one at all.
 
-        A child owed no lineage is left alone. Every other one has to be a
+        A child owed no lineage and told about no snapshot is left alone.
+        Every other one has to be a
         child this split can recognize as its own -- see `_unrecognized` --
         before anything is written to it: one carrying none of the group is
         then seeded with what it was owed, and one carrying the group carries
@@ -257,7 +279,7 @@ class ReplacementLineage:
         a stamp standing alone, what the child's own guard leaves when it
         drops a pointer, names no ref and is left as it is.
         """
-        if self.ancestry is None:
+        if self.ancestry is None and not instructed:
             return SeedRepair()
         owed = self._owed(state, child_number, instructed)
         refusal = _unrecognized(child_state, owed, child_number)
@@ -279,18 +301,19 @@ class ReplacementLineage:
         """The ancestry one recorded child is owed, or None where its instructions name a ref it cannot be.
 
         A child told about no snapshot is owed what the ledger protects it
-        for, and one told about exactly the snapshot this split holds is owed
+        for, and one told about only the snapshot this split holds is owed
         that pointer whatever the ledger says -- the repair records it there.
+        Nothing is told of a split holding no snapshot for its children, so
+        any name refuses one of those.
         """
         if not instructed:
             return self.child_ancestry(state, child_number)
-        pointed = self.pointed()
-        if pointed is None or instructed != {pointed.snapshot_ref}:
-            return None
-        return pointed
+        if instructed <= self.told:
+            return self.pointed()
+        return None
 
 
-def read_replacement_lineage(state: PinnedState, issue: Issue) -> ReplacementLineage:
+def read_replacement_lineage(state: PinnedState, issue: Issue, spec: config.RepoSpec) -> ReplacementLineage:
     """Decide what this issue's children are seeded with, or why they may not be.
 
     Read off the record the tick already holds, so it costs no request. An
@@ -325,7 +348,7 @@ def read_replacement_lineage(state: PinnedState, issue: Issue) -> ReplacementLin
         parent_issue=issue.number,
         cycle_id=adjudication[0],
         generation=adjudication[1],
-    ), provenance.snapshot, generation.base_sha)
+    ), provenance.snapshot, generation.base_sha, spec)
 
 
 def park_unproved(gh: GitHubClient, issue: Issue, state: PinnedState, notice: str) -> None:

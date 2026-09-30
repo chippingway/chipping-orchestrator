@@ -1361,13 +1361,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             provenance decision: one level below the parent under the same root and never past
                             `MAX_LINEAGE_DEPTH`, correlated by the parent's own cycle (else its ancestry's, else the
                             retired one), and pointed only at the snapshot the parent's own split holds, once its
-                            consumer ledger records the child; a parent at the bound, an unprovable record, one
-                            naming no cycle, or one whose own snapshot is neither held nor released parks
+                            consumer ledger records the child -- which the child may name by that ref and this
+                            repository's mirror of it, and by nothing else; a parent at the bound, an unprovable
+                            record, one naming no cycle, or one whose own snapshot is neither held nor released parks
                             `replacement_lineage_unproved` instead; the recovery's check of each recorded child --
                             an unparsed comment, a link to another parent, or a title or body naming a snapshot ref
-                            the split cannot keep refused, a child naming the one it holds recorded as its consumer
-                            again, its ancestry seeded where missing, left where it is the owed group, an unprotected
-                            uninstructed pointer dropped, and any other group refused
+                            the split cannot keep refused (any ref, for a split that keeps none), a child naming the
+                            one it holds recorded as its consumer again, its ancestry seeded where missing, left
+                            where it is the owed group, an unprotected uninstructed pointer dropped, and any other
+                            group refused
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
                             recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
                             a pointer -- before it is seeded with its parent link and that lineage, never with the
@@ -1381,7 +1383,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the orphan-child
                             repair -- the parent link and the owed lineage, asked of the parent's record again and
                             parked rather than finalized where it no longer proves one or a child is not one the
-                            split can recognize as its own -- the incomplete park, and
+                            split can recognize as its own, any child whose text names a snapshot the split cannot
+                            keep included -- the incomplete park, and
                             the two owners that hold those markers instead -- a human the issue is parked awaiting,
                             and the late transaction while its generation is live
       parents.py            the fresh child scan, the rejected and manually-closed parks it earns -- published
@@ -1524,8 +1527,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the one park every refusal takes
       late_child_content.py child scope, declared budgets, ancestry, immutable-snapshot reuse instructions -- rendered off
                             a pointed ancestry, so a protected replacement's body says the same -- the one reader of
-                            every snapshot ref issue text names, a mirror read as the ref it mirrors, and exact slice
-                            receipts; reserved markers in proposed scope are refused before publication
+                            every snapshot ref issue text names, each as spelled, a mirror kept whole with the
+                            repository segment it was fetched for, and exact slice receipts; reserved markers in
+                            proposed scope are refused before publication
       late_child_records.py retain the child walk, write each child on every parent ledger before seeding its ancestry,
                             and seal a cancelled consumer ledger only once possible unrecorded children are accounted for
       late_child_adoption.py

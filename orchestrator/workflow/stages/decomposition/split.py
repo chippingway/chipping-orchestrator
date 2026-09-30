@@ -77,16 +77,16 @@ def _unsupported_reuse(lineage: _replacement_lineage.ReplacementLineage, parsed:
     Asked of the slice as the decomposer declared it, before the instructions
     this split appends, and of every ref its title and body name however they
     name it -- the same reading a recovery holds a recorded child's text to.
-    Kept is the one ref the child is pointed at, a mirror of it included; a
-    child owed no pointer is kept none, and that includes every child of an
-    issue no late split charged. A ref a descendant was itself cut from is
-    exactly that: protected for the descendant by its parent's ledger, and for
-    none of the children it goes on to create.
+    Kept is the one ref the child is pointed at, by the names the lineage
+    says it may be told: this repository's mirror of it included, and another
+    repository's mirror of the same numbers not. A child owed no pointer is
+    kept none, and that includes every child of an issue no late split
+    charged. A ref a descendant was itself cut from is exactly that: protected
+    for the descendant by its parent's ledger, and for none of the children it
+    goes on to create.
     """
-    pointed = lineage.pointed()
-    kept = frozenset() if pointed is None else frozenset((pointed.snapshot_ref,))
     for index, child in enumerate(parsed[_state._CHILDREN]):
-        foreign = _late_child_content._named_snapshots(*map(child.get, _DECLARED)) - kept
+        foreign = _late_child_content._named_snapshots(*map(child.get, _DECLARED)) - lineage.told
         if foreign:
             return _UNSUPPORTED_REUSE.format(index=index, title=child["title"], ref=min(foreign))
     return None
@@ -123,7 +123,7 @@ def _create_child_issues(
          in step 0. Failure here parks but parent state already records
          the child, so no respawn happens.
     """
-    lineage = _replacement_lineage.read_replacement_lineage(state, issue)
+    lineage = _replacement_lineage.read_replacement_lineage(state, issue, spec)
     refusal = lineage.refusal or _unsupported_reuse(lineage, parsed)
     if refusal is not None:
         _replacement_lineage.park_unproved(gh, issue, state, refusal)

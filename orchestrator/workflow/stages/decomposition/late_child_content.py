@@ -8,7 +8,8 @@ The reuse instructions are rendered off a child's pointed ancestry, so an
 ordinary split that points a replacement at the same snapshot tells it the
 same thing. What any issue text names in the snapshot namespace is read by one
 reader, so a split refusing a slice and a recovery repairing a child hold that
-text to the same answer.
+text to the same answer -- and the names a kept snapshot may go by are read off
+those instructions by the same reader, so no spelling they use is refused.
 """
 from __future__ import annotations
 
@@ -100,13 +101,15 @@ does not cover, implement normally.
 """
 
 
-# Anything issue text names in the snapshot namespace: a remote ref, or this
-# host's mirror of one under its repository segment -- read as the remote ref
-# it mirrors -- as far as the path segments a ref is spelled with run, short of
-# a full stop or slash that only ends the sentence around it. A mention that
-# is no whole ref reads back as the namespace itself, which is no child's.
+# Anything issue text names in the snapshot namespace: a remote ref, or a
+# host's mirror of one -- as far as the path segments a ref is spelled with
+# run, short of a full stop or slash that only ends the sentence around it.
+# Each reads back as spelled. A mirror carries the repository segment it was
+# fetched for, and one under another repository's segment is that
+# repository's copy of the same three numbers: possibly other work, and kept
+# by no ledger here. A mention that is no whole ref is no child's either.
 _NAMED_SNAPSHOT = re.compile(
-    rf"{re.escape(_snapshot_namespace.SNAPSHOT_NAMESPACE)}(?:-local/[\w.-]+)?(?P<tail>(?:/[\w.-]*[\w-])*)",
+    rf"{re.escape(_snapshot_namespace.SNAPSHOT_NAMESPACE)}(?:-local)?(?:/[\w.-]*[\w-])*",
 )
 
 
@@ -225,7 +228,7 @@ def _reuse_block(spec: _config_models.RepoSpec, pointed: _ancestry.LateAncestry,
 
 
 def _named_snapshots(*texts: object) -> frozenset[str]:
-    """Every snapshot ref the given issue texts name, however they name it.
+    """Every snapshot ref the given issue texts name, each as it is spelled.
 
     Asked of a title and a body together, because both are what an
     implementer reads. Not only the line the reuse instructions spell a ref
@@ -234,9 +237,14 @@ def _named_snapshots(*texts: object) -> frozenset[str]:
     a reader that saw only one spelling would let the rest through. Read back
     rather than remembered, since a child's body is written before the record
     that protects it.
+
+    A mirror is not read as the remote ref it mirrors, because only this
+    repository's own segment makes it that: which names a kept snapshot may
+    go by is the lineage's answer -- see `ReplacementLineage.told` -- and
+    anything else named here is a ref nothing keeps for the child.
     """
     return frozenset(
-        f"{_snapshot_namespace.SNAPSHOT_NAMESPACE}{match.group('tail')}"
+        match.group()
         for text in texts
         if isinstance(text, str)
         for match in _NAMED_SNAPSHOT.finditer(text)
