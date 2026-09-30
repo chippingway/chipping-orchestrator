@@ -25,7 +25,11 @@ requirements the report never saw, which reach the developer first as on every
 reviewer-side park.
 
 Both go down through `parks_over_the_subject`, since each is a park of a
-reviewed subject that only means anything while that subject stands. Each names
+reviewed subject that only means anything while that subject stands -- and so
+does the park a failed verify gate takes over an approval (`approval`, worded
+by `verify`), holding the approval of its run's round and subject where one
+waits and reporting no agent's run, since a failure over a head nobody
+reviewed is a fresh reviewer's to answer rather than a human's. Each names
 the verdict it holds, the only one it may drop, rather than taking whatever the
 comment has waiting: an unverified approval's park holds the approval its run
 returned -- the waiting verdict of that round and subject, and nothing is
@@ -81,6 +85,24 @@ back over by the state in hand, one both moved keeps both moves where they add
 up or only advance -- the run's usage beside that road's, the thread read as
 far as either read it (`state._keeps_both_moves`) -- and the ledger of the
 orchestrator's own comments is merged, the notice among them.
+
+The park a failed squash takes (`parks_the_failed_squash`) is filed here too,
+beside the funnel rather than through it: the recovery of a squash an earlier
+tick did not finish reaches it with no reviewer run, so behind its notice it is
+held to the report, pull-request, verdict, and evidence records in hand
+(`handoff._holds_its_records`) rather than to a run's reading -- and to the
+subject the approval behind the squash was of, where one was. It is measured
+before its notice, keeping any verdict it does not retire -- a later round's
+on that recovery road -- and lands only behind a notice that was identified,
+over that subject still standing, as the funnel's parks do. Where the records
+moved behind the notice, nothing but the notice's ledger entry and the end of
+the verdict held is written; where the subject moved, the verdict held is
+dropped and no park lands; and where the subject would not read, or the notice
+left no id, what the squash left is written with the verdict kept and no park.
+It is never taken over the comment as it stands with less beside it: its write
+is what makes the squash's own record drop durable, so a comment with no room
+for it is posted on and written to not at all -- the tick that died before its
+write, which the squash recovery already answers.
 """
 from __future__ import annotations
 
@@ -100,6 +122,7 @@ from orchestrator.workflow.engine import (
     report_record_values as _record_values,
 )
 from orchestrator.workflow.stages.validating import (
+    handoff as _handoff,
     models as _models,
     review_comment as _review_comment,
     review_coverage as _review_coverage,
@@ -263,6 +286,67 @@ def parks_over_the_subject(
         )
 
 
+def parks_the_failed_squash(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    words: str,
+    held: _handoff._Held,
+) -> None:
+    """File the park a failed squash takes, in one write, where it fits and the records in hand stand behind its notice.
+
+    `words` say where the failure left the branch (`approval`), and `held` is
+    what the squash's tail holds (`handoff._Held`): the verdict of the
+    approval whose squash it was, the only one the park retires -- the
+    recovery of a squash an earlier tick did not finish holds none -- the
+    subject that approval was of, resolved again behind the notice ahead of
+    the comment's own reading, and the comment as the tail last read it, which
+    the park's write is laid over. A push or an edit landing while the notice
+    was posted is work nobody reviewed, so no park asks a human about it and
+    the verdict is dropped for a fresh reviewer; a subject nobody could read
+    lands no park either, and keeps the verdict.
+    """
+    reason = _state._REASON_SQUASH_FAILED
+    if not _park_fits(state, reason, held.verdict):
+        log.error(
+            "issue=#%d has no room on its pinned comment for the %s park; "
+            "posting and writing nothing", issue.number, reason,
+        )
+        return
+    posted = _posts_the_notice(gh, issue, state, words)
+    stands = True
+    if held.subject is not None:
+        stands = _review_coverage._subject_still_stands(gh, issue, state, held.subject)
+    if not _handoff._holds_its_records(gh, issue, state, "park its failed squash over the records it holds", held):
+        return
+    lands = posted is not None and stands is True
+    if lands:
+        state.set(_AWAITING_HUMAN, True)
+        state.set(_state._PARK_REASON, reason)
+    else:
+        log.warning(
+            "issue=#%d landed no %s park: its notice left no id, or the subject "
+            "its approval is about moved or would not read behind it; writing "
+            "what the squash left without parking", issue.number, reason,
+        )
+    if lands or stands is False:
+        _verdicts.drops_the_verdict(state, only=held.verdict)
+    if not _report_record_state.fits_the_comment(state.data):
+        log.error(
+            "issue=#%d has no room on its pinned comment for the %s park beside "
+            "what moved there behind its notice; writing nothing", issue.number, reason,
+        )
+        return
+    gh.write_pinned_state(issue, state)
+    if lands:
+        gh.emit_event(
+            "park_awaiting_human",
+            issue_number=issue.number,
+            stage=stage_name(gh.workflow_label(issue)),
+            reason=reason,
+        )
+
+
 def _behind_the_notice(
     gh: GitHubClient,
     issue: Issue,
@@ -323,10 +407,11 @@ def _behind_the_notice(
 def _posts_the_notice(gh: GitHubClient, issue: Issue, parked: PinnedState, words: str) -> int | None:
     """Post the park's notice and record the thread read through it; the notice's id, or None.
 
-    Read only as far as the orchestrator's own comments go
-    (`park_watermarks`), since a park follows a run long enough for a human
-    to have written something nobody has read -- which is also why the mark
-    is harmless where no park lands behind the notice.
+    The notice of the park a failed squash takes as well
+    (`parks_the_failed_squash`). Read only as far as the orchestrator's own
+    comments go (`park_watermarks`), since a park follows a run long enough
+    for a human to have written something nobody has read -- which is also
+    why the mark is harmless where no park lands behind the notice.
     """
     said_before = _comments._orchestrator_ids(parked)
     notice = _comments._post_issue_comment(gh, issue, parked, f"{config.HITL_MENTIONS} {words}")

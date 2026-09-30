@@ -3,18 +3,23 @@
 from __future__ import annotations
 
 import unittest
+from functools import partial
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from orchestrator import config
 from orchestrator.config.environment import parse_verify_commands
 from orchestrator.git.verification.models import VerifyResult
 from tests.workflow.fixtures import (
+    DEFAULT_PR_HEAD_SHA,
     LABEL_DOCUMENTING,
     LABEL_IN_REVIEW,
     REVIEW_APPROVED_MESSAGE,
     _agent,
 )
 from tests.workflow.stages.validating import (
+    approval_proof_test_support as _proof,
+    review_verdict_test_support as _world,
     validating_verify_test_support as verify_support,
 )
 
@@ -32,13 +37,38 @@ RUN_VERIFY_COMMANDS = "_run_verify_commands"
 AWAITING_HUMAN = "awaiting_human"
 PARK_REASON = "park_reason"
 VERIFY_COMMANDS_SETTING = "VERIFY_COMMANDS"
-REVIEW_SHA = "rev-sha"
+# The head the round's checkout stands on: the one its pull request carries,
+# which is the head the reviewer is handed.
+REVIEW_SHA = DEFAULT_PR_HEAD_SHA
 # The pinned pull-request pointer, and a pull request another road points the
 # issue at while the gate runs.
 PR_POINTER = "pr_number"
 OTHER_PR = 9_999
 # A gate that failed, as the verification road reports it.
 FAILED_RUN = VerifyResult(status=VERIFY_FAILED, command=VERIFY_PYTEST, exit_code=2, output="1 failed")
+# The reviewer session a round ran, where the pinned comment records it, the
+# lifetime count of agent runs charged on the issue, and the pull-request post
+# an approval announces itself with.
+REVIEWER_SESSION = "rev-sess"
+LAST_REVIEW_SESSION = "last_review_session_id"
+AGENT_RUNS_USED = "agent_runs_used"
+ISSUE_AGENT_RUNS = "issue_agent_runs"
+PR_COMMENT = "pr_comment"
+
+# Each verify gate another road runs an agent during, and what it leaves: the
+# park reason and reviewer session recorded, and the runs charged and folded
+# into the usage totals beside every relabel. A passing gate has another run
+# behind its approval comment as well.
+_RUN_AROUND_THE_GATE = (
+    (
+        VerifyResult(status=VERIFY_OK),
+        ((None, REVIEWER_SESSION), (3, 3, [(ISSUE, LABEL_DOCUMENTING)])),
+    ),
+    (
+        VerifyResult(status=VERIFY_FAILED, command=VERIFY_PYTEST, exit_code=1),
+        ((PARK_VERIFY_FAILED, REVIEWER_SESSION), (2, 2, [])),
+    ),
+)
 
 
 def _repoints(gh, issue) -> None:
@@ -46,6 +76,29 @@ def _repoints(gh, issue) -> None:
     state = gh.read_pinned_state(issue)
     state.set(PR_POINTER, OTHER_PR)
     gh.write_pinned_state(issue, state)
+
+
+def _runs_an_agent(case) -> None:
+    """Another road's agent run on `case`'s issue: the lifetime charge it took, and the usage it folded."""
+    state = case.github.read_pinned_state(case.issue)
+    state.set(AGENT_RUNS_USED, state.get(AGENT_RUNS_USED) + 1)
+    state.set(ISSUE_AGENT_RUNS, (state.get(ISSUE_AGENT_RUNS) or 0) + 1)
+    case.github.write_pinned_state(case.issue, state)
+
+
+def _charged_gate(case, verified: VerifyResult, *_args) -> VerifyResult:
+    """A verify gate answering `verified`, while another road runs an agent on `case`'s issue."""
+    _runs_an_agent(case)
+    return verified
+
+
+def _left(github) -> tuple:
+    """The park and reviewer session the comment records, and the runs charged and folded beside every relabel."""
+    pinned = github.pinned_data(ISSUE)
+    return (
+        (pinned.get(PARK_REASON), pinned.get(LAST_REVIEW_SESSION)),
+        (pinned.get(AGENT_RUNS_USED), pinned.get(ISSUE_AGENT_RUNS), github.label_history),
+    )
 
 
 class HandleValidatingVerifyGateTest(
@@ -219,3 +272,39 @@ class HandleValidatingVerifyGateTest(
         self.assertIn(VERIFY_PYTEST, comment)
         self.assertIn("exited with code 2", comment)
         self.assertIn("TAIL_MARKER", comment)
+
+
+class VerifyGateChargesTest(
+    unittest.TestCase,
+    verify_support.VerifyGateFixtureMixin,
+):
+    """Runs another road charges around the verify gate are kept by every write the approval makes."""
+
+    def test_runs_around_the_gate_are_kept(self) -> None:
+        # Another road runs an agent while the gate runs, and -- where the
+        # gate passes -- another behind the approval comment. The reviewer
+        # round's own charge is part of the comment every later write is
+        # measured against, so each charge is kept rather than written back
+        # over by the count this round's charge left; and each run's usage is
+        # added to the round's own, which both folded into the same totals. The
+        # approval reaches `documenting`, and a failed gate's park lands with
+        # the round's own record -- the reviewer session that approved.
+        for verified, expected in _RUN_AROUND_THE_GATE:
+            with self.subTest(verified.status):
+                github, issue = self._seeded()
+                world = SimpleNamespace(github=github, issue=issue)
+                with (
+                    patch.object(config, VERIFY_COMMANDS_SETTING, (VERIFY_PYTEST,)),
+                    patch.object(github, PR_COMMENT, _world.AnotherRoadBehind(
+                        world, PR_COMMENT, _proof.saying(_proof.APPROVAL_NOTICE), _runs_an_agent,
+                    )),
+                ):
+                    self._run_validating(
+                        github,
+                        issue,
+                        run_agent=_agent(session_id=REVIEWER_SESSION, last_message=REVIEW_APPROVED_MESSAGE),
+                        head_shas=(REVIEW_SHA,),
+                        verify_result=partial(_charged_gate, world, verified),
+                    )
+
+                self.assertEqual(_left(github), expected)

@@ -13,12 +13,17 @@ One verdict fans out three ways. `approval` owns the approved arc, and the
 local verify gate at the head of it is the last thing standing between a
 branch that does not build and `in_review`; the optional squash, the notice
 its count is worded from, the end of the collapse record, and the relabel to
-`documenting` follow it, in that order. `verify` holds the other side of that
-gate -- how a refused result reads and the park it earns; ``ok`` and the
-``not_run`` an empty `VERIFY_COMMANDS` returns both advance. `handoff` owns what
-that arc leaves on the pull request for its own sake: the approval comment,
-and the watermark seed `approval` runs behind its notice so neither the docs
-hop nor in_review replays the orchestrator's own comments as human feedback.
+`documenting` follow it, in that order, each held to the subject and the
+pinned records still standing behind the requests ahead of it. `verify` holds
+the other side of that gate -- how a refused result reads, and the words of
+the park it earns; ``ok`` and the ``not_run`` an empty `VERIFY_COMMANDS`
+returns both advance. `handoff` owns what that arc leaves on the pull request
+for its own sake -- the approval comment, the squash notice, and the watermark
+seed `approval` runs behind that notice so neither the docs hop nor in_review
+replays the orchestrator's own comments as human feedback -- and the records
+each write of its tail is held to. `squash_writes` hands the squash a client
+that holds its own writes of the pinned comment to those records too, and
+follows them, since the tail's next reading is measured from the last.
 `watermarks` holds the seed walk `handoff` hands the PR to, which stops at the
 first comment the dev has not consumed rather than at the first one the
 orchestrator did not write. `requested_changes` owns the remaining two
@@ -75,7 +80,15 @@ handed back ready only over settled evidence and the subject still standing,
 or held, or dropped -- and `review_parks` files the two parks a verdict takes
 instead of being acted on, `reviewer_unverified` and `reviewer_unrecorded`,
 each behind a notice and only over the subject still standing behind it; no
-round asks any of them yet.
+round asks any of them yet. `unverified_approvals` proves a persisted approval
+-- the run's own, over the claim its record names -- before it may reach
+`approval`, through `approved_evidence`, which the arc asks again behind its
+requests and records beside the approved subject for every later move to be
+held to: settled, passing, current evidence covering the
+configured verification, a refusal in the words its park carries, or a hold
+where the proof could not be read -- which no round asks yet either. The
+parks a failed verify gate or squash takes on the approval road are filed in
+`review_parks` too, behind notices of their own.
 `review_records` writes what the round puts down -- the spec and subject ahead
 of the spawn, the session on its return -- and reserves the whole round, at
 its widest, in the measurement a developer report is accepted under.

@@ -58,8 +58,9 @@ file is the durable record.
 - `review_verdict` — `_handle_validating` after `_parse_review_verdict` reads the reviewer's last message; extras:
   `verdict` (`approved` / `changes_requested` / `unknown`), `review_round`, `pr_number`, `session_id`.
 - `park_awaiting_human` — every `_park_awaiting_human` (in `workflow/engine/guards.py`) call site, plus
-  `_on_question`, `_on_dirty_worktree`, `_on_unreadable_worktree`,
-  `_park_verify_failure`, and the question- and discussion-stage `_park_question` / `_park_discussion` funnels;
+  `_on_question`, `_on_dirty_worktree`, `_on_unreadable_worktree`, the validating parks filed in
+  `stages/validating/review_parks.py`, and the question- and discussion-stage `_park_question` / `_park_discussion`
+  funnels;
   fanned out to `ANALYTICS_LOG_PATH` alongside this audit log through the shared `GitHubClient.emit_event` chokepoint;
   extras: `stage` (read from the current
   workflow label, not passed in), `reason` (e.g. `agent_timeout`, `push_failed`, `failed_checks`, `agent_question`,
@@ -118,7 +119,9 @@ file is the durable record.
   themselves as well, and only once the write that lands the park is down: `reviewer_unverified` and
   `reviewer_unrecorded` carry the funnelled reviewer parks' fields — `agent_role` (`reviewer`), `session_id`,
   `review_round`, `retry_count`, and `pr_number` — screened against the same allow-list, and a notice behind which
-  no park lands reports nothing.
+  no park lands reports nothing. The parks a failed verify gate (`verify_*`) and a failed squash (`squash_failed`)
+  take on the approval road are filed there too and emit the same way, once their write is down and only where they
+  land, carrying `stage` and `reason` alone.
 
   The two conversation stages forward the same vocabulary through their own stage funnels, which every ending of
   those stages lands on: `route`, `agent_role` (`question` and `decomposer` respectively — the discussion is the

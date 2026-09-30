@@ -16,32 +16,65 @@ commits off the tip and in the reflog behind a recorded head, the approved
 commits still in the branch's own history under work committed on top of them,
 or a reading that placed them nowhere at all.
 
-What the approval covers is recorded once the verify gate has passed, beside
-everything the handoff writes: the pull request, the head, the requirements,
-and the developer report the reviewer was handed. The subject is resolved and
-compared once more between the two, and the pinned comment read behind that,
-last, since a verification can run long enough for the report to be edited
-under it or the issue to be pointed at another pull request, and an approval
-of the earlier words, or of another pull request, is not one the squash may be
-taken under. The tail both roads share holds its relabel until the approval
-still covers the report, the requirements, and the head the rewrite published,
-each read afresh once it is published -- the only time any is asked on the
-road that finishes a squash an earlier tick began -- and posts its notice,
-writes its handoff, and moves the label only while the pinned comment still
-carries the report records in hand and points the issue at the pull request
-the state in hand does. That reading is taken once the squash returns, and answers only for
-what the comment carries then: a repoint still standing there holds the
-notice, the handoff write, and the relabel. Nothing ahead of it is held to it
--- the approval comment, the squash's own pinned write ahead of its rewrite,
-the rewrite and its push, and the write a held squash makes before returning
--- so a repoint, or a report settled, before those writes can be written back
-over by them, and the push goes to the pull request the tail was handed. Every
-write the tail makes is the state in hand whole, so a field another road
-changed in its window that no reading watches is not kept either. Every
-later reader that would act on this approval -- the settled handoff below,
-the in_review stage -- holds it to that report, so a report that changes on
-an unchanged commit is sent back to a reviewer rather than carried past one.
-The same record retires the final-docs verdict and the ready ping an earlier
+The arc is reached from a live reviewer round, and -- through the dormant
+approval proof (`unverified_approvals`) -- from a returned approval persisted
+with the evidence it rests on (`review_verdicts`). Either way it holds one
+verdict at most: the approval its own run returned, of that round and subject,
+waiting on the pinned comment (`handoff._Held`). Every write the arc makes
+retires that verdict and no other -- one another road put in its place is that
+road's to finish -- save where the subject could not be read, which is no
+proof the approval stands or fell: that write keeps it for a later tick, and
+no second reviewer is spent answering a round already reviewed.
+
+Behind the verify gate, whatever it said, the subject is resolved again and
+the pinned comment read last, since a verification can run long enough for the
+report to be edited, the head pushed, the issue edited or pointed at another
+pull request, a later report or verification evidence settled, or the verdict
+replaced -- and an approval of the earlier subject is not one the squash may be
+taken under, nor a failure of it one to ask a human about. What moved there is
+carried before anything is written, and a move refuses the approval: the run is
+recorded and the next tick's reviewer is handed the subject as it stands. The
+evidence the held verdict was proved over is proved again behind the gate and
+behind the approval comment as well (`handoff._Held.evidence_stands`), since
+its artifact can be deleted or edited on the pull request where no pinned
+record shows it, and evidence that no longer proves refuses the approval the
+same way. So does a checkout that no longer stands on the head the approval
+was of, or carries changes nobody committed, once the approval comment is
+posted (`handoff._Held.checkout_stands`): the branch is taken from it. A
+failed gate over the subject still standing parks through the funnel every park
+of a reviewed subject takes (`review_parks`), which holds it to that subject
+once more behind its notice. What the approval covers is recorded only once the
+gate has passed and the approval comment is posted, and the subject resolved
+and the comment read once more behind that comment, ahead of the squash: the
+comment is a request long enough for any of those moves too, and a squash
+taken over one publishes work nobody reviewed. That record rides whichever
+write the tail makes, beside the pull request, the head, the requirements, and
+the developer report the reviewer was handed -- and beside the evidence claim
+the approval was proved over, which every later move of it past the squash is
+held to as far as the rewrite leaves it provable -- its records and its
+artifact (`approved_evidence`) -- the recovery of a squash an
+earlier tick began included.
+
+The tail both roads share holds its relabel until the approval still covers
+the report, the requirements, and the head the rewrite published, each read
+afresh once it is published -- the only time any is asked on the road that
+finishes a squash an earlier tick began -- and posts its notice, writes its
+handoff, parks its failure, and moves the label only while the pinned comment
+still carries the report, pull-request, verdict, and evidence records in hand
+(`handoff._holds_its_records`). Each of those writes is laid over the comment
+as read just ahead of it, so what another road wrote behind the approval
+comment, a notice, or the relabel is kept. The squash is handed a client that
+guards and follows its own writes -- the collapse record it puts down before
+the rewrite, the size gate's (`squash_writes`): each is held to the same
+records and laid over the comment first, one whose records moved refused as
+GitHub refusing it would be, and the reading behind the squash is measured
+from the last of them, or from the reading before it where it wrote none. So
+a field another road wrote while it ran is kept too, and the push goes to the
+pull request the tail was handed. Every later
+reader that would act on this approval -- the settled handoff below, the
+in_review stage -- holds it to that report, so a report that changes on an
+unchanged commit is sent back to a reviewer rather than carried past one. The
+same record retires the final-docs verdict and the ready ping an earlier
 approval left, since each is keyed on a head this approval may share.
 
 The ordering inside the handoff matters too. The squash notice is posted
@@ -63,14 +96,21 @@ hop. It goes LAST, behind the pinned write rather than ahead of it, because
 the record of an unfinished collapse ends in that write: past the relabel the
 issue belongs to a stage that never runs this recovery, so a process dying
 between the two would leave a claim standing that nothing there would ever
-answer -- and the watermarks the same write carries would be lost with it.
+answer -- and the watermarks the same write carries would be lost with it. A
+returned verdict still waiting there is a later review of the branch than the
+approval this handoff finishes, so the label is not moved past it. One
+persisted while the relabel runs, or a squash handoff another road puts down
+then, is past every reading here: the move lands over it, and the documenting
+tick that finds it hands the issue straight back to this stage, which answers
+both, before any docs pass runs.
 
 That write does not leave the boundary empty, though, because the relabel can
 fail on its own. What it ends is the CLAIM; what it leaves is the commit the
 move is owed over, and the route ahead of the next reviewer reads that and
 moves the label rather than running a second review over a branch already
 approved, squashed, and published. The record of it is dropped behind the
-label, in a write of its own.
+label, in a write of its own, laid over the comment read again once the label
+has moved.
 """
 from __future__ import annotations
 
@@ -86,11 +126,7 @@ from orchestrator.github import (
     client as _client,
     pinned_state as _pinned_state,
 )
-from orchestrator.workflow.engine import (
-    comments as _comments,
-    guards as _guards,
-    review_subjects as _review_subjects,
-)
+from orchestrator.workflow.engine import review_subjects as _review_subjects
 from orchestrator.workflow.late_split import (
     collapses as _collapses,
     handoffs as _late_handoffs,
@@ -101,6 +137,8 @@ from orchestrator.workflow.stages.validating import (
     models as _models,
     review_comment as _review_comment,
     review_coverage as _review_coverage,
+    review_parks as _review_parks,
+    review_verdicts as _verdicts,
     state as _state,
     verify as _verify,
 )
@@ -118,6 +156,14 @@ _PR_NUMBER = "pr_number"
 # request for the same reason: the tail below is reached from a reviewer's
 # approval and from a recovery a park is already standing over.
 _AWAITING_HUMAN = "awaiting_human"
+
+# What a write the squash tail makes is about to do, for the log where the
+# comment moved under the requests ahead of it and nothing it holds is written.
+_HELD = "write what its squash left over the records it holds"
+
+# What a verify gate reports where the approval may go on: its commands
+# passed, or none are configured to run.
+_VERIFIED = frozenset(("ok", "not_run"))
 
 # Where a failed squash left the branch, spelled as the park comment reads it:
 # what an operator does next differs entirely by which of the four it is.
@@ -171,52 +217,18 @@ _LEFT = MappingProxyType({
 })
 
 
-def _squash_notice_posted(
-    gh: _client.GitHubClient,
-    issue: Issue,
-    state: _pinned_state.PinnedState,
-    pr_number,
-    squashed_count: int,
-) -> bool:
-    """Tell the pull request how much history the force-push replaced.
-
-    Nothing is owed where no history was replaced by less of it, which is
-    every branch that reached approval with one commit on it -- whether that
-    commit was left alone or rewritten to reference the pull request, since
-    either way the branch carried one commit before and carries one now -- and
-    every tick that finished a collapse an earlier one already announced. An
-    issue with no pull request has nowhere to say it.
-
-    A post that fails answers False rather than being swallowed, because the
-    count behind it is recoverable state: it is on the pinned record of the
-    collapse, and the caller keeps that record rather than dropping it over an
-    announcement that never went out.
-    """
-    if pr_number is None or squashed_count <= 1:
-        return True
-    try:
-        _comments._post_pr_comment(
-            gh, int(pr_number), state,
-            f":package: squashed {squashed_count} commits to 1",
-        )
-    except Exception:
-        log.exception(
-            "issue=#%s could not post squash notice to PR #%s; leaving the "
-            "collapse recorded so a later tick can announce it",
-            issue.number, pr_number,
-        )
-        return False
-    return True
-
-
 def _park_squash_failure(
     gh: _client.GitHubClient,
     issue: Issue,
     state: _pinned_state.PinnedState,
-    error,
-    standing: str = _publication.BRANCH_INTACT,
+    squashed,
+    held: _handoff._Held,
 ) -> None:
     """Park a squash that failed, saying where it left the branch.
+
+    `squashed` is the failed outcome, its error and where it left the branch,
+    and `held` what the tail holds -- the verdict of the approval whose squash
+    it was, the only one the park retires (`_squashed_and_handed_off`).
 
     No two of the four are the same place and a human acts on the difference.
     The ordinary failure aborts before anything destructive or restores what
@@ -230,38 +242,28 @@ def _park_squash_failure(
     top of them, and the reflog sentence would send that operator straight
     past them. And a failure the squash owner could not place at all says so,
     since named as any of the others it points somewhere nothing established.
+
+    The park itself goes down through `review_parks`, which measures it
+    before its notice, holds it to the records in hand and to the approved
+    subject behind that notice, lands it only behind a notice that was
+    identified, and reports it once its write is down
+    (`parks_the_failed_squash`).
     """
-    if _parked_on_the_squash(state):
-        # The notice is already on the thread and the condition behind it is
-        # one only a human ends. The recovery retries every tick, so a fresh
-        # mention here would be one per poll for an answer nobody can give
-        # any faster.
+    if state.get(_AWAITING_HUMAN) and state.get(_state._PARK_REASON) == _state._REASON_SQUASH_FAILED:
+        # Already parked on a squash that would not go: the notice is on the
+        # thread and the condition behind it is one only a human ends. The
+        # recovery retries every tick, so a fresh mention here would be one
+        # per poll for an answer nobody can give any faster.
+        _verdicts.drops_the_verdict(state, only=held.verdict)
         gh.write_pinned_state(issue, state)
         return
-    left = _LEFT[standing]
-    _guards._park_awaiting_human(
-        gh,
-        issue,
-        state,
-        f"{config.HITL_MENTIONS} squash-on-approval failed ({error}); {left}",
-        reason=_state._REASON_SQUASH_FAILED,
-        bounded=True,
-    )
-    # Re-set behind the guard, which clears whatever reason it found: this one
-    # is durable, and it is what a later tick's re-entry is recognized by.
-    state.set(_state._PARK_REASON, _state._REASON_SQUASH_FAILED)
-    gh.write_pinned_state(issue, state)
-
-
-def _parked_on_the_squash(state: _pinned_state.PinnedState) -> bool:
-    """Whether this issue is already parked on a squash that would not go."""
-    return bool(
-        state.get(_AWAITING_HUMAN)
-        and state.get(_state._PARK_REASON) == _state._REASON_SQUASH_FAILED,
+    left = _LEFT[squashed.standing]
+    _review_parks.parks_the_failed_squash(
+        gh, issue, state, f"squash-on-approval failed ({squashed.error}); {left}", held,
     )
 
 
-def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
+def _squashed_and_handed_off(gate, branch: str, pr_number, held: _handoff._Held) -> None:
     """Squash what the branch carries and hand the issue on, or stop.
 
     The whole of what an approval owes past the reviewer, and the whole of
@@ -283,6 +285,14 @@ def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
     recovery reads off the pinned comment. It is read as an identity before
     the squash sees it, so a value that is not a whole positive number
     references nothing rather than spelling a pull request no link reaches.
+
+    `held` is what the tail holds across its writes (`handoff._Held`): the
+    returned verdict the approval behind this squash finishes, the only one
+    any write here retires -- the recovery of a squash an earlier tick did not
+    finish holds none, so a verdict persisted since, a later round's, is left
+    for the road that finishes it and holds the relabel
+    (`_hands_to_documenting`) -- the subject that approval was of, and the
+    pinned comment as the tail last read or wrote it.
 
     The squash is reached on every approval, whatever `SQUASH_ON_APPROVAL`
     says. The switch decides whether a NEW collapse is made and the squash
@@ -307,8 +317,12 @@ def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
     `documenting` over a condition nobody is waiting on any more.
     """
     gh, issue, state = gate.gh, gate.issue, gate.state
+    # The squash writes the state in hand wherever it writes, and what it
+    # hands back does not say whether it did: its gate's client follows those
+    # writes, so the reading behind it is measured from the last one -- or,
+    # where it wrote nothing, from the comment as the tail read it before.
     squashed = _squash._squash_and_force_push(
-        gate, branch, _payloads.as_identity(pr_number),
+        held.follows(gate), branch, _payloads.as_identity(pr_number),
     )
     if squashed.held:
         # The gate owns the issue from here, and it owns it in one of two
@@ -322,57 +336,60 @@ def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
         # and this one changes nothing, while the park has nothing behind it
         # to carry the flags to the pinned comment -- and an issue left with a
         # frozen candidate, no `awaiting_human`, and no `park_reason` is one
-        # every later tick re-runs the reviewer on.
-        gh.write_pinned_state(issue, state)
+        # every later tick re-runs the reviewer on -- unless the comment moved
+        # under the rewrite, where only what was posted is recorded over it.
+        if _handoff._holds_its_records(gh, issue, state, _HELD, held):
+            _verdicts.drops_the_verdict(state, only=held.verdict)
+            gh.write_pinned_state(issue, state)
         return
     # The rewrite and its force-push are time another road can settle a later
-    # report in, or point the issue at another pull request, and everything
-    # below writes the state in hand whole: over a comment that moved, the
-    # handoff would put the replaced report or pointer back and move the label
-    # under an approval of it. Nothing more is posted or written, and the
-    # collapse the squash recorded is the next tick's recovery to finish,
-    # under what the comment carries then. This answers only for the comment
-    # as the squash leaves it: the squash's own writes, and the held write
-    # above, are not held to it.
-    if not _review_comment._records_in_hand(
-        gh, issue, state, "finish its squash under the approval it holds",
-    ):
+    # report or evidence revision in, point the issue at another pull request,
+    # or replace the verdict this approval finishes -- and everything below
+    # would write the records in hand back over any of them and move the label
+    # under an approval of them. Nothing more is posted, and nothing is
+    # written but what was (`handoff._holds_its_records`); the collapse the
+    # squash recorded is the next tick's recovery to finish, over the records
+    # the comment carries then. Each write below follows requests of its own
+    # and is held to the same records again before it goes out, the verdict
+    # retired only then.
+    if not _handoff._holds_its_records(gh, issue, state, "finish its squash under the approval it holds", held):
         return
     if not squashed.success:
-        _park_squash_failure(
-            gh, issue, state, squashed.error, standing=squashed.standing,
-        )
+        _park_squash_failure(gh, issue, state, squashed, held)
         return
     pinned_pr = state.get(_PR_NUMBER)
-    if not _squash_notice_posted(gh, issue, state, pinned_pr, squashed.count):
+    if not _handoff._squash_notice_posted(gh, issue, state, pinned_pr, squashed.count):
         # The notice this collapse owed did not go out, and the count behind
         # it is on the record the next tick would drop. Keep it, persist what
         # did land, and leave the label here: the recovery republishes the
         # commit the remote already carries and words the notice again.
-        gh.write_pinned_state(issue, state)
+        if _handoff._holds_its_records(gh, issue, state, _HELD, held):
+            _verdicts.drops_the_verdict(state, only=held.verdict)
+            gh.write_pinned_state(issue, state)
         return
     # Behind the notice on purpose: the snapshot the seed is read off carries
     # the notice's own id, so the walk steps past it. Seeded ahead of the post
     # instead, that notice would reach in_review as fresh human PR feedback
     # and wake the dev on an informational orchestrator post.
     _handoff._seed_in_review_handoff_watermarks(gh, issue, state, pinned_pr)
-    # A squash that finished ends the park it took: the branch is published
-    # and the label is about to move, so an `awaiting_human` carried into
-    # `documenting` would hold an issue over a condition that is answered.
-    state.set(_AWAITING_HUMAN, False)
-    state.set(_state._PARK_REASON, None)
-    _persists_then_relabels(gh, issue, state, squashed.sha)
+    _persists_then_relabels(gh, issue, state, squashed.sha, held)
 
 
 def _persists_then_relabels(
-    gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState, sha,
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    sha,
+    held: _handoff._Held,
 ) -> None:
     """Land everything this handoff owes durably, and only then move the label.
 
     The label is moved only while the approval it is owed over still covers
-    the report the pull request carries and the requirements the issue
-    carries, read afresh, and while the pull request, read afresh, still
-    stands on `sha` -- the commit this tail published, or, where it rewrote
+    the evidence it was proved over -- its records and its artifact, the parts
+    of the proof the rewrite left standing (`approved_evidence.stands`) -- the
+    report the pull request carries and the requirements the issue carries,
+    read afresh, and while the pull request, read afresh, still stands on
+    `sha` -- the commit this tail published, or, where it rewrote
     nothing and named none, the head the approval was given. The rewrite and
     its force-push are time a human can edit the report or the issue in, or
     push, and the recovery of a squash an earlier tick did not finish reaches
@@ -390,28 +407,47 @@ def _persists_then_relabels(
     `validating` with nothing saying a squash ever ran -- and the next tick
     spawns a second reviewer over a branch this stage already published.
 
+    That write follows requests of its own -- the notice, the watermarks'
+    reads -- so it goes out only while the comment still carries the report,
+    pull-request, verdict, and evidence records in hand, laid over the comment
+    as read then, and otherwise records only what was posted
+    (`handoff._holds_its_records`).
+
     Everything the caller staged rides the same write: the watermarks seeded
-    behind the notice, and the end of a park this recovery may have taken over
-    an earlier attempt.
+    behind the notice, and the verdict the approval finishes -- `held`'s --
+    retired. So does the end of a park this recovery may have taken over an
+    earlier attempt: the branch is published and the label is about to move,
+    so an `awaiting_human` carried into `documenting` would hold an issue over
+    a condition that is answered.
     """
+    state.set(_AWAITING_HUMAN, False)
+    state.set(_state._PARK_REASON, None)
     _collapses.settle_pending_collapse(state, sha)
+    if not _handoff._holds_its_records(gh, issue, state, _HELD, held):
+        return
+    _verdicts.drops_the_verdict(state, only=held.verdict)
     gh.write_pinned_state(issue, state)
+    held.wrote(state)
     published = sha or _review_subjects.ReviewSubject.commit_recorded_in(
         state.get(_review_subjects.APPROVED_SUBJECT),
     )
     if not _review_coverage._approval_holds(gh, issue, state, published):
         log.info(
             "issue=#%s finished its squash under an approval that no longer "
-            "covers, or could not be read against, the report, requirements, "
-            "and head the issue carries; holding the move to documenting",
+            "covers, or could not be read against, the evidence, report, "
+            "requirements, and head the issue carries; holding the move to "
+            "documenting",
             issue.number,
         )
         return
-    _hands_to_documenting(gh, issue, state)
+    _hands_to_documenting(gh, issue, state, held)
 
 
 def _hands_to_documenting(
-    gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState,
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    held: _handoff._Held,
 ) -> None:
     """Move the label a finished handoff owes, and end the record of it.
 
@@ -425,38 +461,85 @@ def _hands_to_documenting(
     be the reviewer's.
 
     The record goes in a write of its own, BEHIND the label rather than ahead
-    of it, because it is the label that it is about. Nothing else reads it: an
-    approval that collapsed nothing leaves none, and there is nothing to end
-    or to write there.
+    of it, because it is the label that it is about -- composed over the
+    comment read again once the label has moved, so that write ends the record
+    and nothing else. It ends only the record this handoff finished, taken
+    before any reading here could carry another road's onto the state: a
+    record another road put in its place meanwhile -- during the relabel above
+    all -- is that road's, and is left standing for the recovery that answers
+    it. A returned verdict still waiting -- one the approval behind this
+    handoff did not own, since it retired its own before this -- is a later
+    review of the branch, so the label is not moved past it and the record
+    ends all the same, leaving that verdict to the road that finishes it.
+    Either one put down while the relabel runs is read by nothing here, and
+    the move lands over it; the documenting stage does not act on either, but
+    hands the issue back to this one on its next tick
+    (`documenting.handoff._hands_back_what_validating_owes`). So is anything
+    else the relabel's time let another road move among the records the move
+    was taken over -- a later report settled, the issue repointed, evidence
+    settled or retired: the record is not ended over it but left standing,
+    for that hand-back and for the recovery behind it, which holds the move
+    to an approval of what the comment carries then.
+    Nothing else reads the record: an approval that collapsed nothing leaves
+    none, and there is nothing to end or to write there. What moves during
+    such an approval's relabel is caught on the far side instead: the
+    documenting stage opens by asking whether the approval still covers the
+    report the comment records and as it reads at its location, and the
+    evidence it was proved over, and hands the issue back where it does not.
 
     Both callers asked GitHub several things before this -- the report at its
     location, the issue, the pull request -- and another road can settle a
-    later report on this comment, or point the issue at another pull request,
-    in that time. So the comment is read again first and has to carry the
-    report records in hand and point the issue where the state in hand does
-    (`review_comment._records_in_hand`): where it does not, the label stays
-    and nothing is written, since that write would put the replaced report or
-    pointer back and move the label under an approval of it. The record left
-    standing is the next tick's to answer, under what the comment carries then,
-    which that approval does not cover.
+    later report or evidence revision on this comment, point the issue at
+    another pull request, or persist a later verdict in that time. So the
+    comment is read again first and has to carry the report, pull-request,
+    verdict, and evidence records in hand (`handoff._holds_its_records`):
+    where it does not, the label stays and nothing it holds is written, since
+    that write would put the replaced records back and move the label under
+    an approval of them -- or past a verdict still waiting. The record left
+    standing is the next tick's to answer, over what the comment carries then.
     """
-    if not _review_comment._records_in_hand(
-        gh, issue, state, "move its label past the approval it holds",
-    ):
+    finished = _late_handoffs.read_settled_handoff(state)
+    if not _handoff._holds_its_records(gh, issue, state, "move its label past the approval it holds", held):
         return
-    try:
-        gh.set_workflow_label(issue, WorkflowLabel.DOCUMENTING)
-    except Exception:
-        log.exception(
-            "issue=#%s could not relabel to documenting behind a finished "
-            "squash; leaving the handoff recorded for the next tick",
+    if _verdicts.read_returned_verdict(state) is None:
+        try:
+            gh.set_workflow_label(issue, WorkflowLabel.DOCUMENTING)
+        except Exception:
+            log.exception(
+                "issue=#%s could not relabel to documenting behind a finished "
+                "squash; leaving the handoff recorded for the next tick",
+                issue.number,
+            )
+            return
+    else:
+        log.info(
+            "issue=#%s has a later reviewer verdict waiting beside the squash "
+            "it finished; ending the handoff without moving the label past it",
             issue.number,
         )
+    if not finished:
         return
-    if not _late_handoffs.read_settled_handoff(state):
+    # The relabel is a request of its own, long enough for another road to
+    # write this comment, so the record is ended over the comment read afresh
+    # rather than the state in hand: that write would put back whatever the
+    # other road wrote. One that will not read keeps the record, which the
+    # next reading answers, and so does one carrying another record than the
+    # one this handoff finished -- or the one it finished beside a report,
+    # pull-request, verdict, or evidence record the move was not taken over.
+    durable = _review_comment._read(gh, issue, state, "end the handoff behind the label it moved")
+    if durable is None:
         return
-    _late_handoffs.clear_settled_handoff(state)
-    gh.write_pinned_state(issue, state)
+    if _late_handoffs.read_settled_handoff(durable) != finished or _review_comment._moved(
+        durable.data, state.data, _handoff._HELD_RECORDS,
+    ):
+        log.info(
+            "issue=#%s its pinned comment no longer carries the squash handoff "
+            "this tick finished, or the records it was finished over; leaving "
+            "the record as it stands", issue.number,
+        )
+        return
+    _late_handoffs.clear_settled_handoff(durable)
+    gh.write_pinned_state(issue, durable)
 
 
 def _finalize_validating_approval(
@@ -472,16 +555,22 @@ def _finalize_validating_approval(
     "not_run", which advances without being evidence that anything passed. A
     failed / timed-out command, a worktree not proven clean before or after a
     command, or a moved HEAD or tree parks awaiting_human in `validating`
-    with a stable `park_reason` -- only where the pinned comment, read again
-    behind the gate, still carries the report records and pull request the
-    gate ran under; otherwise the run is recorded and nothing is parked. A
-    failed squash / force-push also parks and STAYS in `validating` (no
-    relabel), and its notice says which of the two places it left the branch:
-    the original
-    commits, or a collapse an earlier tick could not finish. On success the
-    (possibly squashed) head routes through `documenting` for a final docs
-    pass before in_review picks up; the watermarks, approval, and squash
-    comment seeded here are preserved across the documenting hop.
+    with a stable `park_reason` -- only over the subject still standing behind
+    the gate (`_stands_behind_the_gate`), and held to it once more behind the
+    park's own notice (`review_parks`); otherwise the run is recorded and
+    nothing is parked. A failed squash / force-push also parks and STAYS in
+    `validating` (no relabel), and its notice says which of four places it
+    left the branch: the approved commits at HEAD, a collapse it could not
+    finish standing over them in the reflog, a branch grown past the head that
+    collapse records with them in its own history, or a reading that placed
+    them nowhere (`_park_squash_failure`). On success the (possibly squashed)
+    head routes through `documenting` for a final docs pass before in_review
+    picks up; the watermarks, approval, and squash comment seeded here are
+    preserved across the documenting hop.
+
+    The approval's verdict, where one waits (`handoff._Held.of_the_approval`),
+    is retired by whichever write this makes -- the park that lands, the drop,
+    or the squash road's -- save where the subject could not be read.
 
     The squash and everything behind it are the tail beside this one, because
     a collapse an earlier tick did not finish owes the same steps with no
@@ -493,36 +582,112 @@ def _finalize_validating_approval(
     verify = _verify_runner._run_verify_commands(
         reviewer_run.wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT,
     )
-    passed = verify.status in ("ok", "not_run")
-    # The verification can outlast a report settling on the same head, an
-    # edit of the report, a push, an edit of the issue, or the issue pointed
-    # at another pull request, and nothing past this line asks again before
-    # the squash. So a passed gate's subject is resolved again, and the comment
-    # read behind that, last: what settled during either is carried before
-    # anything below writes, and a comment that will not read writes nothing.
-    stands = passed and _review_coverage._subject_still_stands(
-        gate.gh, gate.issue, state, reviewer_run.subject.recorded(),
-    )
+    held = _handoff._Held.of_the_approval(state, reviewer_run)
+    stands = _stands_behind_the_gate(gate, reviewer_run, held)
+    if stands is None:
+        return
+    if stands and verify.status in _VERIFIED:
+        _squashes_the_approval(gate, reviewer_run, branch, held)
+        return
+    if stands:
+        # Held to the subject once more behind its notice, and written by the
+        # park itself where it lands and where it does not.
+        _review_parks.parks_over_the_subject(
+            gate.gh, gate.issue, state, reviewer_run.measured_over(held.comment),
+            (*_verify._verify_failure_park(verify), None, held.verdict),
+        )
+        return
+    # An approval the subject moved out from under is dropped, and one whose
+    # subject would not read is held; either way what the run left is the
+    # write owed.
+    gate.gh.write_pinned_state(gate.issue, state)
+
+
+def _squashes_the_approval(gate, reviewer_run: _models._ReviewerRun, branch: str, held: _handoff._Held) -> None:
+    """Record, announce, and squash an approval whose verify gate passed over the subject still standing.
+
+    The approval comment is a request of its own, long enough for a push, an
+    edit of the issue or the report, a later report or evidence revision, the
+    evidence's artifact deleted or edited on the pull request, or a verdict
+    another road put in place of the one this approval finishes. No rewrite
+    goes out over any of them, since a squash and a handoff under an approval
+    of the older subject hand on work nobody reviewed: the subject is resolved
+    again behind the comment, the checkout the branch is taken from is proved
+    to stand on the head that subject names with nothing left uncommitted
+    (`handoff._Held.checkout_stands`) -- the gate proved it only while its
+    commands ran, and a checkout ahead of the pull request is one the
+    documenting stage publishes as its own work where no squash rewrites it --
+    the evidence the held verdict was proved over is proved again
+    (`handoff._Held.evidence_stands`), and the pinned comment is read last and
+    held to the records in hand (`handoff._holds_its_records`) -- where they
+    moved, only the comment's own ledger entry and the end of the verdict are
+    written. Where the subject or the checkout moved, or the evidence no
+    longer proves, the verdict is dropped and the run's records written
+    without the approval; where any would not read, they are written keeping
+    the verdict. Otherwise the approval is staged beside the evidence it was
+    proved over, written by
+    whichever write the squash road makes, so an approval nothing recorded is
+    never one a later tick acts on; the state is laid over the comment as that
+    reading found it, measured from the reading behind the gate, so a round
+    spent or a run charged behind the approval comment is kept rather than
+    written back over by the squash's own writes, which are held to the same
+    records in turn (`handoff._Held.follows`).
+    """
+    gh, issue, state = gate.gh, gate.issue, gate.state
+    _handoff._post_approval_comment(gh, issue, state, reviewer_run)
+    stands = _review_coverage._subject_still_stands(gh, issue, state, held.subject)
+    proved = stands and held.checkout_stands(gate) and held.evidence_stands(gate)
+    if not _handoff._holds_its_records(gh, issue, state, "squash under the approval it posted", held):
+        return
+    if not proved:
+        if proved is False:
+            _verdicts.drops_the_verdict(state, only=held.verdict)
+        gh.write_pinned_state(issue, state)
+        return
+    held.records_the_approval(state, reviewer_run.subject)
+    _squashed_and_handed_off(gate, branch, reviewer_run.pr_number, held)
+
+
+def _stands_behind_the_gate(gate, reviewer_run: _models._ReviewerRun, held: _handoff._Held) -> bool | None:
+    """Whether an approval's subject still stands once its verify gate has run; None where nothing may be written.
+
+    The verification can outlast a report or evidence settling on the same
+    head, an edit of the report, a push, an edit of the issue, a repoint, or
+    a verdict put in place of the one `held` holds, and nothing past this asks
+    again before the approval comment -- or before the park a failed gate
+    takes, since a failure over a head nobody reviewed is no failure of the
+    approval, and a fresh reviewer answers the head as it stands without
+    anybody's reply. So the subject is resolved again first, whatever the gate
+    said, and the comment read behind it, the last of these requests, watching
+    the verdict beside the report's records and the pointer
+    (`review_comment._records_stand`); whatever another road wrote during
+    either is carried onto the state before anything writes, and that reading
+    is what `held` measures every later one from. Verification evidence
+    recorded or settled meanwhile moves the subject as surely as a later
+    report: the approval would rest on evidence no longer current. So does
+    the evidence's artifact deleted or edited on the pull request, which no
+    record shows: behind a subject that stands, the evidence the held verdict
+    was proved over is proved again, ahead of that reading
+    (`handoff._Held.evidence_stands`). A comment that will not read is None.
+    A subject or evidence nobody could read is no proof either way: nothing is
+    acted on or parked, and the verdict is left for the caller's write to keep
+    for the next tick rather than retired for a second reviewer. A subject
+    proved to have moved, or evidence proved no longer to stand, retires it
+    here; one that stands is retired by whatever the caller does with it.
+    """
+    stands = _review_coverage._subject_still_stands(gate.gh, gate.issue, gate.state, held.subject)
+    proved = stands and held.evidence_stands(gate)
     reread = _review_comment._records_stand(
-        gate.gh, gate.issue, state, reviewer_run.resolved_over,
+        gate.gh, gate.issue, gate.state, reviewer_run.resolved_over, persisted=True,
     )
     if reread is None:
-        return
-    # A failed gate is parked on only over the records it ran under: a later
-    # report settled, or the issue pointed at another pull request, while it
-    # ran makes its result one about a subject nobody is reviewing any more,
-    # and a human would be told to fix a verification the next reviewer never
-    # asks about. The run is recorded over what moved instead.
-    if reread.stood and not passed:
-        _verify._park_verify_failure(gate.gh, gate.issue, state, verify)
-    elif reread.stood and stands:
-        # Staged here and written by whichever write the squash road below
-        # makes, so an approval nothing recorded is never one a later tick
-        # acts on.
-        _review_subjects.record_approved(state, reviewer_run.subject)
-        _handoff._post_approval_comment(gate.gh, gate.issue, state, reviewer_run)
-        _squashed_and_handed_off(gate, branch, reviewer_run.pr_number)
-        return
-    # A failed verification parks and an approval the subject moved out from
-    # under is dropped; either way what the run left is the write owed.
-    gate.gh.write_pinned_state(gate.issue, state)
+        return None
+    held.comment = reread.read
+    moved = not reread.stood or bool(
+        _review_comment._moved(reread.read, reviewer_run.resolved_over, _review_comment._EVIDENCE_RECORDS),
+    )
+    if moved or proved is False:
+        # Only the verdict this approval holds: one another road put in its
+        # place, carried onto the state by that reading, is that road's.
+        _verdicts.drops_the_verdict(gate.state, only=held.verdict)
+    return not moved and bool(proved)

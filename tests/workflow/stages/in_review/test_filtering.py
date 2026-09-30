@@ -193,6 +193,7 @@ class SameAccountHumanFeedbackTest(unittest.TestCase, _DebouncedInReviewMixin):
             gh,
             issue,
             run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            head_shas=(REVIEWED_SHA,),
         )
         last_comment_id = gh.pinned_data(HANDOFF_ISSUE).get("pr_last_comment_id")
         self.assertIsNotNone(last_comment_id)

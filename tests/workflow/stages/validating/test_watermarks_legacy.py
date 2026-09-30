@@ -134,6 +134,7 @@ class HandoffWithoutPickupIdLegacyStateTest(unittest.TestCase, _PatchedWorkflowM
             gh,
             issue,
             run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            head_shas=(REVIEWED_SHA,),
         )
         watermark = gh.pinned_data(LEGACY_ISSUE).get(PR_LAST_COMMENT_ID)
         self.assertIsNotNone(watermark)
@@ -276,6 +277,7 @@ class HandoffWalkerHonorsOrchestratorMarkerTest(unittest.TestCase, _PatchedWorkf
             gh,
             issue,
             run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            head_shas=(REVIEWED_SHA,),
         )
 
         # Watermark must advance past the marker-only id 902 -- ideally

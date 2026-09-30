@@ -92,6 +92,7 @@ from orchestrator.workflow.stages.implementing import (
 )
 from orchestrator.workflow.stages.validating import (
     approval as _approval,
+    handoff as _handoff,
     models as _models,
     review_coverage as _review_coverage,
     state as _state,
@@ -123,10 +124,17 @@ def _recovers_a_recorded_collapse(
     on the pinned comment. Presence rather than readability is what the first
     of them asks, because a record this build cannot read whole is exactly the
     claim that has to reach the refusal rather than be waved past.
+
+    Neither road holds a returned verdict: no reviewer ran behind them, so a
+    verdict persisted since the approval they finish -- a later round's -- is
+    left for the road that finishes it, and holds the relabel
+    (`approval._hands_to_documenting`). Each is measured from the comment as
+    this tick read it (`handoff._Held`).
     """
+    held = _handoff._Held(None, comment=dict(state.data))
     if _collapses.carries_pending_collapse(state):
-        return _finished_collapse(gh, spec, issue, state)
-    return _finished_handoff(gh, issue, state)
+        return _finished_collapse(gh, spec, issue, state, held)
+    return _finished_handoff(gh, issue, state, held)
 
 
 def _finished_collapse(
@@ -134,6 +142,7 @@ def _finished_collapse(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
+    held: _handoff._Held,
 ) -> bool:
     """Take the recovery, or hold the tick for a park it did not word."""
     if _held_by_another_park(gh, spec, issue, state):
@@ -149,6 +158,7 @@ def _finished_collapse(
         ),
         _naming._resolve_branch_name(state, spec, issue.number),
         state.get(_approval._PR_NUMBER),
+        held,
     )
     return True
 
@@ -226,7 +236,7 @@ def _held_by_another_park(
 
 
 def _finished_handoff(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
+    gh: GitHubClient, issue: Issue, state: PinnedState, held: _handoff._Held,
 ) -> bool:
     """Move the label a finished squash's handoff never got to move.
 
@@ -260,9 +270,11 @@ def _finished_handoff(
     and the baseline holds. Either way the record goes on the same terms as a
     moved head, and the round below answers it: the reviewer for a report,
     the drift check for an edit. A location or an issue nobody could read
-    holds the tick, as an unread pull request does. The move itself is taken only where the pinned comment,
-    read again after every one of those requests, still carries the report
-    records in hand (`approval._hands_to_documenting`).
+    holds the tick, as an unread pull request does. The move itself is taken
+    only where the pinned comment, read again after every one of those
+    requests, still carries the report, pull-request, verdict, and evidence
+    records in hand, and no returned verdict waits beside the handoff
+    (`approval._hands_to_documenting`).
     """
     settled = _late_handoffs.read_settled_handoff(state)
     if not settled:
@@ -278,7 +290,7 @@ def _finished_handoff(
     if not standing:
         _late_handoffs.clear_settled_handoff(state)
         return False
-    _approval._hands_to_documenting(gh, issue, state)
+    _approval._hands_to_documenting(gh, issue, state, held)
     return True
 
 
@@ -287,16 +299,18 @@ def _handoff_stands(
 ) -> bool | None:
     """Whether what the settled handoff was owed over still stands, None unread.
 
-    The approval -- the report it covered still the current one, still
-    reading at its location as it settled, and the issue still carrying the
-    requirements it was given -- and the pull request, still standing on the
-    commit the handoff named (`review_coverage._approval_holds`).
+    The approval -- the evidence it was proved over still the current,
+    passing evidence where it was proved over any, the report it covered
+    still the current one, still reading at its location as it settled, and
+    the issue still carrying the requirements it was given -- and the pull
+    request, still standing on the commit the handoff named
+    (`review_coverage._approval_holds`).
     """
     covered = _review_coverage._approval_holds(gh, issue, state, settled)
     if covered is False:
         log.info(
-            "issue=#%s carries a developer report, requirements, or a head its "
-            "approval did not cover; dropping the settled squash handoff for "
-            "the round below", issue.number,
+            "issue=#%s carries verification evidence, a developer report, "
+            "requirements, or a head its approval did not cover; dropping the "
+            "settled squash handoff for the round below", issue.number,
         )
     return covered

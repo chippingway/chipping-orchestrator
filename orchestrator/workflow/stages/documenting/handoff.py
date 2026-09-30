@@ -2,15 +2,23 @@
 # SPDX-License-Identifier: Apache-2.0
 """The relabel to `in_review`, and the handoff that brought the issue here.
 
-The one this stage was handed is the shorter story and it opens the tick. A
-`validating` approval settles a finished squash into `late_collapse_handoff_sha`
-and moves the label behind that write, so a record still standing when this
-stage runs is one whose relabel DID land and whose cleanup write did not. This
-stage running is the proof of that, and it is the only proof there is -- the
-label history cannot tell a move that never happened from one this stage later
-unwound -- so the record is ended here rather than left for a validating tick
-to read as a move it still owes and answer a re-review by relabelling the
-unchanged head straight back.
+The one this stage was handed is the shorter story, and it is asked first
+past the preconditions -- a merged or closed pull request ends the tick before
+it -- and ahead of drift and the docs pass. A
+`validating` approval retires its own verdict ahead of the relabel and ends its
+own squash handoff (`late_collapse_handoff_sha`) behind it, so a returned
+verdict or a handoff record still standing when this stage runs is that
+approval's cleanup write having failed, the approval leaving its own record
+over a report or evidence record that moved while the relabel ran, or another
+road's record put down then -- and nothing here can tell which. Neither is this
+stage's to act on or to end, so the issue goes back to `validating`, whose
+recovery answers the handoff over the approval it names and whose verdict road
+answers the verdict, before a docs pass runs over either. An approval that
+collapsed nothing leaves no handoff record to stand over what moved while its
+relabel ran, so the approval itself is asked too: one that no longer covers
+the developer report the comment records as current, or that report as it
+reads at its location now, or whose evidence no longer stands, goes back the
+same way, and a report or evidence nobody could read holds the tick.
 
 Both docs outcomes -- a pushed commit and a confirmed no-change -- leave the
 approval, squash, and PR watermarks validating wrote untouched and advance to
@@ -45,7 +53,13 @@ from github.Issue import Issue
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import handoffs as _late_handoffs
-from orchestrator.workflow.stages.validating import watermarks as _validating_watermarks
+from orchestrator.workflow.stages.validating import (
+    approved_evidence as _approved_evidence,
+    review_comment as _review_comment,
+    review_coverage as _review_coverage,
+    review_verdicts as _verdicts,
+    watermarks as _validating_watermarks,
+)
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -109,33 +123,100 @@ def _ratchet_in_review_watermark_for_final_docs(
     state.set("pr_last_comment_id", candidate)
 
 
-def _ends_the_validating_handoff(
+def _hands_back_what_validating_owes(
     gh: GitHubClient, issue: Issue, state: PinnedState,
-) -> None:
-    """Drop the record of a handoff this stage having the issue proves landed.
+) -> bool:
+    """Send the issue back to `validating` over what only that stage answers; True where the tick is handled.
 
-    The approval before this one ends its collapse claim and leaves the commit
-    the relabel is owed over in its place, then moves the label. A record
-    still here is that move having landed with the write that would have
-    dropped it having failed -- and the route that reads it back in
-    `validating` cannot tell such a record from one whose move never happened.
-    Left standing, a drift unwind that sends this issue back for a re-review
-    is answered by relabelling the unchanged head straight here again, and the
-    review that unwind exists to ask for never runs.
+    Two of that stage's records can be standing when this one runs. The
+    approval that moved the label here retired its own verdict ahead of the
+    move and ends its own squash handoff behind it, but the relabel is a
+    request of its own: another road can persist a later verdict, put a
+    handoff of its own in place of that one, or settle a later report the
+    approval then leaves its handoff standing over, while it runs -- and the
+    write that ends the handoff can fail once the move has landed. From here none
+    of those can be told apart, and a docs pass run over any of them documents
+    a head a reviewer's verdict or an unfinished handoff says is not settled.
 
-    Its own write rather than a staged mutation, because most roads out of a
-    documenting tick return without one -- and there is nothing to compose it
-    with: the record is not this stage's to act on, only to end. A write that
-    fails ends the tick with everything else durable exactly as it was, and
-    the next documenting tick makes it.
+    So the label goes back, and nothing else is written: both records stay on
+    the comment for the stage that reads them. A waiting verdict holds the
+    label there for the road that finishes it. A handoff record reaches the
+    recovery route ahead of the reviewer, which moves the label here again --
+    ending the record behind that move -- only while the approval still
+    covers the evidence it was proved over, the report, the requirements, and
+    the head the record names, and
+    otherwise drops it for the round it would have skipped. That is also what
+    keeps this stage from ever running with a record standing: carried past
+    here, a later return to `validating` for a re-review would be answered by
+    relabelling the unchanged head straight back, and the review that return
+    asks for would never run.
 
-    Nothing is written for the ordinary issue, which carries no such record:
-    the approval that handed it here dropped its own.
+    The approval itself is asked beside them, because an approval that
+    collapsed nothing leaves no handoff record, and its relabel is a request
+    long enough for another road to settle a later report or evidence
+    revision, or for a human to edit or delete the settled report in place,
+    which no record shows. One that no longer covers the developer report
+    the comment records as current, or that report as it reads at its
+    location now (`review_coverage._approval_stands`), or whose evidence no
+    longer stands (`approved_evidence.stands`), is an approval of work that is
+    not there, and the docs pass would document it as reviewed: it goes back
+    too, for the reviewer. A report or evidence nobody could read proves
+    nothing either way, and holds the tick without moving the label. Those
+    readings are requests of their own, so the comment is read once more
+    behind them (`_approval_still_stands`).
+
+    A relabel that fails raises, as the handoff to `in_review` does: the
+    records are still on the comment, and the next tick asks again. The
+    ordinary issue carries neither record and an approval of what the
+    comment carries, so it costs a reading of the report at its location --
+    and of the evidence, for an approval proved over any.
     """
-    if not _late_handoffs.read_settled_handoff(state):
-        return
-    _late_handoffs.clear_settled_handoff(state)
-    gh.write_pinned_state(issue, state)
+    owed = (
+        _verdicts.read_returned_verdict(state) is not None
+        or bool(_late_handoffs.read_settled_handoff(state))
+    )
+    standing = owed or _approval_still_stands(gh, issue, state)
+    if standing is None:
+        log.info(
+            "issue=#%s could not read the developer report or verification "
+            "evidence its approval rests on; holding the docs pass for the "
+            "next tick", issue.number,
+        )
+        return True
+    if not owed and standing:
+        return False
+    log.info(
+        "issue=#%s carries a reviewer verdict, a squash handoff, or an "
+        "approval of what it no longer carries, which `validating` still owes "
+        "an answer; handing it back there ahead of the docs pass",
+        issue.number,
+    )
+    gh.set_workflow_label(issue, WorkflowLabel.VALIDATING)
+    return True
+
+
+def _approval_still_stands(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool | None:
+    """Whether the approval that moved the label here still covers what the comment carries; None where unread.
+
+    The report as recorded and as it reads at its location
+    (`review_coverage._approval_stands`), and the evidence its proof rests on
+    (`approved_evidence.stands`) -- and then the pinned comment, read last,
+    since both are requests long enough for another road to settle a later
+    report, persist a verdict, or record a later verification revision:
+    where the report, pull-request, verdict, or evidence records moved, the
+    readings above were taken over records that are gone, and the approval
+    does not stand. Whatever else another road wrote meanwhile is carried onto
+    the state (`review_comment._records_stand`), so no write the docs pass
+    makes puts it back.
+    """
+    standing = _review_coverage._approval_stands(gh, state) and _approved_evidence.stands(gh, state)
+    if not standing:
+        return standing
+    read = dict(state.data)
+    reread = _review_comment._records_stand(gh, issue, state, read, persisted=True)
+    if reread is None:
+        return None
+    return reread.stood and not _review_comment._moved(reread.read, read, _review_comment._EVIDENCE_RECORDS)
 
 
 def _hand_off_to_in_review(

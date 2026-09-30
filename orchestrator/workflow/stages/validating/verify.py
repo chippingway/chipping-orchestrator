@@ -12,6 +12,12 @@ operator's next move differs by which commit appeared -- keep it and re-spawn
 the reviewer on the new HEAD, or revert it and re-run. `tree_changed`
 surfaces both short tree ids and says HEAD stayed put.
 
+What is worded here is the park's reason and notice, and nothing more: the
+park itself is the approval arc's to file (`approval`), through the funnel
+every park of a reviewed subject takes (`review_parks`), since a failure over
+a subject that moved while its notice was posted is no failure of the
+approval, and a fresh reviewer answers it.
+
 The captured output is quoted exactly as the runner produced it. Re-redacting
 here would be a no-op for anything already collapsed to `***` and would still
 miss a secret straddling the truncation cut, so the redact-before-truncate
@@ -19,12 +25,7 @@ pass inside the runner is the only place that can be right about it.
 """
 from __future__ import annotations
 
-from github.Issue import Issue
-
-from orchestrator import config
-from orchestrator.github.client import GitHubClient
-from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import guards as _guards, messages as _messages
+from orchestrator.workflow.engine import messages as _messages
 from orchestrator.workflow.stages.validating import state as _state
 
 
@@ -99,29 +100,21 @@ def _identity_change_detail(verify, command: str) -> str:
     )
 
 
-def _park_verify_failure(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    verify,
-) -> None:
-    """Park `validating` on a local-verify failure.
+def _verify_failure_park(verify) -> tuple[str, str]:
+    """The reason and the words of the park a local-verify failure earns.
 
-    The park comment names the failing command, its exit code (or
-    timeout), and a redacted / truncated tail of the captured output so
-    the operator can triage without pulling the orchestrator's logs.
-    `park_reason` is set to a stable token (`verify_failed`,
-    `verify_timeout`, `verify_dirty`, `verify_head_changed`, or
-    `verify_tree_changed`) so dashboards and future transient-recovery
-    logic can branch on the failure mode.
+    The notice names the failing command, its exit code (or timeout), and a
+    redacted / truncated tail of the captured output so the operator can
+    triage without pulling the orchestrator's logs. The reason is a stable
+    token (`verify_failed`, `verify_timeout`, `verify_dirty`,
+    `verify_head_changed`, or `verify_tree_changed`) so dashboards and future
+    transient-recovery logic can branch on the failure mode. The funnel that
+    posts the notice mentions the humans it asks (`review_parks`).
     """
     reason = _state._VERIFY_STATUS_TO_REASON.get(verify.status, "verify_failed")
     detail = _verify_failure_detail(verify)
 
-    message = (
-        f"{config.HITL_MENTIONS} local verification failed; PR not handed "
-        f"off to in_review. {detail}."
-    )
+    message = f"local verification failed; PR not handed off to in_review. {detail}."
     # `verify.output` is already redacted-then-truncated by the runner;
     # re-redacting here would be a no-op for any match `redact_secrets`
     # already collapsed to `***`, AND would not catch a partial secret
@@ -131,10 +124,4 @@ def _park_verify_failure(
     if output.strip():
         quoted = _messages._as_blockquote(output.rstrip())
         message = f"{message}\n\n_Verify output (tail):_\n\n{quoted}"
-
-    _guards._park_awaiting_human(
-        gh, issue, state, message,
-        reason=reason,
-        bounded=True,
-    )
-    state.set(_state._PARK_REASON, reason)
+    return reason, message

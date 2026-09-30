@@ -11,25 +11,24 @@ the records on the comment do.
 
 So `review_report` binds a resolved subject only to a comment read afresh that
 carries the report records the state in hand carries, and points the issue at
-the pull request the subject was resolved at (`_resolved_over`), and every
-later road that acts on an approval after requests long enough for that to
-happen asks the same (`_records_in_hand`): the squash handoff once the rewrite
-is published, and the in_review ready ping and the unmergeable park beside it
-once mergeability is read. Where the comment moved
-them, or will not read or parse, the answer is the one that hands nothing over
-and writes nothing: every write from there would be laid over records the tick
-never read, putting back the report they replaced. So is a fresh reading of
-another comment than the one the state in hand was read from -- the pinned
-comment replaced, or gone -- since the tick's write goes to the comment it read
-and would pin a second one. The reading that agreed goes on with the subject,
-and is laid over the state in hand before the round writes anything, measured
-from the comment as the tick read it (`_ResolvedSubject.lays_over`): what
-another road wrote while the subject was resolved -- a run it charged and
-folded, a notice it posted -- is on it and nowhere in hand, and every later
-reading is measured from it, so none would see that move. It then takes in the
-round's own launch charge once that charge is down
-(`_ResolvedSubject.carrying`): the charge lands on the state in hand only the
-fields it wrote, which read against the comment without them would be taken
+the pull request the subject was resolved at (`_resolved_over`), and the
+in_review ready ping and the unmergeable park beside it ask the same once
+mergeability is read (`_records_in_hand`); the squash tail holds each of its
+writes to those records and more (`handoff._holds_its_records`). Where the
+comment moved them, or will not read or parse, the answer is the one that hands
+nothing over and writes nothing: every write from there would be laid over
+records the tick never read, putting back the report they replaced. So is a
+fresh reading of another comment than the one the state in hand was read from
+-- the pinned comment replaced, or gone -- since the tick's write goes to the
+comment it read and would pin a second one. The reading that agreed goes on
+with the subject, and is laid over the state in hand before the round writes
+anything, measured from the comment as the tick read it
+(`_ResolvedSubject.lays_over`): what another road wrote while the subject was
+resolved -- a run it charged and folded, a notice it posted -- is on it and
+nowhere in hand, and every later reading is measured from it, so none would see
+that move. It then takes in the round's own launch charge once that charge is
+down (`_ResolvedSubject.carrying`): the charge lands on the state in hand only
+the fields it wrote, which read against the comment without them would be taken
 for this tick's own, and written back over a later charge another road wrote.
 
 `_records_stand` reads the comment against that reading again, as the reviewer
@@ -38,11 +37,12 @@ more behind that after an approval is verified, before anything the run leaves
 is written -- a park for a timeout or a missing verdict as much as the record of
 a verdict. It watches the report's records and the pull request the issue
 points at, since a verdict about one pull request is no review of another the
-issue points at now. The dormant disposition service asks it of more
-(`persisted`) wherever it holds a verdict to its subject
-(`review_coverage._verdict_still_stands`): the returned verdict it persisted
-(`review_verdicts`) beside them, since one another road dropped or replaced
-since is no longer the one any write behind this may act on. Records that moved
+issue points at now. The approval arc behind its verify gate, the approval
+proof, and the dormant disposition service wherever it holds a verdict to its
+subject (`review_coverage._verdict_still_stands`) ask it of more
+(`persisted`): the returned verdict persisted (`review_verdicts`) beside them,
+since one another road dropped or replaced since is no longer the one any
+write behind this may act on. Records that moved
 refuse the verdict. Either way every write made from the state behind the
 reading is laid over the comment as it stands, so everything the comment
 changed since is carried onto the state in hand: a later report settled over the one the reviewer was handed, the
@@ -64,9 +64,11 @@ reading hands back the comment as it found it (`_Reread.read`), which is what a
 later reading of the same run is measured against, since a move this tick kept
 beside another road's, measured again from the older comment, would be kept
 twice. A road that makes further requests behind the last reading and writes
-after them -- a change request's developer run, the squash tail -- lays the
-state in hand whole over whatever landed in between, which only a reading of
-its own would keep. Records are compared as the comment's JSON spells them, so one written
+after them -- a change request's developer run -- lays the state in hand whole
+over whatever landed in between, which only a reading of its own would keep;
+the approval's squash tail takes one ahead of each of its writes
+(`handoff._holds_its_records`), save across the squash itself. Records are
+compared as the comment's JSON spells them, so one written
 `null` where there was none, or a revision spelled `true` where it was `1`, is
 a move. A comment that will not read or parse, or is no longer the one the
 state was read from, carries nothing, and the answer is the one that writes
@@ -288,19 +290,30 @@ def _resolved_over(
 def _records_in_hand(
     gh: GitHubClient, issue: Issue, state: PinnedState, purpose: str,
 ) -> bool:
-    """Whether the comment still carries the report records `state` carries, and points where `state` does.
+    """Whether the comment still carries the report and evidence records `state` carries, and points where it does.
 
     Asked by a road about to act on an approval of the report `state` records
     as current, and to write `state` beside it, after requests long enough for
-    another road to settle a later report or point the issue at another pull
+    another road to settle a later report or verification revision, record a
+    later verification transaction, or point the issue at another pull
     request. False where it moved them, will not read or parse, or is no
     longer the comment `state` was read from; the caller then acts on nothing
     and writes nothing, so the next tick reads what the issue carries then and
-    answers it -- rather than moving a label, or writing a pointer back, under
-    an approval of a pull request the issue no longer points at. `purpose` is
-    what the road was about to do, for the log.
+    answers it -- rather than moving a label, or writing a pointer or a
+    revision floor back, under an approval of work the issue no longer
+    carries. `purpose` is what the road was about to do, for the log.
     """
-    return _resolved_over(gh, issue, state, purpose) is not None
+    durable = _read(gh, issue, state, purpose)
+    if durable is None:
+        return False
+    if not _moved(durable.data, state.data, (*_BOUND_RECORDS, *_EVIDENCE_RECORDS)):
+        return True
+    log.warning(
+        "issue=#%d its pinned comment does not carry the developer report, "
+        "pull request, or verification evidence records this tick holds, so "
+        "it will not %s; writing nothing this tick", issue.number, purpose,
+    )
+    return False
 
 
 def _records_stand(

@@ -91,6 +91,10 @@ HANDOFF_KEY = _late_handoffs.LATE_COLLAPSE_HANDOFF
 USER_CONTENT_HASH = "user_content_hash"
 STALE_CONTENT_HASH = "stale-hash"
 
+# A squash with nothing to rewrite: the branch the reviewer approved is the
+# one the pull request already carries, so no collapse is recorded.
+NOTHING_TO_SQUASH = _SquashOutcome(success=True, sha=SQUASHED_SHA, count=0)
+
 # A human answering the park a refused recovery took.
 HUMAN_REPLY_ID = 950
 HUMAN_LOGIN = "maintainer"
@@ -218,7 +222,7 @@ class _SquashApprovalFixtureMixin(_PatchedWorkflowMixin):
                 github,
                 issue,
                 run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
-                head_shas=(REVIEWED_SHA,),
+                head_shas=(SQUASHED_SHA,),
                 squash_result=squash_result,
             )
 
