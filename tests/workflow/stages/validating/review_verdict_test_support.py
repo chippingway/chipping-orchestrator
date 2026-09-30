@@ -15,10 +15,12 @@ the launch and the return record it, the launch charged, the reviewer's usage
 folded once by the service itself, and the parsed verdict handed to
 `review_disposition.prepares_the_verdict`, whose answer the case keeps
 (`prepared`). No handler finishes a verdict a tick left waiting yet either, so
-a later tick is the dispatcher's evidence reconciliation and then
+a later tick here is the dispatcher's evidence reconciliation and then
 `review_disposition.waiting_verdict_ready` over the pinned comment alone --
 the returned run is forgotten first, as a later process never had it -- whose
-answer the case keeps too (`ready`). Both are read back through `review_verdict_readings`.
+answer the case keeps too (`ready`). Both are read back through
+`review_verdict_readings`. A case that has the verdict disposed of, and a
+later tick finish it, is `disposed_verdict_test_support`'s.
 
 What another road does between two of a tick's requests is spelled here too
 (`AnotherRoadBehind`): a push, or a thread that stops answering, behind the
@@ -168,10 +170,10 @@ class AnotherRoadBehind:
                 self._road(self._case)
         return answered
 
-    def returning(self, message: str) -> dict:
+    def returning(self, message: str, **run_options) -> dict:
         """The tick in which a reviewer returned `message`, over a client carrying this request."""
         with patch.object(self._owner, self._name, self):
-            return self._case.returns(message)
+            return self._case.returns(message, **run_options)
 
 
 class ReviewVerdictWorld(_PatchedWorkflowMixin):
@@ -199,9 +201,10 @@ class ReviewVerdictWorld(_PatchedWorkflowMixin):
         self.prepared: _disposition.Prepared | None = None
         self.ready: _verdicts.ReturnedVerdict | None = None
 
-    def returns(self, message: str) -> dict:
-        """One tick in which a reviewer returned `message` and its verdict was prepared."""
-        return self._run(lambda: self._prepares(message), run_agent=[])
+    def returns(self, message: str, **run_options) -> dict:
+        """One tick in which a reviewer returned `message` and its verdict was handed over (`_prepares`)."""
+        run_options.setdefault(RUN_AGENT, [])
+        return self._run(lambda: self._prepares(message), **run_options)
 
     def finishes(self, *, meanwhile=None) -> dict:
         """One later tick: the evidence reconciliation, then the waiting verdict asked whether it is ready.

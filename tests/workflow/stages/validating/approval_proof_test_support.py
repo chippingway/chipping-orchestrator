@@ -2,14 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """The issue of `review_verdict_test_support`, whose persisted approval is handed to its proof and the approval arc.
 
-No disposition hands a waiting approval to `unverified_approvals` yet, so a
-case does it the way that service will: an approval of the standing subject
-waits on the pinned comment (`waits`), relying on the claim a case names, and
-one tick builds the gate over the round's checkout and hands the run that
-returned it to `unverified_approvals.approves`, which proves the claim the
-waiting record names, and whose answer the case keeps (`answered`). The run is rebuilt ahead of the tick, off a
-reading nothing writes, so the requests that rebuild takes are none of the
-tick's own.
+A case hands a waiting approval to `unverified_approvals` directly, the way
+the disposition service does (`disposed_verdict_test_support` goes through
+that service instead): an approval of the standing subject waits on the
+pinned comment (`waits`), relying on the claim a case names, and one tick
+builds the gate over the round's checkout and hands the run that returned it
+to `unverified_approvals.approves`, which proves the claim the waiting record
+names, and whose answer the case keeps (`answered`). The run is rebuilt ahead
+of the tick, off a reading nothing writes, so the requests that rebuild takes
+are none of the tick's own.
 
 Beside that world: the claim a settled transaction is named by, a verify gate
 during which another road does its work (`DuringTheGate`), the two things the

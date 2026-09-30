@@ -76,23 +76,23 @@ the commands it ran, a claim on the evidence it was handed, or nothing -- and
 `review_verdicts` owns the record a verdict is to be persisted in beside that
 claim before anything acts on it. `review_disposition` prepares a returned
 verdict in that order -- persisted with its claim, its evidence published, and
-handed back ready only over settled evidence and the subject still standing,
-or held, or dropped -- `review_parks` files the two parks a verdict takes
-instead of being acted on, `reviewer_unverified` and `reviewer_unrecorded`,
-each behind a notice and only over the subject still standing behind it, and
-`review_handoffs` hands a ready change request to the one developer it owes,
-behind its feedback posted and anchored, and `review_launch_hold` holds that
-launch again where the run circuit charges and starts it; no round asks any
-of them yet.
-`unverified_approvals` proves a persisted approval -- the run's own, over the
-claim its record names -- before it may reach `approval`, through
-`approved_evidence`, which the arc asks again behind its requests and records
-beside the approved subject for every later move to be held to: settled,
-passing, current evidence covering the configured verification, a refusal in
-the words its park carries, or a hold where the proof could not be read --
-which no round asks yet either. The parks a failed verify gate or squash takes
-on the approval road are filed in `review_parks` too, behind notices of their
-own.
+ready only over settled evidence and the subject still standing, or held, or
+dropped -- and disposes of a ready one, in the tick its reviewer returned or,
+through a run rebuilt of its round, subject, and pull request, in a later one.
+`review_parks` files the two parks a verdict takes instead of being acted on,
+`reviewer_unverified` and `reviewer_unrecorded`, each behind a notice and only
+over the subject still standing behind it; `review_handoffs` hands a ready
+change request to the one developer it owes, behind its feedback posted and
+anchored, and `review_launch_hold` holds that launch again where the run
+circuit charges and starts it; and `unverified_approvals` proves a persisted
+approval -- the run's own, over the claim its record names -- before it may
+reach `approval`, through `approved_evidence`, which the arc asks again behind
+its requests and records beside the approved subject for every later move to
+be held to: settled, passing, current evidence covering the configured
+verification, a refusal in the words its park carries, or a hold where the
+proof could not be read. No round asks the disposition yet, nor the owners
+only it asks. The parks a failed verify gate or squash takes on the approval
+road are filed in `review_parks` too, behind notices of their own.
 `review_records` writes what the round puts down -- the spec and subject ahead
 of the spawn, the session on its return -- and reserves the whole round, at
 its widest, in the measurement a developer report is accepted under.

@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """The issue of `review_verdict_test_support`, whose returned verdict is parked rather than acted on.
 
-No disposition hands a verdict to its park yet, so a case files one the way
-that service will. An approval parks under `reviewer_unverified` from a
-verdict an earlier tick persisted (`awaits`), over the comment as the tick
-reads it. A change request parks under `reviewer_unrecorded` over the run's own
-records staged unwritten -- the launch, its charge, and the return -- since the
-verdict itself never went down, measured against the comment its subject was
-resolved over.
+A case files a park directly, the way the disposition service does
+(`disposed_verdict_test_support` goes through that service instead). An
+approval parks under `reviewer_unverified` from a verdict an earlier tick
+persisted (`awaits`), over the comment as the tick reads it. A change request
+parks under `reviewer_unrecorded` over the run's own records staged unwritten
+-- the launch, its charge, and the return -- since the verdict itself never
+went down, measured against the comment its subject was resolved over.
 
 Beside that world: another road's work behind a park's notice, which is
 `review_verdict_test_support.AnotherRoadBehind` over the client's issue-thread

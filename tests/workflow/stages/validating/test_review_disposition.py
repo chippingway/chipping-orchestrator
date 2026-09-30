@@ -11,6 +11,11 @@ tick to finish with no second reviewer, no second fold of its usage, and no
 round spent; a subject that moved, or evidence that can never be relied on,
 drops it -- over the comment as it stands, and never in place of a verdict
 another road put there.
+
+What a ready verdict is disposed of through -- the approval arc, the
+change-request handoff, the parks -- is in `test_review_verdict_approvals.py`,
+`test_review_verdict_handoffs.py`, and `test_review_verdict_parks.py`, and the
+run a verdict is acted through in `test_review_verdict_runs.py`.
 """
 from __future__ import annotations
 
@@ -21,15 +26,17 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator import config as _config
-from orchestrator.github.pinned_state import MAX_PINNED_BODY
 from orchestrator.workflow.stages.validating import (
     review_claims as _claims,
     review_disposition as _disposition,
-    review_parks as _parks,
     review_verdicts as _verdicts,
 )
 from tests.workflow.reviewed_reports import restate
-from tests.workflow.stages.validating import review_verdict_readings as _read, review_verdict_test_support as _world
+from tests.workflow.stages.validating import (
+    disposed_verdict_test_support as _disposed,
+    review_verdict_readings as _read,
+    review_verdict_test_support as _world,
+)
 
 REREAD = "reread_report_location"
 
@@ -78,32 +85,6 @@ _SETTLED = operator.methodcaller("get", "verification_evidence_current")
 
 # What preparing a verdict answers where the tick has nothing to act on.
 NOTHING = _disposition.Prepared()
-
-# A change request's feedback longer than most of what the pinned comment
-# holds, and a failed run's output the transaction quotes again: the filler
-# leaves room for the round's own records and not for the verdict, or for the
-# verdict and not its transaction.
-_LONG = "12 passed, 1 failed " * 1000
-
-# Each verdict that cannot be persisted, the operator notes filling the comment
-# ahead of it, and why it went unrecorded: no room for the verdict, no room for
-# its transaction beside it, or feedback in words UTF-8 cannot carry -- which a
-# reviewer's JSON decodes a lone surrogate into -- however much room there is.
-_UNRECORDED = (
-    (
-        "no room for the verdict",
-        f"{_LONG}\n\nVERDICT: CHANGES_REQUESTED",
-        MAX_PINNED_BODY - len(_LONG),
-        _parks.NO_ROOM,
-    ),
-    (
-        "no room for its evidence",
-        _world.declared_run(exit_status=1, verdict="CHANGES_REQUESTED", output=_LONG),
-        MAX_PINNED_BODY - len(_LONG) * 3 // 2,
-        _parks.NO_ROOM,
-    ),
-    ("feedback UTF-8 cannot carry", "1. Handle \ud800 too.\n\nVERDICT: CHANGES_REQUESTED", 0, _parks.UNREADABLE),
-)
 
 
 def _answers_a_reply(case, moves=()) -> None:
@@ -342,10 +323,10 @@ class PersistedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
     def test_an_unrecorded_verdict_publishes_nothing(self) -> None:
         # The park that answers it is the caller's; the preparation says why
         # and leaves the comment exactly as it found it.
-        for name, message, filled, why in _UNRECORDED:
+        for name, message, filled, why in _disposed.UNRECORDED:
             with self.subTest(name):
                 self.setUp()
-                self._fills(filled)
+                _disposed.fills(self, filled)
                 before = self.pinned()
 
                 self.returns(message)
@@ -369,12 +350,6 @@ class PersistedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
             ),
             (None, None, []),
         )
-
-    def _fills(self, filled: int) -> None:
-        """Put `filled` characters of operator notes on the pinned comment."""
-        state = self.github.read_pinned_state(self.issue)
-        state.set("operator_notes", "x" * filled)
-        self.github.write_pinned_state(self.issue, state)
 
 
 class EvidenceStandingTest(_world.ReviewVerdictWorld, unittest.TestCase):
@@ -677,6 +652,7 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 self.assertEqual(
                     (self.prepared, self.pinned()[_world.RETURNED_VERDICT]), (NOTHING, self.left),
                 )
+
 
 if __name__ == "__main__":
     unittest.main()

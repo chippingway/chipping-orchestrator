@@ -37,8 +37,8 @@ behind a ready ping.
 
 The dormant disposition service holds a returned verdict to its subject the
 same way (`_verdict_still_stands`) -- ahead of the write persisting it, once
-more before handing it back ready, and on every tick it waits on its evidence,
-as the change-request handoff behind it does behind its feedback post and the
+more before handing it back ready, on every tick it waits on its evidence, and
+again before a refused approval parks, as the change-request handoff behind it does behind its feedback post and the
 relabel ahead of its developer (`review_handoffs`) -- but in the other order:
 the subject is resolved first and the comment read behind it, watching the
 verdict itself and the pull request the issue points at beside the report, so

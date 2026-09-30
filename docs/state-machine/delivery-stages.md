@@ -3683,22 +3683,27 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        the post-spawn state (no resume-budget charge, no watermark, no park), so the pre-spawn `workflow:fixing` flip
        stands and the next tick re-runs the cycle; any commit the killed run left is republished later via the
        stranded-fix tail, not this run.
-     - **the returned-verdict disposition** (`validating/review_disposition.py`), which no live round calls yet, is the
-       preparation an approval or change request of a standing subject is to be acted on behind: the transaction its
+     - **the returned-verdict disposition** (`validating/review_disposition.py`), which no live round calls yet,
+       prepares an approval or change request of a standing subject and then acts on it or parks it
+       (`disposes_of_the_verdict`). A run that does not name, as a whole number, the pull request its subject is on is
+       refused before anything is minted, written, or published. Otherwise the preparation takes the transaction its
        declared commands are minted as, then the subject held to what stands and the comment read again behind that
        resolution -- a `verification_evidence_*` record moved since refusing it as surely as a report -- then the run's
        own records staged, its usage folded over whatever usage that reading carries, and the verdict persisted as
        `review_returned_verdict` with that transaction in ONE write before anything is published. A subject that moved
        by then records the run with no verdict, and one nobody could read writes nothing; a verdict whose record would
        not read back as written, or that the comment has no room for beside its transaction, is written and published
-       nowhere, and the service answers which, for its caller to park under `reviewer_unrecorded`. The transaction is
-       published through the
+       nowhere, and parks under `reviewer_unrecorded` (below), saying which. The transaction is published through the
        [evidence reconciliation](#the-verification-evidence-transaction-every-dispatch), and the verdict is ready to act
        on only while the comment still carries it as persisted, its subject -- held to it once more, the comment read
        again last -- still stands, and its claim, judged over that last reading, has settled, or it declared none: a
        settlement of the very evidence it claims readies it, and a push, a later report, or a later revision superseding
        that evidence drops it. A later tick asks the same of a waiting verdict from the pinned comment alone
-       (`waiting_verdict_ready`), holding the standing subject to the one the record names. An owed transaction holds it
+       (`waiting_verdict_ready`), holding the standing subject to the one the record names, and finishes a ready one
+       (`finishes_the_verdict`) only beside a run its caller rebuilt of the verdict's own round and subject, naming the
+       pull request that subject is on, each read as the record spells it: through any other -- of another round,
+       subject, or pull request, naming none, or of a round `False` for `0` or a report revision `True` for `1` -- it
+       acts on nothing and writes nothing. An owed transaction holds it
        for a later tick while its subject stands and drops it once that subject is proved to have moved, and a lost
        claim, published or reused, whichever the verdict -- superseded by a later revision included -- drops it for a
        fresh reviewer. The subject's pull request has to be the one the issue points at: `pr_number` moved to another
@@ -3707,7 +3712,7 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        another road wrote there -- a round a reply bought included, both moves of a usage total, its cost tags, or a
        comment-id watermark, and the comment-id ledger merged -- and every drop names only the verdict this road holds,
        never one another road put in its place. The two parks a verdict takes instead of being acted on are filed in
-       `validating/review_parks.py`, which no round asks yet either: an approval relying on no valid evidence under
+       `validating/review_parks.py`, which no live round asks either: an approval relying on no valid evidence under
        `reviewer_unverified`, and a verdict that could not be persisted under `reviewer_unrecorded`, with nothing
        published or acted on -- its notice asking for room on the pinned comment only where room is what refused the
        verdict, and not where it would not read back as written. Each is measured before its notice is posted at the
@@ -3728,18 +3733,23 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        `reviewer_unverified` park holds only the approval of its run's round and subject, posting and writing nothing
        where that is not what waits), and reports `park_awaiting_human`, once its write is down. Neither park retries
        itself: a bare `/orchestrator continue` buys a fresh reviewer, and a reply with words in it is requirements the
-       developer answers first. An approval is to reach the approval arc above only through its proof
-       (`validating/unverified_approvals.py`), which no disposition asks yet either: the evidence its claim names has to
-       be `verification_evidence_current` exactly, prove current again, show `passed` on its artifact re-read at the
-       comment it settled as, and cover every configured `VERIFY_COMMANDS` command exactly, exiting 0 -- the claim's
-       own flags refusing it early but never standing in for the artifact -- and the pinned comment, read last behind
-       the proof, has to carry the report, pull-request, verdict, and evidence records the proof was taken over. A
-       refusal comes back in the words the `reviewer_unverified` park carries, for the disposition to park; a proof
-       nobody could read holds the verdict, untouched, for a later tick; and a proved approval is handed to the arc
-       measured from that last reading. A ready change request is to reach its developer through its handoff
-       (`validating/review_handoffs.py`), which nothing calls yet either: only the decision the request was persisted
-       from -- its round, verdict, subject, and feedback -- is handed over in the tick its reviewer returned, and a
-       later tick, holding no decision, hands the request over from the record alone, the feedback posted on that
+       developer answers first. An approval reaches the approval arc above only through its proof
+       (`validating/unverified_approvals.py`), over a gate built on its run's checkout: the evidence its claim names has
+       to be `verification_evidence_current` exactly, prove current again, show `passed` on its artifact re-read at the
+       comment it settled as, and cover every configured `VERIFY_COMMANDS` command exactly, exiting 0 -- the claim's own
+       flags refusing it early but never standing in for the artifact -- and the pinned comment, read last behind the
+       proof, has to carry the report, pull-request, verdict, and evidence records the proof was taken over. A refusal
+       comes back in the words the `reviewer_unverified` park carries, and the disposition parks it only once it has
+       held the approval to its subject and claim again, measured from the comment its readiness was proved over: a
+       refusal over a push, a later report, or a later revision is a fresh reviewer's to answer, so the verdict is
+       dropped instead. An approval whose declaration earned no evidence parks with no proof asked, in the words its
+       returning tick has for why; a later tick's record keeps no copy of them, so its refusal names what is true of
+       every such declaration. A proof nobody could read holds the verdict, untouched, for a later tick; and a proved
+       approval is handed to the arc measured from that last reading. A ready change request reaches its developer
+       through its handoff (`validating/review_handoffs.py`): only the decision the request was persisted from -- its
+       round, verdict, subject, and feedback -- is handed over in the tick its reviewer returned, and a later tick,
+       holding no decision, hands the request over from the record alone, in the checkout the issue's developer resumes
+       in, the feedback posted on that
        subject's pull request, and a post that failed, left no positive whole id, or had no such pull request to go on
        holds the verdict unhanded with nothing written; the subject -- with the pull request the issue points at and the
        evidence the request claims -- is held again behind that post; the verdict is written as `handed`, with the id of

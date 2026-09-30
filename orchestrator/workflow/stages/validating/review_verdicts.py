@@ -12,7 +12,7 @@ else about the same subject. So the verdict is to be written onto the pinned
 comment in the write that records the returned reviewer's run, before the
 evidence is published or the verdict disposed of, and dropped by whichever
 write disposes of it. Only the dormant disposition service writes it
-(`review_disposition`), with the change-request handoff it is to hand a ready
+(`review_disposition`), with the change-request handoff it hands a ready
 request to (`review_handoffs`), and no live reviewer round calls either yet:
 the round keeps acting on its verdict in the tick it returns, and this owner is
 the record alone -- its shape, its reader, its measurement, and its writers.

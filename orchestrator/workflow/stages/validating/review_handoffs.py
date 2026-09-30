@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """A persisted change request handed to the one developer it owes.
 
-No live reviewer round persists a verdict yet, and nothing hands one here: the
-dormant disposition service (`review_disposition`) is to, right behind proving
-the request still carried, its subject standing, and its evidence settled.
+No live reviewer round persists a verdict yet, so no live round hands one
+here: the dormant disposition service (`review_disposition`) does, right behind
+proving the request still carried, its subject standing, and its evidence
+settled.
 What is here is that handoff, entered directly: through the very decision
 the request was persisted from, in the tick its reviewer returned
 (`hands_the_request_over`), and from the persisted request alone on a later
