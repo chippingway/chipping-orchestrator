@@ -12,6 +12,7 @@ a split a crash interrupted is repaired to is `test_recovery`'s subject.
 """
 from __future__ import annotations
 
+import json
 import unittest
 from dataclasses import dataclass, replace
 from types import MappingProxyType
@@ -24,10 +25,24 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.stages.decomposition import blocked as _blocked, replacement_lineage as _replacement_lineage
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.fixtures import _TEST_SPEC, _agent, _authorized_exemption, _PatchedWorkflowMixin, _reported
+from tests.workflow.fixtures import (
+    _TEST_SPEC,
+    _agent,
+    _authorized_exemption,
+    _manifest,
+    _PatchedWorkflowMixin,
+    _reported,
+)
 from tests.workflow.stages.decomposition import replacement_lineage_support as _support
 
 RUN_AGENT = "run_agent"
+
+# The ref a descendant's own ancestry points it at -- its parent's, kept for it
+# on that parent's ledger and for none of the children it creates -- and a ref
+# no split of this lineage made.
+_ANCESTOR_REF = "refs/orchestrator/late-split/issue-40/cycle-2/gen-1"
+
+_FOREIGN_REF = "refs/orchestrator/late-split/issue-4/cycle-2/gen-1"
 
 # The heading a child's reuse instructions open under, naming the parent whose
 # own split preserved the snapshot.
@@ -152,6 +167,16 @@ class InheritedLineageTest(unittest.TestCase):
 
                 self._assert_born(github, lineage, recorded)
 
+    def test_a_slice_may_name_its_own_snapshot(self) -> None:
+        # The one ref kept for the child is the one its instructions name.
+        github, issue = _support.late_parent(_support.own_split())
+
+        _support.redecompose(github, issue, _slice_naming(_support.SNAPSHOT_REF))
+
+        child = _support.replacements(github)[0]
+        self.assertIn(child, _support.consumers(github))
+        self.assertEqual(_seeded(github, child), _support.ROOT_REPLACEMENT)
+
     def test_a_seed_carries_nothing_of_the_gate(self) -> None:
         # The parent carries the whole bypass an operator granted a commit of
         # its own; what its children are seeded with is a parent link, a
@@ -209,8 +234,45 @@ class ReuseInstructionsTest(_PatchedWorkflowMixin, unittest.TestCase):
         return mocks[RUN_AGENT].call_args.args[1]
 
 
+def _slice_naming(*refs: str) -> str:
+    """A one-child umbrella manifest whose slice tells its child to reuse `refs`."""
+    told = " and ".join(refs)
+    return _manifest(json.dumps({
+        "decision": "split",
+        "umbrella": True,
+        "rationale": "re-planned",
+        "children": [{"title": "A", "body": f"the whole of it; reuse what {told} holds."}],
+    }))
+
+
+# Slices whose own text tells a child to reuse a snapshot nothing keeps for it,
+# by the parent's record and the ref the slice names.
+_UNSUPPORTED = MappingProxyType({
+    "a descendant told its ancestor's ref": (
+        MappingProxyType({"ancestry": _support.cut_from_ancestor(depth=2, parent=_GRANDPARENT)}),
+        _slice_naming(_ANCESTOR_REF),
+        _ANCESTOR_REF,
+    ),
+    "a root replacement told a foreign ref beside its own": (
+        MappingProxyType({"generation": _support.own_split()}),
+        _slice_naming(_support.SNAPSHOT_REF, _FOREIGN_REF),
+        _FOREIGN_REF,
+    ),
+})
+
+
 class UnprovedLineageTest(unittest.TestCase):
     """A lineage that cannot be proved parks the split before any child exists."""
+
+    def test_unsupported_reuse_creates_nothing(self) -> None:
+        # The implementer reads the body, so a slice pointing at a ref the
+        # child would not be recorded as a consumer of is refused as it
+        # arrives -- not only when a crash is recovered.
+        for shape, (seeded, answer, said) in _UNSUPPORTED.items():
+            with self.subTest(shape=shape):
+                github = self._refused(seeded, answer)
+
+                self._assert_held(github, said)
 
     def test_nothing_is_created_or_started(self) -> None:
         for shape, (seeded, said) in _REFUSALS.items():
@@ -220,6 +282,12 @@ class UnprovedLineageTest(unittest.TestCase):
                 _support.redecompose(github, issue)[RUN_AGENT].assert_called_once()
 
                 self._assert_held(github, said)
+
+    def _refused(self, seeded, answer: str):
+        """Seed the parent, run the decomposing tick it answers, and hand back its client."""
+        github, issue = _support.late_parent(**seeded)
+        _support.redecompose(github, issue, answer)[RUN_AGENT].assert_called_once()
+        return github
 
     def _assert_held(self, github, said: str) -> None:
         """Nothing created or relabelled, and the park ahead of every marker.

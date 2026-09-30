@@ -1373,10 +1373,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a pointer -- before it is seeded with its parent link and that lineage, never with the
                             parent's measurement, exemption, or authorization, and either failure parks the parent
                             for repair
-      split.py              decide the children's lineage and park an unprovable one before any marker, append the
-                            snapshot's reuse instructions to the body of each child owed it, then persist the expected
-                            count, create the planned children, and publish the summary and parent label before
-                            activating children without dependencies
+      split.py              decide the children's lineage and park an unprovable one before any marker -- or a slice
+                            naming a snapshot ref its child would not be kept -- append the snapshot's reuse
+                            instructions to the body of each child owed it, then persist the expected count, create
+                            the planned children, and publish the summary and parent label before activating children
+                            without dependencies
       recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the orphan-child
                             repair -- the parent link and the owed lineage, asked of the parent's record again and
                             parked rather than finalized where it no longer proves one or a child is not one the

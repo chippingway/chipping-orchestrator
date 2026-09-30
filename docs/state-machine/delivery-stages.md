@@ -554,9 +554,11 @@ because there it is the claim that this stage has already rerouted rather than a
        decomposer's groundwork via `_recent_comments_text`; label `workflow:ready`, stamp `decomposed_at`.
      - `decision == "split"` → first decide the late lineage the children inherit
        (`stages/decomposition/replacement_lineage.py` over `late_split/provenance.py`): an issue no late split
-       charged inherits none, and an unprovable record, a parent already at `MAX_LINEAGE_DEPTH`, or a split of the
-       parent's own whose ledger cannot say whether its snapshot is held or released parks
-       `replacement_lineage_unproved` before `expected_children_count` is written, creating nothing. Then for each
+       charged inherits none, and an unprovable record, a parent already at `MAX_LINEAGE_DEPTH`, a split of the
+       parent's own whose ledger cannot say whether its snapshot is held or released, or a slice whose own title or
+       body names a snapshot ref its child would not be kept (any but the one it is pointed at, or its local mirror)
+       parks `replacement_lineage_unproved` before `expected_children_count` is written, creating nothing. Then for
+       each
        child call `gh.create_child_issue(...)` with label `workflow:blocked` (the child's only birth label), record
        it in `children` — and in the same write on `late_consumers`, where the parent's own split holds the snapshot
        it will be pointed at — and seed the child's pinned state with `parent_number` and that lineage, never the

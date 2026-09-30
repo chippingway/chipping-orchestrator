@@ -3345,9 +3345,11 @@ rather than preserving.
   born without the pointer; a split whose ledger cannot say whether the ref is held or released — a resource ledger
   this binary cannot read, a held ref no consumer can be recorded against (an unreadable `late_consumers`, no
   candidate, no identity to mint it from), an entry never proved or recorded twice, or none for its own ref — is a
-  refusal like any other. A refusal parks `replacement_lineage_unproved` before `expected_children_count` is
-  written, so nothing is created. A recovered split holds every recorded child to the same lineage before it
-  finalizes: a child carrying none of this group is seeded, the pointer included only where the ledger already
+  refusal like any other, and so is a slice whose own title or body names a snapshot ref other than the one its
+  child is pointed at (or that ref's local mirror). A refusal parks `replacement_lineage_unproved` before
+  `expected_children_count` is written, so nothing is created. A recovered split holds every recorded child to the
+  same lineage before it finalizes: a child carrying none of this group is seeded, the pointer included only where
+  the ledger already
   names it; one carrying exactly the group it was owed, or that group without a pointer, is left alone — a
   `late_ancestry_mirror_first` standing with no pair beside it, which is what the child's own reuse guard leaves
   when it drops a pointer, names no ref and stays; a pointer the ledger no longer protects is dropped together with

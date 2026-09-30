@@ -78,8 +78,8 @@ from orchestrator.workflow.stages.decomposition import state as _state
 log = logging.getLogger("orchestrator.workflow")
 
 # The reason the `park_awaiting_human` audit record carries for a split whose
-# children's lineage -- or the snapshot it would point them at -- could not be
-# proved.
+# children's lineage -- or the snapshot it would point them at, or tell them to
+# reuse -- could not be proved.
 PARK_LINEAGE_UNPROVED = "replacement_lineage_unproved"
 
 _NO_ADJUDICATION = "its late record keeps no cycle a child's ancestry could be correlated by"

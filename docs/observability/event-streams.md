@@ -90,7 +90,8 @@ file is the durable record.
   `reviewer_timeout`, `reviewer_failed`, `reviewer_no_verdict`, `decomposer_timeout`, `decomposer_silent`,
   `decomposer_question`, `decomposer_invalid_manifest`, `decomposer_dirty`, `replacement_lineage_unproved` (a split
   whose children's late lineage or snapshot the issue's record cannot prove, whose parent is already at the lineage
-  bound, or whose recovery found a child carrying an ancestry that split did not seed),
+  bound, one of whose slices names a snapshot ref its child would not be kept, or whose recovery found a child
+  carrying an ancestry or instructions that split did not give it),
   `verify_failed` / `verify_timeout` /
   `verify_dirty` / `verify_head_changed` / `verify_tree_changed`, `agent_run_limit` (the issue has spent every agent
   run its lifetime ceiling allows), `question_*`, `discussion_*`, ...). Failed-run parks in validating and decomposing

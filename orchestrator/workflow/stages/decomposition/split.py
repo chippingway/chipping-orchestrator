@@ -6,17 +6,21 @@ The lineage the children inherit is decided before anything is written, and a
 lineage that cannot be proved parks the split with no child created. A child
 owed the snapshot its parent's own split holds is created with instructions
 for reading it after its slice, since the body is what its implementer is
-shown. The parent then records the expected child count before creation. Only
+shown -- and a slice whose own text names any other snapshot ref parks the
+split too, because nothing keeps that ref for the child it would tell to reuse
+it. The parent then records the expected child count before creation. Only
 children without dependencies are activated after the summary and parent
 label land.
 """
 from __future__ import annotations
 
 import logging
+import re
 
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
+from orchestrator.git.snapshots import mirrors as _snapshot_mirrors, namespace as _snapshot_namespace
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments
@@ -31,6 +35,18 @@ from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
+# A snapshot ref as a slice's own text can name one: remote, or this host's
+# mirror of one, as far as the characters a ref is spelled with run -- short of
+# a full stop or slash that only ends the sentence around it.
+_NAMED_SNAPSHOT = re.compile(rf"{re.escape(_snapshot_namespace.SNAPSHOT_NAMESPACE)}(?:[\w./-]*[\w-])?")
+
+_UNSUPPORTED_REUSE = (
+    "the decomposer's slice {index} ({title!r}) names a snapshot its child would not be kept: `{ref}`. A "
+    "child's implementer reads its body, and the one snapshot kept for a child is the one this split records it "
+    "as a consumer of -- which its own instructions, appended below the slice, already name. So no child is "
+    "created while a slice points at any other. Ask the decomposer to leave snapshot refs out of its slices."
+)
+
 
 def _prepare_split_plan(
     gh: GitHubClient, issue: Issue, state: PinnedState, plan: _SplitPlan,
@@ -40,10 +56,10 @@ def _prepare_split_plan(
     gh.write_pinned_state(issue, state)
 
 
-def _briefed(
-    spec: _config_models.RepoSpec, lineage: _replacement_lineage.ReplacementLineage, children: list,
-) -> list:
-    """The manifest's children, each owed a snapshot told where it is.
+def _planned(
+    spec: _config_models.RepoSpec, lineage: _replacement_lineage.ReplacementLineage, parsed: dict,
+) -> _SplitPlan:
+    """The plan for this manifest, each child owed a snapshot told where it is.
 
     After the slice the manifest declared, exactly as a late split's own
     children are told, because the pinned pointer is what the child's guard
@@ -51,11 +67,37 @@ def _briefed(
     is a snapshot nobody uses, or instructions nothing protects. A child owed
     no snapshot is created with the body it was declared with.
     """
+    children = list(parsed[_state._CHILDREN])
     pointed = lineage.pointed()
-    if pointed is None:
-        return list(children)
-    reuse = _late_child_content._reuse_block(spec, pointed, lineage.base_sha)
-    return [{**child, "body": f"{child['body']}\n\n{reuse}"} for child in children]
+    if pointed is not None:
+        reuse = _late_child_content._reuse_block(spec, pointed, lineage.base_sha)
+        children = [{**child, "body": f"{child['body']}\n\n{reuse}"} for child in children]
+    return _SplitPlan.start(children, bool(parsed.get(_state._UMBRELLA)), lineage)
+
+
+def _unsupported_reuse(
+    spec: _config_models.RepoSpec, lineage: _replacement_lineage.ReplacementLineage, parsed: dict,
+) -> str | None:
+    """The park notice for the first slice naming a snapshot its child would not be kept, or None.
+
+    Asked of the slice as the decomposer declared it, before the instructions
+    this split appends, and of every ref its title and body name. Kept is the
+    one ref the child is pointed at and this host's mirror of it; a child owed
+    no pointer is kept none, and that includes every child of an issue no
+    late split charged. A ref a descendant was itself cut from is exactly
+    that: protected for the descendant by its parent's ledger, and for none
+    of the children it goes on to create.
+    """
+    pointed = lineage.pointed()
+    kept = {""}
+    if pointed is not None:
+        kept = {pointed.snapshot_ref, _snapshot_mirrors.local_snapshot_ref(spec, pointed.snapshot_ref)}
+    return next((
+        _UNSUPPORTED_REUSE.format(index=index, title=child.get("title"), ref=ref)
+        for index, child in enumerate(parsed[_state._CHILDREN])
+        for ref in _NAMED_SNAPSHOT.findall(f"{child.get('title')}\n{child.get('body')}")
+        if ref not in kept
+    ), None)
 
 
 def _create_child_issues(
@@ -72,7 +114,8 @@ def _create_child_issues(
          tick already holds. One that cannot be proved parks here, before
          any marker is written -- so nothing is created, and the resume a
          reply buys asks the decomposer again rather than recovering a
-         split that never started.
+         split that never started. A slice naming a snapshot its child
+         would not be kept parks the same way.
       1. Persist `expected_children_count` (and the umbrella flag) BEFORE
          creating any child. The half-finished recovery uses these to tell
          a partial loop apart from a completed one, and to finalize to the
@@ -89,13 +132,13 @@ def _create_child_issues(
          the child, so no respawn happens.
     """
     lineage = _replacement_lineage.read_replacement_lineage(state, issue)
-    if lineage.refusal is not None:
-        _replacement_lineage.park_unproved(gh, issue, state, lineage.refusal)
+    refusal = lineage.refusal or _unsupported_reuse(spec, lineage, parsed)
+    if refusal is not None:
+        _replacement_lineage.park_unproved(gh, issue, state, refusal)
         return None
-    children = _briefed(spec, lineage, parsed[_state._CHILDREN])
-    plan = _SplitPlan.start(children, bool(parsed.get(_state._UMBRELLA)), lineage)
+    plan = _planned(spec, lineage, parsed)
     _prepare_split_plan(gh, issue, state, plan)
-    for idx, _child in enumerate(children):
+    for idx, _child in enumerate(plan.children_manifest):
         if not _child_creation._create_planned_child(gh, issue, state, plan, idx):
             return None
     return plan
