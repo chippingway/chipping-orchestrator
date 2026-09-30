@@ -18,13 +18,19 @@ having changed nothing, which is what leaves the transaction free to resume
 from its own durable facts.
 
 Equal counts mean the loop finished and only the label flip was lost, so the
-parent finalizes to whatever the manifest asked for. Fewer mean a child exists
-that the parent never recorded, which no automatic rule can resolve, so it
-parks. Finalizing also repairs each recorded child first: a crash at the last
-child satisfies the count but leaves that child without its `parent_number`,
-and probably parked by an earlier tick that read it as an unattributed
-`blocked` issue -- so the parent's walk would flip it to `ready` and the
-implementer would sit waiting on a human reply that is never coming.
+parent finalizes to whatever the manifest asked for. Fewer mean the loop
+stopped short, and the one child it can have left behind unrecorded -- the
+create a crash returned into, ahead of the write that records it -- is found
+by the receipt the split stamped into it and recorded (`split_receipts`), so a
+crash at the last child completes the register and finalizes like any other.
+Short of that the rest were never created, and the manifest they were
+declared in is not kept to create them from, so the parent parks -- as it
+does where the candidate is one a human closed or relabelled, or whose
+receipt is ambiguous. Finalizing also repairs each recorded child first: a
+crash at the last child satisfies the count but leaves that child without its
+`parent_number`, and probably parked by an earlier tick that read it as an
+unattributed `blocked` issue -- so the parent's walk would flip it to `ready`
+and the implementer would sit waiting on a human reply that is never coming.
 
 The same crash leaves the child without the late ancestry its parent's lineage
 owes it, and that one is worse than a stale park: a child started with no
@@ -62,6 +68,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_child_content as _late_child_content,
     late_relabel as _late_relabel,
     replacement_lineage as _replacement_lineage,
+    split_receipts as _split_receipts,
     state as _state,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -74,16 +81,18 @@ def _park_incomplete_decomposition(
     issue: Issue,
     state: PinnedState,
     expected,
-    children: list,
+    adoption: _split_receipts.Adoption,
 ) -> None:
+    stranded = "" if adoption.stranded is None else f"; {adoption.stranded}"
     _guards._park_awaiting_human(
         gh, issue, state,
         f"{config.HITL_MENTIONS} decomposition crashed mid-way: "
-        f"{len(children)} of {expected} children recorded (an orphan child "
-        "issue may exist on GitHub if the crash landed between "
-        "`create_child_issue` returning and the parent state write); manual "
-        "intervention needed (close any partial children and re-decompose, "
-        "or finish creating the missing ones).",
+        f"{len(adoption.children)} of {expected} children recorded{stranded} "
+        "(an orphan child issue may exist on GitHub if the crash landed "
+        "between `create_child_issue` returning and the parent state write "
+        "of a split whose children carry no receipt); manual intervention "
+        "needed (close any partial children and re-decompose, or finish "
+        "creating the missing ones).",
         reason="decomposition_crash",
     )
     gh.write_pinned_state(issue, state)
@@ -232,17 +241,19 @@ def _recover_stale_manifest(
       * `expected_children_count` is written BEFORE any child is created,
         so a SIGKILL after `create_child_issue` returns but before the
         parent records the new child number leaves the parent with this
-        marker AND zero recorded children while an orphan child issue
-        exists on GitHub. Re-running the decomposer here would emit a
-        different manifest and create duplicate children alongside the
-        orphan.
+        marker AND one child fewer recorded than exist on GitHub.
+        Re-running the decomposer here would emit a different manifest and
+        create duplicate children alongside the orphan, so the orphan is
+        found by the receipt naming this split's attempt and that slice,
+        and recorded.
       * `children` is written incrementally after each successful create +
         parent-state flush. Its presence covers a crash after at least one
         child was recorded.
     Either marker present without the parent label having flipped to
     `blocked` means we cannot safely respawn the decomposer. Branch by
-    whether the recorded count matches expectations: equal -> finalize to
-    `blocked`; less -> park awaiting human. Legacy state from a deploy that
+    whether the recorded count matches expectations once any orphan is
+    adopted: equal -> finalize to `blocked`; less, or an orphan that may not
+    be adopted -> park awaiting human. Legacy state from a deploy that
     pre-dates `expected_children_count` still routes through the
     `children`-only branch and finalizes.
     """
@@ -253,10 +264,11 @@ def _recover_stale_manifest(
     if _markers_not_ours(issue, state):
         return True
     if expected_raw is not None and len(children_recorded) < int(expected_raw):
-        _park_incomplete_decomposition(
-            gh, issue, state, expected_raw, children_recorded,
-        )
-        return True
+        adoption = _split_receipts.adopt_unrecorded(gh, issue, state, children_recorded)
+        if adoption.stranded is not None or len(adoption.children) < int(expected_raw):
+            _park_incomplete_decomposition(gh, issue, state, expected_raw, adoption)
+            return True
+        children_recorded = adoption.children
     # Before finalizing to `blocked`, repair any child whose pinned
     # state was never seeded. A SIGKILL between the parent's
     # incremental `children` write and the child-state write at

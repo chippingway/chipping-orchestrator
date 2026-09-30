@@ -570,7 +570,12 @@ The keys that matter for the state machine fall into a few groups:
   fresh conversation against the frozen candidate — see [the late run](#the-late-run) for the two conditions a resume
   takes.
 - **Decomposition.** `children`, `dep_graph` (`{child_idx_str: [child_idx, ...]}` — GitHub has no first-class blocks
-  relation), `decomposed_at`, `pickup_comment_id`.
+  relation), `decomposed_at`, `pickup_comment_id`. An ordinary split writes `expected_children_count`, `umbrella`,
+  the whole `dep_graph`, and `split_attempt` in one write before its first child exists. `split_attempt` is sixteen
+  hex digits minted for that split alone, and every child it creates carries it in a hidden body receipt,
+  `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>-->`, so a recovery can find the
+  child a crash left created and never recorded — and never mistake another split's child for it. A drift reset
+  clears it with the rest of the manifest.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records
@@ -3371,12 +3376,15 @@ rather than preserving.
   comment would not parse, whose `parent_number` is not this issue's number, that carries any of this group, or
   whose title or body names any snapshot ref parks the same way.
   A snapshot ref recorded twice is a refusal whatever the two entries stand at, released included. Either park
-  leaves every child unfinalized and unstarted. The dependency walk that releases an ordinary split's children —
-  the split's own same-tick release of its no-dependency children included — asks the same decision off this
-  record in front of every walk, and holds each child to the recovery's recognition in front of its release: a
-  `parent_number` that is exactly this issue's number, the whole group it was owed (none, for an issue no late split
-  charged), a pointer this ledger still keeps for it, and text naming no other ref. A proof, a link, a seed, a
-  protection, or instructions that changed after creation release no further child and park the parent, once.
+  leaves every child unfinalized and unstarted. A child the crash left created and never recorded is found by its
+  `split_attempt` receipt and recorded first, then held to the same recognition as the rest. The dependency walk
+  that releases an ordinary split's children — the split's own same-tick release of its no-dependency children
+  included — asks the same decision off this record in front of every walk, and holds every child it would release
+  to the recovery's recognition before the first is relabelled: a `parent_number` that is exactly this issue's
+  number, the whole group it was owed (none, for an issue no late split charged), a pointer this ledger still keeps
+  for it, and text naming no other ref. A proof, a link, a seed, a protection, or instructions that changed after
+  creation release none of those children and park the parent, once. Instructions merely taken out of a protected
+  child's body are not such a change: its pointer stays on the ledger and the child is released uninstructed.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

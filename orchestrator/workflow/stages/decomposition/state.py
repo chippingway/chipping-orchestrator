@@ -45,6 +45,12 @@ _PARK_REASON = "park_reason"
 
 _PARENT_NUMBER = "parent_number"
 
+# Which ordinary split the parent's markers belong to: minted for each split
+# and written in the same write as the expected count, ahead of the first
+# child, so the receipt each child carries names this attempt and no earlier
+# split of the same issue.
+_SPLIT_ATTEMPT = "split_attempt"
+
 _CREATED_AT = "created_at"
 
 _DONE = "done"

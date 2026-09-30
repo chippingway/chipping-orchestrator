@@ -51,8 +51,8 @@ class _Change:
     ledger, and the dependent's pinned record and body as the split wrote
     them. `ordinary` splits an issue no late split charged instead.
     `stripped` are keys taken off the dependent's pinned record, `added` are
-    keys put on it over whatever it carries, and `named` is a ref added to its
-    body.
+    keys put on it over whatever it carries, `bare` leaves its body only the
+    slice it was declared with, and `named` is a ref added to its body.
     """
 
     ordinary: bool = False
@@ -60,6 +60,7 @@ class _Change:
     kept: bool = True
     stripped: tuple[str, ...] = ()
     added: tuple[tuple[str, object], ...] = ()
+    bare: bool = False
     named: str = ""
 
 
@@ -80,6 +81,9 @@ _CHANGES = MappingProxyType({
     "the dependent's parent link rewritten as a float": (
         _Change(added=_FLOAT_LINK), WorkflowLabel.BLOCKED, _PARKED_ONCE,
     ),
+    # What the text is held to is naming no ref the split cannot keep: a
+    # protected child told nothing about its ref is still one it keeps.
+    "the reuse instructions taken out of the dependent's body": (_Change(bare=True), WorkflowLabel.READY, ()),
     "another issue's snapshot named in the dependent's body": (
         _Change(named=_FOREIGN_REF), WorkflowLabel.BLOCKED, _PARKED_ONCE,
     ),
@@ -93,38 +97,48 @@ _CHANGES = MappingProxyType({
 })
 
 
+# Splits whose children all start with the split, each beside how many of
+# its first seeds land whole: the only child's lapses, or the second of two
+# independent children's does while the first's stands.
+_SAME_TICK_LAPSES = MappingProxyType({
+    "the only child": (_support.ONE_REPLACEMENT_MANIFEST, 0),
+    "the second of two independent children": (_support.REPLACEMENT_MANIFEST, 1),
+})
+
+
 class _SeedsWithoutAncestry:
-    """A client whose every child seed lands without the late ancestry group.
+    """A client whose child seeds land without the late ancestry group, past the first `spared`.
 
     What the tick that created a child reads back in front of releasing it,
     where anything had taken that group off in between.
     """
 
-    def __init__(self, client) -> None:
+    def __init__(self, client, spared: int) -> None:
         self._wrote = client.write_pinned_state
+        self._spared = spared
 
     def __call__(self, issue, state):
         if issue.number != _support.PARENT:
-            for key in _lineage.LATE_ANCESTRY_KEYS:
-                state.data.pop(key, None)
+            self._spared -= 1
+            if self._spared < 0:
+                for key in _lineage.LATE_ANCESTRY_KEYS:
+                    state.data.pop(key, None)
         return self._wrote(issue, state)
 
 
 class DeferredReleaseTest(unittest.TestCase):
     """A child is started only as its split's lineage and its own record stand at the release."""
 
-    def test_a_same_tick_release_is_held_to_its_seed(self) -> None:
-        # The split releases a child with no dependency in the tick that
-        # created it; a seed read back without its lineage there is held
-        # exactly as a later poll would hold it.
-        github, issue = _support.late_parent(_support.own_split())
+    def test_a_same_tick_release_checks_every_seed(self) -> None:
+        # The split releases its children with no dependency in the tick that
+        # created them; a seed read back without its lineage there is held
+        # exactly as a later poll would hold it -- and every child the walk
+        # would release is asked first, so none starts in front of it.
+        for shape, lapse in _SAME_TICK_LAPSES.items():
+            with self.subTest(shape=shape):
+                released = self._released_same_tick(*lapse)
 
-        with patch.object(github, "write_pinned_state", _SeedsWithoutAncestry(github)):
-            _support.redecompose(github, issue, _support.ONE_REPLACEMENT_MANIFEST)
-
-        child = _support.replacements(github)[0]
-        self.assertEqual(github.workflow_label(github.get_issue(child)), WorkflowLabel.BLOCKED)
-        self.assertEqual(_support.parks(github), list(_PARKED_ONCE))
+                self.assertEqual(released, ({WorkflowLabel.BLOCKED}, _PARKED_ONCE))
 
     def test_only_a_vouched_dependent_is_released(self) -> None:
         for shape, (change, *expected) in _CHANGES.items():
@@ -132,6 +146,15 @@ class DeferredReleaseTest(unittest.TestCase):
                 released = self._released_after(change)
 
                 self.assertEqual(released, tuple(expected))
+
+    def _released_same_tick(self, manifest: str, spared: int) -> tuple:
+        """Every label the split's children end its tick on, and the parent's parks, past `spared` whole seeds."""
+        github, issue = _support.late_parent(_support.own_split())
+        with patch.object(github, "write_pinned_state", _SeedsWithoutAncestry(github, spared)):
+            _support.redecompose(github, issue, manifest)
+        children = map(github.get_issue, _support.replacements(github))
+        labels = {github.workflow_label(child) for child in children}
+        return labels, tuple(_support.parks(github))
 
     def _released_after(self, change: _Change) -> tuple:
         """Where the dependent replacement and the parent's parks stand after two dependency polls.
@@ -165,15 +188,17 @@ class DeferredReleaseTest(unittest.TestCase):
         github.seed_state(_support.PARENT, **{**pinned, _RESOURCES: restated, _support.KEY_CONSUMERS: consumers})
 
     def _change_dependent(self, github, change: _Change, dependent: int) -> None:
-        """Take keys off the dependent's pinned record, put keys on it, and name a ref in its body."""
+        """Take keys off the dependent's pinned record, put keys on it, and bare its body or name a ref in it."""
         kept = {
             key: carried
             for key, carried in github.pinned_data(dependent).items()
             if key not in change.stripped
         }
         github.seed_state(dependent, **{**kept, **dict(change.added)})
+        created = github.get_issue(dependent)
+        if change.bare:
+            created.body = created.body.split("\n\n", 1)[0]
         if change.named:
-            created = github.get_issue(dependent)
             created.body = f"{created.body}\n\nsee also {change.named}"
 
 

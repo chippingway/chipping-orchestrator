@@ -8,7 +8,10 @@ owed the snapshot its parent's own split holds is created with instructions
 for reading it after its slice, since the body is what its implementer is
 shown -- and a slice whose own text names any other snapshot ref parks the
 split too, because nothing keeps that ref for the child it would tell to reuse
-it. The parent then records the expected child count before creation. Only
+it. Every child carries a hidden receipt naming its parent, this split's
+attempt, and its slice -- see `split_receipts` -- so the create a crash
+returns into can be found again. The parent then records the expected child
+count, the attempt, and the whole dependency graph before creation. Only
 children without dependencies are activated after the summary and parent
 label land, and through the same walk a later dependency poll runs, so the
 first release is held to exactly what any later one is.
@@ -16,6 +19,7 @@ first release is held to exactly what any later one is.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 
 from github.Issue import Issue
 
@@ -28,6 +32,7 @@ from orchestrator.workflow.stages.decomposition import (
     child_creation as _child_creation,
     late_child_content as _late_child_content,
     replacement_lineage as _replacement_lineage,
+    split_receipts as _split_receipts,
     state as _state,
 )
 from orchestrator.workflow.stages.decomposition.models import _SplitPlan
@@ -51,26 +56,34 @@ def _prepare_split_plan(
 ) -> None:
     state.set("expected_children_count", len(plan.children_manifest))
     state.set(_state._UMBRELLA, plan.is_umbrella)
+    state.set(_state._SPLIT_ATTEMPT, plan.attempt)
+    dependencies = plan.declared_dependencies()
+    if dependencies:
+        state.set("dep_graph", dependencies)
     gh.write_pinned_state(issue, state)
 
 
 def _planned(
-    spec: _config_models.RepoSpec, lineage: _replacement_lineage.ReplacementLineage, parsed: dict,
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    lineage: _replacement_lineage.ReplacementLineage,
+    parsed: dict,
 ) -> _SplitPlan:
-    """The plan for this manifest, each child owed a snapshot told where it is.
+    """The plan for this manifest, each child stamped with its receipt and told where any snapshot it is owed is.
 
-    After the slice the manifest declared, exactly as a late split's own
-    children are told, because the pinned pointer is what the child's guard
-    reads and the body is what its implementer reads -- one without the other
-    is a snapshot nobody uses, or instructions nothing protects. A child owed
-    no snapshot is created with the body it was declared with.
+    Both after the slice the manifest declared, which is what a human reads
+    first. The receipt is minted for this split alone. The instructions go
+    last, exactly as a late split's own children are told, because the pinned
+    pointer is what the child's guard reads and the body is what its
+    implementer reads -- one without the other is a snapshot nobody uses, or
+    instructions nothing protects. A child owed no snapshot is told none.
     """
-    children = list(parsed[_state._CHILDREN])
     pointed = lineage.pointed()
-    if pointed is not None:
-        reuse = _late_child_content._reuse_block(spec, pointed, lineage.base_sha)
-        children = [{**child, "body": f"{child['body']}\n\n{reuse}"} for child in children]
-    return _SplitPlan.start(children, bool(parsed.get(_state._UMBRELLA)), lineage)
+    reuse = "" if pointed is None else _late_child_content._reuse_block(spec, pointed, lineage.base_sha)
+    attempt = _split_receipts.mint_attempt()
+    children = _split_receipts.stamped(parsed[_state._CHILDREN], issue_number, attempt, reuse)
+    plan = _SplitPlan.start(children, bool(parsed.get(_state._UMBRELLA)), lineage)
+    return replace(plan, attempt=attempt)
 
 
 def _unsupported_reuse(lineage: _replacement_lineage.ReplacementLineage, parsed: dict) -> str | None:
@@ -110,17 +123,20 @@ def _create_child_issues(
          reply buys asks the decomposer again rather than recovering a
          split that never started. A slice naming a snapshot its child
          would not be kept parks the same way.
-      1. Persist `expected_children_count` (and the umbrella flag) BEFORE
-         creating any child. The half-finished recovery uses these to tell
-         a partial loop apart from a completed one, and to finalize to the
-         right label after a mid-loop SIGKILL.
+      1. Persist `expected_children_count` (with the umbrella flag, the
+         split attempt, and the whole dependency graph) BEFORE creating any
+         child. The half-finished recovery uses these to tell a partial loop
+         apart from a completed one, to find a child created and never
+         recorded by the receipt that names this attempt and its slice, and
+         to finalize to the right label after a mid-loop SIGKILL.
       2. For each child: create the GitHub issue, then IMMEDIATELY record
          its number in parent state -- on the snapshot's consumer ledger
          too, where the child is owed a pointer -- before any further
          non-idempotent work. A SIGKILL between these two steps is
          unavoidable; persisting first means the worst case is an orphan
          child with nothing seeded and nothing pointing it at a snapshot,
-         not a duplicate child created by a decomposer respawn.
+         which the recovery finds by its receipt -- not a duplicate child
+         created by a decomposer respawn.
       3. Seed child pinned state: the parent link, and the lineage decided
          in step 0. Failure here parks but parent state already records
          the child, so no respawn happens.
@@ -130,7 +146,7 @@ def _create_child_issues(
     if refusal is not None:
         _replacement_lineage.park_unproved(gh, issue, state, refusal)
         return None
-    plan = _planned(spec, lineage, parsed)
+    plan = _planned(spec, issue.number, lineage, parsed)
     _prepare_split_plan(gh, issue, state, plan)
     for idx, _child in enumerate(plan.children_manifest):
         if not _child_creation._create_planned_child(gh, issue, state, plan, idx):
@@ -191,7 +207,7 @@ def _finalize_split(
     """Post the split summary, flip the parent label, and activate children.
 
     children/dep_graph/decomposed_at are already durable from the
-    incremental writes in `_create_child_issues`. Flip the parent label to
+    writes in `_create_child_issues`. Flip the parent label to
     `blocked` (or `umbrella` when the parent has no implementation work of
     its own), then activate no-dep children. Activation only runs AFTER the
     final parent-state write, so a crash here cannot leave a runnable

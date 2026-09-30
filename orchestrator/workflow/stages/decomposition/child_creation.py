@@ -76,8 +76,6 @@ def _persist_created_child(
 ) -> None:
     state.set(_state._CHILDREN, [number for number, _ in plan.created])
     plan.lineage.protect(state, child_number)
-    if plan.dep_graph:
-        state.set("dep_graph", plan.dep_graph)
     state.set("decomposed_at", _usage._now_iso())
     gh.write_pinned_state(issue, state)
 

@@ -1960,17 +1960,28 @@ none of the group, and its text names no snapshot ref at all — and refused oth
 is the parent finalized into the walk that activates children; a record that no longer proves the lineage, or a
 child refused, parks the same way instead and leaves every child unstarted. That walk — which is also how the split
 itself releases its children with no dependency, in the tick that created them — asks the same decision again before
-it releases any of them, since a child starts off a record that may have changed since its seed, and, in front of
-each release, holds the child as it then reads to the recognition a recovery applies: its pinned comment has to
-parse, its `parent_number` has to be this issue's number, its ancestry has to be the whole group it was owed, its
-pointer only one the parent's ledger still keeps for it (the ref held, the child on `late_consumers`), and its title
-and body may name no ref but that one. A child a recovery would have to refuse or repair — a seed taken off, a
-pointer at a released ref, a consumer slot lost, another issue's ref added to its body — stops the walk. A child of
-an ordinary split is held to the same recognition, owed no lineage and no snapshot, so every child either walk
-releases costs one read of its pinned comment. Either refusal releases none of the rest and parks the parent,
-once. A
-child created and never recorded is the existing `decomposition_crash` park: nothing names it, so nothing points it
-at a snapshot or starts it.
+it releases any of them, since a child starts off a record that may have changed since its seed, and, before the
+first release, holds every child it would release, as each then reads, to the recognition a recovery applies: its
+pinned comment has to parse, its `parent_number` has to be this issue's number, its ancestry has to be the whole
+group it was owed, its pointer only one the parent's ledger still keeps for it (the ref held, the child on
+`late_consumers`), and its title and body may name no ref but that one. A child a recovery would have to refuse or
+repair — a seed taken off, a pointer at a released ref, a consumer slot lost, another issue's ref added to its body
+— releases none of them. A child of an ordinary split is held to the same recognition, owed no lineage and no
+snapshot, so every child either walk releases costs one read of its pinned comment. Either refusal parks the parent,
+once. What the text is held to is naming no ref the split cannot keep, not keeping the instructions: a protected
+child whose reuse instructions a human took out of its body still has its pointer kept on the ledger, and is
+released uninstructed.
+
+A child created and never recorded — the crash between the create and the parent write that records it — is found
+again by what the split put in it. Every child's body carries a hidden receipt naming the parent, a `split_attempt`
+minted for that split alone, and its slice, and the attempt goes onto the parent in the same write as the expected
+count and the whole dependency graph, before the first child exists. A recovery whose register is short looks for
+the next slice's receipt among the issues this orchestrator opened, and records the one it finds — open, still
+`workflow:blocked`, carrying no other receipt — in a parent write of its own, after which the recovery above holds
+it to the same lineage, protects it, and seeds it before anything finalizes. A candidate a human closed or
+relabelled, one carrying a second receipt, a register still short once it is recorded (the rest were never created,
+and the manifest is not kept to create them from), and a split an older binary prepared with no attempt all park
+`decomposition_crash` instead, so nothing points an unrecorded child at a snapshot or starts it.
 
 ### What a close mid-cycle ends, and what it still settles
 

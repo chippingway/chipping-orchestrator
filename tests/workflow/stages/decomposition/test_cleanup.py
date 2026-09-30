@@ -19,6 +19,11 @@ from tests.workflow.stages.decomposition.decomposition_test_support import _comm
 STALE_USER_CONTENT_HASH = "stale-hash"
 READY_DRIFT_PARENT_NUMBER = 800
 READY_DRIFT_CHILD_NUMBERS = (801, 802)
+# The split the discarded manifest's children carry receipts for.
+SPLIT_ATTEMPT = "0123456789abcdef"
+# The count a split is recovered against and the attempt its children's
+# receipts name, which a drift reset clears together.
+_SPLIT_MARKERS = ("expected_children_count", "split_attempt")
 RECOVERY_PARENT_NUMBER = 1100
 RECOVERY_CHILD_NUMBER = 1101
 
@@ -37,6 +42,7 @@ def _ready_drift_fixture():
         children=list(READY_DRIFT_CHILD_NUMBERS),
         dep_graph={"1": [0]},
         expected_children_count=2,
+        split_attempt=SPLIT_ATTEMPT,
         pickup_comment_id=100,
     )
     return github, parent
@@ -56,6 +62,7 @@ def _recovery_drift_fixture():
         user_content_hash=STALE_USER_CONTENT_HASH,
         children=[RECOVERY_CHILD_NUMBER],
         expected_children_count=1,
+        split_attempt=SPLIT_ATTEMPT,
         decomposer_session_id="old-sess",
     )
     return github, parent
@@ -91,8 +98,8 @@ class ReadyDriftClearsStaleManifestStateTest(
         )
         state = gh.pinned_data(READY_DRIFT_PARENT_NUMBER)
         self.assertEqual(state.get("children"), [])
-        self.assertIsNone(state.get("expected_children_count"))
         self.assertEqual(state.get("dep_graph"), {})
+        self.assertEqual(list(map(state.get, _SPLIT_MARKERS)), [None, None])
         self.assertNotEqual(
             state.get("user_content_hash"),
             STALE_USER_CONTENT_HASH,
@@ -148,8 +155,8 @@ class DriftBeforeHalfFinishedRecoveryTest(
         # fire on subsequent ticks against the stale state.
         state = gh.pinned_data(RECOVERY_PARENT_NUMBER)
         self.assertEqual(state.get("children"), [])
-        self.assertIsNone(state.get("expected_children_count"))
         self.assertEqual(state.get("dep_graph"), {})
+        self.assertEqual(list(map(state.get, _SPLIT_MARKERS)), [None, None])
         # New hash baseline persisted.
         self.assertNotEqual(
             state.get("user_content_hash"),

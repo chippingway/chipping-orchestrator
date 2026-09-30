@@ -1343,7 +1343,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             issue was moved on from
       drift.py              what a body edit resets on an issue already wearing this label: the orphan notice said
                             before the new baseline is recorded, the manifest markers wiped in one step -- children,
-                            dep graph, expected count, the seal that calls that count final, the umbrella flag, and
+                            dep graph, expected count, the seal that calls that count final, the split attempt its
+                            children's receipts name, the umbrella flag, and
                             the park flags -- and the session retired through the owner above, so the tick falls
                             through and re-derives a manifest against the updated body instead of relabelling and
                             returning the way the pre-implementation routes do; a late split's generation is not
@@ -1377,12 +1378,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a pointer -- before it is seeded with its parent link and that lineage, never with the
                             parent's measurement, exemption, or authorization, and either failure parks the parent
                             for repair
+      split_receipts.py     the hidden receipt every ordinary split child's body carries -- the parent, the split's
+                            freshly minted `split_attempt`, and the slice -- and the recovery's adoption of the one
+                            child a crash can leave created and unrecorded: found by that receipt among the issues
+                            this orchestrator opened and recorded on the parent, unless it was closed, relabelled, or
+                            carries a second receipt, or the parent names no attempt
       split.py              decide the children's lineage and park an unprovable one before any marker -- or a slice
-                            naming a snapshot ref its child would not be kept -- append the snapshot's reuse
-                            instructions to the body of each child owed it, then persist the expected count, create
-                            the planned children, and publish the summary and parent label before activating children
+                            naming a snapshot ref its child would not be kept -- stamp each child's receipt and
+                            append the snapshot's reuse instructions to the body of each child owed it, then persist
+                            the expected count, the attempt, and the whole dependency graph in one write, create the
+                            planned children, and publish the summary and parent label before activating children
                             without dependencies through `activation.py`'s walk
-      recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the orphan-child
+      recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the adoption of
+                            a child created and never recorded through `split_receipts.py`, the orphan-child
                             repair -- the parent link and the owed lineage, asked of the parent's record again and
                             parked rather than finalized where it no longer proves one or a child is not one the
                             split can recognize as its own, any child whose text names a snapshot the split cannot
@@ -1400,10 +1408,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a caller cannot answer it a child scan too early and a parent that never entered the
                             gate pays nothing, that ask itself a request and so the latch taken on BOTH sides of
                             it, the one behind having nothing between it and the relabel, the ordinary split's
-                            lineage and snapshot proved again in front of any walk over its children, and each
-                            child held to the recovery's recognition in front of its release -- its parent link, the
-                            whole seed, a pointer the parent's ledger still keeps, text naming no other ref --
-                            parking the parent, once, rather than releasing a child under a record that changed; the
+                            lineage and snapshot proved again in front of any walk over its children, and every
+                            child the walk would release held to the recovery's recognition before the first is
+                            relabelled -- its parent link, the whole seed, a pointer the parent's ledger still
+                            keeps, text naming no other ref -- parking the parent, once, rather than releasing any
+                            child under a record that changed; the
                             same walk the split's own same-tick release runs; and the held-dependency line it logs
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
                             consumed-comment ratchet; a parent whose children all resolved settles what a late split

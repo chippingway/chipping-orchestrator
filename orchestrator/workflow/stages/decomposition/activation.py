@@ -40,7 +40,9 @@ recognition a recovery holds it to: its pinned comment, its parent link, the
 whole ancestry it was owed, a pointer only its parent's ledger still keeps
 for it, and the refs its title and body name. A child a recovery would have
 to repair or refuse is not one to start, and that includes a link it would
-backfill. Either refusal releases none of the rest and parks the parent once.
+backfill. Every child the walk would release is asked before the first is
+relabelled, so either refusal releases none of them and parks the parent
+once.
 The split's own release of its no-dependency children, in the tick that
 created them, is this walk too. A late split's own children are released on
 that split's licence instead.
@@ -168,20 +170,20 @@ class _ChildActivation:
     def entitlement_lapsed(self, child: Issue, number: int) -> bool:
         """Whether this child is no longer one its split's lineage vouches for, as it stands now.
 
-        Asked of the child as it reads in front of its release, because its
-        pinned comment is what its size gate and reuse guard act on and its
-        title and body are what its implementer reads -- and any of them may
-        have changed since the split wrote them. It is held to exactly what a
-        recovery holds it to (`ReplacementLineage.repair`): anything that
-        recovery would refuse, and anything it would have to write -- a seed
-        gone, a pointer the ledger no longer keeps, a consumer slot lost -- is
-        a child that may not start as it stands. That includes the parent
-        link a recovery backfills: a child that does not name this issue as
-        its parent is one the parent's walk -- and its own handler -- cannot
-        find again. A child of an issue no late split charged is owed no
-        lineage and is held to the same recognition, so every child released
-        here costs one read of its pinned comment. A lapse latches, and says
-        why for the parent to park on.
+        Asked of the child as it reads in front of the walk's releases,
+        because its pinned comment is what its size gate and reuse guard act
+        on and its title and body are what its implementer reads -- and any
+        of them may have changed since the split wrote them. It is held to
+        exactly what a recovery holds it to (`ReplacementLineage.repair`):
+        anything that recovery would refuse, and anything it would have to
+        write -- a seed gone, a pointer the ledger no longer keeps, a consumer
+        slot lost -- is a child that may not start as it stands. That includes
+        the parent link a recovery backfills: a child that does not name this
+        issue as its parent is one the parent's walk -- and its own handler --
+        cannot find again. A child of an issue no late split charged is owed
+        no lineage and is held to the same recognition, so every child
+        released here costs one read of its pinned comment. A lapse latches,
+        and says why for the parent to park on.
         """
         if self.stopped:
             return True
@@ -222,35 +224,53 @@ class _ChildActivation:
             return False
         return not self.parent_is_gone()
 
-    def consider(self, idx: int, child_number) -> None:
+    def consider(self, idx: int, child_number) -> tuple[Issue, int] | None:
+        """The child at this index where its dependencies are done, or None; one still waiting is held."""
         number = int(child_number)
         child = self.scan.issues.get(number)
         if self.scan.labels.get(number) != WorkflowLabel.BLOCKED:
-            return
+            return None
         if child is None or issue_is_closed(child):
-            return
-        pending = self._pending_dependencies(idx)
+            return None
+        pending = _pending_dependencies(self.state, self.scan, idx)
         if pending:
             self.held.append((number, pending))
-            return
-        if self.entitlement_lapsed(child, number) or not self.may_release():
-            self.held.append((number, []))
-            return
-        self.gh.set_workflow_label(child, WorkflowLabel.READY)
-        self.relabeled = True
+            return None
+        return child, number
 
-    def _pending_dependencies(self, idx: int) -> list[int]:
-        dep_graph = self.state.get("dep_graph") or {}
-        dependencies = dep_graph.get(str(idx), [])
-        dep_numbers = [
-            int(self.scan.children[int(dep_idx)])
-            for dep_idx in dependencies
-            if int(dep_idx) < len(self.scan.children)
-        ]
-        return [
-            number for number in dep_numbers
-            if self.scan.labels.get(number) != _state._DONE
-        ]
+    def release(self, releasable: list[tuple[Issue, int]]) -> None:
+        """Relabel each child `ready`, once every one of them is vouched for.
+
+        Every child this walk would release is held to its split's lineage
+        before the first is relabelled, because the refusal parks the parent
+        and a park is meant to leave the split unstarted: a walk that
+        released as it checked would start the children in front of the one
+        that lapsed. Each relabel is still licensed on its own, immediately in
+        front of it -- see `may_release`.
+        """
+        if any(self.entitlement_lapsed(child, number) for child, number in releasable):
+            self.held.extend((number, []) for _, number in releasable)
+            return
+        for child, number in releasable:
+            if self.may_release():
+                self.gh.set_workflow_label(child, WorkflowLabel.READY)
+                self.relabeled = True
+            else:
+                self.held.append((number, []))
+
+
+def _pending_dependencies(state: PinnedState, scan: _models._ChildScan, idx: int) -> list[int]:
+    dep_graph = state.get("dep_graph") or {}
+    dependencies = dep_graph.get(str(idx), [])
+    dep_numbers = [
+        int(scan.children[int(dep_idx)])
+        for dep_idx in dependencies
+        if int(dep_idx) < len(scan.children)
+    ]
+    return [
+        number for number in dep_numbers
+        if scan.labels.get(number) != _state._DONE
+    ]
 
 
 def _activate_ready_children(
@@ -276,12 +296,14 @@ def _activate_ready_children(
     that puts an agent on somebody's repository, and a close latched after
     the first child was released may not release the second. A pull request a
     split superseded these children out from under is asked about in the same
-    place and stops the walk the same way.
+    place and stops the walk the same way. Every child it would release is
+    held to its split's lineage first, and a lapse in any one releases none
+    of them.
     """
     activation = _ChildActivation.start(gh, spec, issue, state, scan)
     if activation.refusal is None:
-        for idx, child_number in enumerate(scan.children):
-            activation.consider(idx, child_number)
+        found = map(activation.consider, range(len(scan.children)), scan.children)
+        activation.release([releasable for releasable in found if releasable is not None])
     # Parked once: a parent already awaiting a human is held, not re-parked.
     if activation.refusal is not None and not state.get(_state._AWAITING_HUMAN):
         _replacement_lineage.park_unproved(gh, issue, state, activation.refusal)

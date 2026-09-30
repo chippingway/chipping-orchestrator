@@ -28,7 +28,6 @@ from tests.workflow.fixtures import (
     _manifest,
 )
 from tests.workflow.stages.decomposition import (
-    late_crash_support as _crash,
     replacement_lineage_support as _support,
 )
 from tests.workflow.stages.decomposition.decomposing_test_support import (
@@ -103,7 +102,6 @@ SPLIT_MANIFEST = _manifest(
 )
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = "implemented"
-PARK_DECOMPOSITION_CRASH = "decomposition_crash"
 PARK_LINEAGE_UNPROVED = _replacement_lineage.PARK_LINEAGE_UNPROVED
 # A ref no split of this lineage's parent preserved, which an edited body can
 # still name.
@@ -604,20 +602,6 @@ class ReplacementCrashTest(_ReplacementRecoveryCase):
                 self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
                 self.assertEqual(_support.parks(self.github), [PARK_LINEAGE_UNPROVED])
                 self.assertIn(f"#{child}", self.github.posted_comments[-1][1])
-
-    def test_an_unrecorded_child_is_never_started(self) -> None:
-        # The crash before the parent record: the child exists, and nothing
-        # on the parent names it -- not `children`, and not the ledger.
-        with _crash.killed_after(self.github, "create_child_issue"), self.assertRaises(KeyboardInterrupt):
-            _support.redecompose(self.github, self.issue, _support.ONE_REPLACEMENT_MANIFEST)
-        orphan = _support.replacements(self.github)[0]
-
-        self._recover()
-
-        self.assertEqual(_support.consumers(self.github), [_support.ORIGINAL])
-        self.assertEqual(self.github.pinned_data(orphan), {})
-        self.assertEqual(self._labels(orphan), (LABEL_DECOMPOSING, LABEL_BLOCKED))
-        self.assertEqual(_support.parks(self.github), [PARK_DECOMPOSITION_CRASH])
 
 
 class RecordedSeedTest(_ReplacementRecoveryCase):

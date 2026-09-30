@@ -187,13 +187,15 @@ def _clear_drift_manifest(state: PinnedState) -> None:
     the intentional reroute as one rather than as a crashed split.
 
     The seal that calls a child register FINAL goes with the count it is a
-    fact about: a manifest being thrown away takes every claim about what it
-    made with it, and one left behind would let a later split short of its
-    own count read as complete.
+    fact about, and the split attempt with the receipts it names: a manifest
+    being thrown away takes every claim about what it made with it, and one
+    left behind would let a later split short of its own count read as
+    complete, or adopt a child the discarded one cut.
     """
     state.set("children", [])
     state.set("dep_graph", {})
     state.set("expected_children_count", None)
+    state.set("split_attempt", None)
     state.set("split_ledger_sealed", None)
     state.set("umbrella", None)
     state.set("awaiting_human", False)

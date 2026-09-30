@@ -203,8 +203,9 @@ drift — a bare continue outstanding at deploy time cannot fire one false "issu
 the action depends on lifecycle position:
 
 - **`workflow:decomposing`** — handled inline at the top of `_handle_decomposing`: drop `decomposer_session_id`, wipe
-  `children` / `dep_graph` / `expected_children_count` / `umbrella`, clear park flags, post a `:pencil2: issue content
-  changed` notice, then fall through in the same tick so the decomposer re-spawns against the updated body. An issue
+  `children` / `dep_graph` / `expected_children_count` / `split_attempt` / `umbrella`, clear park flags, post a
+  `:pencil2: issue content changed` notice, then fall through in the same tick so the decomposer re-spawns against
+  the updated body. An issue
   standing on a `retry_cap` park is held one step ahead of this (see that handler's step 1): the re-spawn it falls
   through to is exactly the spawn that park refused, so the edit waits with everything else the issue carries until
   a human continues it.
@@ -410,7 +411,7 @@ because there it is the claim that this stage has already rerouted rather than a
 ## `_handle_decomposing` (label `workflow:decomposing`)
 - **Trigger**: each tick while the label is `workflow:decomposing`.
 - **Input**: issue + comments + pinned state (`decomposer_agent` / `decomposer_session_id`, retry-budget keys,
-  `children`, `dep_graph`, `expected_children_count`, `umbrella`).
+  `children`, `dep_graph`, `expected_children_count`, `split_attempt`, `umbrella`).
 - **Internal flow**: a `retry_cap` park whose sentence was never said is replayed at entry, ahead of every step
   below and of the late route among them (`_replay_owed_notice` — see
   [the retry budget](labels-and-state.md#the-retry-budget)); it says what the park is for and writes, and the tick
@@ -500,12 +501,18 @@ because there it is the claim that this stage has already rerouted rather than a
   2. **User-content drift check** (inline) — see drift section above.
   3. **Half-finished decomposition recovery.** If `expected_children_count` is set OR `children` is non-empty (a prior
      tick crashed mid-split), the handler cannot safely respawn the decomposer. When `expected_children_count` is set
-     and `len(children) < expected_children_count`, park with `decomposition_crash`. Otherwise repair any child whose
-     pinned `parent_number` was never seeded, once every recorded child is recognized as this split's own — and,
-     where the parent sits inside a late lineage, hold every recorded child to the lineage step 7 would have given
-     it: seed one carrying none of the `late_ancestry_*` group (the
-     snapshot pointer only where `late_consumers` already names the child), leave one carrying exactly that group or
-     that group without its pointer, and drop a pointer the ledger no longer protects, with its
+     and `len(children) < expected_children_count`, look for the one child a crash between a create and the write
+     recording it can leave behind: an issue this orchestrator opened whose body carries the receipt naming this
+     parent, its `split_attempt`, and the next slice. One found open, still `workflow:blocked`, and carrying no other
+     receipt is recorded in `children` (a parent write of its own) and repaired below with the rest. Park with
+     `decomposition_crash` when the register is still short — the rest were never created, and the manifest is not
+     kept to create them from — when no `split_attempt` names this split (an older binary's), or when the candidate
+     was closed, relabelled, or carries a second receipt, naming it without adopting it. Otherwise repair any child
+     whose pinned `parent_number` was never seeded, once every recorded child is recognized as this split's own —
+     and, where the parent sits inside a late lineage, hold every recorded child to the lineage step 7 would have
+     given it: seed one carrying none of the `late_ancestry_*` group (the snapshot pointer only where
+     `late_consumers` already names the child), leave one carrying exactly that group or that group without its
+     pointer, and drop a pointer the ledger no longer protects, with its
      `late_ancestry_mirror_first` stamp — except on a child whose title or body names the snapshot the split still
      holds (read as a slice is before creation), which `late_consumers` records again (a parent write ahead of the
      seed and the finalize) and which is pointed at that ref — then finalize to `workflow:umbrella` (when the flag is
@@ -565,18 +572,20 @@ because there it is the claim that this stage has already rerouted rather than a
        body names a snapshot ref its child would not be kept (any but the one it is pointed at, or this repository's
        local mirror of it, each mention read as the whole ref name it could be — only quoting closed on both sides,
        one refspec `+`, and a trailing full stop or slash taken off — so a longer name containing it is refused)
-       parks `replacement_lineage_unproved` before `expected_children_count` is written, creating nothing. Then for
-       each
-       child call `gh.create_child_issue(...)` with label `workflow:blocked` (the child's only birth label), record
-       it in `children` — and in the same write on `late_consumers`, where the parent's own split holds the snapshot
-       it will be pointed at — and seed the child's pinned state with `parent_number` and that lineage, never the
-       parent's measurement, exemption, or authorization. A child owed that snapshot is created with the reuse
-       instructions a late split's own children carry appended to its declared body — the ref, its local mirror, the
-       commit, the base it was cut against, and how to read and reuse it — since the body is what its implementer
-       reads; persist `dep_graph` / `umbrella` on the parent; activate
-       no-dep children through the dependency walk `_handle_blocked` / `_handle_umbrella` run — the same lineage
-       recheck and per-child recognition as any later release — flipping `workflow:blocked` → `workflow:ready`
-       (best-effort, since that walk also treats no-dep children as deps-satisfied on the next poll).
+       parks `replacement_lineage_unproved` before `expected_children_count` is written, creating nothing. Then
+       persist `expected_children_count`, `umbrella`, a freshly minted `split_attempt`, and the whole `dep_graph` in
+       one parent write, and for each child call `gh.create_child_issue(...)` with label `workflow:blocked` (the
+       child's only birth label) and a body carrying the hidden receipt
+       `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>-->` after its declared
+       slice, record it in `children` — and in the same write on `late_consumers`, where the parent's own split holds
+       the snapshot it will be pointed at — and seed the child's pinned state with `parent_number` and that lineage,
+       never the parent's measurement, exemption, or authorization. A child owed that snapshot is created with the
+       reuse instructions a late split's own children carry appended after its receipt — the ref, its local mirror,
+       the commit, the base it was cut against, and how to read and reuse it — since the body is what its
+       implementer reads; activate no-dep children through the dependency walk `_handle_blocked` /
+       `_handle_umbrella` run — the same lineage recheck and per-child recognition as any later release — flipping
+       `workflow:blocked` → `workflow:ready` (best-effort, since that walk also treats no-dep children as
+       deps-satisfied on the next poll).
 - **Output**: parent → `workflow:ready` / `workflow:blocked` / `workflow:umbrella` / `workflow:implementing`, OR a
   HITL park.
 
@@ -617,13 +626,14 @@ because there it is the claim that this stage has already rerouted rather than a
      an ordinary split created — anything but a late split's own register — are released only while the lineage and
      snapshot decision their split was proved on still holds off the parent's record: a refusal (a snapshot entry no
      longer held or released, a base gone, an ancestry damaged) releases none and parks the parent
-     `replacement_lineage_unproved`, once. In front of each release the child is held to the recognition step 3's
-     recovery applies, with its parent link required rather than backfilled: a comment that will not parse, a
-     `parent_number` that is not this parent's number (a float or a bool equal to it included), an ancestry that is
-     not the whole group it was owed (any of it, for an issue no late split charged), a pointer the parent's ledger
-     no longer keeps for it (the ref released, or the child off `late_consumers`), or a title or body naming any
-     other ref stops the walk and parks the same way. That costs one pinned read per released child.
-     `_handle_umbrella` walks through the same checks, and so does the split's own same-tick release.
+     `replacement_lineage_unproved`, once. Every child the walk would release is held to the recognition step 3's
+     recovery applies before the first of them is relabelled, with its parent link required rather than
+     backfilled: a comment that will not parse, a `parent_number` that is not this parent's number (a float or a
+     bool equal to it included), an ancestry that is not the whole group it was owed (any of it, for an issue no late
+     split charged), a pointer the parent's ledger no longer keeps for it (the ref released, or the child off
+     `late_consumers`), or a title or body naming any other ref releases none of them and parks the same way. That
+     costs one pinned read per released child. `_handle_umbrella` walks through the same checks, and so does the
+     split's own same-tick release.
 - **Output**: parent → `workflow:ready` (all done and nothing a late split recorded still held), OR a sibling
   unblocked, OR a HITL park, OR a no-op for a child still waiting on its dependencies or a parent still holding a
   ref.

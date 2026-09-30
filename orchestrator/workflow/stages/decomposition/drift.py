@@ -61,9 +61,12 @@ def _clear_decomposition_manifest(state: PinnedState) -> None:
     state.set(_state._CHILDREN, [])
     state.set("dep_graph", {})
     state.set("expected_children_count", None)
-    # The seal is a fact about that count, so it goes with it: a register
-    # called final belongs to the manifest this reset is throwing away.
+    # The seal is a fact about that count, and the attempt about the receipts
+    # its children carry, so both go with it: a register called final, or a
+    # child a recovery would adopt, belongs to the manifest this reset is
+    # throwing away.
     state.set(_state._SPLIT_LEDGER_SEALED, None)
+    state.set(_state._SPLIT_ATTEMPT, None)
     state.set(_state._UMBRELLA, None)
     state.set(_state._AWAITING_HUMAN, False)
     state.set(_state._PARK_REASON, None)

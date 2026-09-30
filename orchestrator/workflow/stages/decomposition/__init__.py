@@ -18,7 +18,9 @@ INITIAL decomposition -- held ahead of every road that would walk past one, and
 lifted only by the command that renews the budget -- `run` owns the order one
 tick asks the others in and `outcomes` the three dispositions its reply earns,
 `recovery` owns what a tick that died mid-split left behind, `split` owns the
-crash-safe order children are created in, `replacement_lineage` owns the late
+crash-safe order children are created in, `split_receipts` the receipt each one
+carries so a child created and never recorded can be found again,
+`replacement_lineage` owns the late
 lineage those children are seeded with when the issue sits inside one -- and
 the park when that lineage, or the snapshot it would point them at, cannot be
 proved -- and `parents`, `activation`,
