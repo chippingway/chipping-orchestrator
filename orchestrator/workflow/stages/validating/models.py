@@ -112,6 +112,10 @@ class _ReviewerRun:
         """This run, measured from here on against `comment` as the tick last read or wrote it."""
         return replace(self, resolved_over=dict(comment))
 
+    def in_checkout(self, wt: Path) -> _ReviewerRun:
+        """This run, finished in the checkout `wt` restored for it."""
+        return replace(self, wt=wt)
+
 
 @dataclass(frozen=True)
 class _ReviewerDecision:
@@ -134,11 +138,13 @@ class _DevFixRun:
     before_sha: str
     after_sha: str | None = None
     # The state this run belongs to, where the caller relabelled the issue
-    # remotely in the same tick. Named rather than read back, because the
-    # size gate reading the label off an issue object the relabel did not go
-    # through would freeze the state the issue has LEFT -- and a settled
-    # adjudication continues at whatever the record names. The reviewer's
-    # `CHANGES_REQUESTED` route is the one that flips before it publishes;
+    # remotely in the same tick. Named rather than read back, because the size
+    # gate reading the label off an issue object the relabel did not go through
+    # would freeze the state the issue has LEFT -- and a settled adjudication
+    # continues at whatever the record names. The reviewer's
+    # `CHANGES_REQUESTED` route names it: it flips before it publishes, save
+    # where the fixing stage's recovery launches a developer a handed request
+    # still owes on an issue already on `fixing`, which names it all the same;
     # every other reaches this with the label already current and names none.
     stage: WorkflowLabel | None = None
     # The round bookkeeping this route owes if the size gate HOLDS the fix.
@@ -231,6 +237,10 @@ class _RequestedChanges:
     round_n: int
     pr_number: Any
     feedback: str
+
+    def in_checkout(self, wt: Path) -> _RequestedChanges:
+        """This handoff, its developer resuming in the checkout `wt` restored for it."""
+        return replace(self, wt=wt)
 
 
 @dataclass(frozen=True)

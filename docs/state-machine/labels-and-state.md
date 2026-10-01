@@ -1066,9 +1066,10 @@ The keys that matter for the state machine fall into a few groups:
   is already posted and the park still has to be recorded. `_handle_pickup` writes the floor the first run walks from:
   the pickup comment anchors `last_action_comment_id` beside `pickup_comment_id`, because the spawn it opens quotes the
   thread as it stands. EVERY park the `workflow:implementing` and `workflow:validating` handlers take after a run reads
-  the field that way — the agent question and checkout refusals call the walk directly, as do the dormant
-  returned-verdict parks (`stages/validating/review_parks.py`) behind their own notice, and every other one asks
-  `_park_awaiting_human` for it with `bounded=True` (both timeout parks, both push failures, the measurement failure,
+  the field that way — the agent question and checkout refusals call the walk directly, as do the returned-verdict parks
+  (`stages/validating/review_parks.py`) behind their own notice -- which no live reviewer round takes yet, only the
+  recovery of a record an issue already carries -- and every other one asks `_park_awaiting_human` for it with
+  `bounded=True` (both timeout parks, both push failures, the measurement failure,
   the unauthorized-exemption hold, the checkout-moved refusals, the undeliverable-report park, the squash and verify
   failures, the reviewer timeout and no-VERDICT parks, and the review cap) — and so do the agent-run-limit notice and
   the repair of its lost write, because the launch the circuit refuses is very often one of these resumes. The
@@ -1880,8 +1881,9 @@ The keys that matter for the state machine fall into a few groups:
   touches -- has to still be the one that settled, passing and covering `VERIFY_COMMANDS`. A later revision recorded
   or settled, the current record retired, `VERIFY_COMMANDS` or `VERIFY_TIMEOUT` changed, the artifact deleted or
   edited, or a record that will not read holds the move -- and the ready ping -- and the settled handoff behind it is
-  dropped for a fresh reviewer; an artifact or pull request nobody could read holds them for a later tick. Additive,
-  and dormant with the proof that writes it.
+  dropped for a fresh reviewer; an artifact or pull request nobody could read holds them for a later tick. Additive, and
+  written only by the proof, which no live reviewer round reaches yet -- only the recovery of a record an issue already
+  carries (`stages/validating/review_resume.py`).
 - **Returned reviewer verdict.** `review_returned_verdict` is the verdict a returned reviewer left and nothing has
   disposed of yet (`stages/validating/review_verdicts.py`): `round` (the round it ran as), `verdict` (`approved` or
   `changes_requested`), `subject` (exactly as `review_subject` spells it), `feedback` (the words a change request hands
@@ -1912,10 +1914,11 @@ The keys that matter for the state machine fall into a few groups:
   claim is staged only in the same write as exactly
   the transaction it names -- its receipt, revision, digest, and `passed` -- measured with its settlement beside that
   reservation, a retry of the one the comment already carries included, and a `reused` claim or none only beside no
-  transaction; where the pair does not match or either has no room, neither is staged. Its writers are the dormant
-  disposition service (`review_disposition.py`) and the change-request handoff below. In the service the transaction
-  is minted first, since reading the reviewed tree is a request of its own, and the record and that transaction go
-  down in one write with the returned run's own records, over
+  transaction; where the pair does not match or either has no room, neither is staged. Its writers are the disposition
+  service (`review_disposition.py`), where it persists a returned verdict -- a road no live reviewer round takes yet,
+  and the recovery of a seeded record never takes, since it finishes a record already persisted -- and the
+  change-request handoff below. In the service the transaction is minted first, since reading the reviewed tree is a
+  request of its own, and the record and that transaction go down in one write with the returned run's own records, over
   the pinned comment read again once the subject has been resolved -- the last requests before that write -- BEFORE the
   evidence is published through the dispatcher's own reconciliation. The service stages those run records itself --
   `last_review_session_id`, `last_review_at`, `review_returned_subject`, and the reviewer's usage folded into
@@ -2006,20 +2009,84 @@ The keys that matter for the state machine fall into a few groups:
   circuit honors that reservation rather than charging again), which is asked again right before every launch, so a
   developer another road launched behind the relabel is never launched a second time -- and once more by the run
   circuit, on the readings it charges and starts the launch from, which refuse it with nothing started or written over
-  them where another road started that developer, or charged a run over its `agent_run_reservation`, after the handoff
-  last read the comment, pinned another comment in its place, or where the record, `pending_fix_reviewer_comment_id`,
-  the report records, `pr_number`, or the claimed evidence moved there, the whole subject resolved again right behind
-  the charge (`review_launch_hold.py`; see [the agent-run circuit](#the-agent-run-circuit)). Whatever else another road
+  them where another road started that developer, charged a run over its `agent_run_reservation`, or started a run of
+  that launch's very identity with no `agent_run_owed_started` (below) -- a continuation of the launch's own start
+  excepted -- after the handoff last read the comment, pinned another comment in its place, or where the record,
+  `pending_fix_reviewer_comment_id`, the report records, `pr_number`, or the claimed evidence moved there, the whole
+  subject resolved again right behind the charge (`review_launch_hold.py`; see [the agent-run
+  circuit](#the-agent-run-circuit)). Whatever else another road
   wrote on a reading the launch stands on is carried onto the state the developer's run is written back from, so that
   run's writes keep it -- a run allowance granted, a usage total folded. Either launch is made only while
   `pending_fix_reviewer_comment_id` names, as a whole comment id, the comment the record's `anchor` does: the fixing
   stage clears it with the round's other bookmarks, and a handoff that lost it, whose anchor names another comment, or
   whose anchor is spelled as anything but a whole id -- a float over the same number included, which the fixing stage's
   replay refuses -- is held -- nothing relabelled, launched, or written -- since no failed run could replay the
-  feedback, or one would replay another comment to the developer as the reviewer's feedback. Additive and dormant:
-  the service acts on a ready verdict, parks it, or hands it over, and finishes a record a tick left waiting, but no
-  live reviewer round hands its result to that service and nothing asks it to finish one, so no issue carries the key
-  or either park, and an issue without the key has no verdict waiting.
+  feedback, or one would replay another comment to the developer as the reviewer's feedback. Additive, and not yet
+  produced live: the service acts on a ready verdict, parks it, or hands it over, and the recovery of a seeded record
+  (below) calls it, but no live reviewer round hands its result to that service, so no issue carries the key or either
+  park but one a record was seeded on, and an issue without the key has no verdict waiting.
+  A record an issue already carries is finished by the stage handlers themselves (`stages/validating/review_resume.py`),
+  running no reviewer, folding no usage, and spending no round: its reviewer's run, usage, and round went down with it.
+  `workflow:validating` asks behind the report hold and ahead of the round cap and the spawn. A record not yet `handed`
+  is finished through a run rebuilt of its own `round` over the subject resolved again as a round resolves it, the issue
+  fetched afresh, which has to record as the record's `subject`: a push, a later or edited report, or an edited issue
+  sets it to `null` in a write of the comment read afresh -- only while that comment still carries it, so a record
+  another road put in its place is kept -- and ends the tick, for the next tick's fresh reviewer, and a reading nobody
+  could take writes nothing. A record already `handed` -- its relabel never landed -- is relabelled and its developer
+  launched, its feedback not posted again, while that launch is owed, and set to `null` the same way otherwise -- once
+  its subject is resolved again, a reading nobody could take writing nothing -- since only a relabel from outside brings
+  back one whose developer may have been launched; so is any record on a tick an awaiting-human park was cleared into,
+  whose reply bought a round of its own -- where the report hold stops that round or a record waits, the tick ends in
+  one write composed over the comment read afresh against the tick's own reading, keeping the cleared park and carrying
+  what another road wrote meanwhile, the record set to `null` only where that comment still carries it, and the round
+  runs next tick. A park another road recorded there is kept as it wrote it where its `awaiting_human` or `park_reason`
+  moved. One recorded again for the same reason moves neither, and shows only in its notice, which no field names: so a
+  comment another road posted meanwhile -- an id in `orchestrator_comment_ids` the tick never recorded -- that opens
+  with `HITL_MENTIONS`, as every park notice does and a status line may, writes nothing, the park standing, and the next
+  tick answers the reply again over the comment as it stands, as does a thread that will not read; a comment naming
+  nobody is no park. A subject or thread nobody could read holds the tick. The issue's checkout is restored only behind
+  the subject's reading, before a record not yet `handed` is finished and behind a `handed` one's relabel, so a record
+  whose subject moved is set to `null` over GitHub's readings alone, and a checkout that will not restore ends the tick,
+  the record kept, only where its subject still stands.
+  A record no reader takes is left as it stands. `workflow:fixing` asks behind the report recovery and ahead of the
+  feedback scan, whose no-feedback bounce would pay a second reviewer for a round already reviewed: a `handed` record
+  whose launch is owed has its one developer launched, the issue not relabelled onto the label it is on, and one whose
+  launch may have started is never launched again (`stages/validating/review_handoffs.py`, `HandedLaunch`); while a park
+  stands -- the run circuit's `agent_run_limit` over a launch it refused -- that park's own dispatch answers first. The
+  launch is owed unless `agent_run_owed_started` records a start at or past `handed`, is present and spelled as no count
+  -- `null` included -- or the latest charge at or past `handed` is `started` under the very `agent_run_fingerprint` the
+  developer's own launch is charged under with no owed start recorded -- at `handed` too, since a charge reserved before
+  the handoff is counted in it -- or stands with a record no reader takes, which may be that very launch -- `started`,
+  or in an `agent_run_reservation` phase no reader takes, under that `agent_run_fingerprint`, any charge under an
+  `agent_run_fingerprint` gone or spelled as none, `reserved` included, or a run count (`agent_runs_used`, or the legacy
+  meter where that will not read) below `handed`, which only ever rises; an unstarted `reserved` charge under the
+  launch's own fingerprint is the run circuit's to honor rather than charge again. A
+  launch that may have started is held to the subject resolved again, the evidence it claims, and the branch: a subject
+  that moved, a claim no longer the settled evidence, a commit the pull request has not got, loose work in the checkout,
+  or a remote that moved past it sets the record to `null` the same way, the anchor kept, and the next tick's own road
+  publishes that work, or holds its bounce over it, and hands the pull request back, while a subject or branch nobody
+  could read -- a fetch, a status, or a count that did not return -- writes nothing, the record kept for a later
+  reading. Anything else parks under `agent_execution_failed`, measured before its notice as the record's own parks are
+  (above), landing only behind an identified notice over the subject resolved again, the branch read again, and the
+  comment read again behind that -- the last reading before the park's write, so a record another road put in place
+  during the branch's reading is kept -- still carrying the record, the report records, `pr_number`, and the
+  `verification_evidence_*` records, the record set to `null` in the park's own write -- and only behind the anchor
+  `/orchestrator continue` replays: `pending_fix_reviewer_comment_id` naming the record's `anchor`, or cleared -- before
+  the notice or behind it -- and written back in that same write, so the continue replays the reviewer's feedback to a
+  fresh developer. One naming another comment holds the launch: nothing is posted where it stands ahead of the notice,
+  and no park lands where it lands behind it -- judged on the comment as read behind the notice, so a repoint there,
+  over an anchor already cleared included, is kept as that road wrote it. A move proved behind the notice -- a commit
+  that reached the branch, read again there, included -- sets the record to `null` with no park, for the stage's own
+  road on the next tick, and the anchor is written as that reading spelled it -- cleared, where another road dropped the
+  record and cleared it there; a park another road recorded there is kept as it wrote it, with no park landing over it
+  and the record waiting; and a subject or branch that would not read, a notice nothing identified, or an anchor moved
+  there writes what moved and the notice's ledger entry and leaves the record for a later tick. Before either hook
+  launches a record's developer, a `pending_fix_reviewer_comment_id` something cleared since -- the fixing stage's
+  bookmark clear, a report settlement writing the bookkeeping it froze -- is written back from the record's `anchor`,
+  once the subject is established -- a subject nobody could read writes nothing -- and over the comment read again,
+  since the record names the very post: where the report records, `pr_number`, or the record itself moved there -- a
+  record another road put in its place -- the tick ends with nothing written, posted, or launched. An anchor another
+  road pointed at another comment is still held.
   An approval record is acted on only over evidence proved current (`stages/validating/unverified_approvals.py`), and
   only the record of the run's own round, `approved` verdict, and subject -- a run whose record another road replaced
   or dropped is refused, having nothing to prove -- over the claim that record names, never one handed in beside it,
@@ -2046,13 +2113,16 @@ The keys that matter for the state machine fall into a few groups:
   which keeps it; a record another road put in its place is left as it stands. The squash recovery holds none, and a
   record waiting beside the handoff it finishes holds the move to `workflow:documenting` while the handoff record
   ends. One persisted while that move runs lands past it, and the `workflow:documenting` tick that finds a readable
-  record waiting hands the issue back to `workflow:validating` before any docs pass. Only the dormant disposition
-  service hands a record to that proof, so this too is dormant.
+  record waiting hands the issue back to `workflow:validating` before any docs pass. Only the disposition service hands
+  a record to that proof, and only the recovery of a record an issue already carries reaches that service
+  (`stages/validating/review_resume.py`), so this too acts only on a seeded record.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
   live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the
-  returned-verdict disposition that would record a reviewer's declared commands beside its verdict is dormant -- so no
-  issue carries these keys until one does. `verification_evidence_pending` is one transaction, written BEFORE its
+  returned-verdict disposition records one only where it persists a reviewer's verdict, which no live reviewer round
+  asks of it yet -- the recovery of a seeded record calls it only to finish a record already persisted, which records no
+  transaction -- so no issue carries these keys until one does. `verification_evidence_pending` is one transaction,
+  written BEFORE its
   artifact is posted: a receipt (`issue-<n>-verification-<revision>-<nonce>`, which every record's reader holds to that
   record's own revision) and a revision past every one the issue has spent; the report subject's own `repo` / `pr` /
   `branch` / `sha` / `requirements` members, where `sha` is the head the evidence is written for; the review subject

@@ -42,13 +42,14 @@ class _DevResumeRequest:
     def resolved_stage(self) -> str:
         """Name the stage every record this run emits is attributed to.
 
-        An explicit override wins: the caller that passes one relabeled the
-        issue just before resuming and names the stage it moved to, so the
-        attribution does not rest on which ``Issue`` object reached the
-        resume -- one the relabel did not go through reports the stage the
-        run just left. Otherwise the label the issue carries names it -- by
-        its bare tag, which is what the audit, analytics, and trajectory
-        records have always keyed on.
+        An explicit override wins: the caller that passes one names the stage
+        the run belongs to -- the one it relabeled the issue to just before
+        resuming, or, recovering a launch a handed request owes, the one the
+        issue is on already -- so the attribution does not rest on which
+        ``Issue`` object reached the resume: one a relabel did not go through
+        reports the stage the run just left. Otherwise the label the issue
+        carries names it -- by its bare tag, which is what the audit,
+        analytics, and trajectory records have always keyed on.
         """
         return (
             self.stage

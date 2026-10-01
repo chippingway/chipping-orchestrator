@@ -223,11 +223,12 @@ def _run_requested_fix(
     since it owes the launch once by construction.
     """
     before_sha = _verification_probes._head_sha(context.wt)
-    # The caller flipped the label validating -> fixing just before this.
-    # Pass `fixing` explicitly rather than let the resume helper read the
-    # label back off the issue: on any object that flip did not go through it
-    # still reads `validating`, which would attribute this developer run to
-    # the reviewer's stage.
+    # The caller flipped the label validating -> fixing just before this -- or,
+    # recovering a launch a handed request still owes, found the issue on
+    # `fixing` already and made no flip. Pass `fixing` explicitly rather than
+    # let the resume helper read the label back off the issue: on any object a
+    # flip did not go through it still reads `validating`, which would
+    # attribute this developer run to the reviewer's stage.
     worktree, agent_result, paused = _dev_resume._resume_dev_with_text(
         context.gh,
         context.spec,
@@ -285,12 +286,13 @@ def _finish_requested_fix(
         attempt.run.worktree,
         attempt.run.agent_result,
         attempt.run.before_sha,
-        # The caller flipped this issue to `fixing` remotely before the spawn,
-        # and the size gate reading the label off an object that flip did not
-        # go through would freeze `validating` -- the state the issue has
-        # LEFT -- and a settled adjudication would continue there instead of
-        # finishing the fix loop. Named for the same reason the resume above
-        # is.
+        # The issue is on `fixing` by the spawn -- flipped there remotely by
+        # the caller, or already there where the fixing stage's recovery
+        # launched a developer a handed request still owed -- and the size gate
+        # reading the label off an object a flip did not go through would
+        # freeze `validating` -- the state the issue has LEFT -- and a settled
+        # adjudication would continue there instead of finishing the fix loop.
+        # Named for the same reason the resume above is.
         stage=WorkflowLabel.FIXING,
         # The round this route counts, handed to the gate for the exit where
         # this caller never reaches the lines below: a hold relabels to the

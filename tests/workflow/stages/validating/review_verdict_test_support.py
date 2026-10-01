@@ -14,13 +14,14 @@ case returns one the way the round will: the subject resolved and recorded as
 the launch and the return record it, the launch charged, the reviewer's usage
 folded once by the service itself, and the parsed verdict handed to
 `review_disposition.prepares_the_verdict`, whose answer the case keeps
-(`prepared`). No handler finishes a verdict a tick left waiting yet either, so
-a later tick here is the dispatcher's evidence reconciliation and then
-`review_disposition.waiting_verdict_ready` over the pinned comment alone --
-the returned run is forgotten first, as a later process never had it -- whose
-answer the case keeps too (`ready`). Both are read back through
+(`prepared`). A later tick here is the dispatcher's evidence reconciliation
+and then `review_disposition.waiting_verdict_ready` over the pinned comment
+alone -- the returned run is forgotten first, as a later process never had it
+-- whose answer the case keeps too (`ready`). Both are read back through
 `review_verdict_readings`. A case that has the verdict disposed of, and a
-later tick finish it, is `disposed_verdict_test_support`'s.
+later tick finish it, is `disposed_verdict_test_support`'s, and one whose
+later tick is a stage handler's own, finishing the verdict through its
+recovery (`review_resume`), is `resumed_verdict_test_support`'s.
 
 What another road does between two of a tick's requests is spelled here too
 (`AnotherRoadBehind`): a push, or a thread that stops answering, behind the

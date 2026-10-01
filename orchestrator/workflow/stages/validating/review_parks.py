@@ -15,9 +15,11 @@ two causes are spelled here, and the disposition service answers with one of
 them (`review_disposition.Prepared.unrecorded`), because the park's notice
 asks a different thing of a human for each: room freed on the pinned comment
 is what lets a verdict with no room be recorded, and it does nothing for one
-in words no record can carry, which a fresh reviewer simply writes again. The
-disposition service that asks for either park is dormant, so no live round
-parks here yet.
+in words no record can carry, which a fresh reviewer simply writes again. No
+live round parks here yet: the disposition service asks for either park, and
+no live round reaches it -- only the recovery of a record an issue already
+carries (`review_resume`), which may park a waiting approval unverified but
+never persists a verdict, so never parks one unrecorded.
 
 Neither retries itself. A bare `/orchestrator continue` buys a fresh reviewer
 (`awaiting._reviewer_retry_awaiting_action`), and a reply with words in it is
@@ -408,7 +410,11 @@ def _posts_the_notice(gh: GitHubClient, issue: Issue, parked: PinnedState, words
     """Post the park's notice and record the thread read through it; the notice's id, or None.
 
     The notice of the park a failed squash takes as well
-    (`parks_the_failed_squash`). Read only as far as the orchestrator's own
+    (`parks_the_failed_squash`), and of the park a handed change request's
+    developer launch takes where nothing says whether it ran
+    (`review_handoffs.HandedLaunch.parks`), which is measured through
+    `_park_fits` too and settles behind its notice for itself, since it holds
+    the feedback anchor its continue replays. Read only as far as the orchestrator's own
     comments go (`park_watermarks`), since a park follows a run long enough
     for a human to have written something nobody has read -- which is also
     why the mark is harmless where no park lands behind the notice.

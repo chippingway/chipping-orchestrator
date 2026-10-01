@@ -66,9 +66,11 @@ def _resume_dev_with_text(
     `issue`, which is correct whenever the caller fetched the issue fresh this
     tick or relabelled it through `set_workflow_label`. The CHANGES_REQUESTED
     fix path passes it explicitly (`fixing`): it relabels validating -> fixing
-    and then resumes, and naming the stage keeps the developer run off the
-    reviewer's stage whichever `Issue` object reaches the resume -- one the
-    relabel did not go through would still report `validating`.
+    and then resumes -- or, recovering a launch a handed request still owes,
+    resumes an issue already on `fixing` with no relabel -- and naming the
+    stage keeps the developer run off the reviewer's stage whichever `Issue`
+    object reaches the resume: one a relabel did not go through would still
+    report `validating`.
 
     The backend is locked to whatever wrote `dev_session_id` (or the legacy
     `codex_session_id`) for this issue -- resuming across backends would need

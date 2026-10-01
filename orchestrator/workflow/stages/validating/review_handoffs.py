@@ -1,11 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A persisted change request handed to the one developer it owes.
+"""A persisted change request handed to the one developer it owes, whether that launch is still owed, and its park.
 
 No live reviewer round persists a verdict yet, so no live round hands one
-here: the dormant disposition service (`review_disposition`) does, right behind
+here: the disposition service (`review_disposition`) does, right behind
 proving the request still carried, its subject standing, and its evidence
-settled.
+settled -- reached so far only by the recovery of a record an issue already
+carries (`review_resume`) -- and so does that recovery itself, where a
+request's developer launch is still owed (`HandedLaunch.owed`).
 What is here is that handoff, entered directly: through the very decision
 the request was persisted from, in the tick its reviewer returned
 (`hands_the_request_over`), and from the persisted request alone on a later
@@ -35,7 +37,7 @@ verdict was recorded.
 The handed write and the relabel are requests too, so the launch is held to
 what stands -- the subject, the evidence the request claims, the run ledger,
 and the anchor, over the comment read again -- before the relabel announces
-it, and once more right before the developer is launched (`_launch_stands`): a
+it, and once more right before the developer is launched (`HandedLaunch.stands`): a
 relabel made where the launch it announces is already ruled out would leave
 the issue on `workflow:fixing` with nobody launched. A moved subject drops the
 verdict and its anchor. So is the run ledger: the start of the developer the
@@ -64,36 +66,96 @@ fields.
 
 A verdict already handed is finished by a later entry from that write on: its
 feedback is posted and anchored, so it is never posted again, and the relabel
-and the launch are what a tick that died on them left owed -- unless the run
-ledger records the start of the developer it owes at the count it was handed
-at, which is that developer already launched and only the verdict to retire.
-A charge the run circuit reserved and never started -- its start refused, the
-tick dying before the spawn -- recorded no start, and the launch is still
-owed: the circuit honors that reservation for the launch it was taken
-for rather than charging again. Either launch is made only behind the feedback
-anchor the handoff was written beside, still naming the comment the verdict
-records it posted: the fixing stage clears the anchor with the round's other
-bookmarks, and without it no failed run can replay the feedback, while one
-naming any other comment would replay that comment to the developer as this
-reviewer's feedback -- so a handoff that lost it, whose anchor names another
-comment, or recorded before handoffs anchored their post, naming none, is
-held, with nothing relabelled, launched, or written (`_launch_stands`).
+-- where the issue is not on `workflow:fixing` already -- and the launch are
+what a tick that died on them left owed -- unless the run ledger records the
+start of the developer it owes at the count it was handed at, which is that
+developer already launched and only the verdict to retire. A charge the run
+circuit reserved and never started -- its start refused, the tick dying before
+the spawn -- recorded no start, and the launch is still owed: the circuit
+honors that reservation for the launch it was taken for rather than charging
+again. Either launch is made only behind the feedback anchor the handoff was
+written beside, still naming the comment the verdict records it posted: the
+fixing stage clears the anchor with the round's other bookmarks, and without
+it no failed run can replay the feedback, while one naming any other comment
+would replay that comment to the developer as this reviewer's feedback -- so a
+handoff that lost it, whose anchor names another comment, or recorded before
+handoffs anchored their post, naming none, is held, with nothing relabelled,
+launched, or written (`HandedLaunch.stands`). The recovery writes back an
+anchor something cleared, from the verdict's own, before it asks
+(`review_resume`). The checkout a later entry launches in is restored only
+behind the relabel, once that check has held the request to its subject: a
+moved subject is dropped over GitHub's readings alone, so a checkout that
+will not restore never keeps a stale request pinned.
+
+Whether a handed verdict's developer was launched at all is read off the run
+ledger, which the run circuit writes before any process is spawned
+(`HandedLaunch.owed`). The launch is owed while nothing there says it may have
+started: no charge since the handoff, a charge still RESERVED under this
+launch's own fingerprint -- nobody spawned it, and the circuit honors it for
+the launch it was taken for -- or another road's run, a reviewer's, under a
+fingerprint of its own. It may have started where the ledger records the start
+of the launch owed at the count the request was handed at, or at a later one
+(`run_ledger_values.AGENT_RUN_OWED_STARTED`), and where the ledger cannot say:
+that record spelled as no count, or the latest charge at or past the handed
+count STARTED under the very fingerprint the developer's own launch is charged
+under (`implementing/execution._first_launch_fingerprint`) with no start of
+the owed launch recorded -- at that count too, since a charge reserved before
+the handoff is counted in it, and starting that charge later moves the count
+no further -- or standing with a record no reader takes, which may be that
+very launch: STARTED, or in a phase no reader takes, under that fingerprint,
+any charge under a fingerprint gone or spelled as none -- even one RESERVED,
+which the circuit could not honor and would charge again -- or a run count
+below the handed count, which only ever rises and so cannot show what was
+charged since. Such a launch is never made again: its start is written before
+the spawn, so the developer may have run and had its result discarded -- a
+live pause does exactly that -- or never been spawned, and a second launch may
+pay for a second run over feedback one already answered. The same reading
+holds every launch this owner makes: asked of the comment read again right
+before the launch (`HandedLaunch.stands`), and handed to the run circuit's
+hold (`review_launch_hold`), which asks it of every reading the launch is
+charged and started from -- save the launch's own continuations, whose start
+the state in hand already carries -- so a start of that identity landing
+behind the relabel, or behind the last of those readings, launches nobody.
+
+Where nothing shows the work a launch that may have started left, it parks
+under `agent_execution_failed` (`HandedLaunch.parks`), the verdict dropped in
+the park's own write, so `/orchestrator continue` replays the reviewer's
+feedback to a fresh developer session through the anchor it was handed over
+with. So the park is taken only behind that anchor: one something cleared is
+put back in the park's own write, and one naming another comment holds the
+launch, with nothing posted ahead of the notice and no park behind it -- judged
+behind the notice on the comment as read there, so another road's repoint is
+kept. It is measured before its notice with the helpers the verdict parks use
+(`review_parks`), and lands only behind an identified notice over the subject
+resolved again and the comment read again: a push, a later report or evidence
+revision, a verdict another road put in place, or what the caller reads again
+-- a commit that reached the branch -- moved there drops the verdict for the
+stage's own road instead, a subject nobody could read holds it, and a park
+another road recorded there is kept as it wrote it, with the verdict waiting.
 """
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from github.Issue import Issue
 
 from orchestrator import config
+from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    report_record_state as _report_record_state,
     report_record_values as _record_values,
     review_subjects as _review_subjects,
+    run_ledger_models as _run_ledger_models,
     run_ledger_values as _run_ledger_values,
 )
-from orchestrator.workflow.stages.implementing import worktree as _dev_worktree
+from orchestrator.workflow.stages.implementing import (
+    execution as _execution,
+    state as _implementing_state,
+    worktree as _dev_worktree,
+)
 from orchestrator.workflow.stages.validating import (
     models as _models,
     requested_changes as _requested_changes,
@@ -101,11 +163,30 @@ from orchestrator.workflow.stages.validating import (
     review_comment as _review_comment,
     review_coverage as _review_coverage,
     review_launch_hold as _launch_hold,
+    review_parks as _parks,
     review_verdicts as _verdicts,
 )
-from orchestrator.workflow.state import WorkflowLabel
+from orchestrator.workflow.state import WorkflowLabel, stage_name
 
 log = logging.getLogger("orchestrator.workflow")
+
+_PARK_EXECUTION_FAILED = _implementing_state._PARK_EXECUTION_FAILED
+
+_AWAITING_HUMAN = "awaiting_human"
+
+_PARK_REASON = "park_reason"
+
+# What a park of a handed request's launch stands on in the comment beside its
+# subject: the report's records, the pull request the issue points at, the
+# verdict itself, and the verification evidence.
+_HELD_TO = (*_review_comment._VERDICT_RECORDS, *_review_comment._EVIDENCE_RECORDS)
+
+_UNFINISHED = (
+    "the developer this reviewer's change request was handed to may have been "
+    "started and left no result, so nothing says whether it ever ran, and the "
+    "reviewer's feedback was not handed on a second time. Reply "
+    "`/orchestrator continue` to hand that feedback to a fresh developer session."
+)
 
 
 def hands_the_request_over(
@@ -161,6 +242,10 @@ def hands_the_waiting_request_over(
     pull request its subject names -- in the checkout the issue's developer
     resumes in: a verdict whose feedback post failed is posted again, and one
     already handed resumes where that handoff stopped, without posting again.
+    That checkout is restored only once the handoff has held the request to
+    what stands (`_hands_it_off`): a request whose subject moved is dropped
+    over GitHub's readings alone, so a checkout that will not restore never
+    keeps a stale one pinned.
     Anything but a change request waiting hands nothing over.
     """
     owned = _verdicts.read_returned_verdict(state)
@@ -170,16 +255,13 @@ def hands_the_waiting_request_over(
             "over; handing nothing", issue.number,
         )
         return
-    _hands_it_off(_models._RequestedChanges(
-        gh, spec, issue, state,
-        wt=_dev_worktree._ensure_resume_worktree(spec, issue, state),
-        round_n=owned.round_n,
-        pr_number=_review_subjects.ReviewSubject.identity_recorded_in(owned.subject)[0],
-        feedback=owned.feedback,
-    ), owned)
+    launch = HandedLaunch.of(gh, spec, issue, state, owned)
+    _hands_it_off(launch.context, owned, restores=True)
 
 
-def _hands_it_off(context: _models._RequestedChanges, owned: _verdicts.ReturnedVerdict) -> None:
+def _hands_it_off(
+    context: _models._RequestedChanges, owned: _verdicts.ReturnedVerdict, *, restores: bool = False,
+) -> None:
     """Hand `owned` off behind its posted feedback, or find where that handoff got to, then relabel and launch.
 
     A verdict not yet handed is handed behind its feedback post
@@ -188,10 +270,15 @@ def _hands_it_off(context: _models._RequestedChanges, owned: _verdicts.ReturnedV
     anchored, so it is not posted again: the relabel or the launch behind that
     write is what a tick that died on it left owed, where it is still owed at
     all. Either way the relabel is made only where the launch it announces
-    would be made now (`_launch_stands`): that write, or the tick that read
+    would be made now (`HandedLaunch.stands`): that write, or the tick that read
     the comment, is a request long enough for another road to clear the
     anchor or launch the developer, and a relabel over either would leave the
-    issue on `workflow:fixing` with nobody launched.
+    issue on `workflow:fixing` with nobody launched. An issue already on that
+    label -- the fixing stage's recovery of an owed launch -- is not relabelled
+    at all: the write would announce a stage entry nothing made. Where
+    `restores`, `context` names the issue's checkout where it stands, restored
+    only behind that relabel (`_launches_the_developer`), so a request whose
+    subject moved is dropped first, over GitHub's readings alone.
     """
     gh, issue, state = context.gh, context.issue, context.state
     handed = owned
@@ -207,9 +294,13 @@ def _hands_it_off(context: _models._RequestedChanges, owned: _verdicts.ReturnedV
             "issue=#%d finds its reviewer's change request already posted and "
             "anchored; resuming that handoff", issue.number,
         )
-    if _launch_stands(context, handed):
-        gh.set_workflow_label(issue, WorkflowLabel.FIXING)
-        _launches_the_developer(context, handed)
+    if HandedLaunch(context, handed).stands():
+        # Already on it -- the fixing stage's own recovery -- the label is where
+        # the launch needs it, and writing it again would announce a stage entry
+        # nothing made, and could refuse the launch over a write it never needed.
+        if gh.workflow_label(issue) != WorkflowLabel.FIXING:
+            gh.set_workflow_label(issue, WorkflowLabel.FIXING)
+        _launches_the_developer(context, handed, restores=restores)
 
 
 def _posts_the_feedback(context: _models._RequestedChanges, owned: _verdicts.ReturnedVerdict) -> int | None:
@@ -240,98 +331,332 @@ def _posts_the_feedback(context: _models._RequestedChanges, owned: _verdicts.Ret
     return posted if _still_stands(context, owned, posted_over, None) else None
 
 
-def _launches_the_developer(context: _models._RequestedChanges, handed: _verdicts.ReturnedVerdict) -> None:
+def _launches_the_developer(
+    context: _models._RequestedChanges, handed: _verdicts.ReturnedVerdict, *, restores: bool,
+) -> None:
     """Launch the developer the change request `handed` owes, over what stands as it is launched.
 
-    The relabel ahead of this is a request long enough for another road to
-    push, settle a later report, clear the anchor, or launch that developer,
-    and the run's own writes are composed over the state in hand: launched
-    over the older records, the developer would answer words the pull request
-    no longer carries and its writes would put those records back over the
-    newer. So the launch is held to what stands once more (`_launch_stands`).
+    The relabel ahead of this, where one is made, is a request long enough for
+    another road to push, settle a later report, clear the anchor, or launch
+    that developer, and the run's own writes are composed over the state in
+    hand: launched over the older records, the developer would answer words
+    the pull request no longer carries and its writes would put those records
+    back over the newer. So the launch is held to what stands once more
+    (`HandedLaunch.stands`).
     The launch is charged and started over readings of its own, later still,
     so it goes to the run circuit owed once at the count the request was
     handed at, behind a hold measured from the comment this check left on the
     state (`review_launch_hold.owed_launch`), which refuses it on those
     readings where anything it stands on moved since. Otherwise the drop is
     staged ahead of the launch, whose charge writes only its own fields, so
-    only the writes behind the run retire the verdict.
+    only the writes behind the run retire the verdict. Where `restores`, the
+    checkout the developer resumes in is restored first -- a request of its
+    own, which that last check reads behind.
     """
-    if not _launch_stands(context, handed):
+    if restores:
+        restored = _dev_worktree._ensure_resume_worktree(context.spec, context.issue, context.state)
+        context = context.in_checkout(restored)
+    launch = HandedLaunch(context, handed)
+    if not launch.stands():
         return
-    owed = _launch_hold.owed_launch(context, handed)
+    owed = _launch_hold.owed_launch(context, handed, launch.owed)
     _verdicts.drops_the_verdict(context.state, only=handed)
     attempt = _requested_changes._run_requested_fix(context, owed=owed)
     _requested_changes._finish_requested_fix(context, attempt)
 
 
-def _launch_stands(context: _models._RequestedChanges, handed: _verdicts.ReturnedVerdict) -> bool:
-    """Whether the launch the change request `handed` owes is still this road's to make, over the comment read again.
 
-    Asked before the relabel that announces the launch and again right
-    before the launch itself, each over the comment as it stands then. The
-    start of the developer the request owes, recorded at the count it was
-    handed at (`run_ledger_values._owed_started`), is that developer's launch,
-    whoever made it -- a tick that died behind it, or another road behind this
-    one's writes -- and its run is the fixing stage's to answer, so the
-    verdict is retired rather than handed to a second developer: asked of the
-    reading in hand first, before the subject is, since that developer's own
-    push moves the head, and a request dropped as a moved subject would take
-    with it the anchor that developer's replay needs; and asked again of the
-    comment read behind the subject -- ahead of any drop that reading would
-    make, for the same reason (`_still_stands`) -- since the run circuit
-    counts a start carried onto the state in hand as the caller's own. The
-    retirement is a write composed over the comment read again
-    (`review_comment._records_stand`), so a later report or anything else
-    another road wrote since is kept, not written back over -- only where the
-    comment still carries that verdict, and nothing where it will not read.
-    Any other run charged since the handoff -- a reviewer's, or another
-    road's of another launch -- recorded no such start, and neither did a
-    charge still standing as the run circuit's unstarted reservation, which
-    reached no process: the launch is still owed, and the circuit honors that
-    reservation for the launch it was taken for rather than charging a second
-    run. Between the two, the subject and the evidence the request claims are
-    held to what stands, the comment read behind them, and a moved one drops
-    the request with its anchor (`_still_stands`). And the launch is made only behind the feedback anchor
-    that reading carries, naming the very comment the verdict records it was
-    handed over with (`ReturnedVerdict.anchor`): it is the one durable copy of
-    the feedback a failed run's `/orchestrator continue` replays, and the
-    fixing stage clears it with the round's other bookmarks, so a handoff that
-    lost it -- or whose anchor another write pointed at some other comment,
-    which that replay would hand the developer as this reviewer's feedback, or
-    spelled as anything but a whole comment id, which that replay refuses --
-    is held, and so is one recorded before handoffs anchored their post, which
-    names none to vouch for: nothing relabelled, launched, or written, the
-    verdict left waiting as it was.
+class HandedLaunch:
+    """The developer launch one handed change request owes: whether it stands, whether it is owed, and its park.
+
+    `context` is what the request hands its developer, which `of` builds over
+    the issue's checkout where it stands, nothing restored or created: for a
+    recovery that only reads the launch, and for a later tick's handoff, which
+    restores that checkout only once the request is held to what stands
+    (`hands_the_waiting_request_over`).
     """
-    gh, issue, state = context.gh, context.issue, context.state
-    stood = _run_ledger_values._owed_started(state) != handed.handed and _still_stands(
-        context, handed, dict(state.data), handed.anchor,
-    )
-    if _run_ledger_values._owed_started(state) == handed.handed:
-        log.info(
-            "issue=#%d the developer its reviewer's change request was handed to "
-            "was already launched; retiring the verdict", issue.number,
+
+    def __init__(self, context: _models._RequestedChanges, handed: _verdicts.ReturnedVerdict) -> None:
+        self.context = context
+        self.handed = handed
+
+    @classmethod
+    def of(
+        cls,
+        gh: GitHubClient,
+        spec: config.RepoSpec,
+        issue: Issue,
+        state: PinnedState,
+        handed: _verdicts.ReturnedVerdict,
+    ) -> HandedLaunch:
+        """The launch `handed` owes, on the pull request its subject names."""
+        return cls(_models._RequestedChanges(
+            gh, spec, issue, state,
+            wt=_worktree_paths._worktree_path(spec, issue.number),
+            round_n=handed.round_n,
+            pr_number=_review_subjects.ReviewSubject.identity_recorded_in(handed.subject)[0],
+            feedback=handed.feedback,
+        ), handed)
+
+    def stands(self) -> bool:
+        """Whether the launch this request owes is still this road's to make, over the comment read again.
+
+        Asked before the relabel that announces the launch -- or where it
+        would stand, on an issue already on `workflow:fixing` -- and again
+        right before the launch itself, each over the comment as it stands
+        then. The start of the developer the request owes, recorded at the
+        count it was handed at (`run_ledger_values._owed_started`), is that
+        developer's launch, whoever made it -- a tick that died behind it, or
+        another road behind this one's writes -- and its run is the fixing
+        stage's to answer, so the verdict is retired rather than handed to a
+        second developer: asked of the reading in hand first, before the
+        subject is, since that developer's own push moves the head, and a
+        request dropped as a moved subject would take with it the anchor that
+        developer's replay needs; and asked again of the comment read behind
+        the subject -- ahead of any drop that reading would make, for the same
+        reason (`_still_stands`) -- since the run circuit counts a start
+        carried onto the state in hand as the caller's own. The retirement is
+        a write composed over the comment read again
+        (`review_comment._records_stand`), so a later report or anything else
+        another road wrote since is kept, not written back over -- only where
+        the comment still carries that verdict, and nothing where it will not
+        read. Any other run charged since the handoff -- a reviewer's, or
+        another road's of another launch -- recorded no such start, and
+        neither did a charge still standing as the run circuit's unstarted
+        reservation, which reached no process: the launch is still owed, and
+        the circuit honors that reservation for the launch it was taken for
+        rather than charging a second run. Between the two, the subject and
+        the evidence the request claims are held to what stands, the comment
+        read behind them, and a moved one drops the request with its anchor
+        (`_still_stands`); and that reading has to rule out every other start
+        of this launch too (`owed`) -- a charge of its very identity STARTED
+        meanwhile with no owed count holds it. And the launch is made only
+        behind the feedback anchor that reading carries, naming the very
+        comment the verdict records it was handed over with
+        (`ReturnedVerdict.anchor`): it is the one durable copy of the feedback
+        a failed run's `/orchestrator continue` replays, and the fixing stage
+        clears it with the round's other bookmarks, so a handoff that lost it
+        -- or whose anchor another write pointed at some other comment, which
+        that replay would hand the developer as this reviewer's feedback, or
+        spelled as anything but a whole comment id, which that replay refuses
+        -- is held, and so is one recorded before handoffs anchored their
+        post, which names none to vouch for: nothing relabelled, launched, or
+        written, the verdict left waiting as it was.
+        """
+        context, handed = self.context, self.handed
+        state = context.state
+        stood = _run_ledger_values._owed_started(state) != handed.handed and _still_stands(
+            context, handed, dict(state.data), handed.anchor,
         )
-        if _review_comment._records_stand(
-            gh, issue, state, dict(state.data), persisted=True,
-        ) is not None and _verdicts.drops_the_verdict(state, only=handed):
-            gh.write_pinned_state(issue, state)
+        if _run_ledger_values._owed_started(state) == handed.handed:
+            log.info(
+                "issue=#%d the developer its reviewer's change request was handed to "
+                "was already launched; retiring the verdict", context.issue.number,
+            )
+            if _review_comment._records_stand(
+                context.gh, context.issue, state, dict(state.data), persisted=True,
+            ) is not None and _verdicts.drops_the_verdict(state, only=handed):
+                context.gh.write_pinned_state(context.issue, state)
+            return False
+        if stood and not self.owed():
+            log.warning(
+                "issue=#%d its run ledger shows a start of the developer its "
+                "reviewer's change request owes that it cannot tell from that "
+                "launch; holding the handoff rather than launching a second one",
+                context.issue.number,
+            )
+            return False
+        # Read as the fixing stage's replay reads it: a float or a flag spelled
+        # over the same number is an anchor that replay refuses. A verdict handed
+        # before handoffs anchored their post names none, and no pinned anchor --
+        # not even none -- can be vouched for as its feedback.
+        anchor = _record_values.as_recorded_number(state.get(_verdicts._FEEDBACK_ANCHOR))
+        if not stood or (handed.anchor is not None and anchor == handed.anchor):
+            return stood
+        log.warning(
+            "issue=#%d its reviewer's change request was handed beside feedback "
+            "comment %s and the pinned anchor names %r; holding the handoff rather "
+            "than launching a developer no failed run could replay that feedback to",
+            context.issue.number, handed.anchor, state.get(_verdicts._FEEDBACK_ANCHOR),
+        )
         return False
-    # Read as the fixing stage's replay reads it: a float or a flag spelled
-    # over the same number is an anchor that replay refuses. A verdict handed
-    # before handoffs anchored their post names none, and no pinned anchor --
-    # not even none -- can be vouched for as its feedback.
-    anchor = _record_values.as_recorded_number(state.get(_verdicts._FEEDBACK_ANCHOR))
-    if not stood or (handed.anchor is not None and anchor == handed.anchor):
-        return stood
-    log.warning(
-        "issue=#%d its reviewer's change request was handed beside feedback "
-        "comment %s and the pinned anchor names %r; holding the handoff rather "
-        "than launching a developer no failed run could replay that feedback to",
-        issue.number, handed.anchor, state.get(_verdicts._FEEDBACK_ANCHOR),
-    )
-    return False
+
+    def owed(self, reading: PinnedState | None = None) -> bool:
+        """Whether the run ledger on `reading` rules out every start of this launch, so it is still owed.
+
+        `reading` is a comment the run circuit is about to charge from
+        (`review_launch_hold`); the state in hand where there is none. Not
+        where a start of the launch owed at the handed count or a later one is
+        recorded, nor where that record is spelled as no count -- `null`
+        included -- nor where the run count reads below the handed count: the
+        count only ever rises, so one that fell -- its own field unread and the
+        other meter behind, say -- cannot show what was charged since the
+        handoff. Nor where the charge standing may be this very launch: STARTED,
+        or in a phase no reader takes, under the fingerprint this launch is
+        charged under, or standing under a fingerprint no reader takes, gone
+        included -- RESERVED too, since the run circuit cannot honor that for
+        this launch and would charge it again. Each may be this developer, run
+        or not, and a charge whose record cannot be read is never ruled out as
+        it. A charge reserved before the handoff is counted in the handed count,
+        so its later start moves that count no further, and is read the same.
+        None standing, an unstarted reservation under this launch's own
+        fingerprint -- which the circuit honors rather than charging again --
+        or a charge another road took under a fingerprint of its own -- a
+        reviewer's -- leaves it owed.
+        """
+        state = self.context.state if reading is None else reading
+        at = self.handed.handed
+        started = _run_ledger_values._owed_started(state)
+        if state.carries(_run_ledger_values.AGENT_RUN_OWED_STARTED) and (started is None or started >= at):
+            return False
+        if _run_ledger_values._runs_used(state) < at:
+            return False
+        if not state.carries(_run_ledger_values.AGENT_RUN_RESERVATION):
+            return True
+        named = _run_ledger_values._fingerprint(state)
+        this_launch = _execution._first_launch_fingerprint(state, stage_name(WorkflowLabel.FIXING))
+        return named is not None and (
+            named != this_launch
+            or _run_ledger_values._reservation(state) is _run_ledger_models.RunPhase.RESERVED
+        )
+
+    def parks(self, moved_on: Callable[[], bool | None]) -> None:
+        """Park this launch, which may have run and left nothing to show, under `agent_execution_failed`, in one write.
+
+        `moved_on` is the caller's reading of whether the request has moved on
+        with nothing on the comment to show it -- its claim superseded, or a
+        commit on the branch its pull request has not got -- or None where the
+        branch could not be read, which the caller took ahead of the park and
+        which is taken again behind its notice.
+
+        Only behind the feedback anchor `/orchestrator continue` replays: the
+        pinned one naming the post the verdict records, or none -- something
+        cleared it -- which the park's own write puts back. One naming another
+        comment, or spelled as no whole id, would replay some other comment as
+        this reviewer's feedback, and a verdict naming no post vouches for none,
+        so either holds the launch with nothing posted or written. The park is
+        measured before its notice at its own write, and settled behind it
+        (`_lands`).
+        """
+        context = self.context
+        state = context.state
+        if not self._vouches(state.get(_verdicts._FEEDBACK_ANCHOR)):
+            log.warning(
+                "issue=#%d its handed change request names feedback comment %s and "
+                "the pinned anchor names %r; holding its launch rather than parking "
+                "it where no continue could replay that feedback",
+                context.issue.number, self.handed.anchor, state.get(_verdicts._FEEDBACK_ANCHOR),
+            )
+            return
+        measured = dict(state.data)
+        state.set(_verdicts._FEEDBACK_ANCHOR, self.handed.anchor)
+        if not _parks._park_fits(state, _PARK_EXECUTION_FAILED, self.handed):
+            log.error(
+                "issue=#%d has no room on its pinned comment for the park of its "
+                "handed change request's launch; posting and writing nothing", context.issue.number,
+            )
+            return
+        posted = _parks._posts_the_notice(context.gh, context.issue, state, _UNFINISHED)
+        lands = self._lands(measured, posted, moved_on)
+        if lands is None or not _report_record_state.fits_the_comment(state.data):
+            log.error(
+                "issue=#%d wrote nothing behind the notice of its launch's park: its "
+                "pinned comment would not read, or has no room beside what moved there",
+                context.issue.number,
+            )
+            return
+        context.gh.write_pinned_state(context.issue, state)
+        if lands:
+            context.gh.emit_event(
+                "park_awaiting_human",
+                issue_number=context.issue.number,
+                stage=stage_name(context.gh.workflow_label(context.issue)),
+                reason=_PARK_EXECUTION_FAILED,
+            )
+
+    def _vouches(self, pinned: object) -> bool:
+        """Whether the anchor `pinned` is the post this verdict records, or none: something cleared it."""
+        if self.handed.anchor is None:
+            return False
+        return pinned is None or _record_values.as_recorded_number(pinned) == self.handed.anchor
+
+    def _lands(
+        self,
+        measured: dict,
+        posted: int | None,
+        moved_on: Callable[[], bool | None],
+    ) -> bool | None:
+        """Settle the park's write behind its notice, which was `posted` as that id or None; whether it lands.
+
+        The notice is a request of its own, so the subject is resolved again
+        and the comment read against `measured`, the comment as the tick held
+        it, carrying what moved. A moved subject, or a report, pull-request,
+        verdict, or evidence record moved there, is a review nobody is asking
+        about any more, and so is what `moved_on` reads again -- a claim
+        superseded, or a commit that reached the branch while the notice was
+        posted, which the stage's own bounce publishes -- read ahead of the
+        comment, so the reading the park's write is composed over is the last
+        request before it, and a verdict another road put in place during the
+        branch's own requests is kept: the verdict is dropped for the stage's
+        own road, with no park. A park another road recorded there is that
+        road's to answer, and is kept as it wrote it: no park lands over it,
+        and the verdict waits. The anchor is held on that reading too: pointed
+        at another comment it holds the launch, as does a subject or a branch
+        nobody could read, or a notice nothing identified -- the verdict kept
+        for a later tick. The anchor is judged, and carried, as that reading
+        found it, and put back only by the write that lands the park: staged
+        on the state in hand, a restore reads as this tick's own move, and
+        would be written over a repoint another road made behind the notice,
+        or back beside a verdict and anchor another road dropped there. None
+        where the comment will not read, which writes nothing.
+        """
+        state = self.context.state
+        stands = _review_coverage._subject_still_stands(
+            self.context.gh, self.context.issue, state, self.handed.subject,
+        )
+        # The branch is read ahead of the comment: its own requests are long
+        # enough for another road to write there, so the reading the park's
+        # write is composed over has to be the last request before it.
+        moved = moved_on()
+        reread = _review_comment._records_stand(
+            self.context.gh, self.context.issue, state, measured, persisted=True,
+        )
+        if reread is None:
+            return None
+        # The anchor as that reading spelled it, its absence included.
+        state.data.pop(_verdicts._FEEDBACK_ANCHOR, None)
+        spelled = reread.read.get(_verdicts._FEEDBACK_ANCHOR, _review_comment._ABSENT)
+        if spelled is not _review_comment._ABSENT:
+            state.set(_verdicts._FEEDBACK_ANCHOR, spelled)
+        if _review_comment._moved(reread.read, measured, _HELD_TO):
+            stands = False
+        if stands is False or moved:
+            log.info(
+                "issue=#%d what its handed change request stands on moved behind "
+                "the park notice; dropping the verdict for the stage's own road",
+                self.context.issue.number,
+            )
+            _verdicts.drops_the_verdict(state, only=self.handed)
+            return False
+        if (
+            not (stands and posted is not None)
+            or moved is None
+            or state.get(_AWAITING_HUMAN)
+            or not self._vouches(state.get(_verdicts._FEEDBACK_ANCHOR))
+        ):
+            log.warning(
+                "issue=#%d landed no park of its handed change request's launch: its "
+                "anchor moved, its subject or branch would not read, its notice left no "
+                "id, or another park stands", self.context.issue.number,
+            )
+            return False
+        _verdicts.drops_the_verdict(state, only=self.handed)
+        state.data.update({
+            _verdicts._FEEDBACK_ANCHOR: self.handed.anchor,
+            _AWAITING_HUMAN: True,
+            _PARK_REASON: _PARK_EXECUTION_FAILED,
+        })
+        return True
 
 
 def _still_stands(
@@ -360,7 +685,7 @@ def _still_stands(
     and that start comes first: that developer's own push moves the head
     during these requests, and its run is the one that anchor's replay
     answers, so nothing is dropped and the caller retires the verdict as
-    launched (`_launch_stands`). A comment or a
+    launched (`HandedLaunch.stands`). A comment or a
     subject nobody could read proves nothing and writes nothing, and the
     request waits as it was.
     """

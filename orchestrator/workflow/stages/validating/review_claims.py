@@ -45,9 +45,12 @@ read. A change request stands without evidence; an approval does not.
 Nothing is written here: the transaction is minted, not recorded, because its
 record has to be measured beside the verdict it is persisted with
 (`review_verdicts.records_the_verdict`). No live reviewer round asks for a
-claim yet; only the dormant disposition service does (`review_disposition`),
-and the change-request handoff behind it asks where a claim's evidence stands
-(`review_handoffs`).
+claim yet; only the disposition service does, where it persists a returned
+verdict (`review_disposition`), which nothing reaches yet. Where a claim's
+evidence stands is asked by that service as it finishes a waiting verdict, by
+the change-request handoff behind it (`review_handoffs`), and by the recovery
+of a record an issue already carries (`review_resume`), the one road reaching
+that service yet.
 """
 from __future__ import annotations
 

@@ -35,8 +35,10 @@ not finish sent it there; the settled handoff asks it before moving a label
 that tail left owed; and `in_review` asks it before the approval may stand
 behind a ready ping.
 
-The dormant disposition service holds a returned verdict to its subject the
-same way (`_verdict_still_stands`) -- ahead of the write persisting it, once
+The disposition service -- which no live round reaches yet, only the recovery
+of a record an issue already carries (`review_resume`) -- holds a returned
+verdict to its subject the same way (`_verdict_still_stands`) -- ahead of the
+write persisting it, once
 more before handing it back ready, on every tick it waits on its evidence, and
 again before a refused approval parks, as the change-request handoff behind it does behind its feedback post and the
 relabel ahead of its developer (`review_handoffs`) -- but in the other order:

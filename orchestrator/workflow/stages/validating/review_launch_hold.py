@@ -3,30 +3,32 @@
 """What a handed change request's developer launch is held to at the run circuit, the launch boundary.
 
 The change-request handoff (`review_handoffs`) holds the launch it owes to
-what stands before the relabel announcing it and once more right before it
-hands the launch to the run circuit, but the circuit charges and starts the
-launch requests after that last reading -- long enough for another road to
-push, settle a later report, repoint the issue, drop or replace the verdict,
-clear or repoint the feedback anchor, or supersede the evidence the request
-claims. A developer launched over any of those answers a review of work the
-pull request no longer carries, or is one no failed run could replay the
-feedback to. So the launch goes to the circuit owed once
-(`run_charge_state.OwedLaunch`) behind this hold, which the circuit asks where
-it writes: the whole subject resolved again right behind the charge, and every
-reading the charge and its start are written from judged against the comment
-the handoff last held the launch over -- that very comment, not one pinned in
-its place since. Each reading it accepts is laid over the state the
-developer's run is written back from, so that run's writes keep whatever else
-another road wrote there. Nothing here writes: a refusal launches nobody and
-leaves the verdict handed, for the next entry to drop, retire, or hold over
-whatever moved.
+what stands before the relabel announcing it, where one is made, and once more
+right before it hands the launch to the run circuit, but the circuit charges
+and starts the launch requests after that last reading -- long enough for
+another road to push, settle a later report, repoint the issue, drop or
+replace the verdict, clear or repoint the feedback anchor, or supersede the
+evidence the request claims -- or start a launch of this very identity without
+the owed count, which nothing tells from this one. A developer launched over
+any of those answers a review of work the pull request no longer carries, is
+one no failed run could replay the feedback to, or is a second one. So the
+launch goes to the circuit owed once (`run_charge_state.OwedLaunch`) behind
+this hold, which the circuit asks where it writes: the whole subject resolved
+again right behind the charge, and every reading the charge and its start are
+written from judged against the comment the handoff last held the launch over
+-- that very comment, not one pinned in its place since. Each reading it
+accepts is laid over the state the developer's run is written back from, so
+that run's writes keep whatever else another road wrote there. Nothing here
+writes: a refusal launches nobody and leaves the verdict handed, for the next
+entry to drop, retire, or hold over whatever moved.
 """
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import report_record_values as _record_values
+from orchestrator.workflow.engine import report_record_values as _record_values, run_ledger_values as _run_ledger_values
 from orchestrator.workflow.engine.run_charge_state import OwedLaunch
 from orchestrator.workflow.stages.validating import (
     models as _models,
@@ -39,15 +41,21 @@ from orchestrator.workflow.stages.validating import (
 log = logging.getLogger("orchestrator.workflow")
 
 
-def owed_launch(context: _models._RequestedChanges, handed: _verdicts.ReturnedVerdict) -> OwedLaunch:
+def owed_launch(
+    context: _models._RequestedChanges,
+    handed: _verdicts.ReturnedVerdict,
+    rules_out_a_start: Callable[[PinnedState], bool],
+) -> OwedLaunch:
     """The developer launch `handed` owes once, held to the comment as `context.state` carries it now.
 
     For a caller that has just held the launch to what stands, over the
     comment read again, and has carried that reading onto `context.state`:
     the first reading the circuit takes is measured against it, before the
-    caller stages anything of its own over it.
+    caller stages anything of its own over it. `rules_out_a_start` is the
+    handoff's own reading of the run ledger (`review_handoffs.HandedLaunch.
+    owed`), asked of every reading the circuit charges or starts from.
     """
-    hold = _LaunchHold(context, handed)
+    hold = _LaunchHold(context, handed, rules_out_a_start)
     return OwedLaunch(at=handed.handed, resolves=hold.resolves, stands=hold.stands)
 
 
@@ -65,9 +73,15 @@ class _LaunchHold:
     up.
     """
 
-    def __init__(self, context: _models._RequestedChanges, handed: _verdicts.ReturnedVerdict) -> None:
+    def __init__(
+        self,
+        context: _models._RequestedChanges,
+        handed: _verdicts.ReturnedVerdict,
+        rules_out_a_start: Callable[[PinnedState], bool],
+    ) -> None:
         self._context = context
         self._handed = handed
+        self._rules_out_a_start = rules_out_a_start
         self._measured = dict(context.state.data)
 
     def resolves(self) -> bool:
@@ -103,13 +117,20 @@ class _LaunchHold:
         anchor, read as the fixing stage's replay reads it, still names the
         post the verdict records; the report records and the pull request the
         issue points at are where the last reading had them; and the evidence
-        the request claims is still the settled evidence, not superseded. A
-        reading that stands is laid over the launch's state, and is what the
-        next one is measured against.
+        the request claims is still the settled evidence, not superseded. Its
+        run ledger rules out a start of this launch too -- one of its very
+        identity STARTED with no owed count, or one whose record no reader
+        takes, included -- save where the state in hand already records this
+        launch's own start: the circuit merges every charge it takes back onto
+        that state, so a continuation of the launch, a poisoned session's fresh
+        retry or a recovery prompt, is its own. A reading that stands is laid
+        over the launch's state, and is what the next one is measured against.
         """
         handed = self._handed
+        own = _run_ledger_values._owed_started(self._context.state) == handed.handed
         anchor = _record_values.as_recorded_number(reading.get(_verdicts._FEEDBACK_ANCHOR))
         stands = reading.comment_id == self._context.state.comment_id
+        stands = stands and (own or self._rules_out_a_start(reading))
         stands = stands and handed.anchor is not None and anchor == handed.anchor
         stands = stands and _verdicts.read_returned_verdict(reading) == handed
         if stands and handed.evidence is not None:
