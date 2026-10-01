@@ -20,6 +20,8 @@ _PARENT = "orchestrator.workflow.stages"
 
 _HANDLER_OWNER = "handler"
 
+_REVIEWER_OWNER = "reviewer"
+
 _OWNERS = (
     "approval",
     "approved_evidence",
@@ -49,8 +51,9 @@ _OWNERS = (
     "review_handoffs",
     "review_launch_hold",
     "review_parks",
+    "review_resume",
     "review_verdicts",
-    "reviewer",
+    _REVIEWER_OWNER,
     "squash_writes",
     "state",
     "stranded",
@@ -69,9 +72,16 @@ _OWNER_MODULES = MappingProxyType({
 
 _HANDLE_VALIDATING = "_handle_validating"
 
-# The returned-verdict disposition service and the owners only it asks, none
-# of which a live reviewer round reaches yet.
-_DORMANT = ("review_disposition", "review_handoffs", "review_launch_hold", "unverified_approvals")
+# The returned-verdict disposition service and the owners only it and the
+# recovery of a record an issue already carries ask, none of which a live
+# reviewer round reaches yet.
+_DORMANT = (
+    "review_disposition",
+    "review_handoffs",
+    "review_launch_hold",
+    "review_resume",
+    "unverified_approvals",
+)
 
 
 class CleanProcessImportTest(unittest.TestCase):
@@ -93,7 +103,7 @@ class CleanProcessImportTest(unittest.TestCase):
 
 
 class LayeringTest(unittest.TestCase):
-    """The initializer costs the package above it and nothing else, and the live handler no dormant owner."""
+    """The initializer costs the package above it and nothing else, and a live round no dormant owner."""
 
     def test_initializer_reaches_no_owner(self) -> None:
         # An eager owner binding here would charge a park or a watermark walk
@@ -107,10 +117,11 @@ class LayeringTest(unittest.TestCase):
 
     def test_live_rounds_reach_no_dormant_disposition(self) -> None:
         # Live reviewer results stay off the returned-verdict service: the
-        # handler a validating tick is dispatched to imports none of it, so
-        # no live round persists, proves, parks, or hands over a verdict
-        # through it.
-        reached = probe_import(f"{_PACKAGE}.{_HANDLER_OWNER}").orchestrator_modules
+        # owner a live round runs and dispatches its reviewer through imports
+        # none of it, so no live round persists, proves, parks, or hands over
+        # a verdict through it. The handler reaches it only to finish a record
+        # an issue already carries (`review_resume`).
+        reached = probe_import(f"{_PACKAGE}.{_REVIEWER_OWNER}").orchestrator_modules
         self.assertEqual(reached & {f"{_PACKAGE}.{owner}" for owner in _DORMANT}, set())
 
 

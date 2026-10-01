@@ -47,6 +47,15 @@ nothing on the pull request carries is the review the report exists to
 prevent. A head this orchestrator rewrote is owed its report in the same
 place, and that hold is where the developer is asked for it: the tick that
 asks ends there, and the reviewer runs once the report has paid the debt.
+
+A reviewer verdict an earlier tick persisted and never disposed of is finished
+behind all of those and ahead of the round-cap check and the spawn
+(`review_resume`): the evidence it declared was published by the dispatcher's
+reconciliation ahead of this handler, and what is left is the verdict, which a
+second reviewer would only pay for again. Behind the hold, since its
+disposition acts on the report that hold keeps a reviewer from. No live
+reviewer round persists one yet, so the hook answers only a record an issue
+already carries.
 """
 from __future__ import annotations
 
@@ -64,6 +73,7 @@ from orchestrator.workflow.stages.validating import (
     drift as _drift,
     models as _models,
     report_hold as _report_hold,
+    review_resume as _review_resume,
     reviewer as _reviewer,
     state as _state,
 )
@@ -101,7 +111,7 @@ def _ends_before_review(
     state: PinnedState,
     parked: _models._AwaitingValidation | None,
 ) -> bool:
-    """The last two answers a tick can take before the reviewer; True where one did.
+    """The last three answers a tick can take before the reviewer; True where one did.
 
     Awaiting-human path: human replied after a park (or a transient condition
     self-resolved), read off the context the caller built with its one frozen
@@ -110,22 +120,22 @@ def _ends_before_review(
     reviewer re-run. "return" -> the tick is fully handled; "spawn_reviewer"
     -> fall through to the report hold, the round-cap check and the spawn.
 
-    A report still owed then holds the reviewer until it is confirmed on the
-    pull request, and so does the report a rewritten head is owed while the
-    developer is asked for it. A park the branch above cleared into this round
-    is staged and not yet written -- the reviewer's own write carries it
-    otherwise -- so a held tick writes it, or the next one answers the same
-    reply again.
+    A park the branch above cleared into this round is staged and not yet
+    written, so False hands it to the caller, which settles it over the
+    comment as the tick read it (`review_resume.settles_a_bought_round`).
+
+    Otherwise a report still owed holds the reviewer until it is confirmed on
+    the pull request, and so does the report a rewritten head is owed while
+    the developer is asked for it. Last, a verdict an earlier tick's reviewer
+    returned and nobody disposed of is finished in place of a new round
+    (`review_resume`); its run, usage, and round are already on the comment
+    with it.
     """
-    if parked is not None and _awaiting_resume._handle_validating_awaiting_human(
-        parked,
-    ) == _state._OUTCOME_RETURN:
-        return True
-    if not _report_hold._report_holds_the_review(gh, spec, issue, state):
-        return False
     if parked is not None:
-        gh.write_pinned_state(issue, state)
-    return True
+        return _awaiting_resume._handle_validating_awaiting_human(parked) == _state._OUTCOME_RETURN
+    if _report_hold._report_holds_the_review(gh, spec, issue, state):
+        return True
+    return _review_resume.resumes_a_returned_verdict(gh, spec, issue, state)
 
 
 def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
@@ -164,7 +174,18 @@ def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: I
     if _drift._resume_dev_on_validating_drift(gh, spec, issue, state, parked):
         return
 
-    if _ends_before_review(gh, spec, issue, state, parked):
+    # A reply that cleared a park into a fresh round, where the report hold
+    # stops that round or a verdict the park outlived waits, ends the tick in
+    # one write over the comment read afresh against the tick's own reading:
+    # what another road wrote meanwhile is carried, the cleared park kept --
+    # save a park that road recorded, kept as it wrote it -- and that verdict
+    # dropped only where the comment still carries it. The round runs next
+    # tick, over the comment as it stands then.
+    if _ends_before_review(gh, spec, issue, state, parked) or (
+        parked is not None and _review_resume.settles_a_bought_round(
+            gh, issue, state, read, _report_hold._report_holds_the_review(gh, spec, issue, state),
+        )
+    ):
         return
 
     reviewer_run = _reviewer._run_reviewer_round(gh, spec, issue, state, read)

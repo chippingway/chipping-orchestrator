@@ -177,8 +177,9 @@ Beside it sits the additive `verification_evidence_*` group -- the pending evide
 pull request carries now, a bounded history of retired evidence, the receipt of the last one settled, and the highest
 revision spent -- which the dispatcher reconciles directly behind the report, publishing an artifact only once the
 pull request, trees, review subject, configuration, and requirements are proved, and carrying evidence to another
-head only on an equal full tree under the same context; no live producer records a transaction yet, the
-returned-verdict disposition that would record a reviewer's declared commands beside its verdict being dormant
+head only on an equal full tree under the same context; no live producer records a transaction yet, the returned-verdict
+disposition recording one only where it persists a reviewer's verdict, which no live reviewer round asks of it yet --
+the recovery of a seeded record calls it only to finish a record already persisted
 ([evidence transaction](state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 The additive `developer_report_rewrite_debt` claim is the report a rewrite of the pull request's head leaves owed --
 the pull request, its branch, the head the rewrite replaced, and the exact head it published. While any claim stands,

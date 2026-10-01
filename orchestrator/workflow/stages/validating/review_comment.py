@@ -38,9 +38,11 @@ is written -- a park for a timeout or a missing verdict as much as the record of
 a verdict. It watches the report's records and the pull request the issue
 points at, since a verdict about one pull request is no review of another the
 issue points at now. The approval arc behind its verify gate, the approval
-proof, and the dormant disposition service and the change-request handoff
-behind it wherever they hold a verdict to its subject
-(`review_coverage._verdict_still_stands`) ask it of more (`persisted`): the
+proof, the disposition service and the change-request handoff behind it
+wherever they hold a verdict to its subject
+(`review_coverage._verdict_still_stands`), and the recovery of a record an
+issue already carries (`review_resume`) -- the one road that reaches that
+service yet -- ask it of more (`persisted`): the
 returned verdict persisted (`review_verdicts`) beside them, since one another
 road dropped or replaced since is no longer the one any write behind this may
 act on. Records that moved
@@ -76,6 +78,13 @@ state was read from, carries nothing, and the answer is the one that writes
 nothing: the run is charged, and the next tick spawns a reviewer over whatever
 the comment carries then.
 
+A tick settling the round a reply bought asks its reading whether another road
+recorded a park there meanwhile (`_Reread.parks_anew`): its flags moved, which
+that tick keeps as the reading spells them (`_Reread.keeps_the_park`). A park
+recorded again for the same reason shows only in its notice, which nothing on
+the comment names, and a comment another road posted that names the human a
+park waits on may be one, so the tick writes nothing and asks again.
+
 Nothing here parks or posts.
 """
 from __future__ import annotations
@@ -88,6 +97,7 @@ from types import MappingProxyType
 
 from github.Issue import Issue
 
+from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -141,6 +151,9 @@ _WATCHED = MappingProxyType({False: _BOUND_RECORDS, True: _VERDICT_RECORDS})
 # What a field the comment does not carry reads as, apart from one it carries
 # as `null`.
 _ABSENT = object()
+
+# A park as the pinned comment records it: whether one stands, and why.
+_PARK = ("awaiting_human", "park_reason")
 
 
 @dataclass(frozen=True)
@@ -258,6 +271,53 @@ class _Reread:
         _comments._track_orchestrator_comment(state, *sorted(
             entry for entry in ledger if _state._is_whole(entry)
         ))
+
+    def parks_anew(self, gh: GitHubClient, issue: Issue, since: dict, posted: set[int]) -> bool | None:
+        """Whether another road recorded a park on this reading since the comment read as `since`; None untold.
+
+        `posted` is the orchestrator's comments this reading carries that the
+        road asking never recorded -- another road's posts. A park recorded is
+        its flags moved (`_PARK`). One standing for the very reason `since`
+        had, flags alike, shows only in the notice it posted, and nothing on
+        the comment names a notice: every park's notice opens by naming the
+        human it waits on (`config.HITL_MENTIONS`), but so may a status line
+        another road posts, so one of `posted` that does cannot be told from a
+        park, and answers None -- as does a thread those comments are on that
+        will not read -- for the caller to write nothing and ask again over
+        the comment as it stands then. A comment that names nobody is no
+        park's notice, and parks nothing.
+        """
+        if _moved(self.read, since, _PARK):
+            return True
+        if not (posted and self.read.get(_PARK[0])):
+            return False
+        try:
+            thread = gh.comments_after(issue, min(posted) - 1)
+        except Exception:
+            log.exception(
+                "issue=#%d could not read the comments another road posted while "
+                "its park was answered, to tell a park's notice among them", issue.number,
+            )
+            return None
+        addressed = any(
+            said.id in posted and (said.body or "").startswith(config.HITL_MENTIONS)
+            for said in thread
+        )
+        if addressed:
+            log.warning(
+                "issue=#%d another road posted a comment naming the human while its "
+                "park was answered, which may be a park's notice; writing nothing", issue.number,
+            )
+            return None
+        return False
+
+    def keeps_the_park(self, state: PinnedState) -> None:
+        """Put the park on `state` as this reading spells it, a flag it does not carry dropped."""
+        for field in _PARK:
+            state.data.pop(field, None)
+            spelled = self.read.get(field, _ABSENT)
+            if spelled is not _ABSENT:
+                state.set(field, spelled)
 
 
 def _resolved_over(

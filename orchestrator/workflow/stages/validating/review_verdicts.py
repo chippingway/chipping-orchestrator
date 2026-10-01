@@ -11,9 +11,11 @@ which would spend another run, fold its usage again, and could say something
 else about the same subject. So the verdict is to be written onto the pinned
 comment in the write that records the returned reviewer's run, before the
 evidence is published or the verdict disposed of, and dropped by whichever
-write disposes of it. Only the dormant disposition service writes it
+write disposes of it. Only the disposition service writes it
 (`review_disposition`), with the change-request handoff it hands a ready
-request to (`review_handoffs`), and no live reviewer round calls either yet:
+request to (`review_handoffs`) and the recovery that finishes or drops a
+record an issue already carries (`review_resume`) -- the one road reaching
+that service yet -- and no live reviewer round calls any of them yet:
 the round keeps acting on its verdict in the tick it returns, and this owner is
 the record alone -- its shape, its reader, its measurement, and its writers.
 

@@ -53,8 +53,9 @@ what the proof was taken over.
 
 Nothing here parks -- the disposition parks a refusal, once it has held the
 approval to its subject and claim again -- and no live reviewer round asks it:
-the dormant disposition service is its one caller (`review_disposition`), so
-live reviewer results never pass through it.
+the disposition service is its one caller (`review_disposition`), and only the
+recovery of a record an issue already carries reaches that service
+(`review_resume`), so live reviewer results never pass through it.
 """
 from __future__ import annotations
 

@@ -107,6 +107,12 @@ _REMOTE_MOVED = "remote_moved"
 # cannot name, so there is no end for a publication to be pinned to.
 _MOVED_CHECKOUT = "moved_checkout"
 
+# The refusals that may be one request that did not return -- a status nobody
+# could take, a fetch that failed, a count git would not take, a checkout that
+# moved while it was read -- rather than something on the branch somebody has
+# to act on, so a reading taken again may prove where the branch stands.
+_UNREAD = frozenset((_UNREADABLE_TREE, _FETCH_FAILED, _UNREADABLE_DIVERGENCE, _MOVED_CHECKOUT))
+
 # The clause each refusal owes a caller that has to say why its road stopped.
 # Spelled here rather than at the roads, because what a finding MEANS is this
 # module's to say: a caller that worded it for itself would be describing a
@@ -202,6 +208,18 @@ class _StrandedEvidence:
         established" cannot tell which without being told.
         """
         return _REFUSAL_DETAILS.get(self.finding, "")
+
+    @property
+    def unread(self) -> bool:
+        """Whether this reading proved nothing because a reading did not return, rather than over what the branch holds.
+
+        What a caller that may wait for another reading asks: an unreadable
+        status, a failed fetch, a divergence git would not count, and a
+        checkout that moved while it was read say nothing about the branch,
+        while loose work in the checkout and a remote that moved past it are
+        the branch's own, and somebody's to act on.
+        """
+        return self.finding in _UNREAD
 
 
 def _stranded_evidence(

@@ -90,9 +90,13 @@ reach `approval`, through `approved_evidence`, which the arc asks again behind
 its requests and records beside the approved subject for every later move to
 be held to: settled, passing, current evidence covering the configured
 verification, a refusal in the words its park carries, or a hold where the
-proof could not be read. No round asks the disposition yet, nor the owners
-only it asks. The parks a failed verify gate or squash takes on the approval
-road are filed in `review_parks` too, behind notices of their own.
+proof could not be read. No live round asks the disposition yet, nor the
+owners only it asks: `review_resume` finishes a verdict an issue already
+carries, ahead of the round cap and the spawn and, on `fixing`, ahead of the
+feedback scan, asking `review_handoffs` whether a handed request's developer
+is still owed and parking a launch that may have run and shows nothing. The
+parks a failed verify gate or squash takes on the approval road are filed in
+`review_parks` too, behind notices of their own.
 `review_records` writes what the round puts down -- the spec and subject ahead
 of the spawn, the session on its return -- and reserves the whole round, at
 its widest, in the measurement a developer report is accepted under.

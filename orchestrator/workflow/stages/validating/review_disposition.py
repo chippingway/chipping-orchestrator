@@ -3,11 +3,13 @@
 """A returned reviewer's verdict, persisted and its evidence reconciled, then acted on or parked where that is owed.
 
 No live reviewer round hands its result here yet: the round still acts on its
-`VERDICT:` line alone, so no issue carries a verdict this service persisted,
-and nothing calls either of its two entries. `disposes_of_the_verdict` takes a
-returned run from the top: its preparation (`prepares_the_verdict`) hands back
-the verdict ready to be acted on, or nothing, and the disposition acts on it or
-parks it. `finishes_the_verdict` takes the verdict a later tick finds waiting,
+`VERDICT:` line alone, so no issue carries a verdict this service persisted
+but one a record was seeded on, and nothing calls `disposes_of_the_verdict`;
+`finishes_the_verdict` is what the validating handler's recovery asks of a
+record an issue already carries (`review_resume`). `disposes_of_the_verdict`
+takes a returned run from the top: its preparation (`prepares_the_verdict`)
+hands back the verdict ready to be acted on, or nothing, and the disposition
+acts on it or parks it. `finishes_the_verdict` takes the verdict a later tick finds waiting,
 where `waiting_verdict_ready` answers it may be acted on now -- from the pinned
 comment alone, since the process keeps nothing between ticks -- beside a run
 its caller rebuilds of the round that returned it. That run has to be of the

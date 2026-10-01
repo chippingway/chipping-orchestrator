@@ -45,17 +45,23 @@ def _execution_mocks(context: _WorkflowRunContext) -> dict[str, object]:
 
 
 def _worktree_mocks(context: _WorkflowRunContext) -> dict[str, object]:
-    return {
+    mocks = {
         # The handoff's own move of the branch onto a plan PR's live head,
         # answering with the tip it landed on: the head that was asked for by
         # default, and whatever a test about a deleted branch or a move that
         # could not be made names instead.
         "_anchor_pr_worktree": MagicMock(side_effect=_AnchorAnswers(context)),
-        "_ensure_worktree": MagicMock(return_value=context.issue_worktree),
+        "_ensure_worktree": MagicMock(
+            return_value=context.issue_worktree, side_effect=context.worktree_restore_error,
+        ),
         "_ensure_pr_worktree": MagicMock(return_value=_FAKE_WT),
         "_ensure_decompose_worktree": MagicMock(return_value=_FAKE_WT),
         "_decompose_worktree_path": MagicMock(return_value=_FAKE_WT),
     }
+    if context.worktree_restore_error is not None:
+        # A checkout whose restore fails is one this host no longer holds.
+        mocks["_worktree_path"] = MagicMock(return_value=_FAKE_WT)
+    return mocks
 
 
 def _cleanup_mocks(context: _WorkflowRunContext) -> dict[str, object]:

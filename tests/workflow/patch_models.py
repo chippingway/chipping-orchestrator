@@ -113,6 +113,11 @@ class _WorkflowRunContext:
     # ordinary world, since a hermetic run never reaches git; a case whose
     # answer comes from real objects names the repository it built instead.
     issue_worktree: Any = _FAKE_WT
+    # What restoring that checkout raises, where a case is about a checkout
+    # gone from this host whose restore fails, so the issue's checkout path
+    # names nothing this host holds. None leaves the checkout where the case
+    # put it, and restores it at `issue_worktree`.
+    worktree_restore_error: Any = None
     # What the size gate reads about the candidate a publication is about to
     # push. The default world is the ordinary one -- a commit this host holds,
     # a base the remote named, and a diff well under any ceiling -- so a test

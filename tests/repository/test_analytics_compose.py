@@ -4,7 +4,9 @@
 
 Render a copied configuration through Compose itself so short volume syntax
 cannot silently enable host-directory creation. This needs the Compose CLI,
-but never connects to Docker or accesses the operator's data directory.
+but never connects to Docker or accesses the operator's data directory. A CLI
+that does not answer its version probe in time -- a cold runner's -- is taken
+as absent, like one that answers with an error.
 """
 import json
 import shutil
@@ -16,16 +18,25 @@ from pathlib import Path
 _COMPOSE_FILE = Path(__file__).resolve().parents[2] / "analytics-db" / "compose.yml"
 _DOCKER = shutil.which("docker")
 _SKIP_REASON = "Docker Compose CLI is required to render analytics mounts"
-_TIMEOUT = 10
+_TIMEOUT = 30
+
+
+def _compose_answers() -> bool:
+    """Whether the Compose CLI answers its version probe, in time and without an error."""
+    try:
+        probe = subprocess.run(
+            [_DOCKER, "compose", "version"],
+            capture_output=True, check=False, timeout=_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return False
+    return probe.returncode == 0
 
 
 @unittest.skipUnless(_DOCKER, _SKIP_REASON)
 class AnalyticsComposeMountsTest(unittest.TestCase):
     def test_binds_require_checkout_sources(self) -> None:
-        if subprocess.run(
-            [_DOCKER, "compose", "version"],
-            capture_output=True, check=False, timeout=_TIMEOUT,
-        ).returncode:
+        if not _compose_answers():
             self.skipTest(_SKIP_REASON)
 
         with tempfile.TemporaryDirectory() as checkout:

@@ -130,12 +130,8 @@ def _resolve_dev_session_for_resume(
     caller and its returned id persisted -- and is NOT charged against the
     resume budget, whose checks require a non-None session id.
     """
-    session = _models._DevSession(*_session_read._read_dev_session(state))
-    silent_count = int(state.get(_state._SILENT_PARK_COUNT) or 0)
     resume_count = int(state.get(_state._DEV_RESUME_COUNT) or 0)
-    retirement_reason = _dev_session_retirement_reason(
-        session.session_id, resume_count, silent_count,
-    )
+    session, retirement_reason = _planned_dev_session(state)
     if retirement_reason is not None:
         log.info(
             "issue=#%d retiring dev session %r (%s); starting fresh",
@@ -150,6 +146,20 @@ def _resolve_dev_session_for_resume(
         fresh_spawn=session.session_id is None,
         resume_count=resume_count,
     )
+
+
+def _planned_dev_session(state: PinnedState) -> tuple[_models._DevSession, str | None]:
+    """The locked dev session a resume over `state` opens with, and why it retires first, if it does.
+
+    Read only: `_resolve_dev_session_for_resume` stages the retirement, so a
+    reader asking which launch a resume would be -- the charge a handed change
+    request's recovery correlates (`execution._first_launch_fingerprint`) --
+    plans it without retiring anything.
+    """
+    session = _models._DevSession(*_session_read._read_dev_session(state))
+    silent_count = int(state.get(_state._SILENT_PARK_COUNT) or 0)
+    resume_count = int(state.get(_state._DEV_RESUME_COUNT) or 0)
+    return session, _dev_session_retirement_reason(session.session_id, resume_count, silent_count)
 
 
 def _dev_session_retirement_reason(

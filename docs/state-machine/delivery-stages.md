@@ -992,11 +992,12 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Trigger**: `_record_stops_the_tick` on any issue whose pinned comment carries `verification_evidence_pending`,
   directly behind the developer-report transaction and ahead of the reuse guard. The owner is
   `workflow/engine/verification_transaction.py`; the four records and the revision floor are described under
-  [pinned state](labels-and-state.md#pinned-state). No live producer records a transaction yet -- the
-  returned-verdict disposition (`stages/validating/review_disposition.py`), which records the transaction
-  `review_claims.py` mints from a reviewer's declared commands beside its verdict and publishes it through this same
-  reconciliation, is dormant -- so an issue without the record (every issue today) passes through reading nothing and
-  writing nothing.
+  [pinned state](labels-and-state.md#pinned-state). No live producer records a transaction yet -- the returned-verdict
+  disposition (`stages/validating/review_disposition.py`), which records the transaction `review_claims.py` mints from a
+  reviewer's declared commands beside its verdict and publishes it through this same reconciliation, does so only where
+  it persists a returned verdict, which no live reviewer round asks of it yet -- the recovery of a seeded record
+  (`stages/validating/review_resume.py`) calls it only to finish a record already persisted, which records no
+  transaction -- so an issue without the record (every issue today) passes through reading nothing and writing nothing.
 - **Why it is behind the report transaction**: evidence answers for a review subject that names the developer
   report, so a report still owed is a subject about to move — the proof defers to it, and the report settles first.
 - **Stands aside**: a closed issue, a `done` or `rejected` label, a hard-skip control label, or no workflow label at
@@ -3356,8 +3357,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      `report_settlement`'s, over the pull request, its description, and the issue read again. A reply resumes the
      session through the drift route, whose report supersedes the undelivered one. Anything else still owed — a
      reading nobody could take, or a pull request somebody moved under the report — holds silently, since the next
-     tick is as likely to settle it. A park the awaiting-human branch cleared into this round is
-     written when the hold stops it, so its reply is not answered twice.
+     tick is as likely to settle it. A park the awaiting-human branch cleared into this round is written when the hold
+     stops it, in the one write step 4 composes over the comment read afresh (`review_resume.settles_a_bought_round`),
+     so its reply is not answered twice.
      Once no report is owed -- on arrival, or once this tick settled it -- a claimed `developer_report_rewrite_debt` is
      asked last (`report_refresh._rewrite_holds_the_review`), against the pull request's head read the way the
      reviewer's subject reads it; a head nobody could read holds for the next tick. A claim that is to be paid or
@@ -3406,8 +3408,23 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      - **Held for nothing.** Anything else -- a claim nobody can read, another pull request or branch, a head
        somebody pushed over the rewrite, a settled report of neither head -- holds nothing, so the subject
        resolution in step 5 refuses the stale report as it would with no claim.
-  4. If `review_round >= MAX_REVIEW_ROUNDS` (default 3), park (`review_cap`). The park comment surfaces the
-     `/orchestrator add-review-rounds N` escape hatch.
+  4. A reviewer verdict an earlier tick persisted and never disposed of (`review_returned_verdict`) is finished ahead of
+     the cap and the spawn (`review_resume.resumes_a_returned_verdict`), running no reviewer, folding no usage, and
+     spending no round: one not yet handed through a run rebuilt of its round over the subject resolved again, one
+     handed whose relabel never landed by that relabel and the launch of its one owed developer. A subject that moved
+     and a handed verdict whose developer may have run, its subject resolved again, drop the verdict in a write of the
+     comment read afresh -- only while it still carries that verdict -- and end the tick, for the next tick's round; a
+     verdict another road put in place of a handed one while its cleared anchor is written back ends the tick with
+     nothing written or handed over; a tick a reply cleared a park into, where the report hold stops that round or a
+     verdict waits, ends in one write composed over the comment read afresh against the tick's own reading -- the
+     cleared park kept, save a park another road recorded there, its flags moved, which stands as it wrote it, what
+     another road wrote meanwhile carried, and the verdict the park outlived dropped only where the comment still
+     carries it -- the round running next tick (`review_resume.settles_a_bought_round`). A park recorded again for the
+     same reason moves no flag and shows only in its notice, so a comment another road posted meanwhile that opens with
+     the HITL mentions, as every park notice does and a status line may, writes nothing for the next tick to answer the
+     reply again; one naming nobody is no park. A reading nobody could take holds the tick with nothing written ([pinned
+     state](labels-and-state.md#pinned-state)). Otherwise, if `review_round >= MAX_REVIEW_ROUNDS` (default 3), park
+     (`review_cap`). The park comment surfaces the `/orchestrator add-review-rounds N` escape hatch.
   5. Otherwise resolve what the reviewer is handed (`review_report._resolves_the_subject`): the pull request's head, and
      the developer report `developer_report_current` records, re-read from the exact location it settled at and held to
      its digest. A settled record that will not read, one about another pull request, one its own handoff does not
@@ -3767,9 +3784,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        honoring that reservation), which is asked again right before every launch so a developer another road launched
        behind the relabel is not launched twice -- and once more by the run circuit, on the readings it charges and
        starts the launch from, which refuse it with nothing started or written over them where another road started that
-       developer, or charged a run over its reservation, after the handoff's last reading, pinned another comment in its
-       place, or where the verdict, the anchor, the report records, the pull request the issue points at, or the claimed
-       evidence moved there, the whole subject resolved again right behind the charge
+       developer, charged a run over its reservation, or started a run of that launch's very identity with no owed count
+       -- a continuation of the launch's own start excepted -- after the handoff's last reading, pinned another comment
+       in its place, or where the verdict, the anchor, the report records, the pull request the issue points at, or the
+       claimed evidence moved there, the whole subject resolved again right behind the charge
        (`validating/review_launch_hold.py`; [The agent-run circuit](labels-and-state.md#the-agent-run-circuit)). What
        else another road wrote on a reading the launch stands on is carried onto the state the developer's run is
        written back from, so that run's writes keep it. Either launch is made only behind that anchor, still naming, as
@@ -4095,6 +4113,26 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      cleaning the checkout would publish the report and send the issue to review, which is the decision the notice
      exists to put in front of a human. A reading nobody could TAKE is neither, and buys nothing at all: nothing
      published, nothing released, no notice, and the poll behind it asks again.
+
+     A reviewer's change request handed over to this label (`review_returned_verdict` with `handed`) is answered right
+     behind that, still ahead of the scan (`validating/review_resume.finishes_a_handed_request`): its feedback is a
+     comment this orchestrator posted, which the scan filters out, so the no-feedback bounce would pay a second reviewer
+     for a round already reviewed. It stands down while a park stands, whose own dispatch answers first -- the run
+     circuit's `agent_run_limit` over a launch it refused, say. A developer launch still owed is made once
+     (`validating/review_handoffs.HandedLaunch.owed`), with no relabel: the issue is on this label already, and writing
+     it again would emit a `stage_enter` nothing made; one that may have started is never made again. It is held to the
+     subject resolved again, the evidence its request claims, and the branch: a move, a commit the pull request has not
+     got, loose work in the checkout, or a remote that moved past it drops the verdict in a write of the comment read
+     afresh -- only while it still carries that verdict -- and the next tick's bounce publishes that work, or holds over
+     it, and hands the pull request back, while a subject or branch nobody could read -- a fetch, a status, or a count
+     that did not return -- holds the tick with the verdict kept. Anything else parks under `agent_execution_failed`
+     (`HandedLaunch.parks`), measured and noticed as the verdict parks are, and held to the subject and the comment's
+     report, pull-request, verdict, and evidence records, and to the branch, once more behind its notice, the comment
+     read behind the branch so a verdict another road put in place there is kept -- a commit that reached it there
+     dropping the verdict for the bounce, a branch that would not read holding it, and a park another road recorded
+     there kept as it wrote it -- and to the feedback anchor `/orchestrator continue` replays: one cleared, before the
+     notice or behind it, is written back from the record in the park's own write, and one naming another comment holds
+     the launch with no park.
   5. Rescan unread feedback across all four surfaces, each past the reader or readers it answers to, reading the two
      IssueComment-space surfaces through the same per-surface cursors `_handle_in_review` uses — the issue thread
      past `pr_last_comment_id` with everything at or below `last_action_comment_id` dropped, the PR conversation past
