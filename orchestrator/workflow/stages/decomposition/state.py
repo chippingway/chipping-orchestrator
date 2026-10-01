@@ -73,15 +73,21 @@ def _ledger_is_sealed(sealed: Any, cycle_id: int) -> bool:
     return sealed == cycle_id
 
 
-def _links_to(linked: Any, parent: int) -> bool:
-    """Whether a recorded `parent_number` is exactly `parent`'s issue number.
+def _names_an_issue(linked: Any) -> bool:
+    """Whether a recorded `parent_number` is an issue number at all.
 
-    Spelled once because recovery, recognition, and release all take the link
-    as proof of parentage, and only an issue number proves it: JSON carries
-    `41.0` and `true` as values Python compares equal to 41 and 1, and neither
-    is one any writer here produced, so each names no parent at all.
+    Spelled once because recovery, recognition, release, and the hold on a
+    child its split never seeded all take the link as proof of parentage, and
+    only an issue number proves it: JSON carries `41.0` and `true` as values
+    Python compares equal to 41 and 1, and neither is one any writer here
+    produced, so each names no parent at all.
     """
-    return _formats.whole_number(linked) and linked > 0 and linked == parent
+    return _formats.whole_number(linked) and linked > 0
+
+
+def _links_to(linked: Any, parent: int) -> bool:
+    """Whether a recorded `parent_number` is exactly `parent`'s issue number."""
+    return _names_an_issue(linked) and linked == parent
 
 
 def _issue_ref_list(numbers: list) -> str:

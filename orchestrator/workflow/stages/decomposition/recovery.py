@@ -238,7 +238,10 @@ def _recover_stale_manifest(
 
     Returns True when a recovery path took over and the caller must
     return; False when no manifest markers are present and the caller
-    should proceed to spawn the decomposer.
+    should proceed to spawn the decomposer. An issue with no markers that
+    is itself a split's child its seed never reached is the one exception:
+    it is held (True) rather than handed to the kill switch or the
+    decomposer -- see `split_receipts.holds_unseeded`.
 
     Two persistent markers signal a prior tick crashed mid-split:
       * `expected_children_count` is written BEFORE any child is created,
@@ -263,7 +266,7 @@ def _recover_stale_manifest(
     expected_raw = state.get("expected_children_count")
     children_recorded = state.get(_state._CHILDREN) or []
     if expected_raw is None and not children_recorded:
-        return False
+        return _split_receipts.holds_unseeded(gh, issue, state)
     if _markers_not_ours(issue, state):
         return True
     if expected_raw is not None and len(children_recorded) < int(expected_raw):

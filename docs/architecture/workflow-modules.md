@@ -1384,7 +1384,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             this orchestrator opened and recorded on the parent -- and, in the same write, on the
                             consumer ledger wherever the parent's proved lineage points its children at a snapshot,
                             whatever the child's text now says -- unless it was closed, relabelled, or carries a
-                            second receipt, or the parent names no attempt
+                            second receipt, or the parent names no attempt; and the hold on a child carrying a
+                            receipt beside no `parent_number`, parked ahead of the kill switch and the decomposer
+                            until it is seeded
       split.py              decide the children's lineage and park an unprovable one before any marker -- or a slice
                             naming a snapshot ref its child would not be kept -- stamp each child's receipt and
                             append the snapshot's reuse instructions to the body of each child owed it, then persist
@@ -1392,7 +1394,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             planned children, and publish the summary and parent label before activating children
                             without dependencies through `activation.py`'s walk
       recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the adoption of
-                            a child created and never recorded through `split_receipts.py`, the orphan-child
+                            a child created and never recorded through `split_receipts.py` -- and, on an issue with
+                            no markers, the hold on one that is itself such a child left unseeded -- the orphan-child
                             repair -- the parent link and the owed lineage, asked of the parent's record again and
                             parked rather than finalized where it no longer proves one or a child is not one the
                             split can recognize as its own, any child whose text names a snapshot the split cannot

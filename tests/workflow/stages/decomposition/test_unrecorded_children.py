@@ -16,7 +16,11 @@ from types import MappingProxyType
 
 from orchestrator.workflow.late_split import lineage as _lineage
 from orchestrator.workflow.late_split.ancestry import LateAncestry
-from orchestrator.workflow.stages.decomposition import split_receipts as _split_receipts, umbrella as _umbrella
+from orchestrator.workflow.stages.decomposition import (
+    blocked as _blocked,
+    split_receipts as _split_receipts,
+    umbrella as _umbrella,
+)
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeLabel
 from tests.workflow.stages.decomposition import (
@@ -30,6 +34,10 @@ KEY_PARENT_NUMBER = "parent_number"
 KEY_SPLIT_ATTEMPT = "split_attempt"
 
 PARK_DECOMPOSITION_CRASH = "decomposition_crash"
+
+# The parks an unseeded child takes on its own: the one its blocked poll takes
+# for a child naming no parent, and the hold its own decomposition meets.
+_UNSEEDED_CHILD_PARKS = ("blocked_no_children", "replacement_lineage_unproved")
 
 RUN_AGENT = "run_agent"
 
@@ -256,6 +264,30 @@ class StrandedTest(_UnrecordedChildCase):
                 self.assertEqual(self._recorded(), [])
                 self.assertEqual(self.github.pinned_data(orphan), {})
                 self.assertEqual(self._parked("0 of 1"), (_CRASH_PARKED, True))
+
+    def test_an_unseeded_child_is_held(self) -> None:
+        # The crash lands on the first of two, so the adopted child stays
+        # recorded and unseeded behind the parent's park. An edit routes it
+        # into its own decomposition, where nothing proves its lineage: the
+        # decomposer is never asked, no grandchild is created, and the hold is
+        # said once however many ticks meet it.
+        orphan = self._die_recording(_support.REPLACEMENT_MANIFEST)
+        self._recover()
+        child = self.github.get_issue(orphan)
+        _support.redecompose(self.github, child, tick=_blocked._handle_blocked)
+        child.body = f"{child.body}\n\nand one thing more"
+        _support.redecompose(self.github, child, tick=_blocked._handle_blocked)
+
+        ticks = [_support.redecompose(self.github, child) for _ in range(2)]
+
+        parks = tuple(
+            event.get("reason") for event in self.github.recorded_events
+            if event.get("event") == _support.PARK_EVENT and event.get("issue") == orphan
+        )
+        self.assertEqual([mocks[RUN_AGENT].call_count for mocks in ticks], [0, 0])
+        self.assertEqual(_support.replacements(self.github), [orphan])
+        self.assertEqual(self.github.workflow_label(child), WorkflowLabel.DECOMPOSING)
+        self.assertEqual(parks, _UNSEEDED_CHILD_PARKS)
 
 
 if __name__ == "__main__":

@@ -575,7 +575,9 @@ The keys that matter for the state machine fall into a few groups:
   hex digits minted for that split alone, and every child it creates carries it in a hidden body receipt,
   `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>-->`, so a recovery can find the
   child a crash left created and never recorded — and never mistake another split's child for it. A drift reset
-  clears it with the rest of the manifest.
+  clears it with the rest of the manifest. A child whose body carries a receipt beside no `parent_number` is one its
+  split never seeded, and its own `workflow:decomposing` tick holds it, parked `replacement_lineage_unproved`, ahead
+  of the kill switch and the decomposer until it is seeded.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records

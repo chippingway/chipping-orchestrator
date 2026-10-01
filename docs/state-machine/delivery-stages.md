@@ -509,7 +509,11 @@ because there it is the claim that this stage has already rerouted rather than a
      the child's text, which may have been edited since — and repaired below with the rest. Park with
      `decomposition_crash` when the register is still short — the rest were never created, and the manifest is not
      kept to create them from — when no `split_attempt` names this split (an older binary's), or when the candidate
-     was closed, relabelled, or carries a second receipt, naming it without adopting it. Otherwise repair any child
+     was closed, relabelled, or carries a second receipt, naming it without adopting it. An issue with no markers of
+     its own whose body carries a split's receipt but whose pinned record has no `parent_number` is a child that
+     split never seeded: it parks `replacement_lineage_unproved` (once — a park already standing holds it silently)
+     rather than reaching the kill switch or the decomposer, until its parent's recovery or a human seeds it.
+     Otherwise repair any child
      whose pinned `parent_number` was never seeded, once every recorded child is recognized as this split's own —
      and, where the parent sits inside a late lineage, hold every recorded child to the lineage step 7 would have
      given it: seed one carrying none of the `late_ancestry_*` group (the snapshot pointer only where

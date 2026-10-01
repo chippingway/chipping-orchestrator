@@ -26,6 +26,15 @@ seeded before anything finalizes the split. One closed, relabelled, or carrying 
 receipt is something a human acted on or nothing can attribute, so it is
 neither adopted nor created again: the split parks. A split an older binary
 prepared minted no attempt, which leaves nothing to look for.
+
+Until its seed lands, a child carrying a receipt is held from running
+anything of its own. A split that parks short of its count leaves the child it
+adopted recorded and unseeded, and an edit can route that child into its own
+decomposition -- where a pinned comment with no ancestry and no parent link
+reads as an ordinary issue, and the children it splits into would start a
+lineage over at depth 0. The parent link is the seed's own mark: a split
+writes it together with whatever lineage the child is owed, so a receipt with
+no link beside it is a child whose lineage nothing has proved yet.
 """
 from __future__ import annotations
 
@@ -50,6 +59,8 @@ log = logging.getLogger("orchestrator.workflow")
 
 _RECEIPT = "<!--orchestrator-split-child:"
 
+_BODY = "body"
+
 _MARKER = f"{_RECEIPT}issue={{issue}}:attempt={{attempt}}:index={{index}}-->"
 
 # What `mint_attempt` writes, and so the only attempt a receipt is looked up
@@ -66,6 +77,16 @@ _CLOSED = "was closed before the split recorded it"
 _MOVED = "was moved off the label a child is born with"
 
 _AMBIGUOUS = "carries another receipt beside it"
+
+# The parent a receipt names, which the hold's notice points a human at.
+_RECEIPT_PARENT = re.compile(rf"{re.escape(_RECEIPT)}issue=(\d+):")
+
+_UNSEEDED = (
+    "this issue was created by the split of #{parent}, and the seed that split owes it -- `parent_number` and any "
+    "late lineage it inherits -- never landed. Decomposed or implemented like that, it would read as an issue no "
+    "split made and start a lineage over at depth 0, so it is held here and runs nothing while that stands. Let "
+    "#{parent}'s recovery seed it, or seed both on this issue's pinned record by hand."
+)
 
 
 @dataclass(frozen=True)
@@ -90,8 +111,8 @@ def stamped(children: list, issue_number: int, attempt: str, reuse: str) -> list
     """Every declared child with its receipt after its body, and any reuse instructions after that."""
     receipted = []
     for index, child in enumerate(children):
-        sections = (child["body"], child_marker(issue_number, attempt, index), reuse)
-        receipted.append({**child, "body": "\n\n".join(filter(None, sections))})
+        sections = (child[_BODY], child_marker(issue_number, attempt, index), reuse)
+        receipted.append({**child, _BODY: "\n\n".join(filter(None, sections))})
     return receipted
 
 
@@ -131,6 +152,29 @@ def adopt_unrecorded(
     return Adoption(adopted)
 
 
+def holds_unseeded(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool:
+    """Whether this issue is a split's child its seed never reached, held rather than decomposed.
+
+    Asked of an issue about to decompose, ahead of the kill switch's hand-off
+    to implementation and of the decomposer: either would run a child whose
+    lineage nothing has proved. Parked with the reason a split whose lineage
+    cannot be proved parks under, and only where it is not already awaiting a
+    human: a park already standing -- this one, or the one its own blocked
+    poll took -- keeps it held without the notice being said again, and a
+    reply to it is no seed. A tick that finds it seeded -- by its parent's
+    recovery, which lifts the park with the seed, or by hand -- lets the
+    decomposition go on.
+    """
+    body = getattr(issue, _BODY, "") or ""
+    claimed = _RECEIPT_PARENT.search(body)
+    if claimed is None or _state._names_an_issue(state.get(_state._PARENT_NUMBER)):
+        return False
+    if not state.get(_state._AWAITING_HUMAN):
+        notice = _UNSEEDED.format(parent=claimed.group(1))
+        _replacement_lineage.park_unproved(gh, issue, state, notice)
+    return True
+
+
 def _unadoptable(gh: GitHubClient, orphan: Issue) -> str | None:
     """Why this candidate may not be taken over as the slice's child, or None.
 
@@ -140,7 +184,7 @@ def _unadoptable(gh: GitHubClient, orphan: Issue) -> str | None:
     one a human acted on before anything here attributed it: reopening or
     relabelling it would undo that, and creating a second beside it is worse.
     """
-    body = getattr(orphan, "body", "") or ""
+    body = getattr(orphan, _BODY, "") or ""
     if body.count(_RECEIPT) != 1:
         return _AMBIGUOUS
     if issue_is_closed(orphan):

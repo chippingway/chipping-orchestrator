@@ -1987,6 +1987,14 @@ relabelled, one carrying a second receipt, a register still short once it is rec
 and the manifest is not kept to create them from), and a split an older binary prepared with no attempt all park
 `decomposition_crash` instead, so nothing points an unrecorded child at a snapshot or starts it.
 
+A child that carries a receipt and no `parent_number` is one whose seed never landed — the child a short register
+leaves recorded and unseeded behind its parent's park, or one a crash left between its record and its seed — and
+nothing has proved its lineage. An edit can still route it into its own `workflow:decomposing`, where its empty
+record would read as an issue no split made and the children it splits into would start a lineage over at depth 0.
+So that tick holds it ahead of both roads that would run it, the kill switch's hand-off to implementation and the
+decomposer: it parks `replacement_lineage_unproved` once — a park already standing holds it silently, and a reply is
+no seed — until its parent's recovery seeds it, which lifts the park with the seed, or a human seeds it by hand.
+
 ### What a close mid-cycle ends, and what it still settles
 
 A human can close a late-split owner at any of the boundaries above, and every one of them leaves a different amount
