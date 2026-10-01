@@ -59,13 +59,16 @@ file is the durable record.
   `verdict` (`approved` / `changes_requested` / `unknown`), `review_round`, `pr_number`, `session_id`.
 - `park_awaiting_human` — every `_park_awaiting_human` (in `workflow/engine/guards.py`) call site, plus
   `_on_question`, `_on_dirty_worktree`, `_on_unreadable_worktree`, the validating parks filed in
-  `stages/validating/review_parks.py`, and the question- and discussion-stage `_park_question` / `_park_discussion`
-  funnels;
+  `stages/validating/review_parks.py`, the park of a handed change request's developer launch that may have started
+  (`stages/validating/review_handoffs.py`, `HandedLaunch.parks`), and the question- and discussion-stage
+  `_park_question` / `_park_discussion` funnels;
   fanned out to `ANALYTICS_LOG_PATH` alongside this audit log through the shared `GitHubClient.emit_event` chokepoint;
   extras: `stage` (read from the current
   workflow label, not passed in), `reason` (e.g. `agent_timeout`, `push_failed`, `failed_checks`, `agent_question`,
   `agent_execution_failed` (an unfinished command exit rejected as an execution failure, parked retryably as
-  `agent_execution_failed` with the operator told to reply `/orchestrator continue`),
+  `agent_execution_failed` with the operator told to reply `/orchestrator continue`; the same reason, with `stage`
+  `fixing`, marks a handed change request whose developer launch may have started and left no result, whose
+  `/orchestrator continue` replays the reviewer's feedback to a fresh developer session),
   `agent_session_limit` (a quota-exhausted agent message, parked retryably as `agent_silent`),
   `agent_provider_unavailable` (a transient provider refusal — `API Error: 529 Overloaded` and its 5xx siblings —
   arriving as the agent's final message, parked retryably as `agent_silent` too), `dirty_worktree`,

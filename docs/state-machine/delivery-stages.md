@@ -3410,21 +3410,23 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        resolution in step 5 refuses the stale report as it would with no claim.
   4. A reviewer verdict an earlier tick persisted and never disposed of (`review_returned_verdict`) is finished ahead of
      the cap and the spawn (`review_resume.resumes_a_returned_verdict`), running no reviewer, folding no usage, and
-     spending no round: one not yet handed through a run rebuilt of its round over the subject resolved again, one
-     handed whose relabel never landed by that relabel and the launch of its one owed developer. A subject that moved
-     and a handed verdict whose developer may have run, its subject resolved again, drop the verdict in a write of the
-     comment read afresh -- only while it still carries that verdict -- and end the tick, for the next tick's round; a
-     verdict another road put in place of a handed one while its cleared anchor is written back ends the tick with
-     nothing written or handed over; a tick a reply cleared a park into, where the report hold stops that round or a
-     verdict waits, ends in one write composed over the comment read afresh against the tick's own reading -- the
-     cleared park kept, save a park another road recorded there, its flags moved, which stands as it wrote it, what
-     another road wrote meanwhile carried, and the verdict the park outlived dropped only where the comment still
-     carries it -- the round running next tick (`review_resume.settles_a_bought_round`). A park recorded again for the
-     same reason moves no flag and shows only in its notice, so a comment another road posted meanwhile that opens with
-     the HITL mentions, as every park notice does and a status line may, writes nothing for the next tick to answer the
-     reply again; one naming nobody is no park. A reading nobody could take holds the tick with nothing written ([pinned
-     state](labels-and-state.md#pinned-state)). Otherwise, if `review_round >= MAX_REVIEW_ROUNDS` (default 3), park
-     (`review_cap`). The park comment surfaces the `/orchestrator add-review-rounds N` escape hatch.
+     spending no round: one not yet handed through a run rebuilt of its round over the subject resolved again, in a
+     checkout restored only behind that reading, one handed whose relabel never landed by that relabel and the launch of
+     its one owed developer, its checkout restored only behind the relabel. A subject that moved and a handed verdict
+     whose developer may have run, its subject resolved again, drop the verdict, restoring no checkout, so one that will
+     not restore holds nothing up, in a write of the comment read afresh -- only while it still carries that verdict --
+     and end the tick, for the next tick's round; a verdict another road put in place of a handed one while its cleared
+     anchor is written back ends the tick with nothing written or handed over; a tick a reply cleared a park into, where
+     the report hold stops that round or a verdict waits, ends in one write composed over the comment read afresh
+     against the tick's own reading -- the cleared park kept, save a park another road recorded there, its flags moved,
+     which stands as it wrote it, what another road wrote meanwhile carried, and the verdict the park outlived dropped
+     only where the comment still carries it -- the round running next tick (`review_resume.settles_a_bought_round`). A
+     park recorded again for the same reason moves no flag and shows only in its notice, so a comment another road
+     posted meanwhile that opens with the HITL mentions, as every park notice does and a status line may, writes nothing
+     for the next tick to answer the reply again; one naming nobody is no park. A reading nobody could take holds the
+     tick with nothing written ([pinned state](labels-and-state.md#pinned-state)). Otherwise, if `review_round >=
+     MAX_REVIEW_ROUNDS` (default 3), park (`review_cap`). The park comment surfaces the `/orchestrator add-review-rounds
+     N` escape hatch.
   5. Otherwise resolve what the reviewer is handed (`review_report._resolves_the_subject`): the pull request's head, and
      the developer report `developer_report_current` records, re-read from the exact location it settled at and held to
      its digest. A settled record that will not read, one about another pull request, one its own handoff does not
@@ -3766,35 +3768,39 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        through its handoff (`validating/review_handoffs.py`): only the decision the request was persisted from -- its
        round, verdict, subject, and feedback -- is handed over in the tick its reviewer returned, and a later tick,
        holding no decision, hands the request over from the record alone, in the checkout the issue's developer resumes
-       in, the feedback posted on that
-       subject's pull request, and a post that failed, left no positive whole id, or had no such pull request to go on
-       holds the verdict unhanded with nothing written; the subject -- with the pull request the issue points at and the
-       evidence the request claims -- is held again behind that post; the verdict is written as `handed`, with the id of
-       that post as its `anchor`, beside the `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to
-       `workflow:fixing`; and the launch -- subject, evidence, run ledger, and anchor, over the comment read again -- is
-       held to what stands before that relabel and once more before the developer launch, so the issue is never
-       relabelled for a launch another write behind the handed one already ruled out, a move behind any of those
-       requests dropping the verdict and the anchor naming its post over the newer records -- unless the reading that
-       proved the move records `agent_run_owed_started` at `handed`: that developer's own push moved it, and the verdict
-       is retired as launched (below), its anchor kept for that developer's replay. A verdict already `handed`
-       posts nothing again, and relabels and launches that developer — or, where `agent_run_owed_started` records that
-       developer's start at `handed`, drops the verdict over the comment read again, keeping what another road wrote
-       since, the developer already launched (another run charged meanwhile, a reviewer's say, records no such start,
-       and a charge still standing as an unstarted `agent_run_reservation` recorded none: the launch stays owed,
-       honoring that reservation), which is asked again right before every launch so a developer another road launched
-       behind the relabel is not launched twice -- and once more by the run circuit, on the readings it charges and
-       starts the launch from, which refuse it with nothing started or written over them where another road started that
-       developer, charged a run over its reservation, or started a run of that launch's very identity with no owed count
-       -- a continuation of the launch's own start excepted -- after the handoff's last reading, pinned another comment
-       in its place, or where the verdict, the anchor, the report records, the pull request the issue points at, or the
-       claimed evidence moved there, the whole subject resolved again right behind the charge
-       (`validating/review_launch_hold.py`; [The agent-run circuit](labels-and-state.md#the-agent-run-circuit)). What
-       else another road wrote on a reading the launch stands on is carried onto the state the developer's run is
-       written back from, so that run's writes keep it. Either launch is made only behind that anchor, still naming, as
-       a whole comment id, the post the verdict records, which the fixing stage clears with the round's other bookmarks:
-       a handoff that lost it, whose anchor names another comment, whose anchor is no whole id, or recorded before
-       handoffs anchored their post, naming none, is held, nothing relabelled or launched, since no failed run could
-       replay the feedback, or one would replay another comment as it. The record and both parks are described under
+       in -- restored only behind the relabel, once the launch is held to its subject, so a moved subject drops the
+       verdict with no checkout restored -- the feedback posted on that subject's pull request, and a post that failed,
+       left no positive whole id, or had no such pull request to go on holds the verdict unhanded with nothing written;
+       the subject -- with the pull request the issue points at and the evidence the request claims -- is held again
+       behind that post; the verdict is written as `handed`, with the id of that post as its `anchor`, beside the
+       `pending_fix_reviewer_comment_id` anchor BEFORE the relabel to `workflow:fixing`; and the launch -- subject,
+       evidence, run ledger, and anchor, over the comment read again -- is held to what stands before that relabel and
+       once more before the developer launch, so the issue is never relabelled for a launch another write behind the
+       handed one already ruled out, a move behind any of those requests dropping the verdict and the anchor naming its
+       post over the newer records -- unless the reading that proved the move records `agent_run_owed_started` at
+       `handed`: that developer's own push moved it, and the verdict is retired as launched (below), its anchor kept for
+       that developer's replay. A verdict already `handed` posts nothing again, and relabels and launches that developer
+       — or, where `agent_run_owed_started` records that developer's start at `handed`, drops the verdict over the
+       comment read again, keeping what another road wrote since, the developer already launched (another road's run
+       charged meanwhile under an `agent_run_fingerprint` of its own, a reviewer's say, records no such start, and a
+       charge still standing as an unstarted `agent_run_reservation` under the launch's own fingerprint recorded none:
+       the launch stays owed, honoring that reservation; a charge whose record no reader takes -- its fingerprint gone
+       or unreadable, an unstarted reservation included, its phase unreadable under that fingerprint, or a run count
+       below `handed` -- may be that very launch, and holds it), which is asked again right before every launch so a
+       developer another road launched behind the relabel is not launched twice -- and once more by the run circuit, on
+       the readings it charges and starts the launch from, which refuse it with nothing started or written over them
+       where another road started that developer, charged a run over its reservation, started a run of that launch's
+       very identity with no owed count, or left a charge whose record no reader takes -- a continuation of the launch's
+       own start excepted -- after the handoff's last reading, pinned another comment in its place, or where the
+       verdict, the anchor, the report records, the pull request the issue points at, or the claimed evidence moved
+       there, the whole subject resolved again right behind the charge (`validating/review_launch_hold.py`;
+       [The agent-run circuit](labels-and-state.md#the-agent-run-circuit)). What else another road wrote on a reading
+       the launch stands on is carried onto the state the developer's run is written back from, so that run's writes
+       keep it. Either launch is made only behind that anchor, still naming, as a whole comment id, the post the verdict
+       records, which the fixing stage clears with the round's other bookmarks: a handoff that lost it, whose anchor
+       names another comment, whose anchor is no whole id, or recorded before handoffs anchored their post, naming none,
+       is held, nothing relabelled or launched, since no failed run could replay the feedback, or one would replay
+       another comment as it. The record and both parks are described under
        [pinned state](labels-and-state.md#pinned-state).
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.
@@ -4120,12 +4126,14 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      for a round already reviewed. It stands down while a park stands, whose own dispatch answers first -- the run
      circuit's `agent_run_limit` over a launch it refused, say. A developer launch still owed is made once
      (`validating/review_handoffs.HandedLaunch.owed`), with no relabel: the issue is on this label already, and writing
-     it again would emit a `stage_enter` nothing made; one that may have started is never made again. It is held to the
-     subject resolved again, the evidence its request claims, and the branch: a move, a commit the pull request has not
-     got, loose work in the checkout, or a remote that moved past it drops the verdict in a write of the comment read
-     afresh -- only while it still carries that verdict -- and the next tick's bounce publishes that work, or holds over
-     it, and hands the pull request back, while a subject or branch nobody could read -- a fetch, a status, or a count
-     that did not return -- holds the tick with the verdict kept. Anything else parks under `agent_execution_failed`
+     it again would emit a `stage_enter` nothing made, and its checkout is restored only once the launch is held to its
+     subject, so a moved subject drops the verdict with no checkout restored; one that may have started -- a run ledger
+     whose record of that launch no reader takes included -- is never made again. It is held to the subject resolved
+     again, the evidence its request claims, and the branch: a move, a commit the pull request has not got, loose work
+     in the checkout, or a remote that moved past it drops the verdict in a write of the comment read afresh -- only
+     while it still carries that verdict -- and the next tick's bounce publishes that work, or holds over it, and hands
+     the pull request back, while a subject or branch nobody could read -- a fetch, a status, or a count that did not
+     return -- holds the tick with the verdict kept. Anything else parks under `agent_execution_failed`
      (`HandedLaunch.parks`), measured and noticed as the verdict parks are, and held to the subject and the comment's
      report, pull-request, verdict, and evidence records, and to the branch, once more behind its notice, the comment
      read behind the branch so a verdict another road put in place there is kept -- a commit that reached it there
