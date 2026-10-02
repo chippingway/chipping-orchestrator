@@ -570,7 +570,14 @@ The keys that matter for the state machine fall into a few groups:
   fresh conversation against the frozen candidate — see [the late run](#the-late-run) for the two conditions a resume
   takes.
 - **Decomposition.** `children`, `dep_graph` (`{child_idx_str: [child_idx, ...]}` — GitHub has no first-class blocks
-  relation), `decomposed_at`, `pickup_comment_id`.
+  relation), `decomposed_at`, `pickup_comment_id`. An ordinary split writes `expected_children_count`, `umbrella`,
+  the whole `dep_graph`, and `split_attempt` in one write before its first child exists. `split_attempt` is sixteen
+  hex digits minted for that split alone, and every child it creates carries it in a hidden body receipt,
+  `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>-->`, so a recovery can find the
+  child a crash left created and never recorded — and never mistake another split's child for it. A drift reset
+  clears it with the rest of the manifest. A child whose body carries a receipt beside no `parent_number` is one its
+  split never seeded, and the dispatcher holds it ahead of every handler but `done`'s and `rejected`'s — parked
+  `replacement_lineage_unproved` once, then silently — until its parent's recovery or a human seeds it.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records
@@ -3219,8 +3226,10 @@ rather than preserving.
   since the reclamation rule asks about each of them once — and it is read from the other end too, as the one record
   that can vouch for a child claiming this split in a body marker anybody can paste. It is not `children`, and a drift
   reroute that replaces that manifest leaves it naming the originals the ref was preserved for: the proof reads any
-  consumer the umbrella's scan of the replacements was not asked about afresh. Only a positive whole number is
-  one — `True`, `2.5`,
+  consumer the umbrella's scan of the replacements was not asked about afresh. The ordinary split that answers the
+  reroute adds each replacement it points at the ref, in the same write that records the replacement in `children`,
+  so the ref waits on those too; it is the only road outside the split transaction that adds to this ledger, and it
+  writes no other late key. Only a positive whole number is one — `True`, `2.5`,
   and `"7"` are not issues anything can ask GitHub about, and neither the reader nor `with_consumers` will convert
   one into a consumer id. Neither ledger is ever *reduced* to what this binary understood: an entry it cannot type, or a
   consumer list it cannot read, is carried through verbatim beside the typed view and written back exactly as it
@@ -3305,9 +3314,11 @@ rather than preserving.
   worse than handing it none. The record is READ where it matters most: a split refuses outright when the ancestry
   disagrees with the generation's own lineage, because a generation naming a shallower depth or a different root is
   one minted without this record — and a shallower depth is exactly how a lineage would buy itself a generation past
-  `MAX_LINEAGE_DEPTH`. It is read once more, read-only and still dormant, for an ordinary re-decomposition:
-  `late_split/provenance.py` decides whether that issue's replacement children would inherit a late lineage. An
-  issue no late split charged inherits none. A descendant inherits this group's root and depth, and a root whose own
+  `MAX_LINEAGE_DEPTH`. It is read once more for an ordinary re-decomposition: `late_split/provenance.py` decides
+  which late lineage that issue's replacement children inherit, and `stages/decomposition/replacement_lineage.py`
+  asks it before the split creates a child, again before a recovered split is finalized, and again in front of every
+  walk that releases one. An issue no late split charged inherits none. A descendant inherits this group's root
+  and depth, and a root whose own
   late record proves a split made children is that lineage's root at depth 0. Only a record of the children
   themselves proves one — the register, or a consumer or child entry on the ledgers, which a retirement keeps after
   it drops the identity. No phase does: `splitting` is written before the first child exists, and a cancelled cycle
@@ -3325,15 +3336,58 @@ rather than preserving.
   reader would drop (`null` included), a live cycle with no root, current issue, or depth, a record whose cycle is
   gone beside the fields it still carries, and one written for another issue, still creating children, cancelled
   while it was (the interrupted boundary `late_cancelled_phase` keeps), naming a root other than the group's whether
-  or not it split, or, having split, naming another depth are each a refusal rather than depth 0. What those
-  children would be seeded with is `stages/decomposition/replacement_lineage.py`'s answer, dormant too: this group at
-  one past the parent's depth under the same root, the parent as `late_ancestry_parent`, the parent's own cycle and
-  generation (else this group's, else the cycle `late_retired_cycle_id` names), and a pointer only at the snapshot the
-  parent's own split holds — written behind `late_consumers` recording the child, and told by that ref and this
-  repository's mirror of it alone. A parent already at `MAX_LINEAGE_DEPTH`, a refused provenance, one naming no cycle,
-  and a split whose own snapshot is neither held for a new consumer nor passed to a reclamation (unreadable ledgers,
-  a consumer ledger nothing can be added to, a `retained` ref a retirement left no identity to name, `pending`,
-  recorded twice, or missing), or is held with no `late_base_sha`, are refusals rather than an unpointed seed.
+  or not it split, or, having split, naming another depth are each a refusal rather than depth 0. What an inherited
+  lineage seeds on each replacement is this group and nothing more: the root, one past the depth already charged, the
+  parent, and a cycle and generation to correlate by — the parent's own where its record keeps one, its ancestry's where
+  it has none, and `late_retired_cycle_id` where neither stands. A parent already at `MAX_LINEAGE_DEPTH` has no room for
+  a child, and one naming no cycle anywhere has nothing to correlate one by. The snapshot pair and
+  `late_ancestry_mirror_first` are seeded only on a replacement `late_consumers` records, and only for the ref the
+  parent's own split holds: a pointer another issue's ledger protects is one this issue cannot record a consumer on, so
+  its replacements are born with the lineage and without it. A replacement given the pointer is also given the late
+  split's reuse instructions for that ref after its declared body, since the body — not this group — is what its
+  implementer reads. A parent the re-decomposition left `blocked` with work of its own settles this ledger before its
+  all-children-resolved flip to `workflow:ready`, and stays `blocked` while a recorded consumer still holds the ref —
+  and, like the umbrella's terminal, while a record whose cycle identity is gone still carries any ledger, a
+  `late_consumers` list included, read or not. A ref the parent's own split no longer holds is settled only where its
+  entry has passed to a reclamation (`reclaiming`, `reconciled`, `failed`), and its replacements are born without the
+  pointer; a split whose ledger cannot say whether the ref is held or released — a resource ledger this binary cannot
+  read, a held ref no consumer can be recorded against (an unreadable `late_consumers`, no candidate, no identity to
+  mint it from), an entry never proved or recorded twice, or none for its own ref — is a refusal like any other, as is a
+  held ref whose record keeps no `late_base_sha` for the instructions to name its change from, and so is a slice whose
+  own title or body names a snapshot ref other than the one its child is pointed at (or this repository's local mirror
+  of that ref — another repository's mirror of the same numbers is that repository's copy, on no ledger here). Each
+  mention is read as the whole ref name it could be: only wrapping closed on both sides, one leading `+` forcing the
+  whole refspec, and a trailing full stop or slash are taken off, and a refspec names both its sides — wrapping opened
+  before its source may close after its destination, the way the reuse instructions quote their fetch — so a longer name
+  that merely contains the child's ref — `…/gen-1!` inside backticks, a `…/gen-1*` pattern, an unclosed quote, or a
+  second `+` included — is refused as the different ref it is. A refusal parks `replacement_lineage_unproved` before
+  `expected_children_count` is written, so nothing is created. A recovered split holds every recorded child to the same
+  lineage before it finalizes, read off this record rather than off the child: while the split still holds its snapshot,
+  every recorded child is owed the pointer, so one `late_consumers` no longer names is recorded there again — in the
+  parent's own write ahead of its seed and of the finalize — and one carrying none of this group, or a pointer at
+  anything else, is seeded with it, whatever its title or body now says. Once the snapshot has passed to a reclamation
+  the lineage alone is owed: a pointer still on a child is dropped together with its `late_ancestry_mirror_first` stamp,
+  the lineage kept, and a stamp standing with no pair beside it, which is what the child's own reuse guard leaves when
+  it drops a pointer, names no ref and stays. One carrying exactly the group it was owed is left alone; and a child that
+  split cannot recognize as its own — a pinned comment that would not parse, a `parent_number` that is not this issue's
+  number (another issue's, or no positive integer at all: a `null`, or a float or a bool that compares equal to it,
+  included — only a comment carrying no `parent_number` key has it backfilled), a title or body naming a snapshot ref
+  the split no longer holds or never preserved (or another repository's mirror of one), or any other group: part of it,
+  a field its reader would drop, another lineage — parks the same way, with nothing written over what it carries. A
+  recovered split of an issue no late split charged seeds none of this group, and holds its children to the same
+  recognition: a child of one whose pinned comment would not parse, whose `parent_number` is not this issue's number,
+  that carries any of this group, or whose title or body names any snapshot ref parks the same way. A snapshot ref
+  recorded twice is a refusal whatever the two entries stand at, released included. Either park leaves every child
+  unfinalized and unstarted. A child the crash left created and never recorded is found by its `split_attempt` receipt
+  and recorded first — on `late_consumers` too, in the same write, wherever this record's lineage points its children at
+  a snapshot, whatever the child's text now says — then held to the same recognition as the rest. The dependency walk
+  that releases an ordinary split's children — the split's own same-tick release of its no-dependency children included
+  — asks the same decision off this record in front of every walk, and holds every child it would release to the
+  recovery's recognition before the first is relabelled: a `parent_number` that is exactly this issue's number, the
+  whole group it was owed (none, for an issue no late split charged), a pointer this ledger still keeps for it, and text
+  naming no other ref. A proof, a link, a seed, a protection, or instructions that changed after creation release none
+  of those children and park the parent, once. Instructions merely taken out of a protected child's body are not such a
+  change: its pointer stays on the ledger and the child is released uninstructed.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

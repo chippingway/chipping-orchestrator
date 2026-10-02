@@ -50,7 +50,7 @@ def _pinned_state_refuses(
 ) -> bool:
     """True when what this issue's own pinned comment records stops the tick.
 
-    ONE read, nine questions, because the read is what costs -- a comment
+    ONE read, ten questions, because the read is what costs -- a comment
     walk per labelled issue per dispatch, on top of the one that issue's own
     handler makes.
 
@@ -78,6 +78,15 @@ def _pinned_state_refuses(
     table also means a relabel straight to another stage cannot route around
     it. It costs nothing extra on the wire in the steady state -- the guard
     asks this host before it asks the remote.
+
+    Beside it is a child of an ordinary split whose seed never landed: its
+    body carries the split's receipt and its pinned comment no parent link,
+    so nothing has proved the lineage it was owed. Every stage that could run
+    it -- `ready` and `implementing` as much as `decomposing`, and pickup for
+    one whose label was taken off -- would read it as an issue no split made
+    and mint whatever it starts at depth 0, so it is held here, for the same
+    reason a relabel cannot route around this table. Its terminals are left
+    to their own no-op.
 
     The fourth is an owner whose cycle a close already ended and whose cleanup
     has not finished. Cancellation is irreversible within a cycle, so a human
@@ -277,8 +286,10 @@ def _record_stops_the_tick(
     ) or _rewrite_debt_holds_the_tick(spec, issue, label, state):
         return True
     late_reuse = importlib.import_module(_stage_targets._LATE_REUSE_OWNER)
+    split_receipts = importlib.import_module(_stage_targets._SPLIT_RECEIPTS_OWNER)
     return (
         late_reuse._refuses_reuse(gh, spec, issue, state)
+        or split_receipts.holds_unseeded(gh, issue, label, state)
         or _greeted_already(spec, issue, label, state)
     )
 

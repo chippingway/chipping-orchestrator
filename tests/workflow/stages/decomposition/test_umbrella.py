@@ -66,6 +66,8 @@ def _seed_umbrella_with_children(
     children = _make_umbrella_children(parent_number, child_labels)
     for child in children:
         gh.add_issue(child)
+        # Linked the way a split seeds every child it creates.
+        gh.seed_state(child.number, parent_number=parent_number)
     gh.seed_state(
         parent_number,
         children=[seeded_child.number for seeded_child in children],

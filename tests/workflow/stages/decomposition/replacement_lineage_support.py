@@ -151,5 +151,5 @@ def retired(ref_state: _obligations.LateResourceState, cycle: int | None = CYCLE
 
 
 def decide(state: PinnedState, body: str = EDITED_BODY) -> _replacement_lineage.ReplacementLineage:
-    """What the parent's replacements would be seeded with, read off `state` and `body`."""
+    """What the parent's replacements are seeded with, read off `state` and `body`."""
     return _replacement_lineage.read_replacement_lineage(state, make_issue(PARENT, body=body), _TEST_SPEC)

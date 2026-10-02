@@ -18,14 +18,30 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split.obligations import LateObligations, LateResourceState
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
+    blocked as _blocked,
     late_cleanup_proof as _late_cleanup_proof,
+    umbrella as _umbrella,
 )
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
 from tests.workflow.fixtures import _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition import late_cleanup_support as _support
-from tests.workflow.stages.decomposition.late_cleanup_support import RecordedDelete
+from tests.workflow.stages.decomposition.late_cleanup_support import OwnerSeed, RecordedDelete
 
 _OPAQUE_CONSUMERS = '["?"]'
+
+# A consumer list left standing on a record with no identity and no typed
+# entry, on each of the two hand-offs nothing returns to a late record from:
+# the umbrella's close and a `blocked` parent's return to its own work, each
+# by the label it waits on and the poll that answers it. Read or not, the list
+# names children cut from a ref nothing can now mint or prove.
+_STRANDED_CONSUMERS = tuple(
+    (label, tick, consumers)
+    for label, tick in (
+        (_support.UMBRELLA, _umbrella._handle_umbrella),
+        (_support.LABEL_BLOCKED, _blocked._handle_blocked),
+    )
+    for consumers in (_OPAQUE_CONSUMERS, [_support.CHILD_NUMBER])
+)
 
 # The stage key the split transaction writes before its first create,
 # spelled here rather than imported: what it is called is the contract a
@@ -273,11 +289,25 @@ class UnprovableObligationTest(_PatchedWorkflowMixin, unittest.TestCase):
         self.assertFalse(seeded.parent.closed)
         self.assertEqual(seeded.github.deleted_remote_branches, [])
 
+    def test_a_damaged_identity_holds_the_parent(self) -> None:
+        # No identity and no typed entry, and a consumer list beside them:
+        # still an obligation, so the parent waits where it stands.
+        for label, tick, consumers in _STRANDED_CONSUMERS:
+            with self.subTest(label=label, consumers=consumers):
+                seeded = _support.split_umbrella(None, owner=OwnerSeed(label=label))
+                self._seed_resources(seeded.github, resources=None, damaged=True, consumers=consumers)
+
+                with self.assertLogs(_support.WORKFLOW_LOG, level="ERROR"):
+                    _support.walk_owner(self, seeded, tick)
+
+                self.assertEqual(seeded.github.workflow_label(seeded.parent), label)
+                self.assertFalse(seeded.parent.closed)
+
     def test_a_damaged_identity_owing_nothing_closes(self) -> None:
         # Every umbrella the initial decomposer made carries no ledger at all,
         # and answers without a write.
         seeded = _support.split_umbrella(LateResourceState.PENDING)
-        self._seed_resources(seeded.github, damaged=True, resources=None)
+        self._seed_resources(seeded.github, damaged=True, resources=None, consumers=[])
 
         _support.walk_owner(self, seeded)
 

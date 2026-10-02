@@ -1,14 +1,16 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The lineage an ordinary split would seed its replacements with, decided off the parent's record.
+"""The lineage an ordinary split seeds its replacements with, decided off the parent's record.
 
 A genuine edit hands the ordinary decomposer an issue a late split made, or one
-whose own late split it is replacing. The children it would cut are still
-inside that lineage, so each is born one level below its parent under the same
-root, pointed at a snapshot only where the parent's own split holds it, and
-told that snapshot by exactly the names its instructions give it. A record that
-cannot prove the lineage, a bound with no room, and a snapshot neither held nor
-released are refusals. No split asks this yet, so it is driven directly.
+whose own late split it is replacing. The children it cuts are still inside
+that lineage, so each is born one level below its parent under the same root,
+pointed at a snapshot only where the parent's own split holds it, and told that
+snapshot by exactly the names its instructions give it. A record that cannot
+prove the lineage, a bound with no room, and a snapshot neither held nor
+released are refusals. The decision is driven directly here; what a split, its
+recovery, and its release do with it is `test_replacement_split`'s subject and
+the recovery and release tests beside it.
 """
 from __future__ import annotations
 

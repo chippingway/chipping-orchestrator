@@ -126,6 +126,8 @@ class LatchedCloseStopsTheWalkTest(
             self.github.add_issue(
                 make_issue(number, label=WorkflowLabel.BLOCKED),
             )
+            # Linked the way a split seeds every child it creates.
+            self.github.seed_state(number, parent_number=_OWNER_NUMBER)
 
     def test_only_the_first_sibling_is_released(self) -> None:
         with self.assertLogs(_WORKFLOW_LOG), self._closing():

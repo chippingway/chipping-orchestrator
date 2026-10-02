@@ -6,7 +6,11 @@
 interpret, release the ones whose dependencies are satisfied, and flip the
 parent to `ready` once every child is `done`. A parent with no recorded
 children at all did not get here through a split, so it parks rather than
-guessing -- the label was almost certainly applied by hand.
+guessing -- the label was almost certainly applied by hand. A parent a late
+split made that a genuine edit re-decomposed into children beside work of its
+own settles what that split still owes the remote before the flip, and stays
+`blocked` while a ref is still held for a consumer that has not ended: nothing
+comes back to that ledger once it has left.
 
 `ready` is the other end, and it is the entry point for both an auto-created
 child and a parent whose decomposer voted `single`. It seeds the same pickup
@@ -26,7 +30,12 @@ from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments, guards as _guards, usage as _usage
-from orchestrator.workflow.stages.decomposition import activation as _activation, parents as _parents, state as _state
+from orchestrator.workflow.stages.decomposition import (
+    activation as _activation,
+    late_cleanup as _late_cleanup,
+    parents as _parents,
+    state as _state,
+)
 from orchestrator.workflow.stages.implementing import handler as _implementing
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -142,7 +151,8 @@ def _handle_blocked(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issu
     if scan is None:
         return
     if all(label == _state._DONE for label in scan.labels.values()):
-        _complete_blocked_parent(gh, issue, state)
+        if _late_cleanup._settled_before_implementation(gh, spec, issue, state, scan):
+            _complete_blocked_parent(gh, issue, state)
         return
 
     held = _activation._activate_ready_children(

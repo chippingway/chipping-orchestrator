@@ -45,6 +45,12 @@ _PARK_REASON = "park_reason"
 
 _PARENT_NUMBER = "parent_number"
 
+# Which ordinary split the parent's markers belong to: minted for each split
+# and written in the same write as the expected count, ahead of the first
+# child, so the receipt each child carries names this attempt and no earlier
+# split of the same issue.
+_SPLIT_ATTEMPT = "split_attempt"
+
 _CREATED_AT = "created_at"
 
 _DONE = "done"
@@ -65,6 +71,23 @@ def _ledger_is_sealed(sealed: Any, cycle_id: int) -> bool:
     if not _formats.whole_number(sealed) or sealed <= 0:
         return False
     return sealed == cycle_id
+
+
+def _names_an_issue(linked: Any) -> bool:
+    """Whether a recorded `parent_number` is an issue number at all.
+
+    Spelled once because recovery, recognition, release, and the hold on a
+    child its split never seeded all take the link as proof of parentage, and
+    only an issue number proves it: JSON carries `41.0` and `true` as values
+    Python compares equal to 41 and 1, and neither is one any writer here
+    produced, so each names no parent at all.
+    """
+    return _formats.whole_number(linked) and linked > 0
+
+
+def _links_to(linked: Any, parent: int) -> bool:
+    """Whether a recorded `parent_number` is exactly `parent`'s issue number."""
+    return _names_an_issue(linked) and linked == parent
 
 
 def _issue_ref_list(numbers: list) -> str:

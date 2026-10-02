@@ -64,8 +64,8 @@ CHILD_NUMBER = 411
 UNRECORDED_CHILD = 412
 
 # The child an ordinary re-decomposition tracks in place of the split's own
-# once a genuine edit has orphaned it: nothing late recorded it, and no ref
-# was cut for it.
+# once a genuine edit has orphaned it: no ref was cut for it, and the one the
+# split still holds is what it is pointed at.
 REPLACEMENT_CHILD = 421
 
 SUPERSEDED_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-41"
@@ -274,18 +274,21 @@ class SeededUmbrella:
 
         What a genuine edit leaves once the ordinary decomposer has answered
         it: the reroute orphaned the child the split made, and the manifest it
-        produced tracks one of its own under the same umbrella. The late
-        generation is left exactly as the split wrote it, because neither
-        road writes it -- so the ledger still names the original as the ref's
-        consumer, and the umbrella's own scan no longer does.
+        produced tracks one of its own under the same umbrella. Neither road
+        takes anything off the late generation, so the ledger still names the
+        original as the ref's consumer while the umbrella's own scan no longer
+        does; what the re-decomposition adds is the replacement it pointed at
+        that ref, recorded beside the original in the write that tracked it.
         """
         self.github.add_issue(
             make_issue(REPLACEMENT_CHILD, label=LABEL_DONE, closed=True),
         )
+        recorded = self.github.pinned_data(PARENT_NUMBER)
         self.github.seed_state(PARENT_NUMBER, **{
-            **self.github.pinned_data(PARENT_NUMBER),
+            **recorded,
             "children": [REPLACEMENT_CHILD],
             EXPECTED_CHILDREN: 1,
+            "late_consumers": sorted({*recorded.get("late_consumers", ()), REPLACEMENT_CHILD}),
         })
 
 

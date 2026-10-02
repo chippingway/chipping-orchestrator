@@ -9,11 +9,14 @@ so its cancellation still has the evidence it needs.
 The children this poll scans are the manifest it tracks now, which after a
 genuine edit are replacements beside a late split's orphaned originals. The
 settlement is handed that scan and proves a held snapshot against the
-consumers the split recorded, so the originals decide whether the ref may
-go. The replacements decide only when that is asked: the settlement runs on
-a poll that finds every tracked child resolved or one a child's disposition
-parks, so an original that ends earlier frees the ref on the first such
-poll after it -- with the terminal behind the same settlement.
+consumers the ledger records: the originals, and every replacement the
+re-decomposition pointed at the ref, which it recorded there in the write
+that tracked it. Those decide whether the ref may go, a replacement reopened
+after it resolved included. The tracked children also decide when that is
+asked: the settlement runs on a poll that finds every one of them resolved
+or one a child's disposition parks, so the ref goes on the first such poll
+after the last recorded consumer has ended -- with the terminal behind the
+same settlement.
 """
 from __future__ import annotations
 

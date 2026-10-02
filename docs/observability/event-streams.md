@@ -88,13 +88,18 @@ file is the durable record.
   clean rebase left, the head it started from, the head a body-edit resume begins at, or the head recovered commits
   leave the branch on — so the push behind it would carry neither a lease nor a named candidate),
   `reviewer_timeout`, `reviewer_failed`, `reviewer_no_verdict`, `decomposer_timeout`, `decomposer_silent`,
-  `decomposer_question`, `decomposer_invalid_manifest`, `decomposer_dirty`, `verify_failed` / `verify_timeout` /
-  `verify_dirty` / `verify_head_changed` / `verify_tree_changed`, `agent_run_limit` (the issue has spent every agent
-  run its lifetime ceiling allows), `question_*`, `discussion_*`, ...). Failed-run parks in validating and decomposing
-  forward explicit, bounded correlation fields (`agent_role`, `session_id`, `review_round`, `retry_count`,
-  `pr_number`) through `_park_awaiting_human` so audit and analytics share the same payload; `dirty_worktree` carries
-  `dirty_files` (how many paths git named); `unreadable_worktree` carries none, since naming a count there would
-  report a failed read as an empty tree.
+  `decomposer_question`, `decomposer_invalid_manifest`, `decomposer_dirty`, `replacement_lineage_unproved` (a split
+  whose children's late lineage or snapshot the issue's record cannot prove, whose parent is already at the lineage
+  bound, or one of whose slices names a snapshot ref its child would not be kept; a recovery or a dependency walk that
+  found a recorded child it cannot recognize as its own — an unreadable comment, a link to anything but that issue's
+  number, or an ancestry, pointer, or instructions that split did not give it, an ordinary split's children included;
+  and, on the child itself, a split's child whose seed never landed, held at dispatch under every label but a terminal),
+  `verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`, `agent_run_limit`
+  (the issue has spent every agent run its lifetime ceiling allows), `question_*`, `discussion_*`, ...). Failed-run
+  parks in validating and decomposing forward explicit, bounded correlation fields (`agent_role`, `session_id`,
+  `review_round`, `retry_count`, `pr_number`) through `_park_awaiting_human` so audit and analytics share the same
+  payload; `dirty_worktree` carries `dirty_files` (how many paths git named); `unreadable_worktree` carries none, since
+  naming a count there would report a failed read as an empty tree.
 
   The three parks that emit for themselves — `_on_question` and the two checkout refusals, each of which owns a
   watermark read and durable state writes the funnel does not — carry the same vocabulary, screened against the same

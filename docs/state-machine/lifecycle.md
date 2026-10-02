@@ -844,7 +844,11 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    by hand to drive such an issue again
 
    workflow:blocked (each due dependency poll, open issues only; DEPENDENCY_POLL_EVERY_N_TICKS):
-     all children = done       ─► parent=workflow:ready
+     all children = done       ─► parent=workflow:ready -- once a late
+                                  split's ledger on it is settled (the
+                                  umbrella row's rule); a ref still held
+                                  for a live recorded consumer keeps it
+                                  on workflow:blocked for the next poll
      any child = rejected      ─► park HITL on parent
      dep_graph walk: any workflow:blocked child with all deps=done
                                ─► child=workflow:ready
@@ -874,9 +878,13 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   lookup, or a lazy state/label read behind
                                   one) keeps the ref however done the
                                   replacements are -- read, never relabelled
-                                  or re-tracked. The ref goes on the first
-                                  poll after they end that reaches this row
-                                  or the park row below.
+                                  or re-tracked. A replacement the split
+                                  POINTED at the ref is on the ledger too,
+                                  recorded in the write that tracked it, so
+                                  one reopened keeps the ref the same way.
+                                  The ref goes on the first poll after the
+                                  last recorded consumer ends that reaches
+                                  this row or the park row below.
                                   EVERY obligation that is not
                                   `reconciled` holds the terminal (a RETAINED
                                   ref included), as does an opaque RESOURCE
