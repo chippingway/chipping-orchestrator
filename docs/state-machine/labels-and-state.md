@@ -3325,7 +3325,15 @@ rather than preserving.
   reader would drop (`null` included), a live cycle with no root, current issue, or depth, a record whose cycle is
   gone beside the fields it still carries, and one written for another issue, still creating children, cancelled
   while it was (the interrupted boundary `late_cancelled_phase` keeps), naming a root other than the group's whether
-  or not it split, or, having split, naming another depth are each a refusal rather than depth 0.
+  or not it split, or, having split, naming another depth are each a refusal rather than depth 0. What those
+  children would be seeded with is `stages/decomposition/replacement_lineage.py`'s answer, dormant too: this group at
+  one past the parent's depth under the same root, the parent as `late_ancestry_parent`, the parent's own cycle and
+  generation (else this group's, else the cycle `late_retired_cycle_id` names), and a pointer only at the snapshot the
+  parent's own split holds — written behind `late_consumers` recording the child, and told by that ref and this
+  repository's mirror of it alone. A parent already at `MAX_LINEAGE_DEPTH`, a refused provenance, one naming no cycle,
+  and a split whose own snapshot entry is neither `retained` nor passed to a reclamation (unreadable ledgers, a
+  consumer ledger nothing can be added to, `pending`, recorded twice, or missing), or is `retained` with no
+  `late_base_sha`, are refusals rather than an unpointed seed.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

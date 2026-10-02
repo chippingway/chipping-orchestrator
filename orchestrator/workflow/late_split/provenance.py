@@ -41,8 +41,10 @@ ordinary issue would start the lineage over at 0.
 Read-only and local: the pinned comment and the body the caller already holds
 are the whole of the evidence, and nothing here writes either.
 
-Dormant: no decomposition asks it yet, so replacement children are still
-created without a lineage until the split that seeds them reads this first.
+Dormant: its one caller is `stages/decomposition/replacement_lineage.py`,
+which turns this answer into what each replacement child would be seeded with
+and is not asked by any decomposition yet, so replacement children are still
+created without a lineage until the split that seeds them reads that first.
 """
 from __future__ import annotations
 
