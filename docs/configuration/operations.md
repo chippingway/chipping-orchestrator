@@ -194,8 +194,9 @@ cancels it. The dependency review is a required check and CodeQL's findings are 
 ([`../security.md#required-checks`](../security.md#required-checks)), so a hung job
 holds a merge for those six hours instead of failing in the minutes the scan takes. Scorecard, the vulnerability scan,
 and CodeQL's scheduled pass have nobody watching, so a hung one holds a runner while reading as a scan that has yet to
-report rather than as one that failed. The documentation build and deploy jobs each allow 10 minutes: a hung
-deployment from `main` holds the `pages` concurrency group, so later deployments wait.
+report rather than as one that failed. The documentation build and deploy jobs each allow 10 minutes: the build is
+a required check, so a hung one would hold a merge, and a hung deployment from `main` holds the `pages` concurrency
+group, so later deployments wait.
 [`../../tests/repository/test_workflow_job_timeouts.py`](../../tests/repository/test_workflow_job_timeouts.py) holds a
 declared timeout, shorter than that default, on every job in all six workflows, and holds the list it walks against
 the workflow directory, so a seventh workflow arrives with a timeout rather than outside every check.
@@ -291,11 +292,16 @@ In `chippingway/chipping-orchestrator`, configure these settings once:
 3. In the repository's **About** panel, open its settings and set **Website** to
    `https://chippingway.github.io/chipping-orchestrator/`.
 
-[`../../.github/workflows/docs.yml`](../../.github/workflows/docs.yml) builds and checks relevant pull requests and
-pushes to `main`, using the committed lockfile. Pull requests only build and validate. A push to `main` uploads the
-generated site and deploys through the `github-pages` environment. The deployment job alone has `pages: write` and
-`id-token: write` permissions; no personal access token is needed. The **Documentation** workflow can also be run
-manually from **Actions**, selecting `main` to publish or another branch to validate its build.
+[`../../.github/workflows/docs.yml`](../../.github/workflows/docs.yml) builds and checks every pull request and the
+pushes to `main` that change a documentation source, using the committed lockfile. The `pull_request` trigger carries
+no path filter, so a pull request touching no documentation still reports the `build` check that branch protection
+requires ([`../security.md#required-checks`](../security.md#required-checks)). Pull requests only build and validate.
+A push to `main` runs the workflow when it changes a path its `push` filter lists — the published pages, the MkDocs
+configuration and build hook, `.github/docs-theme/` for the site template, the workflow, the documentation tests, and
+the dependency manifests — then uploads the generated site and deploys through the `github-pages` environment. The
+deployment job alone has `pages: write` and `id-token: write` permissions; no personal access token is needed. The
+**Documentation** workflow can also be run manually from **Actions**, selecting `main` to publish or another branch to
+validate its build.
 
 Documentation runs publishing `main` share a `pages` concurrency group: a newer run replaces a queued run so the
 latest documentation wins, while `cancel-in-progress: false` lets an active deployment finish. CI gives every `main`
