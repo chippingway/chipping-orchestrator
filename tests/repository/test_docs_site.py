@@ -19,14 +19,22 @@ run with the newest one while an active deployment finishes. Pull requests
 use their own refs and cancel superseded builds without displacing a deploy.
 The workflow runs on GitHub, so each policy is checked as the text GitHub
 receives.
+
+The site renders through the template in `.github/docs-theme`, which writes a
+page's `description` front matter into its one description meta tag, escaped,
+ahead of the homepage's `site_description` fallback. Sample sites built through
+that template hold it to that, and to leaving every undescribed page's markup
+and search entry as the bundled theme renders them.
 """
 from __future__ import annotations
 
+import json
 import re
 import unittest
 from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import MappingProxyType
 
 from tests.repository import docs_site_test_support as _site_support
 from tests.repository.doc_link_test_support import HEADING_ANCHOR_CASES
@@ -61,7 +69,7 @@ _CHECK_STEP = f"""      - name: Check the built documentation
 _PUBLISHING_STEPS = (_BUILD_STEP, _CHECK_STEP, _ARTIFACT_STEP)
 _UPLOADED_SITE = f"        with:\n          path: {_site_support.SITE_DIRECTORY}\n"
 _READ_ONLY_GRANT = "\npermissions:\n  contents: read\n\n"
-_THEME_PATH = '      - ".github/docs-theme/**"\n'
+_THEME_PATH = f'      - "{_site_support.THEME_PATH}/**"\n'
 # YAML lets a comment sit at any indent, so one left in place would end the
 # block above it early and hide the configuration nested below it.
 _COMMENT_LINE = re.compile(r"^[ \t]*#.*\n", re.MULTILINE)
@@ -85,6 +93,16 @@ _SAMPLE = """# Sample
 [source]: ../README.md#quick-start
 """
 _HEADING_SAMPLE = "\n\n".join(f"## {heading}" for heading, _ in HEADING_ANCHOR_CASES)
+# Unescaped, the quotes would end the attribute early and the entity would be read back as `<`.
+_HOMEPAGE_DESCRIPTION = 'Quotes "kept", <b>tags</b> & a literal &lt; as text.'
+_INTERIOR_DESCRIPTION = "A folded summary of the local page."
+_DESCRIBED_HOMEPAGE = f"---\ndescription: '{_HOMEPAGE_DESCRIPTION}'\n---\n# Sample\n"
+_DESCRIBED_INTERIOR = f"---\ndescription: >\n  {_INTERIOR_DESCRIPTION}\n---\n# Local page\n"
+_HOMEPAGE = "index.html"
+_INTERIOR = "next/index.html"
+_NESTED = "nested/page/index.html"
+_SEARCH_INDEX = "search/search_index.json"
+_CANONICAL = MappingProxyType({"rel": "canonical", "href": f"{_site_support.SITE_URL}next/"})
 
 
 def _blocks(text: str, indent: int) -> dict[str, str]:
@@ -124,6 +142,9 @@ class DocumentationWorkflowTest(unittest.TestCase):
         )
 
     def test_main_pushes_publish_template_edits(self) -> None:
+        """The site renders through the template the sample builds below check, and an edit to it publishes."""
+        mkdocs = (_site_support.REPO_ROOT / "mkdocs.yml").read_text(encoding=_ENCODING)
+        self.assertIn(f"  custom_dir: {_site_support.THEME_PATH}\n", _blocks(mkdocs, 0)["theme"])
         workflow = _workflow()
         self.assertIn(_MAIN_BRANCH, _section(workflow, _TRIGGERS)["push"].splitlines())
         self.assertIn(_THEME_PATH, _published_paths(workflow))
@@ -176,33 +197,37 @@ class DocumentationWorkflowTest(unittest.TestCase):
 
 @unittest.skipUnless(find_spec("mkdocs"), _site_support.INSTALL_HINT)
 class DocumentationWebsiteTest(unittest.TestCase):
+    def test_front_matter_describes_its_own_page(self) -> None:
+        """A page's `description` is its one description tag, escaped, and the homepage's wins over its fallback."""
+        site = self._sample_site(_DESCRIBED_HOMEPAGE, interior=_DESCRIBED_INTERIOR)
+        expected = {_HOMEPAGE: [_HOMEPAGE_DESCRIPTION], _INTERIOR: [_INTERIOR_DESCRIPTION], _NESTED: []}
+        for page, descriptions in expected.items():
+            with self.subTest(page=page):
+                self.assertEqual(_site_support.SitePage(site / page).descriptions, descriptions)
+
+    def test_undescribed_pages_match_bundled_theme(self) -> None:
+        """Without front matter the homepage keeps `site_description`, and no page's markup or search entry moves."""
+        bundled = self._sample_site(_SAMPLE, theme=None)
+        site = self._sample_site(_SAMPLE)
+        self.assertEqual(_site_support.SitePage(site / _HOMEPAGE).descriptions, [_site_support.SAMPLE_DESCRIPTION])
+        self.assertIn(("link", _CANONICAL), _site_support.SitePage(site / _INTERIOR).tags)
+        rendering = self._rendering(site)
+        self.assertIn(_NESTED, rendering)
+        self.assertEqual(rendering, self._rendering(bundled))
+
     def test_unique_heading_anchors_match_github(self) -> None:
-        with TemporaryDirectory() as directory:
-            root = Path(directory).resolve()
-            built = _site_support.build_site(
-                _site_support.write_sample_repository(root, _HEADING_SAMPLE), root / _site_support.SITE_DIRECTORY,
-            )
-            self.assertEqual(built.returncode, 0, built.stderr)
-            anchors = _site_support.SitePage(root / _site_support.SITE_DIRECTORY / "index.html").anchors
-            self.assertLessEqual({expected for _, expected in HEADING_ANCHOR_CASES}, anchors)
+        anchors = _site_support.SitePage(self._sample_site(_HEADING_SAMPLE) / _HOMEPAGE).anchors
+        self.assertLessEqual({expected for _, expected in HEADING_ANCHOR_CASES}, anchors)
 
     def test_source_links_preserve_code(self) -> None:
-        with TemporaryDirectory() as directory:
-            root = Path(directory).resolve()
-            built = _site_support.build_site(
-                _site_support.write_sample_repository(root, _SAMPLE), root / _site_support.SITE_DIRECTORY,
-            )
-            self.assertEqual(built.returncode, 0, built.stderr)
-            homepage = root / _site_support.SITE_DIRECTORY / "index.html"
-            links = _site_support.SitePage(homepage).links
-            self.assertEqual(links.count(_SOURCE_URL), 2)
-            self.assertIn("next/#local-page", links)
-            self.assertEqual(homepage.read_text(encoding=_ENCODING).count("[example](../README.md)"), 2)
-            links = _site_support.SitePage(
-                root / _site_support.SITE_DIRECTORY / "nested" / "page" / "index.html",
-            ).links
-            self.assertIn(_SOURCE_URL, links)
-            self.assertIn("../../next/#local-page", links)
+        homepage = self._sample_site(_SAMPLE) / _HOMEPAGE
+        links = _site_support.SitePage(homepage).links
+        self.assertEqual(links.count(_SOURCE_URL), 2)
+        self.assertIn("next/#local-page", links)
+        self.assertEqual(homepage.read_text(encoding=_ENCODING).count("[example](../README.md)"), 2)
+        links = _site_support.SitePage(homepage.parent / _NESTED).links
+        self.assertIn(_SOURCE_URL, links)
+        self.assertIn("../../next/#local-page", links)
 
     def test_broken_repository_link_fails_build(self) -> None:
         with TemporaryDirectory() as directory:
@@ -213,6 +238,28 @@ class DocumentationWebsiteTest(unittest.TestCase):
             )
             self.assertNotEqual(built.returncode, 0, built.stderr)
             self.assertIn("Repository link does not resolve", built.stderr)
+
+    def _sample_site(
+        self, markdown: str, *, theme: Path | None = _site_support.THEME_DIRECTORY, interior: str = "",
+    ) -> Path:
+        """A strict build of the sample repository, with `interior` replacing its local page when given."""
+        root = Path(self.enterContext(TemporaryDirectory())).resolve()
+        config = _site_support.write_sample_repository(root, markdown, theme=theme)
+        if interior:
+            (root / "docs" / "next.md").write_text(interior, encoding=_ENCODING)
+        site = root / _site_support.SITE_DIRECTORY
+        built = _site_support.build_site(config, site)
+        self.assertEqual(built.returncode, 0, built.stderr)
+        return site
+
+    def _rendering(self, site: Path) -> dict[str, object]:
+        """Every page's tags and the search index, keyed by their path in the site."""
+        rendering: dict[str, object] = {
+            path.relative_to(site).as_posix(): _site_support.SitePage(path).tags
+            for path in site.rglob("*.html")
+        }
+        rendering[_SEARCH_INDEX] = json.loads((site / _SEARCH_INDEX).read_text(encoding=_ENCODING))
+        return rendering
 
 
 if __name__ == "__main__":

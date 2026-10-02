@@ -281,13 +281,41 @@ sources are checked by `tests/repository/test_doc_links.py`, which needs no docu
 rest of the suite in [Continuous integration](#continuous-integration). The `docs` group is separate from runtime and
 development dependencies, so the default `uv sync --locked` does not install the documentation builder.
 
-[`../../mkdocs.yml`](../../mkdocs.yml) defines the navigation, site URL, search-enabled theme, and validation rules.
-Every page must appear in navigation; missing pages, links, and heading anchors fail the strict build. The hook in
+[`../../mkdocs.yml`](../../mkdocs.yml) defines the navigation, site URL, search-enabled theme, the template directory
+the theme's `custom_dir` layers over it ([Page descriptions](#page-descriptions)), and validation rules. Every page
+must appear in navigation; missing pages, links, and heading anchors fail the strict build. The hook in
 [`../../.github/scripts/docs_site.py`](../../.github/scripts/docs_site.py) preserves GitHub-style heading anchors for
 unique headings and turns links to repository files outside `docs/` into GitHub links while building. Repeated headings
 use Python-Markdown suffixes such as `_1` instead of GitHub's `-1`. Relative links between documentation pages keep
 pointing within the site. Link examples in code blocks are left intact, and the source files retain the relative paths
 the repository's documentation checks validate.
+
+### Page descriptions
+
+A page summarizes itself for search results and link previews with `description` front matter, a YAML block that opens
+the Markdown file, before its title:
+
+```markdown
+---
+description: How the orchestrator is checked, launched, supervised, and reconfigured.
+---
+# Operations
+```
+
+Write the description as one or two sentences of plain text, about 160 characters at most so a search result can show
+it whole. Markdown in it is not rendered, and HTML is shown as text. Quote the value when it contains a colon followed
+by a space or a space followed by `#`, or starts with a YAML indicator such as `'`, `"`, `&`, `*`, `[`, or `{`, so it
+parses as one string.
+
+The template [`../../.github/docs-theme/main.html`](../../.github/docs-theme/main.html) overrides one block of the
+bundled `mkdocs` theme, `site_meta`, and writes the value into the page's single `<meta name="description">` tag,
+HTML-escaped. On the homepage the page's own description takes precedence over `site_description` in
+[`../../mkdocs.yml`](../../mkdocs.yml), which remains the homepage's fallback; any other page without front matter
+emits no description. The rest of that block is the theme's own, so every page keeps the canonical URL, head
+metadata, navigation, and search the bundled theme gives it, and a page without front matter renders as that theme
+renders it. `tests/repository/test_docs_site.py` builds sample sites through the template to hold each of those rules,
+and checks that `mkdocs.yml` names the template directory. GitHub's file view shows front matter as a table above the
+page.
 
 ### GitHub Pages setup
 

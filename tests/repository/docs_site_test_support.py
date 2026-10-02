@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Build the docs and check the links a visitor follows in the generated HTML.
+"""Build the docs and check the links and metadata a visitor reads in the generated HTML.
 
 `SITE_VARIABLE` names a site that is already built -- the one the Documentation
 workflow uploads -- so the check reads that output instead of building its own.
@@ -19,10 +19,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SITE_URL = "https://chippingway.github.io/chipping-orchestrator/"
 SITE_DIRECTORY = "site"
 SITE_VARIABLE = "DOCS_SITE_DIR"
+THEME_PATH = ".github/docs-theme"
+THEME_DIRECTORY = REPO_ROOT / THEME_PATH
+SAMPLE_DESCRIPTION = "A sample site."
 INSTALL_HINT = "install the docs group with uv sync --locked --group docs"
 _SITE_ADDRESS = urlsplit(SITE_URL)
 _ENCODING = "utf-8"
 _BUILD_TIMEOUT_SECONDS = 30
+_Attributes = dict[str, str | None]
 _LINK_ATTRIBUTES = MappingProxyType({"a": "href", "link": "href", "img": "src", "script": "src"})
 _DOCS_ROOT = REPO_ROOT / "docs"
 _NESTED_SAMPLE = """# Nested page
@@ -37,10 +41,21 @@ class SitePage(HTMLParser):
         super().__init__()
         self.links: list[str] = []
         self.anchors: set[str] = set()
+        self.tags: list[tuple[str, _Attributes]] = []
         self.feed(path.read_text(encoding=_ENCODING))
+
+    @property
+    def descriptions(self) -> list[str | None]:
+        """The content of every description meta tag, in document order."""
+        return [
+            attributes.get("content")
+            for tag, attributes in self.tags
+            if tag == "meta" and attributes.get("name") == "description"
+        ]
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
+        self.tags.append((tag, attributes))
         anchor = attributes.get("id") or attributes.get("name")
         if anchor:
             self.anchors.add(anchor)
@@ -104,7 +119,8 @@ def _local_target(site: Path, source: Path, href: str) -> Path | None:
     return (source.parent / path).resolve()
 
 
-def write_sample_repository(root: Path, markdown: str) -> Path:
+def write_sample_repository(root: Path, markdown: str, *, theme: Path | None = THEME_DIRECTORY) -> Path:
+    """A small repository rendered through `theme` as `custom_dir`, or through the bundled theme alone with None."""
     docs = root / "docs"
     docs.mkdir()
     (root / "README.md").write_text("# Quick start\n", encoding=_ENCODING)
@@ -114,10 +130,13 @@ def write_sample_repository(root: Path, markdown: str) -> Path:
     (docs / "nested" / "page.md").write_text(_NESTED_SAMPLE, encoding=_ENCODING)
     config = root / "mkdocs.yml"
     hook = REPO_ROOT / ".github" / "scripts" / "docs_site.py"
+    custom_dir = f"  custom_dir: '{theme}'\n" if theme else ""
     config.write_text(
         "site_name: Sample\n"
+        f"site_description: {SAMPLE_DESCRIPTION}\n"
         f"site_url: {SITE_URL}\n"
         "repo_url: https://github.com/chippingway/chipping-orchestrator\n"
+        f"theme:\n  name: mkdocs\n{custom_dir}"
         f"hooks:\n  - '{hook}'\n"
         "validation:\n  links:\n    anchors: warn\n",
         encoding=_ENCODING,
