@@ -51,7 +51,7 @@ def make_developer_report(pr_number: int, **report_fields) -> DeveloperReport:
 def make_verification_artifact(pr_number: int, **artifact_fields) -> VerificationArtifact:
     """Build one complete verification artifact for `pr_number`, overriding any field."""
     defaults = {
-        "repository": "chippingway/orchestrator",
+        "repository": "chippingway/chipping-orchestrator",
         "source": EvidenceSource.ORCHESTRATOR_EXECUTED,
         "tested_sha": _REPORTED_SHA,
         "tested_tree": _TESTED_TREE,

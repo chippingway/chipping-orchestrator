@@ -26,7 +26,7 @@ from tests.support.fakes import FakeComment, FakeIssue, FakeUser, make_issue
 _ISSUE = 5
 _BRANCH_KEY = "branch"
 _ROUND_KEY = "review_round"
-_BRANCH = "orchestrator/chippingway__orchestrator/issue-5"
+_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-5"
 _ATTACKER_BRANCH = "orchestrator/evil"
 
 # The id the record already on a thread carries, a human's reply below it, and
@@ -44,11 +44,11 @@ _REPLY = "a human answering the park notice"
 # text, so it is the compatibility contract rather than a rendering detail.
 _RECORD_BODY = (
     '<!--orchestrator-state {"branch": '
-    '"orchestrator/chippingway__orchestrator/issue-5"}-->'
+    '"orchestrator/chippingway__chipping-orchestrator/issue-5"}-->'
 )
 _REWRITTEN_BODY = (
     '<!--orchestrator-state {"branch": '
-    '"orchestrator/chippingway__orchestrator/issue-5", "review_round": 2}-->'
+    '"orchestrator/chippingway__chipping-orchestrator/issue-5", "review_round": 2}-->'
 )
 
 _RECORD = MappingProxyType({_BRANCH_KEY: _BRANCH})

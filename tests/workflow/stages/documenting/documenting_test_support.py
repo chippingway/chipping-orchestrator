@@ -163,7 +163,7 @@ HUMAN_REPLY_ID = 1100
 
 def _branch(issue_number: int) -> str:
     """The per-issue PR branch the docs handler anchors on."""
-    return f"orchestrator/chippingway__orchestrator/issue-{issue_number}"
+    return f"orchestrator/chippingway__chipping-orchestrator/issue-{issue_number}"
 
 
 class _DocumentingWorkflowMixin(_PatchedWorkflowMixin):

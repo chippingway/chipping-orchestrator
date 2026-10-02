@@ -42,7 +42,7 @@ _READY_TEMPLATE = (
 )
 _VERIFIED_TEMPLATE = f"  {_REPORT_VERIFIED_MARKER} <location> <revision>"
 _REPORT = "Adds the foo flag; verified with the foo tests."
-_SLUG = "chippingway/orchestrator"
+_SLUG = "chippingway/chipping-orchestrator"
 _PULL_NUMBER = 1697
 _COMMENT_ID = 5579567555
 _COMMENT_URL = f"https://github.com/{_SLUG}/pull/{_PULL_NUMBER}#issuecomment-{_COMMENT_ID}"

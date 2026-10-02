@@ -42,11 +42,11 @@ from tests.workflow.fixtures import (
 
 CONSUMED_REPLY_ISSUE = 900
 CONSUMED_REPLY_PR = 1500
-CONSUMED_REPLY_BRANCH = "orchestrator/chippingway__orchestrator/issue-900"
+CONSUMED_REPLY_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-900"
 RESUME_WATERMARK_ISSUE = 901
 ISSUE_THREAD_ISSUE = 800
 ISSUE_THREAD_PR = 1600
-ISSUE_THREAD_BRANCH = "orchestrator/chippingway__orchestrator/issue-800"
+ISSUE_THREAD_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-800"
 PICKUP_COMMENT_ID = 900
 PARK_COMMENT_ID = 910
 CONSUMED_REPLY_ID = 920
@@ -70,7 +70,7 @@ RUN_AGENT = "run_agent"
 LONG_AGO = datetime.now(UTC) - timedelta(hours=1)
 FROZEN_BATCH_ISSUE = 802
 FROZEN_BATCH_PR = 1602
-FROZEN_BATCH_BRANCH = "orchestrator/chippingway__orchestrator/issue-802"
+FROZEN_BATCH_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-802"
 HUMAN_REPLY = "answer: use sqlite"
 LANDED_MID_RUN = "actually, hold on"
 PARKED_QUESTION = "@hitl agent needs your input to proceed"

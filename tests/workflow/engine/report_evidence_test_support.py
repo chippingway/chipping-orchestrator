@@ -50,7 +50,7 @@ PR_NUMBER = 12
 
 OTHER_PR_NUMBER = 13
 
-BRANCH = "orchestrator/chippingway__orchestrator/issue-7"
+BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-7"
 
 SOURCE_SHA = "3f786850e387550fdab836ed7e6dc881de23001b"
 

@@ -51,9 +51,9 @@ _REQUIREMENTS = "a" * max(_formats.DIGEST_LENGTHS)
 
 _SOURCE_SHA = "b" * min(_formats.COMMIT_LENGTHS)
 
-_REPO_SLUG = "chippingway/orchestrator"
+_REPO_SLUG = "chippingway/chipping-orchestrator"
 
-_BRANCH = "orchestrator/chippingway__orchestrator/issue-7"
+_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-7"
 
 _PR_NUMBER = 12
 

@@ -24,13 +24,13 @@ from tests.workflow.fixtures import (
 
 MERGED_ISSUE = 120
 MERGED_PR = 12000
-MERGED_BRANCH = "orchestrator/chippingway__orchestrator/issue-120"
+MERGED_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-120"
 CLOSED_ISSUE = 121
 OPEN_PR = 12100
-CLOSED_ISSUE_BRANCH = "orchestrator/chippingway__orchestrator/issue-121"
+CLOSED_ISSUE_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-121"
 APPROVAL_ISSUE = 9
 APPROVAL_PR = 91
-APPROVAL_BRANCH = "orchestrator/chippingway__orchestrator/issue-9"
+APPROVAL_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-9"
 # The head the pull request stands on: the one its reviewer is handed, the
 # round's checkout stands on, and the squash reports it published.
 SQUASHED_SHA = "5091" * 10

@@ -159,7 +159,7 @@ class AuthedTargetFetchTest(unittest.TestCase):
             )
             fetch = branch_transport._authed_target_fetch(
                 _config_models.RepoSpec(
-                    slug="chippingway/orchestrator",
+                    slug="chippingway/chipping-orchestrator",
                     target_root=repo,
                     base_branch=MAIN_BRANCH,
                 ),

@@ -33,7 +33,7 @@ _LISTED_COMMAND = "- ```sh\n  pytest tests/foo\n  ```"
 _INDENTED_REPORT = "    pytest tests/foo\n\nAdds the flag.  "
 # Text to Markdown, never a blank.
 _NO_BREAK_SPACE = " "
-_SLUG = "chippingway/orchestrator"
+_SLUG = "chippingway/chipping-orchestrator"
 _PULL_NUMBER = 1697
 _COMMENT_ID = 5579567555
 # The largest id a signed 64-bit integer holds, nineteen digits wide.

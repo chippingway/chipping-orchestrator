@@ -58,7 +58,7 @@ Token resolution order:
 Use `REPO` for a single repo (the default), or `REPOS` to drive several from one process. When `REPOS` is set, the
 legacy single-repo quartet (`REPO` / `TARGET_REPO_ROOT` / `BASE_BRANCH` / `REMOTE_NAME`) is ignored.
 
-- `REPO` — default `chippingway/orchestrator`. `owner/name` of the single repo to manage (ignored when `REPOS`
+- `REPO` — default `chippingway/chipping-orchestrator`. `owner/name` of the single repo to manage (ignored when `REPOS`
   is set)
 - `TARGET_REPO_ROOT` — default `REPO_ROOT` (self-bootstrap). path to the local clone of `REPO` — worktrees are
   `git worktree add`-ed from here

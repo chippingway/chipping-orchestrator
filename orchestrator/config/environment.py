@@ -36,7 +36,7 @@ _DEFAULT_ENABLED = "on"
 _AGY = "agy"
 _CLAUDE = "claude"
 _CODEX = "codex"
-_DEFAULT_REPO = "chippingway/orchestrator"
+_DEFAULT_REPO = "chippingway/chipping-orchestrator"
 _DEFAULT_HITL = "geserdugarov"
 
 # Added lines a candidate may carry and still publish as one change. Spelled

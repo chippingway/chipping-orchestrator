@@ -171,7 +171,7 @@ and adds only `security-events: write`, which the CodeQL action needs to upload 
 supply-chain grader behind the README badge — on a weekly `schedule`, on every push to `main`, and on
 `workflow_dispatch`, which is how a maintainer can prove a change to it works without waiting a week. It sets
 `publish_results: true`, so a run on `main` publishes the score the badge and the public
-[viewer](https://scorecard.dev/viewer/?uri=github.com/chippingway/orchestrator) read, and hands the SARIF it
+[viewer](https://scorecard.dev/viewer/?uri=github.com/chippingway/chipping-orchestrator) read, and hands the SARIF it
 produces to `github/codeql-action/upload-sarif`, which files each finding as a code-scanning alert on this repo. It
 declares the same top-level `contents: read` and reads no secrets; the job adds exactly the two grants those two
 publications need — `id-token: write` for the OIDC token the publication is authenticated by, and

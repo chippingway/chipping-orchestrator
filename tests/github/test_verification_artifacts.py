@@ -177,7 +177,7 @@ class ArtifactRefusalTest(unittest.TestCase):
             (True, {}),
             (_PR_NUMBER, {"artifact_revision": "1"}),
             (_PR_NUMBER, {"repository": "orchestrator"}),
-            (_PR_NUMBER, {"repository": "chippingway/orchestrator/extra"}),
+            (_PR_NUMBER, {"repository": "chippingway/chipping-orchestrator/extra"}),
             (_PR_NUMBER, {"tested_sha": "3f78685"}),
             (_PR_NUMBER, {"tested_tree": _ARTIFACT.tested_tree.upper()}),
             (_PR_NUMBER, {"target_head": ""}),

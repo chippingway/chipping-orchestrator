@@ -85,7 +85,7 @@ class AgentLifecycleEventEmissionTest(unittest.TestCase, support._PatchedWorkflo
         gh.add_issue(issue)
         pr = support.FakePR(
             number=support._REVIEW_PR_NUMBER,
-            head_branch="orchestrator/chippingway__orchestrator/issue-2",
+            head_branch="orchestrator/chippingway__chipping-orchestrator/issue-2",
             base_branch=support.TEST_BASE_BRANCH,
             mergeable=True,
             check_state="success",

@@ -33,7 +33,7 @@ from orchestrator.config import models as _config_models
 
 BASE_BRANCH = "main"
 REMOTE_NAME = "origin"
-TOPIC_BRANCH = "orchestrator/chippingway__orchestrator/issue-9"
+TOPIC_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-9"
 
 # What the topic commit writes, and the single byte an authored change moves in
 # it. One character, because the claim under test is that ANY covered byte
@@ -252,7 +252,7 @@ class ReplayRepositoryMixin:
 
     def _spec(self, worktree: Path) -> _config_models.RepoSpec:
         return _config_models.RepoSpec(
-            slug="chippingway/orchestrator",
+            slug="chippingway/chipping-orchestrator",
             target_root=worktree,
             base_branch=BASE_BRANCH,
         )

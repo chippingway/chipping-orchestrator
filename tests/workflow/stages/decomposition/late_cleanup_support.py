@@ -68,7 +68,7 @@ UNRECORDED_CHILD = 412
 # was cut for it.
 REPLACEMENT_CHILD = 421
 
-SUPERSEDED_BRANCH = "orchestrator/chippingway__orchestrator/issue-41"
+SUPERSEDED_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-41"
 
 SNAPSHOT_REF = "refs/orchestrator/late-split/issue-41/cycle-3/gen-1"
 

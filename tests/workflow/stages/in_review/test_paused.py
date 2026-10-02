@@ -20,7 +20,7 @@ from tests.workflow.fixtures import AGENT_RUN_CHARGE_WRITES, _agent, _PatchedWor
 
 ISSUE = 85
 PR_NUMBER = 805
-BRANCH = "orchestrator/chippingway__orchestrator/issue-85"
+BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-85"
 
 
 def _paused_view(number: int) -> object:

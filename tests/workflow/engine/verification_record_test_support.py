@@ -32,9 +32,9 @@ ISSUE_NUMBER = 7
 
 PR_NUMBER = 12
 
-SLUG = "chippingway/orchestrator"
+SLUG = "chippingway/chipping-orchestrator"
 
-BRANCH = "orchestrator/chippingway__orchestrator/issue-7"
+BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-7"
 
 TESTED_SHA = "3f786850e387550fdab836ed7e6dc881de23001b"
 

@@ -68,12 +68,12 @@ class ResolveBranchNamePinnedTest(unittest.TestCase):
         spec = _migration_spec()
         state = _state(
             {
-                BRANCH_KEY: "orchestrator/chippingway__orchestrator/issue-9",
+                BRANCH_KEY: "orchestrator/chippingway__chipping-orchestrator/issue-9",
             }
         )
         self.assertEqual(
             _naming._resolve_branch_name(state, spec, 9),
-            "orchestrator/chippingway__orchestrator/issue-9",
+            "orchestrator/chippingway__chipping-orchestrator/issue-9",
         )
 
     def test_non_string_pinned_branch_falls_back(self) -> None:

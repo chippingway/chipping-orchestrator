@@ -35,7 +35,7 @@ BASE_BRANCH = "main"
 
 REMOTE_NAME = "origin"
 
-REPO_SLUG = "chippingway/orchestrator"
+REPO_SLUG = "chippingway/chipping-orchestrator"
 
 # What the topic branch adds over the base, one file per commit -- and the
 # count a record of collapsing them claims.

@@ -101,7 +101,7 @@ def _documentation_seed(**state):
     github.add_issue(issue)
     defaults = {
         "pr_number": _DOCUMENTATION_PR_NUMBER,
-        "branch": "orchestrator/chippingway__orchestrator/issue-702",
+        "branch": "orchestrator/chippingway__chipping-orchestrator/issue-702",
         "dev_agent": "codex",
         "dev_session_id": _DEV_SESSION_ID,
     }

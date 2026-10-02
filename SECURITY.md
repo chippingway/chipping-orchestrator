@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Report a suspected vulnerability **privately**, through GitHub Private Vulnerability Reporting on this repository:
-open the [Security tab](https://github.com/chippingway/orchestrator/security) and choose **"Report a
+open the [Security tab](https://github.com/chippingway/chipping-orchestrator/security) and choose **"Report a
 vulnerability"**. That opens an advisory draft only the maintainer and the people invited to it can read.
 
 Please do **not** open a public issue, pull request, or discussion for one. Issues on this repository drive an

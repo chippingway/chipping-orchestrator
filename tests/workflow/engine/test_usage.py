@@ -218,7 +218,7 @@ class AgentAnalyticsTest(unittest.TestCase, _PatchedWorkflowMixin):
         pull_request = FakePR(
             number=_REVIEW_PR_NUMBER,
             head_branch=(
-                "orchestrator/chippingway__orchestrator/issue-103"
+                "orchestrator/chippingway__chipping-orchestrator/issue-103"
             ),
             base_branch=TEST_BASE_BRANCH,
             mergeable=True,

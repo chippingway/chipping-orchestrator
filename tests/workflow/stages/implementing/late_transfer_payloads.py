@@ -47,13 +47,13 @@ OTHER_DIGEST = "f" * DIGEST_LENGTH
 WORKTREE = Path("/tmp/orchestrator-test-late-transfer")
 
 SPEC = _config_models.RepoSpec(
-    slug="chippingway/orchestrator",
+    slug="chippingway/chipping-orchestrator",
     target_root=Path("/tmp/orchestrator-test-target-root"),
     base_branch="main",
 )
 
 # The branch a gated push names, and the seam that stands in for the request.
-BRANCH = "orchestrator/chippingway__orchestrator/issue-42"
+BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-42"
 PUSH_BRANCH = "_push_branch"
 
 # The three seams the ordinary cumulative reading spends, which a case about

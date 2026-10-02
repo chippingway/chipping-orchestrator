@@ -35,7 +35,7 @@ from tests.workflow.fixtures import SHA_LENGTH
 
 PR = 21
 
-BRANCH = "orchestrator/chippingway__orchestrator/issue-7"
+BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-7"
 
 # The head the settled report is about, and the heads two successive rebases
 # of this orchestrator's published over it.
@@ -80,7 +80,7 @@ def _reported_on(head: str) -> PinnedState:
     state = _carrying(DEBT.recorded(), pr_number=PR)
     _settlement.record_current_report(state, _records.CurrentReport(
         subject=_records.ReportSubject(
-            repo_slug="chippingway/orchestrator",
+            repo_slug="chippingway/chipping-orchestrator",
             pr_number=PR,
             branch=BRANCH,
             source_sha=head,

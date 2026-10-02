@@ -47,7 +47,7 @@ Agents run with their approval and sandbox checks disabled, so the host account 
 Clone and install from the lockfile:
 
 ```sh
-git clone https://github.com/chippingway/orchestrator.git chipping-orchestrator
+git clone https://github.com/chippingway/chipping-orchestrator.git
 cd chipping-orchestrator
 uv sync --locked
 cp .env.example .env
@@ -154,9 +154,9 @@ submitting pull requests.
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full text.
 
-[ci-badge]: https://github.com/chippingway/orchestrator/actions/workflows/ci.yml/badge.svg
-[ci-link]: https://github.com/chippingway/orchestrator/actions/workflows/ci.yml
-[scorecard-badge]: https://api.scorecard.dev/projects/github.com/chippingway/orchestrator/badge
-[scorecard-link]: https://scorecard.dev/viewer/?uri=github.com/chippingway/orchestrator
+[ci-badge]: https://github.com/chippingway/chipping-orchestrator/actions/workflows/ci.yml/badge.svg
+[ci-link]: https://github.com/chippingway/chipping-orchestrator/actions/workflows/ci.yml
+[scorecard-badge]: https://api.scorecard.dev/projects/github.com/chippingway/chipping-orchestrator/badge
+[scorecard-link]: https://scorecard.dev/viewer/?uri=github.com/chippingway/chipping-orchestrator
 [best-practices-badge]: https://www.bestpractices.dev/projects/14235/badge
 [best-practices-link]: https://www.bestpractices.dev/projects/14235

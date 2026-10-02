@@ -11,7 +11,7 @@ from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.pinned_state import PinnedState
 
 BASE_BRANCH = "main"
-MIGRATION_REPO_SLUG = "chippingway/orchestrator"
+MIGRATION_REPO_SLUG = "chippingway/chipping-orchestrator"
 MIGRATION_TARGET_ROOT = Path("/tmp/x")
 ALICE_REPO_SLUG = "alice/repo"
 BOB_REPO_SLUG = "bob/repo"
@@ -19,7 +19,7 @@ LOCK_SUFFIX_SLUG = "owner/foo.lock"
 DOUBLE_DOT_SLUG = "owner/foo..bar"
 BRANCH_KEY = "branch"
 LEGACY_BRANCH = "orchestrator/issue-7"
-NAMESPACED_BRANCH = "orchestrator/chippingway__orchestrator/issue-7"
+NAMESPACED_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-7"
 STAGE_LAYOUT_ISSUE_NUMBER = 11
 SHARED_BRANCH_ISSUE_NUMBER = 15
 PR_NUMBER = 42

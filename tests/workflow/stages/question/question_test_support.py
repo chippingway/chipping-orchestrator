@@ -118,7 +118,7 @@ OUTSIDER_ONLY_ISSUE_NUMBER = 71
 def _issue_branch(
     issue_number: int,
     *,
-    slug: str = "chippingway__orchestrator",
+    slug: str = "chippingway__chipping-orchestrator",
 ) -> str:
     return f"orchestrator/{slug}/issue-{issue_number}"
 

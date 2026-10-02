@@ -5,7 +5,7 @@ Bug reports, ideas, documentation fixes, tests, and pull requests are welcome. A
 ## Report a problem or suggest a change
 
 Check existing issues and pull requests to see whether someone has already raised the same topic, then use the
-[issue forms](https://github.com/chippingway/orchestrator/issues/new/choose).
+[issue forms](https://github.com/chippingway/chipping-orchestrator/issues/new/choose).
 
 For a bug, tell us what happened and what you expected. For a change, describe the problem and the improvement you want.
 Steps to reproduce, examples, your version, or redacted logs are helpful if you have them. Share what you know;
@@ -23,8 +23,8 @@ See the [README](README.md#how-it-works) for how issues become pull requests.
 Use Linux, Git, Python 3.12 or newer, and `uv`. Fork the repository, then:
 
 ```sh
-git clone https://github.com/YOUR-LOGIN/orchestrator.git
-cd orchestrator
+git clone https://github.com/YOUR-LOGIN/chipping-orchestrator.git
+cd chipping-orchestrator
 git switch -c my-change
 uv sync --locked
 ```

@@ -23,7 +23,7 @@ from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.state import WorkflowLabel
 
-_REPO_SLUG = "chippingway/orchestrator"
+_REPO_SLUG = "chippingway/chipping-orchestrator"
 _ISSUE_NUMBER = 1641
 _ISSUE_PATH = f"/repos/{_REPO_SLUG}/issues/{_ISSUE_NUMBER}"
 _LABELS_PATH = f"{_ISSUE_PATH}/labels"

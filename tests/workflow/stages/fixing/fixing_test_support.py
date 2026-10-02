@@ -89,7 +89,7 @@ def now_utc() -> datetime_module.datetime:
 
 def _branch(issue_number: int) -> str:
     """Return the per-issue PR branch used by the fixing handler."""
-    return f"orchestrator/chippingway__orchestrator/issue-{issue_number}"
+    return f"orchestrator/chippingway__chipping-orchestrator/issue-{issue_number}"
 
 
 FIXING = "workflow:fixing"

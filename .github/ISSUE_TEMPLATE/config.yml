@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Report a vulnerability privately
-    url: https://github.com/chippingway/orchestrator/security
+    url: https://github.com/chippingway/chipping-orchestrator/security
     about: Open the Security tab and choose Report a vulnerability, as described in SECURITY.md.

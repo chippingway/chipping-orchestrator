@@ -98,7 +98,7 @@ class DecompositionWorktreeTest(
     def test_uses_separate_implementer_worktree(self) -> None:
         # The decomposer must NOT taint the implementer's per-issue branch.
         # If it shared `_ensure_worktree`, a `split` decision would leave
-        # the local `orchestrator/chippingway__orchestrator/issue-<n>` branch anchored at the
+        # the local `orchestrator/chippingway__chipping-orchestrator/issue-<n>` branch anchored at the
         # origin/main snapshot the decomposer saw, and the parent's
         # eventual implementer (after children merged to main) would
         # commit on a stale base.

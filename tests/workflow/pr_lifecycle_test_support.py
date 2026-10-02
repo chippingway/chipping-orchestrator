@@ -58,7 +58,7 @@ KEY_VERDICT = "verdict"
 
 CHECK_SUCCESS = "success"
 LATEST_PR_COMMENT_IDS = "_latest_pr_comment_ids"
-PR_BRANCH = "orchestrator/chippingway__orchestrator/issue-50"
+PR_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-50"
 PR_NUMBER = 500
 _VERDICT_PR_NUMBER = 99
 _TIMEOUT_PR_NUMBER = 42
@@ -77,7 +77,7 @@ def _seeded_verdict(last_message: str):
     github.add_issue(issue)
     pull_request = FakePR(
         number=_VERDICT_PR_NUMBER,
-        head_branch="orchestrator/chippingway__orchestrator/issue-5",
+        head_branch="orchestrator/chippingway__chipping-orchestrator/issue-5",
         base_branch=TEST_BASE_BRANCH,
         mergeable=True,
         check_state=CHECK_SUCCESS,

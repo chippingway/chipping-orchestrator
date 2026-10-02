@@ -35,7 +35,7 @@ from tests.workflow.stages.fixing.prompt_expectations import (
 
 ISSUE = 880
 PR_NUMBER = 880
-BRANCH = "orchestrator/chippingway__orchestrator/issue-880"
+BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-880"
 PR_HEAD_SHA = support.PR_HEAD_SHA
 DEV_AGENT = "claude"
 DEV_SESSION = "dev-sess"

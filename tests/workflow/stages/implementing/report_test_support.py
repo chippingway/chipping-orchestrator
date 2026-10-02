@@ -44,7 +44,7 @@ REPORT_TEXT = "Adds the thing the issue asked for. Verified with the suite."
 LAST_MESSAGE_HEADING = "_Last agent message:_"
 
 # The repository every fixture here is about, and one that is somebody else's.
-OWN_SLUG = "chippingway/orchestrator"
+OWN_SLUG = "chippingway/chipping-orchestrator"
 
 FOREIGN_SLUG = "someone/else"
 

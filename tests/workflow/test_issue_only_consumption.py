@@ -47,7 +47,7 @@ from tests.workflow.fixtures import (
 
 ISSUE = 1843
 PR_NUMBER = 4310
-BRANCH = f"orchestrator/chippingway__orchestrator/issue-{ISSUE}"
+BRANCH = f"orchestrator/chippingway__chipping-orchestrator/issue-{ISSUE}"
 # The head the pull request stands on when a round opens, and the one a dev
 # resume leaves the checkout at.
 HEAD_SHA = DEFAULT_PR_HEAD_SHA
