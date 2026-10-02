@@ -144,6 +144,11 @@ The [documentation index](docs/README.md) maps the complete reference set:
 Report suspected vulnerabilities through the private process in [SECURITY.md](SECURITY.md), never through a public
 issue.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for writing issues, setting up a development checkout, running checks, and
+submitting pull requests.
+
 ## License
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full text.

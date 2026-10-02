@@ -1,0 +1,23 @@
+name: Bug report
+description: Tell us about something that is not working as expected.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A short report is enough to get started. Please redact secrets and private details.
+        For suspected vulnerabilities, follow
+        [SECURITY.md](https://github.com/chippingway/orchestrator/blob/main/SECURITY.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe what happened and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Extra details (optional)
+      description: Steps to reproduce, a log excerpt, your version, or a related issue can help. Share what you have.
+    validations:
+      required: false
