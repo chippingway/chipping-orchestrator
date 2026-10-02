@@ -342,7 +342,7 @@ class ReviewerRunUsageAccumulationTest(unittest.TestCase, _PatchedWorkflowMixin)
         gh.seed_state(
             _REVIEWER_ISSUE_NUMBER,
             pr_number=_REVIEWER_ISSUE_NUMBER,
-            branch="orchestrator/chippingway__orchestrator/issue-32",
+            branch="orchestrator/chippingway__chipping-orchestrator/issue-32",
             dev_agent=_BACKEND_CLAUDE,
             dev_session_id="dev-sess",
             review_round=0,
@@ -376,7 +376,7 @@ class ReviewerRunUsageAccumulationTest(unittest.TestCase, _PatchedWorkflowMixin)
         gh.seed_state(
             _INTERRUPTED_REVIEWER_ISSUE_NUMBER,
             pr_number=_INTERRUPTED_REVIEWER_ISSUE_NUMBER,
-            branch="orchestrator/chippingway__orchestrator/issue-33",
+            branch="orchestrator/chippingway__chipping-orchestrator/issue-33",
             dev_agent=_BACKEND_CLAUDE,
             dev_session_id="dev-sess",
             review_round=0,

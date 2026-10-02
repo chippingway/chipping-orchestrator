@@ -37,7 +37,7 @@ from tests.workflow.fixtures import (
 
 FRESH_FEEDBACK_ISSUE = 880
 FRESH_FEEDBACK_PR = 880
-FRESH_FEEDBACK_BRANCH = "orchestrator/chippingway__orchestrator/issue-880"
+FRESH_FEEDBACK_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-880"
 FEEDBACK_WATERMARK = 1999
 PR_FEEDBACK_ID = 3000
 REVIEW_DEBOUNCE_SECONDS = 600

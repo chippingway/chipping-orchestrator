@@ -51,7 +51,7 @@ def assert_pr_state(test_case, scenario) -> None:
     test_case.assertEqual(state["pr_number"], opened_pr.number)
     test_case.assertEqual(
         state["branch"],
-        "orchestrator/chippingway__orchestrator/issue-1",
+        "orchestrator/chippingway__chipping-orchestrator/issue-1",
     )
     test_case.assertEqual(state["dev_agent"], config.DEV_AGENT)
     test_case.assertEqual(state["dev_session_id"], "sess-1")

@@ -54,7 +54,7 @@ APPROVAL_PR = 31
 # The pinned field that number is recorded under, which a case damages to
 # show the stage references nothing by a value that names no pull request.
 PR_NUMBER_KEY = "pr_number"
-APPROVAL_BRANCH = "orchestrator/chippingway__orchestrator/issue-5"
+APPROVAL_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-5"
 REVIEWED_SHA = "ae1eedaa" * 5
 # The commit a squash leaves behind, at the shape this domain holds every
 # recorded end to: a whole object id, since the handoff record is one and a

@@ -20,7 +20,7 @@ from tests.github.pinned_state_test_support import (
 )
 from tests.support.fakes import FakeComment, FakeUser, make_issue
 
-REAL_BRANCH = "orchestrator/chippingway__orchestrator/issue-5"
+REAL_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-5"
 _ATTACKER_BRANCH = "orchestrator/evil"
 _BRANCH_KEY = "branch"
 _DEV_AGENT_KEY = "dev_agent"

@@ -67,7 +67,7 @@ class FakeGitHubClient(_IssueClient, _PullClient, _CommentIdAllocator):
         self,
         issues: Iterable[FakeIssue] = (),
         *,
-        repo_slug: str = "chippingway/orchestrator",
+        repo_slug: str = "chippingway/chipping-orchestrator",
         stale_label_cache: bool = False,
         bot_login: str = DEFAULT_BOT_LOGIN,
     ) -> None:

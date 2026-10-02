@@ -17,6 +17,14 @@ class RepositoryConfigParsingTest(unittest.TestCase):
     """`REPOS` parses N entries; when unset the legacy single-repo trio
     (`REPO` / `TARGET_REPO_ROOT` / `BASE_BRANCH`) keeps working."""
 
+    def test_default_repo_uses_own_checkout(self) -> None:
+        config = _reload.load_config()
+        spec = _support.only_repo_spec(config.default_repo_specs())
+
+        self.assertEqual(config.REPO, "chippingway/chipping-orchestrator")
+        self.assertEqual(spec.slug, config.REPO)
+        self.assertEqual(spec.target_root, config.REPO_ROOT)
+
     def test_legacy_single_repo_fallback(self) -> None:
         config = _reload.load_config(
             {

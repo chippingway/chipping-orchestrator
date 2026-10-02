@@ -23,7 +23,7 @@ from orchestrator.observability.analytics import settings as analytics_settings
 from orchestrator.observability.analytics.recording import events as _recording_events
 from tests.support.fakes import FakeGitHubClient
 
-_REPO_SLUG = "chippingway/orchestrator"
+_REPO_SLUG = "chippingway/chipping-orchestrator"
 _ISSUE_NUMBER = 1836
 _STAGE = "implementing"
 _REASON = "agent_timeout"

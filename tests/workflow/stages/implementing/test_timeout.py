@@ -52,7 +52,7 @@ _GUIDANCE = "please continue"
 OUTSIDER_COMMENT_ID = 1501
 RECOVERY_AGENT = "codex"
 RECOVERY_SESSION = "sess-x"
-RECOVERY_BRANCH = "orchestrator/chippingway__orchestrator/issue-4"
+RECOVERY_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-4"
 TEMP_WORKTREE_ROOT = Path("/tmp")
 
 
@@ -515,7 +515,7 @@ class HandleImplementingTimeoutRecoveryTest(unittest.TestCase, _PatchedWorkflowM
                 last_action_comment_id=ACTION_COMMENT_ID,
                 dev_agent=RECOVERY_AGENT,
                 dev_session_id=RECOVERY_SESSION,
-                branch="orchestrator/chippingway__orchestrator/issue-5",
+                branch="orchestrator/chippingway__chipping-orchestrator/issue-5",
                 user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
             )
             with patch.object(

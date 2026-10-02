@@ -77,7 +77,7 @@ _DECOMPOSE_SWITCH = "orchestrator.config.DECOMPOSE"
 # This very repository, spelled the way an operator types a setting rather
 # than the way GitHub answers: the same repository, and the one shape an
 # exact comparison reads as a stranger's.
-_SHOUTED_REPO = "ChippingWay/Orchestrator"
+_SHOUTED_REPO = "ChippingWay/Chipping-Orchestrator"
 
 
 class DeliveredReceiptTest(_receipt_case._ReceiptCase, unittest.TestCase):

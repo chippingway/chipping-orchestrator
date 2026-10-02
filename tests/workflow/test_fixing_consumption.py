@@ -49,7 +49,7 @@ from tests.workflow.stages.fixing.prompt_expectations import (
 
 ISSUE = 1844
 PR_NUMBER = 4320
-BRANCH = f"orchestrator/chippingway__orchestrator/issue-{ISSUE}"
+BRANCH = f"orchestrator/chippingway__chipping-orchestrator/issue-{ISSUE}"
 HEAD_SHA = DEFAULT_PR_HEAD_SHA
 
 DEV_AGENT = "claude"

@@ -25,11 +25,11 @@ from tests.workflow.fixtures import (
 
 PARK_ISSUE = 60
 PARK_PR = 70
-PARK_BRANCH = "orchestrator/chippingway__orchestrator/issue-60"
+PARK_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-60"
 HANDOFF_WATERMARK = 900
 SPLIT_WATERMARK_ISSUE = 65
 SPLIT_WATERMARK_PR = 95
-SPLIT_WATERMARK_BRANCH = "orchestrator/chippingway__orchestrator/issue-65"
+SPLIT_WATERMARK_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-65"
 INLINE_COMMENT_ID = 42
 INLINE_COMMENT_WATERMARK = 41
 # Above the handoff watermark and below every id the double mints, which is

@@ -126,7 +126,7 @@ class ReviewerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
         gh.seed_state(
             _REVIEWER_ISSUE_NUMBER,
             pr_number=_REVIEW_PR_NUMBER,
-            branch="orchestrator/chippingway__orchestrator/issue-300",
+            branch="orchestrator/chippingway__chipping-orchestrator/issue-300",
             codex_session_id="dev-sess",
             review_round=0,
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),

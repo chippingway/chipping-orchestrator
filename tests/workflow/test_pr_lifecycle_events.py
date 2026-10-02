@@ -49,7 +49,7 @@ class PrLifecycleEventEmissionTest(unittest.TestCase, support._PatchedWorkflowMi
         self.assertEqual(event[support.KEY_STAGE], support.STAGE_IMPLEMENTING)
         self.assertEqual(event["issue"], support._PR_ISSUE_NUMBER)
         self.assertEqual(event[support.KEY_PR_NUMBER], gh.opened_prs[0].number)
-        self.assertEqual(event["branch"], "orchestrator/chippingway__orchestrator/issue-50")
+        self.assertEqual(event["branch"], "orchestrator/chippingway__chipping-orchestrator/issue-50")
         # `sha` carries the PR head sha from `pr.head.sha` so the audit
         # sink can correlate the open event with later merge / review IDs.
         self.assertEqual(event["sha"], gh.opened_prs[0].head.sha)
@@ -64,10 +64,10 @@ class PrLifecycleEventEmissionTest(unittest.TestCase, support._PatchedWorkflowMi
         existing = support.FakePR(
             number=support._REUSED_PR_NUMBER,
             head_branch=(
-                "orchestrator/chippingway__orchestrator/issue-51"
+                "orchestrator/chippingway__chipping-orchestrator/issue-51"
             ),
         )
-        gh.existing_open_pr["orchestrator/chippingway__orchestrator/issue-51"] = existing
+        gh.existing_open_pr["orchestrator/chippingway__chipping-orchestrator/issue-51"] = existing
         self._run(
             lambda: _implementing._handle_implementing(gh, support._TEST_SPEC, issue),
             run_agent=support._agent(

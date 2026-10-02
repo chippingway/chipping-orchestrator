@@ -32,11 +32,11 @@ class OnCommitsPRReuseTest(unittest.TestCase, _PatchedWorkflowMixin):
         gh.add_issue(issue)
         existing = FakePR(
             number=EXISTING_PR_NUMBER,
-            head_branch="orchestrator/chippingway__orchestrator/issue-4",
+            head_branch="orchestrator/chippingway__chipping-orchestrator/issue-4",
             body=support._named_description(4, DEV_SESSION),
         )
         gh.add_pr(existing)
-        gh.existing_open_pr["orchestrator/chippingway__orchestrator/issue-4"] = existing
+        gh.existing_open_pr["orchestrator/chippingway__chipping-orchestrator/issue-4"] = existing
 
         self._run_implementing(
             gh,
@@ -153,5 +153,5 @@ class OnCommitsPRReuseTest(unittest.TestCase, _PatchedWorkflowMixin):
         # form directly instead of mis-inferring the legacy ref.
         self.assertEqual(
             pinned_data.get("branch"),
-            "orchestrator/chippingway__orchestrator/issue-11",
+            "orchestrator/chippingway__chipping-orchestrator/issue-11",
         )

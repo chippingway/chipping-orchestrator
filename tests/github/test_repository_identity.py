@@ -16,11 +16,11 @@ import unittest
 
 from orchestrator.github.client import GitHubClient
 
-_CONFIGURED_SLUG = "chippingway/orchestrator"
+_CONFIGURED_SLUG = "chippingway/chipping-orchestrator"
 
 # The same repository as GitHub spells it back, which is the spelling a
 # refusal quotes at a human and the one an exact comparison gets wrong.
-_CANONICAL_SLUG = "ChippingWay/Orchestrator"
+_CANONICAL_SLUG = "ChippingWay/Chipping-Orchestrator"
 
 _FORK_SLUG = "somebody-else/orchestrator"
 

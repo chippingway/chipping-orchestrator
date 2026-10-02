@@ -32,7 +32,7 @@ from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.late_split.publication import PublicationContext
 from orchestrator.workflow.state import WorkflowLabel
 
-REPO = "chippingway/orchestrator"
+REPO = "chippingway/chipping-orchestrator"
 # Where the analytics half of a dual emission lands, patched by every test
 # that has to see what a sink was handed.
 ANALYTICS_APPEND = (

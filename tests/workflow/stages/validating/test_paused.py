@@ -60,7 +60,7 @@ PUSH_BRANCH = "_push_branch"
 
 
 def _branch(number: int) -> str:
-    return f"orchestrator/chippingway__orchestrator/issue-{number}"
+    return f"orchestrator/chippingway__chipping-orchestrator/issue-{number}"
 
 
 def _paused_view(number: int) -> object:

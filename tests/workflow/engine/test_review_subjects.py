@@ -88,9 +88,9 @@ def _state(current: tuple[int, str] | None = None, **fields) -> PinnedState:
         revision, digest = current
         _settlement.record_current_report(state, _records.CurrentReport(
             subject=_records.ReportSubject(
-                repo_slug="chippingway/orchestrator",
+                repo_slug="chippingway/chipping-orchestrator",
                 pr_number=_PR_NUMBER,
-                branch="orchestrator/chippingway__orchestrator/issue-7",
+                branch="orchestrator/chippingway__chipping-orchestrator/issue-7",
                 source_sha=_HEAD,
                 requirements_revision=_REQUIREMENTS,
             ),

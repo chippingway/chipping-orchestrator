@@ -101,8 +101,8 @@ class GitHubClient(
 
         Answered from the repository object rather than from the configured
         slug, so what comes back is the canonical name: the configuration is
-        whatever an operator typed, and `ChippingWay/Orchestrator` resolves the
-        same repository as `chippingway/orchestrator` while being a name no
+        whatever an operator typed, and `ChippingWay/Chipping-Orchestrator` resolves the
+        same repository as `chippingway/chipping-orchestrator` while being a name no
         human would recognize in a refusal. The configured spelling is the
         fallback for a client whose repository could not be described.
 

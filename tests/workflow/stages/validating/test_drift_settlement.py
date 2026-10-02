@@ -65,7 +65,7 @@ from tests.workflow.fixtures import (
 
 SETTLEMENT_ISSUE = 71
 SETTLEMENT_PR = 710
-BRANCH = f"orchestrator/chippingway__orchestrator/issue-{SETTLEMENT_ISSUE}"
+BRANCH = f"orchestrator/chippingway__chipping-orchestrator/issue-{SETTLEMENT_ISSUE}"
 
 BACKEND = "claude"
 DEV_SESSION = "dev-sess"

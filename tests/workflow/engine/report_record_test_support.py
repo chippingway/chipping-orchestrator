@@ -27,9 +27,9 @@ REQUIREMENTS = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
 
 CONTENT_DIGEST = "5f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
 
-BRANCH = "orchestrator/chippingway__orchestrator/issue-7"
+BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-7"
 
-SLUG = "chippingway/orchestrator"
+SLUG = "chippingway/chipping-orchestrator"
 
 PR_NUMBER = 12
 

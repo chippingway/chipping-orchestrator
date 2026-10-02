@@ -25,10 +25,10 @@ from tests.workflow.fixtures import (
 
 ALL_WATERMARKS_ISSUE = 200
 ALL_WATERMARKS_PR = 600
-ALL_WATERMARKS_BRANCH = "orchestrator/chippingway__orchestrator/issue-200"
+ALL_WATERMARKS_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-200"
 WATERMARK_ISSUE = 300
 INLINE_COLLISION_PR = 800
-WATERMARK_BRANCH = "orchestrator/chippingway__orchestrator/issue-300"
+WATERMARK_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-300"
 PICKUP_COMMENT_ID = 900
 PR_OPEN_COMMENT_ID = 901
 REVIEW_FEEDBACK_ID = 4242

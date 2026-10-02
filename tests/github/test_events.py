@@ -14,7 +14,7 @@ from orchestrator import config
 from orchestrator.github import events as _events
 
 _TS_KEY = "ts"
-_REPO_SLUG = "chippingway/orchestrator"
+_REPO_SLUG = "chippingway/chipping-orchestrator"
 _EVENT_NAME = "agent_spawn"
 _STAGE = "implementing"
 _ISSUE_NUMBER = 949

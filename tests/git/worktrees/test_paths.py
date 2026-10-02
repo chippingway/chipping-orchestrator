@@ -99,7 +99,7 @@ class SanitizeSlugTest(unittest.TestCase):
         path = paths._worktree_path(_migration_spec(), 9)
         self.assertEqual(
             path,
-            config.WORKTREES_DIR / "chippingway__orchestrator" / "issue-9",
+            config.WORKTREES_DIR / "chippingway__chipping-orchestrator" / "issue-9",
         )
 
 
@@ -131,7 +131,7 @@ class BranchNameSlugNamespaceTest(unittest.TestCase):
     def test_branch_name_format(self) -> None:
         self.assertEqual(
             _naming._branch_name(_migration_spec(), 9),
-            "orchestrator/chippingway__orchestrator/issue-9",
+            "orchestrator/chippingway__chipping-orchestrator/issue-9",
         )
 
     def test_branch_name_keeps_orchestrator_prefix(self) -> None:

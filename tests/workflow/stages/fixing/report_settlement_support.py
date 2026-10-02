@@ -63,7 +63,7 @@ ISSUE_NUMBER = 880
 
 PR_NUMBER = 880
 
-BRANCH = "orchestrator/chippingway__orchestrator/issue-880"
+BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-880"
 
 # The head the round opened on, which the pull request is standing on because
 # the reviewer had just read it, and the head a round that committed nothing
