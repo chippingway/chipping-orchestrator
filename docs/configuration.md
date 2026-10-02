@@ -13,8 +13,8 @@ Two companion pages carry what is read on its own rather than scanned for a valu
 
 - [`configuration/observability.md`](configuration/observability.md) — the sink paths and retention windows, the
   analytics database URL, skill-trigger tracking, the dashboard read mode, and the dashboard quickstart.
-- [`configuration/operations.md`](configuration/operations.md) — continuous integration, run modes, the systemd user
-  service, and what an edited `.env` takes to apply.
+- [`configuration/operations.md`](configuration/operations.md) — continuous integration, documentation publishing,
+  run modes, the systemd user service, and what an edited `.env` takes to apply.
 - [`configuration/snapshot-capability-check.md`](configuration/snapshot-capability-check.md) — the
   disposable-repository check that proves a production token and its rulesets can create, fetch, verify, and delete
   the late split's snapshot refs, and what each failure means.
@@ -704,6 +704,14 @@ rules an inline `# noqa` may name, the order imports are sorted into, the commit
 run-cancellation rule, the two interpreters, the packaging smoke check, the dependency review, and how the scheduled
 scans work are in
 [`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration).
+
+## Publishing the documentation
+
+[`../mkdocs.yml`](../mkdocs.yml) builds this reference set into a static site at
+<https://chippingway.github.io/chipping-orchestrator/>. The optional `docs` dependency group provides MkDocs, and
+[`../.github/workflows/docs.yml`](../.github/workflows/docs.yml) checks pull requests and deploys updates from `main`
+to GitHub Pages. Local preview commands, the link and anchor rules, and the one-time repository settings are in
+[`configuration/operations.md#publishing-the-documentation`](configuration/operations.md#publishing-the-documentation).
 
 ## Run modes
 

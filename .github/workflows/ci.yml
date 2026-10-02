@@ -54,10 +54,10 @@ jobs:
         run: uv sync --locked --python "${{ matrix.python-version }}"
 
       - name: Lint (ruff)
-        run: uv run ruff check orchestrator tests
+        run: uv run ruff check orchestrator tests .github/scripts/docs_site.py
 
       - name: Lint (wemake-python-styleguide)
-        run: uv run flake8 orchestrator tests --select=WPS
+        run: uv run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS
 
       - name: Tests (pytest)
         run: uv run python -m pytest tests --cov=orchestrator --cov-report=term-missing

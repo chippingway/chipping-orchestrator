@@ -24,6 +24,7 @@ analytics-db/data/
 # build output
 build/
 dist/
+site/
 out/
 target/
 bin/

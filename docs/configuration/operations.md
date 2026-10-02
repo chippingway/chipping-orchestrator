@@ -1,17 +1,19 @@
 # Operations
 
 How the orchestrator is checked, launched, supervised, and reconfigured: what continuous integration enforces on
-every push, the run modes the polling loop starts under, the systemd user service that supervises it in production,
-and when an edited `.env` takes effect. The environment-variable reference these procedures apply to is in
+every push, documentation publishing, the run modes the polling loop starts under, the systemd user service that
+supervises it in production, and when an edited `.env` takes effect. The environment-variable reference is in
 [`../configuration.md`](../configuration.md), which also routes to the observability settings beside this page.
 
 ## Continuous integration
 
-[`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) runs `ruff check orchestrator tests`,
-`flake8 orchestrator tests --select=WPS`, `pytest tests --cov=orchestrator --cov-report=term-missing`, `uv build`, and
-a launch of the console script from the wheel that build produced, as five separate mandatory steps for every push to
-`main` and every pull request, installing from the committed [`../../uv.lock`](../../uv.lock) via `uv sync --locked`.
-The pytest step prints coverage and missing lines for visibility but sets no minimum threshold.
+[`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) runs
+`ruff check orchestrator tests .github/scripts/docs_site.py`,
+`flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS`,
+`pytest tests --cov=orchestrator --cov-report=term-missing`, `uv build`, and a launch of the console script
+from the wheel that build produced, as five separate mandatory steps for every push to `main` and every pull request,
+installing from the committed [`../../uv.lock`](../../uv.lock) via `uv sync --locked`. The pytest step prints coverage
+and missing lines for visibility but sets no minimum threshold.
 
 The job runs the whole set on Python 3.12, 3.13, and 3.14. These are the versions CI verifies within the range
 [`../../pyproject.toml`](../../pyproject.toml) admits: `requires-python = ">=3.12"` names a floor and no ceiling, so a
@@ -45,7 +47,7 @@ checks against a commit nobody is reviewing. Every other run — a push to `main
 id, so it shares a group with nothing. That, rather than the flag, is what makes those runs uncancellable:
 `cancel-in-progress: false` protects a run that has started, but GitHub keeps at most one pending run per group and
 cancels the one each newcomer replaces, so under a shared group a third push would evict a queued `main` run while the
-first still held the runner. A run on `main` is the record of what that commit does, and no later push may erase it,
+first still held the runner. A CI run on `main` is the record of what that commit does, and no later push may erase it,
 waiting or started.
 [`../../tests/repository/test_ci_workflow.py`](../../tests/repository/test_ci_workflow.py) holds that concurrency
 block, the interpreter matrix and its floor against `requires-python`, the packaging steps, and this page's versions
@@ -188,14 +190,15 @@ together; Dependabot's `github-actions` updates rewrite the pair.
 
 Each security scan bounds its own job the same way: 30 for the CodeQL analysis, 20 for Scorecard and the
 vulnerability scan, 15 for the dependency review. A job that hangs otherwise runs until GitHub's six-hour default
-cancels it, and both halves of this set pay for that wait. The dependency review is a required check and CodeQL's
-findings are enforced by a ruleset ([`../security.md#required-checks`](../security.md#required-checks)), so a hung job
+cancels it. The dependency review is a required check and CodeQL's findings are enforced by a ruleset
+([`../security.md#required-checks`](../security.md#required-checks)), so a hung job
 holds a merge for those six hours instead of failing in the minutes the scan takes. Scorecard, the vulnerability scan,
 and CodeQL's scheduled pass have nobody watching, so a hung one holds a runner while reading as a scan that has yet to
-report rather than as one that failed.
+report rather than as one that failed. The documentation build and deploy jobs each allow 10 minutes: a hung
+deployment from `main` holds the `pages` concurrency group, so later deployments wait.
 [`../../tests/repository/test_workflow_job_timeouts.py`](../../tests/repository/test_workflow_job_timeouts.py) holds a
-declared timeout, shorter than that default, on every job in all five workflows, and holds the list it walks against
-the workflow directory, so a sixth workflow arrives with a timeout rather than outside every check.
+declared timeout, shorter than that default, on every job in all six workflows, and holds the list it walks against
+the workflow directory, so a seventh workflow arrives with a timeout rather than outside every check.
 
 [`../../.github/dependabot.yml`](../../.github/dependabot.yml) opens weekly update PRs for the `github-actions` and `uv`
 (Python `pyproject.toml` + `uv.lock`) ecosystems. For routine version updates, `github-actions` uses the ecosystem-wide
@@ -222,8 +225,8 @@ from the Actions tab instead of a week away. It exports the pins from [`../../uv
 `uv export --locked --all-groups --no-emit-project`, then audits them with `pip-audit` and fails the job when a
 published advisory names one of them. Why the export and the audit are shaped that way:
 
-- **`--all-groups`** covers the `dashboard` group as well as the runtime and `dev` ones, so the audit is the whole
-  lockfile rather than the subset a default `uv sync --locked` installs.
+- **`--all-groups`** covers the `dashboard` and `docs` groups as well as the runtime and `dev` ones, so the audit is
+  the whole lockfile rather than the subset a default `uv sync --locked` installs.
 - **Environment markers are stripped** from the export before the audit. A pin kept for another platform
   (`colorama` under Windows, `tzdata`) is a version this repository still ships, and an audit reading markers would
   skip it as inapplicable to the Linux runner — silently, and while reporting success.
@@ -244,6 +247,63 @@ into a bump PR is Dependabot's job, which is why enabling Dependabot security up
 [`../security.md#dependabot-security-updates`](../security.md#dependabot-security-updates). The audit reads the whole
 lockfile while those updates reach only what the `allow:` rules above name, so a finding against a transitive pin
 those rules do not name is cleared by widening them or by hand rather than by waiting for a PR.
+
+## Publishing the documentation
+
+The documentation is a static MkDocs site hosted by GitHub Pages at
+<https://chippingway.github.io/chipping-orchestrator/>. GitHub supplies the address and HTTPS; a custom domain is
+optional. The Markdown under `docs/` is the source for both the website and GitHub's directory view, with
+[`../README.md`](../README.md) serving as the site's homepage.
+
+### Local preview and build
+
+Install the optional `docs` dependency group from the lockfile, then start the local preview:
+
+```sh
+uv sync --locked --group docs
+uv run --no-sync mkdocs serve
+```
+
+Open `http://127.0.0.1:8000/` to browse the preview. To check the deployable HTML:
+
+```sh
+uv run --no-sync mkdocs build --strict
+uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_doc_links.py
+```
+
+The build writes to the ignored `site/` directory. The `docs` group is separate from runtime and development
+dependencies, so the default `uv sync --locked` does not install the documentation builder.
+
+[`../../mkdocs.yml`](../../mkdocs.yml) defines the navigation, site URL, search-enabled theme, and validation rules.
+Every page must appear in navigation; missing pages, links, and heading anchors fail the strict build. The hook in
+[`../../.github/scripts/docs_site.py`](../../.github/scripts/docs_site.py) preserves GitHub-style heading anchors for
+unique headings and turns links to repository files outside `docs/` into GitHub links while building. Repeated headings
+use Python-Markdown suffixes such as `_1` instead of GitHub's `-1`. Relative links between documentation pages keep
+pointing within the site. Link examples in code blocks are left intact, and the source files retain the relative paths
+the repository's documentation checks validate.
+
+### GitHub Pages setup
+
+In `chippingway/chipping-orchestrator`, configure these settings once:
+
+1. Open **Settings → Pages**, and select **GitHub Actions** under **Build and deployment → Source**.
+2. Create or open **Settings → Environments → github-pages**, and restrict deployment branches to `main`.
+3. In the repository's **About** panel, open its settings and set **Website** to
+   `https://chippingway.github.io/chipping-orchestrator/`.
+
+[`../../.github/workflows/docs.yml`](../../.github/workflows/docs.yml) builds and checks relevant pull requests and
+pushes to `main`, using the committed lockfile. Pull requests only build and validate. A push to `main` uploads the
+generated site and deploys through the `github-pages` environment. The deployment job alone has `pages: write` and
+`id-token: write` permissions; no personal access token is needed. The **Documentation** workflow can also be run
+manually from **Actions**, selecting `main` to publish or another branch to validate its build.
+
+Documentation runs publishing `main` share a `pages` concurrency group: a newer run replaces a queued run so the
+latest documentation wins, while `cancel-in-progress: false` lets an active deployment finish. CI gives every `main`
+run its own group to preserve each merged commit's test record ([Continuous integration](#continuous-integration)).
+Pull-request documentation runs share a group per ref and cancel in progress when superseded.
+
+Only the generated `site/` artifact is uploaded. Python source links, agent instructions, and configuration examples
+lead back to the repository; the site does not publish the checkout or notes under `plans/`.
 
 ## Run modes
 

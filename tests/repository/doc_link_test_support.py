@@ -23,6 +23,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 INDEX_PAGE = "docs/README.md"
 ENTRY_POINTS = ("README.md", "AGENTS.md")
 
+# Shared cases keep the link checker and site hook aligned on GitHub's punctuation rules.
+HEADING_ANCHOR_CASES = (
+    ("`_handle_validating` (label `workflow:validating`)",
+     "_handle_validating-label-workflowvalidating"),
+    ("In-flight session lock — pinned spec",
+     "in-flight-session-lock--pinned-spec"),
+)
+
 # `.claude/` and `CLAUDE.md` are symlinks onto `.agents/` and `AGENTS.md`, so
 # the scan reads one side of each pair and covers both.
 _PAGE_ROOTS = ("docs", ".agents/skills")

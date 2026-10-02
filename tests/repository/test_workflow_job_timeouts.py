@@ -4,14 +4,15 @@
 
 A job that hangs -- a network read that never returns, an action waiting on
 input no one is there to give, a suite that deadlocks -- runs until GitHub
-cancels it six hours later, and both halves of this set pay for that wait. CI
-and the dependency review are required checks and CodeQL's findings are
-enforced by a code-scanning ruleset, so a hung job holds a merge for those six
-hours instead of failing in the minutes the run takes. Scorecard, the
-vulnerability scan, and CodeQL's scheduled pass have nobody watching, so a hung
-one holds a runner while reading as a run that has yet to report rather than as
-one that failed. A job-level `timeout-minutes` is what bounds either wait to the
-window the job is expected to finish in.
+cancels it six hours later. CI and the dependency review are required checks,
+and CodeQL's findings are enforced by a code-scanning ruleset, so a hung job
+holds a merge for those six hours instead of failing in the minutes the run
+takes. Scorecard, the vulnerability scan, and CodeQL's scheduled pass have
+nobody watching, so a hung one holds a runner while reading as a run that has
+yet to report rather than as one that failed. The documentation build and
+deploy jobs each allow 10 minutes; a hung deploy from `main` holds the `pages`
+concurrency group, so later deployments wait. A job-level `timeout-minutes`
+bounds each wait to the window the job is expected to finish in.
 
 Nothing in the tree runs these files -- GitHub does -- so a job added or
 rewritten without one would otherwise go unnoticed until the run that hangs.
@@ -41,6 +42,7 @@ _WORKFLOWS = (
     "ci.yml",
     "codeql.yml",
     "dependency-review.yml",
+    "docs.yml",
     "scorecard.yml",
     "vulnerability-scan.yml",
 )

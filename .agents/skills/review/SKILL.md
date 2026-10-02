@@ -11,15 +11,15 @@ description: >-
 
 Reject (or request fixes) if any of these are red:
 
-- `ruff check orchestrator tests`. Common offenders to look for explicitly:
+- `ruff check orchestrator tests .github/scripts/docs_site.py`. Common offenders to look for explicitly:
   - **F401** — unused import on a package initializer. If the import is intended as a re-export, it must
     be aliased `from X import Y as Y` or listed in that initializer's `__all__`. A bare import will not
     survive ruff.
   - **F541** — f-strings without placeholders, typically in newly-added test files.
   - **F841** — unused local in tests.
   - **E402** — import after non-import code.
-- `uv run flake8 orchestrator tests --select=WPS`. All WPS naming, complexity, consistency, bug-prevention,
-  refactoring, and OOP findings are rejection criteria.
+- `uv run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS`. All WPS naming, complexity,
+  consistency, bug-prevention, refactoring, and OOP findings are rejection criteria.
 - `git diff --check origin/main...HEAD` — trailing whitespace and blank lines at EOF. Check it even
   if everything else looks clean.
 - Full `pytest` run is referenced in the PR description and passes end-to-end. Reject "known failure"

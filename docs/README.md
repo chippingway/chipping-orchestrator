@@ -5,6 +5,10 @@ guide — install, configure, run, and the labels you drive an issue with. Every
 system is shaped this way, which module owns what, what every setting does, and what each stage handler reads and
 writes. GitHub renders this page when you open the `docs/` directory, so it is also the index you land on from there.
 
+The [documentation website](https://chippingway.github.io/chipping-orchestrator/) publishes these same Markdown
+pages through GitHub Pages. See [publishing the documentation](configuration/operations.md#publishing-the-documentation)
+for local preview commands, deployment behavior, and repository settings.
+
 Six areas cover the whole system. Each has a landing page directly under `docs/` and — security aside — a directory of
 focused pages beside it.
 
@@ -24,6 +28,7 @@ focused pages beside it.
 | report a bug, propose a change, or contribute a PR | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | change the code | [`../AGENTS.md`](../AGENTS.md), then the [`develop` skill](../.agents/skills/develop/SKILL.md) |
 | size or split an issue | the [`decompose` skill](../.agents/skills/decompose/SKILL.md) |
+| preview or publish this documentation | [publishing the documentation][publishing] |
 
 ## Release timeline
 
@@ -91,10 +96,10 @@ changes. [`../.env.example`](../.env.example) holds the basic parameters for a f
 
 - [`configuration/observability.md`](configuration/observability.md) — the sink paths and retention windows, the
   analytics database URL, skill-trigger tracking, the dashboard read mode, and the dashboard quickstart.
-- [`configuration/operations.md`](configuration/operations.md) — continuous integration, run modes, the systemd user
-  service, what a split leaves on the remote and what reclaims it, how to restart an issue whose cycle was cancelled,
-  how a finished issue's worktrees and branches are reclaimed and what each result asks of an operator, and what an
-  edited `.env` takes to apply.
+- [`configuration/operations.md`](configuration/operations.md) — continuous integration, documentation publishing,
+  run modes, the systemd user service, what a split leaves on the remote and what reclaims it, how to restart an issue
+  whose cycle was cancelled, how a finished issue's worktrees and branches are reclaimed and what each result asks of
+  an operator, and what an edited `.env` takes to apply.
 - [`configuration/snapshot-capability-check.md`](configuration/snapshot-capability-check.md) — the
   disposable-repository check that proves a production token and its rulesets can create, fetch, verify, and delete
   the late split's snapshot refs, and what each failure means.
@@ -145,5 +150,8 @@ resolves, and lands on the summary pointing at
 
 Every relative path and `#anchor` on these pages, in [`../README.md`](../README.md), in [`../AGENTS.md`](../AGENTS.md),
 and in the skill files is checked by `tests/repository/test_doc_links.py`, so a renamed heading or a moved page fails
-the suite instead of rotting quietly. Notes under `plans/` are human working material rather than part of this set,
-and are left out of that scan.
+the suite instead of rotting quietly. The same tests require every docs page to be linked here and listed under
+`nav:` in [`../mkdocs.yml`](../mkdocs.yml), even without the optional documentation builder installed. Notes under
+`plans/` are human working material rather than part of this set, and are left out of that scan.
+
+[publishing]: configuration/operations.md#publishing-the-documentation
