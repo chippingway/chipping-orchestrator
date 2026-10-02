@@ -49,11 +49,13 @@ jobs:
           uv run --no-sync ruff check .github/scripts/docs_site.py
           uv run --no-sync flake8 .github/scripts/docs_site.py --select=WPS
 
-      - name: Check documentation links
-        run: uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_doc_links.py
-
       - name: Build documentation
         run: uv run --no-sync mkdocs build --strict
+
+      - name: Check the built documentation
+        env:
+          DOCS_SITE_DIR: site
+        run: uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_docs_output.py
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

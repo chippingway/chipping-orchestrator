@@ -13,12 +13,12 @@ description: >-
 The repo targets Python 3.12+ and installs from the lockfile with [`uv`](https://github.com/astral-sh/uv):
 
 ```sh
-uv sync --locked                              # creates .venv/ and installs runtime + dev deps from uv.lock
-uv run ruff check orchestrator tests .github/scripts/docs_site.py # run Ruff
+uv sync --locked                                                           # create .venv/ with runtime + dev deps
+uv run ruff check orchestrator tests .github/scripts/docs_site.py          # run Ruff
 uv run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS # run wemake-python-styleguide
-uv run pytest tests                           # run the test suite
-uv run python -m orchestrator --once          # one polling tick then exit
-uv run python -m orchestrator --log-level DEBUG
+uv run pytest tests                                                        # run the test suite
+uv run python -m orchestrator --once                                       # one polling tick then exit
+uv run python -m orchestrator --log-level DEBUG                            # continuous polling with debug logs
 ```
 
 ## License headers

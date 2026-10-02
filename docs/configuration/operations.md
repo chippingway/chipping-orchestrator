@@ -265,15 +265,21 @@ uv sync --locked --group docs
 uv run --no-sync mkdocs serve
 ```
 
-Open `http://127.0.0.1:8000/` to browse the preview. To check the deployable HTML:
+Open `http://127.0.0.1:8000/` to browse the preview. To check the deployable HTML, build it once and point the
+checks at that output, as the **Documentation** workflow does:
 
 ```sh
 uv run --no-sync mkdocs build --strict
-uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_doc_links.py
+DOCS_SITE_DIR=site uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_docs_output.py
 ```
 
-The build writes to the ignored `site/` directory. The `docs` group is separate from runtime and development
-dependencies, so the default `uv sync --locked` does not install the documentation builder.
+The build writes to the ignored `site/` directory. `DOCS_SITE_DIR` makes `tests/repository/test_docs_output.py` check
+the generated links, heading anchors, search index, and sitemap of that output instead of building a copy of its own.
+A directory it names that holds no built site fails the check rather than being rebuilt or skipped. Without the
+variable, the same `pytest` command builds a fresh strict copy into a temporary directory. Links in the Markdown
+sources are checked by `tests/repository/test_doc_links.py`, which needs no documentation builder and runs with the
+rest of the suite in [Continuous integration](#continuous-integration). The `docs` group is separate from runtime and
+development dependencies, so the default `uv sync --locked` does not install the documentation builder.
 
 [`../../mkdocs.yml`](../../mkdocs.yml) defines the navigation, site URL, search-enabled theme, and validation rules.
 Every page must appear in navigation; missing pages, links, and heading anchors fail the strict build. The hook in
@@ -308,8 +314,9 @@ latest documentation wins, while `cancel-in-progress: false` lets an active depl
 run its own group to preserve each merged commit's test record ([Continuous integration](#continuous-integration)).
 Pull-request documentation runs share a group per ref and cancel in progress when superseded.
 
-Only the generated `site/` artifact is uploaded. Python source links, agent instructions, and configuration examples
-lead back to the repository; the site does not publish the checkout or notes under `plans/`.
+Each run builds the site once and checks that `site/` output before any upload, so the pages a `main` run publishes are
+the pages its checks read. Only the generated `site/` artifact is uploaded. Python source links, agent instructions, and
+configuration examples lead back to the repository; the site does not publish the checkout or notes under `plans/`.
 
 ## Run modes
 
