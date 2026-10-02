@@ -18,11 +18,18 @@ focused pages beside it.
 | know which agent a stage spawns, under what prompt | [`workflow.md`](workflow.md) |
 | find a setting, or apply an edited `.env` | [`configuration.md`](configuration.md) |
 | see what the orchestrator did, and what it cost | [`observability.md`](observability.md) |
+| trace functionality across published releases | [`release-timeline.md`](release-timeline.md) |
 | harden the deployment | [`security.md`](security.md) |
 | report a suspected vulnerability | [`../SECURITY.md`](../SECURITY.md) |
 | report a bug, propose a change, or contribute a PR | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | change the code | [`../AGENTS.md`](../AGENTS.md), then the [`develop` skill](../.agents/skills/develop/SKILL.md) |
 | size or split an issue | the [`decompose` skill](../.agents/skills/decompose/SKILL.md) |
+
+## Release timeline
+
+[`release-timeline.md`](release-timeline.md) — historical source material for the public timeline: publication dates,
+suggested milestone titles, functionality added in every release, and separate summaries of improvements and changes.
+Each release links to its published notes and tagged history; the six reference areas below describe current behavior.
 
 ## Architecture
 
