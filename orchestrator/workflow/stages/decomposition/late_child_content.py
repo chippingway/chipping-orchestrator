@@ -4,10 +4,22 @@
 
 Each child names the exact preserved candidate and its declared budget.
 Reserved receipt markers in proposed scope are refused before publication.
+The reuse instructions are rendered off a child's pointed ancestry, so an
+ordinary split that points a replacement at the same snapshot tells it the
+same thing. What any issue text names in the snapshot namespace is read by one
+reader, so every caller holding a slice or a child's text to a snapshot gets
+the same answer -- and the names a kept snapshot may go by are read off those
+instructions by the same reader, so no spelling they use is refused. The
+replacement lineage renders those instructions for a replacement and reads
+their names through that reader, and it is dormant: no ordinary split renders
+or reads either yet.
 """
 from __future__ import annotations
 
-from orchestrator.git.snapshots import mirrors as _snapshot_mirrors
+import re
+
+from orchestrator.config import models as _config_models
+from orchestrator.git.snapshots import mirrors as _snapshot_mirrors, namespace as _snapshot_namespace
 from orchestrator.github import comments as _github_comments
 from orchestrator.workflow.late_split import (
     ancestry as _ancestry,
@@ -92,6 +104,47 @@ does not cover, implement normally.
 """
 
 
+# What a git ref name may be spelled with: anything but an ASCII space or
+# control character and the few characters git refuses anywhere in one. Git
+# refuses bytes, not Unicode classes, so a non-breaking or any other non-ASCII
+# space is part of a name it would fetch -- and is read as part of one here.
+# A `*` is read as part of a name too, though git refuses it in one: a refspec
+# spelled with it is a pattern git fetches every ref it matches through, so
+# `...gen-1*` names `...gen-10` as well, and is no spelling of `...gen-1`.
+_REF_CHARACTER = r"[^\x00-\x20\x7f~^:?\[\\]"
+
+# Anything issue text names in the snapshot namespace -- a remote ref, or a
+# host's mirror of one -- read as the whole ref name it could be: as far as
+# ref characters run on EITHER side of the namespace, so a name that merely
+# contains an allowed ref (`...gen-1@foreign`, `...gen-1!`,
+# `refs/heads/refs/...`) reads as the different ref it is. The quotes,
+# backticks, or brackets that open the mention are `lead`, and one `+` behind
+# them is a forced refspec's; a second `+` is part of the name. A refspec is
+# one mention with the namespace on either side of its colon, so wrapping
+# opened before its source may close after its destination, the way the reuse
+# instructions quote theirs. Only a whole refspec is forced, so the `side` a
+# destination is read as keeps the `+` that opens it: git takes that `+` as
+# the first character of a different ref. A mirror carries the repository
+# segment it was fetched for, and one under another repository's segment is
+# that repository's copy of the same three numbers: possibly other work, and
+# kept by no ledger here. A mention that is no whole ref is no child's either.
+_NAMED_SNAPSHOT = re.compile(
+    rf"(?<!{_REF_CHARACTER})(?P<spelled>(?P<lead>[`'\"(<\[]*)"
+    rf"(?=(?:{_REF_CHARACTER}*:)?{_REF_CHARACTER}*?{re.escape(_snapshot_namespace.SNAPSHOT_NAMESPACE)})"
+    rf"(?P<side>\+?(?P<name>{_REF_CHARACTER}*)))(?::(?P<destination>{_REF_CHARACTER}*))?",
+)
+
+# What closes each opening a mention may lead with. A lead is wrapping only
+# where the mention ends on exactly the closers it calls for, in the order it
+# calls for them; one left open is part of the name, as is any other character
+# a ref may contain, however much it looks like punctuation.
+_CLOSER_OF = str.maketrans("`'\"(<[", "`'\")>]")
+
+# What no ref name may end in, so a mention ending in one is the sentence
+# around it rather than the ref.
+_NEVER_ENDS_A_REF = "./"
+
+
 def _forged_receipt(children: tuple) -> str | None:
     """The first declared slice carrying a receipt marker of ours, described.
 
@@ -171,36 +224,87 @@ def _child_body(
     number nobody estimated.
     """
     generation = context.generation
+    budget = _budget.declared_budget(child)
     sections = (
         _declared_scope(child),
-        _budget_block(child),
+        "" if budget is None else _BUDGET_BLOCK.format(budget=budget),
         _child_marker(generation, index),
-        _REUSE_BLOCK.format(
-            parent=generation.current_issue,
-            ref=snapshot_ref,
-            mirror=_snapshot_mirrors.local_snapshot_ref(
-                context.spec, snapshot_ref,
-            ),
-            sha=generation.candidate_sha,
-            base_sha=generation.base_sha,
-            base_branch=context.spec.base_branch,
-            remote=context.spec.remote_name,
-            root=generation.root_issue,
-            depth=_identity.child_lineage_depth(generation.lineage_depth),
-            bound=_late_models.MAX_LINEAGE_DEPTH,
-            cycle=generation.cycle_id,
-            generation=generation.generation,
-        ),
+        _reuse_block(context.spec, _child_ancestry(context, child, snapshot_ref), generation.base_sha),
     )
     return "\n\n".join(section for section in sections if section)
 
 
-def _budget_block(child: dict) -> str:
-    """What this slice was sized at, or nothing where nobody sized it."""
-    budget = _budget.declared_budget(child)
-    if budget is None:
-        return ""
-    return _BUDGET_BLOCK.format(budget=budget)
+def _reuse_block(spec: _config_models.RepoSpec, pointed: _ancestry.LateAncestry, base_sha: str) -> str:
+    """How a child reads the snapshot its ancestry points it at, and what it may reuse.
+
+    Everything named comes off the pointer and the lineage beside it -- the
+    owner, the ref, the commit, the root, the depth, and the adjudication --
+    so the instructions and the record a child's own guard reads can never
+    name two different snapshots. `base_sha` is what the preserved candidate
+    was cut against, which no ancestry records.
+    """
+    return _REUSE_BLOCK.format(
+        parent=pointed.parent_issue,
+        ref=pointed.snapshot_ref,
+        mirror=_snapshot_mirrors.local_snapshot_ref(spec, pointed.snapshot_ref),
+        sha=pointed.snapshot_sha,
+        base_sha=base_sha,
+        base_branch=spec.base_branch,
+        remote=spec.remote_name,
+        root=pointed.root_issue,
+        depth=pointed.lineage_depth,
+        bound=_late_models.MAX_LINEAGE_DEPTH,
+        cycle=pointed.cycle_id,
+        generation=pointed.generation,
+    )
+
+
+def _named_snapshots(*texts: object, forced: bool = True) -> frozenset[str]:
+    """Every snapshot ref the given issue texts name, each as it is spelled.
+
+    Asked of a title and a body together, because both are what an
+    implementer reads. Not only the line the reuse instructions spell a ref
+    on: a ref copied into prose, a line ending the instructions were not
+    written with, or a mirror name all tell a child where a snapshot is, and
+    a reader that saw only one spelling would let the rest through. Read back
+    rather than remembered, since a child's body is written before the record
+    that protects it.
+
+    A mirror is not read as the remote ref it mirrors, because only this
+    repository's own segment makes it that: which names a kept snapshot may
+    go by is the lineage's answer -- see `ReplacementLineage.told` -- and
+    anything else named here is a ref nothing keeps for the child. Nor is a
+    ref read out of a longer name that contains it, or out of a pattern
+    spelling it with a `*`: git would fetch that longer name, or every ref the
+    pattern matches, so that is what the text tells a child to reuse. Only
+    wrapping closed on both sides and a single refspec `+` are taken off --
+    `` `ref` ``, `(ref)`, `[ref]`, and `+ref` name `ref`, while `` `ref!` ``,
+    `ref,`, `'ref`, `ref]`, `ref*`, and `++ref` name the refs spelled that
+    way. A refspec names each of its sides, and wrapping its source leaves
+    open may close after its destination instead: `'+ref:mirror'` -- the
+    fetch as the reuse instructions quote it, in every child already
+    published too -- and `+ref:'mirror'` both name `ref` and `mirror`. A `+`
+    forces only the whole refspec, so a destination is read with `forced`
+    false, keeping the `+` that opens it: `ref:+mirror` and `ref:'+mirror'`
+    name `ref` and `+mirror`.
+    """
+    named = set()
+    # One text per line, so no mention runs from one into the next.
+    for mention in _NAMED_SNAPSHOT.finditer(
+        "\n".join(text for text in texts if isinstance(text, str)),
+    ):
+        closers = "".join(reversed(mention.group("lead"))).translate(_CLOSER_OF)
+        name = mention.group("name" if forced else "side").rstrip(_NEVER_ENDS_A_REF)
+        destination = (mention.group("destination") or "").rstrip(_NEVER_ENDS_A_REF)
+        if name.endswith(closers):
+            named.add(name.removesuffix(closers).rstrip(_NEVER_ENDS_A_REF))
+        elif destination.endswith(closers):
+            named.add(name)
+            destination = destination.removesuffix(closers)
+        else:
+            named.add(mention.group("spelled").rstrip(_NEVER_ENDS_A_REF))
+        named.update(_named_snapshots(destination, forced=False))
+    return frozenset(spelled for spelled in named if _snapshot_namespace.SNAPSHOT_NAMESPACE in spelled)
 
 
 def _declared_scope(child: dict) -> str:

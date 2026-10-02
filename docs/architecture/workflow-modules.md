@@ -1124,9 +1124,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             links announcement alone is ambiguous, and a child that is no other issue is invalid --
                             and the snapshot a replacement child could be pointed at: a proved split's own ref while
                             the ledger names it exactly once and `retained`, else, for an issue that never split, the
-                            ancestry's pointer where it is the ref that ancestry's identity mints
+                            ancestry's pointer where it is the ref that ancestry's identity mints -- and, for a proved
+                            split that entitles nothing, whether that is settled (its own ref's one entry passed to a
+                            reclamation) or a ledger that cannot say whether the ref is held (unreadable, closed to a
+                            new consumer, never proved, recorded twice, or missing), which refuses a replacement
     provenance.py           the read-only, still dormant decision of which late lineage an ordinary decomposition's
-                            children inherit: none for an issue no late split charged; otherwise the root, the depth
+                            children inherit, asked only by the dormant `stages/decomposition/replacement_lineage.py`:
+                            none for an issue no late split charged; otherwise the root, the depth
                             already charged, and the entitlement above -- or a refusal when an unparsed comment, an
                             ancestry field its reader would drop or a `null` one, a body receipt with no ancestry, a
                             late identity or split-evidence field its reader would drop, a live cycle missing its
@@ -1359,6 +1363,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       validation.py         bounded nonempty child envelopes, umbrella flags, and graph acyclicity after child validation
       outcomes.py           the live-pause and timeout settlement before the worktree check, and the three manifest
                             dispositions after it: the unparsed park, the `single` finalize, and the `split` hand-off
+      replacement_lineage.py
+                            the still dormant decision of what an ordinary split's children would be seeded with, off
+                            the `late_split/` provenance decision: one level below the parent under the same root and
+                            never past `MAX_LINEAGE_DEPTH`, correlated by the parent's own cycle (else its ancestry's,
+                            else the retired one), and pointed only at the snapshot the parent's own split holds --
+                            the consumer-ledger write that protects a child, the seed that carries the pointer only
+                            behind it, and the reuse instructions whose ref and this repository's mirror of it are
+                            the only names a child's text may give that snapshot; a parent at the bound, an unprovable
+                            record, one naming no cycle, or one whose own snapshot is neither held nor released -- or
+                            is held with no recorded base for the instructions to name its change from -- is a
+                            refusal carrying the sentence a park would post; no split, recovery, or release asks it
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
                             recorded on its parent before seeding, and either failure parks the parent for repair
       split.py              persist the expected count, create the planned children, and publish the summary and parent
@@ -1503,8 +1518,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             identity names, the obligation written ahead of the push and again behind the proof, the
                             create-or-verify that never overwrites, the fetch that proves a child could obtain it,
                             and the one park every refusal takes
-      late_child_content.py child scope, declared budgets, ancestry, immutable-snapshot reuse instructions, and exact
-                            slice receipts; reserved markers in proposed scope are refused before publication
+      late_child_content.py child scope, declared budgets, ancestry, immutable-snapshot reuse instructions -- rendered
+                            off a pointed ancestry -- the one reader of every snapshot ref issue text names, each read
+                            as the whole ref name git would take it for -- only wrapping closed on both sides, one
+                            `+` opening the whole refspec, and a trailing full stop or slash taken off, a pattern's
+                            `*` and a destination's own `+` kept, a refspec read as both its sides with wrapping that
+                            closes after its destination wrapping the whole (the fetch the instructions quote), and a
+                            mirror kept whole with the repository segment it was fetched for -- and exact slice
+                            receipts; reserved markers in proposed scope are refused before publication
       late_child_records.py retain the child walk, write each child on every parent ledger before seeding its ancestry,
                             and seal a cancelled consumer ledger only once possible unrecorded children are accounted for
       late_child_adoption.py

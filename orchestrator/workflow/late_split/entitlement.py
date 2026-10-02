@@ -3,7 +3,8 @@
 """What a late record proves its own split made, and the snapshot it still holds.
 
 Two readings the provenance of an ordinary decomposition asks of an issue's
-late record before naming the lineage its replacement children inherit.
+late record before naming the lineage its replacement children inherit, and a
+third the replacement lineage asks before it would seed them with no pointer.
 
 Whether the record's own split made children is proved only by what children
 leave behind: the ordered register, or a consumer or child entry on the
@@ -29,6 +30,15 @@ recorded twice -- held in one entry and reconciled in another -- is a ledger
 disagreeing with itself, and it entitles nothing. An issue whose record never
 split offers the pointer its ancestry carries instead, and only where that
 pointer is the ref the ancestry's own identity mints.
+
+Entitling nothing is two different answers, though, and the replacement
+lineage a split would seed its children from has to tell them apart. A ref
+whose entry a reclamation has taken past `retained` is settled: nothing new
+may be pointed at it, and a child seeded without it loses nothing it was
+owed. Every other refusal -- a ledger this binary cannot read or add a
+consumer to, an entry never proved or proved twice, a held ref no identity
+names -- is a record that cannot say whether the ref is still there for the
+child, which that caller refuses rather than reads as the settled answer.
 """
 from __future__ import annotations
 
@@ -38,7 +48,34 @@ from enum import Enum
 from orchestrator.git.snapshots import namespace as _namespace
 from orchestrator.workflow.late_split import ancestry as _ancestry
 from orchestrator.workflow.late_split.models import LateGeneration
-from orchestrator.workflow.late_split.obligations import LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split.obligations import LateResource, LateResourceKind, LateResourceState
+
+# What a snapshot entry stands at once a reclamation has decided its ref goes:
+# the decision, its completion, and a delete the remote refused. A split whose
+# own entry is at one of these has settled that no consumer is added to it.
+# `failed` is also what a snapshot that could not be established leaves, but
+# that refusal parks ahead of the first child, so no split proved to have made
+# children stands on it.
+_RELEASED = frozenset((
+    LateResourceState.RECLAIMING,
+    LateResourceState.RECONCILED,
+    LateResourceState.FAILED,
+))
+
+_UNREADABLE_RESOURCES = (
+    "its resource ledger carries an entry this binary cannot read, so whether its split still holds its snapshot "
+    "cannot be told"
+)
+
+_UNPROTECTABLE = (
+    "its split still holds a snapshot that no child can be recorded as a consumer of -- its consumer ledger "
+    "carries an entry this binary cannot read, or its record names no candidate or no ref of its own"
+)
+
+_UNSETTLED = (
+    "its split's ledger records its snapshot as neither held nor released -- never proved, recorded twice, "
+    "or not recorded at all"
+)
 
 
 class SplitEvidence(Enum):
@@ -74,6 +111,52 @@ def split_evidence(generation: LateGeneration, issue_number: int) -> SplitEviden
     if obligations.is_opaque or generation.links_announced or LateResourceKind.SNAPSHOT_REF in kinds:
         return SplitEvidence.AMBIGUOUS
     return SplitEvidence.NONE
+
+
+def unsettled_snapshot(generation: LateGeneration, issue_number: int) -> str | None:
+    """Why this record cannot say whether its own split's snapshot is there for a new consumer, or None.
+
+    Asked only of a record that proves its split made children, since that
+    split recorded its snapshot before its first one; any other record holds
+    no snapshot of its own to be asked about. None is either settled answer:
+    the ref is held -- `SnapshotEntitlement.preserved_by` names it -- or its
+    one entry has passed to a reclamation. An identity no ref can be minted
+    from, which is what a retirement leaves, is judged by every snapshot entry
+    the ledger carries, since none of them can be told apart as its own, and
+    each ref among them has to be recorded once.
+    """
+    if split_evidence(generation, issue_number) is not SplitEvidence.PROVED:
+        return None
+    if SnapshotEntitlement.preserved_by(generation, issue_number) is not None:
+        return None
+    if generation.obligations.opaque_resources is not None:
+        return _UNREADABLE_RESOURCES
+    entries = _own_snapshot_entries(generation, issue_number)
+    states = tuple(entry.resource_state for entry in entries)
+    recorded_once = len({entry.target for entry in entries}) == len(entries)
+    if entries and recorded_once and _RELEASED.issuperset(states):
+        return None
+    return _UNPROTECTABLE if states == (LateResourceState.RETAINED,) else _UNSETTLED
+
+
+def _own_snapshot_entries(generation: LateGeneration, issue_number: int) -> tuple[LateResource, ...]:
+    """The snapshot entries the ledger records for this split's own ref.
+
+    Every one of them, so a ref recorded twice -- whatever states the two
+    entries stand at -- is a ledger disagreeing with itself rather than a
+    settled answer.
+    """
+    try:
+        own = _namespace.snapshot_ref(
+            issue_number=issue_number, cycle_id=generation.cycle_id, generation=generation.generation,
+        )
+    except _namespace.InvalidSnapshotRef:
+        own = None
+    return tuple(
+        entry
+        for entry in generation.obligations.resources
+        if entry.kind == LateResourceKind.SNAPSHOT_REF and own in {None, entry.target}
+    )
 
 
 def _child_number(target: str) -> int | None:
