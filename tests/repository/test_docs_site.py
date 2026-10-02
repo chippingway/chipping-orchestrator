@@ -9,6 +9,11 @@ the site or deploys it, and the deploy job alone holds a Pages token, so a
 pull request's run stays read-only. A push to `main` publishes when it changes
 a source the site is built from, the template directory among them.
 
+A run builds the full site once. The check step names that output in
+`DOCS_SITE_DIR`, so `test_docs_output.py` validates the pages the upload step
+publishes, and does so before they are uploaded. Source links in the Markdown
+are the CI matrix's to check, through `test_doc_links.py`.
+
 Pages serves one site, so main runs share a group: GitHub replaces a pending
 run with the newest one while an active deployment finishes. Pull requests
 use their own refs and cancel superseded builds without displacing a deploy.
@@ -45,6 +50,16 @@ _DEPLOY_GATE = f"    if: {_MAIN_ONLY}"
 _ARTIFACT_STEP = f"""      - name: Upload Pages artifact
         if: {_MAIN_ONLY}
         uses: actions/upload-pages-artifact@"""
+_BUILD_STEP = """      - name: Build documentation
+        run: uv run --no-sync mkdocs build --strict
+"""
+_CHECK_STEP = f"""      - name: Check the built documentation
+        env:
+          {_site_support.SITE_VARIABLE}: {_site_support.SITE_DIRECTORY}
+        run: uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_docs_output.py
+"""
+_PUBLISHING_STEPS = (_BUILD_STEP, _CHECK_STEP, _ARTIFACT_STEP)
+_UPLOADED_SITE = f"        with:\n          path: {_site_support.SITE_DIRECTORY}\n"
 _READ_ONLY_GRANT = "\npermissions:\n  contents: read\n\n"
 _THEME_PATH = '      - ".github/docs-theme/**"\n'
 # YAML lets a comment sit at any indent, so one left in place would end the
@@ -118,6 +133,16 @@ class DocumentationWorkflowTest(unittest.TestCase):
         self.assertIn(_ARTIFACT_STEP, jobs["build"])
         self.assertIn(_DEPLOY_GATE, jobs["deploy"].splitlines())
 
+    def test_the_checked_build_is_the_uploaded_one(self) -> None:
+        jobs = _section(_workflow(), _JOBS)
+        builds = "".join(jobs.values()).count("mkdocs build")
+        self.assertEqual(builds, 1, "one build supplies both the checked and the uploaded site")
+        build = jobs["build"]
+        order = [build.find(step) for step in _PUBLISHING_STEPS]
+        self.assertNotIn(-1, order)
+        self.assertEqual(order, sorted(order), "the check must read the build before it is uploaded")
+        self.assertIn(_UPLOADED_SITE, build[order[-1]:])
+
     def test_pull_request_runs_hold_a_read_only_token(self) -> None:
         workflow = _workflow()
         self.assertIn(_READ_ONLY_GRANT, workflow)
@@ -149,7 +174,7 @@ class DocumentationWorkflowTest(unittest.TestCase):
         self.assertNotIn(_THEME_PATH, _published_paths(edited))
 
 
-@unittest.skipUnless(find_spec("mkdocs"), "install the docs group with uv sync --locked --group docs")
+@unittest.skipUnless(find_spec("mkdocs"), _site_support.INSTALL_HINT)
 class DocumentationWebsiteTest(unittest.TestCase):
     def test_unique_heading_anchors_match_github(self) -> None:
         with TemporaryDirectory() as directory:
@@ -160,16 +185,6 @@ class DocumentationWebsiteTest(unittest.TestCase):
             self.assertEqual(built.returncode, 0, built.stderr)
             anchors = _site_support.SitePage(root / _site_support.SITE_DIRECTORY / "index.html").anchors
             self.assertLessEqual({expected for _, expected in HEADING_ANCHOR_CASES}, anchors)
-
-    def test_published_links_and_search(self) -> None:
-        with TemporaryDirectory() as directory:
-            site = Path(directory).resolve() / _site_support.SITE_DIRECTORY
-            built = _site_support.build_site(_site_support.REPO_ROOT / "mkdocs.yml", site)
-            self.assertEqual(built.returncode, 0, built.stderr)
-            self.assertEqual(_site_support.unresolved_site_links(site), [])
-            indexed, expected = _site_support.search_page_sets(site)
-            self.assertEqual(indexed, expected)
-            self.assertIn(_site_support.SITE_URL, (site / "sitemap.xml").read_text(encoding=_ENCODING))
 
     def test_source_links_preserve_code(self) -> None:
         with TemporaryDirectory() as directory:

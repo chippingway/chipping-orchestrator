@@ -1,6 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Build the docs and check the links a visitor follows in the generated HTML."""
+"""Build the docs and check the links a visitor follows in the generated HTML.
+
+`SITE_VARIABLE` names a site that is already built -- the one the Documentation
+workflow uploads -- so the check reads that output instead of building its own.
+"""
 from __future__ import annotations
 
 import json
@@ -14,6 +18,8 @@ from urllib.parse import unquote, urlsplit
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SITE_URL = "https://chippingway.github.io/chipping-orchestrator/"
 SITE_DIRECTORY = "site"
+SITE_VARIABLE = "DOCS_SITE_DIR"
+INSTALL_HINT = "install the docs group with uv sync --locked --group docs"
 _SITE_ADDRESS = urlsplit(SITE_URL)
 _ENCODING = "utf-8"
 _BUILD_TIMEOUT_SECONDS = 30
@@ -110,6 +116,7 @@ def write_sample_repository(root: Path, markdown: str) -> Path:
     hook = REPO_ROOT / ".github" / "scripts" / "docs_site.py"
     config.write_text(
         "site_name: Sample\n"
+        f"site_url: {SITE_URL}\n"
         "repo_url: https://github.com/chippingway/chipping-orchestrator\n"
         f"hooks:\n  - '{hook}'\n"
         "validation:\n  links:\n    anchors: warn\n",
