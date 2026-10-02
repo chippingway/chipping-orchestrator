@@ -1127,7 +1127,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             ancestry's pointer where it is the ref that ancestry's identity mints -- and, for a proved
                             split that entitles nothing, whether that is settled (its own ref's one entry passed to a
                             reclamation) or a ledger that cannot say whether the ref is held (unreadable, closed to a
-                            new consumer, never proved, recorded twice, or missing), which refuses a replacement
+                            new consumer, held under no identity of its own after a retirement, never proved, recorded
+                            twice, or missing), which refuses a replacement
     provenance.py           the read-only, still dormant decision of which late lineage an ordinary decomposition's
                             children inherit, asked only by the dormant `stages/decomposition/replacement_lineage.py`:
                             none for an issue no late split charged; otherwise the root, the depth
