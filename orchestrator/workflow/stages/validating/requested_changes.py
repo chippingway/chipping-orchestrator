@@ -2,14 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 """The two verdicts that are not an approval.
 
-CHANGES_REQUESTED runs its dev fix under the `fixing` label rather than
-`validating`, so the active job reads as what it is instead of as reviewer
-work. The relabel happens BEFORE the spawn on purpose: a crash inside the
-spawn then leaves the issue on `fixing` with `awaiting_human` still false,
-which the next tick's fixing handler reads as "no feedback" and bounces back
-to `validating` -- whereas a crash after a spawn under the old label would
-leave an issue nobody re-enters. A pushed fix bumps the round and relabels
-back; any park leaves the issue on `fixing`, whose handler owns the
+CHANGES_REQUESTED runs its dev fix -- handed over by `review_handoffs`, through
+the feedback post, the run, and its finish here -- under the `fixing` label
+rather than `validating`, so the active job reads as what it is instead of as
+reviewer work. The relabel happens BEFORE the spawn on purpose: a crash inside
+the spawn then leaves the issue on `fixing` with the persisted change request
+still marked handed, which the next tick's fixing handler answers ahead of its
+feedback scan (`review_resume.finishes_a_handed_request`) -- a launch still
+owed is made then, and one that may have started is never made again: the
+request is dropped where the subject moved or the branch shows the developer's
+own work, and the launch parks for `/orchestrator continue` where nothing shows
+(`review_handoffs.HandedLaunch`) -- whereas a crash after a spawn under the old
+label would leave an issue nobody re-enters. A pushed fix bumps the round and
+relabels back; any park leaves the issue on `fixing`, whose handler owns the
 awaiting-human rescan from there.
 
 What that run hands back is a report as well as, perhaps, a commit, and
@@ -25,10 +30,9 @@ the record and are closed by the write that settles the report.
 The reviewer-feedback comment's id is recorded because a session-failure park
 on this route has to be retryable by `/orchestrator continue`, and the fixing
 handler replays that exact comment to reconstruct the batch. It is the one
-durable copy of the feedback once a persisted verdict is handed on, so that
-handoff (`review_handoffs`) goes on only behind a post whose id it read, while
-a change request nothing persisted has no later tick to post from and goes on
-without one. It is a standalone key rather than part of the in_review bookmark
+durable copy of the feedback once the persisted verdict is handed on, so the
+handoff (`review_handoffs`) goes on only behind a post whose id it read. It is
+a standalone key rather than part of the in_review bookmark
 pair, since `pending_fix_at` is what tells that route's round RESET from this
 route's bump.
 
@@ -325,51 +329,6 @@ def _finish_requested_fix(
         context.gh, context.spec, context.issue, context.state,
         WorkflowLabel.VALIDATING,
     )
-
-
-def _handle_validating_changes_requested(
-    gh: GitHubClient,
-    spec: config.RepoSpec,
-    issue: Issue,
-    state: PinnedState,
-    decision: _models._ReviewerDecision,
-) -> None:
-    """CHANGES_REQUESTED: post the reviewer feedback on the PR, flip to
-    `fixing`, and resume the dev.
-
-    The dev-fix subphase runs under the `fixing` label so the active job is
-    observably "fixing reviewer-requested changes" rather than "validating"
-    (which reads as reviewer/verify work only); `fixing` thereby extends to
-    automated reviewer feedback in addition to its original in_review
-    human-feedback duty. The label is flipped BEFORE the dev spawn so a crash
-    inside the spawn still leaves the issue on `fixing` with stale
-    awaiting_human=False, which the next tick's fixing handler treats as
-    no-feedback and bounces back to `validating`. On a successful pushed fix, and
-    on a report the round delivers with no code in it, we bump `review_round`
-    and relabel to `validating`; on any park the issue stays on `fixing` and the
-    fixing handler owns the awaiting-human rescan. `MAX_REVIEW_ROUNDS`,
-    dev-session pinning, and the final-docs handoff are unchanged -- only the
-    visible label moves with the active work.
-
-    The id of the reviewer-feedback PR comment is recorded in
-    `pending_fix_reviewer_comment_id` so a session-failure park on this route
-    (`agent_silent` / `agent_timeout` / `agent_execution_failed`) is retryable by `/orchestrator continue`:
-    the fixing handler's `_reconstruct_pending_fix_batch` replays that exact
-    comment. `pending_fix_at` is deliberately NOT set (it discriminates the
-    in_review route's review-round reset from this route's bump), so the anchor
-    is a standalone key cleared on the pushed-fix exit here and inside
-    `_clear_pending_fix_bookmarks`.
-    """
-    run = decision.run
-    context = _models._RequestedChanges(
-        gh, spec, issue, state, run.wt, run.round_n, run.pr_number, decision.feedback,
-    )
-    anchor_id = _post_reviewer_feedback(context)
-    if anchor_id is not None:
-        state.set("pending_fix_reviewer_comment_id", anchor_id)
-    gh.set_workflow_label(issue, WorkflowLabel.FIXING)
-    gh.write_pinned_state(issue, state)
-    _finish_requested_fix(context, _run_requested_fix(context))
 
 
 def _park_review_cap(

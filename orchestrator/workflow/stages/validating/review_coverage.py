@@ -35,9 +35,8 @@ not finish sent it there; the settled handoff asks it before moving a label
 that tail left owed; and `in_review` asks it before the approval may stand
 behind a ready ping.
 
-The disposition service -- which no live round reaches yet, only the recovery
-of a record an issue already carries (`review_resume`) -- holds a returned
-verdict to its subject the same way (`_verdict_still_stands`) -- ahead of the
+The disposition service every returned verdict goes to holds it to its
+subject the same way (`_verdict_still_stands`) -- ahead of the
 write persisting it, once
 more before handing it back ready, on every tick it waits on its evidence, and
 again before a refused approval parks, as the change-request handoff behind it does behind its feedback post and the
@@ -50,8 +49,7 @@ The parks a refused verdict takes ask it in that same order behind their
 notice (`review_parks`), and read the comment last. A
 verdict about a pull request the issue no longer points at, however long ago
 the pointer moved, is refused as one whose subject moved -- on every road that
-holds a verdict to its subject, the live reviewer's return included
-(`_subject_still_stands`).
+holds a verdict to its subject (`_subject_still_stands`).
 
 Nothing here parks or posts. What a refusal owes is the next reviewer
 round's to decide, and that round resolves the subject for itself.
@@ -94,8 +92,8 @@ def _subject_still_stands(
 ) -> bool | None:
     """Whether a verdict of the subject `recorded` names is of the one standing now; None where nobody could read it.
 
-    Asked on the live reviewer's return once `review_comment` has found the
-    report records where they were. A road holding a persisted verdict to its
+    Asked behind an approval's verify gate and ahead of its squash
+    (`approval`), with the comment read behind it. A road holding a persisted verdict to its
     subject asks it the other way round -- first, with the comment read against
     the one it last read or wrote behind it, watching the report records, the
     pull request, the verdict, and (for a park behind its notice) the evidence

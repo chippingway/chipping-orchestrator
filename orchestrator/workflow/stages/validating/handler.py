@@ -53,9 +53,7 @@ behind all of those and ahead of the round-cap check and the spawn
 (`review_resume`): the evidence it declared was published by the dispatcher's
 reconciliation ahead of this handler, and what is left is the verdict, which a
 second reviewer would only pay for again. Behind the hold, since its
-disposition acts on the report that hold keeps a reviewer from. No live
-reviewer round persists one yet, so the hook answers only a record an issue
-already carries.
+disposition acts on the report that hold keeps a reviewer from.
 """
 from __future__ import annotations
 

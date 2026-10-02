@@ -118,13 +118,13 @@ file is the durable record.
   beside a pinned `park_reason` of null: the event names the classification, and null on the durable field is what
   tells a later tick this park needs a human's actual guidance.
 
-  The returned-verdict parks (`stages/validating/review_parks.py`), which no live round reaches yet, emit for
-  themselves as well, and only once the write that lands the park is down: `reviewer_unverified` and
-  `reviewer_unrecorded` carry the funnelled reviewer parks' fields — `agent_role` (`reviewer`), `session_id`,
-  `review_round`, `retry_count`, and `pr_number` — screened against the same allow-list, and a notice behind which
-  no park lands reports nothing. The parks a failed verify gate (`verify_*`) and a failed squash (`squash_failed`)
-  take on the approval road are filed there too and emit the same way, once their write is down and only where they
-  land, carrying `stage` and `reason` alone.
+  The returned-verdict parks (`stages/validating/review_parks.py`), which a live reviewer round's verdict takes through
+  the disposition, emit for themselves as well, and only once the write that lands the park is down:
+  `reviewer_unverified` and `reviewer_unrecorded` carry the funnelled reviewer parks' fields — `agent_role`
+  (`reviewer`), `session_id`, `review_round`, `retry_count`, and `pr_number` — screened against the same allow-list, and
+  a notice behind which no park lands reports nothing. The parks a failed verify gate (`verify_*`) and a failed squash
+  (`squash_failed`) take on the approval road are filed there too and emit the same way, once their write is down and
+  only where they land, carrying `stage` and `reason` alone.
 
   The two conversation stages forward the same vocabulary through their own stage funnels, which every ending of
   those stages lands on: `route`, `agent_role` (`question` and `decomposer` respectively — the discussion is the
@@ -766,11 +766,10 @@ is the whole of what keeps the stream a count of what an issue spent rather than
 
 - A launch honoring a **reservation** an earlier tick left standing pays for no new run, so it records `started` and
   no second `reserved`.
-- A launch **owed once** — a handed change request's developer, whose handoff no live round calls — refused on the
-  circuit's reading before its charge, because another road already started it or the caller's hold no longer
-  stands, records nothing. Refused on the reading behind its charge, it records its `reserved` and no `started`: the
-  charge stands for that launch's replay, which records `started` alone, and one no replay reuses is a `reserved` no
-  `started` ever follows.
+- A launch **owed once** — a handed change request's developer — refused on the circuit's reading before its charge,
+  because another road already started it or the caller's hold no longer stands, records nothing. Refused on the reading
+  behind its charge, it records its `reserved` and no `started`: the charge stands for that launch's replay, which
+  records `started` alone, and one no replay reuses is a `reserved` no `started` ever follows.
 - A **standing park** records nothing. An exhausted issue meets the same refusal on every launch it has left and the
   dispatcher's hold meets it on every dispatch, so a record per meeting would report one ending as a stream of them;
   what says a park went on holding is the `agent_run_limit` event's `standing` phase. A park re-taken while it still

@@ -81,9 +81,6 @@ verdict another road put in this one's place, say -- end the tick with nothing
 written or handed over, for the next tick to read the comment as it stands. An
 anchor another road pointed elsewhere is left for the handoff, or the park, to
 hold.
-
-No live reviewer round persists a verdict yet, so both hooks answer only a
-record an issue already carries.
 """
 from __future__ import annotations
 

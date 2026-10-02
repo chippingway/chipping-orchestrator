@@ -442,6 +442,14 @@ Check current consumption with `curl -H "Authorization: Bearer $TOKEN" https://a
 
 ## Local verification gate
 
+`VERIFY_COMMANDS` is also what a reviewer's approval has to vouch for: the reviewer is told the configured commands,
+and an approval reaches this gate only where the verification it declared — commands it ran on the reviewed head, or
+the current evidence it reused — has settled on the pull request, passed, and lists every configured command exactly
+as written; anything short of that parks under `reviewer_unverified` instead (see
+[the reviewer verification contract](workflow/conversations.md#the-reviewer-verification-contract)). An empty setting
+requires no particular command: only that the declared evidence lists at least one command, every one exiting 0.
+Commands declared beside the configured ones are allowed, and refuse the approval only where one did not exit 0.
+
 When the reviewer agent emits `VERDICT: APPROVED`, `_handle_validating` runs the configured `VERIFY_COMMANDS` in the
 per-issue worktree **before** posting the approval comment, squashing, seeding watermarks, or relabeling to
 `workflow:documenting`. A clean run advances the issue as usual; any failure parks the issue on `workflow:validating`
@@ -489,9 +497,9 @@ running tests.
 ### Settings
 
 - `VERIFY_COMMANDS` — default _(empty — no verification)_. Ordered shell commands run sequentially in the per-issue
-  worktree on `VERDICT: APPROVED`. Entries are separated by `;` or newlines; blank lines and `#`-comment lines are
-  skipped. Each entry runs via the shell so quoting, pipes, and `&&` work; stdout and stderr are merged into one
-  captured block.
+  worktree on `VERDICT: APPROVED`, and the commands every approving reviewer has to declare. Entries are separated by
+  `;` or newlines; blank lines and `#`-comment lines are skipped. Each entry runs via the shell so quoting, pipes, and
+  `&&` work; stdout and stderr are merged into one captured block.
 - `VERIFY_TIMEOUT` — default `600`. Per-command wall-clock cap in seconds. A single slow command parks with
   `verify_timeout`. Ignored when `VERIFY_COMMANDS` is empty.
 

@@ -57,7 +57,7 @@ class _ReviewerAnchorFixtureMixin:
     ):
         # Validating-route shape: no `pending_fix_*_ids`, no `pending_fix_at`,
         # just the orchestrator-authored reviewer-feedback PR comment whose id
-        # `_handle_validating_changes_requested` recorded. It carries the hidden
+        # the validating handoff recorded. It carries the hidden
         # orchestrator marker like the real post, so a rescan would filter it --
         # only the anchor id re-surfaces it for the replay.
         issue = make_issue(ISSUE, label=FIXING)

@@ -19,6 +19,7 @@ from orchestrator.workflow.stages.validating import handler as _validating
 from tests.support.fakes import DEFAULT_PR_HEAD_SHA
 from tests.workflow import published_reports as _published_reports
 from tests.workflow.engine import drift_test_support as support
+from tests.workflow.repo_values import EXISTING_CHECKOUT
 
 
 class HandlePickupInitializesUserContentHashTest(
@@ -181,6 +182,9 @@ class BareAddAgentRunsIsNotDriftTest(
             run_agent=support._agent(
                 last_message=support.REVIEW_APPROVED_MESSAGE,
             ),
+            # The approval's evidence is published, over a checkout on this
+            # host, before the approval is acted on.
+            issue_checkout=EXISTING_CHECKOUT,
             # The round's checkout stands on the head its reviewer approved.
             head_shas=(DEFAULT_PR_HEAD_SHA,),
         )

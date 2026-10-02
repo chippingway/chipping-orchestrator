@@ -37,15 +37,16 @@ more behind that after an approval is verified, before anything the run leaves
 is written -- a park for a timeout or a missing verdict as much as the record of
 a verdict. It watches the report's records and the pull request the issue
 points at, since a verdict about one pull request is no review of another the
-issue points at now. The approval arc behind its verify gate, the approval
-proof, the disposition service and the change-request handoff behind it
-wherever they hold a verdict to its subject
-(`review_coverage._verdict_still_stands`), and the recovery of a record an
-issue already carries (`review_resume`) -- the one road that reaches that
-service yet -- ask it of more (`persisted`): the
+issue points at now. The reviewer's return, the approval arc behind its
+verify gate, the approval proof, the disposition service and the
+change-request handoff behind it wherever they hold a verdict to its subject
+(`review_coverage._verdict_still_stands`), and the recovery of a verdict an
+earlier tick left waiting (`review_resume`) ask it of more (`persisted`): the
 returned verdict persisted (`review_verdicts`) beside them, since one another
-road dropped or replaced since is no longer the one any write behind this may
-act on. Records that moved
+road persisted, dropped, or replaced since is no longer the one any write
+behind this may act on or write over -- the disposition measures a returned
+run from the return's reading on, so a verdict another round persisted while
+the reviewer ran is caught there or nowhere. Records that moved
 refuse the verdict. Either way every write made from the state behind the
 reading is laid over the comment as it stands, so everything the comment
 changed since is carried onto the state in hand: a later report settled over the one the reviewer was handed, the
@@ -92,7 +93,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from types import MappingProxyType
 
 from github.Issue import Issue
@@ -103,6 +104,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     report_records as _records,
+    review_evidence_prompts as _evidence_prompts,
     review_subjects as _review_subjects,
     verification_records as _evidence_records,
 )
@@ -165,6 +167,9 @@ class _ResolvedSubject:
     # carries the very report records the subject was resolved from: what
     # the verdict's return measures the comment against.
     resolved_over: dict
+    # The workflow verification evidence proved current for that subject,
+    # handed over beside it once the launch is recorded; None for none.
+    evidence: _evidence_prompts.HandedEvidence | None = None
 
     def lays_over(self, state: PinnedState, read: dict) -> None:
         """Carry onto `state` what the comment this subject was bound to changed since the tick read it as `read`.
@@ -210,7 +215,7 @@ class _ResolvedSubject:
                 comment.pop(field, None)
             else:
                 comment[field] = written
-        return _ResolvedSubject(self.subject, comment)
+        return replace(self, resolved_over=comment)
 
 
 @dataclass(frozen=True)

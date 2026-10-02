@@ -16,10 +16,10 @@ commits off the tip and in the reflog behind a recorded head, the approved
 commits still in the branch's own history under work committed on top of them,
 or a reading that placed them nowhere at all.
 
-The arc is reached from a live reviewer round, and -- through the approval
-proof (`unverified_approvals`), which only the recovery of a record an issue
-already carries reaches yet (`review_resume`) -- from a returned approval
-persisted with the evidence it rests on (`review_verdicts`). Either way it holds one
+The arc is reached only through the approval proof (`unverified_approvals`),
+from a returned approval persisted with the evidence it rests on
+(`review_verdicts`) -- in the tick its reviewer returned, or in a later one
+finishing the approval left waiting (`review_resume`). Either way it holds one
 verdict at most: the approval its own run returned, of that round and subject,
 waiting on the pinned comment (`handoff._Held`). Every write the arc makes
 retires that verdict and no other -- one another road put in its place is that

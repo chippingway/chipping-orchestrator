@@ -1,23 +1,34 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The verification a fresh reviewer is told about beside the report it reviews.
+"""The verification a fresh reviewer is handed, and the declaration it closes with.
 
-Two things. First the workflow evidence that is CURRENT for the very subject
-the reviewer is handed, where there is any: the artifact the pull request
-carries, re-read and quoted whole -- the witness's preamble and every command
-with its exit status and output -- under the revision a reuse has to name, and
-never evidence about another head, report, or requirements revision, which is
+A reviewer is told four things about verification beside the report it
+reviews. First the workflow evidence that is CURRENT for the very subject it
+is handed, where there is any: the artifact the pull request carries, re-read
+and quoted whole -- the witness's preamble and every command with its exit
+status and output -- under the revision a reuse has to name, and never
+evidence about another head, report, or requirements revision, which is
 evidence about something nobody is asking this reviewer to approve. Which
 evidence that is, and the proof that it covers the subject, belong to the
 validating stage (`stages/validating/review_evidence.py`); this owner renders
 what it is handed, and says which of the commands it lists did not exit 0 --
 about those commands alone, since the evidence does not say whether they are
-the ones this repository requires. Then what this repository configures as its verification --
-the commands, or the plain statement that none are configured, since an empty
-`VERIFY_COMMANDS` is not evidence that anything passed.
+the ones this repository requires. Then what this repository configures as its
+verification -- the commands, or the plain statement that none are configured,
+since an empty `VERIFY_COMMANDS` is not evidence that anything passed. Then the
+one declaration its final message has to carry -- a RUN block naming the head
+it is handed, or, only where it was handed evidence, the REUSED line naming
+that evidence's exact revision -- spelled from `review_verification_models`,
+the same source the parser reads.
 
-Nothing renders this yet: the reviewer prompt quotes the report alone until the
-reviewer round hands evidence over and reads a declaration back.
+Last, the policy that is the other half of why the evidence is handed at all.
+The orchestrator publishes what a reviewer declares, so a reviewer holding
+valid evidence for the commit it reviews has nothing left for a developer or a
+human to copy into the pull request description: a request to transcribe a
+commit id, a count, or a command is a round nobody needed. What the evidence
+cannot answer -- a check that failed, verification the change still lacks, a
+report claiming what did not happen, evidence about another subject -- stays a
+change to request.
 """
 from __future__ import annotations
 
@@ -26,8 +37,24 @@ from dataclasses import dataclass
 from orchestrator import config
 from orchestrator.github.verification_artifacts import VerificationArtifact
 from orchestrator.workflow.engine import (
+    review_subjects as _review_subjects,
     review_verification_models as _verification_models,
     verification_records as _records,
+)
+
+_EVIDENCE_POLICY = (
+    "An approval is acted on only when the evidence it declares -- commands "
+    "you ran, or current evidence you reuse -- lists at least one command, "
+    "every listed command exited 0, and every configured command is among "
+    "them exactly as written; further commands beside those are allowed. An "
+    "approval without such evidence is parked rather than approved. The orchestrator publishes "
+    "the evidence you declare on the pull request itself, so while valid "
+    "evidence covers the commit under review do NOT request changes merely to "
+    "have a developer or a human copy a commit SHA, a test count, or a command "
+    "into the pull request description or the report. A check that failed, "
+    "verification the change still needs, a report claiming something that "
+    "did not happen, and evidence about another commit or subject remain "
+    "changes to request."
 )
 
 
@@ -49,9 +76,20 @@ class HandedEvidence:
         return self.current.content_revision
 
 
-def _verification_block(handed: HandedEvidence | None) -> str:
-    """Everything a reviewer is told about verification: the evidence, then the configuration."""
-    return f"{_evidence_block(handed)}\n\n{_configured_block()}"
+def _verification_block(
+    handed: HandedEvidence | None, subject: _review_subjects.ReviewSubject | None,
+) -> str:
+    """Everything a reviewer of `subject` is told about verification, in the order it is read.
+
+    The subject's head is the commit a RUN block has to name; a reviewer
+    handed no subject is told to name the one it checked out.
+    """
+    return "\n\n".join((
+        _evidence_block(handed),
+        _configured_block(),
+        _declaration_contract(handed, "" if subject is None else subject.commit),
+        _EVIDENCE_POLICY,
+    ))
 
 
 def _evidence_block(handed: HandedEvidence | None) -> str:
@@ -108,12 +146,49 @@ def _configured_block() -> str:
     if not commands:
         return (
             "This repository configures no verification commands "
-            "(`VERIFY_COMMANDS` is empty), so nothing the orchestrator runs is "
-            "evidence that any check passed: run the checks this repository's "
-            "own documentation requires of a change."
+            "(`VERIFY_COMMANDS` is empty), so no particular command is required "
+            "and nothing the orchestrator runs is evidence that any check passed: "
+            "run the checks this repository's own documentation requires of a change."
         )
     listed = ", ".join(f"`{command}`" for command in commands)
     return (
         "This repository's configured verification commands "
-        f"(`VERIFY_COMMANDS`) are, in order: {listed}."
+        f"(`VERIFY_COMMANDS`) are, in order: {listed}. An approval's "
+        "declaration has to list each of them exactly as written here, with "
+        "the exit status it returned, or reuse evidence that does; further "
+        "commands may be listed beside them."
+    )
+
+
+def _declaration_contract(handed: HandedEvidence | None, commit: str) -> str:
+    """The declaration a reviewer's final message has to carry above its verdict.
+
+    The REUSED form is taught only beside evidence handed over, since a reuse
+    of anything else -- a reviewer handed none included -- is read as stale.
+    """
+    models = _verification_models
+    head = f"`{commit}`" if commit else "the commit `git rev-parse HEAD` names"
+    named = commit or "<full commit id>"
+    contract = (
+        "Declare the verification this review relies on in your final message, "
+        "ABOVE the VERDICT line, with every marker line alone on its own line "
+        "and outside any code block. For commands you ran yourself in this "
+        f"worktree on {head}:\n\n"
+        f"  {models._VERIFICATION_RUN_MARKER} {named}\n"
+        f"  {models._COMMAND_PREFIX} <the exact command line>\n"
+        f"  {models._EXIT_PREFIX} <the exit status it returned>\n"
+        "  <any output you quote, as plain lines with no code fences>\n"
+        f"  {models._VERIFICATION_END_MARKER}\n\n"
+        f"Repeat the {models._COMMAND_PREFIX} and {models._EXIT_PREFIX} lines, "
+        "with any output below them, for every command in the order you ran "
+        "them. List only commands you actually ran, each with the status it "
+        "really returned; never estimate a result or copy one from the report."
+    )
+    if handed is None:
+        return contract
+    return (
+        f"{contract}\n\nOr, where the current evidence above covers what this "
+        "change requires, reuse it instead of running it again, naming exactly "
+        f"its revision:\n\n  {models._VERIFICATION_REUSED_MARKER} "
+        f"{models._REVISION_PREFIX}{handed.revision}"
     )

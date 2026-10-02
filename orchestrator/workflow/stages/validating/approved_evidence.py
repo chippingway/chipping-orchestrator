@@ -37,8 +37,9 @@ moved, or the artifact deleted or edited is evidence the approval was never
 given, and the move is not taken over it; an artifact nobody could read holds
 the move for a later tick.
 
-An approval proved over no evidence -- every live reviewer round's -- records
-none and is held to none.
+Every approval reaches the arc proved over the evidence its verdict names, so
+every approval records that claim; one recorded before approvals were proved
+over evidence carries none and is held to none.
 """
 from __future__ import annotations
 
@@ -102,7 +103,8 @@ def stands(gh: GitHubClient, state: PinnedState) -> bool | None:
     context configured now. Then its artifact, re-read at the comment it
     settled as on the pull request it was published on, which no rewrite
     moves: still the one that settled, passing, and carrying every configured
-    command. True where the approval rests on no evidence. A record that will
+    command. True where no claim is recorded: an approval recorded before
+    approvals were proved over evidence. A record that will
     not read names nothing anyone could hold the approval to, so it is no
     approval's evidence; a pull request or thread nobody could read is None.
     """

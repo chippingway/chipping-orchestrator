@@ -19,8 +19,8 @@ behavior belong to [`state-machine.md`](state-machine.md).
 - [`workflow/conversations.md`](workflow/conversations.md) — the two operator-applied conversation labels: what the
   `question` and `discussion` prompts grant and forbid, what a round may leave behind, the plan PR a confirmed design
   earns, the tracked-repository awareness block the working-agent prompts carry, the report contract every
-  developer prompt teaches with the reader of its outcomes, and the shared foreground execution guidance for
-  asynchronous commands.
+  developer prompt teaches with the reader of its outcomes, the verification contract every reviewer prompt teaches
+  with what its declaration earns, and the shared foreground execution guidance for asynchronous commands.
 - [`workflow/command-specs.md`](workflow/command-specs.md) — the spec grammar, backend selection and `CODEX_BIN` /
   `CLAUDE_BIN` / `AGY_BIN`, worked examples, and what pinning a spec buys.
 
@@ -138,6 +138,19 @@ the whole lifecycle in one place — ownership, identity and location, ready ver
 review-subject freshness, and the round each road spends:
 [`workflow/conversations.md#the-developer-report-lifecycle`](workflow/conversations.md#the-developer-report-lifecycle).
 
+## Reviewer verification contract in reviewer prompts
+
+Every reviewer is handed, beside the complete current developer report, the workflow verification evidence current for
+exactly its subject — quoted whole under the revision a reuse names, and never evidence about another head, report, or
+requirements revision — with the configured `VERIFY_COMMANDS` or the plain statement that none are configured. It
+closes on a declaration above its verdict: the commands it ran on the reviewed head, or the exact evidence revision it
+reused. The orchestrator publishes that evidence itself, so a reviewer with valid evidence for the current tree does not
+ask for a SHA, count, or command to be copied into the pull request; failed checks, missing verification, inaccurate
+claims, and evidence about another subject stay actionable. The verdict is persisted before its evidence is published
+or the verdict acted on, so a retry reruns no reviewer, and an approval without settled, passing evidence covering
+every configured command parks under `reviewer_unverified` rather than reaching the approval arc. Full contract:
+[`workflow/conversations.md#the-reviewer-verification-contract`][reviewer-verification].
+
 ## Foreground execution and asynchronous command guidance
 
 Every developer and commit-producing prompt carries one shared foreground-execution note (`_FOREGROUND_ONLY_NOTE` in
@@ -180,3 +193,4 @@ validating tick. Per-role keys, the resume path, and the legacy values still hon
 [question-handler]: state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: state-machine/conversation-stages.md#_handle_discussion-label-discussion
 [foreground-guidance]: workflow/conversations.md#foreground-execution-and-asynchronous-command-guidance
+[reviewer-verification]: workflow/conversations.md#the-reviewer-verification-contract

@@ -509,6 +509,62 @@ same commit interrupted on its own accepted post, on its relabel, or on that rel
 relabel both, with a human commenting while it runs, and the fresh review, docs pass, and `in_review` round behind
 it — and holds every combination to the same end state.
 
+## The reviewer verification contract
+
+The reviewer prompt (`workflow/engine/review_prompts.py`, with its verification block in
+`workflow/engine/review_evidence_prompts.py`) hands every reviewer, beside the complete current developer report:
+
+- **The current evidence for its subject, or the note that there is none.** Only evidence recorded as current and bound
+  to exactly the pull request, head, requirements, and report the reviewer is handed is quoted, and only once it
+  proves current again — still the latest revision, its handoff and artifact standing, the whole binding proved
+  (`stages/validating/review_evidence.py`). The artifact is re-read at its comment, held once more to the settled
+  record, and quoted whole, witness and commands included, under the `sha256:` revision a reuse names. Evidence about
+  an earlier report, another head, or requirements the issue has moved past is never handed over.
+- **What the repository configures.** The configured `VERIFY_COMMANDS` are listed in order, and an approval's evidence
+  has to include each of them exactly as written; a reviewer may declare further commands beside them, which refuse an
+  approval only where one did not exit 0. An empty `VERIFY_COMMANDS` is stated as such: it requires no particular
+  command and is not evidence that any check passed, so the reviewer runs the checks the repository's own documentation
+  requires, and an approval still needs evidence of at least one command, every one exiting 0.
+- **The declaration it closes with**, above its `VERDICT:` line, every marker alone on its line and outside any code
+  block, spelled from `workflow/engine/review_verification_models.py`, the vocabulary
+  `workflow/engine/review_verification.py` reads: a `VERIFICATION: RUN <head>` … `VERIFICATION: END` block naming the
+  head it is handed and listing each `COMMAND:` it ran with the `EXIT:` status it returned and any output as plain
+  lines, or — only where evidence was handed — `VERIFICATION: REUSED sha256:<revision>` naming that exact revision.
+- **What is no change to request.** The orchestrator publishes what the reviewer declares on the pull request itself,
+  so a reviewer holding valid evidence for the commit it reviews does not ask a developer or a human to copy a commit
+  SHA, a test count, or a command into the description or the report. A failed check, verification the change still
+  needs, a report claiming what did not happen, and evidence about another commit or subject remain changes to request.
+
+The round (`stages/validating/reviewer.py`) hands every returned verdict to the disposition service
+(`stages/validating/review_disposition.py`). What the run declared is read only out of a run that completed, and never
+in place of its verdict: commands it ran become a reviewer-reported transaction bound to the subject it was handed and
+the full tree of the reviewed head, and a reuse a claim on the evidence it named (`stages/validating/review_claims.py`).
+The verdict is persisted as `review_returned_verdict` with that claim and transaction in one write — over the subject
+resolved again and the pinned comment read behind it, a verdict of a subject that moved while the reviewer ran being
+recorded and acted on by nobody — and the transaction is published through the dispatcher's own evidence
+reconciliation before either verdict is acted on. A publication that holds or stands down ends the tick with the
+verdict waiting; a later tick publishes it and finishes the verdict from the record
+(`stages/validating/review_resume.py`) with no second reviewer, usage fold, run charge, or round. Evidence that can
+never settle — retired, superseded, or bound to a verification context that has since moved — drops the verdict for a
+fresh reviewer, and so does a subject that moves while it waits. One the pinned comment has no room to persist, with
+the transaction its commands were minted as, is acted on not at all and parks under `reviewer_unrecorded`.
+
+A change request stands without evidence: its failed run is published before its feedback, and it is handed to the one
+developer it owes behind that feedback posted and anchored (`stages/validating/review_handoffs.py`), keeping its
+record through the relabel to `workflow:fixing` so a tick that stops between the relabel and the launch launches
+exactly that developer later rather than paying a second reviewer. An approval reaches the verify gate, the approval
+record, and the squash only on evidence that passed and is current — its own declared run with every command exiting
+0, once that transaction has settled on the pull request, or the exact current evidence it reused — either way proved
+current again, and either way including every configured `VERIFY_COMMANDS` command exactly as configured
+(`stages/validating/unverified_approvals.py`). A missing, malformed, or stale declaration, any declared command that
+did not exit 0, a configured command the evidence leaves out or spells otherwise than as configured, or a reuse the
+evidence no longer vouches for parks under `reviewer_unverified` instead -- a further command that exited 0 beside
+every configured one does not, and under an empty `VERIFY_COMMANDS` any declared run of at least one command, every one
+exiting 0, covers the configuration; a bare `/orchestrator continue` buys a fresh reviewer, since the reviewer owes the
+evidence. The review caps,
+configured-author filtering, report freshness, and the approved versus changes-requested routing are those of every
+other round. `tests/workflow/stages/validating/test_evidence_aware_rounds.py` drives each of these through whole ticks.
+
 ## Foreground execution and asynchronous command guidance
 
 Every developer and commit-producing prompt — initial implementation, automated reviewer fixes, requirements drift,

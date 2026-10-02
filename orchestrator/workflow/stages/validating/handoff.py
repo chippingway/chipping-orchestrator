@@ -167,8 +167,9 @@ class _Held:
 
         Asked behind each request of the arc the artifact can move in, over
         the gate's pull request and checkout (`approved_evidence.refusal`).
-        True where the approval rests on no evidence: a live reviewer round's,
-        which persisted no verdict, and the recovery's, which holds none.
+        True where the tail holds no claim: the recovery of a squash an earlier
+        tick did not finish, which holds no verdict. Every approval the
+        disposition hands the arc was proved over the claim its verdict names.
         """
         claim = None if self.verdict is None else self.verdict.evidence
         if claim is None:

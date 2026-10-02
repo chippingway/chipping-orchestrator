@@ -11,6 +11,7 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.git.publication.commits import _Amendment
 from tests.support.fakes import DEFAULT_PR_HEAD_SHA
 from tests.workflow.repo_values import (
+    _FAKE_TREE_SHA,
     _FAKE_WT,
     BASE_TIP_SHA,
     CONTRIBUTION_DIGEST,
@@ -118,6 +119,14 @@ class _WorkflowRunContext:
     # names nothing this host holds. None leaves the checkout where the case
     # put it, and restores it at `issue_worktree`.
     worktree_restore_error: Any = None
+    # Where `_worktree_path` says this issue's checkout lives, for the proofs
+    # that ask whether it is on this host at all -- a reviewer's published
+    # evidence among them. None leaves the real path, which nothing here holds.
+    issue_checkout: Any = None
+    # The full tree every commit in that checkout reads as, which a reviewer's
+    # declared commands are bound to as the tested tree. None leaves the read
+    # as the case stood it in.
+    checkout_tree: Any = _FAKE_TREE_SHA
     # What the size gate reads about the candidate a publication is about to
     # push. The default world is the ordinary one -- a commit this host holds,
     # a base the remote named, and a diff well under any ceiling -- so a test

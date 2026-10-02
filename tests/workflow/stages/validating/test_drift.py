@@ -1002,7 +1002,7 @@ class ValidatingDriftDefersToReviewerRecoveryTest(
                     issue,
                     run_agent=_agent(
                         session_id=REVIEW_SESSION,
-                        last_message="Looks fine.\n\nVERDICT: APPROVED",
+                        last_message=REVIEW_APPROVED_MESSAGE,
                     ),
                     has_new_commits=False,
                     head_shas=[UNMOVED_HEAD],

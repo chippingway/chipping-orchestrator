@@ -23,9 +23,7 @@ feedback as unread and pays a second developer to answer it. A reviewer's
 change request handed over here whose developer's run wrote nothing is
 answered right behind it (`validating/review_resume.py`), since its feedback is
 the orchestrator's own comment the scan filters out: left to the bounce, a
-second reviewer would be spent on a round already reviewed. No live reviewer
-round persists that request yet, so the hook answers only a record an issue
-already carries.
+second reviewer would be spent on a round already reviewed.
 
 Then the rescan, the parked dispatch, and the resume. The nothing-to-act-on
 exit between them is the one that is easy to miss, and it answers to two

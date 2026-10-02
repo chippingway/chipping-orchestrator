@@ -31,7 +31,7 @@ from tests.git.base_sync.real_git_test_support import (
     WORKTREES_DIR_NAME,
 )
 from tests.git.base_sync.recovery_git_support import _local_fetch
-from tests.workflow.fixtures import LABEL_VALIDATING, REVIEW_APPROVED_MESSAGE, _agent, publishes_the_report
+from tests.workflow.fixtures import LABEL_VALIDATING, _agent, approved_on, publishes_the_report
 
 # The ceiling the candidate is oversized against and the file that puts it
 # there: small enough to keep the real diff cheap, large enough that the real
@@ -101,10 +101,12 @@ class OversizedJourneyRealGitFixture(AdjudicatedRebaseRealGitFixture):
         drift read, the round cap, the prompt, the verdict parse, and what an
         approval earns are the production ones, over the rewritten checkout.
         The pull request carries a report of the head it stands on, since a
-        reviewer is refused one that carries none.
+        reviewer is refused one that carries none, and the reviewer declares
+        its verification of that head, since an approval without it is none.
         """
         publishes_the_report(self._gh, self._issue())
-        spawn = MagicMock(return_value=_agent(last_message=REVIEW_APPROVED_MESSAGE))
+        head = self._gh.get_pr(self._durable().get("pr_number")).head.sha
+        spawn = MagicMock(return_value=_agent(last_message=approved_on(head)))
         with patch.object(_agent_runner, "run_agent", spawn), patch.object(
             _branch_transport, PUSH_BRANCH, PublishesToThePullRequest(self._gh),
         ):

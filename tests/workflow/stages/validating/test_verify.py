@@ -14,8 +14,8 @@ from tests.workflow.fixtures import (
     DEFAULT_PR_HEAD_SHA,
     LABEL_DOCUMENTING,
     LABEL_IN_REVIEW,
-    REVIEW_APPROVED_MESSAGE,
     _agent,
+    approved_on,
 )
 from tests.workflow.stages.validating import (
     approval_proof_test_support as _proof,
@@ -116,7 +116,7 @@ class HandleValidatingVerifyGateTest(
         mocks = self._run_validating(
             gh,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on(DEFAULT_PR_HEAD_SHA)),
             head_shas=(REVIEW_SHA,),
         )
 
@@ -160,7 +160,7 @@ class HandleValidatingVerifyGateTest(
             mocks = self._run_validating(
                 gh,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                run_agent=_agent(last_message=approved_on(DEFAULT_PR_HEAD_SHA)),
                 head_shas=(REVIEW_SHA,),
                 verify_result=VerifyResult(status=VERIFY_OK),
             )
@@ -184,7 +184,7 @@ class HandleValidatingVerifyGateTest(
             self._run_validating(
                 gh,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                run_agent=_agent(last_message=approved_on(DEFAULT_PR_HEAD_SHA)),
                 head_shas=(REVIEW_SHA,),
                 verify_result=VerifyResult(
                     status=VERIFY_FAILED,
@@ -228,7 +228,7 @@ class HandleValidatingVerifyGateTest(
             self._run_validating(
                 gh,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                run_agent=_agent(last_message=approved_on(DEFAULT_PR_HEAD_SHA)),
                 head_shas=(REVIEW_SHA,),
                 verify_result=run,
             )
@@ -254,7 +254,7 @@ class HandleValidatingVerifyGateTest(
             self._run_validating(
                 gh,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                run_agent=_agent(last_message=approved_on(DEFAULT_PR_HEAD_SHA)),
                 head_shas=(REVIEW_SHA,),
                 verify_result=MagicMock(side_effect=lambda *_run: _repoints(gh, issue) or FAILED_RUN),
             )
@@ -302,7 +302,7 @@ class VerifyGateChargesTest(
                     self._run_validating(
                         github,
                         issue,
-                        run_agent=_agent(session_id=REVIEWER_SESSION, last_message=REVIEW_APPROVED_MESSAGE),
+                        run_agent=_agent(session_id=REVIEWER_SESSION, last_message=approved_on(DEFAULT_PR_HEAD_SHA)),
                         head_shas=(REVIEW_SHA,),
                         verify_result=partial(_charged_gate, world, verified),
                     )

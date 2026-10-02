@@ -23,10 +23,10 @@ as the proof held its own reading, since an edit landing between the two reads
 could otherwise put words the evidence never carried under the revision the
 reviewer is told to reuse.
 
-It is to be asked once the launch has recorded the round's subject, so evidence
-this orchestrator executed is held to the subject this reviewer is handed, and
-a reviewer's evidence to the subject the last returned reviewer read, which is
-this one's only where nothing moved since. No round asks it yet.
+The reviewer round asks it once the launch has recorded the round's subject
+(`reviewer`), so evidence this orchestrator executed is held to the subject
+this reviewer is handed, and a reviewer's evidence to the subject the last
+returned reviewer read, which is this one's only where nothing moved since.
 
 Anything short of that hands no evidence, logged with why, and the reviewer is
 told to run the verification itself. A reading nobody could take is no reason to hold the

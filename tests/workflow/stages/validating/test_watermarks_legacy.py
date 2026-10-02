@@ -18,9 +18,9 @@ from tests.support.fakes import (
     make_issue,
 )
 from tests.workflow.fixtures import (
-    REVIEW_APPROVED_MESSAGE,
     _agent,
     _PatchedWorkflowMixin,
+    approved_on,
 )
 
 WATERMARK_ISSUE = 300
@@ -133,7 +133,7 @@ class HandoffWithoutPickupIdLegacyStateTest(unittest.TestCase, _PatchedWorkflowM
         self._run_validating(
             gh,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on(REVIEWED_SHA)),
             head_shas=(REVIEWED_SHA,),
         )
         watermark = gh.pinned_data(LEGACY_ISSUE).get(PR_LAST_COMMENT_ID)
@@ -276,7 +276,7 @@ class HandoffWalkerHonorsOrchestratorMarkerTest(unittest.TestCase, _PatchedWorkf
         self._run_validating(
             gh,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on(REVIEWED_SHA)),
             head_shas=(REVIEWED_SHA,),
         )
 
