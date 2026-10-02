@@ -20,6 +20,7 @@ focused pages beside it.
 | see what the orchestrator did, and what it cost | [`observability.md`](observability.md) |
 | harden the deployment | [`security.md`](security.md) |
 | report a suspected vulnerability | [`../SECURITY.md`](../SECURITY.md) |
+| report a bug, propose a change, or contribute a PR | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | change the code | [`../AGENTS.md`](../AGENTS.md), then the [`develop` skill](../.agents/skills/develop/SKILL.md) |
 | size or split an issue | the [`decompose` skill](../.agents/skills/decompose/SKILL.md) |
 

@@ -1,0 +1,23 @@
+name: Change request
+description: Suggest a feature, documentation improvement, or other change.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A brief description is enough to start the conversation. Please redact secrets and private details.
+        For suspected vulnerabilities, follow
+        [SECURITY.md](https://github.com/chippingway/orchestrator/blob/main/SECURITY.md).
+  - type: textarea
+    id: request
+    attributes:
+      label: What would you like to change?
+      description: Describe the problem and the improvement you want.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Extra details (optional)
+      description: Examples, links, or implementation ideas are welcome if you have them.
+    validations:
+      required: false
