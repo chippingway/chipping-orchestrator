@@ -1,0 +1,22 @@
+{#- Copyright 2026 Geser Dugarov -#}
+{#- SPDX-License-Identifier: Apache-2.0 -#}
+{% extends "base.html" %}
+
+{#-
+The bundled theme's `site_meta` block, line for line, except for the description: a page's own `description` front
+matter wins, the homepage falls back to `site_description`, and every other page emits none. The block is replaced
+rather than extended through `super()`, since the parent would write a second homepage description beside the page's
+own. MkDocs renders without autoescaping, so the description is escaped here.
+-#}
+{%- block site_meta %}
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        {%- set description = page.meta.description if page and page.meta.description
+            else config.site_description if page and page.is_homepage %}
+        {% if description %}<meta name="description" content="{{ description|trim|e }}">{% endif %}
+        {% if config.site_author %}<meta name="author" content="{{ config.site_author }}">{% endif %}
+        {% if page and page.canonical_url %}<link rel="canonical" href="{{ page.canonical_url }}">{% endif %}
+        {% if config.site_favicon %}<link rel="shortcut icon" href="{{ config.site_favicon|url }}">
+        {% else %}<link rel="shortcut icon" href="{{ 'img/favicon.ico'|url }}">{% endif %}
+{%- endblock %}

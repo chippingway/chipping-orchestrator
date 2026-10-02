@@ -7,7 +7,8 @@ writes. GitHub renders this page when you open the `docs/` directory, so it is a
 
 The [documentation website](https://chippingway.github.io/chipping-orchestrator/) publishes these same Markdown
 pages through GitHub Pages. See [publishing the documentation](configuration/operations.md#publishing-the-documentation)
-for local preview commands, deployment behavior, and repository settings.
+for local preview commands, the `description` front matter a page summarizes itself with, deployment behavior, and
+repository settings.
 
 Six areas cover the whole system. Each has a landing page directly under `docs/` and — security aside — a directory of
 focused pages beside it.

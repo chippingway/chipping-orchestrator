@@ -719,7 +719,8 @@ scans work are in
 [`../mkdocs.yml`](../mkdocs.yml) builds this reference set into a static site at
 <https://chippingway.github.io/chipping-orchestrator/>. The optional `docs` dependency group provides MkDocs, and
 [`../.github/workflows/docs.yml`](../.github/workflows/docs.yml) checks every pull request and deploys updates from
-`main` to GitHub Pages. Local preview commands, the link and anchor rules, and the one-time repository settings are in
+`main` to GitHub Pages. Local preview commands, the link and anchor rules, the `description` front matter a page
+summarizes itself with, and the one-time repository settings are in
 [`configuration/operations.md#publishing-the-documentation`](configuration/operations.md#publishing-the-documentation).
 
 ## Run modes
