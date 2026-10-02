@@ -36,10 +36,9 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
   `permissions: contents: read` at the top level and references no secrets
   ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)). See
   [Fork-PR secret policy](#fork-pr-secret-policy).
-- **No CI publishing / deploys unless run on a protected ref** — N/A today, policy below. No package-publishing or
-  deploy workflow exists yet; see
-  [No CI publishing / deploys outside protected refs](#no-ci-publishing--deploys-outside-protected-refs)
-  before adding one.
+- **No CI publishing / deploys unless run on a protected ref** — in repo + operator-owned. Documentation deploys
+  run only on `main` through `github-pages`; restrict that environment's deployment branches to `main`. See
+  [No CI publishing / deploys outside protected refs](#no-ci-publishing--deploys-outside-protected-refs).
 - **Backup / restore drills** — operator-owned. See [Backup and restore drills](#backup-and-restore-drills).
 - **Review / tests / scans for AI-generated code** — in repo. See
   [AI-generated code review, tests, and scans](#ai-generated-code-review-tests-and-scans).
@@ -349,6 +348,11 @@ alert rather than as a failing run
 [`../.github/workflows/vulnerability-scan.yml`](../.github/workflows/vulnerability-scan.yml), triggered by `schedule`
 / `workflow_dispatch`, is watched on the Actions tab — a red run is triaged there rather than by a blocked merge.
 
+Keep `build` from the [documentation workflow](../.github/workflows/docs.yml) off the required-check list: its
+`pull_request` trigger filters paths, so PRs outside those paths skip the workflow. Requiring that check would leave
+it pending indefinitely and block the merge. The `deploy` job runs only on `main` outside `pull_request` and is also
+not a required PR check.
+
 CodeQL is the one scan off this list that can still hold a merge, and it does so beside the list rather than on it:
 its results are enforced by the **Require code scanning results** ruleset rule with CodeQL selected, which is a
 separate mechanism from the required-status-check names above. See [CodeQL advanced setup](#codeql-advanced-setup).
@@ -358,23 +362,26 @@ separate mechanism from the required-status-check names above. See [CodeQL advan
 - Workflows already use no secrets, and `contents: read` is the top-level grant in each of them. The Scorecard job's
   `security-events: write` + `id-token: write` elevation is on a workflow no pull-request event triggers. The CodeQL
   analysis job adds `security-events: write` and does run on `pull_request`; GitHub downgrades a fork PR token to read
-  only but still accepts code-scanning uploads from the `pull_request` event. Do **not** enable write tokens for fork
-  PRs or add `pull_request_target` triggers, `secrets.*` references, or higher token permissions without a written
-  justification.
+  only but still accepts code-scanning uploads from the `pull_request` event. The documentation deployment job adds
+  `pages: write` + `id-token: write`, runs only on `main` outside `pull_request`, and is limited to the `github-pages`
+  environment. Do **not** enable write tokens for fork PRs or add `pull_request_target` triggers, `secrets.*`
+  references, or higher token permissions without a written justification.
 - At `Settings → Actions → General → Fork pull request workflows from outside collaborators`, set **"Require
   approval for first-time contributors who are new to GitHub"** (or stricter).
 - For org-owned repos, mirror this default at the org level.
 
 ### No CI publishing / deploys outside protected refs
 
-No package-publishing or deploy workflow exists in [`../.github/workflows/`](../.github/workflows/) today. CI does
-build a distribution on every push and pull request, but only to install the wheel and check that the console script
-launches from it: no step uploads that artifact, keeps it past the job, or holds a registry credential it could be
-pushed with
+No package-publishing workflow exists in [`../.github/workflows/`](../.github/workflows/). CI builds a distribution
+on every push and pull request, but only to install the wheel and check that the console script launches from it: no
+step uploads that artifact, keeps it past the job, or holds a registry credential it could be pushed with
 ([`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration)).
-The Scorecard workflow's `publish_results` is the one thing any run publishes, and it publishes only this repo's own
-score to the OpenSSF API, authenticated by OIDC rather than a secret and reachable from `main`, the weekly schedule,
-and `workflow_dispatch` alone. If a real publishing or deploy workflow is added:
+The [documentation workflow](../.github/workflows/docs.yml) publishes the static site on pushes to `main` and manual
+runs on `main`, through the `github-pages` environment. Restrict that environment's deployment branches to `main`
+([`configuration/operations.md#github-pages-setup`](configuration/operations.md#github-pages-setup)).
+The Scorecard workflow's `publish_results` publishes only this repo's own score to the OpenSSF API, authenticated by
+OIDC rather than a secret and reachable from `main`, the weekly schedule, and `workflow_dispatch` alone.
+For any package-publishing or additional deploy workflow:
 
 - Run it only on `push` to `main` (a protected branch) or on pushes of tags covered by a **protected tag ruleset**
   (`Settings → Rules → Rulesets → New tag ruleset`). Never on `pull_request` or `pull_request_target`, and never

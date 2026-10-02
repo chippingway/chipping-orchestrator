@@ -130,7 +130,8 @@ See the [`REPOS` syntax](docs/configuration.md#multi-repo-repos-syntax) and
 
 ## Reference documentation
 
-The [documentation index](docs/README.md) maps the complete reference set:
+Browse the [documentation website](https://chippingway.github.io/chipping-orchestrator/) or the
+[documentation index](docs/README.md) for the complete reference set:
 
 | Topic | Covers |
 |---|---|

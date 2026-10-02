@@ -14,8 +14,8 @@ The repo targets Python 3.12+ and installs from the lockfile with [`uv`](https:/
 
 ```sh
 uv sync --locked                              # creates .venv/ and installs runtime + dev deps from uv.lock
-uv run ruff check orchestrator tests          # run Ruff
-uv run flake8 orchestrator tests --select=WPS # run wemake-python-styleguide
+uv run ruff check orchestrator tests .github/scripts/docs_site.py # run Ruff
+uv run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS # run wemake-python-styleguide
 uv run pytest tests                           # run the test suite
 uv run python -m orchestrator --once          # one polling tick then exit
 uv run python -m orchestrator --log-level DEBUG
@@ -45,11 +45,11 @@ beginning of the file when there is no shebang:
 
 Before committing, run each of these and fix what they report:
 
-- `.venv/bin/python -m ruff check orchestrator tests` — the lint contract is **Ruff's own default rule set plus
-  `E501`**. `[tool.ruff.lint]` in `pyproject.toml` declares no `select`, so the run enforces whatever the `ruff`
-  resolved in `uv.lock` ships as its defaults; do not add one back, and do not answer a new diagnostic by narrowing
-  the selection. Re-resolving that lock can bring rules with it — fix what they report, in the same commit as the
-  bump. There is no tree-wide waiver either: the only suppressions are the exact-path entries under
+- `.venv/bin/python -m ruff check orchestrator tests .github/scripts/docs_site.py` — the lint contract is **Ruff's
+  own default rule set plus `E501`**. `[tool.ruff.lint]` in `pyproject.toml` declares no `select`, so the run enforces
+  whatever the `ruff` resolved in `uv.lock` ships as its defaults; do not add one back, and do not answer a new
+  diagnostic by narrowing the selection. Re-resolving that lock can bring rules with it — fix what they report, in the
+  same commit as the bump. There is no tree-wide waiver either: the only suppressions are the exact-path entries under
   `[tool.ruff.lint.per-file-ignores]` and inline `# noqa: <CODE> - <reason>` directives, each naming the rule it
   covers and why, and `tests/repository/test_noqa_directives.py` fails on a bare `# noqa` or a file-wide
   `# ruff: noqa`. Recurring CI breakers:
@@ -67,12 +67,12 @@ Before committing, run each of these and fix what they report:
     naming what the catch protects; anything narrower catches the exception it means.
   - The defaults also carry the modernization and simplification families — **UP**, **B**, **SIM**, **C4**, **RET**,
     **RUF** — so a diagnostic from one of those is a rewrite, not a waiver.
-- `uv run ruff check orchestrator tests --select=I001 --fix` — `I001` is in the run above, so this is just the fixer
-  for it; `tests/repository/test_import_sorting.py` fails on a block left unsorted too. Never split one module's names
-  across several `from ... import` statements to duck **WPS235** — the sorter merges every statement reading from the
-  same module back into one.
-- `uv run flake8 orchestrator tests --select=WPS` — all WPS naming, complexity, consistency, bug-prevention,
-  refactoring, and OOP rules must pass.
+- `uv run ruff check orchestrator tests .github/scripts/docs_site.py --select=I001 --fix` — `I001` is in the run above,
+  so this is just the fixer for it; `tests/repository/test_import_sorting.py` fails on a block left unsorted too.
+  Never split one module's names across several `from ... import` statements to duck **WPS235** — the sorter merges
+  every statement reading from the same module back into one.
+- `uv run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS` — all WPS naming, complexity,
+  consistency, bug-prevention, refactoring, and OOP rules must pass.
 - `git diff --check` — catches whitespace errors in unstaged changes.
 - `git diff --cached --check` — catches whitespace errors in staged changes.
 - `git diff --check origin/main...HEAD` — catches whitespace errors in committed branch changes.

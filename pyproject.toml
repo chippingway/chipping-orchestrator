@@ -24,6 +24,8 @@ packages = ["orchestrator"]
 
 [dependency-groups]
 dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "ruff>=0.16.3", "wemake-python-styleguide>=1.7.1"]
+# The documentation site is built separately from the runtime and test suite.
+docs = ["mkdocs>=1.6.1"]
 # Streamlit, Plotly, and Streamlit's transitive pandas are only needed
 # by the analytics dashboard (`orchestrator/apps/analytics_dashboard.py`
 # and the chart owners under
@@ -36,8 +38,8 @@ dashboard = ["streamlit>=1.61.1", "plotly>=6.9.0"]
 
 [tool.pytest.ini_options]
 # Surface skip reasons in the run summary by default. The suite carries
-# optional checks -- Plotly dashboard charts, Docker Compose configuration,
-# and opt-in live-Postgres analytics integration -- which otherwise collapse
+# optional checks -- MkDocs site builds, Plotly dashboard charts, Docker Compose
+# configuration, and opt-in live-Postgres analytics integration -- which otherwise collapse
 # to a bare "N skipped" under the default `pytest` invocation, hiding their
 # `_SKIP_REASON` / `SkipTest` messages.
 # The --ignore keeps a bare `pytest` from recursing into the operator-owned
