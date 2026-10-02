@@ -140,6 +140,7 @@ The [documentation index](docs/README.md) maps the complete reference set:
 | [Configuration](docs/configuration.md) | Environment variables, defaults, and operator runbooks |
 | [Observability](docs/observability.md) | Logs, analytics, dashboards, trajectories, usage, and cost |
 | [Security](docs/security.md) | Deployment checklist and operator-owned controls |
+| [Release timeline](docs/release-timeline.md) | Dated milestones and functionality added in each published release |
 
 Report suspected vulnerabilities through the private process in [SECURITY.md](SECURITY.md), never through a public
 issue.
