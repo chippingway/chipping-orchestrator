@@ -3331,9 +3331,9 @@ rather than preserving.
   generation (else this group's, else the cycle `late_retired_cycle_id` names), and a pointer only at the snapshot the
   parent's own split holds — written behind `late_consumers` recording the child, and told by that ref and this
   repository's mirror of it alone. A parent already at `MAX_LINEAGE_DEPTH`, a refused provenance, one naming no cycle,
-  and a split whose own snapshot entry is neither `retained` nor passed to a reclamation (unreadable ledgers, a
-  consumer ledger nothing can be added to, `pending`, recorded twice, or missing), or is `retained` with no
-  `late_base_sha`, are refusals rather than an unpointed seed.
+  and a split whose own snapshot is neither held for a new consumer nor passed to a reclamation (unreadable ledgers,
+  a consumer ledger nothing can be added to, a `retained` ref a retirement left no identity to name, `pending`,
+  recorded twice, or missing), or is held with no `late_base_sha`, are refusals rather than an unpointed seed.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,
