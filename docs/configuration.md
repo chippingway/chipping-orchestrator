@@ -488,11 +488,12 @@ The verify shell shares the agent's environment filter (`agents.environment.filt
   operator's model account).
 
 **Do not embed secret literals in `VERIFY_COMMANDS`.** Verify failures park `awaiting_human` with the offending command
-string published *verbatim* in the GitHub issue comment, so an inline `ANTHROPIC_API_KEY=sk-… pytest` entry would leak
-the literal secret on the first failure. If a verify command legitimately needs a secret-shaped var, load it from disk
-inside a wrapper script and reference the script from `VERIFY_COMMANDS` — `VERIFY_COMMANDS=./scripts/run-verify.sh`
-where the script reads the value from a file outside the worktree (`~/.config/<provider>/key`) and exports it before
-running tests.
+string published *verbatim* in the GitHub issue comment, and every approving reviewer declares each configured command
+exactly as written, with the output it quotes, in a verification artifact the orchestrator publishes on the pull request
+— so an inline `ANTHROPIC_API_KEY=sk-… pytest` entry would leak the literal secret on the first failure or the first
+approval. If a verify command legitimately needs a secret-shaped var, load it from disk inside a wrapper script and
+reference the script from `VERIFY_COMMANDS` — `VERIFY_COMMANDS=./scripts/run-verify.sh` where the script reads the value
+from a file outside the worktree (`~/.config/<provider>/key`) and exports it before running tests.
 
 ### Settings
 
