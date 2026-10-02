@@ -338,20 +338,26 @@ Mark these checks **required** in the branch-protection rule (job names as they 
   ([`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration)).
 - `dependency-review` from [`../.github/workflows/dependency-review.yml`](../.github/workflows/dependency-review.yml)
   — fails when a PR introduces a vulnerable or non-compliant dep.
+- `build` from the [documentation workflow](../.github/workflows/docs.yml) — lints the site's build hook, checks the
+  documentation links, and builds the site with `mkdocs build --strict`
+  ([`configuration/operations.md#publishing-the-documentation`](configuration/operations.md#publishing-the-documentation)).
+  Its `pull_request` trigger carries no path filter, so every PR reports it, whatever files the PR changes.
 
-All CI jobs and `dependency-review` run on `pull_request` and declare `permissions: contents: read`, so the
-`GITHUB_TOKEN` minted for each run is read-only. Scorecard and the vulnerability scan belong on neither list, because
-no pull-request event triggers either one, so neither reports a check a PR could wait on.
+All CI jobs, `dependency-review`, and the documentation `build` run on `pull_request` and declare
+`permissions: contents: read`, so the `GITHUB_TOKEN` minted for each run is read-only. Scorecard and the vulnerability
+scan belong on neither list, because no pull-request event triggers either one, so neither reports a check a PR could
+wait on.
 [`../.github/workflows/scorecard.yml`](../.github/workflows/scorecard.yml) reports what it finds as a code-scanning
 alert rather than as a failing run
 ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)), and
 [`../.github/workflows/vulnerability-scan.yml`](../.github/workflows/vulnerability-scan.yml), triggered by `schedule`
 / `workflow_dispatch`, is watched on the Actions tab — a red run is triaged there rather than by a blocked merge.
 
-Keep `build` from the [documentation workflow](../.github/workflows/docs.yml) off the required-check list: its
-`pull_request` trigger filters paths, so PRs outside those paths skip the workflow. Requiring that check would leave
-it pending indefinitely and block the merge. The `deploy` job runs only on `main` outside `pull_request` and is also
-not a required PR check.
+Keep `deploy` from the documentation workflow off the list: it validates nothing on a PR. Its `if:` limits it to
+`main` outside `pull_request`, so GitHub skips the job on every PR, and a job skipped by its `if:` reports success —
+requiring it would pass every merge without checking anything. A path filter skips differently: it keeps the whole
+workflow from running, so none of its checks reports, and a required one stays pending and blocks the merge. Restore a
+path filter to that workflow's `pull_request` trigger only after taking `build` off the list.
 
 CodeQL is the one scan off this list that can still hold a merge, and it does so beside the list rather than on it:
 its results are enforced by the **Require code scanning results** ruleset rule with CodeQL selected, which is a
@@ -436,8 +442,9 @@ Every PR opened by the orchestrator is AI-generated, so the policy is the workfl
 - **CI on every PR.** [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml) re-runs Ruff, WPS, and tests with a
   report-only coverage summary on Python 3.12, 3.13, and 3.14, then installs the built wheel and launches the console
   script from it; [`../.github/workflows/dependency-review.yml`](../.github/workflows/dependency-review.yml) blocks
-  vulnerable / non-compliant deps. Mark every one of those checks **required** in branch protection (see
-  [Required checks](#required-checks)).
+  vulnerable / non-compliant deps; [`../.github/workflows/docs.yml`](../.github/workflows/docs.yml) builds the
+  documentation site strictly and checks its links. Mark every one of those checks **required** in branch protection
+  (see [Required checks](#required-checks)).
 - **Human merge by default.** The orchestrator is permanently manual-merge-only — it pings HITL handles when a PR is
   mergeable but never calls `gh.merge_pr`. A human clicks Merge on every PR that lands.
 - **Sandboxing reminder.** Agents are spawned with sandbox-bypass flags; the host (or container / VM) is the real trust

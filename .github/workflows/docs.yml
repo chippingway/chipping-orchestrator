@@ -9,6 +9,7 @@ on:
       - "docs/**"
       - "mkdocs.yml"
       - ".github/scripts/docs_site.py"
+      - ".github/docs-theme/**"
       - ".github/workflows/docs.yml"
       - "tests/repository/*doc*"
       - "pyproject.toml"
@@ -18,18 +19,6 @@ on:
       - "AGENTS.md"
       - ".agents/skills/**"
   pull_request:
-    paths:
-      - "docs/**"
-      - "mkdocs.yml"
-      - ".github/scripts/docs_site.py"
-      - ".github/workflows/docs.yml"
-      - "tests/repository/*doc*"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "README.md"
-      - "SECURITY.md"
-      - "AGENTS.md"
-      - ".agents/skills/**"
   workflow_dispatch:
 
 permissions:
