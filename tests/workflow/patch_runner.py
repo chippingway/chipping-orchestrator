@@ -19,7 +19,7 @@ from orchestrator.workflow.stages.implementing import handler as _implementing
 from orchestrator.workflow.stages.in_review import handler as _in_review
 from orchestrator.workflow.stages.validating import handler as _validating
 from tests.support.publication import LandingPush
-from tests.workflow import published_reports as _published_reports
+from tests.workflow import patch_review_world as _review_world
 from tests.workflow.patch_context import _patch_and_run
 from tests.workflow.patch_models import _WorkflowRunContext
 from tests.workflow.repo_values import _TEST_SPEC
@@ -101,8 +101,10 @@ class _ReviewWorkflowMixin:
         run_agent,
         **run_options,
     ):
-        if run_options.pop("reported", self.delivers_a_report):
-            _published_reports.publishes_the_report(github, issue)
+        _review_world._seeds_the_review(
+            github, issue, run_options,
+            reported=run_options.pop("reported", self.delivers_a_report),
+        )
         return self._run(
             partial(
                 _validating._handle_validating,

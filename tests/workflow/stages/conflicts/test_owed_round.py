@@ -29,12 +29,14 @@ from orchestrator import config
 from orchestrator.git.measurement.models import FrozenCommit
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.patch_models import _agent
+from tests.workflow.stages.conflicts.conflicts_test_support import CONFLICT_PR_HEAD_SHA
 from tests.workflow.stages.conflicts.round_record_support import _receipt_of, _rounds_of, _settlements_of
 from tests.workflow.stages.conflicts.test_settled_round import (
     ResolvingConflictBodyEditRoundTest,
     ResolvingConflictSettledRoundTest,
     _ResolvingConflictMixin,
 )
+from tests.workflow.verdict_values import approved_on
 
 CONFLICT_ISSUE = 200
 BEFORE_HEAD = "be40e5ba" * 5
@@ -88,8 +90,9 @@ OVERTAKEN = (0, 2)
 DIVERGED_NOTICE = "stale or diverged"
 
 # The label a settled round hands the checkout to, and what the reviewer
-# spawned there answers with.
-REVIEW_APPROVED = "VERDICT: APPROVED"
+# spawned there answers with: an approval declaring its verification of the
+# head the pull request stands on.
+REVIEW_APPROVED = approved_on(CONFLICT_PR_HEAD_SHA)
 LABEL_DOCUMENTING = "workflow:documenting"
 
 DEV_SESSION = "dev-sess"

@@ -992,12 +992,11 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Trigger**: `_record_stops_the_tick` on any issue whose pinned comment carries `verification_evidence_pending`,
   directly behind the developer-report transaction and ahead of the reuse guard. The owner is
   `workflow/engine/verification_transaction.py`; the four records and the revision floor are described under
-  [pinned state](labels-and-state.md#pinned-state). No live producer records a transaction yet -- the returned-verdict
-  disposition (`stages/validating/review_disposition.py`), which records the transaction `review_claims.py` mints from a
-  reviewer's declared commands beside its verdict and publishes it through this same reconciliation, does so only where
-  it persists a returned verdict, which no live reviewer round asks of it yet -- the recovery of a seeded record
-  (`stages/validating/review_resume.py`) calls it only to finish a record already persisted, which records no
-  transaction -- so an issue without the record (every issue today) passes through reading nothing and writing nothing.
+  [pinned state](labels-and-state.md#pinned-state). Its one live producer is the returned-verdict disposition
+  (`stages/validating/review_disposition.py`), which records the transaction `review_claims.py` mints from a
+  reviewer's declared commands beside its verdict, in the write persisting that verdict, and publishes it through this
+  same reconciliation; the recovery of a verdict an earlier tick left waiting (`stages/validating/review_resume.py`)
+  records no transaction. An issue without the record passes through reading nothing and writing nothing.
 - **Why it is behind the report transaction**: evidence answers for a review subject that names the developer
   report, so a report still owed is a subject about to move — the proof defers to it, and the report settles first.
 - **Stands aside**: a closed issue, a `done` or `rejected` label, a hard-skip control label, or no workflow label at
@@ -1042,7 +1041,8 @@ because there it is the claim that this stage has already rerouted rather than a
   artifact for the prompt and holds it to the record again, so an edit between the two reads hands nothing. Anything
   short of that, a reading nobody could take included, hands nothing and holds no round, logged with its own reason --
   no record or one that will not read, another subject, the proof's refusal, or a prompt read that could not be taken
-  or found the artifact gone or changed. No round asks that reader yet.
+  or found the artifact gone or changed. Every reviewer round asks that reader once its launch has recorded the
+  subject, and the prompt quotes what it hands over.
 - **Carry-forward**: `workflow/engine/verification_carry_forward.py` decides whether current evidence answers for
   another head -- never the one it already answers for -- and only on the full tree identity of that head and an
   unchanged configured context, while the evidence being carried is still the latest and published (re-read as above, on
@@ -3463,15 +3463,21 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      circuit refuses has to discard. The charge that launch then takes on the comment is the round's own write too, so
      it is taken into the reading every later write of the round is measured against
      (`review_comment._ResolvedSubject.carrying`): a run another road charges while the reviewer runs is then a change
-     on the comment to keep, not this round's count to write back over it. Run the reviewer with the read-only prompt,
-     which quotes that report whole between the issue and the inspection commands (must end with `VERDICT: APPROVED`
-     or `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check
+     on the comment to keep, not this round's count to write back over it. Behind that write the workflow
+     verification evidence current for exactly the subject is asked (`review_evidence`), since evidence is held to the
+     subject the launch records. Run the reviewer with the read-only prompt, which quotes that report whole between the
+     issue and the inspection commands, then quotes the evidence under its revision or says none covers the subject,
+     names the configured `VERIFY_COMMANDS` or says none are configured, and teaches the RUN or REUSED declaration
+     (see [the reviewer verification contract](../workflow/conversations.md#the-reviewer-verification-contract)); it
+     must end with `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUESTED`. A mid-run `paused` / `backlog` re-check
      (`_paused_during_agent_run`) right after the reviewer returns short-circuits BEFORE the usage fold, session record,
-     verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state.
-     A reviewer that returns has the subject it was handed staged again as `review_returned_subject` beside its
-     session and return time, for the round's own write: the launch's `review_subject` went down before the run
-     budget was asked, so only this one says a reviewer really read the report.
-     Past it, and before the timeout park, the no-verdict park, or anything a verdict earns is written, the pinned
+     verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state, and
+     so does a run the shutdown sweep interrupted. A reviewer that returns has the subject it was handed staged again as
+     `review_returned_subject` beside its usage, session, and return time -- by the park a timeout or a missing verdict
+     takes, or by the disposition over its own last reading, so the usage is folded once: the launch's
+     `review_subject` went down before the run budget was asked, so only this one says a reviewer really read the
+     report.
+     Before the timeout park, the no-verdict park, or anything a verdict earns is written, the pinned
      comment is read again against the reading the subject was bound to (`review_comment._records_stand`), and
      everything it changed since is carried onto the state in hand, whether or not the report records stand — a run
      another road charged or folded, the thread it read through, a round a reply bought — so every write the run
@@ -3489,19 +3495,24 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      later scan of the ledger fails on it; any other field both moved is the round's
      own where the report records stand and the other road's where they moved. That reading watches `pr_number`
      beside the report records, so a verdict about a pull request the issue no longer points at is not acted on
-     either. The round is measured from then on against the comment as
+     either, and `review_returned_verdict`, so a verdict another round persisted while the reviewer ran stays for
+     that round's road -- this run is recorded, and its verdict neither persisted over that one nor acted on, since
+     the disposition measures the run from this reading on. The round is measured from then on against the comment as
      each reading found it, so every later reading keeps each of those moves once.
   6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
-     - **approved** → unless the records moved above, the issue has to point at the pull request the subject
-       names, and the whole subject is resolved again (`review_coverage._subject_still_stands`), over the issue read
-       afresh, and has to record as the one the reviewer was handed — pull request, head, requirements, and the
-       report's revision and digest, its words read again at its location, where an edit or a removal refuses the
-       reading itself — and then the pinned comment is read once more behind those requests
-       (`reviewer._held_to_its_subject`), since they are long enough for the issue to be pointed at another pull
-       request or a later report to settle. A repoint, a push, an issue edit, or a report edited or removed while the
-       reviewer ran or while the subject was resolved again, or a reading nobody could take, means the approval is not
-       acted on: the run is recorded over what moved and the next tick resolves the subject as it stands. Then, in
-       order: (1) run the local verify gate
+     - **approved** → handed, with the run, to the returned-verdict disposition (below), which persists it with the
+       evidence its declaration earned and publishes that evidence before acting on it. Unless the records moved above,
+       the issue has to point at the pull request the subject names, and the whole subject is resolved again
+       (`review_coverage._subject_still_stands`), over the issue read afresh, and has to record as the one the reviewer
+       was handed — pull request, head, requirements, and the report's revision and digest, its words read again at its
+       location, where an edit or a removal refuses the reading itself — and then the pinned comment is read once more
+       behind those requests (`review_coverage._verdict_still_stands`), since they are long enough for the issue to be
+       pointed at another pull request or a later report to settle. A repoint, a push, an issue edit, or a report edited
+       or removed while the reviewer ran or while the subject was resolved again, or a reading nobody could take, means
+       the approval is not acted on: the run is recorded over what moved and the next tick resolves the subject as it
+       stands. The approval reaches what follows only through its proof, over settled evidence that passed and covers
+       every configured `VERIFY_COMMANDS` command, and parks under `reviewer_unverified` otherwise. Then, in order: (1)
+       run the local verify gate
        (`_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`), then -- whatever it said --
        resolve the subject again and read the pinned comment again behind that, watching `review_returned_verdict`
        beside the report records and the pull request pointer, before anything below is written — a comment that will
@@ -3535,9 +3546,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        left, since both are keyed on a head this approval may share. The approval the arc holds is the
        `review_returned_verdict` of its own run's round and subject, where one waits, and whichever write the arc
        makes sets it to `null` -- the park, the write recording a moved subject, or the squash tail's -- save where the
-       subject would not read, which keeps it for a later tick; a verdict another road put in its place stays. No live
-       round persists one, so on the live road there is none to hold; (3) when `SQUASH_ON_APPROVAL` is on (default),
-       call
+       subject would not read, which keeps it for a later tick; a verdict another road put in its place stays; (3) when
+       `SQUASH_ON_APPROVAL` is on (default), call
        `_squash_and_force_push` (subject reuses the first commit when it carries a reusable `<prefix>:` form —
        Conventional **or** repo-local such as `event:`/`career:` — otherwise `<inferred-prefix>: <issue title>`, where
        the prefix is inferred from recent base-branch history via `_infer_subject_prefix` and falls back to
@@ -3633,14 +3643,13 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        a transient provider refusal (`is_transient_provider_failure` — `API Error: 529 Overloaded` and its 5xx
        siblings), is tagged `reviewer_failed` so the next tick's transient-recovery branch re-spawns the reviewer;
        real reviewer text that merely omitted the marker stays `reviewer_no_verdict` for human adjudication.
-     - **changes_requested** → held to the same whole-subject check first, the comment read behind it, since a
-       change request of words the pull request no longer carries would pay a developer to answer a review of work
-       that is not there; it is not acted on, and the run is recorded, wherever the subject moved while the reviewer
-       ran or while it was resolved again. That reading is the last this road takes: everything below — the
-       feedback post, the relabel, the developer run, and the writes behind it — writes the state in hand whole, so
-       what another road wrote to the pinned comment during the developer run (a usage fold, a watermark, a comment id)
-       is written back over. Otherwise post the feedback to
-       the PR, then flip the label to `workflow:fixing` BEFORE spawning
+     - **changes_requested** → handed to the returned-verdict disposition (below) the same way, held to the same
+       whole-subject check first, the comment read behind it, since a change request of words the pull request no longer
+       carries would pay a developer to answer a review of work that is not there; it is not acted on, and the run is
+       recorded, wherever the subject moved while the reviewer ran or while it was resolved again. Otherwise it is
+       persisted, the evidence its declaration earned -- a failed run included -- is published, and its handoff
+       (`validating/review_handoffs.py`) posts the feedback to the PR, then flips the label to `workflow:fixing` BEFORE
+       spawning
        the dev so the active job is observably "fixing reviewer-requested changes". Resume the dev with the fix
        prompt (routed through `implementing/execution.py`'s bounded coordinator to recover premature AGY command exits
        before disposition), and read what it hands back through `validating/fix_reports.py`, which holds the round to
@@ -3702,10 +3711,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        the post-spawn state (no resume-budget charge, no watermark, no park), so the pre-spawn `workflow:fixing` flip
        stands and the next tick re-runs the cycle; any commit the killed run left is republished later via the
        stranded-fix tail, not this run.
-     - **the returned-verdict disposition** (`validating/review_disposition.py`), which no live round calls yet,
-       prepares an approval or change request of a standing subject and then acts on it or parks it
-       (`disposes_of_the_verdict`). A run that does not name, as a whole number, the pull request its subject is on is
-       refused before anything is minted, written, or published. Otherwise the preparation takes the transaction its
+     - **the returned-verdict disposition** (`validating/review_disposition.py`), which every verdict a live round
+       returns is handed to, prepares an approval or change request of a standing subject and then acts on it or parks
+       it (`disposes_of_the_verdict`). A run that does not name, as a whole number, the pull request its subject is on
+       is refused before anything is minted, written, or published. Otherwise the preparation takes the transaction its
        declared commands are minted as, then the subject held to what stands and the comment read again behind that
        resolution -- a `verification_evidence_*` record moved since refusing it as surely as a report -- then the run's
        own records staged, its usage folded over whatever usage that reading carries, and the verdict persisted as
@@ -3731,7 +3740,7 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        another road wrote there -- a round a reply bought included, both moves of a usage total, its cost tags, or a
        comment-id watermark, and the comment-id ledger merged -- and every drop names only the verdict this road holds,
        never one another road put in its place. The two parks a verdict takes instead of being acted on are filed in
-       `validating/review_parks.py`, which no live round asks either: an approval relying on no valid evidence under
+       `validating/review_parks.py`: an approval relying on no valid evidence under
        `reviewer_unverified`, and a verdict that could not be persisted under `reviewer_unrecorded`, with nothing
        published or acted on -- its notice asking for room on the pinned comment only where room is what refused the
        verdict, and not where it would not read back as written. Each is measured before its notice is posted at the

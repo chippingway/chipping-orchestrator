@@ -39,9 +39,10 @@ from tests.workflow.engine import usage_frames as _usage_frames
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     LABEL_VALIDATING,
-    REVIEW_APPROVED_MESSAGE,
+    MEASURED_CANDIDATE_SHA,
     REVIEW_CHANGES_REQUESTED_MESSAGE,
     _agent,
+    approved_on,
 )
 
 ISSUE = 1_798
@@ -206,7 +207,9 @@ class _ReportLifecycle(_fix_world._FixReportMixin):
                 partial(_fix_world.published_report, self, LATER_FEEDBACK),
                 *_unanswered(self.github, round_),
             ),
-            _Staged(self, REVIEWER, REVIEW_APPROVED_MESSAGE),
+            # The approval declares its run of the suite on the head the drift
+            # commit left the pull request standing on.
+            _Staged(self, REVIEWER, approved_on(MEASURED_CANDIDATE_SHA)),
             _Staged(self, DEVELOPER, DOCS_UNCHANGED),
             _Staged(self, DEVELOPER, FEEDBACK_ACK),
         ))

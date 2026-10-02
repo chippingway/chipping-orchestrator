@@ -8,7 +8,10 @@ subject, resolved and re-read where it settled by the validating stage, and is
 quoted here whole -- between the issue and the commands that inspect the
 branch -- because the thread excerpt above it is bounded and covers the issue
 thread alone, and a reviewer left to fetch the pull request reads whichever
-report it finds. Every marker it teaches is the one `completion_verdicts`
+report it finds. The workflow verification evidence current for that same
+subject, where there is any, arrives beside it and is quoted whole by
+`review_evidence_prompts`, with the declaration the reviewer closes on. Every
+marker it teaches is the one `completion_verdicts` or `review_verification`
 parses; it teaches none of the developer's report outcomes.
 """
 from __future__ import annotations
@@ -22,6 +25,7 @@ from orchestrator.workflow.engine import (
     messages as _messages,
     prompt_context as _prompt_context,
     prompt_notes as _prompt_notes,
+    review_evidence_prompts as _evidence_prompts,
     review_subjects as _review_subjects,
 )
 
@@ -32,11 +36,14 @@ class ReviewHandover:
 
     `dev_backend` names the session that implemented it; `subject` is what the
     caller resolved for this round, the report included. None is a reviewer
-    handed no subject, which is told no report is recorded.
+    handed no subject, which is told no report is recorded. `evidence` is the
+    workflow verification evidence the caller proved current for that very
+    subject, or None where none is.
     """
 
     dev_backend: str = "agent"
     subject: _review_subjects.ReviewSubject | None = None
+    evidence: _evidence_prompts.HandedEvidence | None = None
 
 
 _NOTHING_HANDED = ReviewHandover()
@@ -55,7 +62,8 @@ def _build_review_prompt(
     handed, quoted in full: the reviewer judges the report the pull request
     carries as well as the diff, and a reviewer left to fetch one reads
     whichever it finds. No subject, or one without a report, says no report is
-    recorded.
+    recorded. The verification block names the subject's head, which is the
+    commit a declaration of commands the reviewer ran has to name.
     """
     body = issue.body or _prompt_notes._NO_BODY
     convo = comments_text or _prompt_notes._NO_PRIOR_COMMENTS
@@ -73,6 +81,7 @@ def _build_review_prompt(
         "Inspect the change with:\n"
         f"  git log --oneline {base_ref}..HEAD\n"
         f"  git diff {base_ref}...HEAD\n\n"
+        f"{_evidence_prompts._verification_block(handover.evidence, handover.subject)}\n\n"
         "Review the change against the issue requirements, and the developer report "
         "against the change: a report that misstates the work, or leaves out what the "
         "requirements or earlier review asked it to explain, is a change to request like "
@@ -84,7 +93,8 @@ def _build_review_prompt(
         "  VERDICT: CHANGES_REQUESTED\n\n"
         "If CHANGES_REQUESTED, list the specific items above the verdict line as a numbered "
         "list so the implementer can address them one by one. If the change is acceptable as "
-        "is, write VERDICT: APPROVED with a one-line justification above it."
+        "is, write VERDICT: APPROVED with a one-line justification above it. Either way, the "
+        "verification declaration described above goes above the verdict line."
     )
 
 

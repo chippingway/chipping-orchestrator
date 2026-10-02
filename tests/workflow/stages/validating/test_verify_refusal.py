@@ -11,9 +11,9 @@ from tests.workflow.fixtures import (
     DEFAULT_PR_HEAD_SHA,
     LABEL_DOCUMENTING,
     LABEL_IN_REVIEW,
-    REVIEW_APPROVED_MESSAGE,
     REVIEW_CHANGES_REQUESTED_MESSAGE,
     _agent,
+    approved_on,
 )
 from tests.workflow.stages.validating import (
     validating_review_test_support as review_support,
@@ -95,7 +95,7 @@ class HandleValidatingVerifyRefusalTest(
             self._run_validating(
                 gh,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                run_agent=_agent(last_message=approved_on(DEFAULT_PR_HEAD_SHA)),
                 head_shas=(REVIEW_SHA,),
                 verify_result=VerifyResult(
                     status=VERIFY_HEAD_CHANGED,
@@ -138,7 +138,7 @@ class HandleValidatingVerifyRefusalTest(
             self._run_validating(
                 gh,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                run_agent=_agent(last_message=approved_on(DEFAULT_PR_HEAD_SHA)),
                 head_shas=(REVIEW_SHA,),
                 verify_result=run,
             )
@@ -237,7 +237,7 @@ class HandleValidatingVerifyRefusalTest(
             self._run_validating(
                 gh,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                run_agent=_agent(last_message=approved_on(DEFAULT_PR_HEAD_SHA)),
                 head_shas=(REVIEW_SHA,),
                 verify_result=run,
             )

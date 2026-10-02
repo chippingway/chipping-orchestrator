@@ -9,12 +9,14 @@ commit as one tree, under a configuration that requires the suite. In it the
 proof that settles a reviewer's declared commands passes, so a case that
 refuses one is visibly about the one thing it moved.
 
-No live reviewer round hands its result to the disposition service yet, so a
-case returns one the way the round will: the subject resolved and recorded as
-the launch and the return record it, the launch charged, the reviewer's usage
-folded once by the service itself, and the parsed verdict handed to
-`review_disposition.prepares_the_verdict`, whose answer the case keeps
-(`prepared`). A later tick here is the dispatcher's evidence reconciliation
+A case hands the preparation a returned run directly, built the way the live
+round (`reviewer`) hands its own over, so one request of the preparation can be
+raced or refused without a whole tick around it: the subject resolved and
+recorded as the launch and the return record it, the launch charged, the
+reviewer's usage folded once by the service itself, and the parsed verdict
+handed to `review_disposition.prepares_the_verdict`, whose answer the case
+keeps (`prepared`). Whole ticks through the stage handler, the reviewer round
+included, are `evidence_round_test_support`'s. A later tick here is the dispatcher's evidence reconciliation
 and then `review_disposition.waiting_verdict_ready` over the pinned comment
 alone -- the returned run is forgotten first, as a later process never had it
 -- whose answer the case keeps too (`ready`). Both are read back through
@@ -203,8 +205,12 @@ class ReviewVerdictWorld(_PatchedWorkflowMixin):
         self.ready: _verdicts.ReturnedVerdict | None = None
 
     def returns(self, message: str, **run_options) -> dict:
-        """One tick in which a reviewer returned `message` and its verdict was handed over (`_prepares`)."""
+        """One tick in which a reviewer returned `message` and its verdict was handed over (`_prepares`).
+
+        The tree read is the one `setUp` stood in, which a case may wrap.
+        """
         run_options.setdefault(RUN_AGENT, [])
+        run_options.setdefault("checkout_tree", None)
         return self._run(lambda: self._prepares(message), **run_options)
 
     def finishes(self, *, meanwhile=None) -> dict:

@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """A persisted change request handed to the one developer it owes, whether that launch is still owed, and its park.
 
-No live reviewer round persists a verdict yet, so no live round hands one
-here: the disposition service (`review_disposition`) does, right behind
-proving the request still carried, its subject standing, and its evidence
-settled -- reached so far only by the recovery of a record an issue already
-carries (`review_resume`) -- and so does that recovery itself, where a
-request's developer launch is still owed (`HandedLaunch.owed`).
+A live reviewer round's change request reaches here through the disposition
+service (`review_disposition`), right behind proving the request still
+carried, its subject standing, and its evidence settled -- in the tick its
+reviewer returned, or in a later one that finishes the request waiting
+(`review_resume`) -- and so does that recovery itself, where a request's
+developer launch is still owed (`HandedLaunch.owed`).
 What is here is that handoff, entered directly: through the very decision
 the request was persisted from, in the tick its reviewer returned
 (`hands_the_request_over`), and from the persisted request alone on a later

@@ -17,9 +17,9 @@ from tests.support.fakes import (
 )
 from tests.workflow.fixtures import (
     _TEST_SPEC,
-    REVIEW_APPROVED_MESSAGE,
     _agent,
     _PatchedWorkflowMixin,
+    approved_on,
 )
 
 MERGED_ISSUE = 120
@@ -180,7 +180,7 @@ class ApprovalThroughDocumentingTest(
             self._run_validating(
                 gh,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                run_agent=_agent(last_message=approved_on(SQUASHED_SHA)),
                 head_shas=(SQUASHED_SHA,),
                 squash_result=(True, SQUASHED_SHA, 2, None),
             )
@@ -214,7 +214,7 @@ class ApprovalThroughDocumentingTest(
             self._run_validating(
                 gh,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                run_agent=_agent(last_message=approved_on(SQUASHED_SHA)),
                 head_shas=(SQUASHED_SHA,),
                 verify_result=VerifyResult(
                     status="failed",
@@ -241,7 +241,7 @@ class ApprovalThroughDocumentingTest(
             self._run_validating(
                 gh,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                run_agent=_agent(last_message=approved_on(SQUASHED_SHA)),
                 head_shas=(SQUASHED_SHA,),
                 squash_result=(False, None, 0, "force-with-lease rejected"),
             )

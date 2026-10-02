@@ -61,6 +61,10 @@ def _worktree_mocks(context: _WorkflowRunContext) -> dict[str, object]:
     if context.worktree_restore_error is not None:
         # A checkout whose restore fails is one this host no longer holds.
         mocks["_worktree_path"] = MagicMock(return_value=_FAKE_WT)
+    elif context.issue_checkout is not None:
+        mocks["_worktree_path"] = MagicMock(return_value=context.issue_checkout)
+    if context.checkout_tree is not None:
+        mocks["_tree_sha"] = MagicMock(return_value=context.checkout_tree)
     return mocks
 
 

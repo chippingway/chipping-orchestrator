@@ -75,8 +75,11 @@ SQUASHING = "squashing"
 # success, the head, the commits collapsed, and no error.
 LANDED_SQUASH = (True, None, 0, None)
 
-# Where the pinned comment records the reviewer session a round ran.
+# Where the pinned comment records the reviewer session a round ran, and the
+# verdict a returned reviewer left that nothing has acted on yet.
 LAST_REVIEWER = "last_review_session_id"
+
+RETURNED_VERDICT = "review_returned_verdict"
 
 # Where a human pushes the branch while a reviewer is out.
 MOVED_HEAD = "b0a7" * 10
@@ -374,8 +377,10 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
         # handed on to `documenting` -- the later report stays current, and the
         # next reviewer is handed it. The write recording the run lays itself
         # over the later report; where the comment will not read as the
-        # verdict is taken, or once the squash is published, nothing is
-        # written at all.
+        # verdict is taken, nothing is written at all, while an approval is
+        # verified and squashed only once the run is recorded with it -- so
+        # one the comment will not read behind its verification waits, and
+        # the next tick drops it, its subject moved, with no reviewer run.
         for name, verdict, during, unread in (
             ("approved", LATE_APPROVAL, REVIEWING, False),
             ("changes requested", LATE_CHANGE_REQUEST, REVIEWING, False),
@@ -397,9 +402,16 @@ class ApprovalCoverageTest(unittest.TestCase, world._ReviewedReports):
                         world.APPROVED in self.pinned(),
                         self.github.label_history[-1],
                         self.pinned().get(LAST_REVIEWER) == LATE_REVIEWER,
+                        self.pinned().get(RETURNED_VERDICT) is not None,
                     ),
-                    (1, 3, False, (ISSUE, LABEL_VALIDATING), not (unread or during == SQUASHING)),
+                    (
+                        1, 3, False, (ISSUE, LABEL_VALIDATING),
+                        not (unread and during == REVIEWING),
+                        unread and during == VERIFYING,
+                    ),
                 )
+                if unread and during == VERIFYING:
+                    self.assertEqual(self.reviewed()[RUN_AGENT].call_count, 0)
                 self.assertIn(f"> {world.SECOND_REPORT}", world.prompt(self.reviewed()))
 
     def test_a_settlement_before_spawn_holds(self) -> None:

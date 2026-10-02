@@ -70,7 +70,7 @@ one last settled, re-read and quoted whole -- or refuses the round over one
 the thread has moved out of reach, and `review_comment` binds that subject to
 the pinned comment carrying the report records it was resolved from.
 `review_evidence` is the reader of the verification evidence current for that
-very subject, which no round asks yet. What a returned reviewer's verification
+very subject, which the round hands over beside the report. What a returned reviewer's verification
 declaration earns is decided in `review_claims` -- a transaction minted from
 the commands it ran, a claim on the evidence it was handed, or nothing -- and
 `review_verdicts` owns the record a verdict is to be persisted in beside that
@@ -90,9 +90,9 @@ reach `approval`, through `approved_evidence`, which the arc asks again behind
 its requests and records beside the approved subject for every later move to
 be held to: settled, passing, current evidence covering the configured
 verification, a refusal in the words its park carries, or a hold where the
-proof could not be read. No live round asks the disposition yet, nor the
-owners only it asks: `review_resume` finishes a verdict an issue already
-carries, ahead of the round cap and the spawn and, on `fixing`, ahead of the
+proof could not be read. `reviewer` hands every returned verdict to that
+disposition, and `review_resume` finishes one an earlier tick left waiting,
+ahead of the round cap and the spawn and, on `fixing`, ahead of the
 feedback scan, asking `review_handoffs` whether a handed request's developer
 is still owed and parking a launch that may have run and shows nothing. The
 parks a failed verify gate or squash takes on the approval road are filed in

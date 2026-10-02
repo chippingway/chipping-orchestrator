@@ -1067,8 +1067,8 @@ The keys that matter for the state machine fall into a few groups:
   the pickup comment anchors `last_action_comment_id` beside `pickup_comment_id`, because the spawn it opens quotes the
   thread as it stands. EVERY park the `workflow:implementing` and `workflow:validating` handlers take after a run reads
   the field that way — the agent question and checkout refusals call the walk directly, as do the returned-verdict parks
-  (`stages/validating/review_parks.py`) behind their own notice -- which no live reviewer round takes yet, only the
-  recovery of a record an issue already carries -- and every other one asks `_park_awaiting_human` for it with
+  (`stages/validating/review_parks.py`) behind their own notice -- which a live reviewer round's verdict takes through
+  the disposition -- and every other one asks `_park_awaiting_human` for it with
   `bounded=True` (both timeout parks, both push failures, the measurement failure,
   the unauthorized-exemption hold, the checkout-moved refusals, the undeliverable-report park, the squash and verify
   failures, the reviewer timeout and no-VERDICT parks, and the review cap) — and so do the agent-run-limit notice and
@@ -1865,8 +1865,8 @@ The keys that matter for the state machine fall into a few groups:
   neither -- so a record short of its `sha` or its `requirements` is no approval either.
   `review_approved_evidence` is the evidence claim that approval was proved over, written beside
   `review_approved_subject` in the same write and in the shape `review_returned_verdict` carries its `evidence` in
-  (`stages/validating/approved_evidence.py`). Only an approval proved over evidence records one -- no live round
-  does, and a live approval drops one an earlier approval left -- so an issue without the key has an approval held to
+  (`stages/validating/approved_evidence.py`). Every approval records one, since an approval reaches the arc only once
+  proved over its evidence, so an issue without the key carries an approval recorded before the key existed, held to
   no evidence. Past the squash the evidence can no longer be proved against the pull request, which stands on a
   commit it was never bound to, so every road that would move the approval on -- the squash tail's relabel, the
   settled handoff, the recovery of a squash an earlier tick did not finish, the `workflow:documenting` tick's opening,
@@ -1882,8 +1882,8 @@ The keys that matter for the state machine fall into a few groups:
   or settled, the current record retired, `VERIFY_COMMANDS` or `VERIFY_TIMEOUT` changed, the artifact deleted or
   edited, or a record that will not read holds the move -- and the ready ping -- and the settled handoff behind it is
   dropped for a fresh reviewer; an artifact or pull request nobody could read holds them for a later tick. Additive, and
-  written only by the proof, which no live reviewer round reaches yet -- only the recovery of a record an issue already
-  carries (`stages/validating/review_resume.py`).
+  written only by the proof, which every approval a live reviewer round returns reaches, as does the recovery of one an
+  earlier tick left waiting (`stages/validating/review_resume.py`).
 - **Returned reviewer verdict.** `review_returned_verdict` is the verdict a returned reviewer left and nothing has
   disposed of yet (`stages/validating/review_verdicts.py`): `round` (the round it ran as), `verdict` (`approved` or
   `changes_requested`), `subject` (exactly as `review_subject` spells it), `feedback` (the words a change request hands
@@ -1915,9 +1915,9 @@ The keys that matter for the state machine fall into a few groups:
   the transaction it names -- its receipt, revision, digest, and `passed` -- measured with its settlement beside that
   reservation, a retry of the one the comment already carries included, and a `reused` claim or none only beside no
   transaction; where the pair does not match or either has no room, neither is staged. Its writers are the disposition
-  service (`review_disposition.py`), where it persists a returned verdict -- a road no live reviewer round takes yet,
-  and the recovery of a seeded record never takes, since it finishes a record already persisted -- and the
-  change-request handoff below. In the service the transaction is minted first, since reading the reviewed tree is a
+  service (`review_disposition.py`), where it persists the verdict a live reviewer round returned -- a road the
+  recovery never takes, since it finishes a record already persisted -- and the change-request handoff below. In the
+  service the transaction is minted first, since reading the reviewed tree is a
   request of its own, and the record and that transaction go down in one write with the returned run's own records, over
   the pinned comment read again once the subject has been resolved -- the last requests before that write -- BEFORE the
   evidence is published through the dispatcher's own reconciliation. The service stages those run records itself --
@@ -2021,10 +2021,10 @@ The keys that matter for the state machine fall into a few groups:
   stage clears it with the round's other bookmarks, and a handoff that lost it, whose anchor names another comment, or
   whose anchor is spelled as anything but a whole id -- a float over the same number included, which the fixing stage's
   replay refuses -- is held -- nothing relabelled, launched, or written -- since no failed run could replay the
-  feedback, or one would replay another comment to the developer as the reviewer's feedback. Additive, and not yet
-  produced live: the service acts on a ready verdict, parks it, or hands it over, and the recovery of a seeded record
-  (below) calls it, but no live reviewer round hands its result to that service, so no issue carries the key or either
-  park but one a record was seeded on, and an issue without the key has no verdict waiting.
+  feedback, or one would replay another comment to the developer as the reviewer's feedback. Additive: every live
+  reviewer round that returns a verdict hands it to that service, which acts on a ready verdict, parks it, or hands it
+  over, and the recovery (below) calls it to finish one an earlier tick left waiting; an issue without the key has no
+  verdict waiting, as does every issue whose last verdict was returned before the key existed.
   A record an issue already carries is finished by the stage handlers themselves (`stages/validating/review_resume.py`),
   running no reviewer, folding no usage, and spending no round: its reviewer's run, usage, and round went down with it.
   `workflow:validating` asks behind the report hold and ahead of the round cap and the spawn. A record not yet `handed`
@@ -2114,14 +2114,14 @@ The keys that matter for the state machine fall into a few groups:
   record waiting beside the handoff it finishes holds the move to `workflow:documenting` while the handoff record
   ends. One persisted while that move runs lands past it, and the `workflow:documenting` tick that finds a readable
   record waiting hands the issue back to `workflow:validating` before any docs pass. Only the disposition service hands
-  a record to that proof, and only the recovery of a record an issue already carries reaches that service
-  (`stages/validating/review_resume.py`), so this too acts only on a seeded record.
+  a record to that proof -- in the tick its reviewer returned, or in a later one finishing a verdict left waiting
+  (`stages/validating/review_resume.py`) -- so every approval the arc acts on is one that proof passed.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
-  than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, but no
-  live producer records one yet -- neither the verify gate nor a stage carrying evidence forward records one, and the
-  returned-verdict disposition records one only where it persists a reviewer's verdict, which no live reviewer round
-  asks of it yet -- the recovery of a seeded record calls it only to finish a record already persisted, which records no
-  transaction -- so no issue carries these keys until one does. `verification_evidence_pending` is one transaction,
+  than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, and its one
+  live producer is the returned-verdict disposition, which records the transaction a reviewer's declared commands were
+  minted as in the write persisting its verdict -- neither the verify gate nor a stage carrying evidence forward records
+  one, and the recovery of a waiting verdict records none -- so an issue whose reviewer declared no run carries none of
+  these keys. `verification_evidence_pending` is one transaction,
   written BEFORE its
   artifact is posted: a receipt (`issue-<n>-verification-<revision>-<nonce>`, which every record's reader holds to that
   record's own revision) and a revision past every one the issue has spent; the report subject's own `repo` / `pr` /
@@ -2790,9 +2790,9 @@ drives the real handlers against a spent ledger so an unwired road is caught as 
   of those roads therefore asks `guards._ignore_if_never_invoked` first, ahead of every reading it would otherwise
   classify the run by.
 - **A launch owed once is held to it on the circuit's own readings.** A caller whose launch is owed exactly once names
-  it (`OwedLaunch`): the lifetime count it is owed at — a persisted change request's developer, handed at `handed`,
-  whose handoff no live round calls — and the caller's hold on it, the requests its standing takes beyond the pinned
-  comment (`resolves`) and a judgment of each reading of the comment (`stands`). The circuit writes that count as
+  it (`OwedLaunch`): the lifetime count it is owed at — a persisted change request's developer, handed at `handed` —
+  and the caller's hold on it, the requests its standing takes beyond the pinned comment (`resolves`) and a judgment
+  of each reading of the comment (`stands`). The circuit writes that count as
   `agent_run_owed_started` in the same write that moves such a launch to `started`, and on the fresh read the charge is
   taken on, that record naming the count it is owed at — where the caller's own state does not carry it — is that launch
   already made by another road after the caller last looked: nothing is charged, written, or invoked, and the answer is

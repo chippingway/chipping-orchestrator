@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The verification a reviewer is told about: current evidence, then the configuration.
+"""The verification a reviewer is told about, and the declaration it is taught to close with.
 
 Evidence current for the reviewer's subject is quoted whole -- the witness's
 preamble and every command with its exit status and output, every line quoted
@@ -9,18 +9,31 @@ of the commands it lists did not exit 0 -- about those commands alone, never
 whether they are the ones the repository requires. A reviewer handed none is
 told so. What the repository configures is named command by command, or
 plainly as nothing, since an empty configuration is no evidence that any check
-passed.
+passed. The reviewer is then taught the one declaration its final message
+carries, in the very spellings the declaration's reader accepts -- the RUN
+block naming the head it is handed, and the REUSED line only beside evidence
+it was handed -- and told that a SHA, a count, or a command the orchestrator
+publishes itself is no change to request, while genuine failures and
+inaccurate claims still are.
 """
 from __future__ import annotations
 
+import re
 import unittest
 from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.github.verification_evidence import EvidenceSource, VerifiedCommand
-from orchestrator.workflow.engine import review_evidence_prompts
+from orchestrator.workflow.engine import (
+    review_evidence_prompts,
+    review_prompts,
+    review_verification,
+    review_verification_models,
+)
+from tests.support.fakes import make_issue
 from tests.workflow.engine import verification_record_test_support as _record_support
+from tests.workflow.repo_values import _TEST_SPEC
 
 LINT = "uv run ruff check orchestrator tests"
 
@@ -32,6 +45,19 @@ REWRITTEN_OUTPUT = "collecting 3 items\rcollecting 12 items\r\n12 passed in 0.4s
 
 # Where the configuration follows the quoted evidence.
 CONFIGURED = "\n\nThis repository"
+
+HEAD = _record_support.SUBJECT.commit
+
+POLICY = (
+    "do NOT request changes merely to have a developer or a human copy a "
+    "commit SHA, a test count, or a command"
+)
+
+STILL_ACTIONABLE = (
+    "A check that failed, verification the change still needs, a report "
+    "claiming something that did not happen, and evidence about another commit "
+    "or subject remain changes to request."
+)
 
 NOTHING_HANDED = "No current workflow verification evidence covers this subject"
 
@@ -59,9 +85,15 @@ def _handed(commands=PASSING) -> review_evidence_prompts.HandedEvidence:
 
 
 def _block(handed=None, commands=(_record_support.SUITE,)) -> str:
-    """What a reviewer handed `handed` is told under `commands` as `VERIFY_COMMANDS`."""
+    """What a reviewer of the recorded subject handed `handed` is told under `commands` as `VERIFY_COMMANDS`."""
     with patch.object(config, "VERIFY_COMMANDS", commands):
-        return review_evidence_prompts._verification_block(handed)
+        return review_evidence_prompts._verification_block(handed, _record_support.SUBJECT)
+
+
+def _taught(prompt: str, marker: str) -> str:
+    """The declaration line `prompt` teaches opening on `marker`, as a reviewer would copy it."""
+    taught = re.compile(rf"^  ({re.escape(marker)} \S+)$", re.MULTILINE)
+    return taught.search(prompt).group(1)
 
 
 class VerificationBlockTest(unittest.TestCase):
@@ -128,14 +160,69 @@ class VerificationBlockTest(unittest.TestCase):
         configured = _block(commands=(_record_support.SUITE, LINT))
         empty = _block(commands=())
 
-        self.assertIn(f"are, in order: `{_record_support.SUITE}`, `{LINT}`.", configured)
+        self.assertIn(
+            f"are, in order: `{_record_support.SUITE}`, `{LINT}`. An approval's declaration has to "
+            "list each of them exactly as written here, with the exit status it returned, or reuse "
+            "evidence that does; further commands may be listed beside them.",
+            configured,
+        )
         self.assertNotIn(EMPTY, configured)
-        self.assertIn(EMPTY, empty)
-        self.assertIn("nothing the orchestrator runs is evidence that any check passed", empty)
+        self.assertIn(f"{EMPTY}, so no particular command is required and nothing the orchestrator runs", empty)
         for name, told in (("configured", configured), ("empty", empty)):
             with self.subTest(name):
                 self.assertIn(NOTHING_HANDED, told)
                 self.assertNotIn("sha256:", told)
+                # A reviewer handed nothing is taught to run the checks on
+                # the head it is handed, and never a reuse.
+                self.assertIn(f"  VERIFICATION: RUN {HEAD}\n", told)
+                self.assertNotIn("VERIFICATION: REUSED", told)
+                self.assertIn(POLICY, told)
+                self.assertIn(STILL_ACTIONABLE, told)
+
+
+class DeclarationContractTest(unittest.TestCase):
+    """The declaration a reviewer is taught, in the prompt it closes on."""
+
+    def test_the_taught_declarations_parse(self) -> None:
+        # Spelled from the same models the reader parses, so a reviewer
+        # writing exactly what it is shown is read back -- the reuse naming
+        # the evidence it was handed, the run naming the head under review.
+        handed = _handed()
+        with patch.object(config, "VERIFY_COMMANDS", (_record_support.SUITE,)):
+            prompt = review_prompts._build_review_prompt(
+                _TEST_SPEC, make_issue(7, body="users want a foo flag"), "", [],
+                review_prompts.ReviewHandover(subject=_record_support.SUBJECT, evidence=handed),
+            )
+        reuse = _taught(prompt, "VERIFICATION: REUSED")
+        run = "\n".join((
+            _taught(prompt, "VERIFICATION: RUN"),
+            f"COMMAND: {_record_support.SUITE}",
+            "EXIT: 0",
+            "VERIFICATION: END",
+        ))
+        subject = review_verification_models._VerificationSubject(HEAD, handed.revision)
+
+        self.assertEqual(reuse, f"VERIFICATION: REUSED sha256:{handed.revision}")
+        self.assertIsInstance(
+            review_verification._parse_verification_outcome(reuse, subject),
+            review_verification_models._ReusedVerification,
+        )
+        self.assertIsInstance(
+            review_verification._parse_verification_outcome(run, subject),
+            review_verification_models._FreshVerification,
+        )
+        # The verification sits between the commands that inspect the branch
+        # and the verdict the prompt closes on, and its declaration is asked
+        # for above that verdict.
+        self.assertLess(prompt.index("git diff"), prompt.index("Workflow verification evidence"))
+        self.assertLess(prompt.index(POLICY), prompt.rindex("VERDICT: APPROVED"))
+        self.assertIn("the verification declaration described above goes above the verdict line", prompt)
+
+    def test_no_subject_names_the_checkout(self) -> None:
+        told = review_evidence_prompts._verification_block(None, None)
+
+        self.assertIn("on the commit `git rev-parse HEAD` names:", told)
+        self.assertIn("  VERIFICATION: RUN <full commit id>\n", told)
 
 
 if __name__ == "__main__":

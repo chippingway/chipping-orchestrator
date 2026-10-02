@@ -147,12 +147,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the closed refusals: five for a run that did not complete, three for a completed
                             run's message whose declaration is missing, malformed, or stale
     review_verification.py  the strict reader of that declaration, asked only by the claim reader
-                            (`stages/validating/review_claims.py`) on the disposition's persisting road, which no live
-                            reviewer round takes yet. A run
-                            never invoked, interrupted, timed out, refused by its provider, or exited
-                            nonzero is refused before its message is read; the declaration has to be the message's
-                            only marker use, outside any code block, and a RUN block has to be closed, list at least
-                            one command with one POSIX exit status right below it, and hold no verdict the verdict
+                            (`stages/validating/review_claims.py`) on the disposition's persisting road, which every
+                            verdict a reviewer round returns takes. A run never invoked, interrupted, timed out, refused
+                            by its provider, or exited nonzero is refused before its message is read; the declaration
+                            has to be the message's only marker use, outside any code block, and a RUN block has to be
+                            closed, list at least one command with one POSIX exit status right below it, and hold no
+                            verdict the verdict
                             reader would accept. Shape is settled before truth: a well-formed declaration naming
                             another commit, or any revision but the current one, is stale. Nothing is counted or
                             inferred from what the reviewer wrote
@@ -777,19 +777,26 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its stage, and the report refresh asks for a `REPORT: READY` report of the rewritten head
                             alone, refusing `REPORT: VERIFIED` by name
     review_prompts.py       the fresh reviewer's prompt and the handover it is built over -- the backend that
-                            implemented the work and the subject the validating stage resolved -- with the developer
-                            report quoted whole between the issue and the inspection commands, named by revision and
-                            location, and a note where the requirements have moved on since it was written; a subject
-                            with no report says none is recorded
+                            implemented the work, the subject the validating stage resolved, and the verification
+                            evidence it proved current for that subject -- with the developer report quoted whole
+                            between the issue and the inspection commands, named by revision and location, and a note
+                            where the requirements have moved on since it was written; a subject with no report says
+                            none is recorded. The verification block follows the inspection commands, and the closing
+                            instructions put the declaration it teaches above the verdict line
     review_evidence_prompts.py
-                            what a reviewer is to be told about verification, which nothing renders yet: the current
+                            what a reviewer is told about verification, which the reviewer prompt renders: the current
                             evidence handed for its subject (`HandedEvidence`, the settled record and its artifact
-                            re-read), quoted whole -- preamble and every command with its status and output, every
-                            line quoted whatever ends it, a bare carriage return included -- under the `sha256:`
-                            revision a reuse names, naming each listed command that did not exit 0 (a
-                            status about those commands alone, not the configured ones), or the note that none covers
-                            the subject; then the configured `VERIFY_COMMANDS` in order, or that none are configured
-                            and nothing the orchestrator runs is evidence that any check passed
+                            re-read), quoted whole -- preamble and every command with its status and output, every line
+                            quoted whatever ends it, a bare carriage return included -- under the `sha256:` revision a
+                            reuse names, naming each listed command that did not exit 0 (a status about those commands
+                            alone, not the configured ones), or the note that none covers the subject; then the
+                            configured `VERIFY_COMMANDS` in order, each of which an approval has to declare, or that
+                            none are configured and nothing the orchestrator runs is evidence that any check passed;
+                            then the declaration, spelled from `review_verification_models.py` -- a RUN block naming the
+                            subject's head, and the REUSED line naming the handed revision only where evidence was
+                            handed -- and the policy that a SHA, count, or command the orchestrator publishes itself is
+                            no change to request while failed checks, missing verification, inaccurate claims, and
+                            evidence about another subject stay actionable
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,
@@ -807,7 +814,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             commit id as the head wherever a pull request is named, and neither a head nor a report
                             where none is -- or neither its identity, its head, nor its requirements are read
     verification_records.py the verification-evidence records and their pinned keys, reconciled by the dispatcher
-                            (`verification_transaction.py`) though no live producer records one yet: PENDING
+                            (`verification_transaction.py`), whose one live producer is a returned reviewer: PENDING
                             (`verification_evidence_pending`, the run and its binding, written before the artifact is
                             posted), CURRENT (`verification_evidence_current`), HISTORY
                             (`verification_evidence_history`, retired records with why -- superseded, invalidated, or
@@ -3044,27 +3051,27 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading is measured from it. Behind the hold and ahead of the round cap and the spawn, a
                             reviewer verdict an earlier tick persisted and never disposed of is finished in place of a
                             round (`review_resume.py`)
-      reviewer.py           the round cap, the tracked reviewer spawn and its two refusals, what a round that
-                            RAN records about the reply or grant that bought it -- taken from the one read its
-                            OWN prompt was rendered from, under that prompt's bound, never from the unbounded
-                            batch a park froze for a developer, and owed to that reply whether or not the park
-                            outlived the tick that cleared it -- and about the note a deferral
-                            left, which that round discharges -- and the verdict
-                            fan-out, with the subject an approved verdict hands the squash tail built here over
-                            this run's own checkout. The developer report is resolved through `review_report.py`
-                            ahead of the spawn and the subject it yields written beside the reviewer spec before
-                            the spawn, onto the comment as that resolution read it, through `review_records.py`,
-                            once that reading is laid over the state the tick holds, measured from the comment as the
-                            tick read it, so a run another road charged and folded or a notice it posted while the
-                            subject was resolved is kept by every write of the round; the
-                            launch charge written behind it is taken into that reading as well, so a later charge
-                            another road writes is never mistaken for this round's own and written back over; the
-                            pinned comment is read again through `review_comment.py` as the reviewer returns, before
-                            any park or record the run leaves is written, the run measured from then on against the
-                            comment as that reading found it, and a verdict is acted on only while
-                            `review_coverage.py` finds that whole subject standing, the pull request the issue points
-                            at included, and the comment read once more behind that resolution still agrees -- its
-                            requests are long enough for a repoint or a later report to land
+      reviewer.py           the round cap, the tracked reviewer spawn and its two refusals, what a round that RAN
+                            records about the reply or grant that bought it -- taken from the one read its OWN prompt
+                            was rendered from, under that prompt's bound, never from the unbounded batch a park froze
+                            for a developer, and owed to that reply whether or not the park outlived the tick that
+                            cleared it -- and about the note a deferral left, which that round discharges -- and the
+                            verdict fan-out: a timeout or a missing verdict parks with the run's return recorded by the
+                            park's own write, and an approval or a change request goes to `review_disposition.py`, which
+                            records that return over its own last reading, so the usage is folded once. The developer
+                            report is resolved through `review_report.py` ahead of the spawn and the subject it yields
+                            written beside the reviewer spec before the spawn, onto the comment as that resolution read
+                            it, through `review_records.py`, once that reading is laid over the state the tick holds,
+                            measured from the comment as the tick read it, so a run another road charged and folded or a
+                            notice it posted while the subject was resolved is kept by every write of the round; behind
+                            that write the verification evidence current for exactly that subject is asked through
+                            `review_evidence.py` and handed to the prompt beside the report; the launch charge written
+                            behind it is taken into that reading as well, so a later charge another road writes is never
+                            mistaken for this round's own and written back over; the pinned comment is read again
+                            through `review_comment.py` as the reviewer returns, before any park or record the run
+                            leaves is written, the run measured from then on against the comment as that reading found
+                            it, and the disposition holds the verdict to the whole subject standing, the pull request
+                            the issue points at included, with the comment read once more behind that resolution
       collapse.py           whether a squash this issue began and did not finish is answered before anything else
                             runs an agent, over the same tail the approval road runs -- what the branch is owed
                             does not depend on which reading sent the tick. Asked only from that road it would be
@@ -3153,9 +3160,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             fixing stage's settled-round mark for a relabel that never lands -- plus the no-VERDICT park
                             and the split that tells a provider's failure from a reviewer's. The feedback post answers
                             the id it landed as, or nothing where it had no pull request to go on, failed, or named no
-                            positive whole comment id, and leaves that anchor to its caller: this route stages it at
-                            once, and a persisted request's handoff (`review_handoffs.py`) goes on only behind one and
-                            stages it with the handed write
+                            positive whole comment id, and leaves that anchor to its caller: the persisted request's
+                            handoff (`review_handoffs.py`), the one road posting it, goes on only behind one and stages
+                            it with the handed write
       dev_fix.py            what a finished dev fix leaves behind: the publishable reading and the proved remote
                             head it carries on as the lease, taken for a run that committed as well as for one
                             that did not -- a tick committing over work an earlier one stranded begins at a
@@ -3365,7 +3372,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the comment will not read or parse, or the fresh reading is another comment than the one
                             the state was read from -- replaced or gone, whose write would pin a second one -- nothing
                             is handed over and the tick ends WITHOUT writing, since any write would put the replaced
-                            report back. The reading that agreed goes with the subject, laid over the state in hand
+                            report back. The reading that agreed goes with the subject -- and with the verification
+                            evidence handed beside it once the launch is recorded (`_ResolvedSubject.evidence`) --
+                            laid over the state in hand
                             before the round writes anything, measured from the comment as the tick read it save a
                             field the comment already holds as the state does, which is not counted twice
                             (`_ResolvedSubject.lays_over`) -- what another road wrote while the subject was resolved
@@ -3390,13 +3399,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             against that, since a move kept beside another road's, measured again from the older
                             comment, would be kept twice. Records are compared as the comment's JSON spells them, so
                             one written `null` where there was none, or a revision `true` where it was `1`, is a move.
-                            `review_disposition.py` and `review_handoffs.py` -- which no live round reaches yet, only
-                            the recovery of a record an issue already carries (`review_resume.py`) -- ask it of more
-                            wherever they hold a persisted verdict to its subject (`persisted`): the returned verdict
-                            and the pull request the issue points at beside the report's records, which no write may act
-                            on once another road dropped or replaced the verdict or pointed the issue elsewhere, and
-                            whose evidence records it judges the verdict's claim over. The later roads that act on an
-                            approval after requests long enough for a settlement -- the squash tail once the squash
+                            The reviewer's return, `review_disposition.py`, and `review_handoffs.py` -- which every
+                            returned verdict reaches, as does the recovery of one an earlier tick left waiting
+                            (`review_resume.py`) -- ask it of more wherever they hold a verdict to its subject
+                            (`persisted`): the returned verdict, so another round's persisted meanwhile is never written
+                            over, and the pull request the issue points at beside the report's records, which no write
+                            may act on once another road dropped or replaced the verdict or pointed the issue elsewhere,
+                            and whose evidence records it judges the verdict's claim over. The later roads that act on
+                            an approval after requests long enough for a settlement -- the squash tail once the squash
                             returns, and the in_review park and ready ping -- ask the comment the same of the report
                             records and the pull request pointer before they write, and act on nothing and write nothing
                             where they moved. Those roads write the state in hand whole rather than composing over the
@@ -3447,18 +3457,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             write to. The usage meters the return folds are left out: running totals every run folds,
                             already on the comment from the developer run whose report it is wherever that run's usage
                             parsed
-      review_evidence.py    the current verification evidence a reviewer is to be handed, which no round asks for yet:
-                            only a record bound to exactly the subject it is about to review -- pull request, head,
-                            requirements, and the report's revision and digest, compared whole -- proved current again
+      review_evidence.py    the current verification evidence a reviewer is handed, asked by `reviewer.py` once the
+                            launch has recorded the round's subject: only a record bound to exactly the subject it is
+                            about to review -- pull request, head, requirements, and the report's revision and digest,
+                            compared whole -- proved current again
                             (`current_evidence_verdict`), and its artifact re-read at the comment it settled as and
                             held to the record again, so the words quoted are the ones the revision names; anything
                             short of that, a reading nobody could take included, hands nothing and logs why, and the
                             reviewer runs the verification itself
       review_verdicts.py    the `review_returned_verdict` record a returned reviewer's verdict is to wait in, written
-                            only by `review_disposition.py` and `review_handoffs.py`, which no live round reaches yet,
-                            and dropped by the recovery of one an issue carries too (`review_resume.py`), the one road
-                            that reaches them: its round, verdict, subject, feedback, the one evidence claim it relies
-                            on, and the agent-run count a change request was handed to `workflow:fixing` on, beside the
+                            only by `review_disposition.py` and `review_handoffs.py`, which every returned verdict
+                            reaches, and dropped by the recovery of one an earlier tick left waiting too
+                            (`review_resume.py`): its round, verdict, subject, feedback, the one evidence claim it
+                            relies on, and the agent-run count a change request was handed to `workflow:fixing` on,
+                            beside the
                             id of the feedback post it was handed over with (`anchor`, carried only by a handed record,
                             so a waiting one is spelled in the six members every writer of the record spells; a handed
                             record without one, as a handoff wrote it before it anchored its post, still reads, its
@@ -3474,17 +3486,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             waiting is exactly that verdict, a caller naming none dropping nothing, a record no reader
                             takes included
       review_claims.py      what a returned reviewer's verification declaration earns, asked only by
-                            `review_disposition.py`, of a returned run no live round hands it yet: commands it ran
+                            `review_disposition.py`, of the run every returned verdict comes back in: commands it ran
                             minted, not recorded, as a reviewer-reported transaction past every spent revision, bound to
                             the handed subject, the reviewed head and its tree, and the configured context, its whole
                             artifact rendering as one comment; a reuse of exactly the current evidence it was handed; or
                             the reason it earns none. Also whether a claim's commands cover every configured command
                             exactly, and where its evidence stands -- settled or owed under the configured context at
                             the latest revision spent, or lost -- which `review_handoffs.py` asks too
-      review_disposition.py the returned-verdict disposition, which no live round calls yet: a returned run's verdict
-                            persisted and prepared, then acted on or parked (`disposes_of_the_verdict`), and a waiting
-                            one finished by a later tick (`finishes_the_verdict`), which the validating handler's
-                            recovery asks of a record an issue already carries (`review_resume.py`). A run that does
+      review_disposition.py the returned-verdict disposition, which `reviewer.py` hands every returned verdict to: a
+                            returned run's verdict persisted and prepared, then acted on or parked
+                            (`disposes_of_the_verdict`), and a waiting one finished by a later tick
+                            (`finishes_the_verdict`), which the validating handler's recovery asks of a verdict an
+                            earlier tick left waiting (`review_resume.py`). A run that does
                             not name, as a whole number, the pull request its subject is on is refused before anything
                             is minted. The
                             preparation (`prepares_the_verdict`) mints the evidence, then holds the subject to what
@@ -3513,9 +3526,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             again, measured from the comment its readiness was proved over, a move there dropping it for
                             a fresh reviewer instead. Every write is composed over the comment as read just before it,
                             keeping what another road wrote there, and drops only ever the verdict it holds
-      review_handoffs.py    a persisted change request handed to the one developer it owes, which no live round reaches
-                            yet: the disposition calls it, right behind proving it ready, and the recovery of a record
-                            an issue already carries (`review_resume.py`), where its launch is still owed: only a change
+      review_handoffs.py    a persisted change request handed to the one developer it owes: the disposition calls it,
+                            right behind proving it ready, and the recovery of a request an earlier tick left waiting
+                            (`review_resume.py`), where its launch is still owed: only a change
                             request the pinned comment carries, through the decision it was persisted from -- round,
                             verdict, subject, and feedback -- in the tick its reviewer returned
                             (`hands_the_request_over`), or from the record and the issue's checkout alone on a later
@@ -3590,8 +3603,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             measured against the last one, so that run's writes keep what another road wrote there -- a
                             run allowance granted, a usage total folded. It writes nothing itself: a refusal launches
                             nobody and leaves the verdict handed for the next entry
-      review_resume.py      the recovery of a verdict an earlier tick persisted and never disposed of, which no live
-                            round persists yet, running no reviewer and folding no usage or round again. On
+      review_resume.py      the recovery of a verdict an earlier tick persisted and never disposed of, running no
+                            reviewer and folding no usage or round again. On
                             `workflow:validating`, ahead of the round cap and the spawn (`resumes_a_returned_verdict`):
                             a verdict not yet handed is finished through a run rebuilt of its round over the subject
                             resolved again, which has to record as the verdict's -- a moved subject drops it for good,
@@ -3620,8 +3633,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             tick with nothing written or handed over. Either road resolves the subject before it
                             restores the checkout the verdict is finished or launched in, so a checkout that will not
                             restore never keeps a stale verdict pinned
-      review_parks.py       the two parks a verdict takes instead of being acted on, which no live round asks for
-                            yet: `reviewer_unverified` for an approval relying on no valid evidence (`parks_unverified`,
+      review_parks.py       the two parks a verdict takes instead of being acted on, which the disposition asks for:
+                            `reviewer_unverified` for an approval relying on no valid evidence (`parks_unverified`,
                             measured against the state it began over) and `reviewer_unrecorded` for a verdict that could
                             not be persisted (`parks_unrecorded`, measured against the reading the returned run was
                             resolved over, so what that run staged lands with the park, over one of the two causes
@@ -3667,9 +3680,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the configured one, and its artifact, re-read on the pull request it was published on,
                             still the one that settled, passing and covering the configuration; unread holds
       unverified_approvals.py whether an approval rests on evidence it may be acted on over, asked only of a
-                            persisted approval, by the disposition -- which no live round reaches yet, only the recovery
-                            of a record an issue already carries (`review_resume.py`): the approval proved is the one
-                            the comment has waiting, only where that is the run's own -- its round and subject, the
+                            persisted approval, by the disposition -- which every returned approval reaches, as does
+                            the recovery of one an earlier tick left waiting (`review_resume.py`): the approval proved
+                            is the one the comment has waiting, only where that is the run's own -- its round and
+                            subject, the
                             verdict the arc retires (`handoff._Held`) -- and refused where none of the run's waits, and
                             the claim proved is the one that record names, never one handed in beside it, through
                             `approved_evidence.refusal`. That claim has to name the current evidence exactly -- receipt,

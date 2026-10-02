@@ -13,8 +13,9 @@ awaiting-human resume, and the CHANGES_REQUESTED reviewer-feedback fix.
 The reviewer-feedback route carries its promise one tick further than the
 other two, which is why it is followed past the pause here: the round it
 discarded is anchored on a comment the orchestrator authored, so nothing
-re-runs the dev on it and the first `fixing` tick after the label comes off is
-the one that has to publish what the discarded run committed."""
+re-runs the dev on it: once the label comes off, the first `fixing` tick drops
+the handed change request whose developer ran, and the next is the one that has
+to publish what the discarded run committed."""
 
 from __future__ import annotations
 
@@ -55,6 +56,8 @@ LABEL_FIXING = "workflow:fixing"
 DEV_SESSION = "dev-sess"
 REVIEW_ROUND = "review_round"
 REVIEWER_ANCHOR = "pending_fix_reviewer_comment_id"
+RETURNED_VERDICT = "review_returned_verdict"
+RUN_AGENT = "run_agent"
 WORKTREE_PATH = "_worktree_path"
 PUSH_BRANCH = "_push_branch"
 
@@ -133,34 +136,28 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
             )
 
     def _run_paused_fix(self, github, issue):
-        # One fetch per read the tick takes of the issue, in order: the
-        # reviewer's pause guard, the subject the verdict is held to -- the
-        # issue as it stands, so the change request is acted on -- and the
-        # dev resume's pause guard.
+        # The operator pauses while the developer the change request is handed
+        # to runs: every read of the issue ahead of that launch -- the
+        # reviewer's pause guard, and each time the verdict is held to its
+        # subject -- finds it as it stands, so the change request is acted on,
+        # and the dev resume's pause guard finds it paused.
+        run_agent = MagicMock(side_effect=[
+            _agent(
+                session_id="rev-sess",
+                last_message="Please tighten the guard.\n\nVERDICT: CHANGES_REQUESTED",
+            ),
+            _agent(session_id=DEV_SESSION, last_message="fixed"),
+        ])
         issue_fetch = MagicMock(
-            side_effect=[
-                make_issue(
-                    CHANGES_REQUESTED_ISSUE,
-                    label=LABEL_VALIDATING,
-                ),
-                issue,
-                _paused_view(CHANGES_REQUESTED_ISSUE),
-            ],
+            side_effect=lambda *_args: (
+                _paused_view(CHANGES_REQUESTED_ISSUE) if run_agent.call_count > 1 else issue
+            ),
         )
         with patch.object(github, "get_issue", issue_fetch):
             return self._run_validating(
                 github,
                 issue,
-                run_agent=[
-                    _agent(
-                        session_id="rev-sess",
-                        last_message=(
-                            "Please tighten the guard.\n\n"
-                            "VERDICT: CHANGES_REQUESTED"
-                        ),
-                    ),
-                    _agent(session_id=DEV_SESSION, last_message="fixed"),
-                ],
+                run_agent=run_agent,
                 head_shas=["before-sha", "after-sha"],
             )
 
@@ -202,7 +199,7 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
         self.assertEqual(state.get("user_content_hash"), "stale-hash")
 
     def _assert_resume_paused(self, github, mocks, before_writes: int) -> None:
-        mocks["run_agent"].assert_called_once()
+        mocks[RUN_AGENT].assert_called_once()
         mocks[PUSH_BRANCH].assert_not_called()
         self.assertEqual(github.label_history, [])
         self.assertEqual(github.posted_comments, [])
@@ -219,7 +216,7 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
         self.assertEqual(state.get(REVIEW_ROUND), 2)
 
     def _assert_fix_paused(self, github, mocks, before_writes: int) -> None:
-        self.assertEqual(mocks["run_agent"].call_count, 2)
+        self.assertEqual(mocks[RUN_AGENT].call_count, 2)
         self.assertIn(
             (CHANGES_REQUESTED_ISSUE, LABEL_FIXING),
             github.label_history,
@@ -229,12 +226,13 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
             github.label_history,
         )
         mocks[PUSH_BRANCH].assert_not_called()
-        # The reviewer's spec and subject, written ahead of its spawn; the
+        # The reviewer's spec and subject, written ahead of its spawn; its
+        # verdict, persisted before the change request is acted on; the
         # pre-spawn flip's own write; and the charge each of the two runs
         # took before it reached a process.
         self.assertEqual(
             github.write_state_calls,
-            before_writes + 2 + 2 * AGENT_RUN_CHARGE_WRITES,
+            before_writes + 3 + 2 * AGENT_RUN_CHARGE_WRITES,
         )
         state = github.pinned_data(CHANGES_REQUESTED_ISSUE)
         self.assertEqual(state.get(REVIEW_ROUND), 0)
@@ -344,12 +342,14 @@ class ValidatingLivePauseChangesRequestedTest(
 
     def test_unpause_publishes_the_discarded_fix(self) -> None:
         # The dev committed under the pause and the guard threw the outcome
-        # away. Once the label comes off, the `fixing` tick finds no unread
-        # feedback -- the reviewer comment that started the round is
-        # orchestrator-authored, so the rescan drops it -- and would otherwise
-        # hand a head missing the fix straight back to the reviewer. It has to
-        # publish the commit the paused run left in the worktree, count the
-        # round that fix spends, and drop the reviewer anchor with it.
+        # away. Once the label comes off, the first `fixing` tick finds the
+        # handed change request the paused launch never dropped, and drops it
+        # without launching anybody: its developer ran and left work. The next
+        # finds no unread feedback -- the reviewer comment that started the
+        # round is orchestrator-authored, so the rescan drops it -- and would
+        # otherwise hand a head missing the fix straight back to the reviewer.
+        # It has to publish the commit the paused run left in the worktree,
+        # count the round that fix spends, and drop the reviewer anchor with it.
         gh, issue, _ = self._pause_fixture(
             _PauseCase(
                 issue_number=CHANGES_REQUESTED_ISSUE,
@@ -360,10 +360,11 @@ class ValidatingLivePauseChangesRequestedTest(
         self._run_paused_fix(gh, issue)
 
         with tempfile.TemporaryDirectory() as worktree:
+            self._drops_the_handed_request(gh, issue, Path(worktree))
             mocks = self._run_unpaused_fixing(gh, issue, Path(worktree))
 
         # No third agent run: the tick publishes what the paused one committed.
-        mocks["run_agent"].assert_not_called()
+        mocks[RUN_AGENT].assert_not_called()
         mocks[PUSH_BRANCH].assert_called_once()
         self.assertIn(
             (CHANGES_REQUESTED_ISSUE, LABEL_VALIDATING),
@@ -372,6 +373,13 @@ class ValidatingLivePauseChangesRequestedTest(
         state = gh.pinned_data(CHANGES_REQUESTED_ISSUE)
         self.assertEqual(state.get(REVIEW_ROUND), 1)
         self.assertIsNone(state.get(REVIEWER_ANCHOR))
+
+    def _drops_the_handed_request(self, github, issue, worktree: Path) -> None:
+        """The first `fixing` tick after the pause: the handed change request dropped, nothing launched or pushed."""
+        dropped = self._run_unpaused_fixing(github, issue, worktree)
+        self.assertIsNone(github.pinned_data(CHANGES_REQUESTED_ISSUE).get(RETURNED_VERDICT))
+        dropped[RUN_AGENT].assert_not_called()
+        dropped[PUSH_BRANCH].assert_not_called()
 
 
 if __name__ == "__main__":

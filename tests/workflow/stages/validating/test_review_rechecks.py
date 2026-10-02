@@ -331,9 +331,10 @@ class ReviewRecheckTest(unittest.TestCase, _ApprovedReports):
         # The issue is pointed at another pull request by the time the squash
         # returns -- the squash is a double here, so none of its own writes
         # lands over the repoint: the tail acts on nothing past it -- no squash
-        # notice beside the approval comment posted ahead of it, no seed, no
-        # write, no move to documenting -- and the pointer stays as the other
-        # road left it rather than written back.
+        # notice beside the evidence the reviewer declared and the approval
+        # comment posted ahead of it, no seed, no write, no move to
+        # documenting -- and the pointer stays as the other road left it
+        # rather than written back.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
         self.reported_round(world.FIRST_REPORT)
         posted = len(self.github.posted_pr_comments)
@@ -351,7 +352,7 @@ class ReviewRecheckTest(unittest.TestCase, _ApprovedReports):
         self.assertNotIn(DOCUMENTED, self.github.label_history)
         self.assertEqual(
             (self.pinned()["pr_number"], len(self.github.posted_pr_comments)),
-            (OTHER_PR, posted + 1),
+            (OTHER_PR, posted + 2),
         )
 
     def test_a_moved_baseline_voids_the_handoff(self) -> None:
@@ -516,15 +517,17 @@ class ReturnRaceTest(unittest.TestCase, _ApprovedReports):
                 )
 
     def test_a_repoint_behind_the_gate_holds_it(self) -> None:
-        # An approval's verify gate passes and its subject is resolved again,
-        # and the issue is pointed at another pull request meanwhile: the
-        # comment read behind that refuses the approval -- nothing posted,
-        # squashed, or relabelled -- and keeps the pointer.
+        # An approval's verify gate passes and its subject is resolved again
+        # -- behind the two readings its disposition held it to before acting
+        # -- and the issue is pointed at another pull request meanwhile: the
+        # comment read behind that refuses the approval -- nothing posted past
+        # the evidence the reviewer declared, nothing squashed or relabelled
+        # -- and keeps the pointer.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
         self.reported_round(world.FIRST_REPORT)
-        posted = len(self.github.posted_pr_comments)
+        posted = len(self.github.posted_pr_comments) + 1
 
-        self._repointed(REVIEW_APPROVED_MESSAGE, _REQUIREMENTS_READ, passes=1)
+        self._repointed(REVIEW_APPROVED_MESSAGE, _REQUIREMENTS_READ, passes=2)
 
         self.assertEqual(
             (

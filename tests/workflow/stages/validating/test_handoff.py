@@ -19,11 +19,11 @@ from tests.support.fakes import (
     make_issue,
 )
 from tests.workflow.fixtures import (
-    REVIEW_APPROVED_MESSAGE,
     _agent,
     _open_pr_for,
     _PatchedWorkflowMixin,
     _reported,
+    approved_on,
 )
 from tests.workflow.stages.validating import (
     validating_review_test_support as review_support,
@@ -437,7 +437,7 @@ class ValidatingToInReviewHandoffTest(
         mocks_v = self._run_validating(
             gh,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on("0e1ead42" * 5)),
             head_shas=("0e1ead42" * 5,),
         )
         self.assertEqual(mocks_v["run_agent"].call_count, 1)
@@ -520,7 +520,7 @@ class ValidatingToInReviewHandoffTest(
         self._run_validating(
             gh,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on("cafe9999" * 5)),
             head_shas=(SECOND_HANDOFF_HEAD,),
         )
 

@@ -52,10 +52,10 @@ evidence records moved there refuse the approval, which no longer rests on
 what the proof was taken over.
 
 Nothing here parks -- the disposition parks a refusal, once it has held the
-approval to its subject and claim again -- and no live reviewer round asks it:
-the disposition service is its one caller (`review_disposition`), and only the
-recovery of a record an issue already carries reaches that service
-(`review_resume`), so live reviewer results never pass through it.
+approval to its subject and claim again. The disposition service is its one
+caller (`review_disposition`), so every approval a live reviewer round
+returns, and every one a later tick finishes (`review_resume`), passes through
+it before the approval arc.
 """
 from __future__ import annotations
 

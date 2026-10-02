@@ -44,11 +44,11 @@ so the publication takes it again on the tick it would settle
 (`verification_publishing`), since writes
 landing between the two ticks can spend the room a record was accepted with.
 
-No live road mints or records a transaction yet: the returned reviewer's claim
-reader mints one from the commands it declared, and its verdict record stages
-it (`stages/validating/review_claims.py`, `review_verdicts.py`), but no round
-asks either, and the dispatcher reconciles whatever a producer records
-(`verification_records`).
+The one live road minting and recording a transaction is a returned
+reviewer's: its claim reader mints one from the commands it declared, and its
+verdict record stages it (`stages/validating/review_claims.py`,
+`review_verdicts.py`) in the write that persists the verdict, and the
+dispatcher reconciles whatever a producer records (`verification_records`).
 """
 from __future__ import annotations
 

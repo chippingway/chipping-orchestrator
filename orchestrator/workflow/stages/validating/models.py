@@ -89,10 +89,11 @@ class _ReviewerRun:
     # never kept a second time.
     resolved_over: dict
     # Whether the subject the reviewer was handed no longer stands: a report
-    # record or the pull request the issue points at moved on the comment
-    # read again -- carried onto the state in hand by then -- or the subject,
-    # resolved again, is no longer the one handed. A verdict of it is recorded
-    # and not acted on.
+    # record, the pull request the issue points at, or the returned verdict
+    # another round persisted moved on the comment read again -- carried onto
+    # the state in hand by then -- or the subject, resolved again, is no longer
+    # the one handed. A verdict of it is recorded and not acted on, and one
+    # another round persisted is left for that round's road.
     subject_moved: bool = False
     # The workflow verification evidence this round's prompt handed the
     # reviewer as current for its subject, which is the only evidence a

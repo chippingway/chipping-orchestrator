@@ -18,9 +18,9 @@ from tests.support.fakes import (
     make_issue,
 )
 from tests.workflow.fixtures import (
-    REVIEW_APPROVED_MESSAGE,
     _agent,
     _PatchedWorkflowMixin,
+    approved_on,
 )
 
 ALL_WATERMARKS_ISSUE = 200
@@ -127,7 +127,7 @@ class ValidatingHandoffSeedsAllWatermarksTest(
         self._run_validating(
             gh,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on(REVIEWED_SHA)),
             head_shas=(REVIEWED_SHA,),
         )
         state = gh.pinned_data(ALL_WATERMARKS_ISSUE)
@@ -181,7 +181,7 @@ class ValidatingHandoffSeedsAllWatermarksTest(
         self._run_validating(
             gh,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on(REVIEWED_SHA)),
             head_shas=(REVIEWED_SHA,),
         )
         state = gh.pinned_data(ALL_WATERMARKS_ISSUE)
@@ -276,7 +276,7 @@ class HandoffInlineIdCollisionTest(unittest.TestCase, _PatchedWorkflowMixin):
         self._run_validating(
             gh,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on(REVIEWED_SHA)),
             head_shas=(REVIEWED_SHA,),
         )
         state = gh.pinned_data(WATERMARK_ISSUE)

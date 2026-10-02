@@ -15,11 +15,11 @@ two causes are spelled here, and the disposition service answers with one of
 them (`review_disposition.Prepared.unrecorded`), because the park's notice
 asks a different thing of a human for each: room freed on the pinned comment
 is what lets a verdict with no room be recorded, and it does nothing for one
-in words no record can carry, which a fresh reviewer simply writes again. No
-live round parks here yet: the disposition service asks for either park, and
-no live round reaches it -- only the recovery of a record an issue already
-carries (`review_resume`), which may park a waiting approval unverified but
-never persists a verdict, so never parks one unrecorded.
+in words no record can carry, which a fresh reviewer simply writes again. The
+disposition service asks for either park over the verdict a live reviewer
+round returned; the recovery of a verdict an earlier tick left waiting
+(`review_resume`) may park a waiting approval unverified but never persists a
+verdict, so never parks one unrecorded.
 
 Neither retries itself. A bare `/orchestrator continue` buys a fresh reviewer
 (`awaiting._reviewer_retry_awaiting_action`), and a reply with words in it is

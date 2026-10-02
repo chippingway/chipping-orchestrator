@@ -43,7 +43,7 @@ from orchestrator.workflow.stages.fixing import state as _state
 # to hand the clear somewhere else -- the size gate, which applies a route's
 # bookkeeping inside its own durable write -- describes it in the same terms
 # this owner does. The last is the validating-route reviewer-feedback replay
-# anchor (recorded by `_handle_validating_changes_requested`), cleared
+# anchor (recorded by `validating/review_handoffs.py`), cleared
 # alongside the in_review-route bookmarks so a later route writes fresh values
 # and a session-failure park never replays an already-addressed reviewer round.
 _CLEARED_BOOKMARKS = (
@@ -91,7 +91,7 @@ def _pending_fix_id_set(state, ids_key: str, max_id_key: str) -> set:
 def _reviewer_anchor_comment(gh, pr, state):
     """Fetch the validating-route reviewer-feedback replay anchor, or None.
 
-    `_handle_validating_changes_requested` posts the automated reviewer's
+    `validating/review_handoffs.py` posts the automated reviewer's
     CHANGES_REQUESTED feedback as one PR-conversation comment and records its
     id in `pending_fix_reviewer_comment_id` (WITHOUT setting `pending_fix_at`,
     which discriminates the two routes' review-round accounting). That route

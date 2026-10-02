@@ -22,7 +22,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.git.verification.models import VerifyResult
-from tests.workflow.fixtures import REVIEW_APPROVED_MESSAGE, _agent
+from tests.workflow.fixtures import _agent, approved_on
 from tests.workflow.stages.validating import squash_approval_support as _support
 from tests.workflow.stages.validating.squash_approval_support import _SquashApprovalFixtureMixin
 from tests.workflow.stages.validating.test_squash_route import HANDED_ON
@@ -72,7 +72,7 @@ class CheckoutRaceTest(unittest.TestCase, _SquashApprovalFixtureMixin):
         mocks = self._run_validating(
             github,
             issue,
-            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            run_agent=_agent(last_message=approved_on(_support.SQUASHED_SHA)),
             verify_result=_VERIFIED,
             **checkout,
         )

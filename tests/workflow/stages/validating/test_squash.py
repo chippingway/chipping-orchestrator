@@ -11,8 +11,8 @@ from orchestrator.git.publication import models as _publication
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from orchestrator.workflow.engine import report_record_values as _record_values
 from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
-from tests.support.fakes import FakeComment, FakePRRef, FakeUser
-from tests.workflow.fixtures import REVIEW_APPROVED_MESSAGE, _agent
+from tests.support.fakes import FakeComment, FakeUser
+from tests.workflow.fixtures import _agent, approved_on
 from tests.workflow.stages.validating import squash_approval_support as _support
 from tests.workflow.stages.validating.squash_approval_support import (
     _CollapseWorldMixin,
@@ -158,13 +158,13 @@ class SquashOnApprovalTest(
         # Make pr.head.sha match REVIEWED_SHA -- legacy path: the local
         # HEAD the reviewer saw is what the remote PR points at, since no
         # force-push happened.
-        pr.head = FakePRRef(sha=_support.REVIEWED_SHA)
+        pr.head.sha = _support.REVIEWED_SHA
 
         with patch.object(config, _support.SQUASH_ON_APPROVAL, False):
             mocks = self._run_validating(
                 gh,
                 issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                run_agent=_agent(last_message=approved_on(_support.REVIEWED_SHA)),
                 head_shas=(_support.REVIEWED_SHA,),
                 squash_result=(True, _support.REVIEWED_SHA, 0, None),
             )
@@ -187,13 +187,13 @@ class SquashOnApprovalTest(
         for squashed_count in (0, 1):
             with self.subTest(squashed_count=squashed_count):
                 gh, issue, pr = self._setup()
-                pr.head = FakePRRef(sha=_support.REVIEWED_SHA)
+                pr.head.sha = _support.REVIEWED_SHA
 
                 with patch.object(config, _support.SQUASH_ON_APPROVAL, True):
                     self._run_validating(
                         gh,
                         issue,
-                        run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                        run_agent=_agent(last_message=approved_on(_support.REVIEWED_SHA)),
                         head_shas=(_support.REVIEWED_SHA,),
                         squash_result=(
                             True, _support.REVIEWED_SHA, squashed_count, None,
