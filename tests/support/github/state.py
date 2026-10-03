@@ -54,6 +54,20 @@ class _FakeReportFailures:
 
 
 @dataclass
+class _FakePinnedFailures:
+    """Issues whose pinned-comment requests GitHub leaves unanswered.
+
+    Three ways, as for a report: a thread nobody can read, an edit refused
+    before it landed, and an edit that landed and whose response was lost --
+    the accepted write a caller cannot tell from the refused one.
+    """
+
+    unreadable: set[int] = field(default_factory=set)
+    refused: set[int] = field(default_factory=set)
+    lost: set[int] = field(default_factory=set)
+
+
+@dataclass
 class _FakePullState:
     # The pull requests whose developer-report requests go unanswered, which
     # the real client reports as unconfirmed rather than as absent.

@@ -286,6 +286,27 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is a command the workflow owes an answer to. What that second command MEANS is the
                             late-split stage owners', which is where the pair it names exists -- one per park it can
                             end, the adjudication's and the size gate's, each proving it against its own record
+    pinned_commit_models.py the vocabulary of a guarded pinned-state commit: the capture it is held to -- the pinned
+                            comment's id, whether that reading parsed, every field it carried as the comment's JSON
+                            spells it (keys sorted, so `null` is not an absent field and `true` is not `1` at any
+                            depth), the prerequisites the decision rests on, absent ones included, and the fields
+                            the caller owns -- held as strings in a read-only mapping, so nothing the caller does to
+                            its own state afterwards moves it; the refusals, the four statuses (PREPARED, COMMITTED,
+                            UNCONFIRMED, REFUSED), and the outcome carrying the candidate reading, the fields that
+                            earned a refusal, and the rendered length an overflow measured
+    pinned_commit.py        the guarded commit itself, dormant until a domain adopts it: a candidate derived over a
+                            fresh reading of the captured comment rather than written from the caller's state. A
+                            write the caller did not declare refuses before anything is read; an unreadable,
+                            unparsed, or replaced comment, a prerequisite spelled otherwise, and an owned field
+                            another writer moved to something other than what the caller staged each refuse after;
+                            a domain-supplied transformation decides its owned field over the fresh value instead,
+                            and every other field, unknown ones included, is the fresh reading's. The whole
+                            candidate is measured through `pinned_state_body` against `MAX_PINNED_BODY` before
+                            anything goes out -- `prepare` stops there, for a caller with an external effect to
+                            make first, and `commit` derives everything again over a newer reading and lands it
+                            through the strict edit, sending nothing for a candidate the comment already reads as.
+                            A refusal writes nothing and moves nothing the caller holds, and an edit that went out
+                            unconfirmed is reported as neither answer, for the domain's own receipts to settle
     report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
                             `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
                             report ready for publication, and a report asserted to be on the pull request at a URL

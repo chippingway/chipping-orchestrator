@@ -27,6 +27,7 @@ from tests.support.github.state import _CommentHistory, _LabelHistory
 
 _STATE_CLOSED = "closed"
 _PARK_AWAITING_HUMAN = "park_awaiting_human"
+_PINNED_UNREAD = "GitHub did not answer the pinned-comment read"
 
 
 def _workflow_label(
@@ -269,12 +270,20 @@ class _WorkflowStateService:
                 )
 
     def read_pinned_state(self, issue: FakeIssue) -> PinnedState:
+        """The record pinned on this issue, parsed or not as it was pinned.
+
+        A thread named on `pinned_failures.unreadable` raises, as the real
+        walk does on a request GitHub would not answer.
+        """
+        if issue.number in self._pinned_failures.unreadable:
+            raise RuntimeError(_PINNED_UNREAD)
         existing = self._pinned.get(issue.number)
         if existing is None:
             return PinnedState()
         return PinnedState(
             comment_id=existing.comment_id,
             data=dict(existing.data),
+            parsed=existing.parsed,
         )
 
     def write_pinned_state(

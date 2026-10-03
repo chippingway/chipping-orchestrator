@@ -1,8 +1,17 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Authenticated pinned-state comment model, parser, and client mixin."""
+"""Authenticated pinned-state comment model, parser, and client mixin.
+
+The mixin writes the record two ways. `write_pinned_state` lands a state
+wherever it can -- in place, or as a new comment where none is named or the
+named one is gone -- which every caller writing the whole record relies on.
+`edit_pinned_state` is the strict one a guarded commit lands through: in
+place or not at all, over the reading it was derived from, with an answer
+that says whether GitHub confirmed it.
+"""
 from __future__ import annotations
 
+import enum
 import json
 import logging
 import re
@@ -58,6 +67,29 @@ _ESCAPED_COMMENT_CLOSE = r"--\u003e"
 MAX_PINNED_BODY = 65536
 
 _MISSING_STATE = object()
+
+
+class PinnedEdit(enum.Enum):
+    """What a strict rewrite of the pinned comment came to.
+
+    Only EDITED says the comment now carries the body sent, and only
+    UNCONFIRMED says a request went out that may or may not have landed:
+    GitHub's comment edit is a whole-body PATCH with no condition on what it
+    replaces, so a response that never came back, or came back carrying
+    another body, leaves the record reading either way. The other three were
+    answered before anything was sent, so the comment is exactly as it was.
+    """
+
+    EDITED = "edited"
+    # The thread could not be walked to the comment.
+    UNREAD = "unread"
+    # No comment carries the id, or the one that does is no longer an
+    # authenticated, state-only comment.
+    MISSING = "missing"
+    # The comment no longer reads as the payload the rewrite was derived over,
+    # or no longer parses at all.
+    MOVED = "moved"
+    UNCONFIRMED = "unconfirmed"
 
 
 @dataclass(init=False)
@@ -132,6 +164,16 @@ class PinnedState:
         what this looks for.
         """
         return key in self.state_data
+
+    def reads_as(self, state_data: dict) -> bool:
+        """Whether this reading parsed into exactly `state_data`, as the comment's JSON spells both.
+
+        Spelled rather than compared as Python values, which call `true`
+        equal to `1` and `1.0` equal to `1` at any depth: each of those is a
+        different record to the reader that decides on it.
+        """
+        spelled = json.dumps(self.state_data, sort_keys=True)
+        return self.parsed and spelled == json.dumps(state_data, sort_keys=True)
 
     def get(self, key: str, default: Any = None) -> Any:
         """Return a workflow-state field or its default."""
@@ -291,6 +333,57 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         state.comment_id = created_comment.id
         return state
 
+    def edit_pinned_state(
+        self,
+        issue: Issue,
+        state: PinnedState,
+        *,
+        over: dict,
+    ) -> PinnedEdit:
+        """Rewrite the pinned comment `state` names in place, and only over `over`.
+
+        The strict counterpart of `write_pinned_state`, for a caller that
+        derived `state` from a reading and has to land on that reading or
+        nowhere. It never posts: a comment that is gone, or that is no longer
+        the authenticated state-only comment it was, is answered MISSING
+        rather than recreated -- a record recreated from a derivation is one
+        nobody read, pinned beside whatever replaced the comment it was
+        derived from. The walk that finds the comment is also the last reading before
+        the edit, so a comment another writer moved since `over` was read --
+        compared as the comment's JSON spells it, where `null` is not an
+        absent field and `true` is not `1` -- is answered MOVED and left as it
+        stands.
+
+        The two requests are the primitives below, so the in-memory double
+        answers through this same policy over its own records.
+        """
+        try:
+            located = self._pinned_comment(issue, state.comment_id)
+        except Exception:
+            log.exception(
+                "issue=#%s could not read its pinned comment to rewrite it",
+                issue.number,
+            )
+            return PinnedEdit.UNREAD
+        if located is None:
+            return PinnedEdit.MISSING
+        target, reading = located
+        if not reading.reads_as(over):
+            return PinnedEdit.MOVED
+        body = pinned_state_body(state.data)
+        try:
+            answered = self._send_pinned_edit(target, body)
+        except Exception:
+            log.exception(
+                "issue=#%s its pinned comment rewrite went unanswered, so it "
+                "may or may not have landed",
+                issue.number,
+            )
+            answered = None
+        if answered == body:
+            return PinnedEdit.EDITED
+        return PinnedEdit.UNCONFIRMED
+
     def comments_after(
         self,
         issue: Issue,
@@ -332,3 +425,34 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
             if latest_id is None or issue_comment.id > latest_id:
                 latest_id = issue_comment.id
         return latest_id
+
+    def _pinned_comment(
+        self, issue: Issue, comment_id: int | None,
+    ) -> tuple[IssueComment, PinnedState] | None:
+        """The comment carrying `comment_id` and what it reads as, or None.
+
+        None as well where that comment is no longer what `read_pinned_state`
+        would take as the record -- a body edited into prose, or an author the
+        read does not trust -- since a rewrite of it would be the record of
+        nobody's reading.
+        """
+        trusted_login = getattr(self, "_bot_login", None)
+        for issue_comment in issue.get_comments():
+            if issue_comment.id != comment_id:
+                continue
+            reading = pinned_state_from_comment(
+                issue_comment,
+                trusted_login=trusted_login,
+                issue_number=issue.number,
+            )
+            return None if reading is None else (issue_comment, reading)
+        return None
+
+    def _send_pinned_edit(self, issue_comment: IssueComment, body: str) -> str:
+        """Send one edit and hand back the body GitHub answered it with.
+
+        PyGithub refreshes the comment from the response, so what it carries
+        afterwards is what GitHub says it stored.
+        """
+        issue_comment.edit(body)
+        return issue_comment.body
