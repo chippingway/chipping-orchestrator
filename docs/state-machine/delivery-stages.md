@@ -1039,7 +1039,9 @@ because there it is the claim that this stage has already rerouted rather than a
     own rules (requirements the round was due, a report not stale against it -- a report older than a baseline that is
     the subject's own requirements is not stale, since only settling the reply that bought the round leaves one), and
     the requirements all PROVED; the
-    artifact is posted (or found, by its receipt, where an earlier post's response was lost); a carry that copied the
+    artifact is posted (or found where an earlier post's response was lost: a comment of ours under its receipt that
+    reads back, in its own format, as exactly this artifact -- identity, commands, transcripts, and digest -- whatever
+    body the writer would give it now, and that comment is neither rewritten nor posted again); a carry that copied the
     current evidence's transcript names that source (`copied_from`, which a carried reviewer's account without one
     reads as damage and is dropped), which is re-read ahead of the post and again at the settlement and has to still
     be the current record, its artifact the one that settled and carrying exactly what was copied
