@@ -104,6 +104,8 @@ _ENGINE_OWNERS = (
     "report_settlement_state",
     "report_transaction",
     "retry_budget",
+    "review_findings",
+    "review_findings_fences",
     "run_budget",
     "run_circuit",
     "run_grant",

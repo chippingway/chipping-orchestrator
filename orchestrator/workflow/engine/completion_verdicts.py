@@ -27,7 +27,9 @@ vocabulary this module owns and the thread never needs.
 What a reviewer declares about verification is not read here. It has markers
 of its own on `review_verification`, which asks this module's review pattern
 only to refuse a declaration holding a verdict, so a verdict is never kept as
-evidence.
+evidence. The review body is returned with that declaration still in it,
+exactly as written; setting it aside for the human reading the findings is
+`review_findings`' job, so this slice stays the reviewer's own text.
 """
 from __future__ import annotations
 
