@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """The built site keeps its links, anchors, search index, and sitemap whole.
 
-The homepage and the design-reference landing pages each emit the one
+The homepage and every reference area's landing page each emit the one
 description their front matter gives, and no two of those descriptions match,
 so a search result or link preview tells the pages apart.
 
@@ -48,6 +48,9 @@ _DESCRIBED_PAGES = MappingProxyType({
     "architecture.md": "architecture/index.html",
     "state-machine.md": "state-machine/index.html",
     "workflow.md": "workflow/index.html",
+    "configuration.md": "configuration/index.html",
+    "observability.md": "observability/index.html",
+    "security.md": "security/index.html",
 })
 
 
