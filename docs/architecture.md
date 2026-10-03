@@ -257,7 +257,9 @@ self-exit and be restarted with new code.
   so two pollers sharing a checkout root never write one issue's pinned comment and labels at once. A family handler's
   writes to a child take the child's claim the same way, and the walk that releases children reads each again behind it
   rather than trusting its scan. It is never waited for: a contender skips the issue with no effect but a close it read,
-  which it keeps in its own latch, and retries on a later tick; different issues never contend. Inside one process it is
+  which it keeps in its own latch scoped to the late cycle one read of the record says that close ends — so a cycle the
+  holder settles and an operator restarts meanwhile is not ended by it — and retries on a later tick; different issues
+  never contend. Inside one process it is
   exclusive between threads too, except that a close receipt is let in alongside this process's own worker, which it was
   built to land beside. A claim that cannot be worked at all — an unopenable namespace, a filesystem without `flock` —
   withholds the issue too, where the presence above lets a poller go on unclaimed: a tidying job can be given up, an

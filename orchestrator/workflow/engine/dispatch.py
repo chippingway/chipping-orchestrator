@@ -45,11 +45,12 @@ def _process_polled_issue(
 
     Everything past that classification runs under the issue's writer claim,
     which is taken as the worker paths take theirs: before any read or write
-    for the issue, so a contender reads and writes nothing and leaves any latch
-    it found for the next poll. A CLOSED reading it found is latched too, and
-    nothing more, because no other path of this process would ever hold it --
-    this loop is the enumeration and the worker both. A parked issue never asks
-    for the claim, because it has nothing to write.
+    for the issue, so a contender writes nothing and leaves any latch it found
+    for the next poll. A CLOSED reading it found is latched too, scoped to the
+    cycle the record says it ends, and nothing more, because no other path of
+    this process would ever hold it -- this loop is the enumeration and the
+    worker both. A parked issue never asks for the claim, because it has
+    nothing to write.
 
     Once the claim is held, the issue is read again before anything routes it,
     on every route. The object in hand is the enumeration's, and it is older
@@ -83,7 +84,7 @@ def _process_polled_issue(
     if skip and not latched:
         return
     with _issue_processing._writer_claim(
-        gh, spec, issue_number, keeps_close=issue_is_closed(issue),
+        gh, spec, issue_number, closed=issue if issue_is_closed(issue) else None,
     ) as held:
         if not held:
             return

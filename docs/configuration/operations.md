@@ -410,10 +410,12 @@ the in-process scheduler guards (a duplicate active issue, the caps, the family 
 - **One writer per issue.** Each dispatched issue is taken under a host-local writer claim: an exclusive `flock` on a
   file in `WORKTREES_DIR/.issue-writer-claims/`, named for the repository's numeric GitHub id — which no rename or
   transfer changes, unlike the configured slug or the `owner/name` a poller fetched at startup — and the issue number. A
-  poller that finds the issue held by another skips it for that tick — no refetch, pinned read, guard, recovery pass,
-  close receipt, or handler, so no label, comment, or pinned write, no agent run, and no usage or evaluation record —
-  and takes the issue up on a later tick once the holder is done. A close it read for the issue is kept in its own
-  memory and nowhere else, so a reopen before then cannot take the reading away; a later tick sweeps it under the claim.
+  poller that finds the issue held by another skips it for that tick — no refetch, guard, recovery pass, close
+  receipt, or handler, so no label, comment, or pinned write, no agent run, and no usage or evaluation record — and
+  takes the issue up on a later tick once the holder is done. A close it read for the issue costs one pinned read, for
+  the late cycle that close ends, and is kept in its own memory scoped to that cycle and nowhere else: a reopen before
+  then cannot take the reading away, a later tick sweeps it under the claim, and a cycle the holder settled and an
+  operator restarted in the meantime is left alone. A close the record says ends no cycle is not kept.
   A poller granted the claim reads the issue again behind it before routing it, so it never resumes a stage another
   poller advanced the issue past since its poll. Different issues never contend. Inside one process the claim is
   exclusive between threads too, logged as `reason=held_here`, with one exception: the receipt a poll posts for a close

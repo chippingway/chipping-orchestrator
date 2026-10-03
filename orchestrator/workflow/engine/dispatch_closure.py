@@ -5,7 +5,8 @@
 The shared observation registry retains a close until its cycle is settled.
 Receipt recording is resolved on its stage owner, and a refused worker
 submission preserves the cleanup obligation for the next poll -- written down
-under the issue's writer claim, or latched alone where that claim is refused.
+under the issue's writer claim, or left as the enumeration latched it where
+that claim is refused.
 """
 from __future__ import annotations
 
@@ -129,13 +130,15 @@ def _refused_submit(
     Both read the record and post on the thread, so both are taken under the
     issue's writer claim -- `alongside` the worker of this process a duplicate
     refusal names, since the receipt is a comment built to be written beside
-    it. A claim another poller holds, or one that could not be worked, keeps
-    the reading in the latch alone, for a pass that holds the claim to decide.
+    it. A claim another poller holds, or one that could not be worked, leaves
+    the latch as the partition left it: the enumeration took this tick's
+    closed reading under the same claim, or kept it scoped where that claim
+    was refused, so there is nothing newer here to keep.
     """
     if not (cleanup_only or closed):
         return
     with _issue_processing._writer_claim(
-        gh, spec, issue_number, keeps_close=True, alongside=True,
+        gh, spec, issue_number, alongside=True,
     ) as held:
         if not held:
             return

@@ -311,12 +311,15 @@ receipt behind a closed fan-out issue, and the same pair a refused submit's obse
 for it *alongside* — granted beside a worker of this same process that holds the issue, since the receipt is an added
 comment built to land beside one, and an ordinary exclusive attempt against every other process.
 
-An issue another poller on the host holds is skipped whole on every path: nothing is refetched, read, published,
+An issue another poller on the host holds is skipped whole on every path: nothing is refetched, published,
 relabelled, written, run, or accounted for, and the submit's publication hold and any latched close are left as they
-were. A close the poll read for it is the one thing kept, in this process's latch alone — no pinned read decides
-whether it is owed and no receipt is posted — so a human reopening the issue before the claim comes back cannot take
-the reading away; the next tick routes it to a cleanup pass under the claim, which marks the cancellation if a cycle
-was live and otherwise just settles the latch. A claim that cannot be worked withholds the issue the same way rather
+were. A close the poll read for it is the one thing kept, in this process's latch alone and after one pinned read that
+says which late cycle the close ends — no receipt is posted — so a human reopening the issue before the claim comes
+back cannot take the reading away. The latch is scoped to that cycle. The next tick routes it to a cleanup pass under
+the claim, which marks the cancellation if that cycle is still the record's, and settles the latch with nothing marked
+if the holder has since settled it and started the fresh cycle an operator authorized. A close the record says ends
+nothing — no cycle, or one already marked — is not kept, and one whose record could not be read is kept unscoped,
+ending whatever cycle that pass finds. A claim that cannot be worked withholds the issue the same way rather
 than dispatching it uncoordinated. The scheduler's own gates still run first and are unchanged: duplicate-active, the
 caps, the family slot, and the refused-submit observation hold.
 

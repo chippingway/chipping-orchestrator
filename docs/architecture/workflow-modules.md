@@ -241,16 +241,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a failed label read reaches per-issue exception isolation through the family bucket
     dispatch_closure.py     persist poll and refetch closes, retain them across ordinary processing, and preserve
                             receipts and deferred cleanup when a worker submission is refused -- under the issue's
-                            writer claim alongside this process's worker, latching alone where the claim is refused
+                            writer claim alongside this process's worker, leaving the enumeration's latch as it was
+                            where the claim is refused
     cleanup_observation.py keep a close through cleanup exceptions and unsettled endings, including an ending owed
                             under a label no sweep queries; settle only after the defining stage proves it complete
     dispatch_partition.py  combine fresh poll results and still-owed closes, record closed fanout receipts before
-                            submission under the issue's writer claim -- only the latch where it is refused -- and
-                            include deferred issues that enumeration did not yield
+                            submission under the issue's writer claim -- only the cycle-scoped latch where it is
+                            refused -- and include deferred issues that enumeration did not yield
     issue_processing.py    the issue writer claim every dispatch seam takes before its refetch, guards, close
                             recovery, and handler, keyed on the client's rename-proof `repo_id`, with a contender
-                            skipping the issue whole, leaving its latch and holds as found, and latching a closed
-                            reading its caller says it carries; apply controls, select cleanup or guarded stage
+                            skipping the issue whole, leaving its latch and holds as found, and keeping a closed
+                            reading its caller hands in through `contended_closes`; apply controls, select cleanup or
+                            guarded stage
                             dispatch, hold publication through the handler, and record timed evaluation analytics on
                             success and failure
     dispatch_workers.py    take the writer claim at each worker entry, outside the observation scope it wraps, then
@@ -259,16 +261,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             observation scopes across sequential, scheduler, and pool execution
     scheduled_dispatch.py  drain the family bucket under active tracking, enforce capacity rules, and submit fanout
                             with claims released after execution or refusal; observed closes remain cap-exempt
+    contended_closes.py    keep a close read while another poller holds the issue: one read of the record scopes
+                            the latch to the cycle that close ends, a close ending no cycle is not kept (and drops an
+                            older latch), and a read that fails keeps it unscoped
     dispatch.py            drive the sequential poll's closure classification under the issue's writer claim --
-                            a contender keeping only a closed reading's latch -- refetching every issue it routes
-                            under that claim, or submit its partition to the scheduler; refetched issues and
-                            still-owed closes keep the processing scope their reading earned
-    observation_state.py    the process-local close, receipt, scan, retirement, publication, and deferred-settlement
-                            registries behind one lock; settlement advances the owner generation and clears its latch
-                            and receipt memo atomically
-    observations.py         latch, read, enumerate, and settle observed closes; settlement is deferred while a
-                            publication holds the owner, so a record read cannot erase a close a running worker still
-                            owes
+                            a contender keeping only a closed reading's cycle-scoped latch -- refetching every issue
+                            it routes under that claim, or submit its partition to the scheduler; refetched issues
+                            and still-owed closes keep the processing scope their reading earned
+    observation_state.py    the process-local close, close-scope, receipt, scan, retirement, publication, and
+                            deferred-settlement registries behind one lock; settlement advances the owner generation
+                            and clears its latch, its scope, and its receipt memo atomically
+    observations.py         latch, scope, read, enumerate, and settle observed closes; a close is scoped to the cycle
+                            a read of the record says it ends, so a close another poller settled cannot end the cycle
+                            it restarted into; settlement is deferred while a publication holds the owner, so a record
+                            read cannot erase a close a running worker still owes
     observation_receipts.py generation-scoped exclusive receipt-post claims and landed memos; bounded thread scans
                             release on failure and reopen when a receipt lands, so a failed or stale attempt suppresses
                             no later receipt
@@ -1828,7 +1834,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             whether there is a cycle to end, and the two readings that withhold everything but the
                             mark -- an issue open again between the poll and the refetch, and one an operator has
                             parked with `backlog` or `paused`. Being routed here at all says a close was observed,
-                            so either leaves the mark behind and the rest to a later visit. What that ending
+                            so either leaves the mark behind and the rest to a later visit -- unless the reopened
+                            record names a cycle other than the one the held close was scoped to, which another
+                            poller settled and restarted from, and which is left unmarked. What that ending
                             consists of is `late_cancellation`'s; what is here is the entry a closed issue has
                             no handler to give it -- the close a dead terminal left correlated on the record and
                             receipted on the thread, adopted before anything else is decided; and the one terminal
@@ -1848,7 +1856,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a retirement in flight can still supply the cycle a concurrent close must name
       late_close_observation.py
                             claim and post observed-close receipts, adopt them after a process restart, and turn fresh
-                            or latched closure into durable cancellation without letting a later reopen erase it
+                            or latched closure into durable cancellation without letting a later reopen erase it;
+                            scope a polled close to the cycle its receipt names, and post none for a cycle a held
+                            close was not scoped to
       late_cancellation_pr.py
                             release and close the held pull request with a cycle receipt, persist changed obligations,
                             report their outcome, and verify the publication again after cleanup

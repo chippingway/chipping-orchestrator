@@ -132,11 +132,23 @@ def _observed_close_posted(
 ) -> int | None:
     """Post this cycle's close receipt, unless something already says it.
 
-    Answers which cycle this observation belongs to, having discharged the
-    receipt in three ways rather than one: the post landed, the thread
-    already carries it, or there is nothing for it to say -- an owner with no
-    cycle a close would end, which is a state no later reader needs a receipt
-    for and the caller drops the reading on.
+    Answers which cycle the record names for this observation, having
+    discharged the receipt in four ways rather than one: the post landed, the
+    thread already carries it, the close is not this cycle's to post for, or
+    there is nothing for it to say -- an owner with no cycle a close would
+    end, which is a state no later reader needs a receipt for and the caller
+    drops the reading on.
+
+    Not this cycle's, because the held close is scoped to the cycle it ended.
+    A `polled` issue that reads closed is a close standing now, so it ends
+    the cycle the record names now and is scoped to it. Anything else is
+    writing down a close latched earlier, and another poller on this host may
+    have settled that close's cycle and started a fresh one since: a receipt
+    naming the fresh cycle would end it for a close that happened before it
+    existed. Nothing is posted for that one, and it is still answered for
+    rather than dropped: the cleanup route it is bound to is what recognizes
+    it by its scope and lets it go, and a latch dropped here would leave that
+    route's sweep nothing to recognize.
     """
     issue = gh.get_issue(issue_number) if polled is None else polled
     state = gh.read_pinned_state(issue)
@@ -145,6 +157,10 @@ def _observed_close_posted(
     )
     if cycle is None:
         return None
+    if polled is not None and _issues.issue_is_closed(polled):
+        _observations.scope_close(spec.slug, issue_number, cycle)
+    elif not _observations.close_ends(spec.slug, issue_number, cycle):
+        return cycle
     marker = _late_close_reading._observed_close_marker(issue_number, cycle)
     if _late_close_reading._carries_observed_close(gh, issue, marker):
         return cycle

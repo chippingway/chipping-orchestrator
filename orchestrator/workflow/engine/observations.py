@@ -4,7 +4,9 @@
 
 The shared state owner keeps every registry under one lock. Receipt claims,
 retiring cycles, and publication holds use that same state; a settlement
-requested while a publication holds the owner waits for its final release."""
+requested while a publication holds the owner waits for its final release. A
+latched close is scoped to the cycle it ends, so a close another poller on
+this host settled cannot end the cycle that poller started after it."""
 from __future__ import annotations
 
 from orchestrator.workflow.engine import observation_state as _observation_state
@@ -14,6 +16,32 @@ def observe_close(repo_slug: str, issue_number: int) -> None:
     """Latch a close this poll saw, so what reads it cannot miss it."""
     with _observation_state._lock:
         _observation_state._observed.add(_observation_state._owner_key(repo_slug, issue_number))
+
+
+def scope_close(repo_slug: str, issue_number: int, cycle_id: int) -> None:
+    """Say which cycle the close held on this issue ends.
+
+    Taken off a read of the record made while the issue was still closed, so
+    the cycle the record named is the one that close ended. Another poller on
+    this host can settle that cycle and start a fresh one before this process
+    holds the issue again -- an operator's restart is exactly that -- and only
+    the scope tells a close that ended the old one from a close that ends the
+    new one.
+    """
+    with _observation_state._lock:
+        _observation_state._scopes[_observation_state._owner_key(repo_slug, issue_number)] = int(cycle_id)
+
+
+def close_ends(repo_slug: str, issue_number: int, cycle_id: int) -> bool:
+    """Whether the close held on this issue is one that ends this cycle.
+
+    A close no read has scoped yet is taken to end the first cycle it is asked
+    about, and is scoped to it from then on, so it cannot reach past that
+    cycle to the next one either.
+    """
+    key = _observation_state._owner_key(repo_slug, issue_number)
+    with _observation_state._lock:
+        return _observation_state._scopes.setdefault(key, int(cycle_id)) == int(cycle_id)
 
 
 def close_observed(repo_slug: str, issue_number: int) -> bool:

@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a tick does with an issue another poller on this host is writing.
 
-Nothing it would need the claim for: no refetch, no pinned read, no recovery,
-no receipt, no handler, and no evaluation record, on every dispatch mode a tick
-can take -- while every other issue in the same tick is dispatched as ever. What
-it does keep is a close it read, in this process's latch and nowhere else, so a
-human reopening the issue before the claim comes back cannot take the reading
-away. The claim is the repository's numeric id and the issue number, so a spec
+Nothing it would need the claim for: no refetch, no recovery, no receipt, no
+handler, no write, and no evaluation record, on every dispatch mode a tick can
+take -- while every other issue in the same tick is dispatched as ever. What it
+does keep is a close it read, in this process's latch and nowhere else, scoped
+to the cycle one read of the record says that close ends, so a human reopening
+the issue before the claim comes back cannot take the reading away. The claim
+is the repository's numeric id and the issue number, so a spec
 configured under another name, and a poller that fetched the repository before
 it was renamed, meet the same holder.
 """
@@ -19,6 +20,7 @@ from unittest.mock import Mock, patch
 from orchestrator.scheduler import writer_claims
 from tests.support.writer_claims import claimable, held_elsewhere, unusable_namespace
 from tests.workflow.engine import cleanup_deferral_support as _deferral
+from tests.workflow.engine.contended_close_support import ticked_on
 from tests.workflow.engine.renamed_poller_support import RenamedRepositoryCase
 from tests.workflow.engine.writer_claim_test_support import (
     ALL_ISSUES,
@@ -140,7 +142,7 @@ class ContendedCleanupTest(_deferral.DeferralCase, unittest.TestCase):
                 record = self.github.pinned_data(_deferral.OWNER_NUMBER)
 
                 with held_elsewhere(self.github.repo_id, _deferral.OWNER_NUMBER):
-                    _ticked_on(self, limit, scheduled=scheduled)
+                    ticked_on(self, limit, scheduled=scheduled)
 
                 self.assertEqual(self._observed(_deferral.REPO_SLUG), self.owed)
                 self.assertEqual(self.github.posted_comments, comments)
@@ -149,9 +151,9 @@ class ContendedCleanupTest(_deferral.DeferralCase, unittest.TestCase):
 
     def test_a_released_owner_is_swept_next_tick(self) -> None:
         with held_elsewhere(self.github.repo_id, _deferral.OWNER_NUMBER):
-            _ticked_on(self, 4, scheduled=True)
+            ticked_on(self, 4, scheduled=True)
 
-        _ticked_on(self, 4, scheduled=True)
+        ticked_on(self, 4, scheduled=True)
 
         self.assertTrue(self._cancelled())
         self.assertEqual(self._observed(_deferral.REPO_SLUG), frozenset())
@@ -163,10 +165,11 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
 
     The owner is a closed umbrella still holding a snapshot ref, and no earlier
     tick has seen it closed. Whatever refuses the claim -- another poller
-    holding it, or a namespace nothing can be locked in -- the poll may neither
-    read the record that says whether the close is owed nor post the receipt
-    that would make it durable, since both are the holder's. The latch is what
-    is left, and it is what outlives a human reopening the issue.
+    holding it, or a namespace nothing can be locked in -- the poll may not
+    post the receipt that would make the close durable, since that is the
+    holder's. It reads the record once, for the cycle the close ends, and the
+    latch scoped to that cycle is what is left, and what outlives a human
+    reopening the issue.
     """
 
     def setUp(self) -> None:
@@ -180,7 +183,7 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
                 self._ticked_refused(refusal, limit, scheduled=scheduled)
 
                 self._reopened()
-                _ticked_on(self, limit, scheduled=scheduled)
+                ticked_on(self, limit, scheduled=scheduled)
 
                 self.assertTrue(self._cancelled(), "the reopened owner's cycle is still ended")
                 self.stage.assert_not_called()
@@ -189,7 +192,8 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
     def test_a_refused_submit_writes_nothing(self) -> None:
         # A worker of this process is running the owner, so the scheduler
         # refuses the submit, and another poller holds the claim besides: the
-        # refusal's own recovery reads and writes nothing either.
+        # refusal's own recovery reads and writes nothing, past the one read
+        # the enumeration took for the cycle it keeps.
         reads = Mock(wraps=self.github.read_pinned_state)
         with (
             held_elsewhere(self.github.repo_id, _deferral.OWNER_NUMBER),
@@ -197,7 +201,7 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
         ):
             self._tick_a_worker_held(self._scheduler())
 
-        self.assertEqual(reads.call_count, 0)
+        self.assertEqual(reads.call_count, 1)
         self.assertEqual(_deferral.receipts_on(self.github), [])
         self.assertEqual(self._observed(_deferral.REPO_SLUG), self.owed)
 
@@ -220,11 +224,13 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
 
     def _ticked_refused(self, refusal: str, limit: int, *, scheduled: bool) -> None:
         """A tick that first reads the close with the owner's claim refused."""
+        record = self.github.pinned_data(_deferral.OWNER_NUMBER)
         reads = Mock(wraps=self.github.read_pinned_state)
         with _refused(refusal, self.github), patch.object(self.github, "read_pinned_state", reads):
-            _ticked_on(self, limit, scheduled=scheduled)
+            ticked_on(self, limit, scheduled=scheduled)
 
-        self.assertEqual(reads.call_count, 0, "the record is not read")
+        self.assertEqual(reads.call_count, 1, "the record is read once, for the cycle the close ends")
+        self.assertEqual(self.github.pinned_data(_deferral.OWNER_NUMBER), record, "and not written")
         self.assertEqual(_deferral.receipts_on(self.github), [], "the close is not written down")
         self.assertEqual(self._observed(_deferral.REPO_SLUG), self.owed, "but it is latched")
 
@@ -234,14 +240,6 @@ def _refused(refusal: str, github):
     if refusal == _HELD_ELSEWHERE:
         return held_elsewhere(github.repo_id, _deferral.OWNER_NUMBER)
     return unusable_namespace()
-
-
-def _ticked_on(case: _deferral.DeferralCase, limit: int, *, scheduled: bool) -> None:
-    """One tick over the case's owner, through the mode the arguments name."""
-    if scheduled:
-        case._ticked(case._scheduler())
-        return
-    _deferral.ticked_directly(case, limit)
 
 
 if __name__ == "__main__":

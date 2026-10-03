@@ -201,20 +201,12 @@ class HeldIssuesCase(WriterClaimDispatchCase):
         self.assertEqual(set(stand_in.ran), set(FREE_ISSUES), "only the free issues run")
         self.assertEqual(self.written_issues(), set(FREE_ISSUES), "nothing is written on a held one")
         self.assertEqual(self.evaluated_issues(), set(FREE_ISSUES), "nothing is accounted for one")
-        self.assertEqual(self._observed(REPO_SLUG), {HELD_CLOSED}, "the close it read is kept")
+        # The held closed issue carries no cycle its close could end, which
+        # its record says, so there is nothing to hold for it.
+        self.assertEqual(self._observed(REPO_SLUG), frozenset(), "a close that ends nothing is not kept")
 
     def ticked_once_released(self, *, limit: int, scheduled: bool) -> None:
-        """The ticks after the holder lets go.
-
-        The kept close is swept first, under the claim, and found to end
-        nothing; the issue's own handler runs on the tick after that.
-        """
-        swept = StandInHandler()
-        self.ticked(swept, limit=limit, scheduled=scheduled)
-
-        self.assertEqual(set(swept.ran), set(ALL_ISSUES - {HELD_CLOSED}))
-        self.assertEqual(self._observed(REPO_SLUG), frozenset())
-
+        """The tick after the holder lets go, which runs every issue."""
         retry = StandInHandler()
         self.ticked(retry, limit=limit, scheduled=scheduled)
 
