@@ -8,15 +8,19 @@ came back, after the artifact landed and before the settling write, and after
 the settlement landed with the record somehow still standing. Each is replayed
 by running the reconciliation again over the comment the first run persisted,
 and each has to end with one artifact on the thread, one current record, and
-the transaction's receipt as the handoff.
+the transaction's receipt as the handoff. The artifact a replay finds is the
+one that reads back as the transaction's, whatever body the writer would give
+it now.
 """
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from unittest.mock import patch
 
+from orchestrator.github import verification_artifacts as _artifacts
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
-from orchestrator.github.verification_evidence import EvidenceSource
+from orchestrator.github.verification_evidence import ArtifactRefusedError, EvidenceSource, VerifiedCommand
 from orchestrator.workflow.engine import (
     review_subjects as _review_subjects,
     verification_record_fields as _fields,
@@ -36,6 +40,28 @@ _FAILED = 1
 
 # The key another route's write fills the pinned comment with.
 _FILLER = "filler"
+
+_WRITER = "render_verification_artifact"
+
+# Writers a replay can run under once an artifact landed: the one it landed
+# through, one presenting it otherwise, and one whose body for it would be past
+# what one comment holds.
+_REPLAY_WRITERS = (
+    ("the same writer", {"new": _artifacts.render_verification_artifact}),
+    ("presented otherwise", {"return_value": "The same evidence, presented otherwise."}),
+    ("past one comment", {"side_effect": ArtifactRefusedError("past one comment")}),
+)
+
+# Comments of ours under a transaction's receipt that are not its artifact: one
+# edited out of shape, and a whole artifact of other evidence.
+_CLAIMS = (
+    ("edited", lambda artifact: _artifacts.render_verification_artifact(artifact).replace(
+        "exit 0", "exit 1", 1,
+    )),
+    ("other evidence", lambda artifact: _artifacts.render_verification_artifact(replace(
+        artifact, commands=(VerifiedCommand(support.SUITE, _FAILED, "1 failed"),),
+    ))),
+)
 
 
 def _history(case) -> list[tuple]:
@@ -140,6 +166,45 @@ class SettledEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
             _history(self), [(first.receipt, _records.Retirement.SUPERSEDED)],
         )
 
+    def test_a_claimant_stands_the_post_down(self) -> None:
+        # A comment of ours under the transaction's receipt that is not its
+        # artifact -- edited out of shape, or a whole artifact of other
+        # evidence -- is a second claim to it, so nothing is posted beside it
+        # and nothing written: the transaction stays owed, nothing current.
+        for label, claims in _CLAIMS:
+            with self.subTest(label):
+                self.setUp()
+                pending = self.record()
+                claimant = self.gh._post_verification_artifact(self.pull_request, claims(pending.artifact))
+                writes = self.gh.write_state_calls
+                with self.assertLogs(support.WORKFLOW_LOG, _LEVEL):
+                    self.assertFalse(self.reconcile())
+
+                self.assertEqual(self.gh.write_state_calls, writes)
+                self.assertEqual(_record_state.read_pending_evidence(self.state), pending)
+                self.assertIsNone(_settlement.read_current_evidence(self.state))
+                self.assertIs(self.pull_request.issue_comments[-1], claimant)
+
+    def test_its_own_artifact_settles_past_a_claimant(self) -> None:
+        # The transaction's own artifact, beside a claimant under its receipt,
+        # is the comment it settles at and records as ours. The claimant is
+        # neither recorded nor touched, and nothing more is posted.
+        for label, claims in _CLAIMS:
+            with self.subTest(label):
+                self.setUp()
+                pending = self.record()
+                claimant = self.gh._post_verification_artifact(self.pull_request, claims(pending.artifact))
+                landed = self.gh._post_verification_artifact(
+                    self.pull_request, _artifacts.render_verification_artifact(pending.artifact),
+                )
+
+                self.assertFalse(self.reconcile())
+
+                self.assertEqual(_settlement.read_current_evidence(self.state).comment_id, landed.id)
+                self.assertIn(landed.id, self.state.get(support.LEDGER))
+                self.assertNotIn(claimant.id, self.state.get(support.LEDGER))
+                self.assertEqual(self.pull_request.issue_comments[-2:], [claimant, landed])
+
 
 class ReplayedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
     """Every window a process can die in replays to one artifact and one settlement."""
@@ -151,19 +216,30 @@ class ReplayedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
         self.meanwhile = None
 
     def test_an_accepted_post_whose_response_was_lost(self) -> None:
-        self.gh.report_failures.lost.add(support.PR_NUMBER)
-        with self.assertLogs(_GITHUB_LOG, _WARNING):
-            held = self.reconcile()
-        self.gh.report_failures.lost.clear()
+        # The replay reads only what the first run persisted, as a restarted
+        # process does, and finds the comment that landed by what it reads
+        # back as: settled there and recorded as ours, never rewritten or
+        # posted again -- even under a writer that would now present the same
+        # artifact otherwise, or past what one comment holds.
+        for label, writer in _REPLAY_WRITERS:
+            with self.subTest(label):
+                self.setUp()
+                self.gh.report_failures.lost.add(support.PR_NUMBER)
+                with self.assertLogs(_GITHUB_LOG, _WARNING):
+                    self.assertTrue(self.reconcile())
+                self.gh.report_failures.lost.clear()
+                landed = self.pull_request.issue_comments[-1]
 
-        replayed = self.reconcile()
+                with patch.object(_artifacts, _WRITER, **writer):
+                    self.assertFalse(self.reconcile())
 
-        self.assertEqual((held, replayed), (True, False))
-        self.assertEqual(len(self.artifacts()), 1)
-        self.assertEqual(
-            _settlement.read_current_evidence(self.state).receipt,
-            self.pending.receipt,
-        )
+                current = _settlement.read_current_evidence(self.state)
+                self.assertEqual(
+                    (current.receipt, current.comment_id), (self.pending.receipt, landed.id),
+                )
+                self.assertIn(landed.id, self.state.get(support.LEDGER))
+                self.assertIs(self.pull_request.issue_comments[-1], landed)
+                self.assertEqual(self.artifacts(), [self.pending.artifact])
 
     def test_a_settling_write_that_never_landed(self) -> None:
         with patch.object(

@@ -38,6 +38,12 @@ anybody can paste, and a maintainer can edit a comment that stays attributed
 to us, so neither the marker nor the author proves an artifact alone. One that
 does not fit in a comment is refused rather than cut: a truncated transcript
 published under the header would read as the whole of what ran.
+
+The reader and the writer meet only at the format's canonical body. A comment
+is checked against that body; the writer adds the one-comment bound on top
+before a post. So whether a posted comment is an artifact never depends on
+what the writer would post now, and an artifact stays readable exactly as it
+was published.
 """
 from __future__ import annotations
 
@@ -231,18 +237,29 @@ class VerificationArtifact:
             content=self.content_revision,
         )
 
+    @property
+    def canonical_body(self) -> str:
+        """The one body this format spells this artifact as, however long it comes out.
+
+        Unbounded, because a comment claiming this format is checked against
+        it. The writer lays the one-comment bound over it
+        (`render_verification_artifact`); here it would only make a reader
+        depend on what the writer is willing to post now.
+        """
+        return (
+            f"{self.preamble}{self.evidence}{_SEPARATOR}"
+            f"{self.header}{_SEPARATOR}{_comments.ORCHESTRATOR_COMMENT_MARKER}"
+        )
+
 
 def render_verification_artifact(artifact: VerificationArtifact) -> str:
     """The one comment body `artifact` is published as.
 
     `ArtifactRefusedError` when that body would not fit in one comment, raised
-    before any request is made: GitHub refuses the write, and an excerpt short
-    enough to be accepted is not the evidence.
+    before it is posted: GitHub refuses the write, and an excerpt short enough
+    to be accepted is not the evidence.
     """
-    body = (
-        f"{artifact.preamble}{artifact.evidence}{_SEPARATOR}"
-        f"{artifact.header}{_SEPARATOR}{_comments.ORCHESTRATOR_COMMENT_MARKER}"
-    )
+    body = artifact.canonical_body
     if len(body) > MAX_PINNED_BODY:
         raise _evidence.ArtifactRefusedError(
             f"the artifact renders to {len(body)} characters, past the "
@@ -257,18 +274,24 @@ def verification_artifact_from_comment(
     """The artifact one pull-request comment is, or None when it is not one of ours.
 
     Ours by author, and an artifact by exact re-rendering: the identity and the
-    evidence are read back out of the body and rendered again, and anything but
-    the same body -- an edited command, a stale digest, a witness swapped for
-    the other one, text appended after the marker, a transcript cut short -- is
-    not an artifact. Nor is one whose header claims a number of more digits
-    than Python converts, which no rendering wrote. A client with no login of
-    its own takes the content alone, the same fallback `authored_by_us` takes.
+    evidence are read back out of the body and spelled again in this format's
+    canonical body, and anything but the same body -- an edited command, a
+    stale digest, a witness swapped for the other one, text appended after the
+    marker, a transcript cut short -- is not an artifact. Nor is one whose
+    header claims a number of more digits than Python converts, which no
+    rendering wrote. A client with no login of its own takes the content
+    alone, the same fallback `authored_by_us` takes.
 
     Every one of those answers None. This is the question asked OF somebody
     else's comment, on a thread anybody can post to, so nothing a comment says
     about itself may leave by an exception -- including the claim that
     reconstructs past what a comment holds, which a body short enough to have
     been posted still makes once its preamble is gone.
+
+    Held to that canonical body rather than to what the writer publishes, so
+    an artifact a pull request already carries reads back as itself whatever
+    the writer would post for it now -- including where that would not fit in
+    one comment.
     """
     body = getattr(comment, "body", None)
     if not isinstance(body, str) or len(body) > MAX_PINNED_BODY:
@@ -277,13 +300,9 @@ def verification_artifact_from_comment(
     if claimed is None or not _comments.authored_by_us(comment, bot_login=bot_login):
         return None
     artifact = _claimed_artifact(claimed, body)
-    if artifact is None:
+    if artifact is None or artifact.canonical_body != body:
         return None
-    try:
-        rendered = render_verification_artifact(artifact)
-    except _evidence.ArtifactRefusedError:
-        return None
-    return artifact if rendered == body else None
+    return artifact
 
 
 def _claimed_artifact(

@@ -4,16 +4,20 @@
 
 One contract, held against the real client and against the shared fake: which
 reading licenses a post, what an unanswered request is answered with, that a
-retry finds the exact artifact GitHub already accepted, that ownership takes
-our author and our exact rendering together, that a settled artifact is re-read
-at its own comment as exactly that, and that neither the description nor the
-developer report beside it is ever written.
+retry finds the artifact GitHub already accepted by what it reads back as
+rather than by the body the writer would post now, that ownership takes our
+author and an exact rendering in the comment's own format together, that a
+settled artifact is re-read at its own comment as exactly that, and that
+neither the description nor the developer report beside it is ever written.
 """
 from __future__ import annotations
 
+import contextlib
 import unittest
+from dataclasses import replace
+from unittest.mock import patch
 
-from orchestrator.github import comments as _trust
+from orchestrator.github import comments as _trust, verification_artifacts as _artifacts
 from orchestrator.github.developer_reports import content_digest, render_developer_report
 from orchestrator.github.pinned_state import MAX_PINNED_BODY
 from orchestrator.github.pull_request_reports import (
@@ -21,7 +25,6 @@ from orchestrator.github.pull_request_reports import (
     ReportLookup,
     ReportPresence,
 )
-from orchestrator.github.verification_artifacts import render_verification_artifact
 from orchestrator.github.verification_evidence import (
     ArtifactRefusedError,
     EvidenceSource,
@@ -48,8 +51,36 @@ _LATER = make_verification_artifact(
     commands=(VerifiedCommand("uv run pytest tests", 0, "1 failed"),),
 )
 _REPORT = make_developer_report(support.PR_NUMBER)
-_PUBLISHED = render_verification_artifact(_ARTIFACT)
+_WRITER = "render_verification_artifact"
+_PUBLISHED = _artifacts.render_verification_artifact(_ARTIFACT)
 _UNCONFIRMED = ReportLookup(ReportPresence.UNCONFIRMED)
+_OVERSIZED = make_verification_artifact(
+    support.PR_NUMBER,
+    commands=(VerifiedCommand("check", 0, "y" * MAX_PINNED_BODY),),
+)
+
+# Comments of ours carrying this transaction's receipt that are not its
+# artifact: one a maintainer's edit left no artifact at all, and whole
+# artifacts that differ from it in their evidence or in their identity.
+_CLAIMANTS = (
+    ("an edited artifact", _PUBLISHED.replace("exit 0", "exit 1", 1)),
+    ("other evidence", _artifacts.render_verification_artifact(
+        replace(_ARTIFACT, commands=_LATER.commands),
+    )),
+    ("another witness", _artifacts.render_verification_artifact(
+        replace(_ARTIFACT, source=EvidenceSource.REVIEWER_REPORTED),
+    )),
+)
+
+# What a writer presenting an artifact otherwise posts for it.
+_REPRESENTED = "The same evidence, presented otherwise."
+
+# Writers a publication can run under after an artifact landed: one presenting
+# it otherwise, and one whose body for it would be past what a comment holds.
+_LATER_WRITERS = (
+    ("presented otherwise", {"return_value": _REPRESENTED}),
+    ("past one comment", {"side_effect": ArtifactRefusedError("past one comment")}),
+)
 
 
 def _publish(case, artifact=_ARTIFACT) -> ReportLookup:
@@ -91,7 +122,7 @@ class _PublicationContract:
         self.assertIs(later.presence, ReportPresence.PRESENT)
         self.assertEqual(
             [comment.body for comment in self.pull_request.issue_comments],
-            [_PUBLISHED, render_developer_report(_REPORT), render_verification_artifact(_LATER)],
+            [_PUBLISHED, render_developer_report(_REPORT), _artifacts.render_verification_artifact(_LATER)],
         )
 
     def test_a_pasted_copy_proves_nothing(self) -> None:
@@ -106,40 +137,52 @@ class _PublicationContract:
         self.assertIs(published.presence, ReportPresence.PRESENT)
         self.assertEqual(published.found.user.login, support.BOT_LOGIN)
 
-    def test_our_edited_artifact_holds_the_post(self) -> None:
-        # A maintainer's edit leaves the comment attributed to us and its
-        # receipt naming this transaction, so a second comment would be a
-        # second claim to it -- the caller is told instead.
-        edited = self.seed(
-            _PUBLISHED.replace("exit 0", "exit 1", 1),
-            login=support.BOT_LOGIN,
-        )
+    def test_a_claimant_holds_the_post(self) -> None:
+        # Ours, and its receipt names this transaction, so a second comment
+        # would be a second claim to it -- the caller is told instead, whether
+        # the claimant reads back as no artifact or as a different whole one.
+        # The artifact itself, once beside it, is found past it, and neither
+        # comment is touched.
+        for label, body in _CLAIMANTS:
+            with self.subTest(label):
+                self.setUp()
+                readings = [self._publish_beside(seeded) for seeded in (body, _PUBLISHED)]
 
-        held = _publish(self)
+                claimant, landed = self.pull_request.issue_comments
+                self.assertEqual(readings, [
+                    ReportLookup(ReportPresence.CHANGED, claimant),
+                    ReportLookup(ReportPresence.PRESENT, landed),
+                ])
+                self.assertEqual(claimant.body, body)
+                self.assertEqual(self.posted_comments(), [])
 
-        self.assertEqual(held, ReportLookup(ReportPresence.CHANGED, edited))
-        self.assertEqual(self.pull_request.issue_comments, [edited])
+    def _publish_beside(self, body: str) -> ReportLookup:
+        """Publish the artifact once a comment of ours carrying `body` is on the thread."""
+        self.seed(body, login=support.BOT_LOGIN)
+        return _publish(self)
 
 
 class _RecoveryContract:
     """Nothing unanswered counts as published, and a reread is exact."""
 
-    def test_an_unpublishable_artifact_asks_nothing(self) -> None:
-        # Every read fails here, so an artifact that reached the thread would
-        # come back unconfirmed: the refusal is what proves nothing was asked.
+    def test_an_unpublishable_artifact_posts_nothing(self) -> None:
+        # One for another pull request is refused before any request: every
+        # read fails here, so one that asked would come back unconfirmed. One
+        # past what a comment holds is refused only on the way to a post, once
+        # a read found the thread without it -- a thread nobody could read may
+        # already carry it, so that reading stays unconfirmed.
         self.refuse(support.UNREADABLE)
-        oversized = make_verification_artifact(
-            support.PR_NUMBER,
-            commands=(VerifiedCommand("check", 0, "y" * MAX_PINNED_BODY),),
-        )
-        elsewhere = make_verification_artifact(support.OTHER_PR_NUMBER)
-        for artifact in (oversized, elsewhere):
-            with (
-                self.subTest(pr_number=artifact.pr_number),
-                self.assertRaises(ArtifactRefusedError),
-            ):
-                _publish(self, artifact)
+        with self.assertRaises(ArtifactRefusedError):
+            _publish(self, make_verification_artifact(support.OTHER_PR_NUMBER))
+        with self.assertLogs(_GITHUB_LOG, _WARNING):
+            unread = _publish(self, _OVERSIZED)
+        self.refuse(None)
+        with self.assertRaises(ArtifactRefusedError):
+            _publish(self, _OVERSIZED)
+
+        self.assertEqual(unread, _UNCONFIRMED)
         self.assertEqual(self.pull_request.issue_comments, [])
+        self.assertEqual(self.posted_comments(), [])
 
     def test_unanswered_is_unconfirmed_until_reread(self) -> None:
         # (how the request went unanswered, comments GitHub holds afterwards)
@@ -202,6 +245,29 @@ class _RecoveryContract:
             (ReportPresence.CHANGED, posted),
             (ReportPresence.ABSENT, None),
         ])
+
+    def test_a_landed_artifact_outlives_the_writer(self) -> None:
+        # Recovered by what it reads back as, never by the body the writer
+        # would post now: under a writer presenting the same artifact
+        # otherwise, or past what one comment holds, the comment an earlier
+        # post landed is still found and re-read, and it is neither rewritten
+        # nor posted again. That same writer is what an artifact absent from
+        # the thread goes through -- posted, or refused before the post -- so
+        # these readings ran with it in place.
+        landed = self.seed(_PUBLISHED, login=support.BOT_LOGIN)
+        present = ReportLookup(ReportPresence.PRESENT, landed)
+        for label, writer in _LATER_WRITERS:
+            with self.subTest(label), patch.object(_artifacts, _WRITER, **writer):
+                readings = [
+                    *self._both_readings(),
+                    self.gh.reread_verification_artifact(self.pull_request, landed.id),
+                ]
+                with contextlib.suppress(ArtifactRefusedError):
+                    _publish(self, _LATER)
+
+                self.assertEqual(readings, [present, present, (ReportPresence.PRESENT, _ARTIFACT)])
+        self.assertEqual(landed.body, _PUBLISHED)
+        self.assertEqual(self.posted_comments(), [(support.PR_NUMBER, _REPRESENTED)])
 
     def _both_readings(self) -> list[ReportLookup]:
         """What a lookup and then a publication each read of the artifact."""

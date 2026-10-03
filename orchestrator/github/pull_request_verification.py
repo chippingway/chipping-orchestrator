@@ -8,13 +8,23 @@ a post. That is what keeps publication idempotent and append-only -- a retry
 finds what an earlier attempt landed instead of repeating it, an artifact once
 posted is never edited, and the description is never written at all.
 
+What a retry finds is an artifact, not a body. A comment carrying the
+transaction's receipt is this transaction's only when it is ours, reads back
+as an artifact in its own format, and that artifact equals the one asked for
+in every member. Nothing compares it with what the writer would post now,
+and the writer is not asked for a body until a reading says ABSENT. So a
+comment an earlier attempt landed is found as it stands, even where the
+writer's body for the same artifact would now differ or would not fit in one
+comment.
+
 `reread_verification_artifact` is the reading a caller relying on a settled
 artifact takes: this owner's own thread read, scanned for the one comment the
 settlement recorded, and answered with the artifact of ours it still is -- our
-author and our exact rendering -- or why it is not. It does not go through the
-report owner's `reread_report_location`, which proves a report by the digest
-of its body: an artifact is ours only as a byte-for-byte rendering, and what it
-is about is read off that rendering rather than off a digest.
+author and a body that re-renders exactly in its own format -- or why it is
+not. It does not go through the report owner's `reread_report_location`, which
+proves a report by the digest of its body: an artifact is ours only as an
+exact rendering, and what it is about is read off that rendering rather than
+off a digest.
 
 The readings themselves are `pull_request_reports`' own types rather than a
 second vocabulary saying the same thing. A reading is one moment on one pull
@@ -65,11 +75,16 @@ class GitHubPullRequestVerification:
 
         Scoped by the artifact's receipt, so what a retry finds is its own
         transaction's comment and never a later artifact on the same commit.
-        PRESENT needs a comment of ours carrying exactly the rendering. A
-        comment of ours carrying the receipt in any other shape is CHANGED,
-        which a caller holds on rather than posts past, since a second comment
-        under one receipt would leave two claims to one transaction. A copy
-        anybody else pasted is neither: it is not ours, so it is not there.
+        PRESENT needs a comment of ours that reads back, in its own format, as
+        an artifact equal to this one: the whole identity, every command with
+        its status and transcript, and so the evidence digest taken over them.
+        Its body is not compared with the one the writer would post now, and
+        the writer is not asked here. A comment of ours carrying the receipt
+        that reads back as anything else, or as no artifact at all, is
+        CHANGED, which a caller holds on rather than posts past, since a
+        second comment under one receipt would leave two claims to one
+        transaction. A copy anybody else pasted is neither: it is not ours, so
+        it is not there.
 
         UNCONFIRMED is a thread nobody could read, or one whose comments would
         not say who wrote them: an author is a request on a worker that has
@@ -96,16 +111,23 @@ class GitHubPullRequestVerification:
         """Post `artifact` onto this pull request once, and say where it stands.
 
         `ArtifactRefusedError` before any request when the artifact names
-        another pull request or would not fit in one comment. Then the thread
-        is read, and only ABSENT is posted onto; every other reading is handed
-        back as it came. A post that raised is UNCONFIRMED whatever raised it:
-        a timeout after GitHub accepted the comment and a refusal before it did
-        look alike from here, and the next call's read tells them apart.
+        another pull request. Then the thread is read, and only ABSENT is
+        posted onto; every other reading is handed back as it came.
+
+        The body is rendered only after that read, on the way to a post. A
+        comment an earlier attempt landed is recovered by the read alone, so a
+        writer that would now render the same artifact otherwise, or past what
+        one comment holds, neither rewrites it nor posts it again. A body that
+        would not fit is `ArtifactRefusedError` there, before the post.
+
+        A post that raised is UNCONFIRMED whatever raised it: a timeout after
+        GitHub accepted the comment and a refusal before it did look alike
+        from here, and the next call's read tells them apart.
         """
-        body = _artifacts.render_verification_artifact(artifact)
         lookup = self.find_verification_artifact(pr, artifact)
         if lookup.presence is not ReportPresence.ABSENT:
             return lookup
+        body = _artifacts.render_verification_artifact(artifact)
         try:
             posted = self._post_verification_artifact(pr, body)
         except Exception:
@@ -123,11 +145,12 @@ class GitHubPullRequestVerification:
 
         For a reader relying on evidence a settlement recorded at that comment:
         PRESENT, with the artifact, where the comment is on the thread and
-        reads back as one of ours byte for byte; ABSENT where the thread no
-        longer carries it; CHANGED where it does and it is no artifact of ours
-        any more -- edited, or never one. What the artifact says it is about
-        is the caller's to compare with what was recorded. UNCONFIRMED is a
-        thread, or an author on it, nobody could read. Posts nothing.
+        reads back as one of ours, exact in its own format; ABSENT where the
+        thread no longer carries it; CHANGED where it does and it is no
+        artifact of ours any more -- edited, or never one. What the artifact
+        says it is about is the caller's to compare with what was recorded.
+        UNCONFIRMED is a thread, or an author on it, nobody could read. Posts
+        nothing.
         """
         bot_login = getattr(self, "_bot_login", None)
         try:
@@ -179,17 +202,28 @@ def _artifact_on_thread(
     *,
     bot_login: str | None,
 ) -> ReportLookup:
-    """What one read thread holds for `artifact`'s transaction."""
-    expected = _artifacts.render_verification_artifact(artifact)
+    """What one read thread holds for `artifact`'s transaction.
+
+    A claimant is a comment of ours carrying the receipt. The first one that
+    reads back as exactly `artifact` is PRESENT wherever it stands among the
+    others, since it is the transaction landed; with none, the first claimant
+    is the CHANGED one a caller is shown.
+    """
     claimants = [
         posted for posted in thread
         if _comments.carries_own_marker(
             (posted,), artifact.receipt_scope, bot_login=bot_login,
         )
     ]
-    exact = next((posted for posted in claimants if posted.body == expected), None)
-    if exact is not None:
-        return ReportLookup(ReportPresence.PRESENT, exact)
+    landed = next(
+        (
+            posted for posted in claimants
+            if _artifacts.verification_artifact_from_comment(posted, bot_login=bot_login) == artifact
+        ),
+        None,
+    )
+    if landed is not None:
+        return ReportLookup(ReportPresence.PRESENT, landed)
     if claimants:
         return ReportLookup(ReportPresence.CHANGED, claimants[0])
     return ReportLookup(ReportPresence.ABSENT)

@@ -43,8 +43,9 @@ def _publish_verification_artifact(
     recording an id twice keeps one entry. Caller is still responsible for
     `gh.write_pinned_state`.
 
-    The marker is not appended here: the artifact's own rendering carries it,
-    because that rendering is what a retry compares byte for byte.
+    The marker is not appended here: it is part of the artifact's own format,
+    and a retry finds the comment only where it reads back exactly in that
+    format, so a marker added here would leave a body no format spells.
 
     The id is read off the LOOKUP rather than off the object it carries. That
     read is a request on a worker holding an uncompleted object, and this runs

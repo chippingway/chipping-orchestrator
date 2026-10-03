@@ -297,13 +297,22 @@ orchestrator/
                         over the same road the developer report takes and with that owner's own readings rather
                         than a second vocabulary saying the same thing: every reading is present, absent, changed,
                         or unconfirmed, only absent is posted onto, and the lookup is scoped by the transaction
-                        receipt, so a retry finds the exact comment GitHub already accepted and a later artifact
-                        on the same commit is a comment of its own. A pasted copy is not ours; a post whose
+                        receipt, so a retry finds the comment GitHub already accepted and a later artifact on the
+                        same commit is a comment of its own. What a retry finds is an artifact rather than a body:
+                        a comment of ours under the receipt is present only where it reads back, validated in its
+                        own format, as an artifact equal to the one asked for -- the whole identity, every command
+                        with its status and transcript, and so the evidence digest -- and changed where it reads
+                        back as anything else or as nothing. It is never compared with the body the writer would
+                        post now, and the writer is asked only once a reading is absent, so a comment an earlier
+                        attempt landed is recovered as it stands, neither rewritten nor posted again, even where
+                        the writer's body for it would now differ or not fit in one comment; an artifact that
+                        would not fit is refused there, before the post. A pasted copy is not ours; a post whose
                         response was lost stays unconfirmed until a read settles it; an artifact for another pull
                         request is refused before any request is made. `reread_verification_artifact` scans this
                         owner's own thread read for the one comment an evidence settlement recorded and answers
-                        with the artifact of ours it still is -- our author and our exact rendering -- or why it
-                        is not; it does not go through the report owner's digest-based `reread_report_location`.
+                        with the artifact of ours it still is -- our author and an exact rendering in the
+                        comment's own format -- or why it is not; it does not go through the report owner's
+                        digest-based `reread_report_location`.
                         The thread read and the post are this owner's own seams, so the in-memory double answers
                         them for artifacts without inheriting whatever a case arranged for reports.
                         Recording the comment an artifact landed as belongs above this layer, since the ledger of
@@ -337,7 +346,10 @@ orchestrator/
                         reconstructs past what a comment holds, which a body short enough to have been posted
                         still claims once its preamble is gone. Every such claim is ANSWERED rather than
                         raised: the question is asked of somebody else's comment, on a thread anybody can post
-                        to, so nothing a comment says about itself may leave the scan that asked by an exception
+                        to, so nothing a comment says about itself may leave the scan that asked by an exception.
+                        A comment is held to the format's own canonical body, and the writer lays the one-comment
+                        bound over that body only on the way to a post, so whether a published comment is an
+                        artifact never turns on what the writer would post now
     verification_evidence.py
                         what an artifact reports and who witnessed it: one command, the status it exited, and
                         whatever bounded transcript the artifact carries for it, rendered once here so the digest
