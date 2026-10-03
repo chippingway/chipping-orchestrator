@@ -1,3 +1,8 @@
+---
+description: >-
+  The observation-only audit, analytics, and trajectory logs, the database and dashboards built over them, and the
+  parser that reads agent usage from CLI stdout.
+---
 # Observability
 
 The orchestrator emits three independent JSONL sinks plus an optional Postgres aggregation target. None are read by

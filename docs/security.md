@@ -1,3 +1,8 @@
+---
+description: >-
+  Which security controls the repository's files enforce, which GitHub settings operators own, and the trust
+  boundaries around comments, pinned state, and agents.
+---
 # Security checklist and operator-owned controls
 
 This page maps the project security checklist to the `chipping-orchestrator` repo: what the repo files already enforce

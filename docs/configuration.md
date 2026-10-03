@@ -1,3 +1,8 @@
+---
+description: >-
+  Every chipping-orchestrator setting and its default: the GitHub token, target repositories, agent commands, budgets,
+  the verification gate, and parallelism.
+---
 # Configuration reference
 
 All settings load from `.env` (or the process environment). [`../.env.example`](../.env.example) holds the basic
