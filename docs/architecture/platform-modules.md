@@ -169,11 +169,11 @@ orchestrator/
                         second daemon cannot be submitting while this one deletes. A pass never waits for it and a
                         poller always does, without a deadline, because there is no length of wait that makes
                         polling through a teardown safe -- and only for a lock somebody HOLDS, since a lock that
-                        does not work is nobody's and waiting on one would never end. The only coordination in the
-                        tree that is not between
-                        threads, and the only thing that can answer for a process whose scheduler this one cannot
-                        read; a lock rather than a marker, so a host that died mid-pass comes back with a stale
-                        file and no claim
+                        does not work is nobody's and waiting on one would never end. Beside the scheduler's issue
+                        writer claim, the only coordination in the tree that is not between threads, and the only
+                        thing that can answer for the artifacts of a process whose scheduler this one cannot read;
+                        a lock rather than a marker, so a host that died mid-pass comes back with a stale file and
+                        no claim
     self_update.py      the git probes behind the self-restart guard
     shutdown.py         the signal handler, the bounded-drain watchdog, and the forced exit it ends at
   config/               publishes resolved settings and `RepoSpec`, with parsing owned by its leaves
@@ -441,6 +441,15 @@ orchestrator/
                         workflow keeps that reading where its own stage handlers can reach it; a submission refused
                         by a held barrier costs the caller its next polling pass, which is why it is reported apart
                         from a closed scheduler
+    writer_claims.py    the host-local writer claim one repository issue is dispatched under: an exclusive
+                        `flock` per case-folded slug and issue number in `WORKTREES_DIR/.issue-writer-claims/`,
+                        taken without waiting. A contender is refused rather than kept waiting, and a claim that
+                        cannot be worked -- an unopenable namespace, a filesystem without `flock` -- is refused too,
+                        where the artifact presence would let a poller go on unclaimed. Every exit unlocks and
+                        closes the descriptor and the kernel drops it with a dead process; no claim file is ever
+                        unlinked, since a path recreated over a held inode would let two processes each hold the
+                        claim. It coordinates the pollers sharing one checkout root on one host and nothing beyond
+                        them, and it is not the artifact presence: neither says anything about the other
   git/
     branch_transport.py the authenticated fetches, the remote read that answers what a branch is at without trusting
                         a local ref -- in the plain form a caller acts on and the form that also carries why a read

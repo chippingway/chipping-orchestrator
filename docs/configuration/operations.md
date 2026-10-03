@@ -401,6 +401,39 @@ On first start the orchestrator creates the workflow labels and the `backlog` / 
 `workflow:community_contribution` control labels on the repo, then begins polling open issues every `POLL_INTERVAL`
 seconds. On a repo it drove before the labels were namespaced, each pre-namespace label is renamed in place instead.
 
+## Running more than one poller
+
+The supported topology is **one host**. More than one polling process may run there against the same repositories —
+a second daemon, or a `--once` run beside one — provided every one of them resolves the same `WORKTREES_DIR`, and
+the in-process scheduler guards (a duplicate active issue, the caps, the family slot) still apply first inside each.
+
+- **One writer per issue.** Each dispatched issue is taken under a host-local writer claim: an exclusive `flock` on a
+  file in `WORKTREES_DIR/.issue-writer-claims/`, named for the case-folded `owner/name` slug and the issue number. A
+  poller that finds the issue held by another skips its dispatch for that tick — no refetch, guard, recovery pass,
+  or handler, so no label, comment, or pinned write, no agent run, and no usage or evaluation record — keeps any
+  close it was owed for the issue, and takes the issue up on a later tick once the holder is done. Different issues
+  never contend. The skip is logged on `orchestrator.scheduler` as
+  `writer claim skip repo=<slug> issue=#<n> reason=held_elsewhere`. The enumeration ahead of dispatch is not under
+  the claim: what it can write for a closed late-cycle owner is the receipt recording that close, an added comment
+  built to be posted while a worker holds the issue, which replaces nothing another poller wrote.
+- **What the namespace assumes.** Every participating poller configures each repository under the same slug (case
+  aside: a renamed repository configured by its old name in one poller and its new name in another is two keys), runs
+  as a user that can create and open files in that directory, and sees the directory on a local filesystem whose
+  `flock` is honored between them — a network filesystem that emulates `flock` per client coordinates nothing.
+  Anything else that can write the directory can hold a claim, so keep it writable by the orchestrator's user alone.
+- **Failures withhold.** A claim that cannot be worked — the namespace cannot be created or opened, or `flock` fails
+  for any reason other than another holder — skips the issue as a held one is skipped, with a `reason=unusable`
+  warning, rather than letting it be written uncoordinated. Repair the directory and the next tick proceeds.
+- **Release.** A claim ends when its dispatch ends, however it ends, and the kernel drops it when a process dies, so
+  a crashed poller leaves nothing held. The files stay: never delete the directory or a file in it while any poller
+  runs, since a recreated file is a new inode another process can lock beside a holder of the old one. They are
+  empty, one per issue ever dispatched, and safe to remove once every poller has stopped.
+- **Not covered.** Pollers on different hosts, or on one host with different `WORKTREES_DIR` values, are not
+  coordinated at all and are not supported against the same repository. The pre-tick base refresh does not take the
+  claim either; it leaves alone only the issues its own process's scheduler reports active. And the claim is separate
+  from the artifact presence on `WORKTREES_DIR/.artifact-maintenance.lock`: a maintenance pass neither takes nor reads
+  a writer claim, and holding one says nothing about the host's artifacts.
+
 ## Running under systemd (user service)
 
 `run.sh` does not survive a reboot, a `tty` logout, or the user manager being torn down. The recommended production

@@ -2,20 +2,26 @@
 # SPDX-License-Identifier: Apache-2.0
 """Route one issue through cleanup or guarded stage dispatch and record evaluation timing.
 
-The publication claim surrounds the handler, and evaluation analytics run
-on both success and failure. Hard-skip controls preserve their observed
-close exception before that processing begins.
+Every dispatch seam enters an issue under its host-local writer claim, taken
+before the refetch and the close recovery wrapped around this processing, and
+a contender skips the issue whole. The publication claim surrounds the
+handler, and evaluation analytics run on both success and failure. Hard-skip
+controls preserve their observed close exception before that processing
+begins.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import time
+from collections.abc import Iterator
 
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.observability.analytics.recording import events as _recording_events
+from orchestrator.scheduler import writer_claims as _writer_claims
 from orchestrator.workflow.engine import (
     dispatch_guards as _dispatch_guards,
     poll_models as _poll_models,
@@ -29,6 +35,34 @@ log = logging.getLogger("orchestrator.workflow")
 
 
 _TERMINAL_LABELS = (WorkflowLabel.DONE, WorkflowLabel.REJECTED)
+
+
+@contextlib.contextmanager
+def _writer_claim(
+    spec: _config_models.RepoSpec, issue_number: int,
+) -> Iterator[bool]:
+    """Hold this issue's writer claim across one whole dispatch, or refuse it.
+
+    The one claim every dispatch seam takes, and taken where the seam starts
+    rather than around `_process_issue`: what the seam wraps around this
+    processing -- the worker's refetch, the close a refetch establishes, the
+    cleanup observation a sweep is held under, the closed reading an ordinary
+    pass keeps -- reads the pinned record and writes receipts on the strength
+    of it, so it is as much a writer as the handler is. A seam that took it
+    later would let a contender decide on a record another poller is
+    rewriting.
+
+    A refusal is answered by doing nothing for the issue at all: no refetch,
+    no guard, no recovery, no handler, and no evaluation record. Whatever this
+    process was holding for the issue -- a latched close, a publication hold
+    the submit took -- is left exactly as it was, so the next polling pass
+    finds the issue owed what it was owed and tries again. The scheduler's own
+    guards are unchanged by it: an issue this process is already running is
+    refused there first, and the claim is what answers for a process whose
+    scheduler this one cannot read.
+    """
+    with _writer_claims.issue_writer(spec.slug, issue_number) as held:
+        yield held
 
 
 def _route_issue_to_handler(

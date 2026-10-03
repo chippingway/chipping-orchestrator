@@ -8,7 +8,9 @@ field normalization live in the ``models`` owner; the concrete
 and shutdown -- lives in the ``service`` owner. This initializer re-exports the
 narrow public surface (``__all__``): the scheduler and the caller-facing
 ``SubmissionRequest``. The layers ``IssueScheduler`` is composed from belong to
-``service``, so nothing private is published here.
+``service``, so nothing private is published here. The host-local writer claim
+one issue is dispatched under is the ``writer_claims`` owner's, and is not
+re-exported: its callers import that owner directly.
 
 Importing the ``service`` owner here pulls its sibling ``models`` import, which
 names a submodule rather than a name bound here; a submodule import binds on
