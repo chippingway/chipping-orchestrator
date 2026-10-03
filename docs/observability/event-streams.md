@@ -943,7 +943,7 @@ against could not be established. Two more arrive with the split transaction
 snapshot ref established (`retained`) or refused (`failed`), and one `late_cleanup` per superseded branch the
 transaction reconciled (`reconciled`) or could not (`failed`) — the latter beside a `late_failure` carrying
 `snapshot_failed` or `branch_cleanup_failed`, and `child_create_failed` or `supersession_failed` where those
-steps park instead. The third producer is the reclamation, and it has three entries into the same emission. One
+steps park instead. The third producer is the reclamation, and it has four entries into the same emission. One
 is the umbrella's terminal gate, where what the transaction could not reclaim is retried: it emits the same pair
 under `stage: umbrella` on every due dependency poll that finds every child resolved and something still owed —
 the branch whenever it is owed, and the snapshot ref once every recorded direct consumer is terminal, carrying
@@ -952,7 +952,11 @@ entered past publication does not delete the branch while the pull request it su
 was attempted there, so no `late_cleanup` and no `branch_cleanup_failed` describe it — the terminal that never fires
 and the log line on every visit that holds are what say so. The same gate's *park* is the second, and it emits the
 same way: a child `rejected` or closed by hand ends every consumer exactly as all-resolved does, so an umbrella
-stopped for a human settles from the same scan on its way out. The third is the closed-owner cleanup sweep
+stopped for a human settles from the same scan on its way out. The third is a `blocked` parent's return to its own
+work: a late split's umbrella a genuine edit re-decomposed into a manifest that keeps work for the parent settles on
+the poll that finds every child resolved, under `stage: blocked`, and a close latched in front of the retirement that
+hands it back, or observed inside it, writes its `late_cancellation` there too. The fourth is the closed-owner
+cleanup sweep
 ([`../state-machine/delivery-stages.md`](../state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own)),
 which asks the same question of an issue a human closed mid-cycle and emits the same families under whichever of
 `stage: decomposing` / `stage: umbrella` that issue was closed on — the stage is read off the issue rather than
@@ -982,7 +986,8 @@ either, because the record already carries that answer and repeating it per cade
 than a second thing having gone wrong. The pinned write rides the same reading, so a standing refusal costs one
 request per visit rather than a request and a comment write. What is *not* bounded that way is the log: every
 obligation short of `reconciled` is warned about on every visit that attempted it, and the umbrella stays open — or
-the closed owner keeps its label — for as long as it is held. So the shape of an obligation nobody can settle is one
+a `blocked` parent keeps `blocked`, or the closed owner keeps its label — for as long as it is held. So the shape of
+an obligation nobody can settle is one
 `late_cleanup` with `outcome: failed` followed by a terminal that never fires, rather than a stream of identical
 records.
 

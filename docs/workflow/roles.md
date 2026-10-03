@@ -1666,7 +1666,18 @@ in the transaction — an issue that has become an umbrella never reaches the tr
 bring a tick back to it. `late_cleanup.py` is asked at the one boundary where an unsettled obligation still matters:
 every umbrella tick that finds every child resolved settles whatever is still owed, and the parent closes only once
 nothing is. A refusal keeps the label, which *is* the retry, and leaves the parent visibly open instead of closed
-over a remote nobody will ever reap.
+over a remote nobody will ever reap. A genuine edit can re-decompose that umbrella into a manifest that keeps work
+for the parent, which then waits on `blocked` rather than `umbrella`; its all-children-resolved tick is the same
+boundary — past it the parent goes back to implementation and nothing revisits the ledger — so it runs the same
+settlement, and stays `blocked` while anything it names is still held — and, unlike the umbrella, while its consumer
+ledger cannot be read at all, ref or no ref, since what is retired below is kept as history. Once it is settled, the
+split's cycle is retired in a write of its own ahead of the flip, inside the window the umbrella's terminal retires in:
+its candidate, register, and identity go, its `split_attempt` with them, while both ledgers and `late_retired_cycle_id`
+stay; a parent with no cycle to retire drops its `split_attempt` in a write of its own, still under `blocked`. The
+implementation the parent goes back to then measures a candidate of its own, under the next cycle, rather than trying to
+recover the superseded one from a worktree long gone, and a later split of it cuts every slice afresh instead of reading
+the old register as slices already made. A close latched before that write, or observed during it, ends the cycle
+instead, and the parent stays `blocked` for the ending to run from.
 
 That boundary is also the first at which the **snapshot** can go, and under the rule that owns it: a ref may be
 deleted only once every recorded direct consumer has **ended**, and all-children-resolved is exactly when that
@@ -1680,11 +1691,13 @@ covers a nested split too — a child that reached it has published, so its own 
 ancestor. A recorded consumer the scan was **not** asked about is read afresh instead: a genuine edit re-decomposes
 the umbrella, and from then on its scan is of the replacements while the originals it orphaned are still the
 consumers the ref was preserved for. The ledger decides who is read, never the manifest beside it, and the orphans
-are only read and, once the ref goes, told so — never adopted, relabelled, or reopened. What the ledger does not
-change is *when* the question is asked: only on a tick that finds every tracked child resolved, or one a child's
-disposition parks. So an original that ends while the replacements are still running frees the ref on the first
-such tick after it, not sooner — and the terminal waits behind the same settlement, so nothing closes over the ref
-in between. Anything that cannot be
+are only read and, once the ref goes, told so — never adopted, relabelled, or reopened. A replacement the ledger
+records beside them is a consumer like any other, so the ref waits for it too, and one reopened after it resolved
+keeps the ref the same way. What the ledger does not change is *when* the question is asked: only on a tick that
+finds every tracked child resolved, or one a child's disposition parks. So the ref goes on the first such tick after
+the last recorded consumer has ended, not sooner — an original that ends while the replacements are still running
+frees nothing until they resolve or one parks the parent — and the terminal waits behind the same settlement, so
+nothing closes over the ref in between. Anything that cannot be
 proved keeps the ref: a consumer that is open or was reopened, one whose read failed, or a consumer ledger this
 binary could not type. All of that
 is about the consumers the ledger *names*, so the prior question is whether it names all of them, and the record's
@@ -1870,9 +1883,14 @@ Two more things block it outright, and both are the same rule: nothing that cann
 terminal fire. An obligation ledger this orchestrator could not fully type blocks whatever the typed view says — the
 entries it could not read are still obligations, and closing on the strength of a projection is the reading the
 verbatim copy exists to prevent. So does a ledger holding anything at all on a record whose cycle identity is
-damaged: there is nothing to correlate a reclamation to and no issue number to prove a branch belongs to this
-generation, so the umbrella stays open and says so where an operator reads it. An issue that never entered the late
-gate carries no ledger and answers without a write, which is every umbrella the initial decomposer made.
+damaged — a `late_consumers` list with no resource entry beside it included, read or not: there is nothing to
+correlate a reclamation to and no issue number to prove a branch belongs to this generation, so the umbrella stays
+open, or a `blocked` parent stays `blocked`, and says so where an operator reads it. An issue that never entered the
+late gate carries no ledger and answers without a write, which is every umbrella the initial decomposer made. A record
+a retirement left is not a damaged one: it names the cycle it dropped in `late_retired_cycle_id`, and while both
+ledgers it kept are readable they hold either hand-off only on an entry still owed — so a parent handed back to its
+own work, and re-decomposed by a later edit, is not held on the history its own settlement already finished. A ledger
+this binary cannot read is no such history, and holds the hand-off as it would on any record with no identity.
 
 ### What an ordinary re-decomposition will hold its children to
 

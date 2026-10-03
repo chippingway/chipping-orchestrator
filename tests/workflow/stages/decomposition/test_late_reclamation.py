@@ -23,9 +23,31 @@ from orchestrator.workflow.stages.decomposition import (
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
 from tests.workflow.fixtures import _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition import late_cleanup_support as _support
-from tests.workflow.stages.decomposition.late_cleanup_support import RecordedDelete
+from tests.workflow.stages.decomposition.late_cleanup_support import OwnerSeed, RecordedDelete
 
 _OPAQUE_CONSUMERS = '["?"]'
+
+# A consumer list left standing on a record with no identity and no typed
+# entry, on each hand-off. Read or not, the list names children cut from a ref
+# nothing can now mint or prove -- and one nobody can read does so even where a
+# retirement says which cycle it dropped, since nothing proves that settlement
+# ended them.
+_STRANDED_LISTS = ((_OPAQUE_CONSUMERS, False), (_OPAQUE_CONSUMERS, True), ([_support.CHILD_NUMBER], False))
+
+# Where an unreadable consumer list stands beside the ref: still held under the
+# umbrella, and absent or already reconciled under a `blocked` parent, which
+# the list alone holds.
+_UNREAD_CONSUMER_CASES = (
+    (_support.UMBRELLA, LateResourceState.RETAINED),
+    (_support.LABEL_BLOCKED, None),
+    (_support.LABEL_BLOCKED, LateResourceState.RECONCILED),
+)
+
+_STRANDED_CONSUMERS = tuple(
+    (label, tick, consumers, retired)
+    for label, tick in _support.HAND_OFFS.items()
+    for consumers, retired in _STRANDED_LISTS
+)
 
 # The stage key the split transaction writes before its first create,
 # spelled here rather than imported: what it is called is the contract a
@@ -220,18 +242,25 @@ class UnprovableObligationTest(_PatchedWorkflowMixin, unittest.TestCase):
         # snapshot's proof would be taken from -- so the ref stays -- but the
         # branch owes no consumer anything, and freezing it too would leave a
         # superseded branch on the remote for as long as the hand edit stood.
-        seeded = _retaining()
-        self._seed_resources(seeded.github, consumers=_OPAQUE_CONSUMERS)
+        # A `blocked` parent waits on the list itself as well, ref or no ref:
+        # its return to its own work retires the cycle over these ledgers.
+        for label, snapshot in _UNREAD_CONSUMER_CASES:
+            with self.subTest(label=label, snapshot=snapshot):
+                seeded = _support.split_umbrella(
+                    LateResourceState.PENDING, snapshot=snapshot, owner=OwnerSeed(label=label),
+                )
+                self._seed_resources(seeded.github, consumers=_OPAQUE_CONSUMERS)
 
-        deleted = RecordedDelete(_snapshot_refs.SnapshotOutcome.DELETED)
-        with self.assertLogs(_support.WORKFLOW_LOG, level="INFO"), deleted.answering():
-            _support.walk_owner(self, seeded)
+                deleted = RecordedDelete(_snapshot_refs.SnapshotOutcome.DELETED)
+                with self.assertLogs(_support.WORKFLOW_LOG, level="INFO"), deleted.answering():
+                    _support.walk_owner(self, seeded, _support.HAND_OFFS[label])
 
-        self.assertEqual(
-            seeded.github.deleted_remote_branches, [_support.SUPERSEDED_BRANCH],
-        )
-        self.assertEqual(deleted.refs, [])
-        self.assertFalse(seeded.parent.closed)
+                self.assertEqual(seeded.github.deleted_remote_branches, [_support.SUPERSEDED_BRANCH])
+                self.assertEqual(deleted.refs, [])
+                self.assertEqual(seeded.github.workflow_label(seeded.parent), label)
+                self.assertEqual(
+                    seeded.github.pinned_data(_support.PARENT_NUMBER).get("late_cycle_id"), _support.CYCLE_ID,
+                )
 
     def test_a_foreign_identity_is_never_deleted(self) -> None:
         # The transport proves the namespace and the commit, and neither is
@@ -263,31 +292,51 @@ class UnprovableObligationTest(_PatchedWorkflowMixin, unittest.TestCase):
     def test_a_damaged_identity_holds_the_terminal(self) -> None:
         # A record whose cycle identity cannot be read still writes what it
         # owes; there is just nothing to correlate a reclamation to and no
-        # issue number to prove a branch belongs to this generation.
-        seeded = _support.split_umbrella(LateResourceState.PENDING)
-        self._seed_resources(seeded.github, damaged=True)
+        # issue number to prove a branch belongs to this generation. A
+        # retirement that says which cycle it dropped excuses only a ledger
+        # whose entries are all settled, never one still owed.
+        for retired in (False, True):
+            with self.subTest(retired=retired):
+                seeded = _support.split_umbrella(LateResourceState.PENDING)
+                self._seed_resources(seeded.github, damaged=True, retired=retired)
 
-        with self.assertLogs(_support.WORKFLOW_LOG, level="ERROR"):
-            _support.walk_owner(self, seeded)
+                with self.assertLogs(_support.WORKFLOW_LOG, level="ERROR"):
+                    _support.walk_owner(self, seeded)
 
-        self.assertFalse(seeded.parent.closed)
-        self.assertEqual(seeded.github.deleted_remote_branches, [])
+                self.assertFalse(seeded.parent.closed)
+                self.assertEqual(seeded.github.deleted_remote_branches, [])
+
+    def test_a_damaged_identity_holds_the_parent(self) -> None:
+        # No identity and no typed entry, and a consumer list beside them:
+        # still an obligation, so the parent waits where it stands.
+        for label, tick, consumers, retired in _STRANDED_CONSUMERS:
+            with self.subTest(label=label, consumers=consumers, retired=retired):
+                seeded = _support.split_umbrella(None, owner=OwnerSeed(label=label))
+                self._seed_resources(seeded.github, resources=None, damaged=True, retired=retired, consumers=consumers)
+
+                with self.assertLogs(_support.WORKFLOW_LOG, level="ERROR"):
+                    _support.walk_owner(self, seeded, tick)
+
+                self.assertEqual(seeded.github.workflow_label(seeded.parent), label)
+                self.assertFalse(seeded.parent.closed)
 
     def test_a_damaged_identity_owing_nothing_closes(self) -> None:
         # Every umbrella the initial decomposer made carries no ledger at all,
         # and answers without a write.
         seeded = _support.split_umbrella(LateResourceState.PENDING)
-        self._seed_resources(seeded.github, damaged=True, resources=None)
+        self._seed_resources(seeded.github, damaged=True, resources=None, consumers=[])
 
         _support.walk_owner(self, seeded)
 
         self.assertTrue(seeded.parent.closed)
 
     def _seed_resources(
-        self, github, resources=(), *, damaged: bool = False, consumers=None,
+        self, github, resources=(), *, damaged: bool = False, retired: bool = False, consumers=None,
     ) -> None:
-        """Re-seed the parent's ledgers, optionally without a readable identity."""
+        """Re-seed the parent's ledgers, optionally without a readable identity or with a retired one."""
         pinned = dict(github.pinned_data(_support.PARENT_NUMBER))
+        if retired:
+            pinned["late_retired_cycle_id"] = _support.CYCLE_ID
         if consumers is not None:
             pinned["late_consumers"] = consumers
         if resources is None:

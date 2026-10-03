@@ -1,10 +1,16 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Settle and report late-split cleanup, and guard the umbrella's terminal on its debts.
+"""Settle and report late-split cleanup, and guard a parent's hand-off on its debts.
 
 A pass persists only changed resource states while reporting attempted
-failures. The terminal requires all obligations and the superseded publication
-to settle; damaged identities with uncorrelated obligations remain held.
+failures. The umbrella's terminal requires all obligations and the superseded
+publication to settle; damaged identities with uncorrelated obligations remain
+held, while a record a retirement left is held only on what it still owes. A
+`blocked` parent whose children all resolved is the other hand-off: a genuine
+edit can re-decompose a late split's umbrella into a manifest that keeps
+implementation for the parent, and its return to that implementation is the
+last point anything settles what the split still owes the remote -- so a
+damaged identity holds it on the same terms it holds the umbrella's terminal.
 """
 from __future__ import annotations
 
@@ -17,6 +23,7 @@ from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import (
+    endings as _endings,
     events as _events,
     obligations as _obligations,
     state as _late_state,
@@ -44,6 +51,11 @@ _FAILURES = MappingProxyType({
     _obligations.LateResourceKind.PLAN_PR: LateFailure.PR_RECONCILE_FAILED,
 })
 
+# What a parent's return to its own work is held on when the consumer ledger
+# itself cannot be read. It names no consumer because there is none to name --
+# only the fact that who the ref was preserved for is unknown.
+_UNREADABLE_CONSUMERS = "a consumer ledger this orchestrator cannot read"
+
 
 def _settle(
     gh: GitHubClient,
@@ -67,11 +79,13 @@ def _settle(
     The stage both sinks record is read off the issue rather than named by the
     caller, because it is a fact about where the reclamation happened and not
     about which owner drove it: the umbrella's terminal reaches here on
-    `umbrella`, and the closed-owner sweep on whichever of the two cleanup
-    states its issue was closed on.
+    `umbrella`, a parent going back to its own work on `blocked`, and the
+    closed-owner sweep on whichever of the two cleanup states its issue was
+    closed on.
 
     `scan` is whatever the caller already read this visit -- the umbrella's
-    children, or the sweep's consumers -- and it only ever saves a request.
+    or the blocked parent's children, or the sweep's consumers -- and it only
+    ever saves a request.
     Who a held ref is proved against is the ledger's answer, so a consumer
     the scan was not asked about, the original a replaced manifest orphaned
     included, is read afresh before anything is taken.
@@ -120,7 +134,7 @@ def _settled_for_terminal(
     """
     generation = _late_state.read_late_generation(state)
     if not generation.is_present:
-        return _owes_nothing_uncorrelated(issue, generation)
+        return _owes_nothing_uncorrelated(issue, state, generation)
     settled = _settle(gh, spec, issue, state, scan)
     held = _late_cleanup_reading._blocking(settled) + _unsettled_publication(gh, issue, settled)
     if not held:
@@ -132,6 +146,50 @@ def _settled_for_terminal(
         "issue=#%d holds its terminal on: %s", issue.number, ", ".join(held),
     )
     return False
+
+
+def _settled_before_implementation(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    scan: _ChildScan,
+) -> bool:
+    """Whether a `blocked` parent may go back to its own implementation.
+
+    The same settlement the umbrella's terminal runs, and for the same reason:
+    once the parent leaves `blocked` for `ready`, no pass comes back to what a
+    late split recorded on it, so a ref still held for consumers that have
+    since ended -- the originals a re-decomposition orphaned, and any
+    replacement the ledger records beside them -- would be held for good.
+    False keeps the parent on `blocked`, whose next dependency poll asks
+    again, and says what it waits on. A record with no cycle identity is held
+    to exactly what holds the umbrella's terminal -- see
+    `_owes_nothing_uncorrelated` -- and an issue that never entered the late
+    gate owes nothing and answers without a request.
+
+    What it does not ask is the umbrella's publication question: the parent is
+    going back to implement, not closing over the change its split superseded.
+    What it asks beyond the umbrella is whether the consumer ledger can be
+    read at all, held or not held a ref beside it. The retirement behind this
+    answer keeps both ledgers as the history this issue's next hand-off is
+    judged by and a later split proves its lineage from, and a list nobody
+    can type is neither -- retiring over it would only move the hold to a
+    hand-off with no cycle left to repair it under. The branch half is
+    settled all the same, since it owes no consumer anything.
+    """
+    generation = _late_state.read_late_generation(state)
+    if not generation.is_present:
+        return _owes_nothing_uncorrelated(issue, state, generation)
+    settled = _settle(gh, spec, issue, state, scan)
+    held = _late_cleanup_reading._blocking(settled)
+    if settled.obligations.opaque_consumers is not None:
+        held = (*held, _UNREADABLE_CONSUMERS)
+    if held:
+        log.info(
+            "issue=#%d holds its return to implementation on: %s", issue.number, ", ".join(held),
+        )
+    return not held
 
 
 def _unsettled_publication(
@@ -155,27 +213,49 @@ def _unsettled_publication(
 
 
 def _owes_nothing_uncorrelated(
-    issue: Issue, generation: LateGeneration,
+    issue: Issue, state: PinnedState, generation: LateGeneration,
 ) -> bool:
-    """Whether an issue with no cycle identity may still close.
+    """Whether an issue with no cycle identity may still be handed on.
 
-    An issue that never entered the late gate carries no ledger either, and
-    answers True without a write -- which is every umbrella the initial
-    decomposer made.
+    Asked by both hand-offs: the umbrella's close, and a `blocked` parent's
+    return to its own work -- after either, nothing comes back to this
+    record. An issue that never entered the late gate carries no ledger
+    either, and answers True without a write -- which is every umbrella the
+    initial decomposer made, and every parent of an ordinary split.
 
-    A ledger with entries on a record whose identity is damaged is the other
-    case, and it may not close. There is nothing to correlate a reclamation
-    to, no issue number to prove a branch belongs to this generation, and no
-    record either sink would accept -- so the only safe answer is to stay open
-    and say so where an operator reads it. The write that damaged the identity
-    kept the ledger on purpose; closing over it would finish the job.
+    A record a retirement left is not damaged, and while both its ledgers are
+    readable it is held only on what the settlement would still hold a live
+    cycle on. Each retirement says which cycle it dropped, and the ones that
+    run behind a settlement -- the umbrella's terminal and a `blocked`
+    parent's return to its own work -- keep both ledgers after it as the
+    history a later split of the same issue proves its lineage from. A parent
+    handed back that way and re-decomposed by a genuine edit reaches one of
+    these hand-offs again with that history still on it, and holding it there
+    would hold it for good. A ledger this binary cannot read is no such
+    history: a consumer list nobody can type names children nothing can
+    prove that settlement ended, so it holds the hand-off as it would on any
+    record with no identity.
+
+    A ledger with entries on a record whose identity is damaged may not be
+    handed on at all -- either ledger counts, a consumer list
+    with no resource entry beside it included, read or not: each names
+    children cut from a ref nothing can now mint or prove. There is nothing to
+    correlate a reclamation to, no issue number to prove a branch belongs to
+    this generation, and no record either sink would accept -- so the only
+    safe answer is to stay where it is and say so where an operator reads it.
+    The write that damaged the identity kept the ledger on purpose; handing
+    the issue on over it would finish the job.
     """
-    if not generation.obligations.resources and not generation.obligations.is_opaque:
+    owed = generation.obligations
+    if not (owed.resources or owed.consumers or owed.is_opaque):
+        return True
+    retired = _endings.read_retired_cycle(state) is not None
+    if retired and not owed.is_opaque and not _late_cleanup_reading._blocking(generation):
         return True
 
     log.error(
         "issue=#%d still records external obligations under a damaged late "
-        "identity; holding the umbrella open rather than closing over them",
+        "identity; holding it where it stands rather than handing it on over them",
         issue.number,
     )
     return False

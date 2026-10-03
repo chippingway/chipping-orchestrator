@@ -50,7 +50,9 @@ _PARENT_NUMBER = "parent_number"
 # Which ordinary split the parent's markers belong to: minted for each split
 # and meant for the same write as the expected count, ahead of the first
 # child, so the receipt each child carries names this attempt and no earlier
-# split of the same issue. Read by `split_receipts`; no split writes it yet.
+# split of the same issue. Read by `split_receipts`, and dropped by a
+# `blocked` parent once every child it names has resolved, in a write ahead of
+# its flip back to its own work; no split writes it yet.
 _SPLIT_ATTEMPT = "split_attempt"
 
 _CREATED_AT = "created_at"

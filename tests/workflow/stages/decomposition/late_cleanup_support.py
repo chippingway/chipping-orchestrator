@@ -13,6 +13,7 @@ dispatched to the stage its label names.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from types import MappingProxyType
 
 from orchestrator.workflow.late_split import ancestry as _ancestry, lineage as _lineage, state as _late_state
 from orchestrator.workflow.late_split.obligations import (
@@ -22,7 +23,11 @@ from orchestrator.workflow.late_split.obligations import (
     LateResourceState,
 )
 from orchestrator.workflow.late_split.phases import LatePhase
-from orchestrator.workflow.stages.decomposition import late_sweep as _late_sweep, umbrella as _umbrella
+from orchestrator.workflow.stages.decomposition import (
+    blocked as _blocked,
+    late_sweep as _late_sweep,
+    umbrella as _umbrella,
+)
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import _TEST_SPEC, _agent
@@ -64,8 +69,8 @@ CHILD_NUMBER = 411
 UNRECORDED_CHILD = 412
 
 # The child an ordinary re-decomposition tracks in place of the split's own
-# once a genuine edit has orphaned it: nothing late recorded it, and no ref
-# was cut for it.
+# once a genuine edit has orphaned it: no ref was cut for it, though one the
+# split still holds may be what it is pointed at.
 REPLACEMENT_CHILD = 421
 
 SUPERSEDED_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-41"
@@ -106,6 +111,21 @@ EVENT_LATE_CLEANUP = "late_cleanup"
 RESOLVED_STAMP = "umbrella_resolved_at"
 
 WORKFLOW_LOG = "orchestrator.workflow"
+
+# The two hand-offs past which nothing returns to a late record, each by the
+# label its parent waits on and the poll that answers it: the umbrella's close,
+# and a `blocked` parent's return to work of its own.
+HAND_OFFS = MappingProxyType({
+    UMBRELLA: _umbrella._handle_umbrella,
+    LABEL_BLOCKED: _blocked._handle_blocked,
+})
+
+# Where each hand-off leaves its parent once nothing holds it: closed on
+# `done`, or back on `ready` for its own work.
+HANDED_ON = MappingProxyType({
+    UMBRELLA: LABEL_DONE,
+    LABEL_BLOCKED: LABEL_READY,
+})
 
 
 @dataclass(frozen=True)

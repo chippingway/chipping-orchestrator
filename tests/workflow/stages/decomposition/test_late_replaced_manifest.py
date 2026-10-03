@@ -4,21 +4,27 @@
 
 The drift reroute orphans the children the split made, and the ordinary decomposer tracks replacements in their
 place. The snapshot was preserved for the originals, though, and the generation still records them as its
-consumers -- so the ref is proved against them, read afresh because the umbrella's own scan is of the
-replacements, while the branch, which no consumer has a claim on, is reclaimed as it always was.
+consumers -- so the ref is proved against them, read afresh because the parent's own scan is of the
+replacements, while the branch, which no consumer has a claim on, is reclaimed as it always was. A replacement the
+ledger records beside them holds the ref until its own work has ended too. Both hold the ref under an umbrella and
+under a parent the re-decomposition left work of its own, which settles the ref before it goes back to that work;
+what that parent does once it is back is `test_late_hand_back`'s subject.
 """
 from __future__ import annotations
 
 import unittest
 from contextlib import nullcontext
 from dataclasses import dataclass
+from itertools import product
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.git.snapshots.refs import SnapshotOutcome
 from orchestrator.workflow.late_split.obligations import LateResourceState
 from tests.workflow.fixtures import _PatchedWorkflowMixin
-from tests.workflow.stages.decomposition import late_cleanup_support as _support
+from tests.workflow.stages.decomposition import (
+    late_cleanup_support as _support,
+    replaced_manifest_support as _redecomposition,
+)
 from tests.workflow.stages.decomposition.late_cleanup_support import OwnerSeed, RecordedDelete, SeededUmbrella
 
 # Where a read of the original can fail: at the lookup itself, or past it, on
@@ -28,6 +34,8 @@ _AT_LOOKUP = "lookup"
 _PAST_LOOKUP = "labels"
 
 _REFUSED = "the original could not be read"
+
+_RELEASE_MARKER = "<!--orchestrator-late-release owner=41"
 
 
 @dataclass(frozen=True)
@@ -95,17 +103,18 @@ class ReplacedManifestCleanupTest(_PatchedWorkflowMixin, unittest.TestCase):
     """The original consumers decide the ref, whatever the manifest tracks now."""
 
     def test_an_unended_original_keeps_the_ref(self) -> None:
-        for shape, original in _UNENDED.items():
-            with self.subTest(shape=shape):
-                seeded = _replaced(original)
+        for (shape, original), label in product(_UNENDED.items(), _support.HANDED_ON):
+            with self.subTest(shape=shape, parent=label):
+                seeded = _replaced(original, label)
 
-                deleted = self._walk(seeded, original)
+                deleted = self._walk(seeded, original, label)
 
                 self.assertEqual(deleted.refs, [])
                 self.assertEqual(_support.resource_states(seeded.github), {
                     _support.SUPERSEDED_BRANCH: _support.STATE_RECONCILED,
                     _support.SNAPSHOT_REF: _support.STATE_RETAINED,
                 })
+                self.assertEqual(seeded.github.workflow_label(seeded.parent), label)
                 self.assertFalse(seeded.parent.closed)
 
     def test_the_ref_goes_once_the_original_ends(self) -> None:
@@ -133,31 +142,59 @@ class ReplacedManifestCleanupTest(_PatchedWorkflowMixin, unittest.TestCase):
             [_support.REPLACEMENT_CHILD],
         )
 
-    def _walk(self, seeded: SeededUmbrella, original: _Original) -> RecordedDelete:
-        """Run the umbrella's poll, the original read the way `original` says."""
-        deleted = RecordedDelete(SnapshotOutcome.DELETED)
+    def _walk(self, seeded: SeededUmbrella, original: _Original, label: str = _support.UMBRELLA) -> RecordedDelete:
+        """Run the poll `label` answers to, the original read the way `original` says."""
         unreadable = patch.object(
             seeded.github,
             "get_issue",
             side_effect=_OriginalUnreadable(seeded.github, original.failing),
         ) if original.failing else nullcontext()
-        with deleted.answering(), unreadable:
-            _support.walk_owner(self, seeded)
-        return deleted
+        with unreadable:
+            return _redecomposition.walk(self, seeded, _support.HAND_OFFS[label])
 
 
-def _replaced(original: _Original) -> SeededUmbrella:
-    """A late split's umbrella whose manifest an edit has replaced.
+class RecordedReplacementTest(_PatchedWorkflowMixin, unittest.TestCase):
+    """A replacement the ledger records keeps the ref until its own work ends."""
+
+    def test_a_reopened_replacement_keeps_the_ref(self) -> None:
+        # Settled in front of either hand-off, since nothing revisits the
+        # ledger past it: the parent waits on its label while the replacement
+        # is live, and is handed on once the ref goes.
+        for label in _support.HANDED_ON:
+            with self.subTest(parent=label):
+                seeded, replacement = _redecomposition.redecomposed(label)
+                seeded.github.get_issue(_support.CHILD_NUMBER).closed = True
+                # Resolved and put back by a human: the label says `done`,
+                # and the issue is live again.
+                seeded.github.set_workflow_label(replacement, _support.LABEL_DONE, guarded=False)
+
+                held = _redecomposition.walk(self, seeded, _support.HAND_OFFS[label])
+                self.assertEqual(held.refs, [])
+                self.assertEqual(seeded.github.workflow_label(seeded.parent), label)
+                replacement.closed = True
+                released = _redecomposition.walk(self, seeded, _support.HAND_OFFS[label])
+
+                self.assertEqual(released.refs, [_support.SNAPSHOT_REF])
+                self.assertEqual(
+                    _support.resource_states(seeded.github)[_support.SNAPSHOT_REF],
+                    _support.STATE_RECONCILED,
+                )
+                self.assertEqual(seeded.github.workflow_label(seeded.parent), _support.HANDED_ON[label])
+                self.assertTrue(any(_RELEASE_MARKER in comment.body for comment in replacement.comments))
+
+
+def _replaced(original: _Original, label: str = _support.UMBRELLA) -> SeededUmbrella:
+    """A late split's parent on `label` whose manifest an edit has replaced.
 
     It still owes the branch and still holds the ref, and its one
     replacement is finished -- which is the reading that sends the poll to
-    the terminal and the settlement in front of it.
+    the hand-off and the settlement in front of it.
     """
     seeded = _support.split_umbrella(
         LateResourceState.PENDING,
         snapshot=LateResourceState.RETAINED,
         child_label=original.label,
-        owner=OwnerSeed(child_closed=original.closed),
+        owner=OwnerSeed(label=label, child_closed=original.closed),
     )
     seeded.replaced()
     return seeded
