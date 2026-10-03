@@ -6,6 +6,8 @@ Every member is read fail-closed, so a record short of one reads as no record --
 and because that is the same answer an issue with nothing recorded gives, the
 presence question is asked beside it. A guard that could not tell those two
 apart would hand the stage an issue whose outstanding publication it never saw.
+Each is an invalid record when asked why, too: only the report a developer
+wrote earns a refusal of its own, and only where every other member reads.
 
 The bookkeeping cases are the other risk these records carry. What a recovered
 group holds is APPLIED to the pinned comment, so an unbounded one is a write
@@ -21,13 +23,17 @@ from orchestrator.workflow.engine import (
     drift as _drift,
     prompt_delivery as _delivery,
     report_consumed_values as _consumed,
+    report_record_reading as _reading,
     report_record_state as _record_state,
     report_record_values as _record_values,
     report_records as _records,
     report_settlement_state as _settlement,
 )
 from orchestrator.workflow.stages.in_review import state as _in_review_state
-from tests.workflow.engine import report_record_test_support as support
+from tests.workflow.engine import (
+    report_delivery_test_support as delivery_support,
+    report_record_test_support as support,
+)
 
 _BEHIND = 41
 
@@ -42,6 +48,15 @@ _LOCATION_PR = "location_pr"
 # A number past what any identity, revision, or watermark may be recorded as.
 _BEYOND_RECORDED = _record_values.MAX_RECORDED_NUMBER + 1
 
+# What every record below is refused as when asked why.
+_INVALID = _record_values.RecordRefusal.INVALID_RECORD
+
+_NOT_A_RECEIPT = "not a receipt!"
+
+_UNKNOWN_ROUTE = "workflow:inventing"
+
+_REPORT = "report"
+
 
 class DamagedRecordTest(unittest.TestCase):
     """A record nobody can act on reads as none, and still CLAIMS one."""
@@ -52,7 +67,7 @@ class DamagedRecordTest(unittest.TestCase):
         # member still typed would be acted on as a weaker binding rather than
         # as the damage it is.
         for member, broken in (
-            ("receipt", "not a receipt!"),
+            ("receipt", _NOT_A_RECEIPT),
             ("repo", "chippingway"),
             ("pr", 0),
             ("branch", "a branch with spaces"),
@@ -60,18 +75,57 @@ class DamagedRecordTest(unittest.TestCase):
             ("requirements", "not-a-digest"),
             ("revision", -1),
             ("mode", "publish-later"),
-            ("route", "workflow:inventing"),
-            ("report", "   "),
-            ("report", support.LONE_SURROGATE),
+            ("route", _UNKNOWN_ROUTE),
+            (_REPORT, "   "),
+            (_REPORT, 42),
+            (_REPORT, support.LONE_SURROGATE),
             ("branch", support.LONE_SURROGATE),
         ):
-            with self.subTest(member=member):
+            with self.subTest(member=member, broken=broken):
                 state = support.damaged(support.PUBLISHED, **{member: broken})
 
                 self.assertTrue(
                     _record_state.carries_pending_report(state),
                 )
                 self.assertIsNone(support.reads_back(state))
+                self.assertIs(support.refusal_of(state), _INVALID)
+
+    def test_a_damaged_delivery_is_an_invalid_record(self) -> None:
+        # The delivered report is read under the same refusals as the
+        # transaction, over every member but the subject it does not carry.
+        for delivered, member, broken in (
+            (delivery_support.DELIVERED, "receipt", _NOT_A_RECEIPT),
+            (delivery_support.DELIVERED, "revision", 0),
+            (delivery_support.DELIVERED, "requirements", "not-a-digest"),
+            (delivery_support.DELIVERED, "route", _UNKNOWN_ROUTE),
+            (delivery_support.DELIVERED, _SPENDS, None),
+            (delivery_support.DELIVERED, _REPORT, 42),
+            (delivery_support.DELIVERED, _REPORT, support.LONE_SURROGATE),
+            (delivery_support.ASSERTED, support.LOCATION_COMMENT, "8080"),
+            (delivery_support.ASSERTED, "content", None),
+        ):
+            with self.subTest(member=member, broken=broken):
+                recorded = delivery_support.delivered_object(delivered) | {
+                    member: broken,
+                }
+
+                self.assertIsNone(_reading.delivered_from(recorded))
+                self.assertIs(_reading.delivered_or_refusal(recorded), _INVALID)
+
+    def test_a_quoted_receipt_on_damage_is_invalid(self) -> None:
+        # A content refusal says the report is what to correct, and on a
+        # record another member of which will not read that is untrue: the
+        # corrected report would be refused all over again.
+        quoted = support.QUOTED_RECEIPTS[0][1]
+        pending = support.damaged(
+            support.PUBLISHED, report=quoted, receipt=_NOT_A_RECEIPT,
+        )
+        delivered = delivery_support.delivered_object() | {
+            _REPORT: quoted, "route": _UNKNOWN_ROUTE,
+        }
+
+        self.assertIs(support.refusal_of(pending), _INVALID)
+        self.assertIs(_reading.delivered_or_refusal(delivered), _INVALID)
 
     def test_a_non_object_payload_refuses(self) -> None:
         state = PinnedState(state_data={_records.PENDING_REPORT: ["report"]})
@@ -90,9 +144,10 @@ class DamagedRecordTest(unittest.TestCase):
             ("location_comment", _BEYOND_RECORDED),
         ):
             with self.subTest(member=member):
-                self.assertIsNone(support.reads_back(
-                    support.damaged(support.VERIFIED, **{member: broken}),
-                ))
+                state = support.damaged(support.VERIFIED, **{member: broken})
+
+                self.assertIsNone(support.reads_back(state))
+                self.assertIs(support.refusal_of(state), _INVALID)
         self.assertIsNone(_settlement.read_current_report(PinnedState(
             state_data={_records.CURRENT_REPORT: support.settled(
                 revision=_BEYOND_RECORDED,
@@ -176,6 +231,7 @@ class ExactLocationTest(unittest.TestCase):
 
         self.assertTrue(_record_state.carries_pending_report(state))
         self.assertIsNone(support.reads_back(state))
+        self.assertIs(support.refusal_of(state), _INVALID)
 
     def _refuses_settled(self, recorded: dict) -> None:
         """The current report this object is claims nothing readable."""
@@ -211,6 +267,7 @@ class BookkeepingVocabularyTest(unittest.TestCase):
                 state = support.damaged(support.PUBLISHED, **{group: broken})
 
                 self.assertIsNone(support.reads_back(state))
+                self.assertIs(support.refusal_of(state), _INVALID)
 
     def test_an_empty_group_owes_nothing(self) -> None:
         # An initial publication consumed no feedback and closed no reviewer
@@ -247,6 +304,7 @@ class BookkeepingVocabularyTest(unittest.TestCase):
                 })
 
                 self.assertIsNone(support.reads_back(state))
+                self.assertIs(support.refusal_of(state), _INVALID)
 
     def test_consumable_fields_are_the_producers(self) -> None:
         # Read off the owner that PRODUCES these pairs rather than respelled,

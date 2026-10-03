@@ -36,10 +36,17 @@ record shares the pinned comment with everything else the issue has recorded.
 What the ceiling protects is the write: a transaction accepted at the very
 limit is one whose own pinned write GitHub then refuses, which would lose the
 record the publication depends on at exactly the moment it is needed.
+
+The report text is the one field whose refusal its author can act on, so it is
+the one read for WHY as well as whether: a report quoting a receipt marker and
+one past the ceiling are told apart from each other and from every other
+invalid record. That vocabulary is held in memory only -- the pinned comment
+records a report or does not, and never why one was refused.
 """
 from __future__ import annotations
 
 import re
+from enum import StrEnum
 
 from orchestrator.github import comments as _trust
 from orchestrator.github.pinned_state import MAX_PINNED_BODY
@@ -175,17 +182,37 @@ def as_recorded_number(raw: object) -> int | None:
     return number
 
 
-def as_report_text(raw: object) -> str | None:
-    """Return the complete report recorded, or None unless one is.
+class RecordRefusal(StrEnum):
+    """Why a recorded report, or the record carrying it, reads back as nothing.
+
+    `RESERVED_RECEIPT` is a report quoting a receipt marker of this
+    orchestrator's anywhere in its text -- inline code, a fence, and a
+    quotation included, since a receipt is found by substring in the raw body
+    and no Markdown around it changes what that search sees. `REPORT_TOO_LONG`
+    is a report past `MAX_REPORT_TEXT`. `INVALID_RECORD` is every other
+    refusal: a report that is not text, says nothing, or cannot be encoded, and
+    any identity, subject, location, routing, or bookkeeping member that will
+    not read.
+
+    The two report refusals are kept apart from the third because the developer
+    who wrote the report can correct either by writing it again, and correct
+    them differently, while no rewrite of a report corrects an invalid record.
+    """
+
+    RESERVED_RECEIPT = "reserved_receipt"
+    REPORT_TOO_LONG = "report_too_long"
+    INVALID_RECORD = "invalid_record"
+
+
+def report_text_refusal(raw: object) -> RecordRefusal | None:
+    """Return why one recorded report is refused, or None for a report.
 
     A report has to SAY something, has to be text UTF-8 can carry, has to be
     small enough that publishing it is still possible, and may not carry a
-    receipt marker of this orchestrator's. Every refusal is the same answer:
-    the record describes a publication this build cannot make. Whitespace alone
-    is no report -- it renders to a
-    comment with a header and nothing under it -- and a text past the ceiling
-    is one the pinned write that recorded it should never have accepted, so
-    reading it back is already evidence the comment was edited.
+    receipt marker of this orchestrator's. Whitespace alone is no report -- it
+    renders to a comment with a header and nothing under it -- and a text past
+    the ceiling is one the pinned write that recorded it should never have
+    accepted, so reading it back is already evidence the comment was edited.
 
     The marker refusal is the one that matters on a thread rather than in a
     comment. Receipts are found by substring, so a report quoting one would
@@ -194,9 +221,19 @@ def as_report_text(raw: object) -> str | None:
     would strand a transaction that had already been recorded. Refused here, it
     is caught where the record is still being read rather than where it can no
     longer be repaired.
+
+    One answer per text, asked in a fixed order. What is not a report at all
+    is invalid before its content is judged, because no rewrite of its content
+    would make it one. A text both quoting a receipt and past the ceiling is
+    named by the receipt, the refusal its author could not have measured for
+    themselves.
     """
     if not isinstance(raw, str) or not raw.strip():
-        return None
-    if _trust.carries_reserved_marker(raw) or not carries_utf8(raw):
-        return None
-    return raw if len(raw) <= MAX_REPORT_TEXT else None
+        return RecordRefusal.INVALID_RECORD
+    if not carries_utf8(raw):
+        return RecordRefusal.INVALID_RECORD
+    if _trust.carries_reserved_marker(raw):
+        return RecordRefusal.RESERVED_RECEIPT
+    if len(raw) > MAX_REPORT_TEXT:
+        return RecordRefusal.REPORT_TOO_LONG
+    return None

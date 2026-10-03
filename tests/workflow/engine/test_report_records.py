@@ -19,6 +19,8 @@ from orchestrator.github.pinned_state import (
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     comments as _comments,
+    prompt_notes as _prompt_notes,
+    report_record_reading as _reading,
     report_record_state as _record_state,
     report_record_values as _record_values,
     report_records as _records,
@@ -30,7 +32,10 @@ from orchestrator.workflow.stages.implementing import (
 )
 from orchestrator.workflow.stages.validating import review_records as _review_records
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.engine import report_record_test_support as support
+from tests.workflow.engine import (
+    report_delivery_test_support as delivery_support,
+    report_record_test_support as support,
+)
 
 _OTHER_ROUND = 2
 
@@ -53,6 +58,12 @@ _UNCARRIABLE_RECEIPT = "issue 7 report 2"
 
 # A number past what any identity or revision may be recorded as.
 _BEYOND_RECORDED = _record_values.MAX_RECORDED_NUMBER + 1
+
+# Why a recorded report reads back as nothing.
+_REFUSAL = _record_values.RecordRefusal
+
+# One report past the ceiling a recorded report is held to.
+_OVERSIZED = "x" * (_record_values.MAX_REPORT_TEXT + 1)
 
 
 # The widest either commit member of a publication receipt is recorded at.
@@ -301,24 +312,6 @@ class RoundTripTest(unittest.TestCase):
 class BoundedRecordTest(unittest.TestCase):
     """A record describing a publication this build could not make is refused."""
 
-    def test_a_report_past_the_ceiling_refuses(self) -> None:
-        state = support.damaged(
-            support.PUBLISHED,
-            report="x" * (_record_values.MAX_REPORT_TEXT + 1),
-        )
-
-        self.assertIsNone(support.reads_back(state))
-
-    def test_a_report_quoting_a_marker_refuses(self) -> None:
-        # A thread is searched for receipts by substring, so a report carrying
-        # one would read to that search as the step it names.
-        state = support.damaged(
-            support.PUBLISHED,
-            report="I added <!--orchestrator-developer-report: too",
-        )
-
-        self.assertIsNone(support.reads_back(state))
-
     def test_an_unsettleable_record_is_refused(self) -> None:
         # The settling write happens AFTER the report is posted, so a record
         # accepted at the ceiling and settled past it would leave a published
@@ -375,7 +368,7 @@ class BoundedRecordTest(unittest.TestCase):
         # unencodable ones would be written and read back happily and raise at
         # the digest that hashes a report or the request that carries it.
         for unwritable, refused in (
-            (_published(report="x" * (_record_values.MAX_REPORT_TEXT + 1)), "text"),
+            (_published(report=_OVERSIZED), "text"),
             (_published(report_revision=_BEYOND_RECORDED), "revision"),
             (_published(report=support.LONE_SURROGATE), "unencodable report"),
             (_published(subject=replace(
@@ -410,6 +403,71 @@ class BoundedRecordTest(unittest.TestCase):
             _record_state.record_pending_report(state, oversized),
         )
         self.assertFalse(_record_state.carries_pending_report(state))
+
+
+class ReportRefusalTest(unittest.TestCase):
+    """A report its author can correct is refused for the reason it can correct.
+
+    Both records carrying a report read it through one owner, so each case
+    asks both: the transaction bound to a pull request, and the delivered
+    report a run left before there was one.
+    """
+
+    def test_a_quoted_receipt_is_named(self) -> None:
+        # A thread is searched for receipts by substring in the raw body, so
+        # no Markdown around one hides it from that search: a report quoting
+        # one would read as the step it names. Each of these is inside the
+        # budget the prompt teaches, and is refused for its receipt rather
+        # than as a report too large to record.
+        for quoted, report in support.QUOTED_RECEIPTS:
+            with self.subTest(quoted=quoted):
+                self.assertLess(
+                    len(report), _prompt_notes._DEVELOPER_REPORT_CHAR_BUDGET,
+                )
+                self._names(report, _REFUSAL.RESERVED_RECEIPT)
+
+    def test_a_report_past_the_ceiling_is_named(self) -> None:
+        self._names(_OVERSIZED, _REFUSAL.REPORT_TOO_LONG)
+
+    def test_a_receipt_described_in_prose_reads(self) -> None:
+        for described, report in support.DESCRIBED_RECEIPTS:
+            with self.subTest(described=described):
+                pending = _published(report=report)
+                delivered = replace(delivery_support.DELIVERED, report=report)
+
+                self.assertEqual(
+                    _reading.pending_or_refusal(support.recorded(pending)),
+                    pending,
+                )
+                self.assertEqual(
+                    _reading.delivered_or_refusal(
+                        delivery_support.delivered_object(delivered),
+                    ),
+                    delivered,
+                )
+
+    def test_one_text_earns_one_refusal(self) -> None:
+        # What is not a report is invalid whatever it quotes, since no rewrite
+        # of its content makes it one; a text earning both content refusals is
+        # named by its receipt.
+        quoted = support.QUOTED_RECEIPTS[0][1]
+        for shape, report, refusal in (
+            ("unencodable", f"{quoted}{support.LONE_SURROGATE}", _REFUSAL.INVALID_RECORD),
+            ("oversized", f"{quoted}{_OVERSIZED}", _REFUSAL.RESERVED_RECEIPT),
+        ):
+            with self.subTest(shape=shape):
+                self._names(report, refusal)
+
+    def _names(self, report: str, refusal: _record_values.RecordRefusal) -> None:
+        """Both records carrying this report read as none, and say why."""
+        state = support.damaged(support.PUBLISHED, report=report)
+        delivered = delivery_support.delivered_object() | {"report": report}
+
+        self.assertTrue(_record_state.carries_pending_report(state))
+        self.assertIsNone(support.reads_back(state))
+        self.assertIs(support.refusal_of(state), refusal)
+        self.assertIsNone(_reading.delivered_from(delivered))
+        self.assertIs(_reading.delivered_or_refusal(delivered), refusal)
 
 
 if __name__ == "__main__":
