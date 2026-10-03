@@ -5,9 +5,12 @@
 Evidence is a sequence of commands, each with the status it exited and
 whatever transcript the artifact carries for it. The sequence is rendered once,
 here, and its revision is taken here over that rendering, so the digest an
-artifact publishes is taken over one spelling of it -- whether the commands
-are shown in the visible section or carried in the hidden payload
-`verification_payloads` encodes -- and a reread can be exact.
+artifact publishes is taken over one spelling of it whichever presentation
+carries the commands: the hidden payload `verification_payloads` encodes, the
+visible section an artifact showed before its evidence was hidden
+(`verification_legacy_artifacts`), or the quote a reviewer is handed. A
+revision settled under one of them is the revision under every other, and a
+reread can be exact.
 
 Who ran those commands is part of the evidence rather than a footnote to it.
 This orchestrator can report commands it spawned itself and watched exit; it
@@ -19,10 +22,10 @@ A command that would not render back as the command it names is refused where
 it is declared, which is the only place the two can still be told apart: text
 carrying the backtick that delimits it or a line ending that would make it two
 lines, a transcript carrying the fence that closes it -- at any indent and
-behind any line ending, since a fence GitHub reads as closing and this parser
-does not would render as a comment neither of them describes -- and either
-carrying a receipt marker of ours, which a thread search recognizes by
-substring and so would read as a step nobody took.
+behind any line ending, since a fence GitHub reads as closing and the
+section's reader does not would render as text neither of them describes --
+and either carrying a receipt marker of ours, which a thread search
+recognizes by substring and so would read as a step nobody took.
 
 Line endings are read as Python reads them rather than as the newline alone,
 which is wider than the three GitHub breaks a line on. Deliberately: refusing
@@ -30,12 +33,11 @@ one transcript costs its producer a sanitizing pass, while missing one
 publishes a comment rendering content the evidence never reported.
 
 An empty sequence renders as an explicit absence. A section that simply listed
-nothing would read as a run that passed, and the one thing this format may
+nothing would read as a run that passed, and the one thing an artifact may
 never do is let the absence of a command stand in for a command that succeeded.
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -49,19 +51,9 @@ _OPENING_FENCE = f"{_FENCE}text"
 _COMMAND_LINE = "`{command}` -- exit {exit_status}"
 _TRANSCRIPT = f"\n\n{_OPENING_FENCE}\n{{output}}\n{_FENCE}"
 
-# What one rendered command reads back as. Permissive on purpose: an exact
-# re-render is what decides whether a body is an artifact at all, so this has
-# only to recover what a rendering wrote. The transcript is taken up to the
-# first line that opens with a fence, which is why no transcript may carry one.
-_ENTRY = re.compile(
-    r"`(?P<command>[^`\n\r]+)` -- exit (?P<exit_status>-?[0-9]+)"
-    rf"(?:\n\n{_OPENING_FENCE}\n(?P<output>.*?)\n{_FENCE})?",
-    re.DOTALL,
-)
-
 _SEPARATOR = "\n\n"
 
-# What an artifact says when no command ran, spelled out rather than left blank.
+# What the rendering says when no command ran, spelled out rather than left blank.
 NOTHING_RAN = (
     "No verification command was configured, so none ran. This artifact "
     "records that absence and is not evidence that anything passed."
@@ -165,7 +157,7 @@ class VerifiedCommand:
 
 
 def render_commands(commands: tuple[VerifiedCommand, ...]) -> str:
-    """The evidence section an artifact carries, or the absence of one."""
+    """The evidence section an artifact's commands render as, or the absence of one."""
     if not commands:
         return NOTHING_RAN
     return _SEPARATOR.join(ran.rendered for ran in commands)
@@ -175,47 +167,9 @@ def content_revision(commands: tuple[VerifiedCommand, ...]) -> str:
     """The revision of one evidence section: the SHA-256 of its exact rendering.
 
     Taken over the rendering, and here rather than beside any one way of
-    presenting it, so the visible section and the hidden payload
-    (`verification_payloads`) name evidence by one revision, and a settled
-    revision stays settled however an artifact comes to show its commands.
+    presenting it, so the hidden payload (`verification_payloads`), a legacy
+    artifact's visible section, and a reviewer's quote name evidence by one
+    revision, and a settled revision stays settled however an artifact comes
+    to show its commands.
     """
     return _reports.content_digest(render_commands(commands))
-
-
-def commands_from(evidence: str) -> tuple[VerifiedCommand, ...] | None:
-    """The commands one rendered evidence section reports, or None for anything else.
-
-    What is recovered is only a candidate: the caller re-renders the whole
-    artifact and keeps it only when that comes back byte for byte. So anything
-    the entries read back as but a command this format would publish -- one
-    quoting a receipt marker of ours, one claiming a status of more digits
-    than Python converts -- is None here rather than a raise on a caller
-    asking what a comment is.
-    """
-    if evidence == NOTHING_RAN:
-        return ()
-    try:
-        return _entries_of(evidence)
-    except ValueError:
-        return None
-
-
-def _entries_of(evidence: str) -> tuple[VerifiedCommand, ...] | None:
-    """Each rendered entry off the front, or None at the first that is not one.
-
-    Off the front rather than by splitting, since a transcript may carry
-    anything a rendering could not have put between two entries.
-    """
-    found = []
-    rest = evidence
-    while rest:
-        entry = _ENTRY.match(rest)
-        if entry is None:
-            return None
-        found.append(VerifiedCommand(
-            command=entry["command"],
-            exit_status=int(entry["exit_status"]),
-            output=entry["output"] or "",
-        ))
-        rest = rest[entry.end():].removeprefix(_SEPARATOR)
-    return tuple(found)

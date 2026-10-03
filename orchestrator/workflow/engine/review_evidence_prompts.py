@@ -5,13 +5,17 @@
 A reviewer is told four things about verification beside the report it
 reviews. First the workflow evidence that is CURRENT for the very subject it
 is handed, where there is any: the artifact the pull request carries, re-read
-and quoted whole -- the witness's preamble and every command with its exit
-status and output -- under the revision a reuse has to name, and never
+and quoted whole -- its summary, then every command with its exit status and
+complete output -- under the revision a reuse has to name, and never
 evidence about another head, report, or requirements revision, which is
-evidence about something nobody is asking this reviewer to approve. Which
-evidence that is, and the proof that it covers the subject, belong to the
-validating stage (`stages/validating/review_evidence.py`); this owner renders
-what it is handed, and says which of the commands it lists did not exit 0 --
+evidence about something nobody is asking this reviewer to approve. The
+comment shows the summary alone, so the commands are the ones the re-read
+decoded out of its hidden payload, or read off the visible section of an
+artifact published before evidence was hidden: complete either way, and
+after a restart as much as before one. Which evidence that is, and the proof
+that it covers the subject, belong to the validating stage
+(`stages/validating/review_evidence.py`); this owner renders what it is
+handed, and says which of the commands it lists did not exit 0 --
 about those commands alone, since the evidence does not say whether they are
 the ones this repository requires. Then what this repository configures as its
 verification -- the commands, or the plain statement that none are configured,
@@ -57,6 +61,9 @@ _EVIDENCE_POLICY = (
     "changes to request."
 )
 
+# What separates an artifact's summary from the commands quoted under it.
+_SUMMARY_BREAK = "\n\n"
+
 
 @dataclass(frozen=True)
 class HandedEvidence:
@@ -100,7 +107,7 @@ def _evidence_block(handed: HandedEvidence | None) -> str:
             "evidence covers this subject, so run the verification yourself."
         )
     current, artifact = handed.current, handed.artifact
-    quoted = _quoted(artifact.preamble + artifact.evidence)
+    quoted = _quoted(f"{artifact.summary}{_SUMMARY_BREAK}{artifact.evidence}")
     return (
         f"Workflow verification evidence (revision `{_verification_models._REVISION_PREFIX}"
         f"{handed.revision}`, re-read in full by the orchestrator from PR "

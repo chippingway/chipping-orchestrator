@@ -136,8 +136,8 @@ def _commands_in(listed: Any) -> tuple[_evidence.VerifiedCommand, ...] | None:
     """Each listed command as the evidence model reads it, or None at the first it refuses.
 
     Through the model's own constructor, so no payload hands a caller a
-    command the visible section could not have carried -- a closing fence or
-    a receipt marker of ours hidden behind a JSON escape included. A member a
+    command its rendering could not have carried -- a closing fence or a
+    receipt marker of ours hidden behind a JSON escape included. A member a
     command lacks reads as None, which the model refuses; a member it should
     not have is left for the exact re-encoding to refuse.
     """

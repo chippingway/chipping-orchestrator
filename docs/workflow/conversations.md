@@ -553,8 +553,11 @@ The reviewer prompt (`workflow/engine/review_prompts.py`, with its verification 
   to exactly the pull request, head, requirements, and report the reviewer is handed is quoted, and only once it
   proves current again — still the latest revision, its handoff and artifact standing, the whole binding proved
   (`stages/validating/review_evidence.py`). The artifact is re-read at its comment, held once more to the settled
-  record, and quoted whole, witness and commands included, under the `sha256:` revision a reuse names. Evidence about
-  an earlier report, another head, or requirements the issue has moved past is never handed over.
+  record, and quoted whole under the `sha256:` revision a reuse names: its summary, then every command with its exit
+  status and complete output. The comment itself shows only the summary, so those commands are the ones the re-read
+  decoded from its hidden payload — or read off the visible section of an artifact published before evidence was
+  hidden — and a reviewer handed evidence after a restart reads exactly what one handed it before would. Evidence
+  about an earlier report, another head, or requirements the issue has moved past is never handed over.
 - **What the repository configures.** The configured `VERIFY_COMMANDS` are listed in order, and an approval's evidence
   has to include each of them exactly as written; a reviewer may declare further commands beside them, which refuse an
   approval only where one did not exit 0. An empty `VERIFY_COMMANDS` is stated as such: it requires no particular
@@ -566,9 +569,13 @@ The reviewer prompt (`workflow/engine/review_prompts.py`, with its verification 
   head it is handed and listing each `COMMAND:` it ran with the `EXIT:` status it returned and any output as plain
   lines, or — only where evidence was handed — `VERIFICATION: REUSED sha256:<revision>` naming that exact revision.
 - **What is no change to request.** The orchestrator publishes what the reviewer declares on the pull request itself,
-  so a reviewer holding valid evidence for the commit it reviews does not ask a developer or a human to copy a commit
-  SHA, a test count, or a command into the description or the report. A failed check, verification the change still
-  needs, a report claiming what did not happen, and evidence about another commit or subject remain changes to request.
+  as a verification artifact (`github/verification_artifacts.py`) whose visible summary says whether the recorded
+  checks passed, failed, or never ran, and names the artifact and evidence revisions, the witness, the tested commit,
+  and the target head — an equivalent-tree carry where the checks never ran on it — while every command, exit status,
+  and output stays exact in its hidden payload. So a reviewer holding valid evidence for the commit it reviews does
+  not ask a developer or a human to copy a commit SHA, a test count, or a command into the description or the report.
+  A failed check, verification the change still needs, a report claiming what did not happen, and evidence about
+  another commit or subject remain changes to request.
 
 The round (`stages/validating/reviewer.py`) hands every returned verdict to the disposition service
 (`stages/validating/review_disposition.py`). What the run declared is read only out of a run that completed, and never

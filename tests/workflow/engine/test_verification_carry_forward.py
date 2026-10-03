@@ -77,7 +77,7 @@ _OLD_REVIEW_REFUSAL = "not about the head the evidence answers for"
 
 # What the artifact carried onto another head says about it, beside the
 # commit the commands ran on.
-_EQUIVALENT_TREE = "an equivalent-tree target"
+_EQUIVALENT_TREE = "an equivalent-tree carry"
 
 _DEFER = _evidence_models.ReportEvidenceVerdict.DEFER
 

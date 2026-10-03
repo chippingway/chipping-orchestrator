@@ -17,8 +17,11 @@ import unittest
 from dataclasses import replace
 from unittest.mock import patch
 
-from orchestrator.github import comments as _trust, verification_artifacts as _artifacts
-from orchestrator.github.developer_reports import content_digest, render_developer_report
+from orchestrator.github import (
+    comments as _trust,
+    developer_reports as _reports,
+    verification_artifacts as _artifacts,
+)
 from orchestrator.github.pinned_state import MAX_PINNED_BODY
 from orchestrator.github.pull_request_reports import (
     ReportLocation,
@@ -36,6 +39,7 @@ from tests.support.fakes import (
     make_developer_report,
     make_verification_artifact,
 )
+from tests.support.github import legacy_artifacts as _legacy
 
 _GITHUB_LOG = "orchestrator.github"
 _WARNING = "WARNING"
@@ -53,6 +57,8 @@ _LATER = make_verification_artifact(
 _REPORT = make_developer_report(support.PR_NUMBER)
 _WRITER = "render_verification_artifact"
 _PUBLISHED = _artifacts.render_verification_artifact(_ARTIFACT)
+# The published artifact with one status edited in its hidden payload.
+_EDITED = _PUBLISHED.replace('"exit_status":0', '"exit_status":1', 1)
 _UNCONFIRMED = ReportLookup(ReportPresence.UNCONFIRMED)
 _OVERSIZED = make_verification_artifact(
     support.PR_NUMBER,
@@ -61,14 +67,18 @@ _OVERSIZED = make_verification_artifact(
 
 # Comments of ours carrying this transaction's receipt that are not its
 # artifact: one a maintainer's edit left no artifact at all, and whole
-# artifacts that differ from it in their evidence or in their identity.
+# artifacts that differ from it in their evidence or in their identity --
+# including one only the hidden header names, which the summary never shows.
 _CLAIMANTS = (
-    ("an edited artifact", _PUBLISHED.replace("exit 0", "exit 1", 1)),
+    ("an edited artifact", _EDITED),
     ("other evidence", _artifacts.render_verification_artifact(
         replace(_ARTIFACT, commands=_LATER.commands),
     )),
     ("another witness", _artifacts.render_verification_artifact(
         replace(_ARTIFACT, source=EvidenceSource.REVIEWER_REPORTED),
+    )),
+    ("another review subject", _artifacts.render_verification_artifact(
+        replace(_ARTIFACT, review_subject=_ARTIFACT.tested_sha),
     )),
 )
 
@@ -122,7 +132,7 @@ class _PublicationContract:
         self.assertIs(later.presence, ReportPresence.PRESENT)
         self.assertEqual(
             [comment.body for comment in self.pull_request.issue_comments],
-            [_PUBLISHED, render_developer_report(_REPORT), _artifacts.render_verification_artifact(_LATER)],
+            [_PUBLISHED, _reports.render_developer_report(_REPORT), _artifacts.render_verification_artifact(_LATER)],
         )
 
     def test_a_pasted_copy_proves_nothing(self) -> None:
@@ -234,7 +244,7 @@ class _RecoveryContract:
         # same comment id asked of another pull request is not there.
         posted = _publish(self).found
         readings = [self._reread(ReportLocation(support.PR_NUMBER, posted.id), _PUBLISHED)]
-        posted.body = _PUBLISHED.replace("exit 0", "exit 1", 1)
+        posted.body = _EDITED
         readings.append(self._reread(ReportLocation(support.PR_NUMBER, posted.id), _PUBLISHED))
         readings.append(
             self._reread(ReportLocation(support.OTHER_PR_NUMBER, posted.id), _PUBLISHED),
@@ -280,7 +290,7 @@ class _RecoveryContract:
     def _reread(self, where: ReportLocation, verified: str) -> tuple:
         """Reread one location against the revision of `verified`."""
         reading = self.gh.reread_report_location(
-            where, content_sha256=content_digest(verified),
+            where, content_sha256=_reports.content_digest(verified),
         )
         return reading.presence, reading.found
 
@@ -296,7 +306,7 @@ class _RereadContract:
         pasted = self.seed(_PUBLISHED, login=_HUMAN_LOGIN)
         asked = (posted.id, pasted.id, pasted.id + 1)
         readings = [self._at(comment_id) for comment_id in asked]
-        posted.body = _PUBLISHED.replace("exit 0", "exit 1", 1)
+        posted.body = _EDITED
         readings.append(self._at(posted.id))
         self.refuse(support.UNREADABLE)
         with self.assertLogs(_GITHUB_LOG, _WARNING):
@@ -310,6 +320,24 @@ class _RereadContract:
             (ReportPresence.UNCONFIRMED, None),
         ])
         self.assertEqual(self.posted_comments(), [(support.PR_NUMBER, _PUBLISHED)])
+
+    def test_a_legacy_artifact_stands_as_published(self) -> None:
+        # Landed in the format artifacts were published in before their
+        # evidence was hidden: its transaction finds it, a settlement re-reads
+        # it as exactly that artifact, and nothing is posted in the format
+        # the writer would use now, or written over it.
+        landed = self.seed(_legacy.CARRIED, login=support.BOT_LOGIN)
+        present = ReportLookup(ReportPresence.PRESENT, landed)
+
+        readings = [
+            self.gh.find_verification_artifact(self.pull_request, _ARTIFACT),
+            self.gh.publish_verification_artifact(self.pull_request, _ARTIFACT),
+            self._at(landed.id),
+        ]
+
+        self.assertEqual(readings, [present, present, (ReportPresence.PRESENT, _ARTIFACT)])
+        self.assertEqual([comment.body for comment in self.pull_request.issue_comments], [_legacy.CARRIED])
+        self.assertEqual(self.posted_comments(), [])
 
     def _at(self, comment_id: int) -> tuple:
         """What one comment on the case's pull request is, as an artifact."""

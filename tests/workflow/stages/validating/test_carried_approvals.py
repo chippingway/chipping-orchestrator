@@ -80,7 +80,7 @@ READY_PING = "ready_ping_sha"
 REPORT_REREAD = "reread_report_location"
 
 # What the carried artifact says about the head it was carried onto.
-EQUIVALENT_TREE = "an equivalent-tree target"
+EQUIVALENT_TREE = "an equivalent-tree carry"
 
 # The approval's evidence claim gone from the pinned comment by hand: written
 # null, or removed outright.

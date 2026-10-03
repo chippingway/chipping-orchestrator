@@ -56,7 +56,7 @@ _REPLAY_WRITERS = (
 # edited out of shape, and a whole artifact of other evidence.
 _CLAIMS = (
     ("edited", lambda artifact: _artifacts.render_verification_artifact(artifact).replace(
-        "exit 0", "exit 1", 1,
+        '"exit_status":0', '"exit_status":1', 1,
     )),
     ("other evidence", lambda artifact: _artifacts.render_verification_artifact(replace(
         artifact, commands=(VerifiedCommand(support.SUITE, _FAILED, "1 failed"),),
