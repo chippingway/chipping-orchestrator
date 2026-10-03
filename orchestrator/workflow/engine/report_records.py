@@ -148,6 +148,27 @@ class DeliveredReport:
     watermarks: tuple = ()
     spends: tuple = ()
 
+    def bound_to(self, subject: ReportSubject) -> PendingReport:
+        """The transaction this report becomes, bound to one subject.
+
+        Spelled once, beside both records, because two writers build it: the
+        acceptance that reserves what the transaction will cost, and the
+        binding that records it. Built apart, a member added to either record
+        would be measured under one shape and written under another.
+        """
+        return PendingReport(
+            receipt=self.receipt,
+            subject=subject,
+            report_revision=self.report_revision,
+            mode=self.mode,
+            route=self.route,
+            report=self.report,
+            location=self.location,
+            content_revision=self.content_revision,
+            watermarks=self.watermarks,
+            spends=self.spends,
+        )
+
 
 @dataclass(frozen=True)
 class PendingReport:
