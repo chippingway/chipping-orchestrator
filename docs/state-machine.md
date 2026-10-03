@@ -269,9 +269,12 @@ generation is not waiting to be decomposed — its implementation is committed a
 whole tick belongs to the late coordinator and nothing below runs for it. Everything else is the initial
 decomposition: the decomposer runs read-only in a scratch worktree and its fenced `orchestrator-manifest` block is
 parsed, where `single` posts the collected-context comment and flips to `workflow:ready`, and `split` creates children
-labeled `workflow:blocked` and leaves the parent on `workflow:blocked` or `workflow:umbrella`. Half-finished splits
-recover rather than re-spawn, a `DECOMPOSE` kill switch falls through to `workflow:implementing`, and commits or a
-dirty tree park with the worktree kept. An issue standing on a `retry_cap` park is held ahead of all of that — the
+labeled `workflow:blocked` and leaves the parent on `workflow:blocked` or `workflow:umbrella`. A split of an issue
+inside a late lineage seeds each child one level below it under the same root, pointed only at a snapshot the
+parent's own split still holds and records it on, and parks before creating anything where that lineage cannot be
+proved. Half-finished splits recover rather than re-spawn — adopting a child created and never recorded by the
+receipt in its body — a `DECOMPOSE` kill switch falls through to `workflow:implementing`, and commits or a dirty tree
+park with the worktree kept. An issue standing on a `retry_cap` park is held ahead of all of that — the
 drift reset, the kill switch, and the human-reply resume each answer a park that is not this one — so it keeps
 everything it carries until a trusted `/orchestrator continue` buys it one more attempt. The late coordinator holds
 the same park one step earlier on its own road, so an issue whose adjudication ran the budget out keeps its frozen

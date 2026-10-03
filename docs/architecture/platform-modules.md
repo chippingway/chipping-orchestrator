@@ -227,9 +227,10 @@ orchestrator/
                         in the client's mixin chain, which is the owner it reads its label sets and its
                         issue-state spellings from
     issues.py           issue writes, the query options, the wire issue-state vocabulary, the closed predicate
-                        every reader of it asks through, the every-state, no-label walk that finds the one
+                        every reader of it asks through, the every-state, no-label walk that finds the first
                         issue carrying a marker -- the reading a receipt lookup needs and the only one that
-                        sees an issue a human has since closed or relabelled -- and the labels whose CLOSED
+                        sees an issue a human has since closed or relabelled -- or every one of them, for a
+                        caller that has to know its match is the only one, and the labels whose CLOSED
                         issues a sweep still owes a pass: the recovery set whose terminal arc has not drained,
                         and the cleanup set, which is where a late adjudication runs plus where an interrupted
                         cancellation can be left -- read from here by the poller that queries them and by the

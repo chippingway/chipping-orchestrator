@@ -25,7 +25,10 @@ it is not manifest tracking. Its register, its snapshot, and its consumer
 ledger are what the remote is owed and who that ref was preserved for, and an
 edit changes neither: the orphans the notice names are still the consumers
 the umbrella's cleanup proves the ref against, whatever manifest replaces
-them. Nothing here adopts, relabels, or reopens one of them.
+them. Nothing here adopts, relabels, or reopens one of them -- but a split of
+this issue's own that pointed its replacements at that ref may have one the
+ledger does not name yet, and the attempt this reset drops is what held the
+ref for it, so it is written onto that ledger first (`_account_discarded`).
 
 The notice is posted before the reset touches state, so a tick that dies
 between the two re-detects the same edit next time rather than throwing a
@@ -38,7 +41,17 @@ from github.Issue import Issue
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments, drift as _engine_drift
-from orchestrator.workflow.stages.decomposition import session as _session, state as _state
+from orchestrator.workflow.late_split import (
+    formats as _formats,
+    keys as _keys,
+    ledger_encoding as _ledger_encoding,
+    state as _late_state,
+)
+from orchestrator.workflow.stages.decomposition import (
+    session as _session,
+    split_receipts as _split_receipts,
+    state as _state,
+)
 
 
 def _decomposition_drift_notice(orphans: list) -> str:
@@ -61,9 +74,12 @@ def _clear_decomposition_manifest(state: PinnedState) -> None:
     state.set(_state._CHILDREN, [])
     state.set("dep_graph", {})
     state.set("expected_children_count", None)
-    # The seal is a fact about that count, so it goes with it: a register
-    # called final belongs to the manifest this reset is throwing away.
+    # The seal is a fact about that count, and the attempt about the receipts
+    # its children carry, so both go with it: a register called final, or a
+    # child a recovery would adopt, belongs to the manifest this reset is
+    # throwing away.
     state.set(_state._SPLIT_LEDGER_SEALED, None)
+    state.set(_state._SPLIT_ATTEMPT, None)
     state.set(_state._UMBRELLA, None)
     state.set(_state._AWAITING_HUMAN, False)
     state.set(_state._PARK_REASON, None)
@@ -85,8 +101,50 @@ def _reset_decomposing_on_drift(
     if new_hash is None:
         return
     _comments._post_issue_comment(
-        gh, issue, state,
-        _decomposition_drift_notice(list(state.get(_state._CHILDREN) or [])),
+        gh, issue, state, _decomposition_drift_notice(_account_discarded(gh, issue, state)),
     )
     state.set("user_content_hash", new_hash)
     _clear_decomposition_manifest(state)
+
+
+def _account_discarded(gh: GitHubClient, issue: Issue, state: PinnedState) -> list:
+    """Put every child the discarded split may have pointed at the snapshot on its consumer ledger; those children.
+
+    The manifest a reset throws away takes `split_attempt` with it, and that
+    is what held the snapshot for a replacement the ledger does not name --
+    see `late_cleanup_proof`. So first every child that split recorded goes
+    onto `late_consumers`, a lost slot included, and so does every issue this
+    orchestrator opened carrying the receipt of the slice a crash can leave
+    created and unrecorded, found as a recovery would find it. Each then holds
+    the ref until it ends, as an orphan the notice names. A split an older
+    binary made, an issue no late split charged, and a consumer ledger nobody
+    can type owe the ledger nothing.
+    """
+    register = state.get(_state._CHILDREN) or []
+    recorded = [number for number in register if _state._names_an_issue(number)]
+    generation = _late_state.read_late_generation(state)
+    if state.get(_state._SPLIT_ATTEMPT) is None or not generation.is_present:
+        return recorded
+    if generation.obligations.opaque_consumers is not None:
+        return recorded
+    discarded = [*recorded, *_unrecorded_children(gh, issue, state, len(recorded))]
+    owed = generation.obligations.with_consumers(tuple(discarded))
+    state.set(_keys.CONSUMERS, _ledger_encoding.ledger_fields(owed)[_keys.CONSUMERS])
+    return discarded
+
+
+def _unrecorded_children(gh: GitHubClient, issue: Issue, state: PinnedState, recorded: int) -> list[int]:
+    """Every issue carrying the receipt of the slice a crash can leave unrecorded, while the register is short.
+
+    Asked only of an attempt this binary minted whose register has not
+    provably reached its count, since that is the one window such a child can
+    exist in; the walk it costs is the one a recovery would have made.
+    """
+    attempt = state.get(_state._SPLIT_ATTEMPT)
+    expected = state.get("expected_children_count")
+    if not isinstance(attempt, str) or _split_receipts._ATTEMPT.fullmatch(attempt) is None:
+        return []
+    if _formats.whole_number(expected) and recorded >= expected:
+        return []
+    lookup = _split_receipts._LOOKUP.format(issue=issue.number, attempt=attempt, index=recorded)
+    return [candidate.number for candidate in gh.find_issues_carrying(lookup)]

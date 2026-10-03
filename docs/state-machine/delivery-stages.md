@@ -203,8 +203,9 @@ drift — a bare continue outstanding at deploy time cannot fire one false "issu
 the action depends on lifecycle position:
 
 - **`workflow:decomposing`** — handled inline at the top of `_handle_decomposing`: drop `decomposer_session_id`, wipe
-  `children` / `dep_graph` / `expected_children_count` / `umbrella`, clear park flags, post a `:pencil2: issue content
-  changed` notice, then fall through in the same tick so the decomposer re-spawns against the updated body. An issue
+  `children` / `dep_graph` / `expected_children_count` / `split_attempt` / `umbrella`, clear park flags, post a
+  `:pencil2: issue content changed` notice, then fall through in the same tick so the decomposer re-spawns against
+  the updated body. An issue
   standing on a `retry_cap` park is held one step ahead of this (see that handler's step 1): the re-spawn it falls
   through to is exactly the spawn that park refused, so the edit waits with everything else the issue carries until
   a human continues it.
@@ -223,13 +224,17 @@ the action depends on lifecycle position:
   `late_consumers` survive whole and go on naming the orphans, so the umbrella the re-decomposition leaves still
   proves that ref against them
   (see [what the terminal waits on](#_handle_umbrella-label-workflowumbrella)). The orphans are never adopted,
-  relabelled, or reopened. Nor does either reset touch the `late_ancestry_*` group. The read-only decision of which
-  late lineage a re-derived manifest's children would inherit (`late_split/provenance.py`, see
-  [inherited lineage](labels-and-state.md#late-generation-state)) is dormant, as is the seed and snapshot pointer
-  `stages/decomposition/replacement_lineage.py` derives from it, and so are the receipts, adoption, repair, and seed
-  hold beside it ([contracts](../workflow/roles.md#what-an-ordinary-re-decomposition-will-hold-its-children-to)): no
-  decomposition asks any of them yet, so those children are still created with no ancestry, receipt, or pointer of
-  their own.
+  relabelled, or reopened. Nor does either reset touch the `late_ancestry_*` group, which is what the re-derived
+  manifest's children are seeded from: the split that answers the reroute asks which late lineage they inherit
+  (`late_split/provenance.py`, see [inherited lineage](labels-and-state.md#late-generation-state)) before it creates
+  one, and seeds each one level below the parent under the same root rather than as a fresh root at depth 0. Only a
+  replacement pointed at the ref the parent's own split holds joins `late_consumers`, and it joins in the write that
+  records it in `children`, so the ref is kept for it as well as for the orphans. A lineage the record cannot prove,
+  a parent already at `MAX_LINEAGE_DEPTH`, a snapshot the parent's own ledger cannot say is held or released, or
+  one held with no recorded base parks `replacement_lineage_unproved` with no child created (see
+  [its contracts](../workflow/roles.md#what-an-ordinary-re-decomposition-holds-its-children-to)).
+  The reset drops the discarded manifest's `split_attempt`, so no child it left behind is adopted into the next split,
+  after writing those children — any unrecorded one found by its receipt — onto `late_consumers` as orphans.
 - **`workflow:implementing` / `workflow:validating` / `in_review` / `workflow:resolving_conflict`** (a dev session
   exists and possibly a PR) — post a `:pencil2: issue body changed; resuming dev session` notice (on the issue for
   implementing/validating, on the PR for in_review/resolving_conflict), resume the locked dev session with
@@ -409,7 +414,7 @@ because there it is the claim that this stage has already rerouted rather than a
 ## `_handle_decomposing` (label `workflow:decomposing`)
 - **Trigger**: each tick while the label is `workflow:decomposing`.
 - **Input**: issue + comments + pinned state (`decomposer_agent` / `decomposer_session_id`, retry-budget keys,
-  `children`, `dep_graph`, `expected_children_count`, `umbrella`).
+  `children`, `dep_graph`, `expected_children_count`, `split_attempt`, `umbrella`).
 - **Internal flow**: a `retry_cap` park whose sentence was never said is replayed at entry, ahead of every step
   below and of the late route among them (`_replay_owed_notice` — see
   [the retry budget](labels-and-state.md#the-retry-budget)); it says what the park is for and writes, and the tick
@@ -499,10 +504,36 @@ because there it is the claim that this stage has already rerouted rather than a
   2. **User-content drift check** (inline) — see drift section above.
   3. **Half-finished decomposition recovery.** If `expected_children_count` is set OR `children` is non-empty (a prior
      tick crashed mid-split), the handler cannot safely respawn the decomposer. When `expected_children_count` is set
-     and `len(children) < expected_children_count`, park with `decomposition_crash`. Otherwise repair any child whose
-     pinned `parent_number` was never seeded, then finalize to `workflow:umbrella` (when the flag is true) or
-     `workflow:blocked`. Two owners take those markers away from this recovery: an issue already parked awaiting a
-     human, and one carrying a live late generation — the split transaction writes the same two markers and resumes
+     and `len(children) < expected_children_count`, look for the one child a crash between a create and the write
+     recording it can leave behind: an issue this orchestrator opened whose body carries the receipt naming this
+     parent, its `split_attempt`, and the next slice, every issue walked to find it. The only one carrying it, found
+     open, still `workflow:blocked`, not already in `children`, and whose last whole receipt is that one is recorded in
+     `children` — in a parent write of its own that also records it on
+     `late_consumers` wherever the parent's proved lineage points its children at a snapshot, read off that lineage
+     rather than off the child's text, which may have been edited since — and repaired below with the rest. Park with
+     `decomposition_crash` when the register is still short — the rest were never created, and the manifest is not
+     kept to create them from — when no `split_attempt` names this split (an older binary's), when more than one issue
+     carries the receipt, or when the candidate is already recorded, was closed, relabelled, or ends on a receipt other
+     than that one, naming it without adopting it. (The child
+     itself, whose seed is not the one its receipt owes it, is held by the dispatcher under every label but a
+     terminal until that seed is there — see [pinned state](labels-and-state.md#pinned-state) — and the write that
+     seeds it below clears `awaiting_human` with it.) Otherwise repair any child whose pinned `parent_number` was never
+     seeded, once every recorded child is recognized as this split's own — and, where the parent sits inside a late
+     lineage, hold every recorded child to the lineage step 7 would have given it, read off the parent's record rather
+     than the child's text: while the parent's split still holds its snapshot every recorded child is owed the pointer,
+     so one `late_consumers` no longer names is recorded there again (a parent write ahead of the seed and the finalize)
+     and one carrying none of the `late_ancestry_*` group, or a pointer at anything else, is seeded with it; once the
+     snapshot has passed to a reclamation the lineage alone is owed and a pointer still on a child is dropped with its
+     `late_ancestry_mirror_first` stamp; one carrying exactly what it was owed is left — then finalize to
+     `workflow:umbrella` (when the flag is true) or `workflow:blocked`. A parent whose record no longer proves that
+     lineage, or a child it cannot recognize as its own — an unparsed comment, a `parent_number` that is not exactly
+     this issue's number (only a missing one is backfilled), text naming a snapshot ref the split cannot keep, any
+     other group (any at all on an ordinary split's child), a register naming it twice, or a receipt other than the one
+     the split stamped for its slot; the full list is
+     [the split's contract](../workflow/roles.md#what-an-ordinary-re-decomposition-holds-its-children-to) — parks
+     `replacement_lineage_unproved` instead. Nothing is written to that child, so none of its children is finalized into
+     the walk that starts them. Two owners take those markers away from this recovery: an issue already parked awaiting
+     a human, and one carrying a live late generation — the split transaction writes the same two markers and resumes
      from its own durable facts, so finalizing on its behalf would hand a parent on before its snapshot, its
      supersession, or what the remote is owed had been settled. Either way the tick ends having changed nothing.
   4. **DECOMPOSE kill switch.** If `config.DECOMPOSE` is off when this handler runs, clear decomposer-side park flags,
@@ -539,11 +570,29 @@ because there it is the claim that this stage has already rerouted rather than a
      - `decision == "single"` → post the collected-context comment (rationale plus the manifest's optional
        `affected_files` / `notes`, built by `_build_single_decision_comment`) so the implementer inherits the
        decomposer's groundwork via `_recent_comments_text`; label `workflow:ready`, stamp `decomposed_at`.
-     - `decision == "split"` → for each child call `gh.create_child_issue(...)` with label `workflow:blocked` (the
-       child's only birth label) and seed the child's pinned state with `parent_number`; persist `children` /
-       `dep_graph` / `umbrella` on the parent; activate no-dep children by flipping `workflow:blocked` →
-       `workflow:ready` (best-effort, since `_handle_blocked` / `_handle_umbrella` also treats no-dep children as
-       deps-satisfied).
+     - `decision == "split"` → first decide the late lineage the children inherit
+       (`stages/decomposition/replacement_lineage.py` over `late_split/provenance.py`): an issue no late split
+       charged inherits none, and an unprovable record, a parent already at `MAX_LINEAGE_DEPTH`, a split of the
+       parent's own whose ledger cannot say whether its snapshot is held or released (or that holds it with no
+       recorded base for the reuse instructions to name its change from), or a slice whose own title or body names a
+       snapshot ref its child would not be kept (any but the one it is pointed at or this repository's mirror of it,
+       read as [the split's contract](../workflow/roles.md#what-an-ordinary-re-decomposition-holds-its-children-to)
+       reads every mention) parks `replacement_lineage_unproved` before `expected_children_count` is written, creating
+       nothing. Then persist `expected_children_count`, `umbrella`, a freshly minted `split_attempt`, and
+       the whole `dep_graph` in one parent write, and for each child call `gh.create_child_issue(...)` with label
+       `workflow:blocked` (the child's only birth label) and a body carrying the hidden receipt
+       `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>:lineage=<owed>-->` —
+       `<owed>` the late lineage it is seeded with, or `none` — after its declared slice, record it in `children` —
+       and in the same write on `late_consumers`, where the parent's own split holds the snapshot it will be pointed
+       at — and seed the child's pinned state with `parent_number`, `created_at`, and that lineage, never the
+       parent's measurement, exemption, or authorization. A child owed that snapshot is created with the reuse
+       instructions a late split's own children carry appended after its receipt — the ref, its local mirror, the
+       commit, the base it was cut against, and how to read and reuse it — since the body is what its implementer
+       reads; activate no-dep children through the dependency walk `_handle_blocked` / `_handle_umbrella` run — over
+       the same fresh scan of each child's label, so a child a human rejected or closed short of a terminal while its
+       siblings were still being created parks the parent and none is relabelled, and with the same lineage recheck
+       and per-child recognition as any later release — flipping `workflow:blocked` → `workflow:ready` (best-effort,
+       since that walk also treats no-dep children as deps-satisfied on the next poll).
 - **Output**: parent → `workflow:ready` / `workflow:blocked` / `workflow:umbrella` / `workflow:implementing`, OR a
   HITL park.
 
@@ -574,7 +623,7 @@ because there it is the claim that this stage has already rerouted rather than a
      runs the settlement the umbrella's terminal runs (see
      [what the terminal waits on](#_handle_umbrella-label-workflowumbrella)): nothing revisits that ledger once the
      parent has gone back to implementation, so a ref still held for a recorded consumer that has not ended — an
-     orphaned original, or a replacement the ledger records — keeps the parent on `blocked`, which the next due poll
+     orphaned original, or a replacement pointed at the ref — keeps the parent on `blocked`, which the next due poll
      asks again, and a reason is logged each time. So does a `late_consumers` list this binary cannot read, whether or
      not a ref is still held beside it — the retirement below keeps that ledger as history, and an unreadable one is
      none — while the superseded branch, which owes no consumer, is still reclaimed. A record whose cycle identity is
@@ -590,7 +639,19 @@ because there it is the claim that this stage has already rerouted rather than a
      and nothing on them is still owed; either drops any `split_attempt` it records in a write of its own while still
      `blocked`, since the flip sets the label before it writes.
   7. Walk children: any `workflow:blocked` child whose recorded dependencies are all `done` gets relabeled
-     `workflow:ready`. A child with no recorded deps is also flipped (vacuous all-done over an empty list).
+     `workflow:ready`. A child with no recorded deps is also flipped (vacuous all-done over an empty list). Children
+     an ordinary split created — anything but a late split's own register — are released only while the lineage and
+     snapshot decision their split was proved on still holds off the parent's record: a refusal (a snapshot entry no
+     longer held or released, a base gone, an ancestry damaged) releases none and parks the parent
+     `replacement_lineage_unproved`, once. Every child the walk would release is held to the recognition step 3's
+     recovery applies before the first of them is relabelled, with its parent link required rather than
+     backfilled: a comment that will not parse, a `parent_number` that is not this parent's number (a float or a
+     bool equal to it included), an ancestry that is not the whole group it was owed (any of it, for an issue no late
+     split charged), a pointer the parent's ledger no longer keeps for it (the ref released, or the child off
+     `late_consumers`), a title or body naming any other ref, a register naming it more than once, or a receipt other
+     than the one its split stamped for its slot — the one the dispatcher would hold its seed to once it runs —
+     releases none of them and parks the same way. That costs one pinned read per released child. `_handle_umbrella`
+     walks through the same checks, and so does the split's own same-tick release.
 - **Output**: parent → `workflow:ready` (all done and nothing a late split recorded still held), OR a sibling
   unblocked, OR a HITL park, OR a no-op for a child still waiting on its dependencies or a parent still holding a
   ref.
@@ -656,14 +717,15 @@ because there it is the claim that this stage has already rerouted rather than a
   only while the children this handler tracks are the ones the split recorded — proved off the child scan this
   handler already took for every consumer that scan was asked about. A recorded consumer it was not asked about is
   read afresh: after a genuine edit re-decomposed the umbrella the scan is of the replacements, and the originals the
-  reroute orphaned are the consumers the ref was preserved for — so one of them still open, reopened, or unreadable
-  keeps the ref (and the terminal) however finished the replacements are. A replacement the ledger records beside
-  them is answered off this handler's own scan and keeps the ref the same way, reopened after it resolved included.
-  The settlement is asked only where this handler reaches it — a poll that finds every tracked child resolved, or one
-  a child's disposition parks — so the ref goes on the first such poll after the last recorded consumer ends, not on
-  the first poll of any kind; an original that
-  ends while replacements are still running frees nothing until they resolve or one parks the parent, and the
-  terminal is behind the same settlement, so nothing closes over the ref in between. "Ended" is the consumer's
+  reroute orphaned are consumers the ref was preserved for — so one of them still open, reopened, or unreadable
+  keeps the ref (and the terminal) however finished the replacements are. A replacement the re-decomposition
+  pointed at the ref is a recorded consumer too, answered off the scan like any tracked child, so a replacement
+  reopened after it resolved keeps the ref the same way. The settlement is asked only where this handler reaches it
+  — a poll that finds every tracked child resolved, or one a child's disposition parks — so the ref goes on the first
+  such poll after the last recorded consumer (an original, or a replacement pointed at the ref) ends, not on the
+  first poll of any kind; an original that ends while replacements are still running frees nothing until they
+  resolve or one parks the parent, and the terminal is behind the same settlement, so nothing closes over the ref in
+  between. "Ended" is the consumer's
   own issue state, not its label: reaching `done`, being `rejected`, and a human closing it all close the issue, and
   reopening preserves the label — so a child reopened while still wearing `done` is live again and keeps the ref. A
   branch target outside the orchestrator namespace or belonging to another issue is refused rather than deleted; a
@@ -685,7 +747,9 @@ because there it is the claim that this stage has already rerouted rather than a
   Either side of the loop the list is whole — before the split nothing has been created, and past it the loop ran to
   the end — which is also what lets an *empty* list settle a ref no child was ever cut from, the snapshot being
   retained ahead of the first child. A restarted cycle, or a phase this binary cannot type, proves nothing and keeps
-  the ref.
+  the ref. Nor does any phase while a replacement split of the same owner (its `split_attempt` still on the record) is
+  short of its own count or records a child the list lost: that replacement is off the list, so every pass keeps the
+  ref.
 - **The boundary an interrupted transaction stood at is kept, and a phase before the loop is believed only as far as
   the record bears it out.** A phase is not written only forwards: a transaction re-entered after a crash comes back
   through the whole coordinator, so the hold reconciled before anything spawns, the spawn itself, and the
@@ -1135,6 +1199,31 @@ because there it is the claim that this stage has already rerouted rather than a
   never recorded.
 - **Why it sits here**: behind the auto-rebase anchor readings, since a replay no recovery has published is no head a
   debt can name yet, and ahead of the handler it keeps off.
+
+## The seed hold (every dispatch, ahead of the reuse guard)
+- **Trigger**: `_pinned_state_refuses` (`workflow/engine/dispatch_guards.py`) on any issue this orchestrator opened
+  whose body carries an ordinary split's child receipt, under any label but `done` and `rejected` — the unlabeled
+  pickup included — directly behind the agent-run-limit hold and ahead of the step aside a live adjudication takes
+  on `workflow:decomposing`, so a child adjudicating an oversized candidate of its own is held too. The owner is
+  `stages/decomposition/split_seeds.py`; the receipt and the seed it is held to are described under
+  [pinned state](labels-and-state.md#pinned-state). It is read off the body and the pinned comment the dispatcher
+  already holds, so it costs no request, and an issue a human opened, or one with no receipt, passes through.
+- **Holds**: a child whose seed is not what the last whole receipt in its body owes it — no `parent_number` naming
+  exactly that parent, none of an owed `late_ancestry_*` group, a group partial, rewritten, or naming another place in
+  the lineage, any group on a child owed none, or a pointer at a snapshot other than the one that split preserved, or
+  half of one. It parks `replacement_lineage_unproved` once and returns before the handler; a park already standing
+  holds it silently, and a reply is no seed. A pinned comment that will not parse is held with nothing written, since
+  the park's own write would replace whatever it carries.
+- **Runs**: a child whose seed is whole — written by the split, by its parent's recovery, which clears
+  `awaiting_human` in the same write, or by hand — and one whose pointer its own reuse guard dropped, ref and commit
+  together, after its ref was released. A restart an operator authorizes on the child's own cancelled cycle keeps the
+  seed, so the restarted child runs on its next dispatch.
+- **Why it sits here**: a hand relabel or an edit's reroute reaches the child's own handler without its parent's walk,
+  and every road that could run it — its own decomposition, its adjudication of a candidate of its own, `ready`,
+  `implementing`, pickup — would read the record as an issue no split made, or one at another depth, and mint
+  whatever it starts there. Ahead of the reconciliations and the reuse guard, since a seed the reuse guard would
+  otherwise ask the remote about is refused before it is believed; behind the restart, the cancellation ending, and
+  the agent-run-limit hold, which owe nothing to a lineage nobody proved.
 
 ## The reuse guard (every dispatch, ahead of every handler)
 - **Trigger**: `_route_issue_to_handler` on any issue whose pinned ancestry still names a snapshot ref. It shares its

@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """The receipt a split's child carries, and the adoption a recovery may make by it.
 
-No split stamps a receipt and no recovery adopts yet, so each contract is
-driven directly: the wire format, which receipt in a body governs, and what a
-recovery short of its count records -- the next slice's open child on its
-birth label, with its consumer slot, in one parent write -- or names for a park.
+Each contract is driven directly here: the wire format, which receipt in a
+body governs, and what a recovery short of its count records -- the next
+slice's open child on its birth label, with its consumer slot, in one parent
+write -- or names for a park. What a split and its recovery do with them is
+`test_unrecorded_children`'s subject.
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from orchestrator.workflow.stages.decomposition import (
     models as _models,
     replacement_lineage as _replacement_lineage,
     split_receipts as _split_receipts,
+    split_seeds as _split_seeds,
 )
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
@@ -123,7 +125,7 @@ class ReceiptTest(unittest.TestCase):
             *((text, None) for text in _NO_RECEIPT),
         ):
             with self.subTest(body=body):
-                self.assertEqual(_split_receipts.owed_by(body), owed)
+                self.assertEqual(_split_seeds.owed_by(body), owed)
 
 
 class SplitPlanTest(unittest.TestCase):

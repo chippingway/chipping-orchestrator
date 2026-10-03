@@ -1,16 +1,17 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The lineage an ordinary split would seed its replacements with, decided off the parent's record.
+"""The lineage an ordinary split seeds its replacements with, decided off the parent's record.
 
 A genuine edit hands the ordinary decomposer an issue a late split made, or one
-whose own late split it is replacing. The children it would cut are still
-inside that lineage, so each is born one level below its parent under the same
-root, pointed at a snapshot only where the parent's own split holds it, and
-told that snapshot by exactly the names its instructions give it. A record that
-cannot prove the lineage, a bound with no room, and a snapshot neither held nor
+whose own late split it is replacing. The children it cuts are still inside
+that lineage, so each is born one level below its parent under the same root,
+pointed at a snapshot only where the parent's own split holds it, and told that
+snapshot by exactly the names its instructions give it. A record that cannot
+prove the lineage, a bound with no room, and a snapshot neither held nor
 released are refusals. A child already recorded is repaired to the same answer,
-or refused where it is not one this split can recognize. No split asks this
-yet, so it is driven directly.
+or refused where it is not one this split can recognize. The decision is driven
+directly here; what a split, its recovery, and its release do with it is
+`test_replacement_split`'s subject and the recovery and release tests beside it.
 """
 from __future__ import annotations
 
@@ -31,7 +32,7 @@ from orchestrator.workflow.stages.decomposition import (
 from tests.workflow.fixtures import _TEST_SPEC, _authorized_exemption
 from tests.workflow.stages.decomposition import replacement_lineage_support as _support
 
-# The replacements a split would record, the second never on the ledger.
+# The replacements a split records, the second never on the ledger.
 PROTECTED_CHILD = 412
 
 UNPROTECTED_CHILD = 413
@@ -329,7 +330,7 @@ _REFUSING_PARENTS = (
 
 
 class SeedRepairTest(unittest.TestCase):
-    """What a recovery would do with one recorded child, read off the parent's record rather than the child."""
+    """What a recovery does with one recorded child, read off the parent's record rather than the child."""
 
     def test_a_recognized_child_gets_its_owed_seed(self) -> None:
         # Whether its text still carries the instructions changes nothing.

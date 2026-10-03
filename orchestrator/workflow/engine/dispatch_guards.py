@@ -50,7 +50,7 @@ def _pinned_state_refuses(
 ) -> bool:
     """True when what this issue's own pinned comment records stops the tick.
 
-    ONE read, nine questions, because the read is what costs -- a comment
+    ONE read, ten questions, because the read is what costs -- a comment
     walk per labelled issue per dispatch, on top of the one that issue's own
     handler makes.
 
@@ -158,6 +158,24 @@ def _pinned_state_refuses(
     written against: a resume on the next reply, a hold waiting on guidance, a
     classifier that refuses a command carrying none. None of those is an
     answer to an issue that has spent every run it may ever have.
+
+    A child of an ordinary split whose seed is not the one it was owed is
+    asked directly behind that ledger: the receipt in its body names its
+    parent and the lineage that split seeded it with, and its pinned comment
+    carries no such link, a late ancestry missing, partial, or naming
+    anything else, or half a snapshot pointer -- or will not parse at all,
+    which is held with nothing written over it. Every road that could run it
+    -- `ready` and `implementing` as much as `decomposing`, pickup for one
+    whose label was taken off, and the adjudication of a candidate of its own
+    -- would read it as an issue no split made, or at another depth, and mint
+    whatever it starts there, so it is held here, ahead of the step aside a
+    live adjudication takes and of every reconciliation below, for the same
+    reason a relabel cannot route around this table. It is read off the body
+    and the record already in hand, so it costs nothing on the wire, and a
+    seed the reuse guard would otherwise ask the remote about is refused
+    before it is believed. Behind the ledger and the pair that RUN, since a
+    spent issue and an ending owe nothing to a lineage nobody proved, and its
+    terminals are left to their own no-op.
     """
     late_relabel = importlib.import_module(_stage_targets._LATE_RELABEL_OWNER)
     state = late_relabel._dispatch_state(gh, issue)
@@ -172,10 +190,11 @@ def _pinned_state_refuses(
         late_close_observation._mark_observed_close(gh, issue, state)
     if _cycle_stops_the_tick(gh, spec, issue, label, state):
         return True
+    split_seeds = importlib.import_module(_stage_targets._SPLIT_SEEDS_OWNER)
     if _run_limit_dispatch._run_limit_holds_the_tick(
         gh, spec, issue, state,
         _run_limit_dispatch._spent_work_has_ended(gh, issue, state, label, observed_closed),
-    ):
+    ) or split_seeds.holds_unseeded(gh, issue, label, state):
         return True
     if label == WorkflowLabel.DECOMPOSING and late_relabel._adjudicating(state):
         # The adjudication steps past the guards below because they are the

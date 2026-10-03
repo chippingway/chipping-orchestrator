@@ -112,7 +112,7 @@ class HandedBackParentTest(ObservedCloseCase, _PatchedWorkflowMixin, unittest.Te
         # while still `blocked`, keeping both ledgers and the cycle it retired;
         # the next tick is the implementation's own, so the developer runs and
         # nothing goes looking for the superseded candidate.
-        seeded = _redecomposition.all_ended()
+        seeded = _redecomposition.all_ended(self)
         writes = _LabelledWrites(seeded.github)
         with patch.object(seeded.github, "write_pinned_state", side_effect=writes):
             _redecomposition.walk(self, seeded, _blocked._handle_blocked)
@@ -127,7 +127,10 @@ class HandedBackParentTest(ObservedCloseCase, _PatchedWorkflowMixin, unittest.Te
         self.assertEqual(retired_under, _support.LABEL_BLOCKED)
         self.assertEqual(retired.get(KEY_RETIRED_CYCLE), _support.CYCLE_ID)
         self.assertIsNone(retired.get(KEY_SPLIT_ATTEMPT))
-        self.assertEqual(retired.get("late_consumers"), [_support.CHILD_NUMBER, _support.REPLACEMENT_CHILD])
+        self.assertEqual(
+            retired.get("late_consumers"),
+            sorted((_support.CHILD_NUMBER, *(child.number for child in seeded.github.created_child_issues))),
+        )
         self.assertEqual(mocks[RUN_AGENT].call_count, 1)
         self.assertNotEqual(
             seeded.github.pinned_data(_support.PARENT_NUMBER).get("park_reason"), "late_measurement_failed",
@@ -136,7 +139,7 @@ class HandedBackParentTest(ObservedCloseCase, _PatchedWorkflowMixin, unittest.Te
     def test_a_refused_delete_holds_for_retry(self) -> None:
         # Unsettled, the parent keeps `blocked` and its cycle; the next poll
         # that gets the delete through hands it back.
-        seeded = _redecomposition.all_ended()
+        seeded = _redecomposition.all_ended(self)
         github = seeded.github
 
         refused = _redecomposition.walk(
@@ -190,7 +193,7 @@ class HandedBackParentTest(ObservedCloseCase, _PatchedWorkflowMixin, unittest.Te
         for when in CLOSE_WINDOWS:
             with self.subTest(when=when):
                 self._fresh_process()
-                seeded = _redecomposition.all_ended()
+                seeded = _redecomposition.all_ended(self)
 
                 with self._closing(seeded.github, when):
                     _redecomposition.walk(self, seeded, _blocked._handle_blocked)

@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""An issue inside a late lineage, as the ordinary decomposer would meet it.
+"""An issue inside a late lineage, as the ordinary decomposer meets it.
 
 What reaches that decomposer is an issue a genuine edit rerouted to
 `workflow:decomposing`: an umbrella a late split made, or a child one made.
@@ -159,5 +159,5 @@ def retired(ref_state: _obligations.LateResourceState, cycle: int | None = CYCLE
 
 
 def decide(state: PinnedState, body: str = EDITED_BODY) -> _replacement_lineage.ReplacementLineage:
-    """What the parent's replacements would be seeded with, read off `state` and `body`."""
+    """What the parent's replacements are seeded with, read off `state` and `body`."""
     return _replacement_lineage.read_replacement_lineage(state, make_issue(PARENT, body=body), _TEST_SPEC)

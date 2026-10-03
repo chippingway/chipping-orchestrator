@@ -162,8 +162,8 @@ def _settled_before_implementation(
     The same settlement the umbrella's terminal runs, and for the same reason:
     once the parent leaves `blocked` for `ready`, no pass comes back to what a
     late split recorded on it, so a ref still held for consumers that have
-    since ended -- the originals a re-decomposition orphaned, and any
-    replacement the ledger records beside them -- would be held for good.
+    since ended -- the originals a re-decomposition orphaned, and the
+    replacements it pointed at that ref -- would be held for good.
     False keeps the parent on `blocked`, whose next dependency poll asks
     again, and says what it waits on. A record with no cycle identity is held
     to exactly what holds the umbrella's terminal -- see

@@ -184,7 +184,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             guard, since the evidence answers for a review subject that names the report.
                             The report debt a rewritten pull-request head leaves is asked directly behind that, and only
                             holds: any claim, readable or not, keeps the `documenting` and `in_review` handlers off,
-                            while `validating` runs, since its report hold is what pays the debt
+                            while `validating` runs, since its report hold is what pays the debt. Directly behind
+                            the agent-run-limit hold, and ahead of the adjudication's step aside, every reconciliation,
+                            and the reuse guard, `stages/decomposition/split_seeds.py` holds an ordinary split's child
+                            whose seed is not the one the receipt in its body owes it -- no `parent_number` naming that
+                            parent, or a late ancestry missing, partial, or naming another place in the lineage --
+                            under every label but a terminal, pickup with no label and an adjudication of its own
+                            included, so nothing runs it on a lineage nothing proved
     poll_reading.py         classify labels and hard-skip controls while admitting observed-close cleanup; drop open
                             blocked/umbrella dependency walks on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` skips;
                             a failed label read reaches per-issue exception isolation through the family bucket
@@ -1200,15 +1206,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reclamation) or a ledger that cannot say whether the ref is held (unreadable, closed to a
                             new consumer, held under no identity of its own after a retirement, never proved, recorded
                             twice, or missing), which refuses a replacement
-    provenance.py           the read-only, still dormant decision of which late lineage an ordinary decomposition's
-                            children inherit, asked only by the dormant `stages/decomposition/replacement_lineage.py`:
-                            none for an issue no late split charged; otherwise the root, the depth
-                            already charged, and the entitlement above -- or a refusal when an unparsed comment, an
-                            ancestry field its reader would drop or a `null` one, a body receipt with no ancestry, a
-                            late identity or split-evidence field its reader would drop, a live cycle missing its
-                            root, issue, or depth, a cycle gone beside other fields, a split in flight or cancelled
-                            in flight, an invalid or ambiguous split, a record rooted elsewhere than its ancestry, or a
-                            split at another depth leaves the depth unproven, never read as a fresh root at 0
+    provenance.py           the read-only decision of which late lineage an ordinary decomposition's children inherit,
+                            asked by `stages/decomposition/replacement_lineage.py` before a split creates, finalizes, or
+                            releases any: none for an issue no late split charged; otherwise the root, the depth already
+                            charged, and the entitlement above -- or a refusal when an unparsed comment, an ancestry
+                            field its reader would drop or a `null` one, a body receipt with no ancestry, a late
+                            identity or split-evidence field its reader would drop, a live cycle missing its root,
+                            issue, or depth, a cycle gone beside other fields, a split in flight or cancelled in flight,
+                            an invalid or ambiguous split, a record rooted elsewhere than its ancestry, or a split at
+                            another depth leaves the depth unproven, never read as a fresh root at 0
     exemption_reading.py    exact-commit exemption reads, their key groups, and whole semantic identities; a transferable
                             identity requires the frozen pair, matching exempt candidate, digest, and supported format,
                             while a claimed but unreadable group stays distinct from no record
@@ -1422,12 +1428,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             issue was moved on from
       drift.py              what a body edit resets on an issue already wearing this label: the orphan notice said
                             before the new baseline is recorded, the manifest markers wiped in one step -- children,
-                            dep graph, expected count, the seal that calls that count final, the umbrella flag, and
-                            the park flags -- and the session retired through the owner above, so the tick falls
-                            through and re-derives a manifest against the updated body instead of relabelling and
-                            returning the way the pre-implementation routes do; a late split's generation is not
-                            manifest tracking and survives it whole, so its orphaned children stay the snapshot's
-                            recorded consumers
+                            dep graph, expected count, the seal that calls that count final, the split attempt its
+                            children's receipts name, the umbrella flag, and the park flags -- and the session
+                            retired through the owner above, so the tick falls through and re-derives a manifest
+                            against the updated body instead of relabelling and returning the way the
+                            pre-implementation routes do; a late split's generation is not manifest tracking and
+                            survives it whole, so its orphaned children stay the snapshot's recorded consumers, and
+                            the children a discarded replacement split may have pointed at that ref -- an unrecorded
+                            one found by its receipt included -- are written onto its ledger first
       manifest.py           the fenced-block envelope rules both modes are held to, the JSON decode, and the parse entry
                             point the stage routes on
       child_validation.py   child text and dependency shapes; dependency indices must be real integers naming another
@@ -1436,53 +1444,75 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       outcomes.py           the live-pause and timeout settlement before the worktree check, and the three manifest
                             dispositions after it: the unparsed park, the `single` finalize, and the `split` hand-off
       replacement_lineage.py
-                            the still dormant decision of what an ordinary split's children would be seeded with, off
-                            the `late_split/` provenance decision: one level below the parent under the same root and
-                            never past `MAX_LINEAGE_DEPTH`, correlated by the parent's own cycle (else its ancestry's,
-                            else the retired one), and pointed only at the snapshot the parent's own split holds --
-                            the consumer-ledger write that protects a child, the seed that carries the pointer only
-                            behind it, and the reuse instructions whose ref and this repository's mirror of it are
-                            the only names a child's text may give that snapshot; a parent at the bound, an unprovable
-                            record, one naming no cycle, or one whose own snapshot is neither held nor released -- or
-                            is held with no recorded base for the instructions to name its change from -- is a
-                            refusal carrying the sentence a park would post; beside it the dormant `SeedRepair` a
-                            recovery would make of one recorded child -- nothing, the owed group, its consumer slot
-                            restored, or the pointer a released ref no longer owes dropped -- or the refusal of a
-                            child it cannot recognize (an unparsed comment, a link that is not exactly this issue's
-                            number, an ancestry it did not seed, text naming a ref it cannot keep), with nothing
-                            written over it, and the `replacement_lineage_unproved` park; no split, recovery,
-                            release, or dispatch asks any of it
-      split_receipts.py     the dormant hidden receipt an ordinary split would stamp after each child's slice --
-                            parent, `split_attempt`, slice, and owed lineage, the last whole one in a body governing
-                            -- and the adoption a recovery short of its count would make: the next slice's open,
-                            birth-labelled child whose last whole receipt is that one, recorded with its consumer
-                            slot in one parent write, or named for a park when closed, relabelled, or ending on
-                            another receipt or none whole; nothing stamps, mints, or adopts yet
-      split_seeds.py        the dormant dispatch hold on a receipted child this orchestrator opened whose seed is
-                            not the one its receipt owes -- the exact parent link, the whole bounded lineage, and a
-                            whole pointer, ref and commit together, only at that split's snapshot or none once
-                            released -- parked once, or, on a comment that will not parse, held with nothing
-                            written; no dispatcher asks it yet
+                            the late lineage an ordinary split seeds its children with, off the `late_split/` provenance
+                            decision: one level below the parent under the same root and never past `MAX_LINEAGE_DEPTH`,
+                            correlated by the parent's own cycle (else its ancestry's, else the retired one), and
+                            pointed only at the snapshot the parent's own split holds, once its consumer ledger records
+                            the child -- the seed carries the pointer only behind that write, and the reuse instructions
+                            appended to its body name that ref and this repository's mirror of it, the only names the
+                            child's text may give it; a parent at the bound, an unprovable record, one naming no cycle,
+                            or one whose own snapshot is neither held nor released -- or is held with no recorded base
+                            for the instructions to name its change from -- parks `replacement_lineage_unproved`
+                            instead; the `SeedRepair` the recovery and the release make of each recorded child, an
+                            ordinary split's included -- an unparsed comment, a link to anything but this issue's
+                            number, or a title or body naming a snapshot ref the split cannot keep refused (any ref,
+                            for a split that keeps none); while the split still holds its snapshot every recorded child
+                            owed its pointer, read off the parent's record and not the child's text, so a lost consumer
+                            slot is recorded again and a missing or foreign pointer seeded; once the snapshot has passed
+                            to a reclamation a pointer dropped with its stamp; the owed group left as it is, and any
+                            other group refused (every group, on a child owed none), with nothing written over it
+      split_receipts.py     the hidden receipt every ordinary split child's body carries after its slice -- the parent,
+                            the split's freshly minted `split_attempt`, the slice, and the late lineage the split owes
+                            the child, or none -- the reader of the last whole one in a body, which governs, and the
+                            recovery's adoption of the one child a crash can leave unrecorded: the only issue carrying
+                            the next slice's receipt, unrecorded, open, birth-labelled, and ending on it, recorded on
+                            the parent and, in the same write, on the consumer ledger the parent's lineage points at --
+                            or named for the park; a parent naming no attempt this binary minted has none
+      split_seeds.py        the lineage a body's last whole receipt says its split owed (`owed_by`); the hold the
+                            dispatcher puts, ahead of a live adjudication's step aside and the reuse guard, on a child
+                            this orchestrator opened whose seed is not what that receipt owes -- link, whole bounded
+                            lineage, a whole pointer only at that split's snapshot -- parked once, or held with nothing
+                            written on a comment that will not parse; the seed a restart keeps; and the check recovery
+                            and release make that a recorded child's receipt is the one stamped for its slot
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
-                            recorded on its parent before seeding, and either failure parks the parent for repair
-      split.py              persist the expected count, create the planned children, and publish the summary and parent
-                            label before activating children without dependencies
-      recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the orphan-child
-                            repair, the incomplete park, and the two owners that hold those markers instead -- a
-                            human the issue is parked awaiting, and the late transaction while its generation is
-                            live
+                            recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
+                            a pointer -- in one write before it is seeded with its parent link, creation stamp, and
+                            that lineage, never with the parent's measurement, exemption, or authorization, and either
+                            failure parks the parent for repair
+      split.py              decide the children's lineage and park an unprovable one before any marker -- or a slice
+                            naming a snapshot ref its child would not be kept -- stamp each child's receipt and
+                            append the snapshot's reuse instructions to the body of each child owed it, then persist
+                            the expected count, the umbrella flag, the attempt, and the whole dependency graph in one
+                            write, create the planned children, and publish the summary and parent label before
+                            activating children without dependencies through `activation.py`'s walk
+      recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the adoption of a
+                            child created and never recorded through `split_receipts.py`, the orphan-child repair -- the
+                            parent link and the owed lineage, asked of the parent's record again, a lost consumer slot
+                            restored ahead of its seed, the park the missing seed earned lifted in the write that
+                            seeds it, and parked rather than finalized where it no longer proves one or a child is not
+                            one the split can recognize as its own -- any child whose text names a snapshot the split
+                            cannot keep, or whose receipt is not the one stamped for its slot, included -- the
+                            incomplete park, and the two owners that hold
+                            those markers instead -- a human the issue is parked awaiting, and the late transaction
+                            while its generation is live
       parents.py            the fresh child scan, the rejected and manually-closed parks it earns -- published
                             apart from the scan, since one caller settles its ledger on the way out of them -- and
-                            the parent's own drift reroute
-      activation.py         the dep-graph walk that releases the next children, the child it passes over because
-                            GitHub reports it closed or the scan holds no issue for it, the latch asked before
-                            EVERY relabel -- a relabel is a request, so a close observed after the first child was
-                            released may not release the second -- the pull request a late split superseded these
-                            children out from under asked in the same place and off this parent's own record, so
-                            a caller cannot answer it a child scan too early and a parent that never entered the
-                            gate pays nothing, that ask itself a request and so the latch taken on BOTH sides of
-                            it, the one behind having nothing between it and the relabel, and the
-                            held-dependency line it logs
+                            the parent's own drift reroute, which first writes the children it drops onto the ledger
+      activation.py         the dep-graph walk that releases the next children, the child it passes over because GitHub
+                            reports it closed or the scan holds no issue for it, the latch asked before EVERY relabel --
+                            a relabel is a request, so a close observed after the first child was released may not
+                            release the second -- the pull request a late split superseded these children out from under
+                            asked in the same place and off this parent's own record, so a caller cannot answer it a
+                            child scan too early and a parent that never entered the gate pays nothing, that ask itself
+                            a request and so the latch taken on BOTH sides of it, the one behind having nothing between
+                            it and the relabel, the ordinary split's lineage and snapshot proved again in front of any
+                            walk over its children, and every child the walk would release held to the recovery's
+                            recognition before the first is relabelled -- its parent link, the whole seed, a pointer the
+                            parent's ledger still keeps, text naming no other ref, a receipt that is the one stamped
+                            for its slot -- parking the parent, once, rather
+                            than releasing any child under a record that changed; the same walk, over the same fresh
+                            child scan and behind the same rejected and manually-closed parks, the split's own
+                            same-tick release runs; and the held-dependency line it logs
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
                             consumed-comment ratchet; a parent whose children all resolved settles what a late split
                             still owes the remote before it goes back to its own work, and waits on `blocked` while a
@@ -1617,7 +1647,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             create-or-verify that never overwrites, the fetch that proves a child could obtain it,
                             and the one park every refusal takes
       late_child_content.py child scope, declared budgets, ancestry, immutable-snapshot reuse instructions -- rendered
-                            off a pointed ancestry -- the one reader of every snapshot ref issue text names, each read
+                            off a pointed ancestry, so a protected replacement's body says the same -- the one reader
+                            of every snapshot ref issue text names, each read
                             as the whole ref name git would take it for -- only wrapping closed on both sides, one
                             `+` opening the whole refspec, and a trailing full stop or slash taken off, a pattern's
                             `*` and a destination's own `+` kept, a refspec read as both its sides with wrapping that
@@ -1661,10 +1692,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             generation-derived snapshot ownership; a consumer whose lookup, state, or labels cannot be
                             read retains its ref without failing the pass, and a recorded consumer the caller's scan
                             was not asked about -- an original a replaced manifest orphaned -- is read afresh rather
-                            than taken from the manifest, while a replacement recorded beside it is answered off that
-                            scan
-      late_cleanup_proof.py prove the complete consumer ledger from its recorded phase, count, or cancellation seal,
-                            then require every consumer to be freshly known closed before reclaiming its snapshot
+                            than taken from the manifest, while a replacement that manifest pointed at the ref is on
+                            the ledger beside it and answered off that scan
+      late_cleanup_proof.py prove the complete consumer ledger from its recorded phase, count, or cancellation seal --
+                            never while an ordinary replacement split of the same owner is short of its own count,
+                            or records a replacement the ledger no longer names -- then require every
+                            consumer to be freshly known closed before reclaiming its snapshot
       late_branch_reclamation.py
                             delete only this issue's superseded branch and verify both local branch and checkout teardown;
                             either remote or local refusal leaves the obligation failed
@@ -1920,7 +1953,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             deduplicate and adopt restart notices by cycle receipt, then establish the chosen label;
                             reapply a foreign label so the fresh cycle has the restart's own history boundary
       late_restart_state.py repair restart identity, persist its marker, and project the fresh cycle while retaining
-                            thread attribution and cumulative usage; retirement drops the predecessor's work and sessions
+                            thread attribution and cumulative usage -- and a split child's receipted seed, through
+                            `split_seeds.py`; retirement drops the predecessor's work and sessions
       late_restart.py       admit and resume an authorized restart only after cancellation and every obligation settle;
                             hard-skip controls defer it, the recorded target outranks settings, and notice plus label
                             effects must succeed before retirement
@@ -1932,9 +1966,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             issue-wide requirements hash of the batch they read, and the outcome of consuming one
                             reading
       late_models.py        mutable tick context, tri-state owner readings, held pull requests, and staged park values
-      models.py             the run plan and its worktree policy, the locked session, the split plan -- with room
-                            for the dormant lineage and attempt and the whole declared dependency graph -- and the
-                            child scan
+      models.py             the run plan and its worktree policy, the locked session, the split plan -- with the
+                            lineage it seeds, the attempt its receipts name, and the whole declared dependency graph
+                            -- and the child scan
       state.py              the pinned-state field names the owners share, `split_attempt` among them, the
                             held-child alias, the strict parent-link check, and the issue-reference renderer
     discussion/             `discussion`

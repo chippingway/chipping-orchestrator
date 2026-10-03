@@ -418,6 +418,9 @@ class GitHubIssueMixin:
         it: the whole point is to recognize an issue THIS orchestrator opened,
         and an issue somebody else wrote the marker into is not one to adopt,
         reseed, and activate as a child.
+
+        The first match ends the walk; `find_issues_carrying` is the same walk
+        for a caller that has to know a match is the only one.
         """
         for candidate in self.repo.get_issues(
             **issue_query_options(issue_state=_ISSUE_STATE_ALL, since=None),
@@ -429,3 +432,21 @@ class GitHubIssueMixin:
             ):
                 return candidate
         return None
+
+    def find_issues_carrying(self, marker: str) -> list[Issue]:
+        """Every issue this orchestrator created carrying `marker`, in listing order.
+
+        The walk `find_issue_carrying` stops at its first match, taken to the
+        end: a marker matched as a substring can sit in more than one body, and
+        attributing a slice to the first of them is a guess. A page that will
+        not read raises, exactly as the single lookup does, rather than
+        answering with the matches read so far.
+        """
+        own = getattr(self, "_bot_login", None)
+        return [
+            candidate
+            for candidate in self.repo.get_issues(
+                **issue_query_options(issue_state=_ISSUE_STATE_ALL, since=None),
+            )
+            if candidate.pull_request is None and carries_own_marker([candidate], marker, bot_login=own)
+        ]

@@ -570,15 +570,27 @@ The keys that matter for the state machine fall into a few groups:
   fresh conversation against the frozen candidate — see [the late run](#the-late-run) for the two conditions a resume
   takes.
 - **Decomposition.** `children`, `dep_graph` (`{child_idx_str: [child_idx, ...]}` — GitHub has no first-class blocks
-  relation), `decomposed_at`, `pickup_comment_id`. `split_attempt` is reserved, and dormant: no split writes it yet,
-  and a `blocked` parent whose children all resolved drops it in a write ahead of its flip back to `workflow:ready`. It
-  is sixteen lowercase hex digits minted for one ordinary split, meant for the write that records
-  `expected_children_count` and the whole declared `dep_graph` before the first child exists, and each child of that
-  split would carry it in a hidden body receipt stamped after its slice,
-  `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>:lineage=<owed>-->`, where `<owed>`
-  is `<root>-<depth>-<cycle>-<generation>` or `none`. Only a whole receipt counts, and the last one in a body governs,
-  since a slice may quote another child's body ahead of its own stamp. Any other `split_attempt` — another split's, a
-  value no binary mints, or none — finds no receipt, so a split an older binary made leaves nothing to adopt.
+  relation), `decomposed_at`, `pickup_comment_id`. An ordinary split writes `expected_children_count`, `umbrella`,
+  the whole declared `dep_graph`, and `split_attempt` in one write before its first child exists. `split_attempt` is
+  sixteen lowercase hex digits minted for that split alone, and every child it creates carries it in a hidden body
+  receipt stamped after its slice,
+  `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>:lineage=<owed>-->`, so a recovery
+  can find the child a crash left created and never recorded — and never mistake another split's child for it.
+  `<owed>` is the late lineage the split seeds that child with, `<root>-<depth>-<cycle>-<generation>`, or `none`. Only
+  a whole receipt counts, and the last one in a body governs, since a slice may quote another child's body ahead of
+  its own stamp. Any other `split_attempt` — another split's, a value no binary mints, or none — finds no receipt, so
+  a split an older binary made leaves nothing to adopt. A drift reset clears `split_attempt` with the rest of the
+  manifest, after writing that split's children — any unrecorded one found by its receipt — onto `late_consumers`,
+  and a `blocked` parent whose children all resolved drops it in a write ahead of its flip back to
+  `workflow:ready`. A child this orchestrator opened whose seed is not the one its receipt owes it — no
+  `parent_number` naming that parent, none of an owed `late_ancestry_*` group, a group partial, rewritten, or naming
+  another place in the lineage, any group on a child owed none, or a pointer at a snapshot other than the one that
+  split preserved, or half of one — is held by the dispatcher ahead of every handler but `done`'s and `rejected`'s,
+  and ahead of the step aside a live adjudication of its own takes, parked (the `park_awaiting_human` record's reason
+  `replacement_lineage_unproved`) once, then silently, until its parent's recovery writes that seed and lifts the park
+  in the same write, or a human does both by hand; one whose pinned comment will not parse is held with nothing
+  written. A restart an operator authorizes on such a child keeps the seed. A pointer is the one part a seed may lack,
+  since the child's own reuse guard drops the ref and its commit together once its ref is gone.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records
@@ -3278,31 +3290,34 @@ rather than preserving.
   since the reclamation rule asks about each of them once — and it is read from the other end too, as the one record
   that can vouch for a child claiming this split in a body marker anybody can paste. It is not `children`, and a drift
   reroute that replaces that manifest leaves it naming the originals the ref was preserved for: the proof reads any
-  consumer the parent's scan of the replacements was not asked about afresh, and answers a replacement recorded
-  beside them off that scan. Both hand-offs past which nothing revisits these ledgers settle them first — the
-  umbrella's close, and the all-children-resolved flip of a parent the re-decomposition left `blocked` with work of
-  its own, which stays `blocked` while a recorded consumer still holds the ref or while `late_consumers` cannot be
-  read at all. Only a positive whole number is
-  one — `True`, `2.5`,
-  and `"7"` are not issues anything can ask GitHub about, and neither the reader nor `with_consumers` will convert
-  one into a consumer id. Neither ledger is ever *reduced* to what this binary understood: an entry it cannot type, or a
-  consumer list it cannot read, is carried through verbatim beside the typed view and written back exactly as it
-  came, and `LateObligations.is_opaque` says so — and while it does, `with_resource` and `with_consumers`
-  refuse an update to that ledger rather than returning a record the next write would silently drop back to the
-  verbatim copy. The two are preserved and written **independently**, and the reclamation refuses them
-  independently: an untypable entry on `late_resources` means no reclamation can be recorded at all, while one on
-  `late_consumers` means only that no snapshot's proof can be taken — the superseded branch, which owes no consumer
-  anything, is still deleted and still retried. "Typed" is strict there, because the alternative to
-  preserving an entry is rewriting it from what was understood — an entry counts as one this binary wrote only when
-  it carries exactly the three fields it writes, each holding a value this vocabulary knows, so a state it cannot
-  read is **not** `pending`, a field it never wrote is not noise to drop, and a target that is not a usable
-  identifier is not one to re-encode. The damaged-identity case is preserved the same way: a record whose
-  `late_cycle_id` cannot be read writes its two ledgers and nothing else, because an obligation does not stop being
-  owed when the identity beside it is damaged — and either hand-off is held on any entry such a record carries, a
-  `late_consumers` list alone included, unless `late_retired_cycle_id` says a retirement left it and both ledgers are
-  readable, when only an entry still owed holds. Dropping any of it would be an obligation deleted from the issue that
-  still owes it — a cleanup that looks complete, or a snapshot reclaimed as though nobody were waiting on it — so a
-  generation holding an opaque ledger is one nothing may treat as settled.
+  consumer the parent's scan of the replacements was not asked about afresh. The ordinary split that answers the
+  reroute adds each replacement it points at the ref, in the same write that records the replacement in `children`,
+  so the ref waits on those too, answered off that scan; it is the only road outside the split transaction that adds
+  to this ledger, and it writes no other late key. Because each joins behind the create that opened it, the ledger is
+  not proved whole at any phase while the record carries that split's `split_attempt` and its register is short of
+  `expected_children_count` or names a child this ledger lost: no pass reclaims the ref then, the closed-owner sweep
+  included. Both hand-offs past which
+  nothing revisits these ledgers settle them first — the umbrella's close, and the all-children-resolved flip of a
+  parent the re-decomposition left `blocked` with work of its own, which stays `blocked` while a recorded consumer still
+  holds the ref or while `late_consumers` cannot be read at all. Only a positive whole number is one — `True`, `2.5`,
+  and `"7"` are not issues anything can ask GitHub about, and neither the reader nor `with_consumers` will convert one
+  into a consumer id. Neither ledger is ever *reduced* to what this binary understood: an entry it cannot type, or a
+  consumer list it cannot read, is carried through verbatim beside the typed view and written back exactly as it came,
+  and `LateObligations.is_opaque` says so — and while it does, `with_resource` and `with_consumers` refuse an update to
+  that ledger rather than returning a record the next write would silently drop back to the verbatim copy. The two are
+  preserved and written **independently**, and the reclamation refuses them independently: an untypable entry on
+  `late_resources` means no reclamation can be recorded at all, while one on `late_consumers` means only that no
+  snapshot's proof can be taken — the superseded branch, which owes no consumer anything, is still deleted and still
+  retried. "Typed" is strict there, because the alternative to preserving an entry is rewriting it from what was
+  understood — an entry counts as one this binary wrote only when it carries exactly the three fields it writes, each
+  holding a value this vocabulary knows, so a state it cannot read is **not** `pending`, a field it never wrote is not
+  noise to drop, and a target that is not a usable identifier is not one to re-encode. The damaged-identity case is
+  preserved the same way: a record whose `late_cycle_id` cannot be read writes its two ledgers and nothing else, because
+  an obligation does not stop being owed when the identity beside it is damaged — and either hand-off is held on any
+  entry such a record carries, a `late_consumers` list alone included, unless `late_retired_cycle_id` says a retirement
+  left it and both ledgers are readable, when only an entry still owed holds. Dropping any of it would be an obligation
+  deleted from the issue that still owes it — a cleanup that looks complete, or a snapshot reclaimed as though nobody
+  were waiting on it — so a generation holding an opaque ledger is one nothing may treat as settled.
 - **The split's own registers.** `late_split_children` is the ordered, positional list of the children THIS
   generation created — entry `i` is the child that owns slice `i` of its manifest — and `late_links_announced` says
   the forward-link comment has been made. Both live on the generation rather than beside the stage's shared keys
@@ -3370,9 +3385,11 @@ rather than preserving.
   worse than handing it none. The record is READ where it matters most: a split refuses outright when the ancestry
   disagrees with the generation's own lineage, because a generation naming a shallower depth or a different root is
   one minted without this record — and a shallower depth is exactly how a lineage would buy itself a generation past
-  `MAX_LINEAGE_DEPTH`. It is read once more, read-only and still dormant, for an ordinary re-decomposition:
-  `late_split/provenance.py` decides whether that issue's replacement children would inherit a late lineage. An
-  issue no late split charged inherits none. A descendant inherits this group's root and depth, and a root whose own
+  `MAX_LINEAGE_DEPTH`. It is read once more for an ordinary re-decomposition: `late_split/provenance.py` decides
+  which late lineage that issue's replacement children inherit, and `stages/decomposition/replacement_lineage.py`
+  asks it before the split creates a child, again before a recovered split is finalized, and again in front of every
+  walk that releases one. An issue no late split charged inherits none. A descendant inherits this group's root
+  and depth, and a root whose own
   late record proves a split made children is that lineage's root at depth 0. Only a record of the children
   themselves proves one — the register, or a consumer or child entry on the ledgers, which a retirement keeps after
   it drops the identity. No phase does: `splitting` is written before the first child exists, and a cancelled cycle
@@ -3390,29 +3407,27 @@ rather than preserving.
   reader would drop (`null` included), a live cycle with no root, current issue, or depth, a record whose cycle is
   gone beside the fields it still carries, and one written for another issue, still creating children, cancelled
   while it was (the interrupted boundary `late_cancelled_phase` keeps), naming a root other than the group's whether
-  or not it split, or, having split, naming another depth are each a refusal rather than depth 0. What those
-  children would be seeded with is `stages/decomposition/replacement_lineage.py`'s answer, dormant too: this group at
-  one past the parent's depth under the same root, the parent as `late_ancestry_parent`, the parent's own cycle and
-  generation (else this group's, else the cycle `late_retired_cycle_id` names), and a pointer only at the snapshot the
-  parent's own split holds — written behind `late_consumers` recording the child, and told by that ref and this
-  repository's mirror of it alone. A parent already at `MAX_LINEAGE_DEPTH`, a refused provenance, one naming no cycle,
-  and a split whose own snapshot is neither held for a new consumer nor passed to a reclamation (unreadable ledgers,
-  a consumer ledger nothing can be added to, a `retained` ref a retirement left no identity to name, `pending`,
-  recorded twice, or missing), or is held with no `late_base_sha`, are refusals rather than an unpointed seed. The
-  same owner carries what a recovery would do with a child already recorded, dormant as well and read off the
-  parent's record rather than the child: nothing for a child carrying exactly what it was owed; the owed group for one
-  carrying none of it or a pointer at another ref; its `late_consumers` slot back, ahead of any seed, where the ledger
-  lost a child the held snapshot was owed to; and the lineage alone, pointer and `late_ancestry_mirror_first` dropped,
-  once the ref has passed to a reclamation — a stamp standing without the pair, what the child's own reuse guard leaves,
-  stays. A child it cannot recognize is a refusal with nothing written over it: a comment that would not parse, a
-  `parent_number` that is not exactly this issue's number (a float, a bool, a string, or `null` included; only an
-  absent key is a deferred link), any group but the whole one it was owed (none on an ordinary split's child), or a
-  title or body naming a snapshot ref it cannot keep. A child whose receipt is not matched by its own seed — the exact
-  parent link, the whole owed group, and a pointer only at that split's snapshot, `late_ancestry_snapshot_ref` and
-  `late_ancestry_snapshot_sha` together, or neither — is what the dormant dispatch hold would park
-  `replacement_lineage_unproved` once; one whose pinned comment will not parse it would hold with nothing written.
-  Adoption attributes a child by its last whole receipt too, so a receipt quoted ahead of the stamp is no second
-  claim, and one appended behind it or a stamp cut short leaves the child unattributed. Nothing asks either yet.
+  or not it split, or, having split, naming another depth are each a refusal rather than depth 0. What an inherited
+  lineage seeds on each replacement is this group and nothing more: the root, one past the depth already charged, the
+  parent, and a cycle and generation to correlate by — the parent's own where its record keeps one, its ancestry's where
+  it has none, and `late_retired_cycle_id` where neither stands. A parent already at `MAX_LINEAGE_DEPTH` has no room for
+  a child, and one naming no cycle anywhere has nothing to correlate one by. The snapshot pair and
+  `late_ancestry_mirror_first` are seeded only on a replacement `late_consumers` records, and only for the ref the
+  parent's own split holds: a pointer another issue's ledger protects is one this issue cannot record a consumer on, so
+  its replacements are born with the lineage and without it. A replacement given the pointer is also given the late
+  split's reuse instructions for that ref after its declared body, since the body — not this group — is what its
+  implementer reads. Which records refuse — an unprovable lineage, the bound, a held snapshot neither settled nor
+  recorded with a base, a slice naming another ref — what a recovered split repairs or refuses on each recorded child,
+  how it attributes an unrecorded one, and what every release and the child's own dispatch hold a child to — its parent
+  link, this group, its pointer, its text, and its receipt — are kept in one place as
+  [the split's contract](../workflow/roles.md#what-an-ordinary-re-decomposition-holds-its-children-to). On this group
+  the upshot is three facts. A refusal parks before `expected_children_count` is written, so nothing is created. A
+  recovery writes the owed group over a recorded child carrying none of it — the pointer and
+  `late_ancestry_mirror_first` only while this split still holds the ref and records the child on `late_consumers`,
+  dropped together once the ref has passed to a reclamation, a stamp standing alone left as it is — and refuses one
+  carrying any other group, with nothing written over it. And a child whose seed no longer matches the receipt in its
+  body is held at dispatch, parked `replacement_lineage_unproved` once, until a recovery or a human writes the seed;
+  the recovery lifts that park in the same write, and a restart keeps the seed whole.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,
@@ -3820,10 +3835,10 @@ rather than preserving.
   candidate back into the adjudication a human already answered — and so does a crash, since the terms are on the
   pinned comment rather than in the tick that proved them. A **`late_restart`** is neither: its projection
   (`late_restart._projected`) is a whitelist keeping only the orchestrator's own comment ids and the cumulative
-  spend and run-ledger counters, so this group goes with `late_exempt_sha`, the generation, the parks, and
-  everything else the cancelled cycle wrote. That is the right answer rather than an oversight — the fresh cycle has
-  adjudicated nothing, so there is no verdict for an authorization to be half of, and a bypass carried across a
-  cancellation would license a candidate nobody has read.
+  spend and run-ledger counters — beside a split child's own seed, which is no claim about any candidate — so this
+  group goes with `late_exempt_sha`, the generation, the parks, and everything else the cancelled cycle wrote. That is
+  the right answer rather than an oversight — the fresh cycle has adjudicated nothing, so there is no verdict for an
+  authorization to be half of, and a bypass carried across a cancellation would license a candidate nobody has read.
 
   It is also what the `late_unauthorized_exemption` park (see [the HITL park](#pinned-state)) is
   waiting for, and the group a trusted whole-comment `/orchestrator authorize-oversized <commit>` on that park
@@ -4277,15 +4292,16 @@ rather than preserving.
   agent-run ledger fields the `run_ledger.py` owner names as its projected group (`agent_run_allowance` and
   `agent_runs_used` — a lifetime ceiling a restart handed back would be no lifetime ceiling at all, and the allowance
   travels beside the count so a fresh cycle is not parked on its first run by a ceiling the projection dropped), and
-  the fresh generation's own identity. Everything else goes — every session id, `pr_number` and `branch`, `children` /
-  `dep_graph` / `expected_children_count` / `split_ledger_sealed`, the whole `late_ancestry_*` group and the
-  exemption beside it with the identity it carries, `awaiting_human` / `park_reason`, `user_content_hash`, the
-  retry, review-round and park counters, `agent_run_reservation` (a launch, not a fact about the issue — the fresh
-  cycle has none),
-  `agent_run_limit_notice` beside the park it explains (an obligation is a claim about one park, and the sentence it
-  carries quotes a spend the fresh cycle will re-read for itself), `agent_run_limit_displaced` with it (the park it
-  names is one the fresh cycle is not on), and every
-  timestamp.
+  the fresh generation's own identity — and, on an issue this orchestrator opened whose body carries an ordinary
+  split's child receipt, the seed that receipt holds it to: `parent_number` and whatever of the `late_ancestry_*`
+  group it carries, pointer included, kept exactly as carried (`split_seeds.carried_seed`), since the dispatcher holds
+  that child to its seed on every later dispatch. Everything else goes — every session id, `pr_number` and `branch`,
+  `children` / `dep_graph` / `expected_children_count` / `split_ledger_sealed`, the whole `late_ancestry_*` group on
+  any other issue and the exemption beside it with the identity it carries, `awaiting_human` / `park_reason`,
+  `user_content_hash`, the retry, review-round and park counters, `agent_run_reservation` (a launch, not a fact about
+  the issue — the fresh cycle has none), `agent_run_limit_notice` beside the park it explains (an obligation is a claim
+  about one park, and the sentence it carries quotes a spend the fresh cycle will re-read for itself),
+  `agent_run_limit_displaced` with it (the park it names is one the fresh cycle is not on), and every timestamp.
 
 ### Exemption identity and rotation
 

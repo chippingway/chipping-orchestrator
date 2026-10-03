@@ -20,10 +20,29 @@ than a second source of truth: where the two disagree, the handler pages are aut
 
    Decompose:
      decision='single' ─► label=workflow:ready  (parent itself implements)
-     decision='split'  ─► create children, parent=workflow:blocked
+     decision='split'  ─► a late lineage the record cannot prove (or
+                          the bound, an unsettled snapshot, a stray ref in
+                          a slice) parks with NOTHING created or marked;
+                          else write count, umbrella, split_attempt, and
+                          dep_graph, then per child: create (receipt, and
+                          reuse instructions only where protected), record
+                          it with its consumer slot, seed it one level down;
+                          parent=workflow:blocked
                           (or workflow:umbrella when manifest umbrella=true);
-                          child[i] = workflow:ready if no deps
+                          child[i] = workflow:ready if no deps (through the
+                                     dependency walk below, same tick)
                                      else workflow:blocked
+     split markers, no flip ─► recovery: a short register adopts the next
+       (a crash mid-split)    slice's child by its receipt (open, on its
+                              birth label, last receipt its own, the only
+                              issue carrying it, not already recorded) and
+                              records its consumer slot; every recorded child
+                              is then held to the lineage and to its receipt
+                              (the one stamped for its slot, named once) -- a
+                              lost slot restored before its seed, a missing
+                              seed written (and the park it earned lifted), a
+                              pointer kept or dropped -- before the finalize.
+                              Anything it cannot vouch for parks instead
      manifest invalid / question / timeout ─► park HITL
 
    Late size gate (every clean committed candidate, before it is published):
@@ -625,6 +644,17 @@ than a second source of truth: where the two disagree, the handler pages are aut
      conflict_round >= MAX_CONFLICT_ROUNDS ─► park awaiting human
      pr merged externally / closed unmerged ─► done / rejected (terminal)
 
+   any dispatched issue but done|rejected, behind the agent-run-limit hold and
+   ahead of a live adjudication's step aside and the reuse guard (the seed hold):
+     the body of an issue we   ─► a seed that is not what the last whole
+       opened carries a split's    receipt owes (link, lineage, pointer) parks
+       child receipt               replacement_lineage_unproved once, under
+                                   every runnable label and unlabeled pickup;
+                                   an unparsed comment is held unwritten.
+                                   Recovery's seed lifts the park
+     no receipt, or an issue   ─► nothing, and no request
+       a human opened
+
    any dispatched issue, ahead of every handler (the reuse guard):
      ancestry names a snapshot ─► the RECEIPT first, and it is authoritative:
        ref                         one comment of ours on this child marked
@@ -700,10 +730,10 @@ than a second source of truth: where the two disagree, the handler pages are aut
    the same dispatch, on the same pinned read (the pair below is asked
        AHEAD of the reuse guard above, since both RUN rather than merely
        answer; the agent-run-limit hold sits between them and the reuse
-       guard, the developer-report reconciliation, the verification-
-       evidence reconciliation behind it, and the rewrite-debt hold behind
-       both sit between that hold and the reuse guard, and the greeting
-       refusal is asked behind it):
+       guard, the seed hold directly behind it, then the developer-report
+       reconciliation, the verification-evidence reconciliation behind it,
+       and the rewrite-debt hold behind both sit between that hold and the
+       reuse guard, and the greeting refusal is asked behind it):
      late cycle a close ended, ─► the closed-owner ending below, run from
        cleanup unfinished          wherever the owner was left: reaches no
                                    handler, and writes that cycle's rejected
@@ -713,7 +743,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
        applied, and an operator    label=workflow:decomposing (DECOMPOSE=on)
        has reopened the issue      or workflow:implementing (off), then retire
        and taken the label off     the marker -- which projects the pinned
-                                   comment onto the fresh cycle. Asked one
+                                   comment onto the fresh cycle, keeping a
+                                   split child's seed its receipt names (the
+                                   parent link and late ancestry). Asked one
                                    step ahead of the ending above, since a
                                    restart writes its label BEFORE it retires
                                    its marker and the ending would otherwise
@@ -858,7 +890,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   and keeps workflow:blocked
      any child = rejected      ─► park HITL on parent
      dep_graph walk: any workflow:blocked child with all deps=done
-                               ─► child=workflow:ready
+                               ─► child=workflow:ready, once the parent's
+                                  lineage decision and EVERY releasable
+                                  child's seed, link, pointer, ledger slot,
+                                  text, and receipt pass; one refusal
+                                  releases none and parks the parent once
+                                  (replacement_lineage_unproved)
 
    workflow:umbrella (each due dependency poll, open issues only; DEPENDENCY_POLL_EVERY_N_TICKS):
      all children = done       ─► settle what the late split still owes the
@@ -875,7 +912,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   nothing is reclaimed; either side of the
                                   loop it is whole, which is also what lets an
                                   EMPTY list settle a ref no child was cut
-                                  from.
+                                  from. Never while a replacement split is
+                                  short of its own count, or records a child
+                                  the list lost (split_attempt set).
                                   The consumers are the ones the LEDGER
                                   records, not the children the umbrella
                                   tracks: once a drift reroute has swapped in
@@ -885,9 +924,10 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   lookup, or a lazy state/label read behind
                                   one) keeps the ref however done the
                                   replacements are -- read, never relabelled
-                                  or re-tracked. A replacement the ledger
-                                  records beside them keeps it the same
-                                  way, reopened after it resolved included.
+                                  or re-tracked. A replacement the split
+                                  POINTED at the ref is on the ledger too,
+                                  recorded in the write that tracked it, so
+                                  one reopened keeps the ref the same way.
                                   The ref goes on the first poll after the
                                   last recorded consumer ends that reaches
                                   this row or the park row below.
@@ -944,7 +984,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    on the label its next dependency poll
                                    comes back for
      dep_graph walk: any workflow:blocked child with all deps=done
-                               ─► child=workflow:ready
+                               ─► child=workflow:ready, once the parent's
+                                  lineage decision and EVERY releasable
+                                  child's seed, link, pointer, ledger slot,
+                                  text, and receipt pass; one refusal
+                                  releases none and parks the parent once
+                                  (replacement_lineage_unproved)
 
    closed on workflow:decomposing | workflow:umbrella | workflow:ready |
    workflow:blocked (cleanup sweep, on the CLOSED_ISSUE_SWEEP_EVERY_N_TICKS

@@ -57,6 +57,8 @@ KEY_CHILDREN = "children"
 RESPAWN_NOTICE_MARKER = "re-running decomposer"
 ORPHAN_NOTICE_WORD = "ORPHANED"
 LATE_KEY_PREFIX = "late_"
+KEY_LATE_CONSUMERS = "late_consumers"
+KEY_LATE_DEPTH = "late_lineage_depth"
 REPLACEMENT_MANIFEST = _manifest(
     '{"decision": "split", "umbrella": true, "rationale": "re-planned", '
     '"children": [{"title": "A", "body": "a"}, {"title": "B", "body": "b"}]}'
@@ -483,9 +485,11 @@ class HandleUmbrellaHashDriftTest(
         # so both resets run before the replacement manifest is split. The
         # generation is not manifest tracking: its register, snapshot, and
         # consumer ledger still say who the ref was preserved for, and the
-        # children the edit orphaned are left exactly where they stood.
+        # children the edit orphaned are left exactly where they stood. The
+        # one thing the replacement split adds is itself -- each child it
+        # points at the ref, recorded as that ref's consumer beside them.
         seeded = self._late_split_umbrella()
-        split = self._late_fields(seeded.github)
+        split = self._owed_fields(seeded.github)
 
         _late_support.walk_owner(self, seeded)
         seeded.parent.body = "edited again before the decomposer ran"
@@ -494,11 +498,12 @@ class HandleUmbrellaHashDriftTest(
             run_agent=_agent(session_id="replanned", last_message=REPLACEMENT_MANIFEST),
         )
 
-        self.assertEqual(self._late_fields(seeded.github), split)
-        self.assertEqual(
-            seeded.github.pinned_data(_late_support.PARENT_NUMBER).get(KEY_CHILDREN),
-            [child.number for child in seeded.github.created_child_issues],
-        )
+        created = [child.number for child in seeded.github.created_child_issues]
+        pinned = seeded.github.pinned_data(_late_support.PARENT_NUMBER)
+        self.assertEqual(self._owed_fields(seeded.github), split)
+        self.assertEqual(len(created), 2)
+        self.assertEqual(pinned[KEY_LATE_CONSUMERS], sorted([_late_support.CHILD_NUMBER, *created]))
+        self.assertEqual(pinned.get(KEY_CHILDREN), created)
         self.assertEqual(
             sum(
                 RESPAWN_NOTICE_MARKER in body
@@ -513,7 +518,9 @@ class HandleUmbrellaHashDriftTest(
         """An umbrella a late split made, its child still running, then edited.
 
         It still owes the branch and still holds the ref, which is what a
-        reset that took the generation with the manifest would lose.
+        reset that took the generation with the manifest would lose. It is the
+        root of its lineage, at depth 0, which is what its replacements are
+        seeded one level below.
         """
         seeded = _late_support.split_umbrella(
             LateResourceState.PENDING,
@@ -524,13 +531,17 @@ class HandleUmbrellaHashDriftTest(
         seeded.github.seed_state(_late_support.PARENT_NUMBER, **{
             **seeded.github.pinned_data(_late_support.PARENT_NUMBER),
             KEY_USER_CONTENT_HASH: STALE_USER_CONTENT_HASH,
+            KEY_LATE_DEPTH: 0,
         })
         return seeded
 
-    def _late_fields(self, github: FakeGitHubClient) -> dict:
-        """Every late field the parent's pinned comment carries right now."""
+    def _owed_fields(self, github: FakeGitHubClient) -> dict:
+        """Every late field the parent's pinned comment carries right now.
+
+        All but the consumer ledger, which a replacement split adds to.
+        """
         return {
             key: recorded
             for key, recorded in github.pinned_data(_late_support.PARENT_NUMBER).items()
-            if key.startswith(LATE_KEY_PREFIX)
+            if key.startswith(LATE_KEY_PREFIX) and key != KEY_LATE_CONSUMERS
         }

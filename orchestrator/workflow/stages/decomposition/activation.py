@@ -31,6 +31,15 @@ in front, where it costs nothing to refuse early, and once behind, where a
 close a poll observed during the lookup would otherwise reach nothing before
 the relabel lands.
 
+Children an ordinary split created are released on the lineage its record
+proved, which may have changed since, so that decision is asked again in
+front of every walk -- and every child the walk would release is held, before
+the first is relabelled, to what a recovery holds it to (see
+`entitlement_lapsed`). Either refusal releases none and parks the parent once.
+The split's own same-tick release is this walk too, over the same fresh scan
+and behind the same parks; a late split's own children are released on that
+split's licence instead.
+
 Held children are logged rather than parked, because the tree is still making
 progress: their siblings run concurrently and are what will eventually release
 them. The line names the exact unfinished dependencies so an operator reading a
@@ -50,14 +59,28 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import observations as _observations
+from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
+    late_child_content as _late_child_content,
     late_publication as _late_publication,
+    models as _models,
+    parents as _parents,
+    replacement_lineage as _replacement_lineage,
+    split_seeds as _split_seeds,
     state as _state,
 )
-from orchestrator.workflow.stages.decomposition.models import _ChildScan
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
+
+_UNSEEDED_CHILD = (
+    "child #{child} would be released without exactly what its split owes it -- its `parent_number` does not "
+    "name this issue, its late ancestry is missing or no longer whole, or it carries a snapshot pointer this "
+    "split no longer keeps for it (the ref no longer held, or `late_consumers` no longer recording the child). "
+    "Released like that, its handler, size gate, or reuse instructions would act on a record nothing vouches "
+    "for, so no further child is started while that stands. Repair the child's seed or record it as a consumer "
+    "again, or close it."
+)
 
 
 @dataclass
@@ -66,8 +89,10 @@ class _ChildActivation:
     owner: Issue
     slug: str
     state: PinnedState
-    scan: _ChildScan
+    scan: _models._ChildScan
     held: list[_state._HeldChild]
+    lineage: _replacement_lineage.ReplacementLineage | None = None
+    refusal: str | None = None
     relabeled: bool = False
     stopped: bool = False
 
@@ -78,9 +103,11 @@ class _ChildActivation:
         spec: _config_models.RepoSpec,
         owner: Issue,
         state: PinnedState,
-        scan: _ChildScan,
+        scan: _models._ChildScan,
     ) -> _ChildActivation:
-        return cls(gh, owner, spec.slug, state, scan, [])
+        lineage = _release_lineage(spec, owner, state, scan)
+        refusal = None if lineage is None else lineage.refusal
+        return cls(gh, owner, spec.slug, state, scan, [], lineage, refusal)
 
     def parent_is_gone(self) -> bool:
         """Whether a poll saw the parent closed since this walk began.
@@ -135,6 +162,41 @@ class _ChildActivation:
         self.stopped = True
         return True
 
+    def entitlement_lapsed(self, child: Issue, number: int) -> bool:
+        """Whether this child is no longer one its split's lineage vouches for, as it stands now.
+
+        Read as it stands now, since any of it may have changed since the
+        split wrote it, and held to exactly what a recovery holds it to
+        (`ReplacementLineage.repair`): anything that recovery would refuse or
+        have to write -- a missing link or seed, a pointer the ledger no
+        longer keeps, a lost slot -- and a receipt other than the one stamped
+        for its slot (`split_seeds.stamp_lapse`) is a child that may not start.
+        A child of an ordinary split is held the same way, so every release
+        costs one read of its pinned comment. A lapse latches, and says why.
+        """
+        if self.stopped:
+            return True
+        if self.lineage is None:
+            return False
+        texts = (getattr(child, "title", None), getattr(child, "body", None))
+        child_state = self.gh.read_pinned_state(child)
+        seed = self.lineage.repair(
+            self.state, self.owner.number, number, child_state, _late_child_content._named_snapshots(*texts),
+        )
+        refusal = seed.refusal or _split_seeds.stamp_lapse(
+            self.gh, self.owner, self.state, child, self.lineage.ancestry,
+        )
+        linked = _state._links_to(child_state.get(_state._PARENT_NUMBER), self.owner.number)
+        if linked and refusal is None and seed == _replacement_lineage.SeedRepair():
+            return False
+        log.error(
+            "repo=%s issue=#%s may release no child: #%s is not as its split's lineage owes it",
+            self.slug, self.owner.number, number,
+        )
+        self.refusal = refusal or _UNSEEDED_CHILD.format(child=number)
+        self.stopped = True
+        return True
+
     def may_release(self) -> bool:
         """Whether this walk may still relabel the child in front of it.
 
@@ -154,35 +216,53 @@ class _ChildActivation:
             return False
         return not self.parent_is_gone()
 
-    def consider(self, idx: int, child_number) -> None:
+    def consider(self, idx: int, child_number) -> tuple[Issue, int] | None:
+        """The child at this index where its dependencies are done, or None; one still waiting is held."""
         number = int(child_number)
         child = self.scan.issues.get(number)
         if self.scan.labels.get(number) != WorkflowLabel.BLOCKED:
-            return
+            return None
         if child is None or issue_is_closed(child):
-            return
-        pending = self._pending_dependencies(idx)
+            return None
+        pending = _pending_dependencies(self.state, self.scan, idx)
         if pending:
             self.held.append((number, pending))
-            return
-        if not self.may_release():
-            self.held.append((number, []))
-            return
-        self.gh.set_workflow_label(child, WorkflowLabel.READY)
-        self.relabeled = True
+            return None
+        return child, number
 
-    def _pending_dependencies(self, idx: int) -> list[int]:
-        dep_graph = self.state.get("dep_graph") or {}
-        dependencies = dep_graph.get(str(idx), [])
-        dep_numbers = [
-            int(self.scan.children[int(dep_idx)])
-            for dep_idx in dependencies
-            if int(dep_idx) < len(self.scan.children)
-        ]
-        return [
-            number for number in dep_numbers
-            if self.scan.labels.get(number) != _state._DONE
-        ]
+    def release(self, releasable: list[tuple[Issue, int]]) -> None:
+        """Relabel each child `ready`, once every one of them is vouched for.
+
+        Every child this walk would release is held to its split's lineage
+        before the first is relabelled, because the refusal parks the parent
+        and a park is meant to leave the split unstarted: a walk that
+        released as it checked would start the children in front of the one
+        that lapsed. Each relabel is still licensed on its own, immediately in
+        front of it -- see `may_release`.
+        """
+        if any(self.entitlement_lapsed(child, number) for child, number in releasable):
+            self.held.extend((number, []) for _, number in releasable)
+            return
+        for child, number in releasable:
+            if self.may_release():
+                self.gh.set_workflow_label(child, WorkflowLabel.READY)
+                self.relabeled = True
+            else:
+                self.held.append((number, []))
+
+
+def _pending_dependencies(state: PinnedState, scan: _models._ChildScan, idx: int) -> list[int]:
+    dep_graph = state.get("dep_graph") or {}
+    dependencies = dep_graph.get(str(idx), [])
+    dep_numbers = [
+        int(scan.children[int(dep_idx)])
+        for dep_idx in dependencies
+        if int(dep_idx) < len(scan.children)
+    ]
+    return [
+        number for number in dep_numbers
+        if scan.labels.get(number) != _state._DONE
+    ]
 
 
 def _activate_ready_children(
@@ -190,7 +270,7 @@ def _activate_ready_children(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
-    scan: _ChildScan,
+    scan: _models._ChildScan,
 ) -> list:
     """Dep-graph activation walk shared by `_handle_blocked` / `_handle_umbrella`.
 
@@ -208,14 +288,56 @@ def _activate_ready_children(
     that puts an agent on somebody's repository, and a close latched after
     the first child was released may not release the second. A pull request a
     split superseded these children out from under is asked about in the same
-    place and stops the walk the same way.
+    place and stops the walk the same way. Every child it would release is
+    held to its split's lineage first, and a lapse in any one releases none
+    of them.
     """
     activation = _ChildActivation.start(gh, spec, issue, state, scan)
-    for idx, child_number in enumerate(scan.children):
-        activation.consider(idx, child_number)
-    if activation.relabeled:
+    if activation.refusal is None:
+        found = map(activation.consider, range(len(scan.children)), scan.children)
+        activation.release([releasable for releasable in found if releasable is not None])
+    # Parked once: a parent already awaiting a human is held, not re-parked.
+    if activation.refusal is not None and not state.get(_state._AWAITING_HUMAN):
+        _replacement_lineage.park_unproved(gh, issue, state, activation.refusal)
+    elif activation.relabeled:
         gh.write_pinned_state(issue, state)
     return activation.held
+
+
+def _activate_created_children(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    children: list[int],
+) -> None:
+    """Run this walk over children a split created this tick, the first release of them.
+
+    Over the fresh scan a later poll takes and behind the same parks, since a
+    human may have rejected or closed a child while its siblings were still
+    being created -- so the split's release is held to exactly what a later
+    poll's is.
+    """
+    scan = _parents._usable_child_scan(gh, spec, issue, state, children)
+    if scan is not None:
+        _activate_ready_children(gh, spec, issue, state, scan)
+
+
+def _release_lineage(
+    spec: _config_models.RepoSpec, issue: Issue, state: PinnedState, scan: _models._ChildScan,
+) -> _replacement_lineage.ReplacementLineage | None:
+    """The decision an ordinary split's children here are released on, asked afresh, or None.
+
+    Asked again off the parent's record, for no request, because a dependent
+    child starts polls after the record that licensed it may have changed; a
+    refusal parks the parent with the notice its creation would have. A late
+    split's own register answers None: what licenses releasing those children
+    is that split's own, asked by `licence_lapsed`.
+    """
+    register = _late_state.read_late_generation(state).split_children
+    if tuple(int(number) for number in scan.children) == register:
+        return None
+    return _replacement_lineage.read_replacement_lineage(state, issue, spec)
 
 
 def _held_dependency_line(child_number: object, pending: list) -> str:

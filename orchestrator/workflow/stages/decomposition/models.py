@@ -5,11 +5,9 @@
 Each of these exists because the value it carries has to survive a boundary
 the call stack alone would lose it across: the worktree policy a run decides
 before it can raise, the agent identity a resume is locked to, the children a
-split has already created when the next one fails, and the child labels a
-parent scan read once and several branches then ask about. A plan also has room
-for the lineage its split would seed each child with and the attempt their
-receipts would name, and answers the whole dependency graph its manifest
-declares; no split fills or asks either yet, so each plan starts ordinary.
+split has already created when the next one fails -- with the lineage it
+seeds each of them with and the attempt their receipts name -- and the child
+labels a parent scan read once and several branches then ask about.
 """
 from __future__ import annotations
 

@@ -356,7 +356,7 @@ the two labels an adjudication RUNS under is refetched so neither reading of it 
 two are asked about only while closed, so an open `workflow:ready` issue costs nothing it did not already. It is
 also the one route the `backlog` / `paused` hard skip steps aside for: discarding a closed owner there discards the
 close itself, so the route is taken and the control label defers only the external work behind it. The other is one
-read of the issue's own pinned comment, which answers eight questions that stop a dispatch outright: a live late
+read of the issue's own pinned comment, which answers nine questions that stop a dispatch outright: a live late
 adjudication the label was moved out from under, a child of a split whose snapshot has since been reclaimed, an
 owner whose cancelled cycle has not reached its ending — which settles the cycle and writes its `rejected`
 terminal from wherever the owner has been left, so a reopen can neither resume the cycle nor slip past the ending
@@ -385,6 +385,10 @@ it may not act on
 — a report debt a rewritten pull-request head left, which holds the roads past an approval (`workflow:documenting`,
 `in_review`) while any claim stands, readable or not, and leaves `workflow:validating` to pay it
 ([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch))
+— an ordinary split's child whose pinned seed is not the one the receipt in its body owes it, held under every label
+but a terminal, pickup included, directly behind the agent-run-limit hold and ahead of a live adjudication's step
+aside, so no stage or adjudication runs a child on a lineage nothing proved
+([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-seed-hold-every-dispatch-ahead-of-the-reuse-guard))
 — and, last, an unlabeled issue that already carries a pinned comment, which is one this orchestrator has met
 before: the pickup handler behind it *greets* an issue and mints its pinned comment, so a second greeting writes a
 second comment that every later read shadows

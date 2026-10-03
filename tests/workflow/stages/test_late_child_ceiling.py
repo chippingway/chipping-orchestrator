@@ -14,7 +14,10 @@ What the boundary is, and what a child may carry over from the issue that
 created it, are the other half. Exactly at the ceiling publishes and one line
 past it is held; an exemption an older binary wrote buys a child no more than
 it buys anybody; and neither the exemption nor the authorization beside it is
-something the split hands down or a later commit inherits.
+something the split hands down or a later commit inherits. A replacement an
+ordinary re-decomposition cut inside the lineage is held to all of it too,
+and its gate mints its generation one level below the root rather than as a
+root of its own.
 """
 
 from __future__ import annotations
@@ -257,6 +260,31 @@ class ChildUnauthorizedExemptionTest(
             pinned[_overrides.LATE_OVERRIDE_THRESHOLD],
             _slice.WHOLE_SLICE - 1,
         )
+
+
+class ReplacementChildGateTest(support._ReplacementGateCase, unittest.TestCase):
+    """A replacement is measured at the depth its lineage charged, owed nothing."""
+
+    def test_it_is_held_one_level_below_the_root(self) -> None:
+        # The parent authorized the very commit this slice is committed at,
+        # and the replacement reaches its gate with none of that: it is
+        # measured, held, and adjudicated as the lineage's second generation
+        # -- a generation minted at depth 0 would buy the root another split.
+        parent = self.github.pinned_data(self.parent.number)
+
+        mocks = self._run_slice(ceiling=_slice.LARGEST_NARROWER_READING)
+
+        self._assert_measured(mocks)
+        self._assert_held(mocks)
+        pinned = self._pinned()
+        self.assertEqual(pinned[_gate.KEY_ROOT_ISSUE], self.parent.number)
+        self.assertEqual(pinned[_gate.KEY_LINEAGE_DEPTH], 1)
+        self.assertEqual(pinned[_ANCESTRY_DEPTH], 1)
+        for carried in _BYPASS_KEYS:
+            with self.subTest(carried=carried):
+                self.assertIn(carried, parent)
+                self.assertNotIn(carried, self.seeded)
+                self.assertNotIn(carried, pinned)
 
 
 if __name__ == "__main__":

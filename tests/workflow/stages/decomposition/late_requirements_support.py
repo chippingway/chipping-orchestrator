@@ -30,7 +30,7 @@ from tests.workflow.stages.decomposition.late_content_replies import human_comme
 from tests.workflow.stages.decomposition.late_content_support import REVISED_SHA
 from tests.workflow.stages.decomposition.late_revision_support import DEV_PIN, REMEASURED_OVERSIZED, RevisionCase
 from tests.workflow.stages.decomposition.late_run_support import WorktreeSeed, agent_reply, late_run_context
-from tests.workflow.stages.decomposition.late_test_support import LATE_ISSUE_NUMBER, SPLIT_REPLY
+from tests.workflow.stages.decomposition.late_test_support import LATE_ISSUE_NUMBER, SPLIT_REPLY, late_generation
 
 KEY_USER_CONTENT_HASH = "user_content_hash"
 
@@ -103,9 +103,10 @@ class GuidedSplitCase(RevisionCase):
 
         The baseline is the one the pickup recorded, before anybody replied,
         which is what makes the guidance an edit to every reader that never
-        consumed it.
+        consumed it. No split made the issue, so its candidate is the root of
+        its own lineage, at depth 0.
         """
-        self._seed(**DEV_PIN)
+        self._seed(generation=late_generation(lineage_depth=0), **DEV_PIN)
         self.github.seed_state(LATE_ISSUE_NUMBER, **{
             **self._pinned(),
             KEY_USER_CONTENT_HASH: requirements(self.issue),
@@ -146,12 +147,12 @@ class GuidedSplitCase(RevisionCase):
         ):
             self._route()
 
-    def _redecompose(self) -> MagicMock:
+    def _redecompose(self, answer: str = DECOMPOSER_QUESTION) -> MagicMock:
         """The decomposing tick a reroute leaves, and the spawn it made."""
         mocks = _patch_and_run(self._route, _WorkflowRunContext(
             run_agent=_agent(
                 session_id=DECOMPOSER_SESSION,
-                last_message=DECOMPOSER_QUESTION,
+                last_message=answer,
             ),
         ))
         return mocks["run_agent"]
