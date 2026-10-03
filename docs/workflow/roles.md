@@ -1874,6 +1874,38 @@ damaged: there is nothing to correlate a reclamation to and no issue number to p
 generation, so the umbrella stays open and says so where an operator reads it. An issue that never entered the late
 gate carries no ledger and answers without a write, which is every umbrella the initial decomposer made.
 
+### What an ordinary re-decomposition will hold its children to
+
+A genuine edit can hand the ordinary decomposer an issue already inside a late lineage, and children created there
+as ordinary issues would each read as a fresh root at depth 0. `replacement_lineage.py` decides off the parent's
+record which lineage they inherit and which snapshot, if any, they may be pointed at
+([inherited lineage](../state-machine/labels-and-state.md#late-generation-state)). Beside that decision sit the
+contracts a split, its recovery, and the dispatcher are to hold those children to. All of them are **dormant**: no
+split, recovery, release, or dispatch asks any of them yet, so children are still created with no receipt, ancestry,
+or pointer, and no label, pinned key, or marker an issue already carries changes meaning.
+
+- **Receipt** (`split_receipts.py`). Each child's body is to carry, after its slice, a hidden marker naming the
+  parent, the `split_attempt` minted for that split, the slice, and the lineage the child is owed. Only a whole
+  receipt counts, and the last one in a body governs: a slice may quote another child's body, receipt and all, ahead
+  of its own stamp.
+- **Adoption.** A recovery whose register is short of its count looks for the next slice's receipt among issues
+  this orchestrator opened. The one it finds — open, still on `workflow:blocked`, and ending on that receipt whole —
+  is recorded in `children`, and on `late_consumers` wherever the parent's proved lineage points its children at a
+  snapshot, in one parent write; a receipt its slice quoted ahead of the stamp is no second claim. A closed or
+  relabelled candidate, or one ending on another receipt or on none whole, is named for the park instead, and a
+  parent with no attempt this binary minted has nothing to look for.
+- **Repair** (`ReplacementLineage.repair`). A recorded child is owed what the parent's record says, never what its
+  text says. It needs nothing when it carries that, the owed group when it carries none or points elsewhere, its
+  consumer slot back when the held snapshot's ledger lost it, and the lineage alone once the ref has passed to a
+  reclamation. A child the split cannot recognize as its own is refused with nothing written over it: an unparsed
+  comment, a `parent_number` that is not exactly this issue's number, any other ancestry (any at all on an ordinary
+  split's child), or text naming a snapshot ref nothing keeps for it.
+- **Seed hold** (`split_seeds.py`). A receipted child this orchestrator opened whose seed is not the one its receipt
+  owes — the exact parent link, the whole bounded lineage, a pointer only at that split's snapshot, its ref and
+  commit together — is held under every runnable label and parked `replacement_lineage_unproved` once. A pointer
+  its own reuse guard removed whole after the ref was released is not a lapse. A child whose pinned comment will not
+  parse is held too, with nothing written over that comment and nothing said but the log.
+
 ### What a close mid-cycle ends, and what it still settles
 
 A human can close a late-split owner at any of the boundaries above, and every one of them leaves a different amount

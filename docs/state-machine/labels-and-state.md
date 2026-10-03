@@ -570,7 +570,14 @@ The keys that matter for the state machine fall into a few groups:
   fresh conversation against the frozen candidate — see [the late run](#the-late-run) for the two conditions a resume
   takes.
 - **Decomposition.** `children`, `dep_graph` (`{child_idx_str: [child_idx, ...]}` — GitHub has no first-class blocks
-  relation), `decomposed_at`, `pickup_comment_id`.
+  relation), `decomposed_at`, `pickup_comment_id`. `split_attempt` is reserved, and dormant: no split writes it yet. It
+  is sixteen lowercase hex digits minted for one ordinary split, meant for the write that records
+  `expected_children_count` and the whole declared `dep_graph` before the first child exists, and each child of that
+  split would carry it in a hidden body receipt stamped after its slice,
+  `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>:lineage=<owed>-->`, where `<owed>`
+  is `<root>-<depth>-<cycle>-<generation>` or `none`. Only a whole receipt counts, and the last one in a body governs,
+  since a slice may quote another child's body ahead of its own stamp. Any other `split_attempt` — another split's, a
+  value no binary mints, or none — finds no receipt, so a split an older binary made leaves nothing to adopt.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records
@@ -3376,7 +3383,21 @@ rather than preserving.
   repository's mirror of it alone. A parent already at `MAX_LINEAGE_DEPTH`, a refused provenance, one naming no cycle,
   and a split whose own snapshot is neither held for a new consumer nor passed to a reclamation (unreadable ledgers,
   a consumer ledger nothing can be added to, a `retained` ref a retirement left no identity to name, `pending`,
-  recorded twice, or missing), or is held with no `late_base_sha`, are refusals rather than an unpointed seed.
+  recorded twice, or missing), or is held with no `late_base_sha`, are refusals rather than an unpointed seed. The
+  same owner carries what a recovery would do with a child already recorded, dormant as well and read off the
+  parent's record rather than the child: nothing for a child carrying exactly what it was owed; the owed group for one
+  carrying none of it or a pointer at another ref; its `late_consumers` slot back, ahead of any seed, where the ledger
+  lost a child the held snapshot was owed to; and the lineage alone, pointer and `late_ancestry_mirror_first` dropped,
+  once the ref has passed to a reclamation — a stamp standing without the pair, what the child's own reuse guard leaves,
+  stays. A child it cannot recognize is a refusal with nothing written over it: a comment that would not parse, a
+  `parent_number` that is not exactly this issue's number (a float, a bool, a string, or `null` included; only an
+  absent key is a deferred link), any group but the whole one it was owed (none on an ordinary split's child), or a
+  title or body naming a snapshot ref it cannot keep. A child whose receipt is not matched by its own seed — the exact
+  parent link, the whole owed group, and a pointer only at that split's snapshot, `late_ancestry_snapshot_ref` and
+  `late_ancestry_snapshot_sha` together, or neither — is what the dormant dispatch hold would park
+  `replacement_lineage_unproved` once; one whose pinned comment will not parse it would hold with nothing written.
+  Adoption attributes a child by its last whole receipt too, so a receipt quoted ahead of the stamp is no second
+  claim, and one appended behind it or a stamp cut short leaves the child unattributed. Nothing asks either yet.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

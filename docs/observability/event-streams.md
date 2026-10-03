@@ -88,13 +88,15 @@ file is the durable record.
   clean rebase left, the head it started from, the head a body-edit resume begins at, or the head recovered commits
   leave the branch on — so the push behind it would carry neither a lease nor a named candidate),
   `reviewer_timeout`, `reviewer_failed`, `reviewer_no_verdict`, `decomposer_timeout`, `decomposer_silent`,
-  `decomposer_question`, `decomposer_invalid_manifest`, `decomposer_dirty`, `verify_failed` / `verify_timeout` /
-  `verify_dirty` / `verify_head_changed` / `verify_tree_changed`, `agent_run_limit` (the issue has spent every agent
-  run its lifetime ceiling allows), `question_*`, `discussion_*`, ...). Failed-run parks in validating and decomposing
-  forward explicit, bounded correlation fields (`agent_role`, `session_id`, `review_round`, `retry_count`,
-  `pr_number`) through `_park_awaiting_human` so audit and analytics share the same payload; `dirty_worktree` carries
-  `dirty_files` (how many paths git named); `unreadable_worktree` carries none, since naming a count there would
-  report a failed read as an empty tree.
+  `decomposer_question`, `decomposer_invalid_manifest`, `decomposer_dirty`, `replacement_lineage_unproved` (reserved
+  and dormant, since nothing parks under it yet: a split whose children's late lineage, snapshot, or recorded children
+  cannot be proved, or, on the child itself, a split's child whose seed is not the one its receipt owes),
+  `verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`, `agent_run_limit`
+  (the issue has spent every agent run its lifetime ceiling allows), `question_*`, `discussion_*`, ...). Failed-run
+  parks in validating and decomposing forward explicit, bounded correlation fields (`agent_role`, `session_id`,
+  `review_round`, `retry_count`, `pr_number`) through `_park_awaiting_human` so audit and analytics share the same
+  payload; `dirty_worktree` carries `dirty_files` (how many paths git named); `unreadable_worktree` carries none, since
+  naming a count there would report a failed read as an empty tree.
 
   The three parks that emit for themselves — `_on_question` and the two checkout refusals, each of which owns a
   watermark read and durable state writes the funnel does not — carry the same vocabulary, screened against the same

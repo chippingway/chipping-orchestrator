@@ -7,7 +7,9 @@ once here: a typo in a key is a silently-lost park or a parent that forgets its
 children, and neither surfaces until an issue is already stuck. `_issue_ref_list`
 sits with them because it is the one rendering of those recorded numbers -- the
 held-dependency log line, the rejected- and closed-child parks, and the drift
-notice all quote children the same way.
+notice all quote children the same way. `_links_to` sits with them because a
+recorded `parent_number` is proof of parentage only as an exact issue number,
+and every reader that takes it as proof has to refuse the same values.
 """
 from __future__ import annotations
 
@@ -45,6 +47,12 @@ _PARK_REASON = "park_reason"
 
 _PARENT_NUMBER = "parent_number"
 
+# Which ordinary split the parent's markers belong to: minted for each split
+# and meant for the same write as the expected count, ahead of the first
+# child, so the receipt each child carries names this attempt and no earlier
+# split of the same issue. Read by `split_receipts`; no split writes it yet.
+_SPLIT_ATTEMPT = "split_attempt"
+
 _CREATED_AT = "created_at"
 
 _DONE = "done"
@@ -65,6 +73,23 @@ def _ledger_is_sealed(sealed: Any, cycle_id: int) -> bool:
     if not _formats.whole_number(sealed) or sealed <= 0:
         return False
     return sealed == cycle_id
+
+
+def _names_an_issue(linked: Any) -> bool:
+    """Whether a recorded `parent_number` is an issue number at all.
+
+    Spelled once because the recognition of a recorded child and the hold on
+    a child its split never seeded both take the link as proof of parentage,
+    and only an issue number proves it: JSON carries `41.0` and `true` as values
+    Python compares equal to 41 and 1, and neither is one any writer here
+    produced, so each names no parent at all.
+    """
+    return _formats.whole_number(linked) and linked > 0
+
+
+def _links_to(linked: Any, parent: int) -> bool:
+    """Whether a recorded `parent_number` is exactly `parent`'s issue number."""
+    return _names_an_issue(linked) and linked == parent
 
 
 def _issue_ref_list(numbers: list) -> str:

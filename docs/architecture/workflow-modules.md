@@ -1409,7 +1409,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the only names a child's text may give that snapshot; a parent at the bound, an unprovable
                             record, one naming no cycle, or one whose own snapshot is neither held nor released -- or
                             is held with no recorded base for the instructions to name its change from -- is a
-                            refusal carrying the sentence a park would post; no split, recovery, or release asks it
+                            refusal carrying the sentence a park would post; beside it the dormant `SeedRepair` a
+                            recovery would make of one recorded child -- nothing, the owed group, its consumer slot
+                            restored, or the pointer a released ref no longer owes dropped -- or the refusal of a
+                            child it cannot recognize (an unparsed comment, a link that is not exactly this issue's
+                            number, an ancestry it did not seed, text naming a ref it cannot keep), with nothing
+                            written over it, and the `replacement_lineage_unproved` park; no split, recovery,
+                            release, or dispatch asks any of it
+      split_receipts.py     the dormant hidden receipt an ordinary split would stamp after each child's slice --
+                            parent, `split_attempt`, slice, and owed lineage, the last whole one in a body governing
+                            -- and the adoption a recovery short of its count would make: the next slice's open,
+                            birth-labelled child whose last whole receipt is that one, recorded with its consumer
+                            slot in one parent write, or named for a park when closed, relabelled, or ending on
+                            another receipt or none whole; nothing stamps, mints, or adopts yet
+      split_seeds.py        the dormant dispatch hold on a receipted child this orchestrator opened whose seed is
+                            not the one its receipt owes -- the exact parent link, the whole bounded lineage, and a
+                            whole pointer, ref and commit together, only at that split's snapshot or none once
+                            released -- parked once, or, on a comment that will not parse, held with nothing
+                            written; no dispatcher asks it yet
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
                             recorded on its parent before seeding, and either failure parks the parent for repair
       split.py              persist the expected count, create the planned children, and publish the summary and parent
@@ -1866,10 +1883,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             issue-wide requirements hash of the batch they read, and the outcome of consuming one
                             reading
       late_models.py        mutable tick context, tri-state owner readings, held pull requests, and staged park values
-      models.py             the run plan and its worktree policy, the locked session, the split plan, and the child
-                            scan
-      state.py              the pinned-state field names the owners share, the held-child alias, and the
-                            issue-reference renderer
+      models.py             the run plan and its worktree policy, the locked session, the split plan -- with room
+                            for the dormant lineage and attempt and the whole declared dependency graph -- and the
+                            child scan
+      state.py              the pinned-state field names the owners share, `split_attempt` among them, the
+                            held-child alias, the strict parent-link check, and the issue-reference renderer
     discussion/             `discussion`
       handler.py            the order one round asks its questions in: whether the conversation is over, whose turn it
                             is, what the checkout holds, and what the round left behind

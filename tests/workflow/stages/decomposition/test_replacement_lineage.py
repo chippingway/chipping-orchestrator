@@ -8,7 +8,9 @@ inside that lineage, so each is born one level below its parent under the same
 root, pointed at a snapshot only where the parent's own split holds it, and
 told that snapshot by exactly the names its instructions give it. A record that
 cannot prove the lineage, a bound with no room, and a snapshot neither held nor
-released are refusals. No split asks this yet, so it is driven directly.
+released are refusals. A child already recorded is repaired to the same answer,
+or refused where it is not one this split can recognize. No split asks this
+yet, so it is driven directly.
 """
 from __future__ import annotations
 
@@ -246,6 +248,118 @@ class ConsumerWriteTest(unittest.TestCase):
 
                 self.assertEqual(state.data, before)
                 self.assertEqual(lineage.child_ancestry(state, PROTECTED_CHILD), lineage.ancestry)
+
+
+# The parent's split holding its snapshot with the child on its ledger, the
+# same split once the ledger lost that slot, the split once its ref was
+# released, and an issue no late split charged.
+_PROTECTED_LEDGER = MappingProxyType({KEY_CONSUMERS: [_support.ORIGINAL, PROTECTED_CHILD]})
+
+_PROTECTING = _support.record(_support.own_split(), **_PROTECTED_LEDGER)
+
+_HELD = _support.record(_support.own_split())
+
+_RELEASED_SPLIT = _support.record(_support.own_split(_RECONCILED))
+
+_ORDINARY = _support.record(**LEGACY_STATE)
+
+_REPAIR = _replacement_lineage.SeedRepair
+
+# What a recognized child needs: nothing where it carries what it was owed, the
+# owed group where its seed was deferred or points elsewhere, its consumer slot
+# back wherever the ledger lost it -- its text told nothing either way -- and
+# the lineage alone once the ref was released, a stamp its guard left standing.
+_REPAIRS = MappingProxyType({
+    "an unchanged seed": (_PROTECTING, _support.seeded(_support.ROOT_REPLACEMENT), _REPAIR()),
+    "a deferred seed": (_PROTECTING, {}, _REPAIR(ancestry=_support.ROOT_REPLACEMENT)),
+    "a pointer at another ref": (
+        _PROTECTING,
+        _support.seeded(_support.ROOT_REPLACEMENT, late_ancestry_snapshot_ref=FOREIGN_REF),
+        _REPAIR(ancestry=_support.ROOT_REPLACEMENT),
+    ),
+    "a lost consumer slot": (_HELD, _support.seeded(_support.ROOT_REPLACEMENT), _REPAIR(protect=True)),
+    "a lost slot and no seed": (_HELD, {}, _REPAIR(ancestry=_support.ROOT_REPLACEMENT, protect=True)),
+    "a released pointer": (
+        _RELEASED_SPLIT, _support.seeded(_support.ROOT_REPLACEMENT), _REPAIR(ancestry=_support.ROOT_LINEAGE),
+    ),
+    "a stamp its guard left": (
+        _RELEASED_SPLIT, _support.seeded(_support.ROOT_REPLACEMENT.without_snapshot()), _REPAIR(),
+    ),
+    "an ordinary child": (_ORDINARY, _support.seeded(), _REPAIR()),
+    "an ordinary child seeded by nothing": (_ORDINARY, {}, _REPAIR()),
+})
+
+_UNTOLD = frozenset()
+
+_NAMES_ITS_REF = "text naming the parent's own ref"
+
+# A recorded child no recovery may vouch for, whichever split recorded it: a
+# comment that would not parse, a link that is not this issue's number -- even
+# one comparing equal to it, or `null` -- an ancestry that split did not seed,
+# and text naming a snapshot ref nothing here keeps.
+_REFUSED = MappingProxyType({
+    "an unreadable comment": (None, _UNTOLD),
+    "another parent": ({"parent_number": 999}, _UNTOLD),
+    "the parent as a float": (
+        _support.seeded(_support.ROOT_REPLACEMENT, parent_number=float(_support.PARENT)), _UNTOLD,
+    ),
+    "a boolean link": ({"parent_number": False}, _UNTOLD),
+    "a null link": (_support.seeded(_support.ROOT_REPLACEMENT, parent_number=None), _UNTOLD),
+    "part of the group": ({STRAY_ANCESTRY_KEY: 1}, _UNTOLD),
+    "a field its reader would drop": (
+        _support.seeded(_support.ROOT_REPLACEMENT, late_ancestry_generation="first"), _UNTOLD,
+    ),
+    "another lineage": (_support.seeded(_support.cut_from_ancestor()), _UNTOLD),
+    "text naming a foreign ref": ({}, frozenset((FOREIGN_REF,))),
+    "text naming another repository's mirror": ({}, frozenset((_support.FOREIGN_MIRROR,))),
+})
+
+# Refused where nothing keeps a snapshot for the child: any of the group on an
+# ordinary split's child, and text naming even the parent's own ref -- there,
+# or once that ref was released.
+_REFUSING_PARENTS = (
+    (_PROTECTING, _REFUSED),
+    (_ORDINARY, {
+        **_REFUSED,
+        "a lineage": (_support.seeded(_support.ROOT_LINEAGE), _UNTOLD),
+        _NAMES_ITS_REF: ({}, TOLD),
+    }),
+    (_RELEASED_SPLIT, {_NAMES_ITS_REF: ({}, TOLD)}),
+)
+
+
+class SeedRepairTest(unittest.TestCase):
+    """What a recovery would do with one recorded child, read off the parent's record rather than the child."""
+
+    def test_a_recognized_child_gets_its_owed_seed(self) -> None:
+        # Whether its text still carries the instructions changes nothing.
+        for shape, (parent, carried, repair) in _REPAIRS.items():
+            for instructed in (_UNTOLD, _support.decide(parent).told):
+                with self.subTest(shape=shape, told=bool(instructed)):
+                    self.assertEqual(self._repair(parent, carried, instructed)[0], repair)
+
+    def test_an_unrecognized_child_is_refused(self) -> None:
+        for parent, refused in _REFUSING_PARENTS:
+            for shape, (carried, instructed) in refused.items():
+                with self.subTest(parent=parent.get("late_cycle_id"), shape=shape):
+                    self._assert_refused(parent, carried, instructed)
+
+    def _repair(self, parent: PinnedState, carried: dict | None, instructed: frozenset) -> tuple:
+        """What the parent's lineage answers for a child carrying `carried` -- unreadable for None -- and that child."""
+        child = PinnedState(parsed=False)
+        if carried is not None:
+            child = PinnedState(data=dict(carried))
+        lineage = _support.decide(parent)
+        return lineage.repair(parent, _support.PARENT, PROTECTED_CHILD, child, instructed), child
+
+    def _assert_refused(self, parent: PinnedState, carried: dict | None, instructed: frozenset) -> None:
+        """A refusal naming the child, with nothing to write and nothing written to either record."""
+        before = dict(parent.data)
+        repair, child = self._repair(parent, carried, instructed)
+
+        self.assertIn(f"child #{PROTECTED_CHILD}", repair.refusal or "")
+        self.assertEqual((repair.ancestry, repair.protect), (None, False))
+        self.assertEqual((parent.data, child.data), (before, carried or {}))
 
 
 def _without_consumers(state: PinnedState) -> dict:
