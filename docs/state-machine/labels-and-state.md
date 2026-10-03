@@ -942,7 +942,9 @@ The keys that matter for the state machine fall into a few groups:
   settlement. Both keep the key and hold `null`, so `null` on either is its ordinary resting state and an absence,
   and only a payload that is present and is not an object is a claim. What a `report_undeliverable` notice offers
   is a reply rather than a field to clear: it resumes the session, and the report that session writes is the one
-  this workflow records — over the delivery standing there, where one is — and publishes.
+  this workflow records — over the delivery standing there, where one is — and publishes. A notice refusing a report
+  for the comment's room asks for room freed before that reply, and these two records are not where it comes from:
+  clearing either drops a report the run that wrote it cannot write again.
   Nothing clears either settled record; a settlement REPLACES one. So `developer_report_current` and
   `developer_report_handoff` are claimed by the presence of their key alone, `null` included: a `null` there is a
   truncated write or a hand edit, and read as an absence it would be silently replaced after the next report is
