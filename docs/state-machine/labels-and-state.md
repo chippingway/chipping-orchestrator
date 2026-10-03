@@ -2142,11 +2142,13 @@ The keys that matter for the state machine fall into a few groups:
   a record to that proof -- in the tick its reviewer returned, or in a later one finishing a verdict left waiting
   (`stages/validating/review_resume.py`) -- so every approval the arc acts on is one that proof passed.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
-  than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, and its one
-  live producer is the returned-verdict disposition, which records the transaction a reviewer's declared commands were
-  minted as in the write persisting its verdict -- neither the verify gate nor a stage carrying evidence forward records
-  one, and the recovery of a waiting verdict records none -- so an issue whose reviewer declared no run carries none of
-  these keys. `verification_evidence_pending` is one transaction,
+  than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, and its
+  live producers are two: the returned-verdict disposition, which records the transaction a reviewer's declared
+  commands were minted as in the write persisting its verdict, and the approval's squash, which records a carry onto
+  the head it published -- of its verify gate's run where that binds, or of the evidence the approval rests on -- in
+  the write settling its handoff (`stages/validating/squash_evidence.py`). The verify gate records nothing on its own
+  account, and the recovery of a waiting verdict records none, so an issue whose reviewer declared no run carries none
+  of these keys. `verification_evidence_pending` is one transaction,
   written BEFORE its
   artifact is posted: a receipt (`issue-<n>-verification-<revision>-<nonce>`, which every record's reader holds to that
   record's own revision) and a revision past every one the issue has spent; the report subject's own `repo` / `pr` /

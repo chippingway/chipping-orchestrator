@@ -906,8 +906,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             which the settlement takes again over the comment it re-read. `current_evidence_verdict`
                             is for a reader about to rely on the current record: the pull request, then its
                             publication (`verification_current.py` -- the latest record, its handoff, its artifact),
-                            then the same proof. Its one reader, `stages/validating/review_evidence.py`, is not asked
-                            by any round yet
+                            then the same proof. Its readers are the reviewer's hand-off of current evidence
+                            (`stages/validating/review_evidence.py`), the approval's proof over the evidence its
+                            verdict names (`approved_evidence.py`), and the squash handoff's proof of a settled carry
+                            before the label moves over it (`squash_evidence.py`)
     verification_current.py whether the current record is still what the pull request carries: no revision past it
                             spent (a newer transaction, its artifact posted or not, supersedes it), the handoff
                             describing it, and the comment it recorded, re-read, our artifact with every binding

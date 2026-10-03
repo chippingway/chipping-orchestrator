@@ -1058,10 +1058,13 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Relying on it later**: `current_evidence_verdict` proves the current record again for a reader -- no revision
   past it spent, its handoff, its artifact re-read at the recorded comment with the pass flag its commands earn, and
   then the whole proof above -- so newer evidence posted and never settled, a deleted or edited artifact, or a flag it
-  contradicts is not reported as current. Its one reader, `stages/validating/review_evidence.py`, hands a reviewer the
-  current evidence only where the record is bound to exactly the subject that reviewer is handed -- pull request,
-  head, requirements, and the complete report by revision and digest -- and it proves current, then re-reads the
-  artifact for the prompt and holds it to the record again, so an edit between the two reads hands nothing. Anything
+  contradicts is not reported as current. Its readers are three: the approval's proof over the evidence its verdict
+  names (`stages/validating/approved_evidence.py`); the squash handoff, which proves a settled carry whole again before
+  the label moves over it (`stages/validating/squash_evidence.py`); and `stages/validating/review_evidence.py`, which
+  hands a reviewer the current evidence only where the record is bound to exactly the subject that reviewer is
+  handed -- pull request, head, requirements, and the complete report by revision and digest -- and it proves current,
+  then re-reads the artifact for the prompt and holds it to the record again, so an edit between the two reads hands
+  nothing. Anything
   short of that, a reading nobody could take included, hands nothing and holds no round, logged with its own reason --
   no record or one that will not read, another subject, the proof's refusal, or a prompt read that could not be taken
   or found the artifact gone or changed. Every reviewer round asks that reader once its launch has recorded the
