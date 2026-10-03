@@ -292,8 +292,9 @@ on the same tick. Full flow: [`state-machine/delivery-stages.md`][ready].
 
 The parent reads each child's current label: every child `done` flips the parent to `workflow:ready`, a `rejected` or
 manually-closed child parks it, and the dep-graph walk relabels any `workflow:blocked` child whose recorded
-dependencies are all `done` to `workflow:ready`. A child with no children of its own and a recorded `parent_number`
-is a no-op. A parent a late split's umbrella became once an edit re-decomposed it with work of its own settles that
+dependencies are all `done` to `workflow:ready`, once every child it would release passes its split's lineage check
+(one refusal releases none). A child with no children of its own and a recorded `parent_number` is a no-op. A
+parent a late split's umbrella became once an edit re-decomposed it with work of its own settles that
 split's ledger the way the umbrella's terminal does before the flip, stays `blocked` while anything is still owed,
 and retires the split's cycle in a write of its own first, so its implementation starts a cycle of its own. Full
 flow: [`state-machine/delivery-stages.md`][blocked].
@@ -307,8 +308,9 @@ An umbrella a late split made owes the superseded branch and the snapshot ref it
 the last tick that could settle either — so the park a `rejected` or hand-closed child earns settles the same ledger
 on its way out, since nothing revisits an open umbrella either. The ref is proved against the consumers the split
 recorded rather than the children the umbrella tracks, so after a drift reroute has replaced the manifest the
-originals it orphaned — read afresh, never re-tracked — still decide it. Something still owed keeps the label, which
-is the retry. Full flow: [`state-machine/delivery-stages.md`][umbrella].
+originals it orphaned — read afresh, never re-tracked — still decide it, beside the replacements the new split
+recorded there. Something still owed keeps the label, which is the retry. Full flow:
+[`state-machine/delivery-stages.md`][umbrella].
 
 ### `_handle_implementing` (label `workflow:implementing`)
 
