@@ -5,12 +5,14 @@
 A pass persists only changed resource states while reporting attempted
 failures. The umbrella's terminal requires all obligations and the superseded
 publication to settle; damaged identities with uncorrelated obligations remain
-held, while a record a retirement left is held only on what it still owes. A
-`blocked` parent whose children all resolved is the other hand-off: a genuine
-edit can re-decompose a late split's umbrella into a manifest that keeps
-implementation for the parent, and its return to that implementation is the
-last point anything settles what the split still owes the remote -- so a
-damaged identity holds it on the same terms it holds the umbrella's terminal.
+held, while a record a retirement left is held only on a ledger it cannot read
+or on what it still owes. A `blocked` parent whose children all resolved is the
+other hand-off: a genuine edit can re-decompose a late split's umbrella into a
+manifest that keeps implementation for the parent, and its return to that
+implementation is the last point anything settles what the split still owes
+the remote -- so a damaged identity holds it on the same terms it holds the
+umbrella's terminal, and a consumer ledger it cannot read holds it even where
+no ref is left to prove against it.
 """
 from __future__ import annotations
 

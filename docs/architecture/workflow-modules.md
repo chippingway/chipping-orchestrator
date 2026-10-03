@@ -1458,7 +1458,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             retirement window before the flip, so its implementation starts a cycle of its own; with
                             no cycle to retire, the attempt is dropped in a write of its own ahead of the flip
       umbrella_terminal.py  resolution text, usage totals, and cycle/generation receipts for published late splits;
-                            retire the live cycle while retaining its obligations, then label done and close
+                            retire the live cycle while retaining its obligations, then label done and close; the
+                            same retirement is the one a `blocked` parent's hand-back to its own work writes
       umbrella.py           the `workflow:umbrella` poll and barriers around child activation, cleanup, and completion;
                             require settled obligations and publication before retirement, and restore a cancelled
                             cycle when a close is observed inside the retirement window, a `blocked` parent's
