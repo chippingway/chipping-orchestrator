@@ -990,6 +990,14 @@ The keys that matter for the state machine fall into a few groups:
   handoff its own reader would not hand back unchanged is not stored, since a settled record nobody can act on is
   what the issue would carry in place of the one the report it just published deserved.
 
+  A delivery or a transaction refused says WHICH of these it was, to the writer's caller and nowhere else. The
+  record's own reading names a report quoting a receipt marker, one past `MAX_REPORT_TEXT`, and every other invalid
+  record — a settlement that cannot even be built among them, since nothing was measured — and only a record that
+  reads and does not fit is refused for the room (`workflow/engine/report_record_room.py`), naming the comment that
+  came out too large: the record's own write, the transaction a delivery is reserved against, or the settlement, with
+  whether the receipt or the hand-back was reserved beside it, and its size against the ceiling. No pinned field
+  records the reason: the comment carries a record or does not.
+
   The watermark fields a record may advance are not spelled in this domain at all: they are read off
   `workflow/engine/prompt_delivery.py`, the owner that produces the consumed pairs a transaction freezes. Two lists
   would be two lists, and a drifted one fails silently at exactly the wrong moment — a producer surface the record
