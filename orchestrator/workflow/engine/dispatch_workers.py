@@ -4,7 +4,8 @@
 
 Each worker entry takes the issue's writer claim before anything else, so its
 refetch and observation scopes run under it and a contender leaves every
-reading as it found it. Workers retain their thread-local GitHub client and
+reading as it found it; the sequential loop's pass refetches under the claim
+its own entry took. Workers retain their thread-local GitHub client and
 optional semaphore. Closed readings and cleanup passes finish through their
 observation contexts so a race or failed pass cannot discard the owed ending.
 """
@@ -13,8 +14,6 @@ from __future__ import annotations
 import contextlib
 import functools
 from collections.abc import Callable
-
-from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
@@ -27,43 +26,41 @@ from orchestrator.workflow.engine import (
 )
 
 
-def _polled_open_owner(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
-) -> None:
-    """Refetch an owner the poll read OPEN, and dispatch what comes back.
-
-    The refetch is the load-bearing half of this route: a cleanup-swept label
-    decides which handler runs off the close, and this path has no hand-off
-    to take that reading for it. So it is also where a close can first exist
-    at all, which is why the dispatch is wrapped in the hold one earns. It
-    runs under the writer claim the sequential entry took for the issue.
-    """
-    refetched = gh.get_issue(issue_number)
-    with _dispatch_closure._refetched_close(gh, spec, refetched, _poll_models._POLLED_OPEN):
-        _issue_processing._process_issue(gh, spec, refetched)
-
-
-def _polled_ordinary(
+def _polled_refetch(
     gh: GitHubClient,
     spec: _config_models.RepoSpec,
-    issue: Issue,
+    issue_number: int,
     *,
     closed: bool,
 ) -> None:
-    """Dispatch one polled issue whose label names its own handler.
+    """Read one polled issue again under its writer claim, and dispatch that.
 
-    A CLOSED one carries the poll's reading and keeps it unless the pass
-    spent it, for the reason the worker paths do: nothing latched it, this
-    pass is what would have acted on it, and neither a raise nor a pinned
-    read the guard could not take leaves anything behind. An open one carries
-    nothing and has nothing to keep. Either runs under the writer claim the
-    sequential entry took for the issue.
+    The sequential entry took the claim after the poll did its reading, and
+    another poller on this host may have advanced the issue in between: a
+    handler routed off the enumeration's object would resume a stage that
+    poller already left -- relabelling the issue back and handing it to an
+    agent a second time. So the label a handler is chosen by is the one this
+    read returns, as on every worker path.
+
+    What the poll established is carried over that read only where it is a
+    close. A CLOSED reading is held across the whole pass, refetch included,
+    for the reason the worker paths hold theirs: nothing latched it, this pass
+    is what would have acted on it, and neither a raise nor a pinned read the
+    guard could not take may cost it. It is bound rather than re-read, so a
+    reopen in between cannot turn it into an agent-spawning stage handler. An
+    OPEN reading carries nothing, which makes the refetch the place a close
+    can first exist, and the dispatch is wrapped in the hold one earns.
+
+    Refetched on the caller's own client rather than through
+    `_refetch_and_process`: nothing here crosses a thread, so what that mints
+    a per-worker client for does not apply, while the read it takes does.
     """
-    if not closed:
-        _issue_processing._process_issue(gh, spec, issue)
-        return
-    with _dispatch_closure._closed_reading(gh, spec, int(issue.number)):
-        _issue_processing._process_issue(gh, spec, issue, reading=_poll_models._PollReading(closed=True))
+    reading = _poll_models._PollReading(closed=closed)
+    held = _dispatch_closure._closed_reading(gh, spec, issue_number) if closed else contextlib.nullcontext()
+    with held:
+        refetched = gh.get_issue(issue_number)
+        with _dispatch_closure._refetched_close(gh, spec, refetched, reading):
+            _issue_processing._process_issue(gh, spec, refetched, reading=reading)
 
 
 def _refetch_and_process(

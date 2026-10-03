@@ -298,11 +298,15 @@ active issue's worktree.
 That gate answers for this process alone, so every dispatch path also takes the issue's host-local **writer claim**
 (`scheduler/writer_claims.py`) — an exclusive, non-blocking `flock` keyed by the repository's canonical name (the
 client's `repo_slug`, case-folded, never the configured slug) and the issue number — before anything it does for the
-issue: the worker's refetch, the pinned-state guards, the close recovery wrapped around the pass (the closed reading
+issue: the refetch, the pinned-state guards, the close recovery wrapped around the pass (the closed reading
 an ordinary pass keeps, the close a refetch establishes, the cleanup observation a sweep is held under), and the
 handler. The sequential loop takes it once an issue survives the hard-skip classification; the scheduler's fan-out
 task, its family-bucket iteration (inside `track_active`), and the in-tick pool's tasks take it as their worker starts,
-so a queued submit holds no claim. The enumeration takes it too, for the one thing it writes: the pinned read and close
+so a queued submit holds no claim. Every one of them then reads the issue again under it, the sequential loop
+included: the poll is older than the claim, and a poller that advanced the issue and let go in between would otherwise
+have its stage resumed from the label the poll read. The handler is the one the fresh label names; what the poll read
+is carried over that read only where it is a close, and binds there, so a reopen in between cannot send the issue to
+an agent-spawning stage. The enumeration takes it too, for the one thing it writes: the pinned read and close
 receipt behind a closed fan-out issue, and the same pair a refused submit's observation hold spends. Those two ask
 for it *alongside* — granted beside a worker of this same process that holds the issue, since the receipt is an added
 comment built to land beside one, and an ordinary exclusive attempt against every other process.
@@ -321,10 +325,12 @@ on what they read behind it. The walk that relabels a `workflow:blocked` child `
 would release, then reads each again — its scan was taken before any claim, and another poller may have relabelled,
 finished, or closed one in between — and releases none if one is held, cannot be read, or no longer reads open and
 `workflow:blocked`, parking nothing; the next walk scans again. Recovery's orphan repair stops short of a held child
-without parking; a merged child's finalize leaves a held child as scanned, counted neither done nor closed by hand; and
-the snapshot-reclaimed notice leaves a held consumer's obligation owed. An ordinary split's seed is read and added to
-under the child's claim, never written as a fresh record: a poller that reached the child first may have held it for
-the seed it lacks, parked on the one pinned comment every reader takes, and the seed lifts that park in the same write.
+without parking; a merged child's finalize reads each claimed child again and counts it by that reading, so one another
+poller finalized, relabelled, or reopened since the scan is never finalized twice, and leaves a held child as scanned,
+counted neither done nor closed by hand; and the snapshot-reclaimed notice leaves a held consumer's obligation owed.
+An ordinary split's seed is read and added to under the child's claim, never written as a fresh record: a poller that
+reached the child first may have held it for the seed it lacks, parked on the one pinned comment every reader takes,
+and the seed lifts that park in the same write.
 A child that poller still holds is left unseeded while the split creates the rest, and the split stops short of its
 summary and finalize, leaving the parent `workflow:decomposing` with every child recorded — exactly what the
 [half-finished recovery](delivery-stages.md#_handle_decomposing-label-workflowdecomposing) seeds under the claim and
@@ -518,8 +524,8 @@ a close that was latched and receipted while the owner was still `workflow:decom
 under one of these — with the ending unmarked, the ref its children were cut from still held, and the latch that
 would route it living only in the process that took it. A restart before any cleanup pass would lose that ending for
 good, so the query is what makes it discoverable without one. Only their CLOSED issues are asked about: an open
-`workflow:ready` issue is polled and dispatched exactly as ever, and is not refetched the way an open owner on one of
-the two adjudication labels is. What it costs is one pinned read per closed issue on either, on the sweep cadence.
+`workflow:ready` issue is polled and dispatched exactly as ever. What it costs is one pinned read per closed issue on
+either, on the sweep cadence.
 
 `workflow:decomposing` and `workflow:umbrella` are swept closed for the same pass, and all four are the one case
 where the label does not choose the handler -- and the one case the `backlog` / `paused` filter does not get to drop,

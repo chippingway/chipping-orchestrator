@@ -8,10 +8,12 @@ before it can raise, the agent identity a resume is locked to, the children a
 split has already created when the next one fails -- with the lineage it
 seeds each of them with, the attempt their receipts name, and the ones it had
 to leave unseeded for its recovery -- and the child labels a parent scan read
-once and several branches then ask about.
+once, and takes again for a child it reads anew under that child's claim,
+that several branches then ask about.
 """
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass, field
 
 from github.Issue import Issue
@@ -98,3 +100,18 @@ class _ChildScan:
         if child is None or issue_is_closed(child):
             return False
         return self.labels.get(number) == WorkflowLabel.BLOCKED
+
+    def adopt(self, current: _ChildScan | None) -> bool:
+        """Take a later reading of some of these children over this one, and say whether there was one."""
+        if current is None:
+            return False
+        self.issues.update(current.issues)
+        self.labels.update(current.labels)
+        return True
+
+    def closed_unended(self, number: int, ended: Collection[str | None]) -> bool:
+        """Whether this scan read the child closed on a label none of `ended` explains."""
+        child = self.issues.get(number)
+        if child is None or not issue_is_closed(child):
+            return False
+        return self.labels.get(number) not in ended

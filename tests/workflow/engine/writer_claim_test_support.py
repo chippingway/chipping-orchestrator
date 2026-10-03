@@ -25,6 +25,15 @@ from tests.workflow.engine.dispatch_scheduler_test_support import (
 from tests.workflow.fixtures import LABEL_BLOCKED, LABEL_DECOMPOSING, LABEL_DONE, LABEL_IMPLEMENTING
 from tests.workflow.observation_support import ObservedCloseCase
 
+# Each way a tick can execute its issues, as (name, `parallel_limit`, whether
+# the scheduler takes the dispatch over): the sequential loop, the bounded
+# in-tick pool, and the scheduler's fan-out submits and family bucket.
+DISPATCH_MODES = (
+    ("sequential", 1, False),
+    ("pool", 2, False),
+    ("scheduler", 4, True),
+)
+
 # What a pass that ran leaves behind, so a pass that did not is visible.
 RAN_COMMENT = "stand-in handler ran"
 
@@ -57,16 +66,22 @@ _HANDLED_LABELS = (LABEL_IMPLEMENTING, LABEL_DECOMPOSING)
 
 
 class StandInHandler:
-    """A stage handler that runs, publishes, and records its run."""
+    """A stage handler that runs, publishes, and records its run.
+
+    `ran_on` keeps the label each run was handed its issue under, which is
+    the label the dispatcher chose the handler by.
+    """
 
     def __init__(self, *failing: int) -> None:
         self.ran: list[int] = []
+        self.ran_on: list[tuple[int, str | None]] = []
         self._failing = frozenset(failing)
         self._lock = threading.Lock()
 
     def __call__(self, gh, spec, issue) -> None:
         with self._lock:
             self.ran.append(int(issue.number))
+            self.ran_on.append((int(issue.number), gh.workflow_label(issue)))
         if issue.number in self._failing:
             raise RuntimeError("the handler failed")
         gh.comment(issue, RAN_COMMENT)
@@ -126,21 +141,29 @@ class WriterClaimDispatchCase(ObservedCloseCase, _SchedulerWorkflowTest):
         relabelled = {entry[0] for entry in self.github.label_history}
         return commented | recorded | relabelled
 
-    def ticked(self, stand_in: StandInHandler, *, limit: int, scheduled: bool) -> None:
+    def ticked(
+        self,
+        stand_in: StandInHandler,
+        *,
+        limit: int,
+        scheduled: bool,
+        labels: tuple[str, ...] = _HANDLED_LABELS,
+    ) -> None:
         """One whole tick, through the dispatch mode the arguments name.
 
-        A scheduled tick is drained before this returns, so what it read back
-        is everything the tick's workers did.
+        `stand_in` answers for the handler of every label in `labels`. A
+        scheduled tick is drained before this returns, so what it read back is
+        everything the tick's workers did.
         """
         scheduler = self._scheduler() if scheduled else None
-        with self._patched(stand_in):
+        with self._patched(stand_in, labels):
             _tick.tick(self.github, self._spec(parallel_limit=limit), scheduler=scheduler)
             if scheduler is not None:
                 self._wait_idle(scheduler)
                 scheduler.shutdown(wait=True)
 
     @contextlib.contextmanager
-    def _patched(self, stand_in: StandInHandler):
+    def _patched(self, stand_in: StandInHandler, labels: tuple[str, ...]):
         """Every collaborator a tick reaches that this case stands in for.
 
         The closed sweep and the dependency walk run on every tick here, so
@@ -155,7 +178,7 @@ class WriterClaimDispatchCase(ObservedCloseCase, _SchedulerWorkflowTest):
             patched.enter_context(patch.object(
                 _recording_events, "record_stage_evaluation", self.evaluated,
             ))
-            for label in _HANDLED_LABELS:
+            for label in labels:
                 owner, name = _stage_targets._STAGE_HANDLER_TARGETS[label]
                 patched.enter_context(patch(f"{owner}.{name}", stand_in))
             yield

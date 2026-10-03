@@ -409,22 +409,24 @@ the in-process scheduler guards (a duplicate active issue, the caps, the family 
 
 - **One writer per issue.** Each dispatched issue is taken under a host-local writer claim: an exclusive `flock` on a
   file in `WORKTREES_DIR/.issue-writer-claims/`, named for the repository's canonical `owner/name` — the name GitHub
-  answers for it, case-folded, never the configured slug — and the issue number. A poller that finds the issue held
-  by another skips it for that tick — no refetch, pinned read, guard, recovery pass, close receipt, or handler, so no
+  answers for it, case-folded, never the configured slug — and the issue number. A poller that finds the issue held by
+  another skips it for that tick — no refetch, pinned read, guard, recovery pass, close receipt, or handler, so no
   label, comment, or pinned write, no agent run, and no usage or evaluation record — and takes the issue up on a later
   tick once the holder is done. A close it read for the issue is kept in its own memory and nowhere else, so a reopen
-  before then cannot take the reading away; a later tick sweeps it under the claim. Different issues never contend.
-  Inside one process the claim is exclusive between threads too, logged as `reason=held_here`, with one exception:
-  the receipt a poll posts for a close it observed is a comment built to land beside that process's own worker, so it
-  is let in alongside one. The skip is logged on `orchestrator.scheduler` as
+  before then cannot take the reading away; a later tick sweeps it under the claim. A poller granted the claim reads the
+  issue again behind it before routing it, so it never resumes a stage another poller advanced the issue past since its
+  poll. Different issues never contend. Inside one process the claim is exclusive between threads too, logged as
+  `reason=held_here`, with one exception: the receipt a poll posts for a close it observed is a comment built to land
+  beside that process's own worker, so it is let in alongside one. The skip is logged on `orchestrator.scheduler` as
   `writer claim skip repo=<owner/name> issue=#<n> reason=held_elsewhere`.
-- **A parent writes a child under the child's claim.** A decomposed parent's handler writes its children too — the
-  walk that relabels a `workflow:blocked` child `workflow:ready`, the seeds that give a child its parent link and
-  ancestry, the finalize of a child whose pull request merged, and the notice that a reclaimed snapshot is gone — and
-  each of those is made under that child's own claim, off what it reads behind it: the release walk reads each child
-  again once claimed, and a seed adds to whatever record the child carries by then. A child another poller holds,
-  or one that poller moved since the walk's scan, is left for a later pass, which parks nothing — an ordinary split
-  creates the rest and leaves the held child's seed and its own finalize to the next tick's recovery. Only a late
+- **A parent writes a child under the child's claim.** A decomposed parent's handler writes its children too — the walk
+  that relabels a `workflow:blocked` child `workflow:ready`, the seeds that give a child its parent link and ancestry,
+  the finalize of a child whose pull request merged, and the notice that a reclaimed snapshot is gone — and each of
+  those is made under that child's own claim, off what it reads behind it: the release walk and a merged child's
+  finalize read each child again once claimed, and a seed adds to whatever record the child carries by then. A child
+  another poller holds is left for a later pass, which parks nothing, and one that poller moved since the walk's scan is
+  judged as it reads now: the release walk starts none of them, and the finalize counts it as it stands. An ordinary
+  split creates the rest and leaves the held child's seed and its own finalize to the next tick's recovery. Only a late
   split's placement of a held child parks the parent, exactly as a seed that could not be written does.
 - **What the namespace assumes.** Every participating poller can read each repository's canonical name from GitHub,
   which is what makes two configured spellings of one repository, or a renamed repository's old and new names, meet

@@ -372,11 +372,11 @@ Two things sit ahead of that table, and both can end a tick before any handler r
 label does **not** choose the handler: a CLOSED issue on `workflow:decomposing`, `workflow:umbrella`,
 `workflow:ready`, or `workflow:blocked` goes to the cleanup sweep (`stages/decomposition/late_sweep.py`) instead of
 the stage its label names, because that stage would spawn the decomposer, activate children, or hand the issue to a
-developer on an issue a human ended — so the close is read first, and on the sequential path an owner on either of
-the two labels an adjudication RUNS under is refetched so neither reading of it is taken from the poll. The other
-two are asked about only while closed, so an open `workflow:ready` issue costs nothing it did not already. It is
-also the one route the `backlog` / `paused` hard skip steps aside for: discarding a closed owner there discards the
-close itself, so the route is taken and the control label defers only the external work behind it. The other is one
+developer on an issue a human ended — so the close is read first, off the issue as every dispatch path reads it
+again under its writer claim, and never off the poll alone. The two recovery labels are routed there only while
+closed, so an open `workflow:ready` issue goes to its own handler as ever. It is also the one route the `backlog` /
+`paused` hard skip steps aside for: discarding a closed owner there discards the close itself, so the route is taken
+and the control label defers only the external work behind it. The other is one
 read of the issue's own pinned comment, which answers nine questions that stop a dispatch outright: a live late
 adjudication the label was moved out from under, a child of a split whose snapshot has since been reclaimed, an
 owner whose cancelled cycle has not reached its ending — which settles the cycle and writes its `rejected`

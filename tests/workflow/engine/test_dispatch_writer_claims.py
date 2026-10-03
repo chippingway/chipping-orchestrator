@@ -19,6 +19,7 @@ from orchestrator.scheduler import writer_claims
 from tests.support.writer_claims import claimable, held_elsewhere, unusable_namespace
 from tests.workflow.engine import cleanup_deferral_support as _deferral
 from tests.workflow.engine.writer_claim_test_support import (
+    DISPATCH_MODES,
     FAMILY_PARENT,
     FREE_ISSUES,
     HELD_CLOSED,
@@ -28,15 +29,6 @@ from tests.workflow.engine.writer_claim_test_support import (
     WriterClaimDispatchCase,
 )
 from tests.workflow.fixtures import LABEL_READY
-
-# Each way a tick can execute its issues, as (name, `parallel_limit`, whether
-# the scheduler takes the dispatch over): the sequential loop, the bounded
-# in-tick pool, and the scheduler's fan-out submits and family bucket.
-_DISPATCH_MODES = (
-    ("sequential", 1, False),
-    ("pool", 2, False),
-    ("scheduler", 4, True),
-)
 
 _ALL_ISSUES = HELD_ISSUES | FREE_ISSUES
 
@@ -48,7 +40,7 @@ _UNUSABLE = "unusable"
 _REFUSED_IN_EVERY_MODE = tuple(
     (refusal, mode)
     for refusal in (_HELD_ELSEWHERE, _UNUSABLE)
-    for mode in _DISPATCH_MODES
+    for mode in DISPATCH_MODES
 )
 
 _KEY_AWAITING_HUMAN = "awaiting_human"
@@ -58,14 +50,14 @@ class ContendedDispatchTest(WriterClaimDispatchCase):
     """A held issue is skipped whole, and retried once it is let go."""
 
     def test_held_issues_are_skipped_then_retried(self) -> None:
-        for mode, limit, scheduled in _DISPATCH_MODES:
+        for mode, limit, scheduled in DISPATCH_MODES:
             with self.subTest(mode=mode):
                 self.seeded()
                 self._ticked_while_held(limit, scheduled=scheduled)
                 self._ticked_once_released(limit, scheduled=scheduled)
 
     def test_a_raising_handler_gives_its_claim_back(self) -> None:
-        for mode, limit, scheduled in _DISPATCH_MODES:
+        for mode, limit, scheduled in DISPATCH_MODES:
             with self.subTest(mode=mode):
                 self.seeded()
 
@@ -114,7 +106,7 @@ class ContendedFamilyWriteTest(WriterClaimDispatchCase):
     """A parent's handler writes a child only under the child's own claim."""
 
     def test_a_held_child_is_released_by_a_later_walk(self) -> None:
-        for mode, limit, scheduled in _DISPATCH_MODES:
+        for mode, limit, scheduled in DISPATCH_MODES:
             with self.subTest(mode=mode):
                 self.seeded_family()
 
@@ -147,7 +139,7 @@ class ContendedCleanupTest(_deferral.DeferralCase, unittest.TestCase):
         self.assertEqual(self._observed(_deferral.REPO_SLUG), self.owed)
 
     def test_a_held_owner_keeps_its_observation(self) -> None:
-        for mode, limit, scheduled in _DISPATCH_MODES:
+        for mode, limit, scheduled in DISPATCH_MODES:
             with self.subTest(mode=mode):
                 comments = list(self.github.posted_comments)
                 record = self.github.pinned_data(_deferral.OWNER_NUMBER)

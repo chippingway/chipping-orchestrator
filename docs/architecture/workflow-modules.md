@@ -254,14 +254,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             dispatch, hold publication through the handler, and record timed evaluation analytics on
                             success and failure
     dispatch_workers.py    take the writer claim at each worker entry, outside the observation scope it wraps, then
-                            refetch through each worker's GitHub client and optional semaphore, preserving ordinary
-                            and cleanup observation scopes across sequential, scheduler, and pool execution
+                            refetch through each worker's GitHub client and optional semaphore, and refetch the
+                            sequential loop's claimed issue on its own client, preserving ordinary and cleanup
+                            observation scopes across sequential, scheduler, and pool execution
     scheduled_dispatch.py  drain the family bucket under active tracking, enforce capacity rules, and submit fanout
                             with claims released after execution or refusal; observed closes remain cap-exempt
     dispatch.py            drive the sequential poll's closure classification under the issue's writer claim --
-                            a contender keeping only a closed reading's latch -- or submit its partition to the
-                            scheduler; refetched owners and still-owed closes keep the processing scope their
-                            reading earned
+                            a contender keeping only a closed reading's latch -- refetching every issue it routes
+                            under that claim, or submit its partition to the scheduler; refetched issues and
+                            still-owed closes keep the processing scope their reading earned
     observation_state.py    the process-local close, receipt, scan, retirement, publication, and deferred-settlement
                             registries behind one lock; settlement advances the owner generation and clears its latch
                             and receipt memo atomically
@@ -1590,10 +1591,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             another poller holds stops the recovery, unparked, for the next tick
       parents.py            the fresh child scan -- fresh as of its read, which another poller can outlive -- the
                             rejected and manually-closed parks it earns -- published apart from the scan, since one
-                            caller settles its ledger on the way out of them, and a closed child's merge finalize
-                            taken under that child's writer claim, a held one counted neither done nor closed by hand
-                            -- and the parent's own drift reroute, which first writes the children it drops onto the
-                            ledger
+                            caller settles its ledger on the way out of them, and a closed child's merge finalize taken
+                            under that child's writer claim off the child read again behind it, a held one counted
+                            neither done nor closed by hand -- and the parent's own drift reroute, which first writes
+                            the children it drops onto the ledger
       activation.py         the dep-graph walk that releases the next children, the child it passes over because GitHub
                             reports it closed or the scan holds no issue for it, the latch asked before EVERY relabel --
                             a relabel is a request, so a close observed after the first child was released may not
@@ -2070,7 +2071,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       models.py             the run plan and its worktree policy, the locked session, the split plan -- with the
                             lineage it seeds, the attempt its receipts name, the whole declared dependency graph, and
                             the children it left unseeded for its recovery -- and the child scan, with the one
-                            reading a release walk starts a child from: open and `blocked`
+                            reading a release walk starts a child from: open and `blocked`, the closed-unended reading
+                            a merge finalize is asked about, and the later reading of a child it adopts
       state.py              the pinned-state field names the owners share, `split_attempt` among them, the
                             held-child alias, the strict parent-link check, and the issue-reference renderer
     discussion/             `discussion`

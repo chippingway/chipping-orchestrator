@@ -75,12 +75,13 @@ def _run_sequential_tick(
     the rest.
 
     Handed to `_process_polled_issue` rather than straight to `_process_issue`,
-    because the object this loop holds is the enumeration's own reading and one
-    route may not be taken on a stale one: the cleanup sweep settles a closed
-    owner's ledger, and an owner reopened after this tick listed it has to be
-    seen as reopened. The other two paths get that from the refetch their
-    worker hand-off already makes; this one has no hand-off, so it takes the
-    same classification and the same fresh read itself.
+    because the object this loop holds is the enumeration's own reading and no
+    route may be taken on it: another poller on this host can advance the
+    issue before this one holds its writer claim, and an owner reopened after
+    this tick listed it has to be seen as reopened. The other two paths get
+    that from the refetch their worker hand-off already makes; this one has no
+    hand-off, so it takes the same classification and the same fresh read
+    itself.
     """
     yielded: set[int] = set()
     for issue in gh.list_pollable_issues():

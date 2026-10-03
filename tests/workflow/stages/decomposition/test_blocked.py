@@ -162,13 +162,11 @@ class HandleBlockedResolutionTest(unittest.TestCase, _PatchedWorkflowMixin):
 
     def test_manually_closed_child_parks_parent(self) -> None:
         # A child closed manually (e.g. via the GitHub UI) before
-        # reaching `in_review` is invisible to `list_pollable_issues`
-        # (which only sweeps closed issues for `in_review`). Its
-        # workflow label stays frozen, so without this branch the
-        # parent reads the stale label, neither the rejected nor the
-        # all-done branch fires, and the parent waits forever for a
-        # child that is gone. Park it for human adjudication, exactly
-        # like a rejected child.
+        # reaching `in_review` keeps the label it was closed on, and no
+        # merge explains the close. Without this branch the parent
+        # reads that label, neither the rejected nor the all-done
+        # branch fires, and the parent waits on a child that is gone.
+        # Park it for human adjudication, exactly like a rejected child.
         gh = FakeGitHubClient()
         parent = make_issue(MANUALLY_CLOSED_PARENT_NUMBER, label=LABEL_BLOCKED)
         gh.add_issue(parent)
@@ -266,7 +264,7 @@ class HandleBlockedResolutionTest(unittest.TestCase, _PatchedWorkflowMixin):
     def test_manual_closed_unlabeled_child_parks(self) -> None:
         # Defensive corner: a child with no workflow label at all
         # (e.g. a label was manually stripped before the issue was
-        # closed) is also invisible to the closed-in_review sweep.
+        # closed) is also one no closed-issue sweep query reaches.
         # The "manually closed" branch must catch it -- otherwise the
         # parent would still wait forever.
         gh = FakeGitHubClient()

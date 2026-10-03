@@ -2,8 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import copy
 import unittest
+from unittest.mock import patch
 
+from orchestrator.workflow.engine import terminals as _terminals
 from orchestrator.workflow.stages.decomposition import blocked as _blocked, umbrella as _umbrella
 from tests.support.fakes import (
     FakeGitHubClient,
@@ -68,6 +71,32 @@ def _blocked_on_a_merged_child() -> tuple[FakeGitHubClient, FakeIssue]:
     )
     gh.seed_state(BLOCKED_PARENT_NUMBER, children=[BLOCKED_MERGED_CHILD_NUMBER])
     return gh, parent
+
+
+class _FinalizedOnceScanned:
+    """The parent scans the child, then another poller finalizes it and lets go.
+
+    A read of GitHub answers a snapshot, so the scan keeps the `validating`
+    it read while the other poller's finalize lands on the issue itself --
+    the window between the parent's scan and its claim on the child.
+    """
+
+    def __init__(self, gh: FakeGitHubClient, child_number: int) -> None:
+        self._gh = gh
+        self._read = gh.get_issue
+        self._child_number = child_number
+        self._scanned = False
+
+    def __call__(self, number: int) -> FakeIssue:
+        """Answer the read; the first of the child's is the scan's, and the finalize lands behind it."""
+        issue = self._read(number)
+        if int(number) != self._child_number or self._scanned:
+            return issue
+        self._scanned = True
+        scanned = copy.copy(issue)
+        with held_elsewhere(self._gh.repo_slug, self._child_number):
+            _terminals._finalize_if_pr_merged(self._gh, _TEST_SPEC, issue, self._gh.read_pinned_state(issue))
+        return scanned
 
 
 class ChildMergedPrAutoFinalizeTest(unittest.TestCase, _PatchedWorkflowMixin):
@@ -177,6 +206,21 @@ class ChildMergedPrAutoFinalizeTest(unittest.TestCase, _PatchedWorkflowMixin):
 
         self.assertIn((BLOCKED_MERGED_CHILD_NUMBER, LABEL_DONE), gh.label_history)
         self.assertIn((BLOCKED_PARENT_NUMBER, "workflow:ready"), gh.label_history)
+
+    def test_a_finalize_since_the_scan_is_not_redone(self) -> None:
+        # The claim the parent takes is granted, because the other poller let
+        # go -- but the scan it decided on predates that poller's finalize, so
+        # finalizing off the scan would merge the child a second time.
+        gh, parent = _blocked_on_a_merged_child()
+
+        with patch.object(gh, "get_issue", _FinalizedOnceScanned(gh, BLOCKED_MERGED_CHILD_NUMBER)):
+            self._run(lambda: _blocked._handle_blocked(gh, _TEST_SPEC, parent), run_agent=_agent())
+
+        merged = [event for event in gh.recorded_events if event["event"] == "pr_merged"]
+        self.assertEqual(len(merged), 1, "the child is merged once, by the poller that finalized it")
+        self.assertEqual(gh.label_history.count((BLOCKED_MERGED_CHILD_NUMBER, LABEL_DONE)), 1)
+        self.assertIn((BLOCKED_PARENT_NUMBER, "workflow:ready"), gh.label_history, "the parent reads it done")
+        self.assertFalse(gh.pinned_data(BLOCKED_PARENT_NUMBER).get("awaiting_human"), "nor parks over it")
 
     def test_unmerged_child_pr_keeps_parent_parked(self) -> None:
         # Regression guard: when the child PR is closed-without-merge,
