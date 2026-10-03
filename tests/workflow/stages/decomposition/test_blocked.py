@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.stages.decomposition import blocked as _blocked
+from orchestrator.workflow.stages.decomposition import (
+    activation as _activation,
+    blocked as _blocked,
+    parents as _parents,
+)
 from tests.support.fakes import (
     FakeGitHubClient,
     FakeIssue,
     make_issue,
 )
+from tests.support.writer_claims import held_elsewhere
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     _agent,
@@ -32,6 +37,7 @@ REJECTED_CHILD_PARENT_NUMBER = 32
 DEPENDENCY_PARENT_NUMBER = 33
 HELD_DEPENDENCY_PARENT_NUMBER = 34
 NO_HELD_CHILDREN_PARENT_NUMBER = 35
+MOVED_CHILD_PARENT_NUMBER = 37
 MANUALLY_CLOSED_PARENT_NUMBER = 40
 MANUALLY_CLOSED_DONE_CHILD_NUMBER = 401
 MANUALLY_CLOSED_CHILD_NUMBER = 402
@@ -342,6 +348,31 @@ class HandleBlockedDependencyTest(unittest.TestCase, _PatchedWorkflowMixin):
             (children[1].number, LABEL_READY),
             gh.label_history,
         )
+
+    def test_a_child_finished_after_its_scan_stays(self) -> None:
+        # The walk chooses its children off a scan read before it takes any
+        # child's writer claim, and another poller on this host can finish a
+        # child in that window. Read again under the claim, a child no longer
+        # open and `blocked` is not put back to `ready`, and it holds its
+        # siblings for this walk without parking anything; the next walk
+        # scans again and releases the rest.
+        gh, parent, (finished, waiting) = _seed_parent_with_children(
+            parent_number=MOVED_CHILD_PARENT_NUMBER,
+            child_labels=[LABEL_BLOCKED, LABEL_BLOCKED],
+        )
+        scan = _parents._read_child_labels(gh, parent, [finished.number, waiting.number])
+        with held_elsewhere(gh.repo_slug, finished.number):
+            gh.add_issue(make_issue(finished.number, label=LABEL_DONE, closed=True))
+
+        _activation._activate_ready_children(gh, _TEST_SPEC, parent, gh.read_pinned_state(parent), scan)
+
+        self.assertEqual(gh.label_history, [], "nothing is released off the stale scan")
+        self.assertEqual(gh.workflow_label(gh.get_issue(finished.number)), LABEL_DONE)
+        self.assertFalse(gh.pinned_data(MOVED_CHILD_PARENT_NUMBER).get(KEY_AWAITING_HUMAN))
+
+        _run_dependency(self, gh, parent)
+
+        self.assertEqual(gh.label_history, [(waiting.number, LABEL_READY)])
 
     def test_no_held_children_emits_no_log(self) -> None:
         # When every child is either done or already running (none still

@@ -255,8 +255,9 @@ self-exit and be restarted with new code.
   for the issue — the worker's refetch, the pinned-state guards, the close recovery wrapped around the pass, and the
   handler — and the enumeration takes it for the close receipt it posts, so two pollers sharing a checkout root never
   write one issue's pinned comment and labels at once. A family handler's writes to a child take the child's claim
-  the same way. It is never waited for: a contender skips the issue with no effect but a close it read, which it keeps
-  in its own latch, and retries on a later tick; different issues never contend. Inside one process it is exclusive
+  the same way, and the walk that releases children reads each again behind it rather than trusting its scan. It is
+  never waited for: a contender skips the issue with no effect but a close it read, which it keeps in its own latch,
+  and retries on a later tick; different issues never contend. Inside one process it is exclusive
   between threads too, except that a close receipt is let in alongside this process's own worker, which it was built
   to land beside. A claim that cannot be worked at all — an unopenable namespace, a filesystem without `flock` —
   withholds the issue too, where the presence above lets a poller go on unclaimed: a tidying job can be given up, an

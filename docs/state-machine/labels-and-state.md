@@ -268,7 +268,9 @@ The dispatch loop classifies each pollable issue by workflow label before submit
 
 - **Family-aware labels** (`workflow:decomposing`, `workflow:blocked`, `workflow:umbrella`, unlabeled pickup) read and
   write cross-issue state (parent ↔ child). They are folded into one bucket per repo that drains sequentially on a
-  single worker thread, so parent / child handlers cannot race. A bucket whose every label is in
+  single worker thread, so parent / child handlers in one process cannot race; another poller on the host is kept off
+  them only by the writer claims below, which is why a parent's write to a child reads the child again under the
+  child's claim rather than trusting its scan. A bucket whose every label is in
   `_CAP_EXEMPT_FAMILY_LABELS` (`workflow:blocked` or `workflow:umbrella` — pure label / dep-graph walks) runs on a
   dedicated executor and does not consume a `MAX_PARALLEL_ISSUES_*` slot, so a blocked parent waiting on children
   cannot deadlock those children. A **closed** issue on a cleanup-swept label is not in this bucket at all: its
@@ -314,14 +316,22 @@ was live and otherwise just settles the latch. A claim that cannot be worked wit
 than dispatching it uncoordinated. The scheduler's own gates still run first and are unchanged: duplicate-active, the
 caps, the family slot, and the refused-submit observation hold.
 
-A family-aware handler writes issues other than its own, so those writes take the target's claim as well: the walk
-that relabels a `workflow:blocked` child `workflow:ready` claims every child it would release before vouching for the
-first and releases none if one is held; recovery's orphan repair stops short of a held child without parking; a merged
-child's finalize leaves a held child as scanned, counted neither done nor closed by hand; and the snapshot-reclaimed
-notice leaves a held consumer's obligation owed. Only the seed of a child a split is creating or placing parks the
-parent when the child is held, as a seed that could not be written does — `child_seed_failed` for an ordinary split,
-`late_children_failed` for a late one. The base refresh does not take the claim yet. The supported topology and the
-namespace's access assumptions are in
+A family-aware handler writes issues other than its own, so those writes take the target's claim as well, and decide
+on what they read behind it. The walk that relabels a `workflow:blocked` child `workflow:ready` claims every child it
+would release, then reads each again — its scan was taken before any claim, and another poller may have relabelled,
+finished, or closed one in between — and releases none if one is held, cannot be read, or no longer reads open and
+`workflow:blocked`, parking nothing; the next walk scans again. Recovery's orphan repair stops short of a held child
+without parking; a merged child's finalize leaves a held child as scanned, counted neither done nor closed by hand; and
+the snapshot-reclaimed notice leaves a held consumer's obligation owed. An ordinary split's seed is read and added to
+under the child's claim, never written as a fresh record: a poller that reached the child first may have held it for
+the seed it lacks, parked on the one pinned comment every reader takes, and the seed lifts that park in the same write.
+A child that poller still holds is left unseeded while the split creates the rest, and the split stops short of its
+summary and finalize, leaving the parent `workflow:decomposing` with every child recorded — exactly what the
+[half-finished recovery](delivery-stages.md#_handle_decomposing-label-workflowdecomposing) seeds under the claim and
+finalizes on a later tick, with no human. Only a seed write that fails parks (`child_seed_failed`), and only a late
+split's placement parks on a held child, as its failed seed does (`late_children_failed`), for the next attempt to
+supersede. The base refresh does not take the claim yet. The supported topology and the namespace's access assumptions
+are in
 [`../configuration/operations.md#running-more-than-one-poller`](../configuration/operations.md#running-more-than-one-poller).
 
 Only issue numbers cross the thread boundary — each scheduler worker mints a fresh `GitHubClient` via
@@ -618,8 +628,9 @@ The keys that matter for the state machine fall into a few groups:
   another place in the lineage, any group on a child owed none, or a pointer at a snapshot other than the one that
   split preserved, or half of one — is held by the dispatcher ahead of every handler but `done`'s and `rejected`'s,
   and ahead of the step aside a live adjudication of its own takes, parked (the `park_awaiting_human` record's reason
-  `replacement_lineage_unproved`) once, then silently, until its parent's recovery writes that seed and lifts the park
-  in the same write, or a human does both by hand; one whose pinned comment will not parse is held with nothing
+  `replacement_lineage_unproved`) once, then silently, until its split or its parent's recovery writes that seed onto
+  that record and lifts the park in the same write, or a human does both by hand; one whose pinned comment will not
+  parse is held with nothing
   written. A restart an operator authorizes on such a child keeps the seed. A pointer is the one part a seed may lack,
   since the child's own reuse guard drops the ref and its commit together once its ref is gone.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
@@ -3463,8 +3474,8 @@ rather than preserving.
   `late_ancestry_mirror_first` only while this split still holds the ref and records the child on `late_consumers`,
   dropped together once the ref has passed to a reclamation, a stamp standing alone left as it is — and refuses one
   carrying any other group, with nothing written over it. And a child whose seed no longer matches the receipt in its
-  body is held at dispatch, parked `replacement_lineage_unproved` once, until a recovery or a human writes the seed;
-  the recovery lifts that park in the same write, and a restart keeps the seed whole.
+  body is held at dispatch, parked `replacement_lineage_unproved` once, until the split, a recovery, or a human writes
+  the seed; the split and the recovery lift that park in the same write, and a restart keeps the seed whole.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,

@@ -503,7 +503,8 @@ because there it is the claim that this stage has already rerouted rather than a
      made on a read that established nothing spends an attempt no human asked for.
   2. **User-content drift check** (inline) — see drift section above.
   3. **Half-finished decomposition recovery.** If `expected_children_count` is set OR `children` is non-empty (a prior
-     tick crashed mid-split), the handler cannot safely respawn the decomposer. When `expected_children_count` is set
+     tick crashed mid-split, or left a child another poller held unseeded), the handler cannot safely respawn the
+     decomposer. When `expected_children_count` is set
      and `len(children) < expected_children_count`, look for the one child a crash between a create and the write
      recording it can leave behind: an issue this orchestrator opened whose body carries the receipt naming this
      parent, its `split_attempt`, and the next slice, every issue walked to find it. The only one carrying it, found
@@ -585,7 +586,11 @@ because there it is the claim that this stage has already rerouted rather than a
        `<owed>` the late lineage it is seeded with, or `none` — after its declared slice, record it in `children` —
        and in the same write on `late_consumers`, where the parent's own split holds the snapshot it will be pointed
        at — and seed the child's pinned state with `parent_number`, `created_at`, and that lineage, never the
-       parent's measurement, exemption, or authorization. A child owed that snapshot is created with the reuse
+       parent's measurement, exemption, or authorization. The seed is made under the child's writer claim and added
+       to the record the child carries by then, lifting the `replacement_lineage_unproved` hold another poller on the
+       host may have parked there first; a child that poller still holds is left unseeded while the rest are
+       created, and the split then publishes no summary and no label, leaving step 3 to seed it under the claim and
+       finalize on a later tick. A child owed that snapshot is created with the reuse
        instructions a late split's own children carry appended after its receipt — the ref, its local mirror, the
        commit, the base it was cut against, and how to read and reuse it — since the body is what its implementer
        reads; activate no-dep children through the dependency walk `_handle_blocked` / `_handle_umbrella` run — over
@@ -1214,7 +1219,7 @@ because there it is the claim that this stage has already rerouted rather than a
   half of one. It parks `replacement_lineage_unproved` once and returns before the handler; a park already standing
   holds it silently, and a reply is no seed. A pinned comment that will not parse is held with nothing written, since
   the park's own write would replace whatever it carries.
-- **Runs**: a child whose seed is whole — written by the split, by its parent's recovery, which clears
+- **Runs**: a child whose seed is whole — written by the split or by its parent's recovery, either of which clears
   `awaiting_human` in the same write, or by hand — and one whose pointer its own reuse guard dropped, ref and commit
   together, after its ref was released. A restart an operator authorizes on the child's own cancelled cycle keeps the
   seed, so the restarted child runs on its next dispatch.

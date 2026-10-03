@@ -51,8 +51,10 @@ A child another poller on this host is writing is held the same way, and for
 the same reason: nothing is wrong with it. Every child a walk would release is
 taken under its own writer claim (`child_claims`) before the first is vouched
 for, since vouching reads the child's record and the release writes its label,
-and one refused claim releases none of them, as one lapse does -- without the
-park, because the next walk asks again.
+and each is read again under it, since the scan the walk chose them from was
+read before any claim was taken. One refused claim, or one child no longer
+open and `blocked` by then, releases none of them, as one lapse does --
+without the park, because the next walk scans again.
 """
 from __future__ import annotations
 
@@ -63,7 +65,6 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import observations as _observations
 from orchestrator.workflow.late_split import state as _late_state
@@ -224,21 +225,18 @@ class _ChildActivation:
             return False
         return not self.parent_is_gone()
 
-    def consider(self, idx: int, child_number) -> tuple[Issue, int] | None:
+    def consider(self, idx: int, child_number) -> int | None:
         """The child at this index where its dependencies are done, or None; one still waiting is held."""
         number = int(child_number)
-        child = self.scan.issues.get(number)
-        if self.scan.labels.get(number) != WorkflowLabel.BLOCKED:
-            return None
-        if child is None or issue_is_closed(child):
+        if not self.scan.waiting(number):
             return None
         pending = _pending_dependencies(self.state, self.scan, idx)
         if pending:
             self.held.append((number, pending))
             return None
-        return child, number
+        return number
 
-    def release(self, releasable: list[tuple[Issue, int]]) -> None:
+    def release(self, releasable: list[int]) -> None:
         """Relabel each child `ready`, once every one of them is vouched for.
 
         Every child this walk would release is held to its split's lineage
@@ -252,20 +250,26 @@ class _ChildActivation:
         and held until the walk ends: the lineage is read off the child's own
         record and the relabel is a write to it, and a child another poller
         on this host is writing is one this walk can neither vouch for nor
-        start. So a refused claim releases none of them, as a lapse does, and
-        parks nothing, since it is not one -- the next walk asks again.
+        start. Each is then read again under its claim, and vouched for and
+        relabelled off that reading: the scan this walk chose them from was
+        read before any claim was taken, and in between that poller may have
+        relabelled, finished, or closed one of them -- a window the claim
+        closes only for a reading taken behind it. So a refused claim, a read
+        that fails, or a child no longer open and `blocked` releases none of
+        them, as a lapse does, and parks nothing, since none is one -- the
+        next walk scans again.
         """
-        numbers = [number for _, number in releasable]
-        with _child_claims.held_children(self.gh, self.owner.number, numbers) as claimed:
-            if not claimed:
-                self.held.extend((number, []) for number in numbers)
+        with _child_claims.held_children(self.gh, self.owner.number, releasable) as claimed:
+            current = _parents._read_child_labels(self.gh, self.owner, releasable) if claimed else None
+            if current is None or not all(map(current.waiting, releasable)):
+                self.held.extend((number, []) for number in releasable)
                 return
-            if any(self.entitlement_lapsed(child, number) for child, number in releasable):
-                self.held.extend((number, []) for number in numbers)
+            if any(self.entitlement_lapsed(current.issues[number], number) for number in releasable):
+                self.held.extend((number, []) for number in releasable)
                 return
-            for child, number in releasable:
+            for number in releasable:
                 if self.may_release():
-                    self.gh.set_workflow_label(child, WorkflowLabel.READY)
+                    self.gh.set_workflow_label(current.issues[number], WorkflowLabel.READY)
                     self.relabeled = True
                 else:
                     self.held.append((number, []))
@@ -309,8 +313,8 @@ def _activate_ready_children(
     the first child was released may not release the second. A pull request a
     split superseded these children out from under is asked about in the same
     place and stops the walk the same way. Every child it would release is
-    held to its split's lineage first, and a lapse in any one releases none
-    of them.
+    claimed, read again, and held to its split's lineage first, and a lapse
+    in any one releases none of them.
     """
     activation = _ChildActivation.start(gh, spec, issue, state, scan)
     if activation.refusal is None:

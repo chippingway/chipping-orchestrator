@@ -1564,16 +1564,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
                             a pointer -- in one write before it is seeded, under the child's own writer claim, with
                             its parent link, creation stamp, and that lineage, never with the parent's measurement,
-                            exemption, or authorization, and either failure -- a refused claim among them -- parks the
-                            parent for repair
+                            exemption, or authorization, added to the record the child carries by then and lifting the
+                            park its missing seed earned -- the seed completion recovery's repair writes too; a child
+                            another poller holds is left unseeded on the plan for the recovery, and a failed create
+                            or seed write parks the parent for repair
       split.py              decide the children's lineage and park an unprovable one before any marker -- or a slice
                             naming a snapshot ref its child would not be kept -- stamp each child's receipt and
                             append the snapshot's reuse instructions to the body of each child owed it, then persist
                             the expected count, the umbrella flag, the attempt, and the whole dependency graph in one
                             write, create the planned children, and publish the summary and parent label before
-                            activating children without dependencies through `activation.py`'s walk
-      recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the adoption of a
-                            child created and never recorded through `split_receipts.py`, the orphan-child repair -- the
+                            activating children without dependencies through `activation.py`'s walk -- or, where a
+                            child was left unseeded because another poller held it, publish neither and leave the
+                            parent `decomposing` for `recovery.py` to seed it and finalize
+      recovery.py           what a tick that died mid-split -- or a split that met a held child -- left behind: the
+                            stale-manifest markers, the adoption of a child created and never recorded through
+                            `split_receipts.py`, the orphan-child repair -- the
                             parent link and the owed lineage, asked of the parent's record again, a lost consumer slot
                             restored ahead of its seed, the park the missing seed earned lifted in the write that
                             seeds it, and parked rather than finalized where it no longer proves one or a child is not
@@ -1583,11 +1588,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             those markers instead -- a human the issue is parked awaiting, and the late transaction
                             while its generation is live; each child is repaired under its own writer claim, and one
                             another poller holds stops the recovery, unparked, for the next tick
-      parents.py            the fresh child scan, the rejected and manually-closed parks it earns -- published
-                            apart from the scan, since one caller settles its ledger on the way out of them, and a
-                            closed child's merge finalize taken under that child's writer claim, a held one counted
-                            neither done nor closed by hand -- and the parent's own drift reroute, which first writes
-                            the children it drops onto the ledger
+      parents.py            the fresh child scan -- fresh as of its read, which another poller can outlive -- the
+                            rejected and manually-closed parks it earns -- published apart from the scan, since one
+                            caller settles its ledger on the way out of them, and a closed child's merge finalize
+                            taken under that child's writer claim, a held one counted neither done nor closed by hand
+                            -- and the parent's own drift reroute, which first writes the children it drops onto the
+                            ledger
       activation.py         the dep-graph walk that releases the next children, the child it passes over because GitHub
                             reports it closed or the scan holds no issue for it, the latch asked before EVERY relabel --
                             a relabel is a request, so a close observed after the first child was released may not
@@ -1602,9 +1608,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             for its slot -- parking the parent, once, rather
                             than releasing any child under a record that changed; the same walk, over the same fresh
                             child scan and behind the same rejected and manually-closed parks, the split's own
-                            same-tick release runs; every child it would release claimed for writing before the first
-                            is vouched for, one held by another poller releasing none and parking nothing; and the
-                            held-dependency line it logs
+                            same-tick release runs; every child it would release claimed for writing and read again
+                            before the first is vouched for, and vouched for and relabelled off that reading -- one
+                            held by another poller, unreadable, or no longer open and `blocked` releasing none and
+                            parking nothing; and the held-dependency line it logs
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
                             consumed-comment ratchet; a parent whose children all resolved settles what a late split
                             still owes the remote before it goes back to its own work, and waits on `blocked` while a
@@ -2061,8 +2068,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading
       late_models.py        mutable tick context, tri-state owner readings, held pull requests, and staged park values
       models.py             the run plan and its worktree policy, the locked session, the split plan -- with the
-                            lineage it seeds, the attempt its receipts name, and the whole declared dependency graph
-                            -- and the child scan
+                            lineage it seeds, the attempt its receipts name, the whole declared dependency graph, and
+                            the children it left unseeded for its recovery -- and the child scan, with the one
+                            reading a release walk starts a child from: open and `blocked`
       state.py              the pinned-state field names the owners share, `split_attempt` among them, the
                             held-child alias, the strict parent-link check, and the issue-reference renderer
     discussion/             `discussion`

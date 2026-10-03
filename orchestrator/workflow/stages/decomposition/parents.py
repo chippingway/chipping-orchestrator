@@ -90,10 +90,13 @@ def _read_child_labels(
 
     Returns a child scan with issues and labels keyed by child number, or
     None if any child read raised (the caller returns and the walk retries
-    on its next dependency poll). Labels are read fresh here: the
-    family-aware bucket (see `dispatch._FAMILY_AWARE_LABELS`) serializes
-    decomposing / blocked / umbrella within a tick, so a child's own label
-    flip cannot race this read.
+    on its next dependency poll). Labels are read fresh here, and fresh is
+    all they are: the family-aware bucket (see
+    `dispatch._FAMILY_AWARE_LABELS`) serializes decomposing / blocked /
+    umbrella within one process's tick, but another poller on this host
+    can move a child the moment this read returns. So a write to a child is
+    never decided on this reading alone -- the release walk reads the child
+    again under the child's own writer claim before relabelling it.
     """
     child_labels: dict[int, str | None] = {}
     child_issues: dict[int, Issue] = {}

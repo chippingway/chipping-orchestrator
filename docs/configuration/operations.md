@@ -421,9 +421,11 @@ the in-process scheduler guards (a duplicate active issue, the caps, the family 
 - **A parent writes a child under the child's claim.** A decomposed parent's handler writes its children too — the
   walk that relabels a `workflow:blocked` child `workflow:ready`, the seeds that give a child its parent link and
   ancestry, the finalize of a child whose pull request merged, and the notice that a reclaimed snapshot is gone — and
-  each of those is made under that child's own claim. A child another poller holds is left for a later walk, which
-  parks nothing; only a split's seed of a child it is creating or placing parks the parent, exactly as a seed that
-  could not be written does.
+  each of those is made under that child's own claim, off what it reads behind it: the release walk reads each child
+  again once claimed, and a seed adds to whatever record the child carries by then. A child another poller holds,
+  or one that poller moved since the walk's scan, is left for a later pass, which parks nothing — an ordinary split
+  creates the rest and leaves the held child's seed and its own finalize to the next tick's recovery. Only a late
+  split's placement of a held child parks the parent, exactly as a seed that could not be written does.
 - **What the namespace assumes.** Every participating poller can read each repository's canonical name from GitHub,
   which is what makes two configured spellings of one repository, or a renamed repository's old and new names, meet
   on one key. They run as a user that can create and open files in that directory, and see it on a local filesystem
