@@ -361,7 +361,24 @@ orchestrator/
                         delimits it, a transcript carrying the fence that closes it, and either carrying a
                         receipt marker of ours are refused where they are declared, which is the only place they
                         can still be told apart from a rendering. No command at all renders as an explicit
-                        absence, since a section that simply listed nothing would read as a run that passed
+                        absence, since a section that simply listed nothing would read as a run that passed. The
+                        content revision is taken here too, over that rendering, so every presentation of the
+                        commands names them by one revision
+    verification_payloads.py
+                        the versioned codec for an artifact's hidden evidence: every command, the status it
+                        exited, and its whole transcript, in order and with repeats, spelled as one JSON object
+                        that can sit inside an HTML comment, beside the content revision `verification_evidence`
+                        takes over the rendered section -- never one taken over the payload, so evidence keeps
+                        the revision it was settled under however an artifact presents it. JSON escapes every
+                        character past printable ASCII, and both angle brackets are escaped in the serialized
+                        text, so the payload is one line that cannot end its comment early, render a
+                        transcript's tail as visible content, or open a receipt marker of ours. Decoding answers
+                        rather than raises, since it is asked of text on a thread anybody can post to: a payload
+                        is evidence only when it is the one spelling written for the commands it decodes to,
+                        each read through the evidence model's own constructor, so a malformed payload, another
+                        version, a member of the wrong type or shape, a command the model refuses, or a revision
+                        the commands do not hash to all read as none. It owns the payload text alone; the
+                        comment around it and where it sits in a body are the artifact format's
   agents/               publishes the run/result models, runner entry point, and process shutdown hook
     models.py           the agent result and unfinished-step diagnostics, run-option, and subprocess-result models
     environment.py      credential filtering and the injected git identity

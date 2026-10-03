@@ -41,6 +41,7 @@ _MODULES = (
     "orchestrator.github.reviews",
     "orchestrator.github.verification_artifacts",
     "orchestrator.github.verification_evidence",
+    "orchestrator.github.verification_payloads",
 )
 
 # Owner-only names the facade must not resolve: the domain surfaces each have an
