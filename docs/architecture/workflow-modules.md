@@ -156,6 +156,48 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reader would accept. Shape is settled before truth: a well-formed declaration naming
                             another commit, or any revision but the current one, is stale. Nothing is counted or
                             inferred from what the reviewer wrote
+    review_findings.py      a reviewer's findings as a human is shown them: the body above its `VERDICT:` line with
+                            every line opening on `VERIFICATION:`, `COMMAND:`, or `EXIT:` dropped, and with them the
+                            output of each check shown to pass -- one exit line, and that line reading 0 -- and each
+                            check that wrote neither an exit status nor output, a bare command inventory. Any other
+                            check, its exit line missing, blank, repeated, or reading anything else, stays as a
+                            sentence naming its command and how it ended, over the output the reviewer quoted as a
+                            code block. Read apart from the declaration reader and more loosely, since it accepts
+                            nothing: a step line outside any block opens one, and a block its RUN line did not open,
+                            or that no closing line ends, holds only the unbroken lines below each step line and the
+                            code fences below them, so the findings written below it stay. A fence is read whole, from
+                            where Markdown opens it to where Markdown ends it, as `review_findings_fences` reads them
+                            rather than as the declaration readers' stricter fence reading does, so a fenced transcript
+                            goes, or stays as a diagnostic, in one piece, and a finding below where the fence ends stays
+                            a finding; indented code reads as a fence with no fence lines. Below a check's command or
+                            exit line, a fence holding protocol lines is that check's output, even one holding nothing
+                            else, so the diagnostic a failing test prints below a fixture of bare step lines stays the
+                            check's; elsewhere one holding protocol lines beside other text is the findings quoting such
+                            output. Either way every protocol line in it, marker lines too, is hidden and decides
+                            nothing, and a quote holding no text goes whole rather than show as an empty fence. Below a
+                            check that passed or wrote neither an exit status nor output, whose output goes, the fence
+                            may as well list the block's next checks, so each step it quotes is read as a check of its
+                            own and one not shown passing stays. A fence wraps a declaration instead right below a RUN
+                            line, only blank lines between; outside a check's output, where it holds nothing but
+                            protocol; or where the findings declare nothing outside fences and it holds one whole
+                            declaration, a RUN line through the closing line or a lone marker line: its fence lines go
+                            while what it held stays with its check. What is shown declares nothing and formats to
+                            itself, and findings with nothing left read as a sentence saying so rather than as the raw
+                            message
+    review_findings_fences.py
+                            where the code of a reviewer's findings -- fences and indented code -- opens and ends as
+                            Markdown renders it, for `review_findings`: a fence opens on a run at most three spaces
+                            in from the content column of the list item holding its line, column 0 outside any list,
+                            and closes on the first bare run of its character at least as long at most three spaces
+                            in from that same column, however far in its opening run sat. A non-blank line set in
+                            less than the column ends the item and the fence with it, before that line, and a fence
+                            neither closes nor ends runs to the end. Indented code opens on a line four spaces or
+                            more past the column where no paragraph goes on, and holds every line so set up to its
+                            last non-blank one. List items are tracked line by line, without a Markdown parser: a
+                            thematic break such as `* * *` is read before a list marker and opens no item; only a
+                            bullet or a marker numbered 1, with content after it, interrupts a paragraph; and a
+                            less indented line continuing a paragraph lazily, opening no block that would interrupt
+                            it, keeps every item open, as Markdown does
     stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call
                             (the settled-report reader the verification-evidence proof reuses among them);
                             the unlabeled target reaches pickup through the same resolver. Named here too, though
