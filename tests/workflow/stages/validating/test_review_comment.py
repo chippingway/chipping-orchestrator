@@ -16,7 +16,9 @@ comment replaced or gone -- whatever records it carries, since the tick's write
 names the comment it read. Records are compared as the comment spells them, so
 one written `null` where there was none, or a revision spelled `true` where it
 was `1`, is a move. A persisted verdict's recheck watches the verdict and the
-pull request the issue points at beside the report.
+pull request the issue points at beside the report, and a road about to act
+on an approval holds the review subjects and the approval's evidence claim
+too.
 """
 from __future__ import annotations
 
@@ -53,6 +55,12 @@ VERDICT = "review_returned_verdict"
 # The pull request the issue points at, which a persisted verdict's recheck
 # watches too, and another one it could be pointed at since.
 PR_NUMBER = "pr_number"
+
+# The approval's evidence claim and the subject it covers, which a road acting
+# on that approval holds beside the report.
+CLAIM = "review_approved_evidence"
+
+APPROVED = "review_approved_subject"
 
 OTHER_PR = 17_991
 
@@ -124,6 +132,10 @@ _PERSISTED_RECHECKS = (
         (True, {**_in_hand(), ALSO_SETTLED: [1]}),
     ),
 )
+
+# The comment's records as an approval reader read them: the handed report,
+# and beside it an approval of that report and its evidence claim.
+_APPROVED_RECORDS = MappingProxyType({**_HANDED_RECORDS, CLAIM: {"receipt": "r"}, APPROVED: {"sha": "a"}})
 
 
 def _reading(durable: PinnedState | Exception) -> MagicMock:
@@ -209,7 +221,9 @@ class ResolvedOverTest(unittest.TestCase):
 
     Bound only where the comment carries the report records the state does and
     points the issue at the same pull request. A road about to act on an
-    approval asks the same agreement of the state it holds, and is answered
+    approval asks the same agreement of the state it holds -- which stages
+    nothing, being about to write only what it read -- and of the review
+    subjects and the approval's evidence claim beside them, and is answered
     only whether the records are in hand. Neither carries anything onto that
     state: a comment that moved binds nothing.
     """
@@ -235,16 +249,40 @@ class ResolvedOverTest(unittest.TestCase):
             with self.subTest(name):
                 self.assert_binds(durable, None)
 
+    def test_an_approval_reader_holds_its_records(self) -> None:
+        # The approval's evidence claim removed or written null, or the review
+        # subject it covers replaced, since the reader read the comment: the
+        # records are not in hand, and the reader writes nothing back over them.
+        for name, durable, in_hand in (
+            ("agreeing", dict(_APPROVED_RECORDS), True),
+            ("the claim removed", {**_HANDED_RECORDS, APPROVED: _APPROVED_RECORDS[APPROVED]}, False),
+            ("the claim null", {**_APPROVED_RECORDS, CLAIM: None}, False),
+            ("the approved subject replaced", {**_APPROVED_RECORDS, APPROVED: {"sha": "b"}}, False),
+        ):
+            with self.subTest(name):
+                state = _pinned(dict(_APPROVED_RECORDS))
+
+                held = _review_comment._records_in_hand(
+                    _reading(_pinned(durable)), MagicMock(number=1), state, "ping",
+                )
+
+                self.assertEqual((held, state.data), (in_hand, dict(_APPROVED_RECORDS)))
+
     def assert_binds(self, durable: PinnedState | Exception, bound: dict | None) -> None:
-        """Both bindings over `durable` answer `bound`, and leave the state alone."""
+        """Both bindings over `durable` answer `bound`, and leave the state alone.
+
+        A subject is resolved over the state a reviewer round staged its launch
+        on; an approval reader holds the comment as it read it, staging none.
+        """
         state = _pinned(_in_hand())
+        read = _pinned(dict(_HANDED_RECORDS))
         self.assertEqual(
             _review_comment._resolved_over(_reading(durable), MagicMock(number=1), state),
             bound,
         )
         self.assertIs(
             _review_comment._records_in_hand(
-                _reading(durable), MagicMock(number=1), state, "ping",
+                _reading(durable), MagicMock(number=1), read, "ping",
             ),
             bound is not None,
         )

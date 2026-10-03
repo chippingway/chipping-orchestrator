@@ -16,7 +16,9 @@ request it was published on, still the one that settled and passing.
 A later revision settled -- failing, here -- or recorded and still owed is
 evidence the approval was never given, and so is evidence minted under a
 verification configuration that has since moved, or whose artifact is gone:
-the move is not taken. An artifact nobody could read holds it too.
+the move is not taken, and evidence a moved configuration left behind is
+invalidated with the handoff over it. An artifact nobody could read holds the
+move too.
 """
 from __future__ import annotations
 
@@ -148,8 +150,11 @@ class SquashRecoveryTest(_proof.ApprovedVerdictWorld, unittest.TestCase):
         # Nothing on the pinned comment moves, so the tail finishes the
         # squash -- but the evidence was minted under a verification context
         # no longer configured, or its artifact is gone from the pull request
-        # or cannot be read there. The relabel is held over the handoff it
-        # leaves, for the next tick to drop or to ask again.
+        # or cannot be read there. The relabel is held either way. A moved
+        # context proves the evidence answers for nothing: it is invalidated
+        # and the handoff dropped in the tail's own write, for a fresh
+        # reviewer. An artifact gone or unread leaves the handoff for the next
+        # tick to drop or to ask again.
         for name, road in _BESIDE_THE_RECORDS:
             with self.subTest(name):
                 self.setUp()
@@ -157,7 +162,9 @@ class SquashRecoveryTest(_proof.ApprovedVerdictWorld, unittest.TestCase):
 
                 self.approves(squash_result=_RecordsItsCollapseThen(self, road))
 
-                self.assertEqual(self._handed(), ([], _world.HEAD))
+                invalidated = road is _moves_the_configuration
+                self.assertEqual(self._handed(), ([], None if invalidated else _world.HEAD))
+                self.assertEqual(_read.current_evidence_revision(self) is None, invalidated)
 
     def _handed(self) -> tuple:
         """Every relabel, and the squash handoff the pinned comment carries."""

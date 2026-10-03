@@ -66,7 +66,13 @@ changed on that same commit is work no reviewer has read, and so is an issue
 edited since, so the record is also acted on only while the report recorded
 as current is the one the approval covered and still reads, at its location,
 as it settled, and the issue read afresh still carries the requirements the
-approval was given.
+approval was given. And it is acted on only over the approval's evidence
+answering for that commit: carried there by the squash tail, settled by the
+reconciliation ahead of this stage, and proved whole again here before the
+label moves -- or, where the tail could not read what deciding the carry
+needs, decided here by the same rule (`squash_evidence`), the move left for
+the next tick. That proof goes ahead of the approval's coverage, so the pull
+request is read last, immediately ahead of the move.
 """
 from __future__ import annotations
 
@@ -83,6 +89,7 @@ from orchestrator.git.worktrees import (
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import verification_durable as _durable, verification_proof as _proof
 from orchestrator.workflow.late_split import (
     collapses as _collapses,
     handoffs as _late_handoffs,
@@ -95,6 +102,7 @@ from orchestrator.workflow.stages.validating import (
     handoff as _handoff,
     models as _models,
     review_coverage as _review_coverage,
+    squash_evidence as _squash_evidence,
     state as _state,
 )
 
@@ -121,9 +129,12 @@ def _recovers_a_recorded_collapse(
     has just decided about.
 
     False is every other issue on every other tick, and it costs two lookups
-    on the pinned comment. Presence rather than readability is what the first
-    of them asks, because a record this build cannot read whole is exactly the
-    claim that has to reach the refusal rather than be waved past.
+    on the pinned comment and a reading of the current evidence record.
+    Presence rather than readability is what the first of them asks, because
+    a record this build cannot read whole is exactly the claim that has to
+    reach the refusal rather than be waved past. The last is for evidence
+    carried onto a head it did not run on whose review no longer stands,
+    which is invalidated here ahead of any round (`_retires_an_unanswered_carry`).
 
     Neither road holds a returned verdict: no reviewer ran behind them, so a
     verdict persisted since the approval they finish -- a later round's -- is
@@ -134,7 +145,49 @@ def _recovers_a_recorded_collapse(
     held = _handoff._Held(None, comment=dict(state.data))
     if _collapses.carries_pending_collapse(state):
         return _finished_collapse(gh, spec, issue, state, held)
-    return _finished_handoff(gh, issue, state, held)
+    return _finished_handoff(gh, spec, issue, state, held) or _retires_an_unanswered_carry(gh, issue, state)
+
+
+def _retires_an_unanswered_carry(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool:
+    """Invalidate evidence carried onto a head that no longer answers for it; True where the tick went on it.
+
+    An approval squash's carry answers for the head it was carried onto only
+    on the approval's word, and every reader about to move that approval on
+    refuses one the approval's claim no longer names, or whose review subject
+    no longer stands (`squash_evidence.carry_unanswered`): the documenting
+    stage hands the issue back here, the ready ping is held, and `in_review`
+    hands a stale approval back. This stage owns the carry, so it is
+    invalidated here, ahead of any round it could be handed to, and the
+    approval it was carried for with it (`squash_evidence._invalidates`), so
+    no reader takes that approval for one recorded before approvals named
+    evidence; an approval another road recorded in its place, of another
+    subject, stands. That is composed over the comment read afresh and held
+    to every record the evidence is bound through (`verification_durable`),
+    in a write of its own, the tick spent on it so the round below starts
+    from the comment as written. A comment that moved or will not read holds
+    the tick for the next to ask again. A retirement the comment has no room
+    for leaves the record, which every reader refuses, and the approval is
+    still retired in that write -- the comment only shrinks by it -- so
+    restoring the room later moves nothing on over it; the tick carries on,
+    and a comment already carrying that refusal is not written again.
+    """
+    if not _squash_evidence.carry_unanswered(state):
+        return False
+    durable, moved = _durable.durable_comment(gh, issue, state)
+    if moved is not None:
+        return True
+    read = dict(durable.data)
+    retired = _squash_evidence._invalidates(durable)
+    log.log(
+        logging.INFO if retired else logging.ERROR,
+        "issue=#%s its carried verification evidence no longer answers for the "
+        "review it was carried for; %s, and retiring the approval it was carried for where that still stands",
+        issue.number, "invalidating it" if retired else "no room to invalidate it",
+    )
+    if durable.data != read:
+        state.data = durable.data
+        gh.write_pinned_state(issue, state)
+    return retired
 
 
 def _finished_collapse(
@@ -236,7 +289,11 @@ def _held_by_another_park(
 
 
 def _finished_handoff(
-    gh: GitHubClient, issue: Issue, state: PinnedState, held: _handoff._Held,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    held: _handoff._Held,
 ) -> bool:
     """Move the label a finished squash's handoff never got to move.
 
@@ -273,8 +330,38 @@ def _finished_handoff(
     holds the tick, as an unread pull request does. The move itself is taken
     only where the pinned comment, read again after every one of those
     requests, still carries the report, pull-request, verdict, and evidence
-    records in hand, and no returned verdict waits beside the handoff
-    (`approval._hands_to_documenting`).
+    records in hand and the review subjects this tick read, and no returned
+    verdict waits beside the handoff (`approval._hands_to_documenting`).
+
+    And only over evidence answering for the commit it names, which is asked
+    first: the same rule the squash tail holds its own move to
+    (`squash_evidence`). A carry that tail recorded is published and settled
+    by this tick's reconciliation ahead of this handler, and before the label
+    moves over it that settled carry is proved whole again -- the trees, the
+    applicable review subject, the context, the publication, the report, and
+    the requirements -- so the label moves, with no second reviewer, only
+    where it still answers. A refusal invalidates it and drops the record in
+    a write of its own, for the round below on the next tick, whatever else
+    moved beside it: evidence a moved context, tree, or head leaves behind is
+    retired on this road as on the tail's. One that reconciliation refused is
+    abandoned with its approval, which the approval's coverage refuses, and
+    the record goes for the round below; one it stood down on with the carry
+    still owed -- no room on the comment to settle into, before the post or
+    behind it -- holds the tick with the record kept, for a later tick to
+    settle it (`squash_evidence.carried_onto`).
+    Where the tail could not decide -- a pull request or artifact nobody
+    could read -- the carry is decided here, over the same proofs, and
+    recorded or refused in a write of its own laid over the comment as read
+    then, the move left for the next tick; a reading nobody could take again
+    holds the tick.
+
+    The proof is requests of its own, long enough for a push, so the coverage
+    above is asked behind it rather than ahead: the pull request is the last
+    thing read before the move, and the comment read behind it has to still
+    carry the review subjects the proof was taken over. A record the coverage
+    drops takes a settled carry onto its commit with it, since that evidence
+    answers for the commit only on the approval's word
+    (`squash_evidence.SquashEvidence.drops_the_handoff`).
     """
     settled = _late_handoffs.read_settled_handoff(state)
     if not settled:
@@ -284,14 +371,20 @@ def _finished_handoff(
         # have caught. It goes, and the round below runs.
         _late_handoffs.clear_settled_handoff(state)
         return False
-    standing = _handoff_stands(gh, issue, state, settled)
-    if standing is None:
+    carried = _squash_evidence.carried_onto(_proof.ProofReading(gh, spec, issue, state), settled)
+    if not carried.answers:
+        if not carried.holds and _handoff._holds_its_records(
+            gh, issue, state, "record what the evidence its approval rests on owes the squash", held,
+        ):
+            carried.stages(state, issue.number)
+            gh.write_pinned_state(issue, state)
         return True
-    if not standing:
-        _late_handoffs.clear_settled_handoff(state)
-        return False
-    _approval._hands_to_documenting(gh, issue, state, held)
-    return True
+    standing = _handoff_stands(gh, issue, state, settled)
+    if standing:
+        _approval._hands_to_documenting(gh, issue, state, held)
+    elif standing is False:
+        carried.drops_the_handoff(state)
+    return standing is not False
 
 
 def _handoff_stands(

@@ -44,11 +44,15 @@ so the publication takes it again on the tick it would settle
 (`verification_publishing`), since writes
 landing between the two ticks can spend the room a record was accepted with.
 
-The one live road minting and recording a transaction is a returned
-reviewer's: its claim reader mints one from the commands it declared, and its
-verdict record stages it (`stages/validating/review_claims.py`,
-`review_verdicts.py`) in the write that persists the verdict, and the
-dispatcher reconciles whatever a producer records (`verification_records`).
+Two live roads mint and record a transaction. A returned reviewer's: its
+claim reader mints one from the commands it declared, and its verdict record
+stages it (`stages/validating/review_claims.py`, `review_verdicts.py`) in the
+write that persists the verdict. And an approval's squash: the carry of the
+evidence the approval rests on onto the head it published, minted from the
+source artifact's transcript -- naming that source, which the carry is held
+to until it settles -- and staged in the write settling the squash's
+handoff (`stages/validating/squash_evidence.py`). The dispatcher reconciles
+whatever a producer records (`verification_records`).
 """
 from __future__ import annotations
 
@@ -96,9 +100,11 @@ def mint_pending_evidence(
     issue_number: int,
     binding: _records.EvidenceBinding,
     commands: tuple[_evidence.VerifiedCommand, ...],
+    copied_from: str | None = None,
 ) -> _records.PendingEvidence | None:
     """A new transaction for `binding` and `commands`, past every spent revision.
 
+    `copied_from` names the settled evidence a carry copied `commands` from.
     None where nobody can say which revisions this issue has spent.
     """
     latest = _latest_revision(state)
@@ -112,6 +118,7 @@ def mint_pending_evidence(
         revision=revision,
         binding=binding,
         commands=commands,
+        copied_from=copied_from,
     )
 
 

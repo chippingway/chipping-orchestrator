@@ -39,8 +39,11 @@ fails closed on.
 
 The evidence transaction settles and abandons through here
 (`verification_settling`, `verification_transaction`), and a reader relying on
-current evidence reads it here first (`verification_proof`); nothing
-invalidates current evidence yet.
+current evidence reads it here first (`verification_proof`). Current evidence
+is invalidated here (`retire_current_evidence`) by the approval squash's carry
+owner (`stages/validating/squash_evidence.py`), where it proves the evidence no
+longer answers for the pull request: a carry refused, a settled carry the
+relabel's retry no longer proves, or one whose handoff that retry drops.
 """
 from __future__ import annotations
 

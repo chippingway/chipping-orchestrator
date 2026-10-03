@@ -9,17 +9,31 @@ still carries the very artifact that settled, under the handoff that settled
 it, with the pass flag its commands earn. A deleted or edited artifact, a
 handoff describing other evidence, a pass flag the artifact contradicts, and a
 moved head each refuse it; a thread nobody could read holds.
+
+A carry that copied the current evidence's transcript is held to that source
+until it settles: the source still the current record, its artifact still the
+one that settled and carrying exactly the commands copied. A source edited,
+deleted, or retired, or a copy carrying other commands, refuses the carry; a
+thread nobody could read holds it; a transaction that copied nothing is
+never asked.
 """
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 
 from orchestrator.github.verification_evidence import EvidenceSource
 from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
+    verification_current as _current,
+    verification_record_state as _record_state,
     verification_records as _records,
+    verification_settlement_state as _settlement,
 )
-from tests.workflow.engine import verification_evidence_test_support as support
+from tests.workflow.engine import (
+    verification_evidence_test_support as support,
+    verification_record_test_support as _record_support,
+)
 
 _DEFER = _evidence_models.ReportEvidenceVerdict.DEFER
 
@@ -63,6 +77,46 @@ _REFUSALS = (
         "the head moved",
         lambda case: case.moves_the_head(support.REBASED_SHA),
         _DEFER, "moved off the recorded commit",
+    ),
+)
+
+
+def _unchanged(copied: _records.PendingEvidence) -> _records.PendingEvidence:
+    """The copy as minted."""
+    return copied
+
+
+# Every move of a copy's source, how the copy is spelled, and the verdict --
+# None for none -- the copy earns.
+_SOURCE_MOVES = (
+    ("nothing moved", lambda case: None, _unchanged, None),
+    (
+        "the source was edited",
+        lambda case: setattr(support.artifact_comment(case), "body", "Tests passed, trust me."),
+        _unchanged, _DEFER,
+    ),
+    (
+        "the source was deleted",
+        lambda case: case.pull_request.issue_comments.remove(support.artifact_comment(case)),
+        _unchanged, _DEFER,
+    ),
+    ("the source was retired", lambda case: _settlement.retire_current_evidence(case.state), _unchanged, _DEFER),
+    (
+        "the thread would not read",
+        lambda case: case.gh.report_failures.unreadable.add(support.PR_NUMBER),
+        _unchanged, _HOLD,
+    ),
+    (
+        "the copy carries other commands",
+        lambda case: None,
+        lambda copied: replace(copied, commands=(_record_support.ran(exit_status=1),)),
+        _DEFER,
+    ),
+    (
+        "nothing was copied",
+        lambda case: case.pull_request.issue_comments.remove(support.artifact_comment(case)),
+        lambda copied: replace(copied, copied_from=None),
+        None,
     ),
 )
 
@@ -114,6 +168,37 @@ class CurrentEvidenceVerdictTest(unittest.TestCase, support.VerificationEvidence
         self.assertIs(failing.verdict, _evidence_models.ReportEvidenceVerdict.PROVED)
         self.assertIs(refused.verdict, _DEFER)
         self.assertIn("no longer the one that settled", refused.refusal)
+
+
+class CopiedSourceVerdictTest(unittest.TestCase, support.VerificationEvidenceCase):
+    """A carry answers only while the source it copied still says what was copied."""
+
+    def setUp(self) -> None:
+        support.VerificationEvidenceCase.setUp(self)
+
+    def test_only_the_source_as_copied_answers(self) -> None:
+        for moved, moves, spelled, verdict in _SOURCE_MOVES:
+            with self.subTest(moved=moved):
+                self.setUp()
+                copied = spelled(self._copies_the_current())
+                moves(self)
+
+                self.assertIs(self._verdict(copied), verdict)
+
+    def _copies_the_current(self) -> _records.PendingEvidence:
+        """Settle evidence, and mint a carry onto the squashed head copying its transcript."""
+        self.record()
+        self.reconcile()
+        source = _settlement.read_current_evidence(self.state)
+        return _record_state.mint_pending_evidence(
+            self.state, support.ISSUE_NUMBER, self.binding().retargeted(support.SQUASHED_SHA),
+            (_record_support.ran(),), source.receipt,
+        )
+
+    def _verdict(self, copied: _records.PendingEvidence) -> _evidence_models.ReportEvidenceVerdict | None:
+        """What the source `copied` names earns it now, None for no refusal."""
+        refused = _current.copied_source_verdict(self.gh, self.state, copied, self.pull_request)
+        return None if refused is None else refused.verdict
 
 
 if __name__ == "__main__":

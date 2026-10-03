@@ -1,9 +1,16 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a failed local verify says to the operator who has to fix it.
+"""The approval's local verify gate, and what a failed run says to the operator who has to fix it.
 
-The approval gate runs `VERIFY_COMMANDS` and advances on ``"ok"`` and on
-the ``"not_run"`` an empty configuration returns. Everything any other result
+The approval gate runs `VERIFY_COMMANDS` under `VERIFY_TIMEOUT` over the
+round's checkout (`_runs_the_gate`), ahead of the squash, and advances on
+``"ok"`` and on the ``"not_run"`` an empty configuration returns. The
+evidence the approval rests on is the verified evidence its proof was taken
+over (`approved_evidence`); where its squash publishes another head, a passing
+run of the gate on the approved head is what is carried onto it, as
+orchestrator-executed evidence naming the commit it ran on, and the reviewer's
+evidence where the run binds nothing -- an empty configuration's included
+(`squash_evidence`). Everything any other result
 is worth is here, and it is written for a human reading the issue rather than
 the orchestrator's logs: the failing command, how it failed, and the tail of
 what it printed -- or, when the run refused before any command, the reading
@@ -25,8 +32,17 @@ pass inside the runner is the only place that can be right about it.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
+from orchestrator import config
+from orchestrator.git.verification import models as _verify_models, runner as _verify_runner
 from orchestrator.workflow.engine import messages as _messages
 from orchestrator.workflow.stages.validating import state as _state
+
+
+def _runs_the_gate(worktree: Path) -> _verify_models.VerifyResult:
+    """The approval's local run of the configured commands over `worktree`, under the configured timeout."""
+    return _verify_runner._run_verify_commands(worktree, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)
 
 
 def _verify_failure_detail(verify) -> str:

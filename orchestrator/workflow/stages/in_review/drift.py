@@ -377,9 +377,12 @@ def _hands_a_stale_approval_back(ctx: _models._InReviewContext) -> bool:
     edited or removed at its location, which only a fresh reading of that
     location can see. The head can be the very one that approval, its docs pass, and its
     ready ping were about, so nothing keyed on the commit notices -- and a
-    report nobody reviewed would be advertised as ready to merge. A location
-    nobody could read decides nothing and HOLDS the tick, since every route
-    below would act on an approval nothing could vouch for.
+    report nobody reviewed would be advertised as ready to merge. So is an
+    approval over evidence its squash carried onto the head whose review no
+    longer stands, which that same reading asks
+    (`review_coverage._approval_stands`), and `validating` invalidates the
+    carry. A location nobody could read decides nothing and HOLDS the tick,
+    since every route below would act on an approval nothing could vouch for.
 
     Either way nothing else this stage does runs first: `validating` recovers
     a failed push, binds and settles what a publication carried, and holds the

@@ -24,7 +24,11 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import report_settlement_state as _settlement, review_subjects as _review_subjects
+from orchestrator.workflow.engine import (
+    report_settlement_state as _settlement,
+    review_subjects as _review_subjects,
+    verification_settlement_state as _settlement_of_evidence,
+)
 from orchestrator.workflow.stages.documenting import handler as _documenting
 from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
 from tests.workflow import published_reports as _published_reports
@@ -131,16 +135,24 @@ class RelabelRaceTest(
         # Another road's handoff, put in place of this tick's during the
         # relabel, is left standing and handed back rather than erased. The
         # recovery ahead of the reviewer then finds the approval covering the
-        # head it names, moves the label, and ends the record -- with no
-        # reviewer, no squash, and nothing erased unanswered.
+        # head it names and carries its evidence onto that head, whose tree is
+        # the tested one; the next tick's reconciliation publishes it, and the
+        # recovery moves the label and ends the record -- with no reviewer, no
+        # squash, and nothing erased unanswered.
         github, issue, observed = self._handed_back(_replaces_the_handoff, _support.HANDOFF_KEY)
 
-        mocks = self._run_squash_approval(github, issue, _RefusesTheCollapse())
-
-        mocks[_support.RUN_AGENT].assert_not_called()
-        mocks[_support.SQUASH_SEAM].assert_not_called()
+        for mocks in (
+            self._run_squash_approval(github, issue, _RefusesTheCollapse()),
+            self._dispatches(github, issue, REPLACED_HEAD),
+        ):
+            mocks[_support.RUN_AGENT].assert_not_called()
+            mocks[_support.SQUASH_SEAM].assert_not_called()
         self.assertEqual((observed, github.label_history[-1]), (_HANDED_BACK_UNTOUCHED, HANDED_ON))
         self.assertNotIn(_support.HANDOFF_KEY, github.pinned_data(_support.APPROVAL_ISSUE))
+        self.assertEqual(
+            _settlement_of_evidence.read_current_evidence(github.read_pinned_state(issue)).binding.target.target_head,
+            REPLACED_HEAD,
+        )
 
     def test_a_later_report_reaches_a_reviewer(self) -> None:
         # A later report settled during the relabel is kept, and this tick's

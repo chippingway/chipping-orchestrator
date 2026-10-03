@@ -15,7 +15,9 @@ it. So the settlement and every retirement ask here first.
 So the comment is read again, and it has to be the comment this tick read and
 still carry every record the evidence is bound through exactly as the state in
 hand spells them: the developer report's transaction and settled pair, the
-review subjects, and this domain's own records and revision floor. Compared as
+review subjects -- the approved one among them, since evidence carried across
+an approval's squash answers for the approved review -- and this domain's own
+records and revision floor. Compared as
 the comment's JSON spells them, so a field written `null` where there was none,
 or `true` where there was `1`, is a move. The records that move are the caller's to refuse
 over; the fresh reading comes back with them, since it is the one comment any
@@ -44,8 +46,10 @@ from orchestrator.workflow.engine import (
 log = logging.getLogger("orchestrator.workflow")
 
 # Every record the evidence is bound through: the pull request, the developer
-# report's transaction and settled pair, the review subjects, and this
-# domain's own four records and the revision floor beside them.
+# report's transaction and settled pair, the review subjects -- the approved
+# one included, which evidence carried across an approval's squash answers
+# through -- and this domain's own four records and the revision floor beside
+# them.
 _BOUND_RECORDS = (
     "pr_number",
     _report_records.PENDING_REPORT,
@@ -54,6 +58,7 @@ _BOUND_RECORDS = (
     _report_records.REPORT_HANDOFF,
     _review_subjects.REVIEW_SUBJECT,
     _review_subjects.RETURNED_SUBJECT,
+    _review_subjects.APPROVED_SUBJECT,
     _records.PENDING_EVIDENCE,
     _records.CURRENT_EVIDENCE,
     _records.EVIDENCE_HISTORY,

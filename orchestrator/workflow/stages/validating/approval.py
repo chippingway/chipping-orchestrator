@@ -56,6 +56,20 @@ held to as far as the rewrite leaves it provable -- its records and its
 artifact (`approved_evidence`) -- the recovery of a squash an
 earlier tick began included.
 
+A rewrite leaves the evidence the approval rests on answering for the head
+the reviewer was handed rather than the one the rewrite published, so the tail
+carries it onto that head only by tree equivalence (`squash_evidence`) --
+the run the verify gate made on the approved head in its place, where that
+run binds, as orchestrator-executed evidence naming the commit it ran on, and
+the reviewer's own evidence where it does not: an empty configuration, which
+runs nothing, and the recovery of a squash an earlier tick began, which runs
+no gate. The carry is decided ahead of the comment its handoff write is laid
+over, staged into that write with the approval's claim pointed at the carried
+transaction, and the relabel held for the next tick, whose reconciliation
+publishes and settles it ahead of the handoff that moves the label. A refused
+carry invalidates the evidence and drops the handoff in that same write, for
+a fresh reviewer.
+
 The tail both roads share holds its relabel until the approval still covers
 the report, the requirements, and the head the rewrite published, each read
 afresh once it is published -- the only time any is asked on the road that
@@ -120,14 +134,12 @@ from types import MappingProxyType
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.git.publication import models as _publication, squash as _squash
-from orchestrator.git.verification import runner as _verify_runner
 from orchestrator.github import (
     client as _client,
     pinned_state as _pinned_state,
 )
-from orchestrator.workflow.engine import review_subjects as _review_subjects
+from orchestrator.workflow.engine import review_subjects as _review_subjects, verification_proof as _proof
 from orchestrator.workflow.late_split import (
     collapses as _collapses,
     handoffs as _late_handoffs,
@@ -135,14 +147,15 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.stages.validating import (
     handoff as _handoff,
-    models as _models,
     review_comment as _review_comment,
     review_coverage as _review_coverage,
     review_parks as _review_parks,
     review_verdicts as _verdicts,
+    squash_evidence as _squash_evidence,
     state as _state,
     verify as _verify,
 )
+from orchestrator.workflow.stages.validating.models import _ReviewerRun
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -373,16 +386,10 @@ def _squashed_and_handed_off(gate, branch: str, pr_number, held: _handoff._Held)
     # instead, that notice would reach in_review as fresh human PR feedback
     # and wake the dev on an informational orchestrator post.
     _handoff._seed_in_review_handoff_watermarks(gh, issue, state, pinned_pr)
-    _persists_then_relabels(gh, issue, state, squashed.sha, held)
+    _persists_then_relabels(gate, squashed.sha, held)
 
 
-def _persists_then_relabels(
-    gh: _client.GitHubClient,
-    issue: Issue,
-    state: _pinned_state.PinnedState,
-    sha,
-    held: _handoff._Held,
-) -> None:
+def _persists_then_relabels(gate, sha, held: _handoff._Held) -> None:
     """Land everything this handoff owes durably, and only then move the label.
 
     The label is moved only while the approval it is owed over still covers
@@ -391,7 +398,19 @@ def _persists_then_relabels(
     report the pull request carries and the requirements the issue carries,
     read afresh, and while the pull request, read afresh, still stands on
     `sha` -- the commit this tail published, or, where it rewrote
-    nothing and named none, the head the approval was given. The rewrite and
+    nothing and named none, the head the approval was given.
+
+    And only while that evidence answers for the published head. A rewrite
+    leaves it answering for the head the reviewer was handed, so it is carried
+    onto the new one only on a proved equal tree and an unchanged context,
+    subject, and publication (`squash_evidence`): decided ahead of the comment
+    this write is laid over, since the decision is requests of its own, and
+    staged into this write -- the carried transaction and the approval's claim
+    on it, or, refused, the evidence invalidated -- the approval with it -- and the handoff dropped for a
+    fresh reviewer. Either way the label stays this tick: a carry is published
+    and settled by the next tick's reconciliation, ahead of the handoff that
+    moves the label over it (`collapse._finished_handoff`), and a reading
+    nobody could take is decided again there. The rewrite and
     its force-push are time a human can edit the report or the issue in, or
     push, and the recovery of a squash an earlier tick did not finish reaches
     here with no reviewer behind it at all -- so the approval is asked again
@@ -421,24 +440,28 @@ def _persists_then_relabels(
     so an `awaiting_human` carried into `documenting` would hold an issue over
     a condition that is answered.
     """
+    gh, issue, state = gate.gh, gate.issue, gate.state
     state.set(_AWAITING_HUMAN, False)
     state.set(_state._PARK_REASON, None)
     _collapses.settle_pending_collapse(state, sha)
-    if not _handoff._holds_its_records(gh, issue, state, _HELD, held):
-        return
-    _verdicts.drops_the_verdict(state, only=held.verdict)
-    gh.write_pinned_state(issue, state)
-    held.wrote(state)
     published = sha or _review_subjects.ReviewSubject.commit_recorded_in(
         state.get(_review_subjects.APPROVED_SUBJECT),
     )
-    if not _review_coverage._approval_holds(gh, issue, state, published):
+    carried = _squash_evidence.carried_onto(
+        _proof.ProofReading(gh, gate.spec, issue, state), published, held.gate_run,
+    )
+    if not _handoff._holds_its_records(gh, issue, state, _HELD, held):
+        return
+    _verdicts.drops_the_verdict(state, only=held.verdict)
+    carried.stages(state, issue.number)
+    held.writes(gh, issue, state)
+    if not (carried.answers and _review_coverage._approval_holds(gh, issue, state, published)):
         log.info(
-            "issue=#%s finished its squash under an approval that no longer "
-            "covers, or could not be read against, the evidence, report, "
-            "requirements, and head the issue carries; holding the move to "
-            "documenting",
-            issue.number,
+            "issue=#%s finished its squash under an approval whose evidence "
+            "does not answer for %s yet, or that no longer covers, or could "
+            "not be read against, the evidence, report, requirements, and "
+            "head the issue carries; holding the move to documenting",
+            issue.number, published,
         )
         return
     _hands_to_documenting(gh, issue, state, held)
@@ -478,9 +501,11 @@ def _hands_to_documenting(
     (`documenting.handoff._hands_back_what_validating_owes`). So is anything
     else the relabel's time let another road move among the records the move
     was taken over -- a later report settled, the issue repointed, evidence
-    settled or retired: the record is not ended over it but left standing,
-    for that hand-back and for the recovery behind it, which holds the move
-    to an approval of what the comment carries then.
+    settled or retired, a review subject or the evidence claim replaced or
+    removed: the record is
+    not ended over it but left standing, for that hand-back and for the
+    recovery behind it, which holds the move to an approval of what the
+    comment carries then and proves the evidence it went over again.
     Nothing else reads the record: an approval that collapsed nothing leaves
     none, and there is nothing to end or to write there. What moves during
     such an approval's relabel is caught on the far side instead: the
@@ -526,13 +551,17 @@ def _hands_to_documenting(
     # other road wrote. One that will not read keeps the record, which the
     # next reading answers, and so does one carrying another record than the
     # one this handoff finished -- or the one it finished beside a report,
-    # pull-request, verdict, or evidence record the move was not taken over.
+    # pull-request, verdict, or evidence record the move was not taken over,
+    # or beside review subjects or an evidence claim other than the ones the
+    # comment carried just ahead of the move: the evidence the move went over
+    # answers for those and on that claim, and the record kept is what hands
+    # the issue back to have it proved -- or, unclaimed, invalidated.
     durable = _review_comment._read(gh, issue, state, "end the handoff behind the label it moved")
     if durable is None:
         return
-    if _late_handoffs.read_settled_handoff(durable) != finished or _review_comment._moved(
-        durable.data, state.data, _handoff._HELD_RECORDS,
-    ):
+    moved = _review_comment._moved(durable.data, state.data, _handoff._HELD_RECORDS)
+    moved += _review_comment._moved(durable.data, held.comment, _review_comment._APPROVAL_RECORDS)
+    if moved or _late_handoffs.read_settled_handoff(durable) != finished:
         log.info(
             "issue=#%s its pinned comment no longer carries the squash handoff "
             "this tick finished, or the records it was finished over; leaving "
@@ -544,7 +573,7 @@ def _hands_to_documenting(
 
 
 def _finalize_validating_approval(
-    gate, reviewer_run: _models._ReviewerRun, branch: str,
+    gate, reviewer_run: _ReviewerRun, branch: str,
 ) -> None:
     """Finalize an approved review: verify gate, the approved subject, approval
     comment, optional squash, in_review handoff watermarks, then relabel to
@@ -580,10 +609,8 @@ def _finalize_validating_approval(
     already built, from whichever road did the deciding.
     """
     state = gate.state
-    verify = _verify_runner._run_verify_commands(
-        reviewer_run.wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT,
-    )
-    held = _handoff._Held.of_the_approval(state, reviewer_run)
+    verify = _verify._runs_the_gate(reviewer_run.wt)
+    held = _handoff._Held.of_the_approval(state, reviewer_run, verify)
     stands = _stands_behind_the_gate(gate, reviewer_run, held)
     if stands is None:
         return
@@ -604,7 +631,7 @@ def _finalize_validating_approval(
     gate.gh.write_pinned_state(gate.issue, state)
 
 
-def _squashes_the_approval(gate, reviewer_run: _models._ReviewerRun, branch: str, held: _handoff._Held) -> None:
+def _squashes_the_approval(gate, reviewer_run: _ReviewerRun, branch: str, held: _handoff._Held) -> None:
     """Record, announce, and squash an approval whose verify gate passed over the subject still standing.
 
     The approval comment is a request of its own, long enough for a push, an
@@ -649,7 +676,7 @@ def _squashes_the_approval(gate, reviewer_run: _models._ReviewerRun, branch: str
     _squashed_and_handed_off(gate, branch, reviewer_run.pr_number, held)
 
 
-def _stands_behind_the_gate(gate, reviewer_run: _models._ReviewerRun, held: _handoff._Held) -> bool | None:
+def _stands_behind_the_gate(gate, reviewer_run: _ReviewerRun, held: _handoff._Held) -> bool | None:
     """Whether an approval's subject still stands once its verify gate has run; None where nothing may be written.
 
     The verification can outlast a report or evidence settling on the same

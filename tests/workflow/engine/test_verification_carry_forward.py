@@ -1,16 +1,19 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Evidence reaches another head only on a proved equal tree, a published source, and a review of that head.
+"""Evidence reaches another head only on a proved equal tree, a published source, and a review that stands.
 
 The decision is read against a rewrite the tests can tell apart by nothing but
 their trees: a squash onto the tested tree, and a rebase that replays the very
 same patches over a base that moved. Only the first earns a decision, and only
-once a report about the new head has settled and a reviewer was handed it, and
-while the evidence being carried is still the artifact the pull request shows.
-What it earns is a binding that still names the commit the commands ran on --
-so the artifact the reconciliation publishes for the new head says which
-earlier commit was tested rather than relabelling the run -- and answers for
-the review of the new head, which is the subject the validating reader builds.
+once a report about the new head has settled and a reviewer was handed it --
+or where the review the evidence answers for is the one an approval was given
+over, unchanged -- and while the evidence being carried is still the artifact
+the pull request shows. What it earns is a binding that still names the commit
+the commands ran on -- so the artifact the reconciliation publishes for the new
+head says which earlier commit was tested, and that the new head is an
+equivalent-tree target, rather than relabelling the run. Anything short of it
+is the verdict refusing it: a reading nobody could take holds, and everything
+else defers.
 """
 from __future__ import annotations
 
@@ -20,12 +23,17 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
+    review_subjects as _review_subjects,
     verification_carry_forward as _carry_forward,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from tests.workflow.engine import verification_evidence_test_support as support, verification_report_fixture as _report
+from tests.workflow.engine import (
+    verification_evidence_test_support as support,
+    verification_record_test_support as _record_support,
+    verification_report_fixture as _report,
+)
 from tests.workflow.fixtures import SHA_LENGTH
 
 _LEVEL = "INFO"
@@ -67,6 +75,12 @@ _UNPUBLISHED = (
 
 _OLD_REVIEW_REFUSAL = "not about the head the evidence answers for"
 
+# What the artifact carried onto another head says about it, beside the
+# commit the commands ran on.
+_EQUIVALENT_TREE = "an equivalent-tree target"
+
+_DEFER = _evidence_models.ReportEvidenceVerdict.DEFER
+
 
 class _CarryingCase(support.VerificationEvidenceCase):
     """Settled evidence on the tested commit, and a rewrite of it to carry it to."""
@@ -76,10 +90,16 @@ class _CarryingCase(support.VerificationEvidenceCase):
         self.source = self.record()
         self.reconcile()
 
-    def decide(self, target_head: str) -> _carry_forward.CarryForward | None:
-        """The decision the current evidence earns onto `target_head`."""
+    def decide(self, target_head: str) -> _carry_forward.CarryForward | _evidence_models.ReportEvidence:
+        """The decision the current evidence earns onto `target_head`, or the verdict refusing it."""
         with self.seams():
             return _carry_forward.carry_forward_decision(support.reading(self), target_head)
+
+    def refused(self, target_head: str) -> _evidence_models.ReportEvidence:
+        """The verdict refusing a carry onto `target_head`, which no carry may be."""
+        decided = self.decide(target_head)
+        self.assertNotIsInstance(decided, _carry_forward.CarryForward)
+        return decided
 
     def rewrites(self, head: str) -> None:
         """Push `head`, and settle a report about it that a reviewer is handed."""
@@ -132,6 +152,65 @@ class CarryForwardTest(unittest.TestCase, _CarryingCase):
         )
         self.assertTrue(support.current_verdict(self).proved)
 
+    def test_an_approved_review_is_carried_unchanged(self) -> None:
+        # The approval squash's case: no report about the new head and no
+        # reviewer handed it, while the review the evidence answers for is the
+        # one an approval was given over. The carry keeps that review and the
+        # tested commit, and its artifact says the head is an equivalent-tree
+        # target the commands never ran on.
+        self.state.set(_review_subjects.APPROVED_SUBJECT, self.subject.recorded())
+        self.gh.write_pinned_state(self.issue, self.state)
+        self.moves_the_head(support.SQUASHED_SHA)
+
+        decision = self.decide(support.SQUASHED_SHA)
+        self.carries(decision.binding)
+        self.assertFalse(self.reconcile())
+
+        self.assertEqual(
+            (decision.subject, decision.commands), (self.subject.recorded(), self.source.commands),
+        )
+        carried = self.artifacts()[-1]
+        self.assertEqual(
+            (carried.tested_sha, carried.target_head, carried.review_subject),
+            (support.TESTED_SHA, support.SQUASHED_SHA, support.TESTED_SHA),
+        )
+        self.assertIn(_EQUIVALENT_TREE, support.artifact_comment(self).body)
+        self.assertTrue(support.current_verdict(self).proved)
+
+    def test_a_local_run_is_carried_as_it_ran(self) -> None:
+        # A local verify run on the tested commit, never published, under the
+        # approval's review: carried onto a squash of the tested tree over the
+        # same proofs save an artifact -- the commit it ran on, its own
+        # transcript, its own witness -- and refused onto a rebase whose tree
+        # is another.
+        self.state.set(_review_subjects.APPROVED_SUBJECT, self.subject.recorded())
+        self.gh.write_pinned_state(self.issue, self.state)
+        local = (_record_support.ran(output="12 passed locally"),)
+        for target_head, carried in (
+            (support.SQUASHED_SHA, (support.TESTED_SHA, support.SQUASHED_SHA, local)),
+            (support.REBASED_SHA, None),
+        ):
+            with self.subTest(target_head=target_head):
+                self.moves_the_head(target_head)
+                with self.seams():
+                    decided = _carry_forward.local_run_decision(
+                        support.reading(self), self.binding(), local, target_head,
+                    )
+
+                found = (
+                    (decided.binding.tested_sha, decided.binding.target.target_head, decided.commands)
+                    if isinstance(decided, _carry_forward.CarryForward) else None
+                )
+                self.assertEqual(found, carried)
+
+    def test_an_unread_pull_request_decides_nothing(self) -> None:
+        # A thread nobody could read is no proof either way: the verdict
+        # holds, for the same question to be asked again.
+        self.rewrites(support.SQUASHED_SHA)
+        self.gh.report_failures.unreadable.add(support.PR_NUMBER)
+
+        self.assertTrue(self.refused(support.SQUASHED_SHA).holds)
+
     def test_short_of_both_proofs_nothing_carries(self) -> None:
         # The rebase replays the same patches: its patch ids, its topic diff,
         # and its name all say "the same change", and its tree says otherwise.
@@ -140,7 +219,7 @@ class CarryForwardTest(unittest.TestCase, _CarryingCase):
                 self.setUp()
                 self.rewrites(pushed)
                 with self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
-                    self.assertIsNone(self.decide(target_head))
+                    self.assertIs(self.refused(target_head).verdict, _DEFER)
                     self.assertIn(refusal, support.logged_refusal(logged))
 
         self.setUp()
@@ -148,7 +227,7 @@ class CarryForwardTest(unittest.TestCase, _CarryingCase):
         with patch.object(
             config, "VERIFY_COMMANDS", (support.SUITE, "uv run ruff check"),
         ), self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
-            self.assertIsNone(self.decide(support.SQUASHED_SHA))
+            self.assertIs(self.refused(support.SQUASHED_SHA).verdict, _DEFER)
             self.assertIn("verification context moved", support.logged_refusal(logged))
 
     def test_no_current_evidence_carries_nothing(self) -> None:
@@ -157,12 +236,12 @@ class CarryForwardTest(unittest.TestCase, _CarryingCase):
         _settlement.retire_current_evidence(self.state)
 
         with self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
-            self.assertIsNone(self.decide(support.SQUASHED_SHA))
+            self.assertIs(self.refused(support.SQUASHED_SHA).verdict, _DEFER)
             self.assertIn("no current evidence", support.logged_refusal(logged))
 
 
 class UncarriedEvidenceTest(unittest.TestCase, _CarryingCase):
-    """An equal tree carries nothing unpublished, and nothing for a review of the old head."""
+    """An equal tree carries nothing unpublished, nothing for an old head's review, nor an approval past its own."""
 
     def setUp(self) -> None:
         _CarryingCase.setUp(self)
@@ -179,7 +258,7 @@ class UncarriedEvidenceTest(unittest.TestCase, _CarryingCase):
                 moves(self)
 
                 with self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
-                    self.assertIsNone(self.decide(support.SQUASHED_SHA))
+                    self.assertIs(self.refused(support.SQUASHED_SHA).verdict, _DEFER)
                     self.assertIn(refusal, support.logged_refusal(logged))
 
     def test_a_review_of_the_old_head_is_not_carried(self) -> None:
@@ -189,7 +268,7 @@ class UncarriedEvidenceTest(unittest.TestCase, _CarryingCase):
         # never published.
         self.moves_the_head(support.SQUASHED_SHA)
         with self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
-            self.assertIsNone(self.decide(support.SQUASHED_SHA))
+            self.assertIs(self.refused(support.SQUASHED_SHA).verdict, _DEFER)
             self.assertIn("no review_subject about the target head", support.logged_refusal(logged))
         self.carries(self.source.binding.retargeted(support.SQUASHED_SHA))
 
@@ -198,6 +277,28 @@ class UncarriedEvidenceTest(unittest.TestCase, _CarryingCase):
             self.assertIn(_OLD_REVIEW_REFUSAL, support.logged_refusal(logged))
 
         self.assertEqual(len(self.artifacts()), 1)
+
+    def test_an_approval_carries_only_its_own_review(self) -> None:
+        # Approved, and then a later report about the squashed head settled
+        # and a reviewer handed it -- a review, report, and requirements the
+        # approval was never given. The generic decision carries onto that
+        # later review; an approval's -- the current evidence or the gate's
+        # run -- takes only the approved review unchanged, so it refuses, and
+        # nothing is carried for the reconciliation to publish.
+        self.state.set(_review_subjects.APPROVED_SUBJECT, self.subject.recorded())
+        self.gh.write_pinned_state(self.issue, self.state)
+        self.rewrites(support.SQUASHED_SHA)
+        with self.seams(), self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
+            decided = (
+                _carry_forward.carry_forward_decision(support.reading(self), support.SQUASHED_SHA, approved=True),
+                _carry_forward.local_run_decision(
+                    support.reading(self), self.binding(), self.source.commands, support.SQUASHED_SHA,
+                ),
+            )
+            self.assertIn("is not the approved review_subject, unchanged", support.logged_refusal(logged))
+
+        self.assertEqual([found.verdict for found in decided], [_DEFER, _DEFER])
+        self.assertIsInstance(self.decide(support.SQUASHED_SHA), _carry_forward.CarryForward)
 
     def test_a_review_of_the_old_head_is_not_current(self) -> None:
         # Settled with no proof, as an earlier build could have: a reader

@@ -25,7 +25,10 @@ the road carries on.
 Every write an approval's tail makes -- the squash, the handoff behind it, the
 park a failed squash takes -- follows requests of its own, and each is held
 first to the report, pull-request, returned-verdict, and verification-evidence
-records the state in hand carries (`_holds_its_records`). Where they stand,
+records the state in hand carries, and to the review subjects and the
+approval's evidence claim the comment carried when the tail last read or
+wrote it (`_holds_its_records`) -- what every proof since, the evidence's
+included, was taken over, and what a carry answers on. Where they stand,
 the state is laid over the comment as read then, measured from the comment as
 the tail last read or wrote it (`_Held`): a field another road wrote meanwhile
 -- a round spent by a reply -- is carried rather than written back over. The
@@ -51,7 +54,11 @@ from functools import partial
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.verification import probes as _probes, status as _worktree_status
+from orchestrator.git.verification import (
+    models as _verify_models,
+    probes as _probes,
+    status as _worktree_status,
+)
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -93,22 +100,37 @@ class _Held:
     which holds no subject either. `comment` is the pinned comment as the tail
     last read or wrote it, which the next reading is measured from; None where
     that reading takes the state in hand whole over the comment instead.
+    `gate_run` is the run the approval's verify gate made this tick, which
+    its squash carries as orchestrator-executed evidence where it binds
+    (`squash_evidence`) -- None on that recovery, which ran no gate.
     """
 
     verdict: _verdicts.ReturnedVerdict | None
     subject: dict | None = None
     comment: dict | None = None
+    gate_run: _verify_models.VerifyResult | None = None
 
     @classmethod
-    def of_the_approval(cls, state: PinnedState, run: _models._ReviewerRun) -> _Held:
-        """What the approval `run` returned holds: its subject, and the verdict `state` has waiting if it is that."""
+    def of_the_approval(
+        cls, state: PinnedState, run: _models._ReviewerRun, gate_run: _verify_models.VerifyResult | None = None,
+    ) -> _Held:
+        """What the approval `run` returned holds.
+
+        Its subject, the verdict `state` has waiting if it is that, and
+        `gate_run`, the run its verify gate made.
+        """
         waiting = _verdicts.read_returned_verdict(state)
         subject = run.subject.recorded()
         if waiting is not None and (waiting.round_n, waiting.verdict, waiting.subject) != (
             run.round_n, _verdicts.APPROVED, subject,
         ):
             waiting = None
-        return cls(waiting, subject)
+        return cls(waiting, subject, gate_run=gate_run)
+
+    def writes(self, gh: GitHubClient, issue: Issue, state: PinnedState) -> None:
+        """Write `state` over `issue`'s pinned comment, and take it as the comment the tail last wrote."""
+        gh.write_pinned_state(issue, state)
+        self.wrote(state)
 
     def wrote(self, state: PinnedState) -> None:
         """Take `state`, just written, as the comment the tail last wrote.
@@ -257,10 +279,17 @@ def _squash_notice_posted(
 def _holds_its_records(
     gh: GitHubClient, issue: Issue, state: PinnedState, purpose: str, held: _Held,
 ) -> bool:
-    """Whether the comment still carries the report, pull-request, verdict, and evidence records `state` does.
+    """Whether the comment still carries the report, pull-request, verdict, evidence, and approval records `state` does.
 
     Asked ahead of each write an approval's tail makes behind requests of its
-    own, `purpose` naming the write. Where the records stand, `state` is laid
+    own, `purpose` naming the write. The review subjects and the approval's
+    evidence claim (`review_comment._APPROVAL_RECORDS`) -- which the tail
+    stages the last two of itself -- are measured from `held.comment`, the
+    comment as the tail last read or wrote it, the reading every proof
+    since was taken over: a subject another road replaced or removed
+    meanwhile is one the evidence carried or proved for the move may no longer
+    answer for, and a claim removed or replaced leaves a carry answering on
+    nobody's word, whatever `state` still spells. Where the records stand, `state` is laid
     over the comment as read, measured from `held.comment` -- or, where that
     is None, taken whole over it, only the ledger of the orchestrator's own
     comments merged (`review_comment._Reread.lays_over`) -- and that reading is
@@ -271,12 +300,15 @@ def _holds_its_records(
     durable = _review_comment._read(gh, issue, state, purpose)
     if durable is None:
         return False
-    if _review_comment._moved(durable.data, state.data, _HELD_RECORDS):
+    measured = state.data if held.comment is None else held.comment
+    if _review_comment._moved(durable.data, state.data, _HELD_RECORDS) or _review_comment._moved(
+        durable.data, measured, _review_comment._APPROVAL_RECORDS,
+    ):
         log.warning(
             "issue=#%s its pinned comment does not carry the developer report, "
-            "pull request, verdict, or verification evidence records this tick "
-            "holds, so it will not %s; recording only the comments it posted "
-            "and retiring the verdict it holds", issue.number, purpose,
+            "pull request, verdict, verification evidence, review subject, or "
+            "approval claim records this tick holds, so it will not %s; recording only the "
+            "comments it posted and retiring the verdict it holds", issue.number, purpose,
         )
         _records_what_it_posted(gh, issue, state, durable, held)
         return False

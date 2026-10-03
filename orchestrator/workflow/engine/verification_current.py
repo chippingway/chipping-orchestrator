@@ -37,6 +37,21 @@ standing there as some other artifact is evidence nobody can be shown.
 
 Every refusal DEFERS, since what answers it is newer evidence settling or
 fresh evidence rather than a retry; a thread nobody could read HOLDS.
+
+A carry of current evidence copies its artifact's transcript, and is owed
+until it settles over that very record. So the reconciliation asks of the
+SOURCE too, ahead of the carry's post and again ahead of its settlement
+(`copied_source_verdict`): the record it copied still current, and its
+artifact still the one that settled, carrying exactly what was copied. A
+source edited or deleted while the carry was owed -- across a publication
+retried over a lost response included -- refuses the carry rather than
+letting its copy outlive what the pull request shows.
+
+Evidence carried onto a head it did not run on answers for its review only
+while that review stands (`carry_answers`), which the pinned comment alone
+says: the approval squash's carry is bound to the approved review, so a
+review returned since, or the record removed or replaced by hand, leaves it
+answering for nothing.
 """
 from __future__ import annotations
 
@@ -50,6 +65,7 @@ from orchestrator.workflow.engine import (
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
+    verification_subject as _subject,
 )
 
 
@@ -64,28 +80,100 @@ def publication_verdict(
     `pull_request` is the one the caller proved open and standing on the head
     it is asking about, so the thread read is that pull request's.
     """
+    return settled_artifact(gh, state, current, pull_request)[0]
+
+
+def settled_artifact(
+    gh: GitHubClient,
+    state: PinnedState,
+    current: _records.CurrentEvidence,
+    pull_request: Any,
+) -> tuple[_evidence_models.ReportEvidence | None, Any]:
+    """`publication_verdict`'s answer, and the artifact it re-read where that answer is None.
+
+    For a carry-forward, which publishes the transcript the settled artifact
+    carries again: taken from the very reading that proved the artifact is
+    still the one that settled, rather than from a second one that could
+    find it edited.
+    """
     if _outranked(state, current):
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.DEFER,
             "verification evidence newer than the current record is recorded",
-        )
+        ), None
     if not _handoff_describes(state, current):
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.DEFER,
             "the evidence handoff does not describe the current evidence",
-        )
+        ), None
     presence, found = gh.reread_verification_artifact(pull_request, current.comment_id)
     if presence is ReportPresence.UNCONFIRMED:
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.HOLD,
             "the current evidence's artifact could not be re-read",
-        )
+        ), None
     if presence is not ReportPresence.PRESENT or not _is_the_settled_artifact(found, current):
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.DEFER,
             "the current evidence's artifact is gone or no longer the one that settled",
+        ), None
+    return None, found
+
+
+def copied_source_verdict(
+    gh: GitHubClient,
+    state: PinnedState,
+    pending: _records.PendingEvidence,
+    pull_request: Any,
+) -> _evidence_models.ReportEvidence | None:
+    """Refuse a carry whose copied source no longer says what it copied, or None.
+
+    None for a transaction that copied nothing. Otherwise the evidence it
+    names has to still be the current record, and that record's artifact,
+    re-read on the proved `pull_request`, has to still be the one that
+    settled and carry exactly the commands the carry copied. Not asked
+    whether it is the latest: the carry outranks it from the moment it is
+    recorded.
+    """
+    if pending.copied_from is None:
+        return None
+    current = _settlement.read_current_evidence(state)
+    if current is None or current.receipt != pending.copied_from:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.DEFER,
+            "the evidence the carry copied is no longer the current evidence",
         )
-    return None
+    presence, found = gh.reread_verification_artifact(pull_request, current.comment_id)
+    if presence is ReportPresence.UNCONFIRMED:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.HOLD,
+            "the artifact the carry copied could not be re-read",
+        )
+    if presence is ReportPresence.PRESENT and _is_the_settled_artifact(found, current) and (
+        found.commands == pending.commands
+    ):
+        return None
+    return _evidence_models.ReportEvidence(
+        _evidence_models.ReportEvidenceVerdict.DEFER,
+        "the artifact the carry copied is gone or no longer carries what it copied",
+    )
+
+
+def carry_answers(state: PinnedState) -> bool:
+    """Whether current evidence carried onto a head it did not run on still answers for the review it was carried for.
+
+    True where nothing current is carried. A carry answers for its head only
+    on the approval's word -- the approved review, about the commit that was
+    tested -- so the review subject it is bound to has to stand as the
+    evidence records accept one (`verification_subject.subject_verdict`): the
+    pull request this issue records, no developer report owed, and the
+    applicable record still that very review. Read off the pinned comment
+    alone, so every reader about to move an approval on can ask it first.
+    """
+    current = _settlement.read_current_evidence(state)
+    if current is None or current.binding.tested_sha == current.binding.target.target_head:
+        return True
+    return _subject.subject_verdict(state, current.binding) is None
 
 
 def _outranked(state: PinnedState, current: _records.CurrentEvidence) -> bool:

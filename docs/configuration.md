@@ -460,6 +460,19 @@ reviewed, so the run is recorded without a park and the next tick's fresh review
 empty `VERIFY_COMMANDS` advances too, but its result is an explicit `not_run` rather than evidence that anything
 passed.
 
+What the approval rests on is the reviewer's settled verification. A squash that publishes another head carries
+evidence onto it only where both commits read as the tested tree and the verification context these two settings mint
+is unchanged, and the evidence it carries is the gate's own run where that run passed whole on the approved head:
+published as orchestrator-executed evidence with its own transcript, naming the approved head as the commit that ran
+and the squashed head as an equivalent-tree target. With an empty `VERIFY_COMMANDS` the gate runs nothing, and the
+reviewer's evidence is what is carried; so it is when an interrupted squash is finished on a later tick, which runs no
+gate. That carry copies the reviewer's artifact, and until it settles that artifact has to still say what was copied:
+editing or deleting it meanwhile -- before a retried publication included -- refuses the carry. A squash that
+rewrites nothing publishes nothing from the gate. Changing `VERIFY_COMMANDS` or `VERIFY_TIMEOUT` between an
+approval and its squash -- while the squash runs, or before a refused relabel behind it is retried --
+refuses the carry: the evidence is invalidated and the squash handoff dropped, and the head goes back to a fresh
+reviewer (see [`_handle_validating`](state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating)).
+
 A run records the commit and full tree it tested, both read before the first command; the exact ordered
 `VERIFY_COMMANDS`; each attempted command's outcome, exit code, and redacted, bounded output; `VERIFY_TIMEOUT`; and a
 context revision digested from those commands and that timeout. The worktree has to read clean before the first
