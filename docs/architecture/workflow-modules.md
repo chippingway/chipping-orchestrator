@@ -1449,12 +1449,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it, the one behind having nothing between it and the relabel, and the
                             held-dependency line it logs
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
-                            consumed-comment ratchet
+                            consumed-comment ratchet; a parent whose children all resolved settles what a late split
+                            still owes the remote before it goes back to its own work, and waits on `blocked` while a
+                            recorded consumer keeps a ref, its consumer list cannot be read, or a damaged record
+                            still carries a ledger; settled, it
+                            drops the split attempt and retires the split's late cycle -- candidate, register, and
+                            identity, both ledgers kept -- in a write of its own inside the umbrella terminal's
+                            retirement window before the flip, so its implementation starts a cycle of its own; with
+                            no cycle to retire, the attempt is dropped in a write of its own ahead of the flip
       umbrella_terminal.py  resolution text, usage totals, and cycle/generation receipts for published late splits;
                             retire the live cycle while retaining its obligations, then label done and close
       umbrella.py           the `workflow:umbrella` poll and barriers around child activation, cleanup, and completion;
                             require settled obligations and publication before retirement, and restore a cancelled
-                            cycle when a close is observed inside the retirement window; its scan of the tracked
+                            cycle when a close is observed inside the retirement window, a `blocked` parent's
+                            hand-back included; its scan of the tracked
                             manifest is handed to cleanup, which proves a held snapshot against the recorded consumers
       late_coordinator.py   the late mode's order: admission, park retirement, content settlement, then reuse
                             a recorded answer -- never while a reply is still owed a whole quote -- or buy one fresh
@@ -1617,7 +1625,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             generation-derived snapshot ownership; a consumer whose lookup, state, or labels cannot be
                             read retains its ref without failing the pass, and a recorded consumer the caller's scan
                             was not asked about -- an original a replaced manifest orphaned -- is read afresh rather
-                            than taken from the manifest
+                            than taken from the manifest, while a replacement recorded beside it is answered off that
+                            scan
       late_cleanup_proof.py prove the complete consumer ledger from its recorded phase, count, or cancellation seal,
                             then require every consumer to be freshly known closed before reclaiming its snapshot
       late_branch_reclamation.py
@@ -1633,7 +1642,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             entries separately so unchanged failures require no pinned-state rewrite; a held snapshot
                             is selected against the ledger's consumers, never the manifest the caller scanned
       late_cleanup.py       settle and report attempts, persist changed entries, and hold the umbrella terminal until
-                            every obligation and the superseded publication settle; opaque uncorrelated debts stay held
+                            every obligation and the superseded publication settle; uncorrelated debts stay held, a bare
+                            consumer list included, and a retired record with readable ledgers only on what it still
+                            owes; the same settlement, and a consumer list it cannot read, gate a `blocked` parent's
+                            return to its own implementation
       late_reuse_reading.py snapshot reuse verdicts from the owner's reclamation receipt, corroborated ancestry,
                             trusted local mirror, and exact remote ref; unreadable evidence defers the dispatch
       late_reuse.py         hold or park the child before its label handler runs, distinguishing reclaimed and repointed

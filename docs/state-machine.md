@@ -290,7 +290,10 @@ on the same tick. Full flow: [`state-machine/delivery-stages.md`][ready].
 The parent reads each child's current label: every child `done` flips the parent to `workflow:ready`, a `rejected` or
 manually-closed child parks it, and the dep-graph walk relabels any `workflow:blocked` child whose recorded
 dependencies are all `done` to `workflow:ready`. A child with no children of its own and a recorded `parent_number`
-is a no-op. Full flow: [`state-machine/delivery-stages.md`][blocked].
+is a no-op. A parent a late split's umbrella became once an edit re-decomposed it with work of its own settles that
+split's ledger the way the umbrella's terminal does before the flip, stays `blocked` while anything is still owed,
+and retires the split's cycle in a write of its own first, so its implementation starts a cycle of its own. Full
+flow: [`state-machine/delivery-stages.md`][blocked].
 
 ### `_handle_umbrella` (label `workflow:umbrella`)
 

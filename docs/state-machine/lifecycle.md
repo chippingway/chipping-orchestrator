@@ -844,7 +844,18 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    by hand to drive such an issue again
 
    workflow:blocked (each due dependency poll, open issues only; DEPENDENCY_POLL_EVERY_N_TICKS):
-     all children = done       ─► parent=workflow:ready
+     all children = done       ─► parent=workflow:ready -- once a late
+                                  split's ledger on it is settled (the
+                                  umbrella row's rule); a ref still held
+                                  for a live recorded consumer, or a
+                                  consumer list it cannot read, keeps it
+                                  on workflow:blocked for the next poll;
+                                  settled, split_attempt and the split's
+                                  cycle are retired in its own write
+                                  first, so implementation starts a cycle
+                                  of its own; a close latched before or
+                                  seen during that write ends the cycle
+                                  and keeps workflow:blocked
      any child = rejected      ─► park HITL on parent
      dep_graph walk: any workflow:blocked child with all deps=done
                                ─► child=workflow:ready
@@ -874,13 +885,20 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   lookup, or a lazy state/label read behind
                                   one) keeps the ref however done the
                                   replacements are -- read, never relabelled
-                                  or re-tracked. The ref goes on the first
-                                  poll after they end that reaches this row
-                                  or the park row below.
+                                  or re-tracked. A replacement the ledger
+                                  records beside them keeps it the same
+                                  way, reopened after it resolved included.
+                                  The ref goes on the first poll after the
+                                  last recorded consumer ends that reaches
+                                  this row or the park row below.
                                   EVERY obligation that is not
                                   `reconciled` holds the terminal (a RETAINED
                                   ref included), as does an opaque RESOURCE
-                                  ledger or a damaged cycle identity -- the
+                                  ledger or a damaged cycle identity with
+                                  any ledger, a bare consumer list
+                                  included (a RETIRED record with readable
+                                  ledgers is held only on what it still
+                                  owes) -- the
                                   label stays, which IS the retry, and the
                                   reason is logged on each due dependency
                                   poll that holds.

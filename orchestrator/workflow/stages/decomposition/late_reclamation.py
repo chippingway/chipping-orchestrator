@@ -74,10 +74,12 @@ def _asked_snapshots(
     rule that owns the snapshot. The consumers are the ones the ledger
     RECORDS, read from the pass's scan only where that scan was asked about
     them -- see `_consumer_scan`. The umbrella's scan is of the manifest it
-    tracks, and a genuine edit can replace that manifest with children this
-    ref was never cut for. Proved off that scan, the originals would be
-    consumers nobody read, so a ref every one of them had finished with would
-    be held for good -- and the terminal with it.
+    tracks, and a genuine edit can replace that manifest with other children:
+    any the ledger records beside the originals are answered off that scan
+    like any it tracks, and the rest were never cut from it. Proved off that
+    scan alone, the originals would be consumers nobody read, so a ref every
+    one of them had finished with would be held for good -- and the terminal
+    with it.
 
     Nothing is read where nothing is held, which is every visit after the
     ref is reconciled and every umbrella whose split preserved none.

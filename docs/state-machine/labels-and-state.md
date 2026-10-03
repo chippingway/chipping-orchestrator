@@ -570,7 +570,8 @@ The keys that matter for the state machine fall into a few groups:
   fresh conversation against the frozen candidate — see [the late run](#the-late-run) for the two conditions a resume
   takes.
 - **Decomposition.** `children`, `dep_graph` (`{child_idx_str: [child_idx, ...]}` — GitHub has no first-class blocks
-  relation), `decomposed_at`, `pickup_comment_id`. `split_attempt` is reserved, and dormant: no split writes it yet. It
+  relation), `decomposed_at`, `pickup_comment_id`. `split_attempt` is reserved, and dormant: no split writes it yet,
+  and a `blocked` parent whose children all resolved drops it in a write ahead of its flip back to `workflow:ready`. It
   is sixteen lowercase hex digits minted for one ordinary split, meant for the write that records
   `expected_children_count` and the whole declared `dep_graph` before the first child exists, and each child of that
   split would carry it in a hidden body receipt stamped after its slice,
@@ -3269,7 +3270,11 @@ rather than preserving.
   since the reclamation rule asks about each of them once — and it is read from the other end too, as the one record
   that can vouch for a child claiming this split in a body marker anybody can paste. It is not `children`, and a drift
   reroute that replaces that manifest leaves it naming the originals the ref was preserved for: the proof reads any
-  consumer the umbrella's scan of the replacements was not asked about afresh. Only a positive whole number is
+  consumer the parent's scan of the replacements was not asked about afresh, and answers a replacement recorded
+  beside them off that scan. Both hand-offs past which nothing revisits these ledgers settle them first — the
+  umbrella's close, and the all-children-resolved flip of a parent the re-decomposition left `blocked` with work of
+  its own, which stays `blocked` while a recorded consumer still holds the ref or while `late_consumers` cannot be
+  read at all. Only a positive whole number is
   one — `True`, `2.5`,
   and `"7"` are not issues anything can ask GitHub about, and neither the reader nor `with_consumers` will convert
   one into a consumer id. Neither ledger is ever *reduced* to what this binary understood: an entry it cannot type, or a
@@ -3285,7 +3290,9 @@ rather than preserving.
   read is **not** `pending`, a field it never wrote is not noise to drop, and a target that is not a usable
   identifier is not one to re-encode. The damaged-identity case is preserved the same way: a record whose
   `late_cycle_id` cannot be read writes its two ledgers and nothing else, because an obligation does not stop being
-  owed when the identity beside it is damaged. Dropping any of it would be an obligation deleted from the issue that
+  owed when the identity beside it is damaged — and either hand-off is held on any entry such a record carries, a
+  `late_consumers` list alone included, unless `late_retired_cycle_id` says a retirement left it and both ledgers are
+  readable, when only an entry still owed holds. Dropping any of it would be an obligation deleted from the issue that
   still owes it — a cleanup that looks complete, or a snapshot reclaimed as though nobody were waiting on it — so a
   generation holding an opaque ledger is one nothing may treat as settled.
 - **The split's own registers.** `late_split_children` is the ordered, positional list of the children THIS
@@ -4114,9 +4121,11 @@ rather than preserving.
   observation with nothing left to correlate it to. A record carrying the stamp and no generation is asked once per
   owner per process whether the thread has that cycle's receipt; one that does gets the cycle put back, cancelled,
   with the ledgers the retirement carried across, and the ordinary ending runs from there. Every retirement that drops
-  a cycle records it — an authorized settlement's publication, the umbrella terminal's, and the size gate's own drop
-  of a candidate it measured at or below the ceiling, which needs it for the same reason: the barrier behind each
-  write belongs to the process that made it. All three take the same window around that write, and the gate's is the
+  a cycle records it — an authorized settlement's publication, the umbrella terminal's, a settled `blocked` parent's
+  hand-back to its own work, and the size gate's own drop of a candidate it measured at or below the ceiling, which
+  needs it for the same reason: the barrier behind each write belongs to the process that made it. All four take the
+  same window around that write — the hand-back keeping `workflow:blocked` where the umbrella's terminal keeps
+  `workflow:umbrella` — and the gate's is the
   one with the most to lose behind it: past its retirement come a pushed branch, an opened pull request, and a relabel
   to `workflow:validating`, so a close dropped in that interval would hand a closed issue to review. The latch is
   asked ahead of the write and the window's own answer behind it, and a close either side of it ends the cycle instead

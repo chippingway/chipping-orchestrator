@@ -9,11 +9,13 @@ so its cancellation still has the evidence it needs.
 The children this poll scans are the manifest it tracks now, which after a
 genuine edit are replacements beside a late split's orphaned originals. The
 settlement is handed that scan and proves a held snapshot against the
-consumers the split recorded, so the originals decide whether the ref may
-go. The replacements decide only when that is asked: the settlement runs on
-a poll that finds every tracked child resolved or one a child's disposition
-parks, so an original that ends earlier frees the ref on the first such
-poll after it -- with the terminal behind the same settlement.
+consumers the ledger records: the originals, and any replacement recorded
+there beside them. Those decide whether the ref may go, a recorded
+replacement reopened after it resolved included. The tracked children also
+decide when that is asked: the settlement runs on a poll that finds every one
+of them resolved or one a child's disposition parks, so the ref goes on the
+first such poll after the last recorded consumer has ended -- with the
+terminal behind the same settlement.
 """
 from __future__ import annotations
 
@@ -176,7 +178,10 @@ def _reinstated(
     keeps `umbrella` with the mark down and the ending retires it to
     `rejected` from a label the closed-owner sweep still queries. The
     terminal is not written: the label and the close below it are what this
-    refuses, and everything already said stands.
+    refuses, and everything already said stands. A `blocked` parent going
+    back to its own work retires its cycle through the same window and is
+    answered here the same way: it keeps `blocked`, which that sweep queries
+    too.
 
     Asked OF the window rather than of the latch. The window decides what it
     observed as it closes, under the lock that closes it, so there is no
@@ -187,8 +192,8 @@ def _reinstated(
     if not retiring.observed:
         return False
     log.warning(
-        "issue=#%s was observed closed as its umbrella terminal retired "
-        "cycle %d; putting that cycle back so the ending has something to "
+        "issue=#%s was observed closed as its settled late cycle %d was "
+        "retired; putting that cycle back so the ending has something to "
         "run from",
         issue.number, live.cycle_id,
     )

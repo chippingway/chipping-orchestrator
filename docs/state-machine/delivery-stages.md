@@ -569,11 +569,31 @@ because there it is the claim that this stage has already rerouted rather than a
   5. Any child closed but its label is not `done` / `rejected` / `in_review` → retry `_finalize_if_pr_merged` (covers
      an externally-merged child whose own handler has not yet finalized) before falling through to the manually-closed
      park.
-  6. Every child `done` → flip parent → `workflow:ready`.
+  6. Every child `done` → flip parent → `workflow:ready`. A parent that still records a late split's generation —
+     the umbrella a split made, re-decomposed by a genuine edit into a manifest that keeps work for the parent — first
+     runs the settlement the umbrella's terminal runs (see
+     [what the terminal waits on](#_handle_umbrella-label-workflowumbrella)): nothing revisits that ledger once the
+     parent has gone back to implementation, so a ref still held for a recorded consumer that has not ended — an
+     orphaned original, or a replacement the ledger records — keeps the parent on `blocked`, which the next due poll
+     asks again, and a reason is logged each time. So does a `late_consumers` list this binary cannot read, whether or
+     not a ref is still held beside it — the retirement below keeps that ledger as history, and an unreadable one is
+     none — while the superseded branch, which owes no consumer, is still reclaimed. A record whose cycle identity is
+     damaged is held exactly as the umbrella's terminal holds it: any ledger left on it — typed entries, or a
+     `late_consumers` list, read or not —
+     has nothing to correlate a reclamation to, so the parent stays `blocked` and the error is logged. Settled, the
+     parent drops its `split_attempt` and retires the split's late cycle in a write of its own ahead of the flip —
+     candidate, register, and cycle identity dropped, both ledgers and `late_retired_cycle_id` kept, inside the window
+     the umbrella's terminal retires in, a close latched before it or observed during it ending the cycle instead and
+     keeping the parent `blocked` — so the implementation it goes back to measures a candidate of its own rather than
+     recovering the superseded one, and a later split cuts a register of its own. An issue that never entered the late
+     gate owes nothing and flips at once, and so does a record a retirement left once both its ledgers are readable
+     and nothing on them is still owed; either drops any `split_attempt` it records in a write of its own while still
+     `blocked`, since the flip sets the label before it writes.
   7. Walk children: any `workflow:blocked` child whose recorded dependencies are all `done` gets relabeled
      `workflow:ready`. A child with no recorded deps is also flipped (vacuous all-done over an empty list).
-- **Output**: parent → `workflow:ready` (all done), OR a sibling unblocked, OR a HITL park, OR a no-op for a child
-  still waiting on its dependencies.
+- **Output**: parent → `workflow:ready` (all done and nothing a late split recorded still held), OR a sibling
+  unblocked, OR a HITL park, OR a no-op for a child still waiting on its dependencies or a parent still holding a
+  ref.
 
 ## `_handle_umbrella` (label `workflow:umbrella`)
 - **Trigger**: each tick `DEPENDENCY_POLL_EVERY_N_TICKS` makes due while the issue is open on `workflow:umbrella`, on
@@ -637,9 +657,11 @@ because there it is the claim that this stage has already rerouted rather than a
   handler already took for every consumer that scan was asked about. A recorded consumer it was not asked about is
   read afresh: after a genuine edit re-decomposed the umbrella the scan is of the replacements, and the originals the
   reroute orphaned are the consumers the ref was preserved for — so one of them still open, reopened, or unreadable
-  keeps the ref (and the terminal) however finished the replacements are. The settlement is asked only where this
-  handler reaches it — a poll that finds every tracked child resolved, or one a child's disposition parks — so the
-  ref goes on the first such poll after the last original ends, not on the first poll of any kind; an original that
+  keeps the ref (and the terminal) however finished the replacements are. A replacement the ledger records beside
+  them is answered off this handler's own scan and keeps the ref the same way, reopened after it resolved included.
+  The settlement is asked only where this handler reaches it — a poll that finds every tracked child resolved, or one
+  a child's disposition parks — so the ref goes on the first such poll after the last recorded consumer ends, not on
+  the first poll of any kind; an original that
   ends while replacements are still running frees nothing until they resolve or one parks the parent, and the
   terminal is behind the same settlement, so nothing closes over the ref in between. "Ended" is the consumer's
   own issue state, not its label: reaching `done`, being `rejected`, and a human closing it all close the issue, and
@@ -1192,7 +1214,9 @@ because there it is the claim that this stage has already rerouted rather than a
   and the reason it is held is logged on every dependency poll that holds, since a hold attempts nothing and so
   writes and emits nothing. An opaque *resource* ledger blocks outright, and so does any ledger entry on a record
   whose cycle identity
-  is damaged; an umbrella with no recorded generation and no ledger owes nothing and answers without a write. An
+  is damaged, a bare `late_consumers` list included; an umbrella with no recorded generation and no ledger owes
+  nothing and answers without a write, and one whose record a retirement left (`late_retired_cycle_id`) is held only
+  on a ledger this binary cannot read or an entry its ledgers still owe. An
   opaque *consumer* ledger is refused separately, because the two are preserved and written separately: it is what a
   snapshot's proof would be taken from, so the ref stays — while the superseded branch, which owes no consumer
   anything, is deleted and retried as usual.
