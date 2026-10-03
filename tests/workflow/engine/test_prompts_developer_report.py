@@ -8,10 +8,12 @@ change needs no commit. Every prompt a developer finishes work on carries that
 contract whole -- resumes too, since a resumed transcript may predate it -- and
 the two outcomes it spells are the ones `report_outcomes` accepts. A prompt that
 still offers `ACK:` offers it only for a reply whose report needs no change
-either. Every one of them, and a fresh respawn's preamble too, forbids quoting
-a receipt of this orchestrator's in the report however it is set off. That
-preamble defers the outcome to the task below it, and the prompts that close on
-a marker of their own teach no report at all.
+either. Every one of them, and a fresh respawn's preamble too, scopes the report
+to the final change, its rationale, and unresolved risks with no account of the
+verification run, and forbids quoting a receipt of this orchestrator's in the
+report however it is set off. That preamble defers the outcome to the task below
+it, and the prompts that close on a marker of their own teach no report at all.
+What the developer wrote is read back whole, whatever the guidance asked.
 """
 from __future__ import annotations
 
@@ -44,7 +46,7 @@ _READY_TEMPLATE = (
     f"  {_REPORT_READY_MARKER}\n  {_REPORT_PLACEHOLDER}\n  {_REPORT_END_MARKER}"
 )
 _VERIFIED_TEMPLATE = f"  {_REPORT_VERIFIED_MARKER} <location> <revision>"
-_REPORT = "Adds the foo flag; verified with the foo tests."
+_REPORT = "Adds the foo flag.\n\nVerification: `pytest tests/foo` passed."
 _SLUG = "chippingway/chipping-orchestrator"
 _PULL_NUMBER = 1697
 _COMMENT_ID = 5579567555
@@ -93,13 +95,16 @@ class DeveloperReportContractTest(unittest.TestCase):
     """What the contract says, where it is said, and that its outcomes parse."""
 
     def test_every_developer_prompt_carries_it(self) -> None:
-        # The content restriction is asked of each prompt as written rather
-        # than of the note alone: receipts are found by raw substring, so the
-        # prompt has to name the very prefix the report record refuses and
-        # every Markdown form that does not excuse it.
+        # The scope and the content restriction are asked of each prompt as
+        # written rather than of the note alone: a prompt that also asked for
+        # the verification run's account would contradict the scope it
+        # carries, and receipts are found by raw substring, so the prompt has
+        # to name the very prefix the report record refuses and every Markdown
+        # form that does not excuse it.
         for name, prompt in _developer_prompts().items():
             with self.subTest(prompt=name):
                 self.assertIn(_prompt_notes._DEVELOPER_REPORT_NOTE, prompt)
+                _report_guidance.assert_teaches_report_scope(self, prompt)
                 _report_guidance.assert_teaches_receipt_restriction(self, prompt)
 
     def test_it_names_the_contract_and_outcomes(self) -> None:
@@ -113,7 +118,6 @@ class DeveloperReportContractTest(unittest.TestCase):
             "history of review rounds or earlier reports",
             "enumerate every touched file",
             "list every individual test",
-            "verification performed and its outcome",
             "unresolved risks or decisions a reviewer must weigh",
             "complete current report rather than only the latest delta",
             "routine orchestrator work that needs no permission",
@@ -134,6 +138,9 @@ class DeveloperReportContractTest(unittest.TestCase):
                 self.assertIn(fragment, _prompt_notes._DEVELOPER_REPORT_NOTE)
 
     def test_taught_outcomes_are_parser_outcomes(self) -> None:
+        # The guidance asks for no verification account and nothing strips
+        # one: a report that carries one anyway is the developer's own text,
+        # read back whole.
         verified_line = _VERIFIED_TEMPLATE.replace("<location>", _COMMENT_URL)
         # The report replaces its placeholder line whole: the indent the prompt
         # sets it off with is the prompt's, and the report keeps its own.
@@ -149,6 +156,16 @@ class DeveloperReportContractTest(unittest.TestCase):
                 self.assertEqual(
                     report_outcomes._parse_report_outcome(message), outcome,
                 )
+
+    def test_fix_answers_report_content_in_the_report(self) -> None:
+        # A reviewer item asking for report content alone is answered by the
+        # report with no commit, and the kinds of content the fix prompt names
+        # are the report's own scope: verification detail is not among them.
+        self.assertIn(
+            "asks only for report content -- a missing explanation, rationale, "
+            "or risk -- in your updated report, with no commit for it",
+            _developer_prompts()["automated_fix"],
+        )
 
     def test_ack_waits_for_an_unchanged_report(self) -> None:
         # The ACK outcome survives beside the report contract on the routes
@@ -185,7 +202,9 @@ class RespawnAndStagePromptTest(unittest.TestCase):
         self.assertIn(_prompt_notes._RESPAWN_REPORT_NOTE, preamble)
         self.assertNotIn(_prompt_notes._DEVELOPER_REPORT_NOTE, preamble)
         # The preamble is what every fresh session is handed, whatever task
-        # follows it, so it carries the content restriction itself.
+        # follows it, so it carries the report's scope and the content
+        # restriction itself.
+        _report_guidance.assert_teaches_report_scope(self, preamble)
         _report_guidance.assert_teaches_receipt_restriction(self, preamble)
         for fragment in (
             "Wherever the task below asks for your completion report",

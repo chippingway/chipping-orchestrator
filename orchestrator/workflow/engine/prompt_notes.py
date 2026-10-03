@@ -6,11 +6,13 @@ Foreground instructions spell out the one-shot execution model and the AGY
 asynchronous-command contract (waiting within the current response via tools
 like `manage_task` while `RUNNING`). The developer report contract is spelled
 from the marker vocabulary its parser reads, so every developer prompt teaches
-exactly the outcomes `report_outcomes` accepts. Its content restriction, carried
-by the fresh-respawn report note as well, is spelled from the receipt prefix
-`github.comments.carries_reserved_marker` refuses by substring, so the text a
-developer is warned off is the text a report record refuses, wherever in the
-report it sits."""
+exactly the outcomes `report_outcomes` accepts. Two notes ride in it and in the
+fresh-respawn report note alike. The report's scope -- the final change, its
+rationale, and unresolved risks, with no account of the verification run --
+narrows what a report says and nothing a developer runs. The content restriction
+is spelled from the receipt prefix `github.comments.carries_reserved_marker`
+refuses by substring, so the text a developer is warned off is the text a report
+record refuses, wherever in the report it sits."""
 from __future__ import annotations
 
 from orchestrator.github import comments as _github_comments
@@ -59,6 +61,21 @@ _COMMIT_STYLE_NOTE = (
     "`git commit -m \"<subject>\"` with a single `-m`."
 )
 
+# The reviewer verifies the head it reviews and the orchestrator publishes what
+# it declares, so a verification section in the report repeats that evidence at
+# length on the pull request. The note still names every check as owed: told
+# only to omit the account, a developer could read the omission as leave to
+# skip the run. A check still failing stays a risk the reviewer weighs.
+_REPORT_SCOPE_NOTE = (
+    "Include only the final change, its rationale, and unresolved risks or "
+    "decisions a reviewer must weigh. Leave verification out of the report: "
+    "no verification or testing section, no inventory of the commands you "
+    "ran, and no summary of their results. That narrows what the report says, "
+    "not what you run -- still carry out every check this task or the "
+    "repository asks for before you finish, and name a check that still "
+    "fails, or one you could not run, as an unresolved risk."
+)
+
 # A receipt is found by searching raw comment text, so Markdown that renders a
 # copied one inert -- a code span, a fence, a quotation -- still reads to that
 # search as the step it names, and a report carrying one is refused unpublished.
@@ -84,9 +101,8 @@ _DEVELOPER_REPORT_NOTE = (
     f"{_DEVELOPER_REPORT_CHAR_BUDGET:,} characters. Make it self-contained, "
     "but describe the final branch state rather than the journey: do not repeat "
     "the issue body, preserve a history of review rounds or earlier reports, "
-    "enumerate every touched file, or list every individual test. Include only "
-    "what the branch changes and why, the verification performed and its "
-    "outcome, and unresolved risks or decisions a reviewer must weigh. Write "
+    "enumerate every touched file, or list every individual test. "
+    f"{_REPORT_SCOPE_NOTE} Write "
     "the complete current report rather than only the latest delta, because it "
     "supersedes every earlier report. Publishing it on the pull request is "
     "routine orchestrator work that needs no permission: do NOT post or edit "
@@ -128,7 +144,8 @@ _DEVELOPER_REPORT_NOTE = (
 _RESPAWN_REPORT_NOTE = (
     "Wherever the task below asks for your completion report, write one concise "
     "report about the final state of the whole branch, the previous session's "
-    "commits included. You write the report and the orchestrator publishes it as "
+    f"commits included. {_REPORT_SCOPE_NOTE} "
+    "You write the report and the orchestrator publishes it as "
     "routine work: there is no permission to ask for, nothing of yours to push "
     "or post, and no empty commit to make just to carry it. End with the exact "
     "report outcome that task describes -- the "

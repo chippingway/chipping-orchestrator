@@ -149,8 +149,8 @@ def _build_fix_prompt(review_feedback: str) -> str:
     return (
         "An automated reviewer requested changes on your implementation. Address each item "
         "below: COMMIT every repository change in your current worktree, and answer an item "
-        "that asks only for report content -- a missing explanation, verification detail, or "
-        "summary -- in your updated report, with no commit for it. Do NOT push -- the "
+        "that asks only for report content -- a missing explanation, rationale, or risk -- in "
+        "your updated report, with no commit for it. Do NOT push -- the "
         "orchestrator pushes, publishes your report, and re-runs the review.\n\n"
         f"Review feedback:\n\n{quoted}\n\n"
         f"{_prompt_notes._COMMIT_STYLE_NOTE}\n\n"

@@ -102,21 +102,23 @@ authors no subject. Where each prompt carries it, and why the bare developer res
 
 ## Developer report contract in developer prompts
 
-Every prompt a developer can finish work on — the initial implementation, an automated-review fix, a
-requirements-drift resume, PR feedback, a human-reply resume, a late revision against a human's guidance, a rewritten
-head's report refresh, and the bare-continue retry — teaches one report contract: the developer writes the complete,
-current report, the orchestrator publishes it as routine work that needs no permission, and the prompt asks the
-developer to keep the report at or below 4,000 characters by describing the final branch state rather than
-repeating the issue, prior review rounds, every file, or every test. The parser and publication path do not
-enforce that writing budget. A report that
-needs no repository change needs no commit, and finished work ends on exactly one outcome — either the report between
-`REPORT: READY` and `REPORT: END` lines or a `REPORT: VERIFIED <location> <revision>` line naming a report already on
-the pull request. The report may not contain this orchestrator's receipt prefix anywhere — not even in a code span, a
-fence, or a quotation, since receipts are found by raw text — so a receipt is described in prose. A report the
-orchestrator refuses to record publishes nothing and parks with a notice naming which refusal it was — a quoted
-receipt, the report's own length, the pinned comment's room, or another invalid record — and the reply's resume brings
-the corrected report with no new commit ([the report contract][report-contract]). A fresh respawn's preamble restates
-the ownership and that restriction and defers the outcome to the task below it.
+Every prompt a developer can finish work on — the initial implementation, an automated-review fix, a requirements-drift
+resume, PR feedback, a human-reply resume, a late revision against a human's guidance, a rewritten head's report
+refresh, the bare-continue retry, and the AGY command recovery — teaches one report contract: the developer writes the
+complete, current report, the orchestrator publishes it as routine work that needs no permission, and the prompt asks
+the developer to keep the report at or below 4,000 characters by describing the final branch state rather than repeating
+the issue, prior review rounds, every file, or every test. The report covers the final change, its rationale, and
+unresolved risks, and leaves out verification sections, command inventories, and run-result summaries; that narrows what
+the report says, not the checks the developer still runs, and a check still failing is named as a risk. The parser and
+publication path enforce neither that writing budget nor that scope: the report is published as the developer wrote it.
+A report that needs no repository change needs no commit, and finished work ends on exactly one outcome — either the
+report between `REPORT: READY` and `REPORT: END` lines or a `REPORT: VERIFIED <location> <revision>` line naming a
+report already on the pull request. The report may not contain this orchestrator's receipt prefix anywhere — not even in
+a code span, a fence, or a quotation, since receipts are found by raw text — so a receipt is described in prose. A
+report the orchestrator refuses to record publishes nothing and parks with a notice naming which refusal it was — a
+quoted receipt, the report's own length, the pinned comment's room, or another invalid record — and the reply's resume
+brings the corrected report with no new commit ([the report contract][report-contract]). A fresh respawn's preamble
+restates the ownership, the report's scope, and that restriction and defers the outcome to the task below it.
 `workflow/engine/report_outcomes.py` reads an outcome only out of a run that completed, and the
 initial implementation delivery is the road that acts on one: `workflow/engine/report_delivery.py` records what the
 run wrote before the size gate and the push, and `workflow/engine/report_binding.py` binds it to the repository, pull
