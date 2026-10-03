@@ -6,17 +6,23 @@ One publication carrying a report, one verification carrying a location, the
 settled pair either of them becomes, and the helpers that put any of those onto
 a pinned comment and then damage or truncate exactly one member. Spelled once so
 a case that breaks a member is visibly about that member rather than about the
-fixture around it.
+fixture around it. The reports quoting a reserved receipt, and the ones
+describing it in prose instead, are spelled here for the same reason: both
+records carry a report, and each is refused for the same text.
 """
 from __future__ import annotations
 
+from orchestrator.github import comments as _trust
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
+    report_record_reading as _reading,
     report_record_state as _record_state,
+    report_record_values as _record_values,
     report_records as _records,
     report_settlement_state as _settlement,
 )
+from orchestrator.workflow.stages.decomposition import split_receipts as _split_receipts
 from orchestrator.workflow.state import WorkflowLabel
 
 RECEIPT = "issue-7-report-1"
@@ -54,6 +60,48 @@ REVISION = 2
 # Text a JSON escape can spell and UTF-8 cannot carry: a lone surrogate reads
 # back out of the pinned comment as a `str` nothing downstream can encode.
 LONE_SURROGATE = "the gate is in \ud800 place"
+
+# How many paragraphs a report the size of a real completion report runs to:
+# thousands of characters, and still inside the budget every developer prompt
+# teaches.
+_PARAGRAPHS = 55
+
+REPORT_BODY = "The branch adds the dormant split receipts and the seed hold.\n\n" * _PARAGRAPHS
+
+# The parent issue the quoted split child's receipt names.
+_SPLIT_PARENT = 2069
+
+# The receipts a report may not quote: the one a split stamps its child with,
+# read off the stage that stamps it so the case quotes what that stage's own
+# search would match, the stamp on every comment this orchestrator posts, and
+# the bare prefix every receipt begins with.
+_RESERVED = (
+    ("split child", _split_receipts.receipt(_SPLIT_PARENT, "0123456789abcdef", 1, None)),
+    ("comment stamp", _trust.ORCHESTRATOR_COMMENT_MARKER),
+    ("bare prefix", _trust.RECEIPT_MARKER_PREFIX),
+)
+
+# The Markdown a report can set a receipt apart in, none of which changes the
+# raw body a receipt search reads.
+_QUOTINGS = (
+    ("inline code", "Each child is stamped with `{0}`."),
+    ("fenced code", "Each child is stamped with:\n\n```html\n{0}\n```"),
+    ("quotation", "Each child is stamped with:\n\n> {0}"),
+)
+
+# Every reserved receipt in every quoting, each closing a report of that size.
+QUOTED_RECEIPTS = tuple(
+    (f"{kind} in {quoting}", f"{REPORT_BODY}{template.format(receipt)}")
+    for kind, receipt in _RESERVED
+    for quoting, template in _QUOTINGS
+)
+
+# The same receipt described rather than quoted: named, even set in code, but
+# never spelled with the prefix a search matches.
+DESCRIBED_RECEIPTS = (
+    ("in prose", f"{REPORT_BODY}Each child is stamped with a hidden receipt naming its parent and slice."),
+    ("named in code", f"{REPORT_BODY}Each child is stamped with an `orchestrator-split-child` HTML comment."),
+)
 
 SUBJECT = _records.ReportSubject(
     repo_slug=SLUG,
@@ -128,3 +176,9 @@ def without(recorded: dict, member: str) -> dict:
 def reads_back(state: PinnedState) -> _records.PendingReport | None:
     """What the pending record on this state reads back as."""
     return _record_state.read_pending_report(state)
+
+
+def refusal_of(state: PinnedState) -> _record_values.RecordRefusal | None:
+    """Why the pending record on this state reads back as nothing, or None."""
+    read = _reading.pending_or_refusal(state.get(_records.PENDING_REPORT))
+    return read if isinstance(read, _record_values.RecordRefusal) else None

@@ -22,6 +22,14 @@ ordinary -- an initial publication is exactly that -- while a group that will
 not read is damage. Read as the same answer, a hand-edited group would settle a
 transaction having advanced no watermark and closed no round, and the next
 re-entry would rerun a developer over feedback that was already answered.
+
+Each record is read once, into either the record or the `RecordRefusal` saying
+why there is none, and the optional readers are that one reading with the
+reason dropped -- so a writer asking why a record it built was refused hears
+the same verdict the reader acting on it would. The answer is the report's own
+refusal only where every other member read: a content refusal says the text is
+what to correct, and a record whose identity, routing, bookkeeping, or location
+will not read is invalid whatever its report says.
 """
 from __future__ import annotations
 
@@ -56,9 +64,15 @@ _WATERMARKS = "watermarks"
 
 _SPENDS = "spends"
 
+_LOCATION = "location"
 
-def pending_from(recorded: dict) -> _records.PendingReport | None:
-    """Return the transaction one recorded object is, or None for damage.
+_INVALID = _record_values.RecordRefusal.INVALID_RECORD
+
+
+def pending_or_refusal(
+    recorded: dict,
+) -> _records.PendingReport | _record_values.RecordRefusal:
+    """Return the transaction one recorded object is, or why it is none.
 
     The three groups are read apart and refused together, so a record missing
     its identity, its routing, or the half its own mode owns is one answer
@@ -67,15 +81,32 @@ def pending_from(recorded: dict) -> _records.PendingReport | None:
     identity = _identity_of(recorded)
     routing = _routing_of(recorded)
     if identity is None or routing is None:
-        return None
+        return _INVALID
     carried = _carried_by_mode(recorded, routing[_MODE])
-    if carried is None or not _bound_to_subject(identity, carried):
-        return None
+    if isinstance(carried, _record_values.RecordRefusal):
+        return carried
+    # A location is exact in both halves and still names a place anywhere in
+    # the repository: PR #13's description is a perfectly readable location
+    # holding somebody else's text. Unbound, a transaction recorded for PR #12
+    # would reread it, find trusted content at the revision claimed, and record
+    # it as the report PR #12 now carries. A publication carries no location;
+    # what says where it went is the comment the post returns.
+    location = carried.get(_LOCATION)
+    if location is not None and location.pr_number != identity["subject"].pr_number:
+        return _INVALID
     return _records.PendingReport(**identity, **routing, **carried)
 
 
-def delivered_from(recorded: dict) -> _records.DeliveredReport | None:
-    """Return the delivered report one recorded object is, or None for damage.
+def pending_from(recorded: dict) -> _records.PendingReport | None:
+    """Return the transaction one recorded object is, or None for damage."""
+    read = pending_or_refusal(recorded)
+    return None if isinstance(read, _record_values.RecordRefusal) else read
+
+
+def delivered_or_refusal(
+    recorded: dict,
+) -> _records.DeliveredReport | _record_values.RecordRefusal:
+    """Return the delivered report one recorded object is, or why it is none.
 
     The same all-or-nothing reading the transaction gets, over the members a
     completed run settles: what the transaction will be called, which report
@@ -92,10 +123,10 @@ def delivered_from(recorded: dict) -> _records.DeliveredReport | None:
     )
     routing = _routing_of(recorded)
     if not receipt or not revision or not requirements or routing is None:
-        return None
+        return _INVALID
     carried = _carried_by_mode(recorded, routing[_MODE])
-    if carried is None:
-        return None
+    if isinstance(carried, _record_values.RecordRefusal):
+        return carried
     return _records.DeliveredReport(
         receipt=receipt,
         report_revision=revision,
@@ -105,23 +136,10 @@ def delivered_from(recorded: dict) -> _records.DeliveredReport | None:
     )
 
 
-def _bound_to_subject(identity: dict, carried: dict) -> bool:
-    """Whether a verified location sits on the pull request this is about.
-
-    A location is exact in both halves and still names a place anywhere in the
-    repository: PR #13's description is a perfectly readable location holding
-    somebody else's text. Unbound, a transaction recorded for PR #12 would
-    reread it, find trusted content at the revision claimed, and record it as
-    the report PR #12 now carries -- a handoff for a report that is not on the
-    pull request at all.
-
-    A publication carries no location and has nothing to bind; what says where
-    it went is the comment the post returns.
-    """
-    location = carried.get("location")
-    if location is None:
-        return True
-    return location.pr_number == identity["subject"].pr_number
+def delivered_from(recorded: dict) -> _records.DeliveredReport | None:
+    """Return the delivered report one recorded object is, or None for damage."""
+    read = delivered_or_refusal(recorded)
+    return None if isinstance(read, _record_values.RecordRefusal) else read
 
 
 def _identity_of(recorded: dict) -> dict | None:
@@ -164,8 +182,10 @@ def _routing_of(recorded: dict) -> dict | None:
     }
 
 
-def _carried_by_mode(recorded: dict, mode: _records.ReportMode) -> dict | None:
-    """Return what one mode's transaction carries, or None when it carries none.
+def _carried_by_mode(
+    recorded: dict, mode: _records.ReportMode,
+) -> dict | _record_values.RecordRefusal:
+    """Return what one mode's transaction carries, or why it carries none.
 
     The two modes carry opposite halves, and each half is required by exactly
     one of them: a publication with no text is a transaction that could publish
@@ -173,14 +193,18 @@ def _carried_by_mode(recorded: dict, mode: _records.ReportMode) -> dict | None:
     could prove nothing. Read the other way round -- a text on a verification,
     a location on a publication -- the extra field is simply not consulted,
     since what would act on it is the mode.
+
+    A publication's refusal is its report's own, since the text is the one
+    member a developer wrote and the one whose refusal it can correct.
     """
     if mode is _records.ReportMode.PUBLISH:
-        report = _record_values.as_report_text(recorded.get(_REPORT))
-        return None if report is None else {"report": report}
+        report = recorded.get(_REPORT)
+        refused = _record_values.report_text_refusal(report)
+        return {_REPORT: report} if refused is None else refused
     location = _fields.location_from(recorded)
     digest = _payloads.as_hex(
         recorded.get(_CONTENT_DIGEST), _formats.DIGEST_LENGTHS,
     )
     if location is None or not digest:
-        return None
-    return {"location": location, "content_revision": digest}
+        return _INVALID
+    return {_LOCATION: location, "content_revision": digest}

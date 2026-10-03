@@ -408,7 +408,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             with headroom to spare, and quotes no receipt marker of this orchestrator's. Text is
                             held to what UTF-8 can carry rather than to what `str` can hold, since a JSON escape
                             spells lone surrogates every pattern here would pass and the digest that hashes a
-                            report would raise on
+                            report would raise on. The report is the one field read for why as well as whether:
+                            `RecordRefusal` names a report quoting a receipt marker -- in inline code, a fence, or a
+                            quotation alike, since the search matches the raw body -- apart from one past
+                            `MAX_REPORT_TEXT` and from every other invalid record, because its author corrects the
+                            first two differently and no rewrite of a report corrects the third. The reason is held
+                            in memory only and never written to the pinned comment
     report_consumed_values.py the bookkeeping a recovered record may write, per key and per shape -- the delivery
                             watermarks and the requirements baseline a completion advances, read off
                             `prompt_delivery.py`'s own field names rather than respelled, plus the round and
@@ -424,10 +429,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the transaction it becomes both carry. The transaction's whole pinned object is
                             spelled here too, beside the groups it composes, since the subject is the only thing it
                             adds to the report a run delivered
-    report_record_reading.py what one recorded object reads back as, for both outstanding records: identity,
-                            routing, and the half its own mode owns, each refused whole rather than partly. A
-                            delivered report is the same reading with the subject left out, since a report
-                            waiting for a pull request names none
+    report_record_reading.py what one recorded object reads back as, or why it reads back as nothing, for both
+                            outstanding records: identity, routing, and the half its own mode owns, each refused
+                            whole rather than partly. A delivered report is the same reading with the subject left
+                            out, since a report waiting for a pull request names none. Each record is read once into
+                            either the record or its `RecordRefusal`, and the optional readers the state owners call
+                            are that reading with the reason dropped. The report's own refusal is the answer only
+                            where every other member read; a record whose identity, routing, location, or
+                            bookkeeping will not read is invalid whatever its report says
     report_record_state.py  the pending record's round trip, with presence asked apart from meaning -- a damaged
                             record and an issue with nothing outstanding are the same absence to the reader and
                             opposite answers to the guard -- and a write refused rather than truncated when its own
