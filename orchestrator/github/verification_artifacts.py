@@ -53,11 +53,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any
 
-from orchestrator.github import (
-    comments as _comments,
-    developer_reports as _reports,
-    verification_evidence as _evidence,
-)
+from orchestrator.github import comments as _comments, verification_evidence as _evidence
 from orchestrator.github.pinned_state import MAX_PINNED_BODY
 
 # What a thread is searched for when a transaction asks whether its artifact
@@ -200,7 +196,7 @@ class VerificationArtifact:
         what the header carries so a reader can tell the evidence apart from
         the identity wrapped around it.
         """
-        return _reports.content_digest(self.evidence)
+        return _evidence.content_revision(self.commands)
 
     @property
     def preamble(self) -> str:

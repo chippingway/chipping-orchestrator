@@ -4,8 +4,10 @@
 
 Evidence is a sequence of commands, each with the status it exited and
 whatever transcript the artifact carries for it. The sequence is rendered once,
-here, so the digest an artifact publishes is taken over one spelling of it and
-a reread can be exact.
+here, and its revision is taken here over that rendering, so the digest an
+artifact publishes is taken over one spelling of it -- whether the commands
+are shown in the visible section or carried in the hidden payload
+`verification_payloads` encodes -- and a reread can be exact.
 
 Who ran those commands is part of the evidence rather than a footnote to it.
 This orchestrator can report commands it spawned itself and watched exit; it
@@ -37,7 +39,7 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 
-from orchestrator.github import comments as _comments
+from orchestrator.github import comments as _comments, developer_reports as _reports
 
 # How one command's transcript is delimited. An info string, so GitHub renders
 # the transcript as the plain text it is rather than guessing a language for it.
@@ -167,6 +169,17 @@ def render_commands(commands: tuple[VerifiedCommand, ...]) -> str:
     if not commands:
         return NOTHING_RAN
     return _SEPARATOR.join(ran.rendered for ran in commands)
+
+
+def content_revision(commands: tuple[VerifiedCommand, ...]) -> str:
+    """The revision of one evidence section: the SHA-256 of its exact rendering.
+
+    Taken over the rendering, and here rather than beside any one way of
+    presenting it, so the visible section and the hidden payload
+    (`verification_payloads`) name evidence by one revision, and a settled
+    revision stays settled however an artifact comes to show its commands.
+    """
+    return _reports.content_digest(render_commands(commands))
 
 
 def commands_from(evidence: str) -> tuple[VerifiedCommand, ...] | None:
