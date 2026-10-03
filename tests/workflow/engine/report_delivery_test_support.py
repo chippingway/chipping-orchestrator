@@ -108,17 +108,28 @@ WIDEST_BRANCH = "\U0001f600" * _record_values.MAX_BRANCH
 # leave -- beside the `developer_report_owed` flag the park itself writes.
 OWED = ((PARK_REASON, _delivery.UNDELIVERABLE_REPORT),)
 
-# The reports this workflow will not record, and why each is one: past what a
-# comment holds, quoting a receipt marker of this orchestrator's, spelled in
-# text UTF-8 cannot carry, and saying nothing at all.
+# The reports this workflow will not record, why each is one, and the refusal
+# its reading names it by: past the ceiling a report is held to, quoting a
+# receipt marker of this orchestrator's, spelled in text UTF-8 cannot carry, and
+# saying nothing at all -- the last two invalid, since no rewrite of what they
+# say would make either a report.
 UNPUBLISHABLE_REPORTS = (
-    ("oversized", FILLER * (_record_values.MAX_REPORT_TEXT + 1)),
+    (
+        "oversized",
+        FILLER * (_record_values.MAX_REPORT_TEXT + 1),
+        _record_values.RecordRefusal.REPORT_TOO_LONG,
+    ),
     (
         "a quoted receipt marker",
         f"quoting {_trust.RECEIPT_MARKER_PREFIX}developer-report",
+        _record_values.RecordRefusal.RESERVED_RECEIPT,
     ),
-    ("text UTF-8 cannot carry", support.LONE_SURROGATE),
-    ("nothing at all", "   "),
+    (
+        "text UTF-8 cannot carry",
+        support.LONE_SURROGATE,
+        _record_values.RecordRefusal.INVALID_RECORD,
+    ),
+    ("nothing at all", "   ", _record_values.RecordRefusal.INVALID_RECORD),
 )
 
 # What a delivered report reads back as when the run wrote one for publication,

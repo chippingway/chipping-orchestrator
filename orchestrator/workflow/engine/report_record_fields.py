@@ -200,8 +200,8 @@ def pending_object(
     added to either belongs on both rather than on whichever encoder was
     edited.
 
-    None for a verification carrying no location, which is the refusal
-    `record_pending_report` promises answered where the record is built.
+    None for a verification carrying no location, which is the invalid record
+    `stage_pending_report` refuses where the record is built.
     """
     carried = carried_fields(pending)
     if carried is None:

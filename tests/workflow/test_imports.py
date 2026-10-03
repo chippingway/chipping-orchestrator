@@ -93,6 +93,7 @@ _ENGINE_OWNERS = (
     "report_publishing",
     "report_record_fields",
     "report_record_reading",
+    "report_record_room",
     "report_record_state",
     "report_record_values",
     "report_records",

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import unittest
 from dataclasses import replace
+from unittest.mock import patch
 
 from orchestrator.github.pinned_state import (
     MAX_PINNED_BODY,
@@ -21,6 +22,7 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     prompt_notes as _prompt_notes,
     report_record_reading as _reading,
+    report_record_room as _room,
     report_record_state as _record_state,
     report_record_values as _record_values,
     report_records as _records,
@@ -41,6 +43,9 @@ _OTHER_ROUND = 2
 
 # The filler a crowding case fills the rest of the comment with.
 _FILLER = "filler"
+
+# What that filler is made of.
+_CROWDING = "y"
 
 # The receipt a second transaction on the same issue runs under.
 _LATER_RECEIPT = "issue-7-report-2"
@@ -64,6 +69,9 @@ _REFUSAL = _record_values.RecordRefusal
 
 # One report past the ceiling a recorded report is held to.
 _OVERSIZED = "x" * (_record_values.MAX_REPORT_TEXT + 1)
+
+# The settled write the case about an unbuildable settlement stubs refusing.
+_HANDOFF_WRITER = "record_handoff"
 
 
 # The widest either commit member of a publication receipt is recorded at.
@@ -166,8 +174,8 @@ class RoundTripTest(unittest.TestCase):
             with self.subTest(shape=shape):
                 state = PinnedState()
 
-                self.assertTrue(
-                    _record_state.record_pending_report(state, pending),
+                self.assertIsNone(
+                    _record_state.stage_pending_report(state, pending),
                 )
                 self.assertTrue(_record_state.carries_pending_report(state))
                 self.assertEqual(support.reads_back(state), pending)
@@ -310,7 +318,11 @@ class RoundTripTest(unittest.TestCase):
 
 
 class BoundedRecordTest(unittest.TestCase):
-    """A record describing a publication this build could not make is refused."""
+    """A record describing a publication this build could not make is refused.
+
+    And refused for what refuses it: the record's own reading, or the room,
+    named by the comment that came out too large.
+    """
 
     def test_an_unsettleable_record_is_refused(self) -> None:
         # The settling write happens AFTER the report is posted, so a record
@@ -334,10 +346,18 @@ class BoundedRecordTest(unittest.TestCase):
         room = MAX_PINNED_BODY - len(pinned_state_body({
             _FILLER: "", _records.PENDING_REPORT: recorded,
         }))
-        crowded = PinnedState(state_data={_FILLER: "y" * room})
+        crowded = PinnedState(state_data={_FILLER: _CROWDING * room})
 
-        self.assertFalse(
-            _record_state.record_pending_report(crowded, support.PUBLISHED),
+        self.assertEqual(
+            _record_state.stage_pending_report(crowded, support.PUBLISHED),
+            _room.CommentOverflow(
+                write=_room.MeasuredWrite.SETTLEMENT,
+                later=_room.LaterWrites(),
+                size=len(pinned_state_body(
+                    _record_state.settled_payload(crowded, support.PUBLISHED),
+                )),
+                limit=MAX_PINNED_BODY,
+            ),
         )
         self.assertFalse(_record_state.carries_pending_report(crowded))
         # The record itself fitted exactly: it is the room settlement needs
@@ -354,7 +374,7 @@ class BoundedRecordTest(unittest.TestCase):
         # adds, and the receipt the publication gate writes -- are allowed for
         # beside it.
         self.assertTrue(_record_state.record_pending_report(
-            PinnedState(state_data={_FILLER: "y" * (room - _RESERVED)}),
+            PinnedState(state_data={_FILLER: _CROWDING * (room - _RESERVED)}),
             replace(support.PUBLISHED, watermarks=(), spends=()),
         ))
 
@@ -367,29 +387,43 @@ class BoundedRecordTest(unittest.TestCase):
         # returned rather than raised out of the middle of the write. The two
         # unencodable ones would be written and read back happily and raise at
         # the digest that hashes a report or the request that carries it.
-        for unwritable, refused in (
-            (_published(report=_OVERSIZED), "text"),
-            (_published(report_revision=_BEYOND_RECORDED), "revision"),
-            (_published(report=support.LONE_SURROGATE), "unencodable report"),
+        # Each is refused for its reading's own reason: a report too long or
+        # quoting a receipt is named as that, and everything else is an
+        # invalid record. Offered a comment with no room left at all, none of
+        # them is refused for the room, which would make none of them
+        # recordable.
+        for unwritable, refused, refusal in (
+            (_published(report=_OVERSIZED), "text", _REFUSAL.REPORT_TOO_LONG),
+            (
+                _published(report=support.QUOTED_RECEIPTS[0][1]),
+                "quoted receipt",
+                _REFUSAL.RESERVED_RECEIPT,
+            ),
+            (_published(report_revision=_BEYOND_RECORDED), "revision", _REFUSAL.INVALID_RECORD),
+            (_published(report=support.LONE_SURROGATE), "unencodable report", _REFUSAL.INVALID_RECORD),
             (_published(subject=replace(
                 support.SUBJECT, branch=support.LONE_SURROGATE,
-            )), "unencodable branch"),
-            (_verified(location=ReportLocation(support.PR_NUMBER + 1)), "elsewhere"),
-            (_verified(location=None), "unplaced"),
+            )), "unencodable branch", _REFUSAL.INVALID_RECORD),
+            (
+                _verified(location=ReportLocation(support.PR_NUMBER + 1)),
+                "elsewhere",
+                _REFUSAL.INVALID_RECORD,
+            ),
+            (_verified(location=None), "unplaced", _REFUSAL.INVALID_RECORD),
         ):
             with self.subTest(refused=refused):
-                state = PinnedState()
+                state = PinnedState(state_data={_FILLER: _CROWDING * MAX_PINNED_BODY})
+                found = dict(state.data)
 
-                self.assertFalse(
-                    _record_state.record_pending_report(state, unwritable),
+                self.assertIs(
+                    _record_state.stage_pending_report(state, unwritable),
+                    refusal,
                 )
-                self.assertFalse(
-                    _record_state.carries_pending_report(state),
-                )
+                self.assertEqual(state.data, found)
 
     def test_an_unfittable_record_is_not_written(self) -> None:
         half = MAX_PINNED_BODY // 2
-        state = PinnedState(state_data={_FILLER: "y" * half})
+        state = PinnedState(state_data={_FILLER: _CROWDING * half})
         oversized = _records.PendingReport(
             receipt=support.RECEIPT,
             subject=support.SUBJECT,
@@ -399,10 +433,100 @@ class BoundedRecordTest(unittest.TestCase):
             report="z" * half,
         )
 
-        self.assertFalse(
-            _record_state.record_pending_report(state, oversized),
+        self.assertEqual(
+            _record_state.stage_pending_report(state, oversized),
+            _room.CommentOverflow(
+                write=_room.MeasuredWrite.RECORD,
+                later=_room.LaterWrites(),
+                size=len(pinned_state_body({
+                    **state.data,
+                    _records.PENDING_REPORT: support.recorded(oversized),
+                })),
+                limit=MAX_PINNED_BODY,
+            ),
         )
         self.assertFalse(_record_state.carries_pending_report(state))
+
+    def test_the_receipt_s_settlement_is_named(self) -> None:
+        # The settlement fits the comment as it stands and not beside the
+        # receipt the publication gate writes when it pushes. What refuses the
+        # record is that settlement, and the refusal says so -- in the world
+        # carrying the receipt, since that is room the gate spends rather than
+        # anything the record or its report takes.
+        bare = PinnedState(state_data={_FILLER: ""})
+        room = MAX_PINNED_BODY - len(pinned_state_body(
+            _record_state.settled_payload(bare, support.PUBLISHED),
+        ))
+        crowded = PinnedState(state_data={_FILLER: _CROWDING * room})
+        pushed = _room.with_later_writes(crowded, receipt=True)
+
+        self.assertTrue(_record_state.fits_the_comment(
+            _record_state.settled_payload(crowded, support.PUBLISHED),
+        ))
+        self.assertEqual(
+            _record_state.stage_pending_report(crowded, support.PUBLISHED),
+            _room.CommentOverflow(
+                write=_room.MeasuredWrite.SETTLEMENT,
+                later=_room.LaterWrites(receipt=True),
+                size=len(pinned_state_body(
+                    _record_state.settled_payload(pushed, support.PUBLISHED),
+                )),
+                limit=MAX_PINNED_BODY,
+            ),
+        )
+        self.assertFalse(_record_state.carries_pending_report(crowded))
+
+    def test_an_unbuildable_settlement_is_invalid(self) -> None:
+        # A settlement whose own records refuse what this transaction hands
+        # them is one nothing measured, so the record is refused as invalid
+        # -- here on a comment too full for the record as well, whose room
+        # would otherwise be the answer. Nothing a caller passes reaches that
+        # refusal, so the handoff's writer is stubbed refusing on its owner.
+        full = {_FILLER: _CROWDING * MAX_PINNED_BODY}
+        state = PinnedState(state_data=dict(full))
+
+        with patch.object(_settlement, _HANDOFF_WRITER, return_value=False):
+            refused = _record_state.stage_pending_report(state, support.PUBLISHED)
+
+        self.assertIs(refused, _REFUSAL.INVALID_RECORD)
+        self.assertEqual(state.data, full)
+
+    def test_a_refusal_keeps_every_record(self) -> None:
+        # Whatever refuses a later transaction -- its report, its record, or
+        # the room -- writes nothing, so the transaction still outstanding and
+        # the settled pair beside it are what the comment carries afterwards,
+        # and the boolean writer is refused wherever the structured one is.
+        for refused, later in (
+            ("quoted receipt", _published(
+                receipt=_LATER_RECEIPT, report=support.QUOTED_RECEIPTS[0][1],
+            )),
+            ("past the ceiling", _published(receipt=_LATER_RECEIPT, report=_OVERSIZED)),
+            ("unrecordable revision", _published(
+                receipt=_LATER_RECEIPT, report_revision=_BEYOND_RECORDED,
+            )),
+            ("no room", _published(
+                receipt=_LATER_RECEIPT, report_revision=support.REVISION + 1,
+            )),
+        ):
+            with self.subTest(refused=refused):
+                state = self._full_comment()
+                found = dict(state.data)
+
+                self.assertIsNotNone(_record_state.stage_pending_report(state, later))
+                self.assertFalse(_record_state.record_pending_report(state, later))
+
+                self.assertEqual(state.data, found)
+                self.assertEqual(support.reads_back(state), support.PUBLISHED)
+
+    def _full_comment(self) -> PinnedState:
+        """One comment carrying every report record and no room beside them."""
+        state = PinnedState(state_data={_FILLER: ""})
+        _settlement.record_current_report(state, support.CURRENT)
+        _settlement.record_handoff(state, support.HANDOFF)
+        _record_state.record_pending_report(state, support.PUBLISHED)
+        room = MAX_PINNED_BODY - len(pinned_state_body(state.data))
+        state.set(_FILLER, _CROWDING * room)
+        return state
 
 
 class ReportRefusalTest(unittest.TestCase):

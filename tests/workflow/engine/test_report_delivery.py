@@ -10,7 +10,9 @@ is one the code went out without. Then the publication arrives and the record
 is bound to it: one write that drops the delivery and records the transaction,
 or no write at all and a refusal that says which of the two it was.
 
-Beside them, what the comment has to have room for before either happens.
+Beside them, what the comment has to have room for before either happens, and
+which of those measurements a refusal for the room names -- apart from a report
+its own reading refuses, which no room would make recordable.
 """
 
 from __future__ import annotations
@@ -18,11 +20,13 @@ from __future__ import annotations
 import unittest
 from dataclasses import replace
 
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState, pinned_state_body
 from orchestrator.workflow.engine import (
     report_delivery as _delivery,
     report_delivery_state as _delivery_state,
+    report_record_room as _room,
     report_record_state as _record_state,
+    report_record_values as _record_values,
     report_records as _records,
     report_settlement_state as _settlement,
 )
@@ -35,6 +39,9 @@ from tests.workflow.fixtures import (
     PROVIDER_OVERLOAD_MESSAGE,
     _agent,
 )
+
+# Why a delivered report's own reading refuses it.
+_REFUSAL = _record_values.RecordRefusal
 
 # A notice offered to a park that is still standing, which nobody may be sent.
 _SECOND_NOTICE = "The report this issue owes still cannot be delivered."
@@ -70,7 +77,7 @@ class DeliveredReportRecordTest(unittest.TestCase):
             with self.subTest(mode=delivered_report.mode):
                 state = PinnedState()
 
-                self.assertTrue(_delivery_state.record_delivered_report(
+                self.assertIsNone(_delivery_state.stage_delivered_report(
                     state, delivered_report,
                 ))
 
@@ -99,25 +106,28 @@ class DeliveredReportRecordTest(unittest.TestCase):
                 )
 
     def test_an_unpublishable_report_is_refused(self) -> None:
-        # Every refusal is the same answer -- a record describing a
-        # publication this build could never make -- and none of them writes
-        # anything, so the caller hears it while the run is still there.
-        for described, text in delivery_support.UNPUBLISHABLE_REPORTS:
+        # Each is a record describing a publication this build could never
+        # make, refused for the reason its reading names -- the receipt it
+        # quotes and the length past its ceiling apart from every other
+        # invalid record -- and none of them writes anything, so the caller
+        # hears it while the run is still there. Offered a comment with no
+        # room for its transaction either, each is still refused for what it
+        # says rather than for the room: no room would make it recordable.
+        for described, text, refusal in delivery_support.UNPUBLISHABLE_REPORTS:
             with self.subTest(report=described):
-                state = PinnedState()
+                state = delivery_support.crowded_comment(
+                    delivery_support.CROWDED_FOR_RESERVATION,
+                )
+                found = dict(state.data)
 
-                self.assertFalse(_delivery_state.record_delivered_report(
-                    state, _records.DeliveredReport(
-                        receipt=delivery_support.RECEIPT,
-                        report_revision=1,
-                        mode=_records.ReportMode.PUBLISH,
-                        route=WorkflowLabel.IMPLEMENTING,
-                        requirements_revision=support.REQUIREMENTS,
-                        report=text,
+                self.assertIs(
+                    _delivery_state.stage_delivered_report(
+                        state, replace(delivery_support.DELIVERED, report=text),
                     ),
-                ))
+                    refusal,
+                )
 
-                self.assertEqual(state.data, {})
+                self.assertEqual(state.data, found)
 
     def test_a_locationless_verify_is_refused(self) -> None:
         # A location is what a verification is: with none there is nothing to
@@ -125,18 +135,43 @@ class DeliveredReportRecordTest(unittest.TestCase):
         # publication with no text.
         state = PinnedState()
 
-        self.assertFalse(_delivery_state.record_delivered_report(
-            state, _records.DeliveredReport(
-                receipt=delivery_support.RECEIPT,
-                report_revision=1,
-                mode=_records.ReportMode.VERIFY,
-                route=WorkflowLabel.IMPLEMENTING,
-                requirements_revision=support.REQUIREMENTS,
-                content_revision=support.CONTENT_DIGEST,
+        self.assertIs(
+            _delivery_state.stage_delivered_report(
+                state, replace(delivery_support.ASSERTED, location=None),
             ),
-        ))
+            _REFUSAL.INVALID_RECORD,
+        )
 
         self.assertEqual(state.data, {})
+
+    def test_a_refusal_keeps_the_standing_delivery(self) -> None:
+        # Whatever refuses a second report -- its text, its record, or the
+        # room its transaction would need -- writes nothing, so the delivery an
+        # earlier run left is still the one the comment carries, and the
+        # boolean writer is refused wherever the structured one is.
+        for described, report, _ in (
+            *delivery_support.UNPUBLISHABLE_REPORTS,
+            ("no room for its transaction", delivery_support.REDELIVERED.report, None),
+        ):
+            with self.subTest(refused=described):
+                crowded = delivery_support.crowded_comment(
+                    delivery_support.CROWDED_FOR_RESERVATION,
+                    {_records.DELIVERED_REPORT: delivery_support.delivered_object()},
+                )
+                found = dict(crowded.data)
+
+                self.assertIsNotNone(_delivery_state.stage_delivered_report(
+                    crowded, replace(delivery_support.REDELIVERED, report=report),
+                ))
+                self.assertFalse(_delivery_state.record_delivered_report(
+                    crowded, replace(delivery_support.REDELIVERED, report=report),
+                ))
+
+                self.assertEqual(crowded.data, found)
+                self.assertEqual(
+                    _delivery_state.read_delivered_report(crowded),
+                    delivery_support.DELIVERED,
+                )
 
 
 class DeliveredReportCapacityTest(unittest.TestCase):
@@ -147,20 +182,28 @@ class DeliveredReportCapacityTest(unittest.TestCase):
     itself leaves, and the fields a stale-approval hand-back adds on the road
     a review stage's drift resume takes all land on this same comment. A
     record accepted without room for any of them is one refused when nothing
-    can be asked of the run that wrote the report.
+    can be asked of the run that wrote the report -- and refused here, it is
+    refused for the room, naming which of those comments came out too large.
     """
 
     def test_a_record_past_the_comment_is_refused(self) -> None:
         # The record shares the comment with everything else this issue has
-        # recorded, so what is measured is the write it would make.
+        # recorded, so what is measured is the write it would make -- and
+        # that write's own size is what the refusal reports.
         crowded = delivery_support.crowded_comment(0)
 
-        self.assertFalse(
-            _delivery_state.record_delivered_report(crowded, delivery_support.DELIVERED),
-        )
+        overflow = _overflow_of(self, crowded, delivery_support.DELIVERED)
 
-        self.assertFalse(
-            _delivery_state.carries_delivered_report(crowded),
+        self.assertEqual(
+            (overflow.write, overflow.later, overflow.size),
+            (
+                _room.MeasuredWrite.RECORD,
+                _room.LaterWrites(),
+                len(pinned_state_body({
+                    **crowded.data,
+                    _records.DELIVERED_REPORT: delivery_support.delivered_object(),
+                })),
+            ),
         )
 
     def test_a_transaction_past_the_comment(self) -> None:
@@ -168,16 +211,19 @@ class DeliveredReportCapacityTest(unittest.TestCase):
         # does not, which is the whole reason the second write is measured
         # where the first one is: the binding happens after the push, so a
         # report accepted here and refused there is one the code went out
-        # without.
+        # without. The refusal is the transaction's own writer's, carried
+        # through as the binding it is from the delivery's side.
         crowded = delivery_support.crowded_comment(delivery_support.CROWDED_FOR_RESERVATION)
 
         self.assertTrue(_record_state.fits_the_comment({
             **crowded.data, _records.DELIVERED_REPORT: delivery_support.delivered_object(),
         }))
-        self.assertFalse(
-            _delivery_state.record_delivered_report(crowded, delivery_support.DELIVERED),
+        overflow = _overflow_of(self, crowded, delivery_support.DELIVERED)
+
+        self.assertEqual(
+            (overflow.write, overflow.later),
+            (_room.MeasuredWrite.BINDING, _room.LaterWrites()),
         )
-        self.assertFalse(_delivery_state.carries_delivered_report(crowded))
 
     def test_the_reservation_is_the_write_it_makes(self) -> None:
         # What is reserved is the comment the BINDING leaves, which is the
@@ -185,7 +231,10 @@ class DeliveredReportCapacityTest(unittest.TestCase):
         # has to carry the `null` that drop writes; a redelivery gets back the
         # room the record it replaces is holding. Measured over the comment as
         # it stands, the first is accepted and then refused with the code
-        # already pushed, and the second is refused with room to spare.
+        # already pushed, and the second is refused with room to spare. What
+        # the first runs out of is that transaction's settlement beside the
+        # receipt the push writes, which its writer measures and this refusal
+        # carries through unchanged.
         tombstoned = delivery_support.crowded_comment(
             delivery_support.CROWDED_FOR_TOMBSTONE, reviewed=True,
         )
@@ -195,13 +244,15 @@ class DeliveredReportCapacityTest(unittest.TestCase):
             reviewed=True,
         )
 
-        self.assertFalse(
-            _delivery_state.record_delivered_report(tombstoned, delivery_support.DELIVERED),
-        )
+        overflow = _overflow_of(self, tombstoned, delivery_support.DELIVERED)
         self.assertTrue(
             _delivery_state.record_delivered_report(replaced, delivery_support.DELIVERED),
         )
 
+        self.assertEqual(
+            (overflow.write, overflow.later),
+            (_room.MeasuredWrite.SETTLEMENT, _room.LaterWrites(receipt=True)),
+        )
         self.assertEqual(
             _delivery_state.binds_delivered_report(
                 PinnedState(state_data={
@@ -236,15 +287,23 @@ class DeliveredReportCapacityTest(unittest.TestCase):
             **crowded.data,
             _records.DELIVERED_REPORT: delivery_support.delivered_object(),
         }
+        pushed = {
+            **_room.with_later_writes(crowded, receipt=True).data,
+            _records.DELIVERED_REPORT: delivery_support.delivered_object(),
+        }
 
         self.assertTrue(_record_state.fits_the_comment(staged))
-        self.assertFalse(_record_state.fits_the_comment({
-            **_record_state.with_later_writes(crowded, receipt=True).data,
-            _records.DELIVERED_REPORT: delivery_support.delivered_object(),
-        }))
-        self.assertFalse(_delivery_state.record_delivered_report(
-            crowded, delivery_support.DELIVERED,
-        ))
+        self.assertFalse(_record_state.fits_the_comment(pushed))
+        overflow = _overflow_of(self, crowded, delivery_support.DELIVERED)
+
+        self.assertEqual(
+            (overflow.write, overflow.later, overflow.size),
+            (
+                _room.MeasuredWrite.RECORD,
+                _room.LaterWrites(receipt=True),
+                len(pinned_state_body(pushed)),
+            ),
+        )
 
     def test_the_hand_back_s_own_write_is_reserved(self) -> None:
         # A report the `in_review` drift resume records is accepted before
@@ -280,12 +339,18 @@ class DeliveredReportCapacityTest(unittest.TestCase):
             ),
             "",
         )
-        self.assertFalse(_delivery_state.record_delivered_report(
-            crowded, delivery_support.HANDED_BACK,
-        ))
+        overflow = _overflow_of(self, crowded, delivery_support.HANDED_BACK)
         self.assertTrue(_delivery_state.record_delivered_report(
             ordinary, delivery_support.DELIVERED,
         ))
+
+        self.assertEqual(
+            (overflow.write, overflow.later),
+            (
+                _room.MeasuredWrite.SETTLEMENT,
+                _room.LaterWrites(receipt=True, hand_back=True),
+            ),
+        )
 
     def test_the_widest_branch_is_reserved(self) -> None:
         # What the comment charges for a branch is not what the reader counts:
@@ -304,15 +369,71 @@ class DeliveredReportCapacityTest(unittest.TestCase):
             delivery_support.CROWDED_FOR_RESERVED_SUBJECT, reviewed=True,
         )
 
-        self.assertFalse(
-            _delivery_state.record_delivered_report(crowded, delivery_support.DELIVERED),
-        )
+        overflow = _overflow_of(self, crowded, delivery_support.DELIVERED)
         self.assertTrue(
             _delivery_state.record_delivered_report(roomy, delivery_support.DELIVERED),
         )
+
+        self.assertIs(overflow.write, _room.MeasuredWrite.BINDING)
         self.assertEqual(
             _delivery_state.binds_delivered_report(roomy, delivery_support.DELIVERED, wide), "",
         )
+
+    def test_the_text_s_ceiling_is_not_the_comment_s(self) -> None:
+        # A report at its own ceiling is a report, and on a comment whose
+        # other records take the headroom that ceiling leaves it is refused for
+        # the ROOM; one character past it is refused for its LENGTH on every
+        # comment, an empty one included, since no room makes it recordable.
+        at_ceiling = replace(
+            delivery_support.DELIVERED,
+            report=delivery_support.FILLER * _record_values.MAX_REPORT_TEXT,
+        )
+        past_ceiling = replace(
+            at_ceiling, report=f"{at_ceiling.report}{delivery_support.FILLER}",
+        )
+        headroom = {
+            delivery_support.CROWDING: delivery_support.FILLER * (
+                MAX_PINNED_BODY - _record_values.MAX_REPORT_TEXT
+            ),
+        }
+        for described, carried in (
+            ("an empty comment", {}),
+            ("a comment without the headroom", headroom),
+        ):
+            with self.subTest(comment=described):
+                self.assertIs(
+                    _delivery_state.stage_delivered_report(
+                        PinnedState(state_data=dict(carried)), past_ceiling,
+                    ),
+                    _REFUSAL.REPORT_TOO_LONG,
+                )
+        self.assertIsNone(
+            _delivery_state.stage_delivered_report(PinnedState(), at_ceiling),
+        )
+        self.assertIs(
+            _overflow_of(self, PinnedState(state_data=dict(headroom)), at_ceiling).write,
+            _room.MeasuredWrite.RECORD,
+        )
+
+
+def _overflow_of(
+    case: unittest.TestCase,
+    state: PinnedState,
+    delivered: _records.DeliveredReport,
+) -> _room.CommentOverflow:
+    """The room this delivery is refused for, having written nothing.
+
+    Every overflow names a comment past the one ceiling GitHub holds a pinned
+    comment to, and the caller's state is exactly as it was found.
+    """
+    found = dict(state.data)
+    refused = _delivery_state.stage_delivered_report(state, delivered)
+
+    case.assertIsInstance(refused, _room.CommentOverflow)
+    case.assertEqual(refused.limit, MAX_PINNED_BODY)
+    case.assertGreater(refused.size, refused.limit)
+    case.assertEqual(state.data, found)
+    return refused
 
 
 class ReportedRunTest(unittest.TestCase):

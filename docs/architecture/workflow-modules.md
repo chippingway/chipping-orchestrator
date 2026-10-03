@@ -399,7 +399,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             as answered until it lands. The MARK a fixing round's own settlement raises rides that
                             last group and is spelled here because every settlement writes it -- put up by a fixing
                             record's frozen spends, retired by every settlement that froze none, so the mark and the
-                            handoff beside it are always about one transaction
+                            handoff beside it are always about one transaction. The transaction a delivered report
+                            becomes is spelled once, on the delivered record (`bound_to`), because the acceptance that
+                            reserves it and the binding that records it both build one, and built apart a member added
+                            to either record would be measured under one shape and written under another
     report_record_values.py what each recorded field may be, and the widths two of them are bounded by, published
                             because a record written before its publication exists has to reserve the room that
                             publication's subject will take: a receipt spelled the way the published report header
@@ -437,6 +440,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             are that reading with the reason dropped. The report's own refusal is the answer only
                             where every other member read; a record whose identity, routing, location, or
                             bookkeeping will not read is invalid whatever its report says
+    report_record_room.py   which measurement of the pinned comment refused a report record, and by how much: the
+                            `CommentOverflow` naming the write measured -- the record's own, the BINDING a delivered
+                            report is reserved against, or the SETTLEMENT -- the later writes the measured comment
+                            carried beside it (the code-publication receipt, the stale-approval hand-back), and the
+                            size it rendered to beside the ceiling it passed. It is the capacity answer only, kept
+                            apart from the `RecordRefusal` a record's reading gives, so a report too long or quoting a
+                            receipt marker is never reported as a comment too full, and it is built only once
+                            `report_record_state.fits_the_comment` has refused, so it never names a comment that test
+                            would accept. The worlds those later writes make are built here too (`with_later_writes`),
+                            through the owners that write them for real, since they are what an overflow names. Held
+                            in memory only, like the reading's refusal: the pinned comment records a report or does
+                            not, never why
     report_record_state.py  the pending record's round trip, with presence asked apart from meaning -- a damaged
                             record and an issue with nothing outstanding are the same absence to the reader and
                             opposite answers to the guard -- and a write refused rather than truncated when its own
@@ -470,11 +485,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`stages/validating/review_records.py`).
                             All of it is
                             replayed through the owners that perform those writes rather than allowed for by a
-                            margin, so a field added to any of them moves this refusal with it. The two later
-                            writes are published as one world builder beside the round trip -- that receipt, and
-                            the stale-approval hand-back `in_review` makes when a requirements edit sends an
-                            approved pull request back -- because the delivered record written ahead of the same
-                            push is measured against both, each for the roads that make it
+                            margin, so a field added to any of them moves this refusal with it. The two later writes
+                            are built by the world builder `report_record_room.py` publishes -- that receipt, and the
+                            stale-approval hand-back `in_review` makes when a requirements edit sends an approved pull
+                            request back -- because the delivered record written ahead of the same push is measured
+                            against both, each for the roads that make it. The write answers in two shapes:
+                            `stage_pending_report` says why it refused -- the record's own `RecordRefusal` where its
+                            reader would not hand it back or its settlement cannot even be built, which is an invalid
+                            record rather than one too large, and a `CommentOverflow` only where one of those
+                            measurements failed -- and `record_pending_report` is that answer reduced to whether, for
+                            every caller that acts on nothing more
     report_delivery_state.py the delivered report's round trip and the write that BINDS one: presence asked apart
                             from meaning as the transaction's is, a record refused rather than truncated where
                             this owner's reader would not hand it back or the comment could not carry it, and the
@@ -506,8 +526,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             differently is refused with nothing staged: bound, the transaction would claim the
                             report answers content the run never saw. A refusal SAYS which
                             it was, by offering the same transaction to an empty comment: accepted there the record
-                            is sound and this comment is full, which the routes behind a report still owed give
-                            back, and refused there no comment would ever hold it
+                            is sound and this comment is full, which the routes behind a report still owed give back,
+                            and refused there no comment would ever hold it. Acceptance says why it refused as well,
+                            and in two shapes: `stage_delivered_report` answers with the record's own `RecordRefusal`
+                            -- a quoted receipt marker, a report past its ceiling, or an invalid record -- or with the
+                            `CommentOverflow` naming the comment that came out too large, the reserved transaction's
+                            own refusal carried through as the BINDING it is from here, its settlement still a
+                            settlement, under the hand-back the delivery's road reserved; `record_delivered_report` is
+                            that answer reduced to whether, for every caller that acts on nothing more
     report_delivery.py      the report one finished run earns, recorded before its code is published: the outcome
                             read off the run, the revision minted one past every report this issue has already
                             recorded -- the settled one, any transaction still outstanding, and any delivery still

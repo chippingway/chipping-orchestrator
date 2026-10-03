@@ -37,6 +37,14 @@ half-written one is the shape this owner exists to refuse -- so a report too
 large to record is one this workflow will not accept the transaction for at all,
 and the caller hears that where it can still do something about it.
 
+And it hears WHY. A record its own reading refuses -- a report quoting a
+receipt marker, one past its ceiling, a member no reader would hand back -- is
+refused for that reading, and only a record that reads and does not fit is
+refused for the room, by the `report_record_room` overflow naming the comment
+that came out too large. The two are corrected by different things, so neither
+is reported as the other; the boolean writer beside the structured one answers
+only whether, for the callers that act on nothing more.
+
 That measurement is offered to the publication as well as taken at acceptance,
 because a record that defers lets the routes behind the guard run and every one
 of them writes to this same comment. What was reserved can be spent by work
@@ -54,11 +62,12 @@ from orchestrator.workflow.engine import (
     report_consumed_values as _consumed,
     report_record_fields as _fields,
     report_record_reading as _reading,
-    report_record_values as _record_values,
+    report_record_room as _room,
     report_records as _records,
     report_settlement_state as _settlement,
     stage_targets as _stage_targets,
 )
+from orchestrator.workflow.engine.report_record_values import MAX_RECORDED_NUMBER, RecordRefusal
 from orchestrator.workflow.late_split import formats as _formats
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -70,14 +79,9 @@ from orchestrator.workflow.state import WorkflowLabel
 # the settlement sized here is never smaller than the one that actually happens.
 _WIDEST_DIGEST = "f" * max(_formats.DIGEST_LENGTHS)
 
-_WIDEST_IDENTITY = _record_values.MAX_RECORDED_NUMBER
+_WIDEST_IDENTITY = MAX_RECORDED_NUMBER
 
-# The widest commit either member of the code-publication receipt is recorded
-# at. The head a push replaces is the member a record cannot know at all; the
-# commit beside it is one a record knows for ITSELF and not for whatever else
-# may be pushed while it waits, so both are sized here at what the field can
-# hold rather than at what this transaction expects.
-_WIDEST_COMMIT = "f" * max(_formats.COMMIT_LENGTHS)
+_INVALID = RecordRefusal.INVALID_RECORD
 
 # The widest label a settlement can record itself under. WHICH label that is
 # depends on where the issue has got to by the time the write lands, which is a
@@ -126,17 +130,23 @@ def read_pending_report(
     return _reading.pending_from(recorded)
 
 
-def record_pending_report(
+def stage_pending_report(
     state: _pinned_state.PinnedState, pending: _records.PendingReport,
-) -> bool:
-    """Stage one transaction onto the pinned state, or refuse to.
+) -> _room.RecordingRefusal | None:
+    """Stage one transaction onto the pinned state, or say why it is refused.
 
-    False when the comment could not carry the record, measured against what
-    the write would actually produce rather than against the report's own
-    length: the record shares the comment with everything else this issue has
-    recorded, and the caller is about to publish on the strength of a record
-    that has to be readable afterwards. Nothing is written on a refusal, so the
-    caller's state is exactly as it was found.
+    None is staged. Nothing is written on a refusal, so the caller's state is
+    exactly as it was found, every record it already carried included -- and
+    the refusal says which of two kinds it was, because they are cleared by
+    different things. A record this owner's own reader would not hand back
+    identically is refused with that reading's `RecordRefusal`; a record that
+    reads and does not fit is refused with the `CommentOverflow` naming the
+    comment that came out too large.
+
+    The fit is measured against what the write would actually produce rather
+    than against the report's own length: the record shares the comment with
+    everything else this issue has recorded, and the caller is about to publish
+    on the strength of a record that has to be readable afterwards.
 
     The write that will SETTLE this transaction is measured here too, because
     it happens after the report is on the thread. A record accepted at the
@@ -146,14 +156,18 @@ def record_pending_report(
     settled record grows moves this refusal with it instead of quietly eating a
     margin nobody rechecks.
 
-    False too when this owner's own READER would not hand the record back
-    identically. Size is only one of the ways a transaction can be
-    unpublishable: a report past `MAX_REPORT_TEXT`, one quoting a receipt
+    The reading is asked first. Size is only one of the ways a transaction can
+    be unpublishable: a report past `MAX_REPORT_TEXT`, one quoting a receipt
     marker, a branch with whitespace in it, a verification whose location sits
     on another pull request or that carries none at all. Written anyway, every
     one of those reads back as damage on the very next tick -- and the issue
     parks for a record this process itself produced. Refused here, the caller
-    hears it while the run that wrote the report is still there to be told.
+    hears it while the run that wrote the report is still there to be told, and
+    hears it as the report's own refusal rather than as a comment too full: a
+    report past its ceiling is not the comment's room, and no room makes a
+    quoted receipt publishable. A settlement that cannot even be BUILT is the
+    same kind of answer -- the settled records refusing what this transaction
+    hands them -- so it is an invalid record, never an overflow.
 
     Both measurements are taken over a comment that already carries the
     CODE-PUBLICATION RECEIPT this transaction is waiting for, because a record
@@ -181,70 +195,41 @@ def record_pending_report(
     reserved world is the smaller of the two, and measuring it alone would
     accept a record whose own write is past the ceiling the moment it lands.
     Measuring both is what makes the answer "this record fits whatever happens
-    next", rather than "it fits one of the things that might".
+    next", rather than "it fits one of the things that might" -- and the
+    overflow names the first that does not: the record's own write or its
+    settlement, over the comment with or without that receipt.
 
     The caller still owns `gh.write_pinned_state`, as every stage-facing writer
     here does, so the record rides whatever else that caller staged rather than
     landing in a write of its own ahead of it.
     """
     recorded = _fields.pending_object(pending)
-    if recorded is None or _reading.pending_from(recorded) != pending:
-        return False
-    for carried in (state, with_later_writes(state, receipt=True)):
-        staged = {**carried.data, _records.PENDING_REPORT: recorded}
+    read = _INVALID if recorded is None else _reading.pending_or_refusal(recorded)
+    if read != pending:
+        return read if isinstance(read, RecordRefusal) else _INVALID
+    for later in (_room.LaterWrites(), _room.LaterWrites(receipt=True)):
+        carried = later.over(state)
         settled = settled_payload(carried, pending)
-        if settled is None or not fits_the_comment(staged) or not fits_the_comment(settled):
-            return False
+        if settled is None:
+            return _INVALID
+        carried.set(_records.PENDING_REPORT, recorded)
+        if not fits_the_comment(carried.data):
+            return _room.CommentOverflow.of(carried.data, _room.MeasuredWrite.RECORD, later)
+        if not fits_the_comment(settled):
+            return _room.CommentOverflow.of(settled, _room.MeasuredWrite.SETTLEMENT, later)
     state.set(_records.PENDING_REPORT, recorded)
-    return True
+    return None
 
 
-def with_later_writes(
-    state: _pinned_state.PinnedState,
-    *,
-    receipt: bool = False,
-    hand_back: bool = False,
-) -> _pinned_state.PinnedState:
-    """The same comment, carrying a write that lands on it after this record.
+def record_pending_report(
+    state: _pinned_state.PinnedState, pending: _records.PendingReport,
+) -> bool:
+    """Stage one transaction onto the pinned state, or refuse to.
 
-    Public because every record written before a commit is pushed is measured
-    against these worlds as well as against the comment in hand: the
-    transaction here, and the delivered report recorded ahead of the gate that
-    becomes one. Two writes stand between such a record and its settlement,
-    and both land on this same comment.
-
-    The code-publication RECEIPT is the gate's, made when it pushes: the
-    commit it put on the remote, the head that push replaced, and the pull
-    request it went onto. Accepted without room for it, the gate's own write
-    is the one refused.
-
-    The stale-approval HAND-BACK is the review stages', made when a
-    requirements edit sends an approved pull request back: a fresh review
-    round, the marker saying the label move is owed, and the record that the
-    publication this report is about already has its budget. Accepted without
-    room for those, the report's own binding is refused instead -- after the
-    code has gone out, with nothing left to ask the run that wrote it. It is
-    reserved at its widest, the hand-back that owes a publication, since the
-    narrower one writes a strict subset.
-
-    Both are written through the owners that write them for real rather than
-    spelled again here, so a member added to either moves every reservation
-    taken against it. The receipt REPLACES what is there, which is why the
-    world without it is measured too: a comment can already carry one written
-    wider than any spelling this build produces.
+    `stage_pending_report` with its reason dropped, for every caller that acts
+    on whether the record was staged and on nothing about why.
     """
-    reserved = _pinned_state.PinnedState(state_data=dict(state.data))
-    if receipt:
-        importlib.import_module(
-            _stage_targets._LATE_PUBLICATION_STATE_OWNER,
-        )._record_publication(
-            reserved, _WIDEST_COMMIT, _WIDEST_COMMIT, _WIDEST_IDENTITY,
-        )
-    if hand_back:
-        importlib.import_module(
-            _stage_targets._IN_REVIEW_HANDOFF_OWNER,
-        ).stages_the_handoff(reserved, owed_publication=True)
-    return reserved
+    return stage_pending_report(state, pending) is None
 
 
 def fits_the_comment(staged: dict) -> bool:
@@ -252,6 +237,8 @@ def fits_the_comment(staged: dict) -> bool:
 
     Public because the publication asks it of `settled_payload` below on the
     tick it would settle, not only here on the tick the record was accepted.
+    It is also the one test an overflow is built behind, so a refusal never
+    reports a comment this would have accepted.
     """
     written = len(_pinned_state.pinned_state_body(staged))
     return written <= _pinned_state.MAX_PINNED_BODY
@@ -332,7 +319,9 @@ def settled_payload(
     values here are the pending record's own, already proved by the reader
     above, so nothing a caller can pass reaches that answer today -- it is
     there because a measurement that quietly skipped a write it could not make
-    would report a settlement smaller than the one that has to happen.
+    would report a settlement smaller than the one that has to happen. Nothing
+    was measured on that road, so the acceptance above refuses it as an
+    invalid record rather than as a settlement too large to fit.
     """
     settled = _pinned_state.PinnedState(state_data=dict(state.data))
     if pending.mode is _records.ReportMode.PUBLISH:

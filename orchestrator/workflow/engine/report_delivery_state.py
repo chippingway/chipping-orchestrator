@@ -40,6 +40,15 @@ one exception and needs no guess: its own location names the pull request the
 transaction has to be about, and any other is a refusal the width could not
 change.
 
+An acceptance refused says why as well, in answers of its own beside the
+binding's two. A record its reading refuses is refused for that reading -- a
+report quoting a receipt marker, one past its ceiling, or a record no reader
+would hand back -- and only one that reads and does not fit is refused for the
+room, naming which comment came out too large: the delivery's own, the
+transaction it is reserved against, or that transaction's settlement. A
+report's text is the run's to correct and the room is the comment's, so
+neither is reported as the other.
+
 The record is additive and is claimed exactly as the transaction beside it is: a
 key holding `null` is the resting state a binding leaves, and a payload that is
 there and is not an object is the claim a hand edit or a truncated write makes.
@@ -47,12 +56,12 @@ there and is not an object is the claim a hand edit or a truncated write makes.
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any
 
 from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     report_record_fields as _fields,
     report_record_reading as _reading,
+    report_record_room as _room,
     report_record_state as _record_state,
     report_record_values as _record_values,
     report_records as _records,
@@ -65,6 +74,8 @@ _RECEIPT = "receipt"
 _REVISION = "revision"
 
 _REQUIREMENTS = "requirements"
+
+_INVALID = _record_values.RecordRefusal.INVALID_RECORD
 
 # Why a binding refused, in the words the caller's notice quotes. Two
 # sentences rather than one because what clears them differs: room comes back
@@ -142,106 +153,64 @@ def read_delivered_report(
     return _reading.delivered_from(recorded)
 
 
+def stage_delivered_report(
+    state: _pinned_state.PinnedState, delivered: _records.DeliveredReport,
+) -> _room.RecordingRefusal | None:
+    """Stage one completed run's report onto the pinned state, or say why not.
+
+    None is staged. A refusal is the `RecordRefusal` of this owner's READER
+    where it would not hand the record back identically, and a
+    `CommentOverflow` where the comment could not carry the record or the
+    TRANSACTION it will be bound into.
+    Nothing is written on a refusal, so the caller's state is exactly as it was
+    found, a delivery already standing there included -- and the caller is told
+    while the work is still unpublished, which is the only moment a report this
+    build cannot deliver can still be asked for again.
+
+    Told which, because the run that wrote the report is asked for different
+    things. A report quoting a receipt marker is asked for once more without
+    one, and a report past `MAX_REPORT_TEXT` for a shorter one; neither is a
+    comment too full, and no room ever makes either recordable. Only a record
+    that reads is measured at all, so an overflow is the comment's room and
+    nothing else -- and it names the comment that came out too large, so a
+    report refused for room the issue's other records spend is not mistaken for
+    one that is simply long. Whatever the reserved transaction's own writer
+    refuses is passed on as that writer said it.
+
+    The caller still owns `gh.write_pinned_state`, as every stage-facing writer
+    here does, so the record rides whatever else that caller staged.
+    """
+    # Every group but the subject, spelled by the owner the transaction shares
+    # them with, so a field added to one record is a field on both. A
+    # verification carrying no location has no half to record at all.
+    carried = _fields.carried_fields(delivered)
+    if carried is None:
+        return _INVALID
+    recorded = {
+        _RECEIPT: delivered.receipt,
+        _REVISION: delivered.report_revision,
+        _REQUIREMENTS: delivered.requirements_revision,
+        **_fields.routing_fields(delivered),
+        **carried,
+    }
+    read = _reading.delivered_or_refusal(recorded)
+    if read != delivered:
+        return read if isinstance(read, _record_values.RecordRefusal) else _INVALID
+    refused = _room_refusal(state, delivered, recorded)
+    if refused is None:
+        state.set(_records.DELIVERED_REPORT, recorded)
+    return refused
+
+
 def record_delivered_report(
     state: _pinned_state.PinnedState, delivered: _records.DeliveredReport,
 ) -> bool:
     """Stage one completed run's report onto the pinned state, or refuse to.
 
-    False when this owner's own READER would not hand the record back
-    identically, when the comment could not carry it, or when the comment could
-    not carry the TRANSACTION it will be bound into. Nothing is written on a
-    refusal, so the caller's state is exactly as it was found and the caller is
-    told while the work is still unpublished -- which is the only moment a
-    report this build cannot deliver can still be asked for again.
-
-    Both measurements are needed and the second is the one that costs
-    something to skip. The binding happens after the push, and it writes more
-    than this record does: the transaction carries the subject the publication
-    settles, and its own acceptance reserves the code-publication receipt and
-    the whole settling write beside it. Measured here only against this
-    record's own write, a report would be accepted, the code pushed, and the
-    binding refused -- which holds the work for a human with the code already
-    out, at the one moment nothing can be asked of the run that wrote the
-    report. Refused here, nothing is published at all.
-
-    The subject that transaction will name is unknowable here, so the
-    reservation is taken at the width every member of one is recorded at,
-    which is never narrower than the subject that actually arrives. A
-    VERIFICATION is held to its own location's pull request instead: that is
-    the number the transaction has to be about, and a binding onto any other
-    is a refusal no width could prevent.
-
-    It is reserved over the comment the BINDING leaves rather than over this
-    one, because the binding exchanges the two records: it drops the delivery
-    in the write that records the transaction, so a delivery already standing
-    here is room the transaction gets to spend, and a comment that never
-    carried one still ends up holding the `null` that drop writes. Measured
-    over the comment as it stands, a report replacing an undeliverable one is
-    counted twice and refused with room to spare, and a first delivery is
-    accepted without the tombstone its own binding then has to fit -- which is
-    the refusal after the push this measurement exists to prevent.
-
-    This record's OWN write is measured in two worlds for a reason of the same
-    kind. What stands between it and the binding is the push, and the gate that
-    pushes writes the code-publication receipt onto this same comment -- so the
-    comment this write leaves has to still have room for that one. It is not
-    the world the reservation above measures: that one has the delivery
-    exchanged for the transaction, while this one is the delivery added to
-    everything the issue already carries, a transaction an earlier publication
-    left outstanding included. Measured against the bare comment alone, a
-    record is accepted and the gate's own write is the one refused.
-
-    The stale-approval HAND-BACK is reserved the same way, and for the same
-    reason the push is: a record made on the `in_review` drift road is
-    accepted before that hand-back runs, and the hand-back writes a fresh
-    review round, the marker saying the label move is owed, and the record
-    that this publication's budget is already reset. Every one of them lands
-    on this same comment between the record and its binding. Reserved at the
-    widest hand-back there is, so the road that writes fewer of them cannot be
-    the one refused -- and the same world stands under the transaction below,
-    which is bound on the far side of it.
-
-    Only for the route that MAKES that hand-back, which is the one the record
-    names. `in_review` is the only stage that relabels an approval a
-    requirements edit made stale, so a report recorded anywhere else is
-    measured against the comment it actually leaves: charged for a write its
-    road never makes, an implementation's report near the ceiling would be
-    refused for room nothing was ever going to take. A route that makes none
-    measures its two worlds twice, which costs a serialization and keeps the
-    reading one shape.
-
-    The caller still owns `gh.write_pinned_state`, as every stage-facing writer
-    here does, so the record rides whatever else that caller staged.
+    `stage_delivered_report` with its reason dropped, for every caller that
+    acts on whether the record was staged and on nothing about why.
     """
-    recorded = _encoded(delivered)
-    if recorded is None or _reading.delivered_from(recorded) != delivered:
-        return False
-    handed_back = _record_state.with_later_writes(
-        state, hand_back=delivered.route == WorkflowLabel.IN_REVIEW,
-    )
-    for carried in (
-        state,
-        _record_state.with_later_writes(state, receipt=True),
-        handed_back,
-        _record_state.with_later_writes(handed_back, receipt=True),
-    ):
-        if not _record_state.fits_the_comment(
-            {**carried.data, _records.DELIVERED_REPORT: recorded},
-        ):
-            return False
-    reserved = _WIDEST_SUBJECT
-    if delivered.location is not None:
-        reserved = replace(
-            _WIDEST_SUBJECT, pr_number=delivered.location.pr_number,
-        )
-    exchanged = _pinned_state.PinnedState(state_data=dict(handed_back.data))
-    clear_delivered_report(exchanged)
-    if not _record_state.record_pending_report(
-        exchanged, _pending_for(delivered, reserved),
-    ):
-        return False
-    state.set(_records.DELIVERED_REPORT, recorded)
-    return True
+    return stage_delivered_report(state, delivered) is None
 
 
 def clear_delivered_report(state: _pinned_state.PinnedState) -> None:
@@ -310,7 +279,7 @@ def binds_delivered_report(
         return UNBINDABLE_RECORD
     bound = _pinned_state.PinnedState(state_data=dict(state.data))
     clear_delivered_report(bound)
-    pending = _pending_for(delivered, subject)
+    pending = delivered.bound_to(subject)
     if _record_state.record_pending_report(bound, pending):
         state.data = bound.data
         return ""
@@ -319,46 +288,98 @@ def binds_delivered_report(
     return UNBINDABLE_RECORD
 
 
-def _pending_for(
-    delivered: _records.DeliveredReport, subject: _records.ReportSubject,
-) -> _records.PendingReport:
-    """The transaction one delivered report becomes, bound to one subject.
+def _room_refusal(
+    state: _pinned_state.PinnedState,
+    delivered: _records.DeliveredReport,
+    recorded: dict,
+) -> _room.RecordingRefusal | None:
+    """Why the comment cannot carry this record or what it becomes, or None.
 
-    Spelled once because two callers build it: the acceptance that reserves
-    what it will cost, and the binding that records it. Built apart, a member
-    added to either record would be measured under one shape and written under
-    another.
+    Both measurements are needed and the second is the one that costs
+    something to skip. The binding happens after the push, and it writes more
+    than this record does: the transaction carries the subject the publication
+    settles, and its own acceptance reserves the code-publication receipt and
+    the whole settling write beside it. Measured here only against this
+    record's own write, a report would be accepted, the code pushed, and the
+    binding refused -- which holds the work for a human with the code already
+    out, at the one moment nothing can be asked of the run that wrote the
+    report. Refused here, nothing is published at all.
+
+    The subject that transaction will name is unknowable here, so the
+    reservation is taken at the width every member of one is recorded at,
+    which is never narrower than the subject that actually arrives. A
+    VERIFICATION is held to its own location's pull request instead: that is
+    the number the transaction has to be about, and a binding onto any other
+    is a refusal no width could prevent.
+
+    It is reserved over the comment the BINDING leaves rather than over this
+    one, because the binding exchanges the two records: it drops the delivery
+    in the write that records the transaction, so a delivery already standing
+    here is room the transaction gets to spend, and a comment that never
+    carried one still ends up holding the `null` that drop writes. Measured
+    over the comment as it stands, a report replacing an undeliverable one is
+    counted twice and refused with room to spare, and a first delivery is
+    accepted without the tombstone its own binding then has to fit -- which is
+    the refusal after the push this measurement exists to prevent.
+
+    This record's OWN write is measured in two worlds for a reason of the same
+    kind. What stands between it and the binding is the push, and the gate that
+    pushes writes the code-publication receipt onto this same comment -- so the
+    comment this write leaves has to still have room for that one. It is not
+    the world the reservation above measures: that one has the delivery
+    exchanged for the transaction, while this one is the delivery added to
+    everything the issue already carries, a transaction an earlier publication
+    left outstanding included. Measured against the bare comment alone, a
+    record is accepted and the gate's own write is the one refused.
+
+    The stale-approval HAND-BACK is reserved the same way, and for the same
+    reason the push is: a record made on the `in_review` drift road is
+    accepted before that hand-back runs, and the hand-back writes a fresh
+    review round, the marker saying the label move is owed, and the record
+    that this publication's budget is already reset. Every one of them lands
+    on this same comment between the record and its binding. Reserved at the
+    widest hand-back there is, so the road that writes fewer of them cannot be
+    the one refused -- and the same world stands under the transaction below,
+    which is bound on the far side of it.
+
+    Only for the route that MAKES that hand-back, which is the one the record
+    names. `in_review` is the only stage that relabels an approval a
+    requirements edit made stale, so a report recorded anywhere else is
+    measured against the comment it actually leaves: charged for a write its
+    road never makes, an implementation's report near the ceiling would be
+    refused for room nothing was ever going to take. A route that makes none
+    measures its two worlds twice, which costs a serialization and keeps the
+    reading one shape.
+
+    The first comment past the ceiling is the answer, in that order: this
+    record's own write, then the transaction it is reserved against, whose
+    refusal is its own writer's carried through as the BINDING it is from here.
     """
-    return _records.PendingReport(
-        receipt=delivered.receipt,
-        subject=subject,
-        report_revision=delivered.report_revision,
-        mode=delivered.mode,
-        route=delivered.route,
-        report=delivered.report,
-        location=delivered.location,
-        content_revision=delivered.content_revision,
-        watermarks=delivered.watermarks,
-        spends=delivered.spends,
+    handed = _room.LaterWrites(
+        hand_back=delivered.route == WorkflowLabel.IN_REVIEW,
     )
-
-
-def _encoded(delivered: _records.DeliveredReport) -> dict[str, Any] | None:
-    """Return the pinned object one delivered report is recorded as, or None.
-
-    Every group but the subject, spelled by the owner the transaction shares
-    them with, so a field added to one record is a field on both.
-
-    None for a verification carrying no location, which is the refusal
-    `record_delivered_report` promises answered where the record is built.
-    """
-    carried = _fields.carried_fields(delivered)
-    if carried is None:
-        return None
-    return {
-        _RECEIPT: delivered.receipt,
-        _REVISION: delivered.report_revision,
-        _REQUIREMENTS: delivered.requirements_revision,
-        **_fields.routing_fields(delivered),
-        **carried,
-    }
+    for later in (
+        _room.LaterWrites(),
+        _room.LaterWrites(receipt=True),
+        handed,
+        replace(handed, receipt=True),
+    ):
+        carried = later.over(state)
+        carried.set(_records.DELIVERED_REPORT, recorded)
+        if not _record_state.fits_the_comment(carried.data):
+            return _room.CommentOverflow.of(
+                carried.data, _room.MeasuredWrite.RECORD, later,
+            )
+    reserved = _WIDEST_SUBJECT
+    if delivered.location is not None:
+        reserved = replace(
+            _WIDEST_SUBJECT, pr_number=delivered.location.pr_number,
+        )
+    exchanged = handed.over(state)
+    clear_delivered_report(exchanged)
+    return _room.through_the_binding(
+        _record_state.stage_pending_report(
+            exchanged, delivered.bound_to(reserved),
+        ),
+        handed,
+    )

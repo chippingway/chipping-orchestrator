@@ -57,8 +57,8 @@ _LATE_RECONCILE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_reconcile"
 # The owner that reads and writes the code-publication receipt group. Named
 # here, and resolved when called, for the reason every other stage owner on this
 # list is: the report evidence asks it whether a commit reached a pull request
-# and the pending record replays its write to size one, and binding the stage
-# tree into the engine to ask would make the engine's own import pull the
+# and the report records' room replays its write to size one, and binding the
+# stage tree into the engine to ask would make the engine's own import pull the
 # handlers that import it back.
 _LATE_PUBLICATION_STATE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_publication_state"
 

@@ -39,7 +39,7 @@ move is answered by it.
 that makes it. Every field the hand-back puts down goes down together -- the
 marker above, the fresh review round, and the record that the publication this
 move is for already has its budget -- and a report recorded on the drift road
-has to be measured against the comment they leave. `report_record_state`
+has to be measured against the comment they leave. `report_record_room`
 reserves that write by calling this, so a field added here moves the
 reservation with it instead of quietly eating a margin nobody rechecks.
 """
