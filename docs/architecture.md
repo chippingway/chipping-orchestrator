@@ -1,3 +1,8 @@
+---
+description: >-
+  How chipping-orchestrator's stateless polling process is built: its module map, process model, agent subprocess
+  boundary, and hardened git and push path.
+---
 # Architecture
 
 Single-process **polling orchestrator** that drives GitHub issues through a label-based state machine, delegating coding

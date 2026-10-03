@@ -1,3 +1,8 @@
+---
+description: >-
+  The label-based state machine that drives each GitHub issue from pickup to a terminal label, with its
+  pinned-state keys and what each stage handler does.
+---
 # Workflow state machine
 
 This area documents the label-based state machine that drives every GitHub issue from pickup to terminal. It is split

@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """The built site keeps its links, anchors, search index, and sitemap whole.
 
+The homepage and the design-reference landing pages each emit the one
+description their front matter gives, and no two of those descriptions match,
+so a search result or link preview tells the pages apart.
+
 The Documentation workflow builds the repository site once and uploads that
 output, so the check has to read the same output rather than a copy of its own:
 `DOCS_SITE_DIR` names the built directory, and the check reads it in place.
@@ -25,6 +29,7 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from tests.repository import docs_site_test_support as _site_support
+from tests.repository.skill_metadata_test_support import frontmatter_field
 
 _ENCODING = "utf-8"
 _DOCS = _site_support.REPO_ROOT / "docs"
@@ -36,6 +41,13 @@ _FAULTS = MappingProxyType({
     "index.html -> next/#local-page: missing anchor": ("next/index.html", 'id="local-page"', 'id="moved"'),
     "search index lacks /next/": ("search/search_index.json", '"location":"next/', '"location":"gone/'),
     f"sitemap.xml omits {_site_support.SITE_URL}": ("sitemap.xml", _site_support.SITE_URL, "https://example.com/"),
+})
+# Each described source under `docs/`, against the page the site builds from it.
+_DESCRIBED_PAGES = MappingProxyType({
+    "README.md": "index.html",
+    "architecture.md": "architecture/index.html",
+    "state-machine.md": "state-machine/index.html",
+    "workflow.md": "workflow/index.html",
 })
 
 
@@ -50,6 +62,14 @@ def _site_problems(site: Path, docs: Path) -> list[str]:
     return problems
 
 
+def _described(docs: Path) -> dict[str, str]:
+    """Each described page against the `description` its source's front matter gives -- empty where it gives none."""
+    return {
+        page: frontmatter_field((docs / source).read_text(encoding=_ENCODING), "description")
+        for source, page in _DESCRIBED_PAGES.items()
+    }
+
+
 def _faulted_copy(clean: Path, page: str, original: str, replacement: str) -> Path:
     """A copy of the clean build with one fault, so the fault exists in that copy alone."""
     site = Path(mkdtemp(dir=clean.parent)) / _site_support.SITE_DIRECTORY
@@ -60,11 +80,19 @@ def _faulted_copy(clean: Path, page: str, original: str, replacement: str) -> Pa
 
 
 class PublishedSiteTest(unittest.TestCase):
-    def test_published_links_and_search(self) -> None:
+    def test_published_links_search_and_descriptions(self) -> None:
+        """One build answers every check, so the descriptions read the pages the links and search were checked on."""
         site = self._published_site()
         if site is None:
             self.skipTest(_site_support.INSTALL_HINT)
         self.assertEqual(_site_problems(site, _DOCS), [])
+        described = _described(_DOCS)
+        distinct = set(described.values())
+        self.assertNotIn("", distinct, "every described source gives a description")
+        self.assertEqual(len(distinct), len(described), "each page describes its own subject")
+        for page, description in described.items():
+            with self.subTest(page=page):
+                self.assertEqual(_site_support.SitePage(site / page).descriptions, [description])
 
     def test_an_unbuilt_request_fails(self) -> None:
         """It fails without the builder too, so neither a skip nor a fresh build can stand in for the request."""

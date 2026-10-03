@@ -339,8 +339,8 @@ Mark these checks **required** in the branch-protection rule (job names as they 
 - `dependency-review` from [`../.github/workflows/dependency-review.yml`](../.github/workflows/dependency-review.yml)
   — fails when a PR introduces a vulnerable or non-compliant dep.
 - `build` from the [documentation workflow](../.github/workflows/docs.yml) — lints the site's build hook, builds the
-  site once with `mkdocs build --strict`, and checks the links, anchors, search index, and sitemap of that build
-  before any upload; links in the Markdown sources are checked by the `ci` jobs above
+  site once with `mkdocs build --strict`, and checks the links, anchors, search index, sitemap, and page descriptions
+  of that build before any upload; links in the Markdown sources are checked by the `ci` jobs above
   ([`configuration/operations.md#publishing-the-documentation`](configuration/operations.md#publishing-the-documentation)).
   Its `pull_request` trigger carries no path filter, so every PR reports it, whatever files the PR changes.
 
