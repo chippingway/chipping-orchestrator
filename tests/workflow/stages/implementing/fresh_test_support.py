@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 from orchestrator import config
 from orchestrator.agents.backends import claude
 from orchestrator.agents.models import AgentResult
+from tests.workflow import report_guidance as _report_guidance
 from tests.workflow.fixtures import AGENT_RUN_CHARGE_WRITES
 from tests.workflow.stages import implementing_fixing_test_cases
 
@@ -76,6 +77,7 @@ def assert_human_reply_resume(
     followup = agent_call.args[1]
     test_case.assertIn("please use sqlite", followup)
     test_case.assertIn("NEVER start a background job", followup)
+    _report_guidance.assert_teaches_receipt_restriction(test_case, followup)
     test_case.assertEqual(len(github.opened_prs), 1)
     test_case.assertFalse(
         github.pinned_data(2).get(_AWAITING_HUMAN),

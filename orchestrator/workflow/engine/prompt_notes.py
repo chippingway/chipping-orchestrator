@@ -6,9 +6,14 @@ Foreground instructions spell out the one-shot execution model and the AGY
 asynchronous-command contract (waiting within the current response via tools
 like `manage_task` while `RUNNING`). The developer report contract is spelled
 from the marker vocabulary its parser reads, so every developer prompt teaches
-exactly the outcomes `report_outcomes` accepts."""
+exactly the outcomes `report_outcomes` accepts. Its content restriction, carried
+by the fresh-respawn report note as well, is spelled from the receipt prefix
+`github.comments.carries_reserved_marker` refuses by substring, so the text a
+developer is warned off is the text a report record refuses, wherever in the
+report it sits."""
 from __future__ import annotations
 
+from orchestrator.github import comments as _github_comments
 from orchestrator.workflow.engine import report_outcome_models as _report_models
 
 _NO_BODY = "(no body)"
@@ -54,6 +59,21 @@ _COMMIT_STYLE_NOTE = (
     "`git commit -m \"<subject>\"` with a single `-m`."
 )
 
+# A receipt is found by searching raw comment text, so Markdown that renders a
+# copied one inert -- a code span, a fence, a quotation -- still reads to that
+# search as the step it names, and a report carrying one is refused unpublished.
+# Prose is the one way to discuss a receipt that the refusal lets through.
+_REPORT_RECEIPT_NOTE = (
+    "The report must not contain the literal text "
+    f"`{_github_comments.RECEIPT_MARKER_PREFIX}` anywhere, including inside "
+    "inline code, a fenced code block, or a quotation. That text opens every "
+    "hidden receipt this orchestrator records its own steps with, and receipts "
+    "are found by searching raw comment text, so quoting or fencing a copied "
+    "one does not make it publishable: a report carrying it is refused and "
+    "nothing is published. To discuss a receipt or marker, describe its format "
+    "in prose instead of reproducing it."
+)
+
 # Every developer prompt carries this whole, resumes included: a resumed
 # session's transcript may predate the contract or hold another stage's prompt.
 _DEVELOPER_REPORT_NOTE = (
@@ -75,6 +95,7 @@ _DEVELOPER_REPORT_NOTE = (
     "report -- a report that needs no repository change is delivered with no "
     "commit at all. The one finished reply without a report is an `ACK:` "
     "line, where this prompt offers one.\n\n"
+    f"{_REPORT_RECEIPT_NOTE}\n\n"
     "End with EXACTLY one of these two report outcomes:\n\n"
     "1. Report ready for publication. Put the complete report between these "
     "two lines, each alone on its own line and outside any code fence, with "
@@ -113,7 +134,8 @@ _RESPAWN_REPORT_NOTE = (
     "report outcome that task describes -- the "
     f"`{_report_models._REPORT_READY_MARKER}` ... "
     f"`{_report_models._REPORT_END_MARKER}` block or the "
-    f"`{_report_models._REPORT_VERIFIED_MARKER} <location> <revision>` line."
+    f"`{_report_models._REPORT_VERIFIED_MARKER} <location> <revision>` line.\n\n"
+    f"{_REPORT_RECEIPT_NOTE}"
 )
 
 _CONTINUE_RETRY_PROMPT = (

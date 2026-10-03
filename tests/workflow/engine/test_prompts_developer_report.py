@@ -8,8 +8,10 @@ change needs no commit. Every prompt a developer finishes work on carries that
 contract whole -- resumes too, since a resumed transcript may predate it -- and
 the two outcomes it spells are the ones `report_outcomes` accepts. A prompt that
 still offers `ACK:` offers it only for a reply whose report needs no change
-either. A fresh respawn's preamble defers the outcome to the task below it, and
-the prompts that close on a marker of their own teach no report at all.
+either. Every one of them, and a fresh respawn's preamble too, forbids quoting
+a receipt of this orchestrator's in the report however it is set off. That
+preamble defers the outcome to the task below it, and the prompts that close on
+a marker of their own teach no report at all.
 """
 from __future__ import annotations
 
@@ -33,6 +35,7 @@ from orchestrator.workflow.engine.report_outcome_models import (
 )
 from orchestrator.workflow.stages.decomposition import late_revision as _late_revision
 from tests.support.fakes import FakeComment, FakeUser, make_issue
+from tests.workflow import report_guidance as _report_guidance
 from tests.workflow.fixtures import _TEST_SPEC
 
 _ISSUE_NUMBER = 67300
@@ -49,6 +52,8 @@ _COMMENT_URL = f"https://github.com/{_SLUG}/pull/{_PULL_NUMBER}#issuecomment-{_C
 _DIGEST = "0123456789abcdef" * 4
 _BASE_REF = "origin/main"
 _DRIFT_ACK = "  ACK: <one-line justification>\n"
+_PREVIOUS_HEAD = "0123abcd" * 5
+_REWRITTEN_HEAD = "4567cdef" * 5
 _UNCHANGED_REPORT = "nothing your report says has to change"
 
 
@@ -78,6 +83,9 @@ def _developer_prompts() -> dict[str, str]:
         ),
         "continue_retry_resume": _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
         "agy_recovery_resume": _prompt_notes._DEVELOPER_AGY_RECOVERY_PROMPT,
+        "report_refresh": prompts._build_report_refresh_prompt(
+            _issue(), _PREVIOUS_HEAD, _REWRITTEN_HEAD,
+        ),
     }
 
 
@@ -85,9 +93,14 @@ class DeveloperReportContractTest(unittest.TestCase):
     """What the contract says, where it is said, and that its outcomes parse."""
 
     def test_every_developer_prompt_carries_it(self) -> None:
+        # The content restriction is asked of each prompt as written rather
+        # than of the note alone: receipts are found by raw substring, so the
+        # prompt has to name the very prefix the report record refuses and
+        # every Markdown form that does not excuse it.
         for name, prompt in _developer_prompts().items():
             with self.subTest(prompt=name):
                 self.assertIn(_prompt_notes._DEVELOPER_REPORT_NOTE, prompt)
+                _report_guidance.assert_teaches_receipt_restriction(self, prompt)
 
     def test_it_names_the_contract_and_outcomes(self) -> None:
         for fragment in (
@@ -171,6 +184,9 @@ class RespawnAndStagePromptTest(unittest.TestCase):
         )
         self.assertIn(_prompt_notes._RESPAWN_REPORT_NOTE, preamble)
         self.assertNotIn(_prompt_notes._DEVELOPER_REPORT_NOTE, preamble)
+        # The preamble is what every fresh session is handed, whatever task
+        # follows it, so it carries the content restriction itself.
+        _report_guidance.assert_teaches_receipt_restriction(self, preamble)
         for fragment in (
             "Wherever the task below asks for your completion report",
             "one concise report about the final state of the whole branch",
