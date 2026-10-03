@@ -268,7 +268,16 @@ orchestrator/
                         comment CARRIES it at all -- because every fail-closed reader in this repository turns a
                         value nothing can act on into an absence, so a caller asking whether the record CLAIMS
                         something could not otherwise tell an issue that never wrote a field from one whose
-                        field a hand edit truncated
+                        field a hand edit truncated. The record is written two ways. The legacy write lands a state
+                        wherever it can -- in place, or as a new comment where none is named or the named one is
+                        gone -- which every caller owning the whole record relies on. The strict edit a guarded
+                        commit lands through rewrites the named comment in place only while the walk that finds it
+                        still reads it, parsed, as the payload the rewrite was derived over, compared as the
+                        comment's JSON spells both (`PinnedState.reads_as`); it never recreates a comment that is
+                        gone or no longer the authenticated state-only one, and answers EDITED only where GitHub's
+                        response carries the body sent -- a lost response, a refused request, and an answer carrying
+                        another body are all UNCONFIRMED, since the record may read either way. Its two requests
+                        are primitives the in-memory double overrides, so the double answers through this policy
     pull_request_reads.py
                         PR status, open and commit-pinned lookup, branch enumeration, and unreadable-publication
                         evidence; a caller choosing its publication thread can narrow to a base, while a caller
