@@ -274,12 +274,13 @@ DOCS_SITE_DIR=site uv run --no-sync pytest tests/repository/test_docs_site.py te
 ```
 
 The build writes to the ignored `site/` directory. `DOCS_SITE_DIR` makes `tests/repository/test_docs_output.py` check
-the generated links, heading anchors, search index, and sitemap of that output instead of building a copy of its own.
-A directory it names that holds no built site fails the check rather than being rebuilt or skipped. Without the
-variable, the same `pytest` command builds a fresh strict copy into a temporary directory. Links in the Markdown
-sources are checked by `tests/repository/test_doc_links.py`, which needs no documentation builder and runs with the
-rest of the suite in [Continuous integration](#continuous-integration). The `docs` group is separate from runtime and
-development dependencies, so the default `uv sync --locked` does not install the documentation builder.
+the generated links, heading anchors, search index, sitemap, and [page descriptions](#page-descriptions) of that output
+instead of building a copy of its own. A directory it names that holds no built site fails the check rather than being
+rebuilt or skipped. Without the variable, the same `pytest` command builds a fresh strict copy into a temporary
+directory. Links in the Markdown sources are checked by `tests/repository/test_doc_links.py`, which needs no
+documentation builder and runs with the rest of the suite in [Continuous integration](#continuous-integration). The
+`docs` group is separate from runtime and development dependencies, so the default `uv sync --locked` does not install
+the documentation builder.
 
 [`../../mkdocs.yml`](../../mkdocs.yml) defines the navigation, site URL, search-enabled theme, the template directory
 the theme's `custom_dir` layers over it ([Page descriptions](#page-descriptions)), and validation rules. Every page
@@ -305,7 +306,10 @@ description: How the orchestrator is checked, launched, supervised, and reconfig
 Write the description as one or two sentences of plain text, about 160 characters at most so a search result can show
 it whole. Markdown in it is not rendered, and HTML is shown as text. Quote the value when it contains a colon followed
 by a space or a space followed by `#`, or starts with a YAML indicator such as `'`, `"`, `&`, `*`, `[`, or `{`, so it
-parses as one string.
+parses as one string. Front matter is held to the same 120-column line target as the rest of the page
+([Continuous integration](#continuous-integration)), so a description longer than one line allows is written as a
+`>-` folded block indented under the key, as every described page under `docs/` does; its lines join on single spaces
+and need no quoting.
 
 The template [`../../.github/docs-theme/main.html`](../../.github/docs-theme/main.html) overrides one block of the
 bundled `mkdocs` theme, `site_meta`, and writes the value into the page's single `<meta name="description">` tag,
@@ -316,6 +320,11 @@ metadata, navigation, and search the bundled theme gives it, and a page without 
 renders it. `tests/repository/test_docs_site.py` builds sample sites through the template to hold each of those rules,
 and checks that `mkdocs.yml` names the template directory. GitHub's file view shows front matter as a table above the
 page.
+
+`tests/repository/test_docs_output.py` holds the repository's own pages to those rules in the built site: the homepage
+and each landing page it lists emit exactly the description their front matter gives, and no two of those descriptions
+match. It reads the front matter without a YAML parser, so a page it lists writes its description as a plain or `>-`
+folded value rather than a quoted one.
 
 ### GitHub Pages setup
 

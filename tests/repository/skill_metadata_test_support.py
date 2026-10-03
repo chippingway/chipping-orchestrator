@@ -49,12 +49,12 @@ def _field_line(lines: list[str], key: str) -> tuple[int, str] | None:
 
 
 def frontmatter_field(text: str, key: str) -> str:
-    """Fold one top-level field out of a SKILL.md frontmatter.
+    """Fold one top-level field out of a SKILL.md or documentation page frontmatter.
 
     Reads an inline value as written, and the `description: >-` folded form
-    the skill files use as the indented block below the key, rejoined on
-    single spaces and stopped at the next top-level key or the closing `---`.
-    A key the frontmatter does not carry reads empty.
+    the skill files and documentation pages use as the indented block below
+    the key, rejoined on single spaces and stopped at the next top-level key
+    or the closing `---`. A key the frontmatter does not carry reads empty.
     """
     lines = text.splitlines()
     assert lines and lines[0].strip() == _FRONTMATTER_FENCE, "missing frontmatter open"

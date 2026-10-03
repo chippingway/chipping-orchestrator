@@ -1,14 +1,19 @@
+---
+description: >-
+  Reference documentation for chipping-orchestrator, which turns GitHub issues into reviewed pull requests with local
+  coding agents, indexed by area.
+---
 # Documentation
 
-This directory is the reference set behind [`../README.md`](../README.md). The README is the operator's end-to-end
-guide — install, configure, run, and the labels you drive an issue with. Everything here is the layer under it: why the
-system is shaped this way, which module owns what, what every setting does, and what each stage handler reads and
-writes. GitHub renders this page when you open the `docs/` directory, so it is also the index you land on from there.
+This is the reference set for chipping-orchestrator, the layer under the project [README](../README.md). The README is
+the operator's end-to-end guide — install, configure, run, and the labels you drive an issue with. The reference
+explains why the system is shaped this way, which module owns what, what every setting does, and what each stage
+handler reads and writes.
 
-The [documentation website](https://chippingway.github.io/chipping-orchestrator/) publishes these same Markdown
-pages through GitHub Pages. See [publishing the documentation](configuration/operations.md#publishing-the-documentation)
-for local preview commands, the `description` front matter a page summarizes itself with, deployment behavior, and
-repository settings.
+Every page is a Markdown file under the repository's `docs/` directory. GitHub shows this one as that directory's
+index, and the same files build the documentation website. See
+[publishing the documentation](configuration/operations.md#publishing-the-documentation) for local preview commands,
+the `description` front matter a page summarizes itself with, deployment behavior, and repository settings.
 
 Six areas cover the whole system. Each has a landing page directly under `docs/` and — security aside — a directory of
 focused pages beside it.
