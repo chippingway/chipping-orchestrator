@@ -192,6 +192,7 @@ class ReportRefreshTest(unittest.TestCase, _support._RefreshedReports):
         self.assertNotEqual(runs[0].args[0], config.REVIEW_AGENT)
         self.assertEqual(len(runs), 1)
         self.assertIn(f"stands on commit `{REWRITTEN_HEAD}`", _reviewed.prompt(refreshed))
+        _report_guidance.assert_teaches_report_scope(self, _reviewed.prompt(refreshed))
         _report_guidance.assert_teaches_receipt_restriction(self, _reviewed.prompt(refreshed))
         settled = self.records()["current"]
         self.assertEqual(

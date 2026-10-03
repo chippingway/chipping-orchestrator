@@ -19,8 +19,8 @@ here as the missing report they also are.
 
 A run that committed NOTHING and wrote a report is the one publication with no
 code in it. The fix prompt asks for exactly that where a reviewer's item names
-report content and no repository change -- a missing explanation, a verification
-detail -- so reading such a reply as the question it is not would park an issue
+report content and no repository change -- a missing explanation, rationale, or
+risk -- so reading such a reply as the question it is not would park an issue
 whose developer finished.
 
 What that road publishes onto is the head the pull request already carries, and
