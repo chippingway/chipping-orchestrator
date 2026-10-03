@@ -270,6 +270,22 @@ make it publishable: a report carrying one is refused and nothing is published. 
 `_DEVELOPER_REPORT_NOTE` and in `_RESPAWN_REPORT_NOTE`, so a fresh session is taught it whatever task follows the
 preamble.
 
+A report the orchestrator refuses to record parks the issue under `report_undeliverable` with the existing report
+records untouched, and the notice and the log line name the refusal the record's writer gave
+(`workflow/engine/report_refusal_notices.py`) rather than guessing at one. A receipt marker is described in prose,
+never quoted back, and the reply is asked for the report again with every receipt it discusses described that way. A
+report past `MAX_REPORT_TEXT` is told its length and that ceiling. A pinned comment with no room names the write that
+measured too large: the record, the publication transaction it becomes, or that transaction's settlement. It gives the
+size against the ceiling and what frees the room. A rewrite helps only a `REPORT: READY` report whose record or
+transaction overflowed, since those two writes carry its text. The notice then counts the saving in the comment's own
+characters, not the report's: it gives the report's length beside what its text takes once escaped for JSON (two to
+twelve characters for a line break, a quote, or anything outside ASCII) and asks for escaped text at least the overflow
+smaller. A `REPORT: VERIFIED` record carries a location and digest, and the settlement carries where the report landed,
+so neither is asked for a rewrite: the notice asks for room freed on the pinned comment before the reply. Any other
+invalid record is worded with no claim about size and points at the pinned comment and the log. Size words appear only
+where a size was measured and failed. Each recovery is the same resume: the reply's session writes the corrected report
+with no new commit, and that report is the one published.
+
 Where the contract is carried:
 
 - **Whole** in the initial `_build_implement_prompt`, the automated-review `_build_fix_prompt`, the requirements-drift
@@ -362,9 +378,12 @@ round or feedback riding it, bound to the receipt's publication, and settled thr
 tick, and the next tick drops the debt once that report still reads intact. A `REPORT: VERIFIED` pointing at the report
 already there is refused, since that report describes the head before the rewrite and verifying it again carries it
 forward on nobody's proof. A run that commits, leaves loose work, times out, or verifies instead parks under
-`report_undeliverable`; a question or other agent failure takes its usual park; each records `developer_report_owed`, so
-the reply is read as the report it owes. A head moved or an issue edited while the agent was out records nothing,
-leaving the reviewer road or the drift resume to answer it.
+`report_undeliverable`, and so does a `REPORT: READY` the orchestrator refuses to record, its notice naming the refusal
+as above; a question or other agent failure takes its usual park; each records `developer_report_owed`, so the reply is
+read as the report it owes. That reply's resume commits nothing and needs nothing more than the report: it is
+published once, exactly as written, the debt is paid, and the reviewer is handed it, with no later tick posting it again
+or repeating its settlement. A head moved or an issue edited while the agent was out records nothing, leaving the
+reviewer road or the drift resume to answer it.
 
 Every other developer road is still routed by its commits, its `ACK:` line, and the question parks the
 [delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report outcome is read there the way

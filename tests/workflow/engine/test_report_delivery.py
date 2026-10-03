@@ -12,7 +12,8 @@ or no write at all and a refusal that says which of the two it was.
 
 Beside them, what the comment has to have room for before either happens, and
 which of those measurements a refusal for the room names -- apart from a report
-its own reading refuses, which no room would make recordable.
+its own reading refuses, which no room would make recordable -- and what the
+park a refused report takes tells the human who has to answer it.
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ from orchestrator.workflow.engine import (
     report_settlement_state as _settlement,
 )
 from orchestrator.workflow.state import WorkflowLabel
+from tests.workflow import report_refusals as _refusals
 from tests.workflow.engine import (
     report_delivery_test_support as delivery_support,
     report_record_test_support as support,
@@ -631,12 +633,181 @@ class ReportedRunTest(unittest.TestCase):
         )
 
 
+# The report records a refusal has to leave exactly as it found them.
+_REPORT_RECORDS = (
+    _records.DELIVERED_REPORT, _records.PENDING_REPORT, _records.CURRENT_REPORT,
+)
+
+# The ceiling a recorded report is held to, and one character past it.
+_CEILING = _record_values.MAX_REPORT_TEXT
+
+_PAST_CEILING = _CEILING + 1
+
+# The refusals a report's own record is given, whatever room the comment has:
+# the report that earns each, the requirements the comment names, and what is
+# said. A quoted receipt and an invalid record were measured for nothing, so
+# neither says anything about size; a report past its ceiling names its own
+# length and never the comment's room. The invalid one is recorded over a
+# comment naming no requirements, a member no rewrite of the report supplies.
+_OWN_REFUSALS = (
+    ("a quoted receipt", _refusals.QUOTING_REPORT, support.REQUIREMENTS, _refusals.RECEIPT_REFUSAL),
+    (
+        "a report past its ceiling",
+        delivery_support.FILLER * _PAST_CEILING,
+        support.REQUIREMENTS,
+        _refusals.Said(
+            notice=(
+                f"the report is {_PAST_CEILING} characters long, past the {_CEILING} a recorded report may be",
+                f"Reply asking for a report of at most {_CEILING} characters",
+            ),
+            logged=f"of {_PAST_CEILING} characters, past the {_CEILING} a recorded report may be (report_too_long)",
+            unsaid=("GitHub accepts", "room"),
+        ),
+    ),
+    (
+        "an invalid record",
+        delivery_support.DELIVERED.report,
+        None,
+        _refusals.Said(
+            notice=("would not hand back as written", "Inspect this issue's pinned comment"),
+            logged="(invalid_record; route workflow:implementing, requirements revision none)",
+        ),
+    ),
+)
+
+# What a notice for the comment's room never claims: that the report is past
+# its own ceiling, which it is inside of.
+_NOT_THE_TEXT = ("a recorded report may be",)
+
+# What a notice asking for a rewrite says the rewrite has to save, in the
+# comment's own characters; `{over}` is the measured overflow. And the words a
+# notice that asks for no rewrite may not use.
+_REWRITE = "Reply asking for a report whose escaped text is at least {over} characters smaller"
+
+_NO_SHORTENING = (*_NOT_THE_TEXT, "characters shorter")
+
+_NO_REWRITE = (*_NO_SHORTENING, "escaped text", "characters smaller")
+
+# A report outside the BMP throughout. JSON stores every such character as a
+# surrogate-pair escape, so its text takes twelve times its length on the
+# comment, and the room a rewrite has to save is not a count of its characters.
+_ESCAPED_LENGTH = 1800
+
+_SURROGATE_PAIR_ESCAPE = len(r"\ud83d\ude00")
+
+_ESCAPED_STORED = _ESCAPED_LENGTH * _SURROGATE_PAIR_ESCAPE
+
+_ESCAPED = replace(delivery_support.DELIVERED, report="\U0001f600" * _ESCAPED_LENGTH)
+
+# A report whose text closes an HTML comment four times, and the room that
+# leaves its comment: past the ceiling by a few characters in the record's own
+# write and in no measurement before it. A comment that far over is rendered
+# with those terminators unescaped -- escaping them only adds -- and fits
+# exactly when that rendering does, so neither the overflow nor any saving
+# counts the five characters an escaped terminator would take.
+_CLOSING = replace(
+    delivery_support.DELIVERED, report="".join(("The gate reads left --> right, " * 4, "and nothing else.")),
+)
+
+_CLOSING_LENGTH = len(_CLOSING.report)
+
+_CLOSING_SLACK = 380
+
+# A run asserting its report is already on this repository's thread.
+_ASSERTING = (
+    f"done\n\nREPORT: VERIFIED https://github.com/{support.SLUG}"
+    f"/pull/{support.PR_NUMBER}#issuecomment-{support.COMMENT_ID}"
+    f" sha256:{support.CONTENT_DIGEST}"
+)
+
+# The writes a report can be refused room in: each write, the room its comment
+# is left with and whether that room is measured against the settling write, the
+# run -- what it is, the record it makes, and the message it ends on -- and what
+# is said. The record
+# and the transaction carry a written-out report's text, so a rewrite saving
+# the overflow in ESCAPED characters gives that write its room back; the
+# settlement carries where the report landed, and a verification is recorded
+# with no text at all, so neither is asked for a rewrite -- the room has to be
+# freed on the comment.
+_ROOM_REFUSALS = (
+    (
+        _room.MeasuredWrite.RECORD,
+        (0, False),
+        ("a written-out report", delivery_support.DELIVERED, delivery_support.ready(delivery_support.DELIVERED.report)),
+        _refusals.Said(
+            notice=("the record of it would leave the pinned comment", _REWRITE),
+            logged="(publish): the record write leaves the pinned comment",
+            unsaid=_NO_SHORTENING,
+        ),
+    ),
+    (
+        _room.MeasuredWrite.RECORD,
+        (0, False),
+        ("an escaped report", _ESCAPED, delivery_support.ready(_ESCAPED.report)),
+        _refusals.Said(
+            notice=(
+                f"stores the report's {_ESCAPED_LENGTH} characters of text as {_ESCAPED_STORED} once escaped for JSON",
+                _REWRITE,
+            ),
+            logged="(publish): the record write leaves the pinned comment",
+            unsaid=_NO_SHORTENING,
+        ),
+    ),
+    (
+        _room.MeasuredWrite.BINDING,
+        (delivery_support.CROWDED_FOR_RESERVATION, False),
+        ("a written-out report", delivery_support.DELIVERED, delivery_support.ready(delivery_support.DELIVERED.report)),
+        _refusals.Said(
+            notice=(
+                (
+                    "the publication transaction it becomes once its code reaches a pull request would leave "
+                    "the pinned comment"
+                ),
+                _REWRITE,
+            ),
+            logged="(publish): the binding write leaves the pinned comment",
+            unsaid=_NO_SHORTENING,
+        ),
+    ),
+    (
+        _room.MeasuredWrite.BINDING,
+        (delivery_support.CROWDED_FOR_RESERVATION, False),
+        ("a verification", delivery_support.ASSERTED, _ASSERTING),
+        _refusals.Said(
+            notice=(
+                "A verified report is recorded as where it stands and the digest read there, never as its text",
+                "free room on the pinned comment, then reply",
+            ),
+            logged="(verify): the binding write leaves the pinned comment",
+            unsaid=_NO_REWRITE,
+        ),
+    ),
+    (
+        _room.MeasuredWrite.SETTLEMENT,
+        (delivery_support.CROWDED_FOR_TOMBSTONE, True),
+        ("a written-out report", delivery_support.DELIVERED, delivery_support.ready(delivery_support.DELIVERED.report)),
+        _refusals.Said(
+            notice=(
+                "the write that settles that transaction once the report is out would leave the pinned comment",
+                ", counting the code-publication receipt the push writes,",
+                "That write carries where the report landed rather than its text",
+                "free room on the pinned comment, then reply",
+            ),
+            logged="(publish): the settlement write leaves the pinned comment",
+            unsaid=_NO_REWRITE,
+        ),
+    ),
+)
+
+
 class ParkNoticeTest(unittest.TestCase):
     """What a park this owner takes tells the human who has to answer it.
 
     The notice is the whole of what a human is told, and the two roads that
     reach these parks are in different places: one has published nothing yet,
-    and the other is answering an edit on a pull request that is open.
+    and the other is answering an edit on a pull request that is open. A
+    report that cannot be recorded is told WHY as well, in the notice and the
+    log line alike, since each refusal asks the reply for something different.
     """
 
     def test_each_park_names_what_it_withheld(self) -> None:
@@ -648,6 +819,79 @@ class ParkNoticeTest(unittest.TestCase):
             for route, open_pr in _ROADS:
                 with self.subTest(park=described, road=str(route)):
                     self._assert_notice(message, route, open_pr)
+
+    def test_a_report_s_own_refusal_names_its_cause(self) -> None:
+        # Each is refused for what the report or its record IS, and the notice
+        # and the log line both say which, with the correction it needs and
+        # nothing about a size nobody measured. The delivery an earlier run
+        # left and the report the pull request carries are untouched, and
+        # nothing but the notice is posted.
+        for described, report, requirements, said in _OWN_REFUSALS:
+            with self.subTest(refusal=described):
+                state = PinnedState(state_data={
+                    _records.DELIVERED_REPORT: delivery_support.delivered_object(),
+                    delivery_support.BASELINE: requirements,
+                })
+                _settlement.record_current_report(state, support.CURRENT)
+
+                said.assert_said(self, *self._refused(state, delivery_support.ready(report)))
+
+    def test_a_refusal_for_room_names_the_write(self) -> None:
+        # A report that reads and does not fit is refused for the comment's
+        # room, and the notice and the log line name the write measured, the
+        # size it came to and how far past GitHub's ceiling that is, and what
+        # frees it: a rewrite saving that much ESCAPED text only where the
+        # write carries a written-out report's text, and room freed on the
+        # comment wherever it does not -- never the report's own ceiling,
+        # which it is inside of.
+        for write, crowding, run, said in _ROOM_REFUSALS:
+            with self.subTest(write=write.value, run=run[0]):
+                state = delivery_support.crowded_comment(
+                    crowding[0], reviewed=crowding[1], baselined=True,
+                )
+                self._assert_measured(state, write, run, said)
+
+    def test_the_saving_asked_for_is_exact(self) -> None:
+        # The notice counts the report's text in the rendering its write was
+        # refused in -- the JSON escape alone, none of the terminator escape a
+        # comment past the ceiling never carries -- and asks for exactly the
+        # saving that write needs: a rewrite one character short of it leaves
+        # the same write refused by one, and one saving all of it fits there.
+        crowded = delivery_support.crowded_comment(_CLOSING_SLACK, baselined=True)
+        refused = _delivery_state.stage_delivered_report(PinnedState(state_data=dict(crowded.data)), _CLOSING)
+        over = refused.size - refused.limit
+        retried = [
+            _delivery_state.stage_delivered_report(
+                PinnedState(state_data=dict(crowded.data)),
+                replace(_CLOSING, report=_CLOSING.report[saved:]),
+            )
+            for saved in (over - 1, over)
+        ]
+
+        measured = (_room.MeasuredWrite.RECORD, _room.LaterWrites())
+        self.assertEqual(
+            [
+                (refused.write, refused.later),
+                (retried[0].write, retried[0].later),
+                retried[0].size - retried[0].limit,
+            ],
+            [measured, measured, 1],
+        )
+        self.assertNotEqual(
+            (
+                getattr(retried[1], "write", None),
+                getattr(retried[1], "later", None),
+            ),
+            measured,
+        )
+        _refusals.Said(
+            notice=(
+                f"stores the report's {_CLOSING_LENGTH} characters of text as {_CLOSING_LENGTH} once escaped for JSON",
+                f"at least {over} characters smaller",
+            ),
+            logged="(publish): the record write leaves the pinned comment",
+            unsaid=_NO_SHORTENING,
+        ).assert_said(self, *self._refused(crowded, delivery_support.ready(_CLOSING.report)))
 
     def _assert_notice(self, message: str, route, open_pr: bool) -> None:
         """One park, taken on one road, says what that road withheld."""
@@ -665,6 +909,60 @@ class ParkNoticeTest(unittest.TestCase):
             (_NEVER_OPENED in notice, _STILL_STANDS in notice),
             (not open_pr, open_pr),
         )
+
+    def _assert_measured(self, state: PinnedState, write: _room.MeasuredWrite, run: tuple, said) -> None:
+        """One refusal for room says `said`, with the size the writer measured and the ceiling it passed.
+
+        `run` names the run, the record it makes, and the message it ends on;
+        `{over}` in what is said is the overflow the writer measured.
+        """
+        overflow = _delivery_state.stage_delivered_report(
+            PinnedState(state_data=dict(state.data)), run[1],
+        )
+        self.assertIs(overflow.write, write)
+        over = overflow.size - overflow.limit
+        owed = replace(said, notice=tuple(
+            fragment.format(over=over) for fragment in said.notice
+        ))
+        refused = self._refused(state, run[2])
+
+        for expected in (owed, _refusals.Said(
+            notice=(
+                f"{overflow.size} characters long",
+                f"{over} past the {overflow.limit} GitHub accepts in one comment",
+            ),
+            logged=f"leaves the pinned comment {overflow.size} characters long",
+            unsaid=(),
+        )):
+            expected.assert_said(self, *refused)
+
+    def _refused(self, state: PinnedState, message: str) -> tuple[str, str]:
+        """The notice and the log line one implementation run ending on `message` earns, refused.
+
+        Held, with the report records the comment carried exactly as found,
+        and with the notice the one comment posted: no pull request opened,
+        no report published.
+        """
+        seeded = delivery_support.seeded_issue()
+        found = {key: state.get(key) for key in _REPORT_RECORDS}
+
+        with self.assertLogs("orchestrator.workflow", "ERROR") as captured:
+            self.assertTrue(_delivery.recording_stops_the_tick(
+                *seeded, state, _agent(last_message=message), WorkflowLabel.IMPLEMENTING,
+            ))
+            logged = "\n".join(captured.output)
+
+        github = seeded[0]
+        self.assertEqual(
+            (
+                {key: state.get(key) for key in _REPORT_RECORDS},
+                state.get(delivery_support.PARK_REASON),
+                len(github.posted_comments),
+                github.opened_prs,
+            ),
+            (found, _delivery.UNDELIVERABLE_REPORT, 1, []),
+        )
+        return github.posted_comments[0][1], logged
 
 
 class DeliveredRevisionTest(unittest.TestCase):

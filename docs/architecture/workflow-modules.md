@@ -610,7 +610,31 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             why the label is one of the roads whose park notice says the pull request stands where
                             it stood rather than that none was opened. A caller may freeze the bookkeeping its handover
                             owes onto the record as well as onto the gate, which is what covers a report reaching
-                            the pull request with no code in it and so no gate behind it
+                            the pull request with no code in it and so no gate behind it. A report it cannot RECORD
+                            is held on the refusal `stage_delivered_report` gave rather than on a yes or no, so the
+                            notice and the log line can say which it was, worded by the owner below
+    report_refusal_notices.py what a human and the log are told about a delivery that refusal held: one notice per
+                            refusal, each with its own recovery. A quoted receipt marker is described in prose
+                            and never quoted back -- a notice is the orchestrator's own comment, where a receipt
+                            search would read it as the step it names -- and the reply asks for the report with
+                            every receipt described that way; a report past `MAX_REPORT_TEXT` is told its length
+                            and that ceiling; a `CommentOverflow` names the write measured (the record, the
+                            transaction it becomes, or that transaction's settlement), the later writes counted
+                            beside it, the size against the ceiling, and what frees the room. A rewrite does only
+                            for a written-out report whose record or transaction overflowed, the two writes that
+                            carry its text, and the saving is asked for in the comment's own characters: the text
+                            is stored escaped for JSON, so the notice gives the report's length beside what it
+                            takes there and asks for escaped text at least the overflow smaller. Both counts are in
+                            the rendering the refused write was measured in: `pinned_state_body` leaves the
+                            HTML-comment terminators of a payload past the ceiling unescaped, and a comment fits
+                            exactly when that rendering does, so the text's cost is its JSON escape alone. A
+                            verification records a location and digest and the settlement where the report
+                            landed, so neither is asked for a rewrite, only for room freed on the comment; and
+                            every other refusal is the invalid record, worded without a claim about length or
+                            room, its log line naming the route and the requirements revision the record was
+                            stamped with for an operator to look for. Size is named only where a size was measured
+                            and failed, and every recovery is the same resume: a reply whose session needs no new
+                            commit to deliver the report
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. The handoff also names the workflow LABEL the issue was carrying

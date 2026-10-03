@@ -193,7 +193,11 @@ def outstanding_comment() -> dict:
 
 
 def crowded_comment(
-    slack: int, carried: dict | None = None, *, reviewed: bool = False,
+    slack: int,
+    carried: dict | None = None,
+    *,
+    reviewed: bool = False,
+    baselined: bool = False,
 ) -> PinnedState:
     """One comment with `slack` characters left past the report's own length.
 
@@ -201,9 +205,16 @@ def crowded_comment(
     case says how much room its refusal is about instead of restating the
     ceiling. `reviewed` leaves the room the reviewer's round takes beside
     that slack, read off the owner every acceptance reserves it through, for
-    a case whose slack is measured against the settling write.
+    a case whose slack is measured against the settling write. `baselined`
+    carries the requirements baseline a recording reads its revision off,
+    with the filler giving back exactly what it costs, so the comment refuses
+    the very write it refuses without one.
     """
     crowded = PinnedState(state_data={**(carried or {}), CROWDING: ""})
+    if baselined:
+        slack -= len(pinned_state_body(crowded.data))
+        crowded.set(BASELINE, support.REQUIREMENTS)
+        slack += len(pinned_state_body(crowded.data))
     if reviewed:
         reserved = PinnedState(state_data=dict(crowded.data))
         _review_records.reserves_the_round(reserved)

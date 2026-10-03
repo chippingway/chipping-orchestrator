@@ -112,8 +112,11 @@ enforce that writing budget. A report that
 needs no repository change needs no commit, and finished work ends on exactly one outcome — either the report between
 `REPORT: READY` and `REPORT: END` lines or a `REPORT: VERIFIED <location> <revision>` line naming a report already on
 the pull request. The report may not contain this orchestrator's receipt prefix anywhere — not even in a code span, a
-fence, or a quotation, since receipts are found by raw text — so a receipt is described in prose. A fresh respawn's
-preamble restates the ownership and that restriction and defers the outcome to the task below it.
+fence, or a quotation, since receipts are found by raw text — so a receipt is described in prose. A report the
+orchestrator refuses to record publishes nothing and parks with a notice naming which refusal it was — a quoted
+receipt, the report's own length, the pinned comment's room, or another invalid record — and the reply's resume brings
+the corrected report with no new commit ([the report contract][report-contract]). A fresh respawn's preamble restates
+the ownership and that restriction and defers the outcome to the task below it.
 `workflow/engine/report_outcomes.py` reads an outcome only out of a run that completed, and the
 initial implementation delivery is the road that acts on one: `workflow/engine/report_delivery.py` records what the
 run wrote before the size gate and the push, and `workflow/engine/report_binding.py` binds it to the repository, pull
@@ -201,3 +204,4 @@ validating tick. Per-role keys, the resume path, and the legacy values still hon
 [discussion-handler]: state-machine/conversation-stages.md#_handle_discussion-label-discussion
 [foreground-guidance]: workflow/conversations.md#foreground-execution-and-asynchronous-command-guidance
 [reviewer-verification]: workflow/conversations.md#the-reviewer-verification-contract
+[report-contract]: workflow/conversations.md#the-developer-report-contract-in-developer-prompts

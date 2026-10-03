@@ -15,6 +15,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from orchestrator import config
+from orchestrator.github.developer_reports import developer_report_from_comment
 from orchestrator.workflow.engine import report_rewrite_debt as _rewrite_debt
 from tests.workflow import (
     drift_reports as _drift_world,
@@ -63,6 +64,18 @@ _OWN = object()
 def fresh(text: str = FRESH_REPORT) -> str:
     """A finished run's message, ending on a fresh report ready for publication."""
     return _drift_world.reported(text)
+
+
+def published_texts(case, text: str) -> list:
+    """The report each comment on the pull request carrying `text` reads back as.
+
+    Read back the way the reviewer road reads it, so a comment that carries
+    `text` and is not exactly the report it claims to be reads as None.
+    """
+    return [
+        getattr(developer_report_from_comment(posted, bot_login=case.github._bot_login), "text", None)
+        for posted in case.fresh_reports(text)
+    ]
 
 
 class PushedOver:

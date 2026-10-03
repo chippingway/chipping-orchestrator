@@ -2216,7 +2216,19 @@ because there it is the claim that this stage has already rerouted rather than a
        implementation. Nothing is discarded, no park is announced twice, and `developer_report_owed` is the debt where
        no record exists, outliving any later park. A resumed run that comes back with a report and moved no head
        publishes the commits already on the branch, so an ordinary question is still a question; the handoff spends
-       the reason once the report has reached the pull request.
+       the reason once the report has reached the pull request. A report that cannot be RECORDED leaves every report
+       record as it was, and its notice and log line name the refusal the record's writer gave
+       (`workflow/engine/report_refusal_notices.py`). A quoted receipt marker is described rather than quoted back,
+       and the reply is asked for the report with every receipt described in prose. A report past `MAX_REPORT_TEXT`
+       is told its length and that ceiling. A pinned comment with no room names the write measured (the record, the
+       transaction it becomes, or that transaction's settlement), its size against the ceiling, and what frees the
+       room. Only a `REPORT: READY` report whose record or transaction overflowed is asked for a rewrite, counted in
+       the comment's own characters: the notice gives the report's length beside what its text takes escaped for
+       JSON, and asks for escaped text at least the overflow smaller. A verification (location and digest only) and
+       a settlement (where the report landed) carry no text, so their notices ask for room freed on the comment
+       instead. Any other invalid record is worded with no claim about size and points at the pinned comment and
+       the log. No size is named where none was measured, and every recovery is a reply whose resume needs no new
+       commit.
      - new commits + dirty files → `_on_dirty_worktree`: park; refuse to publish a partial branch.
      - new commits + a tree `git status` could not report on → `_on_unreadable_worktree`: park under
        `unreadable_worktree`. An unreadable tree is not a clean one: the list form of that read maps its own failure
@@ -3586,15 +3598,19 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        reconciliation or the next tick's hold, found by its receipt, with no second developer run and no second
        comment. A head somebody pushed or an edit made while the agent was out records nothing and parks nothing:
        the reviewer road refuses a head the claim no longer explains, and the drift resume answers the edit. A run
-       that committed (recorded `developer_report_unreported_work`) or left loose work, one that timed out, and one
-       that ended on `REPORT: VERIFIED` instead of writing a report park once under `report_undeliverable`; every
+       that committed (recorded `developer_report_unreported_work`) or left loose work, one that timed out, one
+       that ended on `REPORT: VERIFIED` instead of writing a report, and one whose `REPORT: READY` cannot be recorded
+       -- its notice naming the refusal, as the implementing seam's does -- park once under `report_undeliverable`;
+       every
        other finished run with no report -- a question, a silent exit, a quota stop, a provider refusal, an unfinished
        command -- takes the agent-failure park `_on_question` classifies (route `report_refresh`). A run that ended
        with a tool step still active, which is what the AGY recovery behind the resume hands back once its one retry
        is spent, is read as that unfinished command ahead of its message, so a `REPORT: READY` block it wrote parks
        `agent_execution_failed` rather than being published. Each park sets
        `developer_report_owed`, so the reply resumes the developer on the requirements-drift reading and the report
-       it writes settles and pays the debt; until then the tick holds with nothing run. Every refresh tick ends
+       it writes -- a report alone, with no commit -- is published once exactly as written, settles, and pays the
+       debt, and the reviewer is handed it, with no later tick posting it again or repeating its settlement; until
+       then the tick holds with nothing run. Every refresh tick ends
        there, a settled one included: the next tick finds the debt paid.
      - **Held for nothing.** Anything else -- a claim nobody can read, another pull request or branch, a head
        somebody pushed over the rewrite, a settled report of neither head -- holds nothing, so the subject
