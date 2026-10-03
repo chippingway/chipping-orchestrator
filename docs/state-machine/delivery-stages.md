@@ -1258,14 +1258,16 @@ because there it is the claim that this stage has already rerouted rather than a
   no request on a tick that sweep is skipping anyway (see
   [labels-and-state.md](labels-and-state.md#pollable-issues-and-finalization)).
 - **An owner with no cycle left is asked one question before it is stepped over.** That question is the
-  retirement's own correlation: a terminal that made its retirement durable and then died leaves a record naming
-  which cycle it dropped, and a close observed inside that write leaves a receipt on the thread naming the same one.
+  retirement's own correlation: a terminal, or a `blocked` parent's hand-back to its own work, that made its
+  retirement durable and then died leaves a record naming which cycle it dropped, and a close observed inside that
+  write leaves a receipt on the thread naming the same one.
   Where the two agree the cycle goes back cancelled and this pass ends it like any other, `rejected` included.
   Where they do not, what is left is an umbrella whose terminal is due and whose label never landed: that state is
   `umbrella` and closed — exactly what this sweep queries — and the record says which terminal it
   earned (`umbrella_resolved_at`), so `done` is written here. A write GitHub refuses keeps the label, which is the
   retry, so the pass after it writes what this one could not. Anything else with no cycle is left alone: every
-  umbrella the initial decomposer made carries no generation and no stamp.
+  umbrella the initial decomposer made carries no generation and no stamp, and a hand-back writes no
+  `umbrella_resolved_at` to finish.
 - **Why it is not the label's handler**: every one of the four names a stage handler that would resume the workflow
   the close ended — one spawns the decomposer, one walks the dependency graph and activates children, one hands the
   issue to a developer. The dispatcher

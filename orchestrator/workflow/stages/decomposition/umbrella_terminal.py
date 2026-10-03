@@ -3,7 +3,8 @@
 """Umbrella resolution receipts, cycle retirement, and final issue closure.
 
 Published late splits deduplicate their resolution by cycle and generation.
-Retirement preserves outstanding resource and consumer obligations, and
+Retirement preserves outstanding resource and consumer obligations -- the same
+retirement a `blocked` parent takes on its way back to its own work -- and
 closure follows the done label.
 """
 from __future__ import annotations
@@ -48,7 +49,10 @@ def _retired_cycle(state: PinnedState) -> LateGeneration:
     and the receipts naming the children this split made are what a restart
     reads. What goes is the cycle a close would have ended -- which is the
     whole point of doing it HERE, one write before the terminal label: past
-    this there is no live cycle under `done` for anything to have to find.
+    this there is no live cycle under `done` for anything to have to find. A
+    `blocked` parent going back to its own work retires its split's cycle
+    through this too, one write before `ready`, so the implementation it
+    returns to measures a candidate of its own rather than the superseded one.
 
     The generation it dropped travels back, because the write that makes it
     durable is a request and the barrier behind that request needs something
