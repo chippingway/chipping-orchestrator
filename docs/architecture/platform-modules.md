@@ -326,44 +326,67 @@ orchestrator/
                         reached one way -- in the client's inheritance chain
     reviews.py          current-head review aggregation: approval verdicts and unread-feedback watermarks
     verification_artifacts.py
-                        the workflow verification artifact comment format: the workflow's own evidence about a
-                        tested tree, appended as its own comment beside the developer report rather than into it
-                        and never into the description, so the report keeps its own source identity and no
-                        human-authored sentence is rewritten. It names the repository and pull request, the
-                        commit and tree the commands ran on, the head the pull request carried when it was
-                        written, the review subject and requirements revision it answers for, and the
-                        verification-context revision it ran under -- four object ids rather than one, because
-                        evidence carried forward, the round it answers, and the head that has moved since are
-                        three different commits; an artifact whose head is not the tested commit says in its
-                        visible lines that the head is an equivalent-tree target the commands never ran on. Each
-                        artifact carries its own revision, so several on one commit
-                        read as an ordered history; the hidden header repeats that identity beside the
-                        transaction receipt and the digest of the evidence, and the ordinary orchestrator marker
-                        closes the body, which is what keeps a generated artifact from ever being read back as a
-                        human's fresh feedback. An identity the header cannot carry and a body past a comment's
-                        length are refused rather than cut, and a comment reads back as an artifact only when it
-                        is ours and re-renders byte for byte -- never one whose header claims a witness this
-                        format does not name, a count of more digits than Python converts, or evidence that
-                        reconstructs past what a comment holds, which a body short enough to have been posted
-                        still claims once its preamble is gone. Every such claim is ANSWERED rather than
-                        raised: the question is asked of somebody else's comment, on a thread anybody can post
-                        to, so nothing a comment says about itself may leave the scan that asked by an exception.
-                        A comment is held to the format's own canonical body, and the writer lays the one-comment
-                        bound over that body only on the way to a post, so whether a published comment is an
-                        artifact never turns on what the writer would post now
+                        the workflow verification artifact: the workflow's own evidence about a tested tree, appended
+                        as its own comment beside the developer report rather than into it and never into the
+                        description, so the report keeps its own source identity and no human-authored sentence is
+                        rewritten. It names the repository and pull request, the commit and tree the commands ran on,
+                        the head the pull request carried when it was written, the review subject and requirements
+                        revision it answers for, and the verification-context revision it ran under -- four object
+                        ids rather than one, because evidence carried forward, the round it answers, and the head
+                        that has moved since are three different commits. Each artifact carries its own revision, so
+                        several on one commit read as an ordered history; the hidden header repeats that identity
+                        beside the transaction receipt and the digest of the evidence, and the ordinary
+                        orchestrator marker closes the body, which is what keeps a generated artifact from ever
+                        being read back as a human's fresh feedback. An identity the header cannot carry and a body
+                        past a comment's length are refused rather than cut. The writer publishes the compact format
+                        (`verification_compact_artifacts.py`); the reader is format-aware: a comment carrying the
+                        hidden payload is held to the compact format's canonical body and any other to the legacy
+                        format's (`verification_legacy_artifacts.py`), byte for byte either way, and both read back
+                        as the same artifact under the same evidence digest, so a historical comment is never
+                        rewritten, re-digested, or refused for what the current format would make of it. A comment
+                        reads back as an artifact only when it is ours and re-renders exactly -- never one whose
+                        payload was tampered with, whose summary or header disagrees with its evidence, whose header
+                        claims a witness this format does not name or a count of more digits than Python converts,
+                        or whose evidence reconstructs past what a comment holds, which a body short enough to have
+                        been posted still claims once its own presentation is replaced. Every such claim is ANSWERED
+                        rather than raised: the question is asked of somebody else's comment, on a thread anybody can
+                        post to, so nothing a comment says about itself may leave the scan that asked by an
+                        exception. The writer lays the one-comment bound over the canonical body only on the way to
+                        a post, so whether a published comment is an artifact never turns on what the writer would
+                        post now
+    verification_compact_artifacts.py
+                        the compact format every artifact is published in: a concise visible summary -- whether the
+                        recorded checks passed (at least one, every one exiting 0), failed, or never ran, said in
+                        words so an absence never passes for a pass; the artifact revision and the `sha256:`
+                        evidence revision; the witness; the tested commit and tree; and the target head, named an
+                        equivalent-tree carry where the checks never ran on it -- and no command inventory or
+                        transcript. The commands, their statuses, and their whole output travel in the hidden
+                        payload `verification_payloads.py` encodes, in an HTML comment of its own ahead of the
+                        header; that comment's opener is what tells this format from the legacy one, whose evidence
+                        could never carry a marker of ours. It reads a body's commands back out of the payload and
+                        spells the canonical body a comment claiming this format is held to
     verification_evidence.py
                         what an artifact reports and who witnessed it: one command, the status it exited, and
                         whatever bounded transcript the artifact carries for it, rendered once here so the digest
-                        an artifact publishes is taken over one spelling of them. Orchestrator-executed evidence
-                        is this process reporting commands it spawned itself; reviewer-reported evidence is a
-                        reviewer run's account of commands nobody here observed, and the witness travels with the
-                        commands rather than being a footnote to them. A command carrying the backtick that
-                        delimits it, a transcript carrying the fence that closes it, and either carrying a
-                        receipt marker of ours are refused where they are declared, which is the only place they
-                        can still be told apart from a rendering. No command at all renders as an explicit
-                        absence, since a section that simply listed nothing would read as a run that passed. The
-                        content revision is taken here too, over that rendering, so every presentation of the
-                        commands names them by one revision
+                        an artifact publishes is taken over one spelling of them -- the spelling a reviewer handed
+                        the evidence is quoted and a legacy artifact showed, whichever presentation carries the
+                        commands. Orchestrator-executed evidence is this process reporting commands it spawned
+                        itself; reviewer-reported evidence is a reviewer run's account of commands nobody here
+                        observed, and the witness travels with the commands rather than being a footnote to them. A
+                        command carrying the backtick that delimits it, a transcript carrying the fence that closes
+                        it, and either carrying a receipt marker of ours are refused where they are declared, which
+                        is the only place they can still be told apart from a rendering. No command at all renders
+                        as an explicit absence, since a section that simply listed nothing would read as a run that
+                        passed. The content revision is taken here too, over that rendering, so every presentation
+                        of the commands names them by one revision
+    verification_legacy_artifacts.py
+                        the format artifacts were published in before their evidence was hidden -- a prose preamble
+                        naming the witness and the whole identity, a rule, and every command with its status and
+                        transcript in view -- kept for reading alone: the commands its visible section reads back
+                        as, and the exact body it spelled an artifact as. Frozen rather than derived from the
+                        current writer, so a historical comment keeps re-rendering as it reads; its digest was
+                        taken over the rendering `verification_evidence.py` still hashes, so evidence settled on
+                        one stays settled
     verification_payloads.py
                         the versioned codec for an artifact's hidden evidence: every command, the status it
                         exited, and its whole transcript, in order and with repeats, spelled as one JSON object
@@ -378,7 +401,8 @@ orchestrator/
                         each read through the evidence model's own constructor, so a malformed payload, another
                         version, a member of the wrong type or shape, a command the model refuses, or a revision
                         the commands do not hash to all read as none. It owns the payload text alone; the
-                        comment around it and where it sits in a body are the artifact format's
+                        comment around it and where it sits in a body are the compact format's
+                        (`verification_compact_artifacts.py`)
   agents/               publishes the run/result models, runner entry point, and process shutdown hook
     models.py           the agent result and unfinished-step diagnostics, run-option, and subprocess-result models
     environment.py      credential filtering and the injected git identity

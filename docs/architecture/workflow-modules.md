@@ -854,12 +854,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     review_evidence_prompts.py
                             what a reviewer is told about verification, which the reviewer prompt renders: the current
                             evidence handed for its subject (`HandedEvidence`, the settled record and its artifact
-                            re-read), quoted whole -- preamble and every command with its status and output, every line
-                            quoted whatever ends it, a bare carriage return included -- under the `sha256:` revision a
-                            reuse names, naming each listed command that did not exit 0 (a status about those commands
-                            alone, not the configured ones), or the note that none covers the subject; then the
-                            configured `VERIFY_COMMANDS` in order, each of which an approval has to declare, or that
-                            none are configured and nothing the orchestrator runs is evidence that any check passed;
+                            re-read), quoted whole -- its summary and every command with its status and complete
+                            output, decoded from the comment's hidden payload or read off a legacy comment's visible
+                            section, every line quoted whatever ends it, a bare carriage return included -- under the
+                            `sha256:` revision a reuse names, naming each listed command that did not exit 0 (a status
+                            about those commands alone, not the configured ones), or the note that none covers the
+                            subject; then the configured `VERIFY_COMMANDS` in order, each of which an approval has to
+                            declare, or that none are configured and nothing the orchestrator runs is evidence that any
+                            check passed;
                             then the declaration, spelled from `review_verification_models.py` -- a RUN block naming the
                             subject's head, and the REUSED line naming the handed revision only where evidence was
                             handed -- and the policy that a SHA, count, or command the orchestrator publishes itself is

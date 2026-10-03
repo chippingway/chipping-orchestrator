@@ -144,7 +144,7 @@ MOVED_OVER = ((LABEL_DOCUMENTING,), SETTLED_CARRY, SQUASHED)
 HANDED_BACK = ((LABEL_DOCUMENTING, LABEL_VALIDATING), (None, None, ("superseded", "invalidated")), "")
 
 # What the carried artifact says about the head it was carried onto.
-EQUIVALENT_TREE = "an equivalent-tree target"
+EQUIVALENT_TREE = "an equivalent-tree carry"
 
 # An operator changing `VERIFY_TIMEOUT`, the approval's evidence claim gone
 # from the pinned comment by hand -- removed outright, or written null -- and
@@ -264,7 +264,7 @@ class CarriedEvidenceTest(_support.SquashedRoundWorld, unittest.TestCase):
         return tuple((ran.command, ran.exit_status, ran.output) for ran in latest.commands)
 
     def _carried_artifacts(self) -> int:
-        """How many comments on the pull request say they were carried onto an equivalent-tree target."""
+        """How many comments on the pull request say they are an equivalent-tree carry."""
         return sum(EQUIVALENT_TREE in said.body for said in self.pull_request.issue_comments)
 
 

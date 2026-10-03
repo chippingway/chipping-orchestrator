@@ -17,12 +17,12 @@ review subject and requirements revision it answers for, and the revision of
 the verification context it ran under -- four object ids rather than one,
 because evidence carried forward, the round it answers, and the head that has
 moved since are three different commits, and an artifact that named only one
-of them could be read as current when it is not. Evidence carried onto a head
-it did not run on says so in its visible lines too: that head is an
-equivalent-tree target, and the commands ran on the tested commit and nowhere
-else, so a carry never reads as a run on the commit it was carried to. From:
-the witness, stated in the first visible lines, since a reader deciding what
-to trust reads the rendered comment rather than the hidden header.
+of them could be read as current when it is not. From: the witness. What a
+reader sees of that is the compact summary
+(`verification_compact_artifacts`): the outcome, the artifact and evidence
+revisions, the witness, the tested commit, and the target head, named an
+equivalent-tree carry where the commands never ran on it. The commands, their
+statuses, and their whole transcripts are carried hidden, exactly.
 
 Artifacts accumulate. Each carries its own revision, so several on one commit
 read as an ordered history: a later one supersedes its predecessors and leaves
@@ -33,27 +33,40 @@ passes over our comments passes over this one too -- which is what keeps a
 generated artifact from ever being read back as a human's fresh feedback.
 
 A comment is an artifact only when it is OURS and re-renders byte for byte
-from the identity and evidence it claims. The header is an HTML comment
-anybody can paste, and a maintainer can edit a comment that stays attributed
-to us, so neither the marker nor the author proves an artifact alone. One that
-does not fit in a comment is refused rather than cut: a truncated transcript
-published under the header would read as the whole of what ran.
+from the identity and evidence it claims, in the format it was published in.
+The header is an HTML comment anybody can paste, and a maintainer can edit a
+comment that stays attributed to us, so neither the marker nor the author
+proves an artifact alone. One that does not fit in a comment is refused
+rather than cut: a truncated payload published under the header would claim
+to be the whole of what ran.
 
-The reader and the writer meet only at the format's canonical body. A comment
+Two formats are read and one is written. A comment carrying the hidden
+payload is held to the compact format's canonical body; any other is held to
+the format artifacts were published in before their evidence was hidden
+(`verification_legacy_artifacts`), exactly as it spelled them. Both read back
+as the same artifact -- the header, and the digest it carries, are one
+spelling across them -- so a historical comment keeps the evidence revision
+it was settled under, and is never rewritten to look current.
+
+The reader and the writer meet only at a format's canonical body. A comment
 is checked against that body; the writer adds the one-comment bound on top
 before a post. So whether a posted comment is an artifact never depends on
 what the writer would post now, and an artifact stays readable exactly as it
-was published.
+was published, however long the current format would spell it.
 """
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
 from dataclasses import dataclass
-from types import MappingProxyType
+from types import ModuleType
 from typing import Any
 
-from orchestrator.github import comments as _comments, verification_evidence as _evidence
+from orchestrator.github import (
+    comments as _comments,
+    verification_compact_artifacts as _compact,
+    verification_evidence as _evidence,
+    verification_legacy_artifacts as _legacy,
+)
 from orchestrator.github.pinned_state import MAX_PINNED_BODY
 
 # What a thread is searched for when a transaction asks whether its artifact
@@ -99,49 +112,6 @@ _CARRIABLE = (
     ("receipt", "receipt", str, _TOKEN),
 )
 
-_WITNESS: Mapping[_evidence.EvidenceSource, str] = MappingProxyType({
-    _evidence.EvidenceSource.ORCHESTRATOR_EXECUTED: (
-        ":robot: **Orchestrator-executed evidence.** This orchestrator ran the "
-        "commands below itself and observed the status each exited with."
-    ),
-    _evidence.EvidenceSource.REVIEWER_REPORTED: (
-        ":eyes: **Reviewer-reported evidence.** A reviewer run reported the "
-        "commands below; this orchestrator did not observe them run."
-    ),
-})
-
-# What closes the visible identity and opens the evidence. The reader cuts the
-# evidence out on it, so it is the one place the two halves of a body meet.
-_PREAMBLE_END = "\n\n---\n\n"
-
-_PREAMBLE = (
-    "### :microscope: Workflow verification artifact, revision {revision}\n\n"
-    "{witness}\n\n"
-    "Repository `{repository}`, pull request #{pr}. Evidence about commit "
-    "`{tested}` (tree `{tree}`), gathered under verification context revision "
-    "`{context}`, for review subject `{subject}` against requirements revision "
-    "`{requirements}`. {head}\n\n"
-    "It supersedes every lower-numbered verification artifact on this pull "
-    "request, which remain here only as history. It summarizes no developer "
-    "run and replaces none: the developer report on this pull request keeps "
-    "its own source identity, and the description is untouched."
-) + _PREAMBLE_END
-
-# What the preamble says of the head the artifact answers for: the commit the
-# commands ran on, or -- for evidence carried forward -- a different commit
-# proved to carry the same tree, which the commands never ran on. A carried
-# run is never relabelled as one on the head it is carried to.
-_TESTED_HEAD = "This pull request's head was `{head}` when this artifact was written."
-
-_CARRIED_HEAD = (
-    "This pull request's head was `{head}` when this artifact was written: an "
-    "equivalent-tree target, a different commit proved to carry the same tree "
-    "`{tree}`. The commands below ran on `{tested}`, not on `{head}`; this "
-    "evidence is carried onto it, not run there again."
-)
-
-_SEPARATOR = "\n\n"
-
 
 @dataclass(frozen=True)
 class VerificationArtifact:
@@ -154,7 +124,7 @@ class VerificationArtifact:
 
     `commands` is published in the order given; the header's digest is taken
     over exactly their rendering, so an artifact reads back equal to the one
-    that was posted.
+    that was posted, in whichever format it was posted.
 
     Refused at construction rather than at publication, so no reading of a
     record can hand a caller an artifact the header could not have carried.
@@ -185,7 +155,12 @@ class VerificationArtifact:
 
     @property
     def evidence(self) -> str:
-        """The commands and results this artifact reports, rendered."""
+        """Every command this artifact reports with its exit status and whole output, rendered.
+
+        The spelling its digest is taken over, and what a reviewer handed the
+        evidence reads: the compact format carries the same commands hidden,
+        so this is how they are shown wherever they are shown at all.
+        """
         return _evidence.render_commands(self.commands)
 
     @property
@@ -199,21 +174,9 @@ class VerificationArtifact:
         return _evidence.content_revision(self.commands)
 
     @property
-    def preamble(self) -> str:
-        """The visible lines this artifact opens with: who witnessed what, about what."""
-        head = _TESTED_HEAD if self.tested_sha == self.target_head else _CARRIED_HEAD
-        return _PREAMBLE.format(
-            witness=_WITNESS[self.source],
-            revision=self.artifact_revision,
-            repository=self.repository,
-            pr=self.pr_number,
-            tested=self.tested_sha,
-            tree=self.tested_tree,
-            context=self.context_revision,
-            subject=self.review_subject,
-            requirements=self.requirements_revision,
-            head=head.format(head=self.target_head, tested=self.tested_sha, tree=self.tested_tree),
-        )
+    def summary(self) -> str:
+        """The visible lines this artifact is published as: its outcome, revisions, witness, and provenance."""
+        return _compact.summary(self)
 
     @property
     def header(self) -> str:
@@ -235,24 +198,21 @@ class VerificationArtifact:
 
     @property
     def canonical_body(self) -> str:
-        """The one body this format spells this artifact as, however long it comes out.
+        """The one body the compact format spells this artifact as, however long it comes out.
 
-        Unbounded, because a comment claiming this format is checked against
+        Unbounded, because a comment claiming that format is checked against
         it. The writer lays the one-comment bound over it
         (`render_verification_artifact`); here it would only make a reader
         depend on what the writer is willing to post now.
         """
-        return (
-            f"{self.preamble}{self.evidence}{_SEPARATOR}"
-            f"{self.header}{_SEPARATOR}{_comments.ORCHESTRATOR_COMMENT_MARKER}"
-        )
+        return _compact.canonical_body(self)
 
 
 def render_verification_artifact(artifact: VerificationArtifact) -> str:
-    """The one comment body `artifact` is published as.
+    """The one comment body `artifact` is published as, in the compact format.
 
     `ArtifactRefusedError` when that body would not fit in one comment, raised
-    before it is posted: GitHub refuses the write, and an excerpt short enough
+    before it is posted: GitHub refuses the write, and a payload short enough
     to be accepted is not the evidence.
     """
     body = artifact.canonical_body
@@ -269,25 +229,29 @@ def verification_artifact_from_comment(
 ) -> VerificationArtifact | None:
     """The artifact one pull-request comment is, or None when it is not one of ours.
 
-    Ours by author, and an artifact by exact re-rendering: the identity and the
-    evidence are read back out of the body and spelled again in this format's
-    canonical body, and anything but the same body -- an edited command, a
-    stale digest, a witness swapped for the other one, text appended after the
-    marker, a transcript cut short -- is not an artifact. Nor is one whose
-    header claims a number of more digits than Python converts, which no
-    rendering wrote. A client with no login of its own takes the content
-    alone, the same fallback `authored_by_us` takes.
+    Ours by author, and an artifact by exact re-rendering in the format the
+    body claims: one carrying the hidden payload is the compact format and
+    any other the legacy one. The identity and the evidence are read back out
+    of the body -- the commands decoded from the payload, or read off the
+    legacy visible section -- and spelled again in that format's canonical
+    body, and anything but the same body -- a tampered payload, an edited
+    command, a stale digest, a witness or a status swapped in the summary,
+    text appended after the marker, a transcript cut short -- is not an
+    artifact. Nor is one whose header claims a number of more digits than
+    Python converts, which no rendering wrote. A client with no login of its
+    own takes the content alone, the same fallback `authored_by_us` takes.
 
     Every one of those answers None. This is the question asked OF somebody
     else's comment, on a thread anybody can post to, so nothing a comment says
     about itself may leave by an exception -- including the claim that
     reconstructs past what a comment holds, which a body short enough to have
-    been posted still makes once its preamble is gone.
+    been posted still makes once its own presentation is replaced.
 
     Held to that canonical body rather than to what the writer publishes, so
     an artifact a pull request already carries reads back as itself whatever
     the writer would post for it now -- including where that would not fit in
-    one comment.
+    one comment, and including a legacy comment the writer would now spell in
+    the other format altogether.
     """
     body = getattr(comment, "body", None)
     if not isinstance(body, str) or len(body) > MAX_PINNED_BODY:
@@ -295,20 +259,21 @@ def verification_artifact_from_comment(
     claimed = _CLAIMED_HEADER.search(body)
     if claimed is None or not _comments.authored_by_us(comment, bot_login=bot_login):
         return None
-    artifact = _claimed_artifact(claimed, body)
-    if artifact is None or artifact.canonical_body != body:
+    spelling = _compact if _compact.carries_hidden_evidence(body) else _legacy
+    artifact = _claimed_artifact(claimed, spelling.commands_in(body, claimed.start()))
+    if artifact is None or _canonical_in(spelling, artifact) != body:
         return None
     return artifact
 
 
 def _claimed_artifact(
-    claimed: re.Match, body: str,
+    claimed: re.Match, commands: tuple[_evidence.VerifiedCommand, ...] | None,
 ) -> VerificationArtifact | None:
-    """The artifact a body claims to be, before anything checks that it is one.
+    """The artifact a header claims beside `commands`, before anything checks that it is one.
 
     None when nothing could be built at all: a witness this format does not
-    name, a count too long to convert, an evidence section no rendering wrote,
-    or an identity the header could carry but this format refuses.
+    name, a count too long to convert, evidence no rendering wrote, or an
+    identity the header could carry but this format refuses.
     """
     fields = claimed.groupdict()
     try:
@@ -324,21 +289,24 @@ def _claimed_artifact(
             context_revision=fields["context"],
             artifact_revision=int(fields["revision"]),
             receipt=fields["receipt"],
-            commands=_evidence.commands_from(_evidence_in(body, claimed.start())),
+            commands=commands,
         )
     except ValueError:
         # A refusal, which is one, or a value no rendering could have written.
         return None
 
 
-def _evidence_in(body: str, header_at: int) -> str:
-    """The evidence section one body carries, cut where the two halves meet.
+def _canonical_in(spelling: ModuleType, artifact: VerificationArtifact) -> str | None:
+    """`artifact` in the canonical body of the format `spelling` owns, or None where it has none.
 
-    `ValueError` when the body opens with no preamble at all, which is the
-    same answer every other unreadable claim gets.
+    None for evidence with no revision to name: text UTF-8 cannot carry, which
+    a legacy section reads back as freely and which raises only where the
+    evidence is hashed.
     """
-    opens_at = body.index(_PREAMBLE_END) + len(_PREAMBLE_END)
-    return body[opens_at:header_at].removesuffix(_SEPARATOR)
+    try:
+        return spelling.canonical_body(artifact)
+    except ValueError:
+        return None
 
 
 def _refusal(artifact: VerificationArtifact) -> str | None:

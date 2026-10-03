@@ -40,7 +40,9 @@ _MODULES = (
     "orchestrator.github.pull_request_verification",
     "orchestrator.github.reviews",
     "orchestrator.github.verification_artifacts",
+    "orchestrator.github.verification_compact_artifacts",
     "orchestrator.github.verification_evidence",
+    "orchestrator.github.verification_legacy_artifacts",
     "orchestrator.github.verification_payloads",
 )
 
