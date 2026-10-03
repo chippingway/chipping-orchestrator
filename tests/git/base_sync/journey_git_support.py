@@ -20,7 +20,6 @@ from orchestrator import config
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.measurement import additions as _additions
-from orchestrator.workflow.stages.validating import handler as _validating
 from tests.git.base_sync.exemption_git_support import ISSUE, AdjudicatedRebaseRealGitFixture
 from tests.git.base_sync.journey_push_support import PUSH_BRANCH, PublishesToThePullRequest, crash_at
 from tests.git.base_sync.real_git_test_support import (
@@ -32,6 +31,7 @@ from tests.git.base_sync.real_git_test_support import (
 )
 from tests.git.base_sync.recovery_git_support import _local_fetch
 from tests.workflow.fixtures import LABEL_VALIDATING, _agent, approved_on, publishes_the_report
+from tests.workflow.stages.validating.squash_evidence_test_support import dispatcher_tick
 
 # The ceiling the candidate is oversized against and the file that puts it
 # there: small enough to keep the real diff cheap, large enough that the real
@@ -95,7 +95,7 @@ class OversizedJourneyRealGitFixture(AdjudicatedRebaseRealGitFixture):
         return pusher
 
     def _reviews(self) -> MagicMock:
-        """Run one real `workflow:validating` tick and report its spawn.
+        """Run one real `workflow:validating` review tick and the tick behind it, and report their spawns.
 
         The handler itself, with only the reviewer agent stood in for: the
         drift read, the round cap, the prompt, the verdict parse, and what an
@@ -103,6 +103,11 @@ class OversizedJourneyRealGitFixture(AdjudicatedRebaseRealGitFixture):
         The pull request carries a report of the head it stands on, since a
         reviewer is refused one that carries none, and the reviewer declares
         its verification of that head, since an approval without it is none.
+        Each tick is the evidence reconciliation and then the handler, as the
+        dispatcher runs them: the approval's squash rewrites the head, so the
+        evidence its reviewer published is carried onto the squashed head --
+        recorded by the review tick and published by the next, which then
+        moves the label with no reviewer of its own.
         """
         publishes_the_report(self._gh, self._issue())
         head = self._gh.get_pr(self._durable().get("pr_number")).head.sha
@@ -110,7 +115,9 @@ class OversizedJourneyRealGitFixture(AdjudicatedRebaseRealGitFixture):
         with patch.object(_agent_runner, "run_agent", spawn), patch.object(
             _branch_transport, PUSH_BRANCH, PublishesToThePullRequest(self._gh),
         ):
-            _validating._handle_validating(self._gh, self._spec, self._issue())
+            # The review tick, and the one that publishes what it carried.
+            dispatcher_tick(self._gh, self._spec, self._issue())
+            dispatcher_tick(self._gh, self._spec, self._issue())
         return spawn
 
     def _issue(self):

@@ -202,10 +202,11 @@ def _approval_still_stands(gh: GitHubClient, issue: Issue, state: PinnedState) -
     (`review_coverage._approval_stands`), and the evidence its proof rests on
     (`approved_evidence.stands`) -- and then the pinned comment, read last,
     since both are requests long enough for another road to settle a later
-    report, persist a verdict, or record a later verification revision:
-    where the report, pull-request, verdict, or evidence records moved, the
-    readings above were taken over records that are gone, and the approval
-    does not stand. Whatever else another road wrote meanwhile is carried onto
+    report, persist a verdict, record a later verification revision, or
+    replace or remove a review subject or the approval's evidence claim:
+    where the report, pull-request, verdict, evidence, or approval records
+    moved, the readings above were taken over records that are gone, and the
+    approval does not stand. Whatever else another road wrote meanwhile is carried onto
     the state (`review_comment._records_stand`), so no write the docs pass
     makes puts it back.
     """
@@ -216,7 +217,9 @@ def _approval_still_stands(gh: GitHubClient, issue: Issue, state: PinnedState) -
     reread = _review_comment._records_stand(gh, issue, state, read, persisted=True)
     if reread is None:
         return None
-    return reread.stood and not _review_comment._moved(reread.read, read, _review_comment._EVIDENCE_RECORDS)
+    return reread.stood and not _review_comment._moved(
+        reread.read, read, (*_review_comment._EVIDENCE_RECORDS, *_review_comment._APPROVAL_RECORDS),
+    )
 
 
 def _hand_off_to_in_review(

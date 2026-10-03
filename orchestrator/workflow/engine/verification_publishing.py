@@ -13,8 +13,9 @@ What a reading short of PRESENT is owed is the report transaction's split. A
 reading nobody could take HOLDS, since the artifact may well be there. Every
 other one -- our comment under this receipt edited out of shape -- is a
 definite answer about content a human owns, and STANDS DOWN onto the routes
-behind the reconciliation with the transaction still owed. Nothing is posted a
-second time either way.
+behind the reconciliation with the transaction still owed -- save a carry,
+which is abandoned with the approval it was recorded for
+(`verification_carries`). Nothing is posted a second time either way.
 
 The settlement that follows a landed post is `verification_settling`'s.
 
@@ -28,11 +29,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from github.Issue import Issue
-
 from orchestrator.github import pull_request_reports as _pr_reports, verification_evidence as _evidence
 from orchestrator.workflow.engine import (
     report_record_state as _report_record_state,
+    verification_carries as _carries,
     verification_comments as _verification_comments,
     verification_proof as _proof,
     verification_record_state as _record_state,
@@ -74,7 +74,7 @@ def publishes(
         )
         return True
     if lookup.presence is not _pr_reports.ReportPresence.PRESENT:
-        return _refuses_the_reading(issue, pending, lookup.presence)
+        return _refuses_the_reading(reading, pending, lookup.presence)
     if lookup.landed_id is None:
         log.warning(
             "issue=#%d published verification evidence revision %d and could "
@@ -86,11 +86,17 @@ def publishes(
 
 
 def _refuses_the_reading(
-    issue: Issue,
+    reading: _proof.ProofReading,
     pending: _records.PendingEvidence,
     presence: _pr_reports.ReportPresence,
 ) -> bool:
-    """Whether one reading short of PRESENT stops the tick, logged either way."""
+    """Whether one reading short of PRESENT stops the tick, logged either way.
+
+    A carry is abandoned on a definite answer with the approval it was
+    recorded for (`verification_carries`), since nothing a later route does
+    makes it answer again.
+    """
+    issue = reading.issue
     if presence is _pr_reports.ReportPresence.UNCONFIRMED:
         log.warning(
             "issue=#%d could not confirm verification evidence revision %d on "
@@ -101,4 +107,6 @@ def _refuses_the_reading(
         "issue=#%d cannot settle verification evidence revision %d (%s); "
         "standing down", issue.number, pending.revision, presence.value,
     )
+    if _carries.is_carry(pending):
+        return _carries.abandons_afresh(reading.gh, issue, reading.state, pending)
     return False

@@ -45,6 +45,17 @@ meanwhile is never written away. Everything else short of proof either HOLDS
 the tick over a reading nobody could take or STANDS DOWN with the transaction
 still owed, for a push, a drift resume, a fresh reviewer, or fresher evidence
 to answer.
+
+Save a CARRY: a transaction carrying a run onto a head it did not run on,
+which only an approval's squash records and which nothing later makes answer
+again once refused. Any refusal but a reading nobody could take abandons it
+into history with the approval it was recorded for (`verification_carries`)
+-- here, ahead of the post, and on the publication and the settlement behind
+it (`verification_publishing`, `verification_settling`) -- for a fresh
+reviewer to answer the head as it stands. A carry that copied settled
+evidence's transcript is refused here too where that source no longer says
+what it copied (`verification_current.copied_source_verdict`), and again
+ahead of its settlement.
 """
 from __future__ import annotations
 
@@ -65,6 +76,9 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
+from orchestrator.workflow.engine.verification_carries import abandons, is_carry
+from orchestrator.workflow.engine.verification_current import copied_source_verdict
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -113,7 +127,8 @@ def _answers_what_is_owed(
     The two pinned questions come first, since they cost nothing and neither
     depends on the pull request. Then the pull request, which every other
     reading stands behind: an ENDED one retires the transaction ahead of
-    anything else that could be said about it.
+    anything else that could be said about it. The source a carry copied is
+    read last, on the pull request the proof read.
     """
     if _already_recorded(state, pending):
         log.info(
@@ -137,13 +152,31 @@ def _answers_what_is_owed(
         return _retires(gh, issue, state, pending)
     reading = _proof.ProofReading(gh, spec, issue, state)
     evidence = _proof.rest_verdict(reading, pending.binding, found)
+    if evidence.proved:
+        evidence = copied_source_verdict(gh, state, pending, evidence.pull_request) or evidence
     if not evidence.proved:
-        log.info(
-            "issue=#%d cannot make verification evidence revision %d current "
-            "yet: %s", issue.number, pending.revision, evidence.refusal,
-        )
-        return evidence.holds
+        return _stands_down(reading, pending, evidence)
     return _publishing.publishes(reading, pending, evidence.pull_request)
+
+
+def _stands_down(
+    reading: _proof.ProofReading,
+    pending: _records.PendingEvidence,
+    evidence: ReportEvidence,
+) -> bool:
+    """Answer a proof short of PROVED: hold an unread reading, abandon a refused carry, leave the rest owed.
+
+    True where the tick is held. A carry is abandoned on every refusal but a
+    reading nobody could take, since nothing a later route does makes it
+    answer again; any other transaction stays owed for that route.
+    """
+    log.info(
+        "issue=#%d cannot make verification evidence revision %d current "
+        "yet: %s", reading.issue.number, pending.revision, evidence.refusal,
+    )
+    if evidence.holds or not is_carry(pending):
+        return evidence.holds
+    return _retires(reading.gh, reading.issue, reading.state, pending)
 
 
 def _already_recorded(state: PinnedState, pending: _records.PendingEvidence) -> bool:
@@ -190,10 +223,13 @@ def _retires(
 
     `indexed` drops the record outright, for a revision a settled or retired
     record already carries. Otherwise it is abandoned into history through its
-    owner, and a retirement the comment could not carry writes nothing: the
-    record stays owed, which every consumer already fails closed on. The write
-    is this owner's, since a record left standing would be answered again on
-    every poll.
+    owner (`verification_carries`), and a retirement the comment could not
+    carry leaves the record owed, which every consumer already fails closed
+    on. A carry takes the approval it was recorded for with it, in the same
+    write -- where its entry has no room as well, since that only shrinks the
+    comment -- and nothing is written where nothing changed. The write is this
+    owner's, since a record left standing would be answered again on every
+    poll.
     """
     durable, moved = _durable.durable_comment(gh, issue, state)
     if moved is not None:
@@ -202,13 +238,15 @@ def _retires(
             issue.number, moved.refusal,
         )
         return moved.holds
+    read = dict(durable.data)
     if indexed:
         durable.set(_records.PENDING_EVIDENCE, None)
-    elif not _settlement.retire_pending_evidence(durable, pending):
+    elif not abandons(durable, pending):
         log.error(
             "issue=#%d has no room on its pinned comment to retire the "
             "verification evidence it owes; leaving it owed", issue.number,
         )
+    if durable.data == read:
         return False
     state.data = durable.data
     gh.write_pinned_state(issue, state)

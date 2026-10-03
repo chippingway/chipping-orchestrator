@@ -993,11 +993,16 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Trigger**: `_record_stops_the_tick` on any issue whose pinned comment carries `verification_evidence_pending`,
   directly behind the developer-report transaction and ahead of the reuse guard. The owner is
   `workflow/engine/verification_transaction.py`; the four records and the revision floor are described under
-  [pinned state](labels-and-state.md#pinned-state). Its one live producer is the returned-verdict disposition
-  (`stages/validating/review_disposition.py`), which records the transaction `review_claims.py` mints from a
-  reviewer's declared commands beside its verdict, in the write persisting that verdict, and publishes it through this
-  same reconciliation; the recovery of a verdict an earlier tick left waiting (`stages/validating/review_resume.py`)
-  records no transaction. An issue without the record passes through reading nothing and writing nothing.
+  [pinned state](labels-and-state.md#pinned-state). Its live producers are two. The returned-verdict disposition
+  (`stages/validating/review_disposition.py`) records the transaction `review_claims.py` mints from a reviewer's
+  declared commands beside its verdict, in the write persisting that verdict, and publishes it through this same
+  reconciliation; the recovery of a verdict an earlier tick left waiting (`stages/validating/review_resume.py`)
+  records no transaction. And the approval's squash records a carry-forward onto the head the squash published -- of
+  the passing run the approval's verify gate made on the approved head, or else of the evidence its approval rests on
+  (`stages/validating/squash_evidence.py`, see
+  [`_handle_validating`](#_handle_validating-label-workflowvalidating)), in the write settling the squash's handoff,
+  for the next tick's reconciliation to publish. An issue without the record passes through reading nothing and
+  writing nothing.
 - **Why it is behind the report transaction**: evidence answers for a review subject that names the developer
   report, so a report still owed is a subject about to move — the proof defers to it, and the report settles first.
 - **Stands aside**: a closed issue, a `done` or `rejected` label, a hard-skip control label, or no workflow label at
@@ -1010,11 +1015,17 @@ because there it is the claim that this stage has already rerouted rather than a
     own rules (requirements the round was due, a report not stale against it -- a report older than a baseline that is
     the subject's own requirements is not stale, since only settling the reply that bought the round leaves one), and
     the requirements all PROVED; the
-    artifact is posted (or found, by its receipt, where an earlier post's response was lost); the issue and the pinned
+    artifact is posted (or found, by its receipt, where an earlier post's response was lost); a carry that copied the
+    current evidence's transcript names that source (`copied_from`, which a carried reviewer's account without one
+    reads as damage and is dropped), which is re-read ahead of the post and again at the settlement and has to still
+    be the current record, its artifact the one that settled and carrying exactly what was copied
+    (`verification_current.copied_source_verdict`); the issue and the pinned
     comment are read afresh, the comment has to carry every bound record as the tick held it, the whole proof is taken
     again over them, and the artifact re-read at the comment it landed as has to be exactly this transaction's (edited
-    or deleted meanwhile, it stands down); then one write, composed over that fresh comment, makes it current, moves the
-    earlier current evidence into history as superseded, and records the handoff.
+    or deleted meanwhile, it stands down); the comment is read once more behind those requests and has to still carry
+    every bound record -- `review_approved_subject` among them -- as the proof read it (a subject removed or replaced
+    meanwhile stands it down, the move kept); then one write, composed over that last reading, makes it current, moves
+    the earlier current evidence into history as superseded, and records the handoff.
   - **Held** → a reading nobody could take: the pull request, the fetch, the divergence, the report's location, the
     requirements, an unconfirmed post, or the issue, the pinned comment, or the artifact re-read before a settling or
     retiring write. The next tick asks again.
@@ -1025,7 +1036,18 @@ because there it is the claim that this stage has already rerouted rather than a
     subject, or deleted, edited, or out of step with its handoff, an issue that stopped being live work during the post,
     edited requirements, an edited artifact, a bound record that moved on the pinned comment while the artifact was
     posted, or a settlement the comment no longer has room for. The transaction stays owed for the route that answers
-    it.
+    it -- save a carry onto a head it did not run on, which only an approval's squash records and nothing later makes
+    answer again once refused: refused on anything but a reading nobody could take -- its proof ahead of the post, the
+    source it copied edited, deleted, or no longer current (a publication retried over a lost response included), its
+    own artifact found edited under its receipt, or the proof, the records, or either artifact re-read ahead of its
+    settlement -- it is abandoned into history and the approval it was recorded for retired in the same write
+    (`review_approved_subject` written `null`, `verification_carries`), so a context, a head, or an artifact put back
+    afterwards moves no label over it. Only the approval the carry was recorded for goes -- one another road recorded
+    in its place stands -- and it goes even where the comment has no room for the carry's entry, since that write only
+    shrinks the comment: the carry then stays owed, under an approval nothing acts on, for a later tick to abandon.
+    A carry left owed for its standing approval -- the settlement had no room, before the post or behind it -- holds
+    the squash handoff rather than letting it drop (`squash_evidence.carried_onto`), so the next tick with room
+    settles it and moves the label, with no second report or reviewer.
   - **Retired** → a record whose revision a settled or retired record already carries (a replay its own handoff
     names, or one a restored comment brought back) is dropped without a second post or history entry; an unreadable
     record is dropped; a record whose pull request ended, past which a revision was spent, or beside a revision floor
@@ -1045,12 +1067,24 @@ because there it is the claim that this stage has already rerouted rather than a
   or found the artifact gone or changed. Every reviewer round asks that reader once its launch has recorded the
   subject, and the prompt quotes what it hands over.
 - **Carry-forward**: `workflow/engine/verification_carry_forward.py` decides whether current evidence answers for
-  another head -- never the one it already answers for -- and only on the full tree identity of that head and an
-  unchanged configured context, while the evidence being carried is still the latest and published (re-read as above, on
-  the pull request standing on the new head) and a review subject about the new head is recorded, since the proof holds
-  every binding to a review of the head it answers for. What it licenses is a new transaction naming the tested commit
-  unchanged and the new head and its review as its target, which this reconciliation proves whole before it is published
-  or current. No stage asks for a decision yet.
+  another head -- never the one it already answers for -- and only on the full tree identity of that head and of the
+  tested commit, read from this repository, and an unchanged configured context, while the evidence being carried is
+  still the latest and published (re-read as above, on the pull request standing on the new head). The review it then
+  answers for is either a review subject recorded about the new head, or the review the evidence already answers for,
+  unchanged -- still the applicable record exactly, about the tested commit -- where that is the subject
+  `review_approved_subject` covers: the approval squash's own rewrite, past which no reviewer is handed the new head.
+  The approval squash asks for that second way alone, so a review recorded about the new head since -- a later round,
+  with whatever report and requirements it was handed -- refuses its carry rather than being adopted. The proof
+  accepts a subject about the tested commit for exactly that case, holding the tested commit and the head alike to the
+  tested tree. Patch ids, topic diffs, and a rewrite's name are never read. What it licenses is a new
+  transaction naming the tested commit and tree unchanged, the new head as its target, and the source artifact's own
+  transcript, which this reconciliation proves whole before it is published or current; the artifact says, in its
+  visible lines, that the head is an equivalent-tree target the commands never ran on. A local verify run bound to
+  the head it tested (`verification_local_runs.py`) is carried by the same rule (`local_run_decision`) save the
+  artifact it never had: orchestrator-executed, answering for `review_subject`, with its own transcript. A refusal
+  comes back as the proof's own verdict: a pull request or artifact nobody could read HOLDS, and every other refusal --
+  an unreadable tree included -- defers. The one stage that asks is the approval squash
+  ([`_handle_validating`](#_handle_validating-label-workflowvalidating)).
 
 ## The rewritten-head report debt (every dispatch)
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims
@@ -2124,14 +2158,17 @@ because there it is the claim that this stage has already rerouted rather than a
      itself is asked beside the records (`review_coverage._approval_stands`): one that no longer covers the
      `developer_report_current` the comment records (`review_approved_subject`), or that report as it reads at its
      location now, or whose `review_approved_evidence` no longer stands — the records and the artifact re-read as
-     below — goes back the same way, for the reviewer, and a report or evidence nobody could read holds the tick
-     without moving the label. A relabel that fails raises; the records are still there for the next tick. An
+     below — or over evidence its squash carried onto the head whose review subject no longer stands
+     (`verification_current.carry_answers`), or that no claim names, goes back the same way, for the reviewer —
+     `validating` invalidating the carry ahead of any round — and a report or evidence nobody could read holds the
+     tick without moving the label. A relabel that fails raises; the records are still there for the next tick. An
      ordinary tick carries neither record and an approval of what the comment carries, and costs one reading of the
      report at its location — and of the evidence, for an approval proved over any — and one of the pinned comment
      behind them (`_approval_still_stands`): those readings are requests long enough for another road to settle a
-     later report, persist a verdict, or record a later verification revision, so where the report, `pr_number`,
-     verdict, or evidence records moved the issue goes back too, and whatever else moved is carried onto the state
-     the docs pass writes, rather than written back over.
+     later report, persist a verdict, record a later verification revision, or replace or remove a review subject or
+     the approval's evidence claim, so where the report, `pr_number`, verdict, evidence, or approval records moved
+     the issue goes back too, and whatever else moved is carried onto the state the docs pass writes, rather than
+     written back over.
   1. **External-merge / closed-issue short-circuit** (identical to `_handle_implementing`).
   2. **`pr_number` missing → park** with `missing_pr_number`. Documenting only runs against an existing PR worktree.
   3. **`/orchestrator continue` refusal** (`_refuse_parked_continue_command`, run BEFORE the drift block). A bare
@@ -3235,8 +3272,14 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      either way, since no
      branch may be left standing mid-rewrite, but the move is held and the handoff it leaves is dropped on the next
      tick — for a fresh reviewer, or for the drift check to answer the edit. An issue with nothing recorded costs one
-     lookup on the pinned
-     comment; one carrying only the `late_collapse_handoff_sha` a finished handoff left moves the label that handoff
+     lookup on the pinned comment and a reading of `verification_evidence_current`: evidence an approval's squash
+     carried onto a head it did not run on, whose review subject no longer stands
+     (`verification_current.carry_answers`) or that `review_approved_evidence` no longer names, is invalidated there
+     (`squash_evidence.carry_unanswered`), and the approval it was carried for with it (`review_approved_subject`
+     written `null`; one another road recorded in its place, of another subject, stands), in a
+     write of its own over the comment read afresh, the tick spent on it, ahead of any round it could be handed to —
+     the issue the documenting stage or `in_review` hands back over such a carry arrives here; one carrying only
+     the `late_collapse_handoff_sha` a finished handoff left moves the label that handoff
      never got to move (and drops the record behind it), or drops it unspent where the pull request has since moved off
      the commit it names — or where the developer report recorded as current is not the one the approval covered
      (`review_approved_subject`), or where the evidence the approval was proved over is outranked by a later
@@ -3247,11 +3290,36 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      where the issue read afresh no longer carries both the `requirements` the approval was given and the
      `user_content_hash` baseline — a baseline that moved on to an edit since the approval says nothing about what
      the reviewer read — which the drift check or the reviewer round below then answers; a location, an issue, or a
-     pull request nobody could read holds the tick. Either road reads the pinned comment once more
+     pull request nobody could read holds the tick. Both roads hold the move to the evidence the approval rests on
+     answering for the commit it is owed over, under the carry-forward rule step 6's approval arc takes behind its
+     squash (`squash_evidence`): a carry the recovery records is published by the next tick's reconciliation, which
+     runs ahead of this handler, so the handoff finds that evidence current -- and proves it whole again before the
+     label moves over it (`current_evidence_verdict`: the tested commit and the head still reading as the tested
+     tree, the applicable review subject still recorded and approved, the context, the publication, the report, and
+     the requirements) -- and moves the label with no reviewer, or, refused, invalidates it and drops the record in
+     a write of its own, for the round below on the next tick. A carry that reconciliation refused is abandoned with
+     the approval it was recorded for (`review_approved_subject` written `null`), which leaves
+     `review_approved_evidence` naming a transaction that never settled, so the handoff is dropped and a fresh
+     reviewer validates the head, as for any evidence that no longer stands. A carry it only stood down on for want of
+     room on the pinned comment -- ahead of the post or behind it -- is not refused: it stays owed for an approval
+     that still stands, and the handoff HOLDS over it with the record kept (`squash_evidence.carried_onto`), so the
+     next tick with room settles it and moves the label with no second report or reviewer. A handoff
+     whose carry was never decided -- the pull request or the artifact unread when the squash tail asked -- decides
+     it here, over the same proofs, in a write of its own (recorded, or refused with the evidence invalidated and the
+     record dropped), and leaves the move to the next tick; an unread reading again holds the tick. On the recovery
+     that evidence is asked FIRST, ahead of the coverage above, since its proof is requests long enough for a push:
+     every refusal of it invalidates it whatever else moved beside it -- a context changed before the retry included,
+     and a carry onto the handoff's commit that `review_approved_evidence` no longer names (removed, `null`, or
+     pointed elsewhere), which is never taken for an approval older than evidence claims -- and the coverage's read of
+     the pull request is the last request ahead of the move; where that coverage drops
+     the handoff, a settled carry onto its commit goes into history with it, since that evidence answers for the
+     commit only on the approval's word. Either road reads the pinned comment once more
      right before the move (`approval._hands_to_documenting`), since the reads ahead of it are time another road can
      settle a later report or evidence revision, repoint the issue, or persist a later verdict in: where it no longer
-     carries the report, `pr_number`, `review_returned_verdict`, and `verification_evidence_*` records in hand, the
-     label stays and nothing it holds is written, and the next tick answers what moved. Neither road holds a returned
+     carries the report, `pr_number`, `review_returned_verdict`, and `verification_evidence_*` records in hand -- or
+     the `review_subject`, `review_returned_subject`, and `review_approved_subject` the comment carried when the tail
+     last read or wrote it, which every proof since was taken over -- the label stays and nothing it holds is
+     written, and the next tick answers what moved. Neither road holds a returned
      verdict — no reviewer ran behind them — so a `review_returned_verdict` waiting beside the handoff, a later
      round's, is left for the road that finishes it and holds the move, while the handoff record ends.
   2. Awaiting-human path: resume on the dev's locked spec; on a successful pushed fix, bump `review_round` and stay on
@@ -3514,7 +3582,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        stands. The approval reaches what follows only through its proof, over settled evidence that passed and covers
        every configured `VERIFY_COMMANDS` command, and parks under `reviewer_unverified` otherwise. Then, in order: (1)
        run the local verify gate
-       (`_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`), then -- whatever it said --
+       (`verify._runs_the_gate`: `_run_verify_commands(wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT)`), then --
+       whatever it said --
        resolve the subject again and read the pinned comment again behind that, watching `review_returned_verdict`
        beside the report records and the pull request pointer, before anything below is written — a comment that will
        not read ends the tick with nothing written, what the comment changed since the last reading is carried first,
@@ -3620,22 +3689,62 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        numbered below a consumed reply holds the seed back rather than being swallowed by it — the scan that
        follows drops the consumed reply on its own), then end the collapse record and persist —
        leaving `late_collapse_handoff_sha` in its place — and only then relabel to `workflow:documenting`, dropping
-       that record in a write of its own behind the label. The relabel is held, with the rewrite already finished,
+       that record in a write of its own behind the label. A rewrite leaves the evidence the approval rests on
+       answering for the head the reviewer was handed, so that write also carries it onto the head the rewrite
+       published -- a collapse, a one-commit subject rewrite, or the recovery's finish alike -- under the carry-forward
+       decision described under
+       [the verification-evidence transaction](#the-verification-evidence-transaction-every-dispatch), taken ahead of
+       the comment that write is laid over (`squash_evidence`): only where both the tested commit and
+       the published head read, in this repository, as the tested tree, the verification context is unchanged, the
+       recorded review subject is still exactly the one the approval covers (its report revision and digest and its
+       requirements with it -- a review recorded about the published head since is a later round, and refuses the
+       carry), the pull request stands on the published head, and the evidence's artifact is still the one that
+       settled. What is carried is the run step (1)'s verify gate
+       made on the approved head where it passed whole and binds (`verification_local_runs`): what this orchestrator
+       observed, carried as orchestrator-executed evidence naming that head as the commit tested, with its own
+       transcript, over the same proofs save an artifact it never had. Where it binds nothing -- an empty
+       `VERIFY_COMMANDS`, which runs nothing -- and on the recovery's finish, which runs no gate, the reviewer's
+       evidence the approval was proved over is carried instead. The carry is recorded as a new
+       `verification_evidence_pending` transaction -- the tested commit and tree unchanged, the published head its
+       target, the carried run's transcript -- and `review_approved_evidence` is pointed at it, its digest and flags
+       those that transcript earns; the relabel is held this tick, and the next tick's reconciliation proves the
+       binding whole (the report and requirements included) -- and, for the reviewer's evidence, that the artifact
+       its transcript was copied from is still current and says what was copied, ahead of the post and again at the
+       settlement, so an edit or a deletion of it refuses the carry -- publishes an artifact naming the commit that
+       ran and the new head as an equivalent-tree target, and settles it, so step 1's handoff moves the label over
+       evidence answering for that head -- without a second reviewer, however many ticks the publication or the
+       relabel take; a carry still owed for its approval, the comment having had no room to settle it, holds that
+       handoff until a later tick settles it. A refused carry -- another or an unreadable tree, a context moved
+       before or while the squash ran, a review subject replaced, a pull request moved off the head or ended, an
+       artifact gone or edited, or a comment with no room for the carry and the approval's claim rebound to it --
+       invalidates the current
+       evidence into history, retires the approval it answers for with it (`review_approved_subject` written `null`,
+       which no reader takes for an approval; one another road recorded in its place, of another subject, stands),
+       and drops the handoff in that same write, so the next tick hands the head to a fresh
+       review rather than a relabel; a pull request or artifact nobody could read records nothing and leaves the
+       handoff for step 1 to decide again. Nothing is carried where the evidence already answers for the head (the
+       squash rewrote nothing), save that a context moved meanwhile invalidates it all the same; nor where the
+       approval rests on no evidence or on evidence the records no longer carry as the latest, which the coverage
+       check below refuses on its own; the gate's run is evidence nowhere else. The relabel is held, with the rewrite
+       already finished,
        unless the approval still covers the report as it reads at its location, the requirements over the issue read
        afresh (the approval's own revision and the baseline both), and the head over the pull request read afresh —
        the commit the rewrite published, or the head the approval was given where it rewrote nothing
        (`review_coverage._approval_holds`); an edit or a push during the squash is work nobody reviewed — and unless
        the pinned comment, read last, still carries the report, `pr_number`, `review_returned_verdict`, and
-       `verification_evidence_*` records in hand; the next tick answers whatever moved, through step 1's handoff
-       reading. A `review_returned_verdict` still waiting there is a later review than the approval this handoff
-       finishes, so the label is not moved past it and the handoff record ends all the same. That record is ended over
-       the comment read again once the label has moved, and only where it still names the commit this handoff
+       `verification_evidence_*` records in hand, and the three review subjects as it carried them when the tail last
+       read or wrote it; the next tick answers whatever moved, through step 1's handoff reading. A
+       `review_returned_verdict` still waiting there is a later review than the approval this handoff finishes, so
+       the label is not moved past it and the handoff record ends all the same. That record is ended over the
+       comment read again once the label has moved, and only where it still names the commit this handoff
        finished beside the report, `pr_number`, `review_returned_verdict`, and `verification_evidence_*` records the
-       move was taken over, so what another road wrote during the relabel stands. A verdict or squash handoff another
-       road puts down during the relabel is past every reading here, so the move lands over it, and a later report or
-       evidence revision settled then leaves this handoff's record standing; either way the next `documenting` tick
-       hands the issue straight back (its step 0), where step 1 answers the handoff — dropping it for the reviewer
-       where the approval no longer covers the report — and the verdict holds the label.
+       move was taken over, and beside the three review subjects as the comment carried them just ahead of the move,
+       so what another road wrote during the relabel stands. A verdict or squash handoff another road puts down
+       during the relabel is past every reading here, so the move lands over it, and a later report or evidence
+       revision settled, or a review subject replaced or removed, then leaves this handoff's record standing; either
+       way the next `documenting` tick hands the issue straight back (its step 0), where step 1 answers the handoff —
+       dropping it for the reviewer where the approval no longer covers the report, and invalidating a carried
+       evidence whose review subject went — and the verdict holds the label.
        A relabel that does not land is not raised
        past the handoff: everything it owed is durable, and step 1 moves the label on the next tick instead of a
        second reviewer being run over a branch already published.
@@ -3865,6 +3974,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      tick an approval of a report stands, or of one its `developer_report_handoff` no longer describes, the pair a
      reviewer spawn refuses too (`review_coverage._approval_stands`); the head can be the very one
      the approval, its docs verdict, and its ping were about, and nothing keyed on the commit alone would notice. Or
+     one over evidence its squash carried onto the head whose review subject no longer stands
+     (`verification_current.carry_answers`), which the same reading asks and `validating` then invalidates. Or
      one given other requirements than `user_content_hash` holds the issue to now
      (`state.approval_covers_requirements`) — requirements somebody was handed since, a developer resumed on an edit
      or a reply spent on a park, that no reviewer was. A
@@ -3942,8 +4053,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
   6. **Manual-merge HITL path** (only reached with no owed report, no fresh PR feedback, AND no drift):
      - `pr_is_mergeable` is `None` → try next tick.
      - `False` → park with `unmergeable`; HITL ping mentioning every `HITL_HANDLE`, then carry the issue-side
-       watermark over the park comment — unless the pinned comment, read again first, no longer carries the report
-       or verification evidence records in hand or points the issue elsewhere (`review_comment._records_in_hand`),
+       watermark over the park comment — unless the pinned comment, read again first, no longer carries the report,
+       verification evidence, or approval records (the review subjects and `review_approved_evidence`) in hand or
+       points the issue elsewhere (`review_comment._records_in_hand`),
        since the park writes the state in hand whole and would put a report settled, a revision recorded, or a
        pointer moved, during the request back; nothing is
        posted or written then, and the next tick hands the issue back. The park is a **bounded** one
@@ -3960,12 +4072,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        location, the issue read afresh still carries the requirements the approval was given and
        `user_content_hash` holds, and the pull request read afresh still stands on the head the ping names
        (`review_coverage._approval_holds`), the evidence the approval was proved over included, and — last,
-       directly ahead of the write — the pinned comment still carries the report and verification evidence records
-       in hand and points the issue at the same pull request (`review_comment._records_in_hand`). The mergeability,
-       review, report, and evidence requests ahead of the ping are time in which another road can settle a later
-       report or record a later verification revision, a human can edit that report or the issue, or a push can move
-       the head; any of those, or a reading nobody could take, pings nobody and writes nothing -- so no older
-       revision floor is written back over a later one -- and the next tick hands
+       directly ahead of the write — the pinned comment still carries the report, verification evidence, and approval
+       records in hand and points the issue at the same pull request (`review_comment._records_in_hand`). The
+       mergeability, review, report, and evidence requests ahead of the ping are time in which another road can
+       settle a later report or record a later verification revision, a human can edit that report or the issue, or
+       a push can move the head; any of those, or a reading nobody could take, pings nobody and writes nothing -- so
+       no older revision floor is written back over a later one -- and the next tick hands
        the issue back, resumes the developer on the edit, weighs the new head, or reads it again. The ping is NOT a
        park: `awaiting_human` stays false so subsequent ticks still react to new comments / an external merge.
        Unlike park branches, the ready ping does NOT call `_bump_in_review_watermarks`. It posts an issue comment

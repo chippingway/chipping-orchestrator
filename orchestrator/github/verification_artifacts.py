@@ -17,9 +17,12 @@ review subject and requirements revision it answers for, and the revision of
 the verification context it ran under -- four object ids rather than one,
 because evidence carried forward, the round it answers, and the head that has
 moved since are three different commits, and an artifact that named only one
-of them could be read as current when it is not. From: the witness, stated in
-the first visible lines, since a reader deciding what to trust reads the
-rendered comment rather than the hidden header.
+of them could be read as current when it is not. Evidence carried onto a head
+it did not run on says so in its visible lines too: that head is an
+equivalent-tree target, and the commands ran on the tested commit and nowhere
+else, so a carry never reads as a run on the commit it was carried to. From:
+the witness, stated in the first visible lines, since a reader deciding what
+to trust reads the rendered comment rather than the hidden header.
 
 Artifacts accumulate. Each carries its own revision, so several on one commit
 read as an ordered history: a later one supersedes its predecessors and leaves
@@ -115,13 +118,25 @@ _PREAMBLE = (
     "Repository `{repository}`, pull request #{pr}. Evidence about commit "
     "`{tested}` (tree `{tree}`), gathered under verification context revision "
     "`{context}`, for review subject `{subject}` against requirements revision "
-    "`{requirements}`. This pull request's head was `{head}` when this artifact "
-    "was written.\n\n"
+    "`{requirements}`. {head}\n\n"
     "It supersedes every lower-numbered verification artifact on this pull "
     "request, which remain here only as history. It summarizes no developer "
     "run and replaces none: the developer report on this pull request keeps "
     "its own source identity, and the description is untouched."
 ) + _PREAMBLE_END
+
+# What the preamble says of the head the artifact answers for: the commit the
+# commands ran on, or -- for evidence carried forward -- a different commit
+# proved to carry the same tree, which the commands never ran on. A carried
+# run is never relabelled as one on the head it is carried to.
+_TESTED_HEAD = "This pull request's head was `{head}` when this artifact was written."
+
+_CARRIED_HEAD = (
+    "This pull request's head was `{head}` when this artifact was written: an "
+    "equivalent-tree target, a different commit proved to carry the same tree "
+    "`{tree}`. The commands below ran on `{tested}`, not on `{head}`; this "
+    "evidence is carried onto it, not run there again."
+)
 
 _SEPARATOR = "\n\n"
 
@@ -184,6 +199,7 @@ class VerificationArtifact:
     @property
     def preamble(self) -> str:
         """The visible lines this artifact opens with: who witnessed what, about what."""
+        head = _TESTED_HEAD if self.tested_sha == self.target_head else _CARRIED_HEAD
         return _PREAMBLE.format(
             witness=_WITNESS[self.source],
             revision=self.artifact_revision,
@@ -194,7 +210,7 @@ class VerificationArtifact:
             context=self.context_revision,
             subject=self.review_subject,
             requirements=self.requirements_revision,
-            head=self.target_head,
+            head=head.format(head=self.target_head, tested=self.tested_sha, tree=self.tested_tree),
         )
 
     @property

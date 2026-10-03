@@ -108,7 +108,11 @@ from orchestrator.workflow.engine import (
     review_subjects as _review_subjects,
     verification_records as _evidence_records,
 )
-from orchestrator.workflow.stages.validating import review_verdicts as _verdicts, state as _state
+from orchestrator.workflow.stages.validating import (
+    approved_evidence as _approved_evidence,
+    review_verdicts as _verdicts,
+    state as _state,
+)
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -144,6 +148,23 @@ _EVIDENCE_RECORDS = (
     _evidence_records.EVIDENCE_HANDOFF,
     _evidence_records.REVISION_FLOOR,
 )
+
+# The records an approval and the evidence it rests on answer through: the
+# review subject the latest reviewer was handed, the one the reviewer that
+# returned was handed, the one the approval covers, and the evidence claim the
+# approval rests on -- which evidence carried across its squash answers for
+# its head on. Every road about to move the approval on watches them across
+# its requests, so one another road replaced or removed meanwhile is neither
+# acted on nor written back over.
+_APPROVAL_RECORDS = (
+    _review_subjects.REVIEW_SUBJECT,
+    _review_subjects.RETURNED_SUBJECT,
+    _review_subjects.APPROVED_SUBJECT,
+    _approved_evidence.APPROVED_EVIDENCE,
+)
+
+# What `_records_in_hand` holds a road acting on an approval to.
+_IN_HAND_RECORDS = (*_BOUND_RECORDS, *_EVIDENCE_RECORDS, *_APPROVAL_RECORDS)
 
 # What `_records_stand` watches: the report's records and the pull request
 # the issue points at, or -- for a caller holding a persisted verdict -- the
@@ -356,13 +377,14 @@ def _resolved_over(
 def _records_in_hand(
     gh: GitHubClient, issue: Issue, state: PinnedState, purpose: str,
 ) -> bool:
-    """Whether the comment still carries the report and evidence records `state` carries, and points where it does.
+    """Whether the comment carries the report, evidence, and approval records `state` does, and points where it does.
 
     Asked by a road about to act on an approval of the report `state` records
     as current, and to write `state` beside it, after requests long enough for
     another road to settle a later report or verification revision, record a
-    later verification transaction, or point the issue at another pull
-    request. False where it moved them, will not read or parse, or is no
+    later verification transaction, point the issue at another pull request,
+    or replace or remove a review subject or the approval's evidence claim
+    (`_APPROVAL_RECORDS`). False where it moved them, will not read or parse, or is no
     longer the comment `state` was read from; the caller then acts on nothing
     and writes nothing, so the next tick reads what the issue carries then and
     answers it -- rather than moving a label, or writing a pointer or a
@@ -372,12 +394,12 @@ def _records_in_hand(
     durable = _read(gh, issue, state, purpose)
     if durable is None:
         return False
-    if not _moved(durable.data, state.data, (*_BOUND_RECORDS, *_EVIDENCE_RECORDS)):
+    if not _moved(durable.data, state.data, _IN_HAND_RECORDS):
         return True
     log.warning(
         "issue=#%d its pinned comment does not carry the developer report, "
-        "pull request, or verification evidence records this tick holds, so "
-        "it will not %s; writing nothing this tick", issue.number, purpose,
+        "pull request, verification evidence, or approval records this tick "
+        "holds, so it will not %s; writing nothing this tick", issue.number, purpose,
     )
     return False
 

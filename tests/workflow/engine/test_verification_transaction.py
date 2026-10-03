@@ -18,6 +18,7 @@ from unittest.mock import patch
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from orchestrator.github.verification_evidence import EvidenceSource
 from orchestrator.workflow.engine import (
+    review_subjects as _review_subjects,
     verification_record_fields as _fields,
     verification_record_state as _record_state,
     verification_records as _records,
@@ -299,6 +300,39 @@ class RetiredEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
         )
         self.assertEqual(len(self.artifacts()), 1)
 
+    def test_a_refused_carry_takes_its_approval(self) -> None:
+        # A transaction carrying the run onto a head it did not run on, owed
+        # to a pull request that stands elsewhere: its proof refuses, and
+        # nothing a later route does makes it answer again, so it is abandoned
+        # and the approval it was recorded for retired with it -- its subject
+        # written null. A pull request nobody could read holds it owed for
+        # the retry; and a run on the head it answers for, refused the same
+        # way, stays owed for the route that answers it.
+        for name, binding, unread, abandoned in (
+            ("a carry refused", self.binding().retargeted(support.SQUASHED_SHA), (), True),
+            ("a carry unread", self.binding().retargeted(support.SQUASHED_SHA), (support.PR_NUMBER,), False),
+            ("a fresh run refused", self.binding(), (), False),
+        ):
+            with self.subTest(name):
+                self.setUp()
+                self.state.set(_review_subjects.APPROVED_SUBJECT, self.subject.recorded())
+                self.record(binding)
+                self.moves_the_head(support.REBASED_SHA)
+                for number in unread:
+                    self.gh.pulls.pop(number)
+
+                self.assertEqual(self.reconcile(), bool(unread))
+
+                self.assertEqual(
+                    (
+                        _record_state.read_pending_evidence(self.state) is None,
+                        bool(_history(self)),
+                        self.state.get(_review_subjects.APPROVED_SUBJECT) is None,
+                    ),
+                    (abandoned, abandoned, abandoned),
+                )
+                self.assertEqual(self.artifacts(), [])
+
     def test_a_retirement_the_comment_cannot_carry(self) -> None:
         # Another route filled the comment after the record was accepted: the
         # history entry does not fit, so nothing is written and it stays owed.
@@ -371,6 +405,62 @@ class RecordedMeanwhileTest(unittest.TestCase, support.VerificationEvidenceCase)
         """Record a transaction over another road's own reading of the comment."""
         elsewhere = self.gh.read_pinned_state(self.issue)
         self.meanwhile.append(self.record(onto=elsewhere))
+
+
+class SubjectMovedMeanwhileTest(unittest.TestCase, support.VerificationEvidenceCase):
+    """A settlement is composed over the comment read behind its proof, never over the reading before it."""
+
+    def setUp(self) -> None:
+        support.VerificationEvidenceCase.setUp(self)
+        self.pending = self.record()
+        self.rereads = self.gh.reread_report_location
+        self.calls = 0
+        self.moves = None
+
+    def test_a_subject_moved_during_the_proof_is_kept(self) -> None:
+        # While the settlement's proof re-reads the developer report -- the
+        # second reading this tick, behind the one ahead of the post -- another
+        # road removes the review subject the evidence answers for, or records
+        # the approval evidence carried across a squash answers through. The
+        # comment read behind the proof no longer carries what was proved: the
+        # move is kept, nothing is declared current, and the transaction stays
+        # owed for the next tick to prove over what the comment carries then.
+        for record, moves in (
+            (_review_subjects.REVIEW_SUBJECT, self.removes_the_review_subject),
+            (_review_subjects.APPROVED_SUBJECT, self.records_an_approval),
+        ):
+            with self.subTest(record=record):
+                self.setUp()
+                self.moves = moves
+                with patch.object(
+                    self.gh, "reread_report_location", self.rereads_then_moves,
+                ), self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
+                    self.assertFalse(self.reconcile())
+                    self.assertIn(f"{record} moved since this tick read it", support.logged_refusal(logged))
+
+                persisted = self.gh.read_pinned_state(self.issue)
+                self.assertEqual(persisted.carries(record), record == _review_subjects.APPROVED_SUBJECT)
+                self.assertIsNone(_settlement.read_current_evidence(persisted))
+                self.assertEqual(_record_state.read_pending_evidence(persisted), self.pending)
+                self.assertEqual(len(self.artifacts()), 1)
+
+    def removes_the_review_subject(self, state) -> None:
+        """Another road's reading of the comment, the review subject gone from it."""
+        state.data.pop(_review_subjects.REVIEW_SUBJECT)
+
+    def records_an_approval(self, state) -> None:
+        """Another road's reading of the comment, an approval of the subject recorded on it."""
+        state.set(_review_subjects.APPROVED_SUBJECT, self.subject.recorded())
+
+    def rereads_then_moves(self, *asked, **named):
+        """Re-read the report, and on the settlement's reading let another road move a subject on the comment."""
+        found = self.rereads(*asked, **named)
+        self.calls += 1
+        if self.calls == 2:
+            elsewhere = self.gh.read_pinned_state(self.issue)
+            self.moves(elsewhere)
+            self.gh.write_pinned_state(self.issue, elsewhere)
+        return found
 
 
 if __name__ == "__main__":

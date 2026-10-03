@@ -18,7 +18,8 @@ bound: an empty configuration ran nothing and is not evidence that anything
 passed, and a timeout, a dirty tree, or a moved HEAD or tree cannot say which
 tree it tested. Nor is a run on any commit but the head its target answers
 for: fresh evidence is about that head, and answering for another one is a
-carry-forward decision, made on the trees, that a local run never makes.
+carry-forward decision, made on the trees
+(`verification_carry_forward.local_run_decision`) over what binds here.
 
 Nothing is counted or inferred: the commands published are exactly the ones
 that ran, with the already-redacted, already-bounded output each one earned. A
@@ -31,8 +32,11 @@ binds here renders a longer artifact than the one measured. What is left to
 the recorder is the room the pinned comment has for the record beside
 everything else the issue carries (`verification_record_state`).
 
-Dormant: the verify gate does not hand its result here yet, so no local run is
-bound or recorded as evidence until a producer asks (`verification_records`).
+The one producer is the approval squash (`stages/validating/squash_evidence.py`):
+where the squash published another head, the run its verify gate made on the
+approved head is bound here against the evidence that approval rests on, and
+carried onto the new head. A run on an approval whose squash rewrote nothing
+stays the gate it was, and binds nothing.
 """
 from __future__ import annotations
 

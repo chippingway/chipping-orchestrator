@@ -37,9 +37,27 @@ moved, or the artifact deleted or edited is evidence the approval was never
 given, and the move is not taken over it; an artifact nobody could read holds
 the move for a later tick.
 
+A squash that publishes another head carries evidence onto it, only by tree
+equivalence (`squash_evidence`) -- this evidence, or the run the approval's
+verify gate made on the approved head in its place -- and points the record
+at the carried transaction in the same write, `published`, its digest and
+flags the ones the carried transcript earns: unchanged where it is this
+evidence's own, the gate run's where that is carried. So once that carry
+settles every road holds the approval to evidence answering for the head it
+moves, and a carry abandoned without settling leaves the record naming no
+current evidence, which refuses the move. One still owed holds the move
+rather than refusing it, on the squash's own roads (`squash_evidence`): the
+reconciliation stood down on it for want of room, and a later tick settles
+it.
+
 Every approval reaches the arc proved over the evidence its verdict names, so
 every approval records that claim; one recorded before approvals were proved
-over evidence carries none and is held to none.
+over evidence carries none and is held to none -- unless the current evidence
+is a carry, which only a claim ever puts there: with the claim gone, the
+approval does not stand over it. Nor does any approval over a carry whose
+review subject no longer stands (`review_coverage._approval_stands`), which
+every later reader asks before moving the approval on; `validating`, which
+owns the carry, invalidates it when the issue comes back (`collapse`).
 """
 from __future__ import annotations
 
@@ -103,16 +121,20 @@ def stands(gh: GitHubClient, state: PinnedState) -> bool | None:
     context configured now. Then its artifact, re-read at the comment it
     settled as on the pull request it was published on, which no rewrite
     moves: still the one that settled, passing, and carrying every configured
-    command. True where no claim is recorded: an approval recorded before
-    approvals were proved over evidence. A record that will
-    not read names nothing anyone could hold the approval to, so it is no
-    approval's evidence; a pull request or thread nobody could read is None.
+    command. True where no claim is recorded -- absent or written null -- for
+    an approval recorded before approvals were proved over evidence, save
+    over current evidence carried onto a head it did not run on: only an
+    approval squash's claim ever puts that there, so an approval with none
+    has lost the word that evidence answers on, and it does not stand. A
+    record that will not read names nothing anyone could hold the approval
+    to, so it is no approval's evidence; a pull request or thread nobody
+    could read is None.
     """
     recorded = state.get(APPROVED_EVIDENCE)
-    if recorded is None:
-        return True
-    claim = _verdicts.EvidenceClaim.read(recorded)
     current = _settlement.read_current_evidence(state)
+    if recorded is None:
+        return current is None or current.binding.tested_sha == current.binding.target.target_head
+    claim = _verdicts.EvidenceClaim.read(recorded)
     if claim is None or not _on_the_records(state, current, claim):
         return False
     pr_number = current.binding.target.publication.pr_number

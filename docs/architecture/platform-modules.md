@@ -324,7 +324,9 @@ orchestrator/
                         written, the review subject and requirements revision it answers for, and the
                         verification-context revision it ran under -- four object ids rather than one, because
                         evidence carried forward, the round it answers, and the head that has moved since are
-                        three different commits. Each artifact carries its own revision, so several on one commit
+                        three different commits; an artifact whose head is not the tested commit says in its
+                        visible lines that the head is an equivalent-tree target the commands never ran on. Each
+                        artifact carries its own revision, so several on one commit
                         read as an ordered history; the hidden header repeats that identity beside the
                         transaction receipt and the digest of the evidence, and the ordinary orchestrator marker
                         closes the body, which is what keeps a generated artifact from ever being read back as a

@@ -15,13 +15,23 @@ requirements -- is taken again over them. Last, the artifact itself is read
 again at the comment it landed as, on the pull request just proved, and has to
 be exactly the one this transaction publishes: the post is long enough for a
 human to edit or delete it, and evidence declared current over an artifact
-the pull request no longer shows is evidence nobody can be shown. The settling
-label is read off that same issue. Then ONE write, composed over the comment as it stands rather than
-over the state in hand, installs it: the evidence that was current goes into
+the pull request no longer shows is evidence nobody can be shown. A carry that
+copied settled evidence's transcript is held to that source the same way: the
+evidence it copied still current, its artifact still saying what was copied
+(`verification_current.copied_source_verdict`). The settling
+label is read off that same issue. Those readings are requests too, so the
+comment is read once more behind them and has to still carry every bound
+record as the proof read it -- a review subject removed or replaced meanwhile,
+the approval a carried binding answers through among them, is kept and
+refuses the settlement. Then ONE write, composed over that last reading rather
+than over the state in hand, installs it: the evidence that was current goes into
 history as superseded, this one becomes current, the handoff names its
 receipt, and the pending record is dropped. A settlement replayed after a
 crash in front of that write finds the artifact by its receipt and makes the
-same write again.
+same write again. A refusal short of a reading nobody could take leaves any
+other transaction owed, but abandons a carry, with the approval it was
+recorded for, in the write that records the artifact's ledger entry
+(`verification_carries`).
 
 Every write here is measured against what GitHub accepts first, over the
 comment as it stands. The room was proved before the post
@@ -50,6 +60,8 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.verification_carries import abandons, is_carry
+from orchestrator.workflow.engine.verification_current import copied_source_verdict
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -75,7 +87,11 @@ def settles(
             # The artifact is on the thread and its comment id is tracked on
             # the comment as it stands; persisted now, over whatever moved,
             # since the tick that next proves the world may defer before it
-            # ever reads the thread again.
+            # ever reads the thread again. A carry refused on anything but a
+            # reading nobody could take goes into history in that write, with
+            # the approval it was recorded for.
+            if not refused.holds and is_carry(pending):
+                abandons(durable, pending)
             _writes(reading, durable)
         return refused.holds
     composed = _settlement.settled_state(durable, pending, comment_id, _label_of(fresh))
@@ -114,7 +130,9 @@ def _fresh_world(
     then the whole proof is taken again over it and the fresh issue -- the pull
     request, the checkout and trees, the context, the recorded review subject,
     the settled report re-read at its location, and the requirements -- and the
-    artifact re-read on the pull request that proof read.
+    artifact re-read on the pull request that proof read. Those are requests
+    of their own, so the comment any write is composed over is the one read
+    behind them (`_read_behind_the_proof`).
     """
     try:
         fresh = reading.gh.get_issue(reading.issue.number)
@@ -138,9 +156,35 @@ def _fresh_world(
     proved = _proof.binding_verdict(
         _proof.ProofReading(reading.gh, reading.spec, fresh, durable), pending.binding,
     )
-    if not proved.proved:
-        return durable, fresh, proved
-    return durable, fresh, _artifact_refusal(reading, pending, proved.pull_request, comment_id)
+    if proved.proved:
+        proved = _artifact_refusal(reading, pending, proved.pull_request, comment_id)
+    durable, moved = _read_behind_the_proof(reading, fresh, durable, comment_id)
+    return durable, fresh, moved or proved
+
+
+def _read_behind_the_proof(
+    reading: _proof.ProofReading,
+    fresh: Issue,
+    proved_over: PinnedState,
+    comment_id: int,
+) -> tuple[PinnedState | None, _evidence_models.ReportEvidence | None]:
+    """The comment read once more behind the proof, the artifact's entry tracked on it, and the refusal it earns.
+
+    The proof's requests are long enough for another road to write the
+    comment: a review subject recorded, replaced, or removed -- the approval
+    record a carried binding answers through among them -- or a report
+    settled. A write composed over the reading the proof was taken over would
+    put each of those back, and declare evidence current for a subject the
+    comment no longer carries. So every write here is composed over this
+    reading instead, which has to still carry every bound record exactly as
+    the proof read them (`verification_durable`): one that moved refuses the
+    settlement with the transaction owed, and one that will not read holds
+    with nothing written.
+    """
+    latest, moved = _durable.durable_comment(reading.gh, fresh, proved_over)
+    if latest is not None:
+        _comments._track_orchestrator_comment(latest, comment_id)
+    return latest, moved
 
 
 def _artifact_refusal(
@@ -153,7 +197,10 @@ def _artifact_refusal(
 
     A thread nobody could read holds; an artifact gone, edited, or any other
     defers with the transaction owed, for the next publication lookup to find
-    it again by its receipt -- or post it again where it is gone.
+    it again by its receipt -- or post it again where it is gone. Behind it,
+    the source a carry copied its transcript from is read again on the same
+    pull request (`verification_current.copied_source_verdict`): the post is
+    long enough for a human to edit or delete that one too.
     """
     presence, found = reading.gh.reread_verification_artifact(pull_request, comment_id)
     if presence is _pr_reports.ReportPresence.UNCONFIRMED:
@@ -162,7 +209,7 @@ def _artifact_refusal(
             "the published artifact could not be re-read before the settlement",
         )
     if presence is _pr_reports.ReportPresence.PRESENT and found == pending.artifact:
-        return None
+        return copied_source_verdict(reading.gh, reading.state, pending, pull_request)
     return _evidence_models.ReportEvidence(
         _evidence_models.ReportEvidenceVerdict.DEFER,
         "the published artifact is gone or no longer the one this transaction posted",

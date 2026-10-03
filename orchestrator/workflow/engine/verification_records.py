@@ -49,10 +49,13 @@ developer report's (`verification_transaction`): it proves the whole binding
 to rely on current evidence proves it and its artifact again
 (`verification_proof.current_evidence_verdict`), and evidence reaches another
 head only through a carry-forward decision (`verification_carry_forward`). The
-one live producer is a returned reviewer's declared commands, which the
+live producers are two: a returned reviewer's declared commands, which the
 returned-verdict record stages (`stages/validating/review_verdicts.py`) in the
-write that persists the verdict; the verify gate does not hand its run to
-`verification_local_runs`, and no stage records a carry-forward.
+write that persists the verdict, and the carry-forward an approval's squash
+records onto the head it published (`stages/validating/squash_evidence.py`),
+in the write settling the squash's handoff -- of the run the approval's verify
+gate made on the approved head where `verification_local_runs` binds it, and
+of the evidence the approval rests on otherwise.
 """
 from __future__ import annotations
 
@@ -167,9 +170,27 @@ class EvidenceBinding:
     context_revision: str
 
     def retargeted(self, target_head: str) -> EvidenceBinding:
-        """This binding answering for another head, the tested run unchanged."""
+        """This binding answering for another head, the tested run unchanged.
+
+        A reviewer's account retargeted is a copy of the settled evidence it
+        was published as (`carries_a_copy`), never a run of its own.
+        """
         publication = replace(self.target.publication, source_sha=target_head)
         return replace(self, target=replace(self.target, publication=publication))
+
+    @property
+    def carries_a_copy(self) -> bool:
+        """Whether this binding answers for another head than the one a reviewer's account ran on.
+
+        A reviewer returns an account of the head it was handed, so the only
+        road that binds one to another head is a carry of the settled
+        evidence it became, which copies that evidence's artifact. Such a
+        binding answers only while that artifact still says what was copied,
+        so a transaction carrying it has to name the evidence it copied.
+        """
+        return self.source is _evidence.EvidenceSource.REVIEWER_REPORTED and (
+            self.tested_sha != self.target.target_head
+        )
 
 
 @dataclass(frozen=True)
@@ -186,12 +207,22 @@ class PendingEvidence:
     of a command that failed is evidence that it failed, and `passed` says so.
     Which runs a producer may bind is the producer's rule -- a local
     `VERIFY_COMMANDS` run binds only when it passed (`verification_local_runs`).
+
+    `copied_from` is the receipt of the settled evidence whose artifact a
+    carry copied `commands` from (`verification_carry_forward`), and None for
+    every other transaction, a carried local run included. The copy answers
+    only while that artifact still says it, so the reconciliation holds the
+    carry to it until it settles (`verification_current.copied_source_verdict`).
+    A reviewer's account carried to another head is only ever such a copy
+    (`EvidenceBinding.carries_a_copy`), so a record of one naming no source
+    reads as damage rather than as a carry nobody holds to anything.
     """
 
     receipt: str
     revision: int
     binding: EvidenceBinding
     commands: tuple[_evidence.VerifiedCommand, ...]
+    copied_from: str | None = None
 
     @classmethod
     def receipt_names(cls, receipt: str, revision: int) -> bool:

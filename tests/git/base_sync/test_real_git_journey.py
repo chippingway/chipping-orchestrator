@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.workflow.engine import verification_settlement_state as _evidence_settlement
 from orchestrator.workflow.late_split import exemption_reading as _exemption_reading
 from tests.git.base_sync.exemption_git_support import events_of
 from tests.git.base_sync.journey_adjudication_support import adjudicates_once
@@ -77,8 +78,10 @@ class AdjudicatedRebaseJourneyTest(
         # journey still counts the one reading, verdict, adjudicator run, and
         # thread. The approval squashes the head again and the exemption is
         # past that rewrite too, so a later reading finds the change decided.
-        # The report of the rebased head the pull request carries is what paid
-        # the debt the rebase recorded, and the claim is left `null`.
+        # The reviewer's evidence is carried onto the squashed head, still
+        # naming the commit it ran on. The report of the rebased head the pull
+        # request carries is what paid the debt the rebase recorded, and the
+        # claim is left `null`.
         reviewer = self._reviews()
 
         reviewer.assert_called_once()
@@ -94,6 +97,11 @@ class AdjudicatedRebaseJourneyTest(
         approved = self._wt_head()
         self.assertNotEqual(approved, self.accepted)
         self.assertTrue(_exemption_reading.is_exempt(self._durable(), approved))
+        carried = _evidence_settlement.read_current_evidence(self._durable()).binding
+        self.assertEqual(
+            (carried.target.target_head, carried.tested_sha == approved),
+            (approved, False),
+        )
 
     def test_a_second_advance_rotates_it_again(self) -> None:
         # A settled transfer is never cleared, so it still stands when the next

@@ -74,6 +74,7 @@ from orchestrator.workflow.stages.validating import (
     approved_evidence as _approved_evidence,
     review_comment as _review_comment,
     review_report as _review_report,
+    squash_evidence as _squash_evidence,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -200,8 +201,19 @@ def _approval_stands(gh: GitHubClient, state: PinnedState) -> bool | None:
     it agrees, and where there is no report at all to read. False where the
     records refuse the approval or each other, or the location reads ABSENT
     or CHANGED. None where the reading could not be taken.
+
+    Evidence the approval's squash carried onto the head it published is
+    asked beside the records, since it answers for that head only on the
+    approval's word: where the approval's claim no longer names it, or the
+    review subject it is bound to no longer stands
+    (`squash_evidence.carry_unanswered`) -- the claim removed or written null,
+    a review returned since, the record removed or replaced, a report owed --
+    the approval covers nothing that evidence is, and every reader here (the
+    documenting stage's opening, the ready ping, `in_review`'s stale-approval
+    hand-back) sends it back rather than on, for `validating` to invalidate
+    the carry and the approval with it (`collapse`).
     """
-    if not _review_subjects.approval_covers_current(state):
+    if not _review_subjects.approval_covers_current(state) or _squash_evidence.carry_unanswered(state):
         return False
     current = _settlement.read_current_report(state)
     if current is None:

@@ -51,6 +51,8 @@ _REVISION = "revision"
 
 _COMMANDS = "commands"
 
+_COPIED_FROM = "copied_from"
+
 # One command as it is recorded: the command line, its exit status, and the
 # transcript the artifact carries for it.
 _COMMAND_MEMBERS = 3
@@ -95,7 +97,12 @@ def binding_from(recorded: dict) -> _records.EvidenceBinding | None:
 
 
 def pending_object(pending: _records.PendingEvidence) -> dict[str, Any]:
-    """The pinned object one transaction is recorded as."""
+    """The pinned object one transaction is recorded as.
+
+    `copied_from` only for a carry that copied an artifact, so every other
+    transaction is written in the shape it always was.
+    """
+    copied = {} if pending.copied_from is None else {_COPIED_FROM: pending.copied_from}
     return {
         _RECEIPT: pending.receipt,
         _REVISION: pending.revision,
@@ -103,21 +110,33 @@ def pending_object(pending: _records.PendingEvidence) -> dict[str, Any]:
         _COMMANDS: [
             [ran.command, ran.exit_status, ran.output] for ran in pending.commands
         ],
+        **copied,
     }
 
 
 def pending_from(recorded: dict) -> _records.PendingEvidence | None:
-    """The transaction one recorded object is, or None for damage."""
+    """The transaction one recorded object is, or None for damage.
+
+    A `copied_from` that is there has to be a receipt, `null` included, and a
+    reviewer's account carried to another head has to carry one
+    (`EvidenceBinding.carries_a_copy`): a carry whose source nobody can name
+    is one nobody can hold to that source, and one read as no carry at all
+    would skip the source it copied.
+    """
     receipt = _record_values.as_receipt(recorded.get(_RECEIPT))
     revision = _record_values.as_recorded_number(recorded.get(_REVISION))
     binding = binding_from(recorded)
     commands = _commands_from(recorded.get(_COMMANDS))
     if not receipt or not revision or binding is None or commands is None:
         return None
-    pending = _records.PendingEvidence(
-        receipt=receipt, revision=revision, binding=binding, commands=commands,
+    copied = recorded.get(_COPIED_FROM)
+    if (_COPIED_FROM in recorded or binding.carries_a_copy) and _record_values.as_receipt(copied) is None:
+        return None
+    if not _records.PendingEvidence.receipt_names(receipt, revision):
+        return None
+    return _records.PendingEvidence(
+        receipt=receipt, revision=revision, binding=binding, commands=commands, copied_from=copied,
     )
-    return pending if pending.receipt_names(receipt, revision) else None
 
 
 def _target_from(recorded: dict) -> _records.EvidenceTarget | None:

@@ -21,7 +21,14 @@ since, is not current. And that subject has to be about the very head the
 evidence answers for: a reviewer handed the pull request at that head is what
 the validating reader builds a subject from, so evidence carried to a new head
 still answering for a review of the old one answers for a subject nobody can
-hand a reviewer any more. An issue that records no such subject, or one nobody
+hand a reviewer any more. The one exception is the review an approval was
+given over, carried across the rewrite that approval's own handoff publishes
+(`verification_carry_forward`): no reviewer is handed that head at all, every
+road acting on the approval holds it to the approved subject, and a subject
+about the commit that was tested is current there while it is the one the
+approval record (`review_approved_subject`) covers -- the world proof holds
+the tested commit and the head alike to the tested tree. An issue that
+records no such subject, or one nobody
 can read, has no subject any evidence answers for. A developer report still
 owed -- by the rule the validating hold asks (`report_delivery.owes_a_report`):
 a delivery, a transaction, or an undeliverable park -- is a subject about to
@@ -118,11 +125,21 @@ def _issue_refusal(state: PinnedState, binding: _records.EvidenceBinding) -> str
 
 
 def _recorded_refusal(state: PinnedState, binding: _records.EvidenceBinding) -> str:
-    """Why the bound subject is not the applicable recorded one about its head, or ""."""
+    """Why the bound subject is not the applicable recorded one about its head, or "".
+
+    About the head the evidence answers for -- or, for evidence carried across
+    the rewrite of an approved head, about the commit that was tested, where
+    the subject is the one the approval record covers: the world proof holds
+    both commits to the tested tree.
+    """
     applicable, recorded = applicable_subject(state, binding.source)
     if _review_subjects.ReviewSubject.identity_recorded_in(recorded) is None:
         return f"no readable {applicable} is recorded for the evidence to answer for"
-    if binding.target.subject_commit != binding.target.target_head:
+    reviewed = binding.target.subject_commit
+    approved = reviewed == binding.tested_sha and binding.target.subject == state.get(
+        _review_subjects.APPROVED_SUBJECT,
+    )
+    if reviewed != binding.target.target_head and not approved:
         return "the review subject is not about the head the evidence answers for"
     if recorded != binding.target.subject:
         return f"the evidence answers for another subject than the recorded {applicable}"

@@ -36,6 +36,7 @@ _LATER = make_verification_artifact(
     _PR_NUMBER, artifact_revision=2, receipt="issue-7-verification-2",
 )
 _NOTHING_RAN = make_verification_artifact(_PR_NUMBER, commands=())
+_TREE = _ARTIFACT.tested_tree
 _SUITE = "uv run pytest tests"
 # What somebody hiding content past the end of a transcript would put there.
 _FORGED = "### forged result"
@@ -115,6 +116,21 @@ class ArtifactRenderingTest(unittest.TestCase):
         ):
             with self.subTest(claimed=claimed):
                 self.assertIn(claimed, visible)
+
+    def test_a_carried_head_is_named_equivalent(self) -> None:
+        # Evidence carried onto a head it did not run on says so where a
+        # reader looks, and never reads as a run on that head; evidence about
+        # the very head it ran on says nothing of the kind. Either reads back.
+        ran_there = make_verification_artifact(_PR_NUMBER, target_head=_ARTIFACT.tested_sha)
+        carried = _visible(_ARTIFACT)
+
+        self.assertIn(f"an equivalent-tree target, a different commit proved to carry the same tree `{_TREE}`", carried)
+        self.assertIn(f"The commands below ran on `{_ARTIFACT.tested_sha}`, not on `{_ARTIFACT.target_head}`", carried)
+        self.assertNotIn("equivalent-tree target", _visible(ran_there))
+        for artifact in (ran_there, _ARTIFACT):
+            with self.subTest(carried=artifact is _ARTIFACT):
+                posted = _comment(_artifacts.render_verification_artifact(artifact))
+                self.assertEqual(_artifacts.verification_artifact_from_comment(posted, bot_login=_BOT_LOGIN), artifact)
 
     def test_the_witness_is_visible_not_only_hidden(self) -> None:
         # What a reader decides whether to trust on, so it is told in the

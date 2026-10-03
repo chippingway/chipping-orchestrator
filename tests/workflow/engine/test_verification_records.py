@@ -32,6 +32,7 @@ from orchestrator.github.verification_evidence import EvidenceSource
 from orchestrator.workflow.engine import (
     comments as _comments,
     report_record_values as _record_values,
+    verification_record_fields as _fields,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
@@ -40,8 +41,14 @@ from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.engine import verification_record_test_support as support
 
-# The handoff member naming the label a settlement landed under.
+# The handoff member naming the label a settlement landed under, and the
+# pending member naming the evidence a carry copied its transcript from.
 _UNDER = "under"
+
+_COPIED_FROM = "copied_from"
+
+# What a carried run's artifact says it tested, and what it answers for.
+_TESTED_MEMBERS = ("tested_sha", "tested_tree", "target_head", "review_subject")
 
 # A transcript the artifact carries in half a comment, and the pinned record,
 # whose JSON escapes each of these characters six characters wide, in none.
@@ -271,16 +278,37 @@ class RoundTripTest(unittest.TestCase):
                 self.assertIs(pending.passed, passed)
                 self._round_trips(pending)
 
-    def test_a_retargeted_run_names_what_it_tested(self) -> None:
+    def test_a_carry_names_what_it_tested_and_copied(self) -> None:
+        # Carried onto another head, a run's artifact still names the commit
+        # and tree it tested, and its record the settled evidence it copied
+        # its transcript from -- a member no other transaction is written
+        # with, and damage where it is written null or as anything a receipt
+        # is never spelled, rather than a carry that copied nothing. A local
+        # run carried copies nothing and names nothing; a reviewer's account
+        # carried is only ever a copy, and naming no source it is damage.
         state = _issue()
-        pending = support.minted(state, support.binding().retargeted(support.REBASED_SHA))
+        support.settles(state)
+        pending = replace(
+            support.minted(state, support.binding().retargeted(support.REBASED_SHA)),
+            copied_from=_settlement.read_current_evidence(state).receipt,
+        )
 
         self.assertTrue(_record_state.record_pending_evidence(state, pending))
-        artifact = _record_state.read_pending_evidence(support.reread(state)).artifact
+        self.assertEqual(_record_state.read_pending_evidence(support.reread(state)), pending)
         self.assertEqual(
-            (artifact.tested_sha, artifact.tested_tree, artifact.target_head, artifact.review_subject),
-            (support.TESTED_SHA, support.TESTED_TREE, support.REBASED_SHA, support.TESTED_SHA),
+            [getattr(pending.artifact, member) for member in _TESTED_MEMBERS],
+            [support.TESTED_SHA, support.TESTED_TREE, support.REBASED_SHA, support.TESTED_SHA],
         )
+        unnamed = replace(pending, copied_from=None)
+        self.assertNotIn(_COPIED_FROM, _fields.pending_object(unnamed))
+        self.assertEqual(_fields.pending_from(_fields.pending_object(unnamed)), unnamed)
+        account = replace(unnamed, binding=replace(unnamed.binding, source=EvidenceSource.REVIEWER_REPORTED))
+        self.assertIsNone(_fields.pending_from(_fields.pending_object(account)))
+        for damaged in (None, "", 7, "a receipt nobody spells"):
+            with self.subTest(copied_from=damaged):
+                self.assertIsNone(
+                    _fields.pending_from(state.get(_records.PENDING_EVIDENCE) | {_COPIED_FROM: damaged}),
+                )
 
     def test_the_settling_label_is_optional(self) -> None:
         # Optional, but never unreadable: a label nobody names is damage.

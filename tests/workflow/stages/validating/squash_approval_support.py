@@ -41,6 +41,7 @@ from tests.workflow.fixtures import (
     _PatchedWorkflowMixin,
     approved_on,
 )
+from tests.workflow.stages.validating import squash_evidence_test_support as _squash_evidence_support
 
 APPROVAL_ISSUE = 5
 
@@ -227,6 +228,10 @@ class _SquashApprovalFixtureMixin(_PatchedWorkflowMixin):
                 head_shas=(SQUASHED_SHA,),
                 squash_result=squash_result,
             )
+
+    def _dispatches(self, github, issue, head: str):
+        """One dispatcher tick -- the evidence reconciliation, then the handler -- its branch standing on `head`."""
+        return _squash_evidence_support.dispatches(self, github, issue, head)
 
     def _assert_squash_handoff(self, github, pr, mocks) -> None:
         self.assertEqual(
