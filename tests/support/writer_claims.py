@@ -20,15 +20,15 @@ from orchestrator.scheduler import writer_claims
 
 
 @contextlib.contextmanager
-def held_elsewhere(repo_identity: str, *issue_numbers: int) -> Iterator[None]:
+def held_elsewhere(repo_id: int, *issue_numbers: int) -> Iterator[None]:
     """Hold these issues' writer claims for the block, as another poller would.
 
-    `repo_identity` is the repository's canonical name -- the client's
-    `repo_slug` -- since that, and not a spec's configured slug, is the key.
+    `repo_id` is the repository's numeric id -- the client's `repo_id` --
+    since that, and no name the repository goes by, is the key.
     """
     with contextlib.ExitStack() as holding:
         for issue_number in issue_numbers:
-            claim_path = writer_claims.claim_path(repo_identity, issue_number)
+            claim_path = writer_claims.claim_path(repo_id, issue_number)
             claim_path.parent.mkdir(parents=True, exist_ok=True)
             claim_file = holding.enter_context(claim_path.open("a", encoding="utf-8"))
             fcntl.flock(claim_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -61,7 +61,7 @@ class _ClaimingCreates:
     def __call__(self, **fields):
         """Create the child, then hold its claim as the other poller would."""
         child = self._create(**fields)
-        self._holding.enter_context(held_elsewhere(self._client.repo_slug, child.number))
+        self._holding.enter_context(held_elsewhere(self._client.repo_id, child.number))
         return child
 
 
@@ -75,7 +75,7 @@ def unusable_namespace() -> Iterator[None]:
             yield
 
 
-def claimable(repo_identity: str, issue_number: int) -> bool:
+def claimable(repo_id: int, issue_number: int) -> bool:
     """Whether a writer could take this issue right now."""
-    with writer_claims.issue_writer(repo_identity, issue_number) as held:
+    with writer_claims.issue_writer(repo_id, issue_number) as held:
         return held

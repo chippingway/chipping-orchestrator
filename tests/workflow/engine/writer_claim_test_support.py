@@ -3,9 +3,10 @@
 """Issues another poller on this host is writing, driven through whole ticks.
 
 The other poller holds its claims through `tests/support/writer_claims.py`,
-under the name the client answers for the repository rather than the one the
-spec was configured with. Everything below the tick is real except the stage
-handler, which stands in for one that runs, publishes, and records.
+under the repository id the client answers rather than any name, or as the
+real second process `renamed_poller_support.py` starts. Everything below the
+tick is real except the stage handler, which stands in for one that runs,
+publishes, and records.
 """
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ from orchestrator.skills import catalog
 from orchestrator.workflow.engine import stage_targets as _stage_targets, tick as _tick
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.engine.dispatch_scheduler_test_support import (
+    REPO_SLUG,
     _SchedulerWorkflowTest,
     patch_base_refresh,
 )
@@ -55,6 +57,7 @@ FREE_CLOSED = 12
 
 HELD_ISSUES = frozenset((HELD_FANOUT, HELD_FAMILY, HELD_CLOSED))
 FREE_ISSUES = frozenset((FREE_FANOUT, FREE_FAMILY, FREE_CLOSED))
+ALL_ISSUES = HELD_ISSUES | FREE_ISSUES
 
 # A blocked parent whose second child waits only on its done first one, so the
 # parent's walk releases that child on a tick unless something holds it back.
@@ -182,3 +185,38 @@ class WriterClaimDispatchCase(ObservedCloseCase, _SchedulerWorkflowTest):
                 owner, name = _stage_targets._STAGE_HANDLER_TARGETS[label]
                 patched.enter_context(patch(f"{owner}.{name}", stand_in))
             yield
+
+
+class HeldIssuesCase(WriterClaimDispatchCase):
+    """The six seeded issues, ticked while the held three are held and after."""
+
+    def ticked_while_held(
+        self, holding: contextlib.AbstractContextManager, *, limit: int, scheduled: bool,
+    ) -> None:
+        """A tick over the seeded issues while `holding` holds the held ones."""
+        stand_in = StandInHandler()
+        with holding:
+            self.ticked(stand_in, limit=limit, scheduled=scheduled)
+
+        self.assertEqual(set(stand_in.ran), set(FREE_ISSUES), "only the free issues run")
+        self.assertEqual(self.written_issues(), set(FREE_ISSUES), "nothing is written on a held one")
+        self.assertEqual(self.evaluated_issues(), set(FREE_ISSUES), "nothing is accounted for one")
+        self.assertEqual(self._observed(REPO_SLUG), {HELD_CLOSED}, "the close it read is kept")
+
+    def ticked_once_released(self, *, limit: int, scheduled: bool) -> None:
+        """The ticks after the holder lets go.
+
+        The kept close is swept first, under the claim, and found to end
+        nothing; the issue's own handler runs on the tick after that.
+        """
+        swept = StandInHandler()
+        self.ticked(swept, limit=limit, scheduled=scheduled)
+
+        self.assertEqual(set(swept.ran), set(ALL_ISSUES - {HELD_CLOSED}))
+        self.assertEqual(self._observed(REPO_SLUG), frozenset())
+
+        retry = StandInHandler()
+        self.ticked(retry, limit=limit, scheduled=scheduled)
+
+        self.assertEqual(set(retry.ran), set(ALL_ISSUES), "a released issue runs again")
+        self.assertEqual(self.written_issues(), set(ALL_ISSUES))

@@ -250,21 +250,21 @@ self-exit and be restarted with new code.
   outside the hold entirely: a run that cannot go quiet never takes the host at all. A pass whose process dies
   holds nothing, since the kernel drops the lock with the file description.
 - **Issue writer claims** (`scheduler.writer_claims`): one exclusive `flock` per repository issue under
-  `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's canonical name (the client's `repo_slug`,
-  case-folded, never the configured slug) and the issue number. Every dispatch path takes it before anything it does
-  for the issue — the worker's refetch, the pinned-state guards, the close recovery wrapped around the pass, and the
-  handler — and the enumeration takes it for the close receipt it posts, so two pollers sharing a checkout root never
-  write one issue's pinned comment and labels at once. A family handler's writes to a child take the child's claim
-  the same way, and the walk that releases children reads each again behind it rather than trusting its scan. It is
-  never waited for: a contender skips the issue with no effect but a close it read, which it keeps in its own latch,
-  and retries on a later tick; different issues never contend. Inside one process it is exclusive
-  between threads too, except that a close receipt is let in alongside this process's own worker, which it was built
-  to land beside. A claim that cannot be worked at all — an unopenable namespace, a filesystem without `flock` —
+  `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's numeric GitHub id (the client's `repo_id`, never a
+  name: neither the configured slug nor the `owner/name` a poller fetched before a rename) and the issue number. Every
+  dispatch path takes it before anything it does for the issue — the worker's refetch, the pinned-state guards, the
+  close recovery wrapped around the pass, and the handler — and the enumeration takes it for the close receipt it posts,
+  so two pollers sharing a checkout root never write one issue's pinned comment and labels at once. A family handler's
+  writes to a child take the child's claim the same way, and the walk that releases children reads each again behind it
+  rather than trusting its scan. It is never waited for: a contender skips the issue with no effect but a close it read,
+  which it keeps in its own latch, and retries on a later tick; different issues never contend. Inside one process it is
+  exclusive between threads too, except that a close receipt is let in alongside this process's own worker, which it was
+  built to land beside. A claim that cannot be worked at all — an unopenable namespace, a filesystem without `flock` —
   withholds the issue too, where the presence above lets a poller go on unclaimed: a tidying job can be given up, an
-  issue's record cannot be written uncoordinated. Released however the dispatch ends and by the kernel when the
-  process dies; the files are never unlinked. It is host-local and separate from the presence: neither says anything
-  about the other, and nothing coordinates pollers on different hosts or checkout roots. The supported topology and
-  the namespace's access assumptions are in the
+  issue's record cannot be written uncoordinated. Released however the dispatch ends and by the kernel when the process
+  dies; the files are never unlinked. It is host-local and separate from the presence: neither says anything about the
+  other, and nothing coordinates pollers on different hosts or checkout roots. The supported topology and the
+  namespace's access assumptions are in the
   [operations runbook](configuration/operations.md#running-more-than-one-poller).
 - **Tick cadence**: every `POLL_INTERVAL` seconds (default 60).
 - **Artifact maintenance cadence** (`runtime.artifacts`, scheduled by `runtime.artifact_schedule`): at the end of the

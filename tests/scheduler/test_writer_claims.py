@@ -15,15 +15,12 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.scheduler import writer_claims
-from tests.scheduler.writer_claim_helpers import (
-    HELD,
-    REFUSED,
-    RELEASED,
-    SharedNamespaceCase,
-    descriptors_on,
-)
+from tests.scheduler.writer_claim_helpers import SharedNamespaceCase, descriptors_on
+from tests.support.writer_claim_processes import HELD, REFUSED, RELEASED
 
-_SLUG = "acme/widget"
+# The repository's numeric id, and another repository's.
+_REPO_ID = 42
+_OTHER_REPO_ID = 43
 _ISSUE = 7
 _OTHER_ISSUE = 8
 _SCHEDULER_LOG = "orchestrator.scheduler"
@@ -38,30 +35,27 @@ class ProcessContentionTest(SharedNamespaceCase):
     """A key another process holds is refused here, and nothing else is."""
 
     def test_a_held_key_is_refused_until_let_go(self) -> None:
-        holder = self.other_process(_SLUG, _ISSUE, _HOLD)
+        holder = self.other_process(_REPO_ID, _ISSUE, _HOLD)
         self.assertEqual(holder.said(), HELD)
 
         with self.assertLogs(_SCHEDULER_LOG) as logged:
-            self.assertFalse(self.granted_here(_SLUG, _ISSUE))
-            self.assertIn("reason=held_elsewhere", logged.output[0])
-        # The identity is the repository's, which GitHub names
-        # case-insensitively, so another spelling of it is the same key.
-        self.assertFalse(self.granted_here("Acme/Widget", _ISSUE))
+            self.assertFalse(self.granted_here(_REPO_ID, _ISSUE))
+            self.assertIn(f"repo_id={_REPO_ID} issue=#{_ISSUE} reason=held_elsewhere", logged.output[0])
         # Different keys stay independent: another issue of this repository,
         # and the same issue number in another repository.
-        self.assertTrue(self.granted_here(_SLUG, _OTHER_ISSUE))
-        self.assertTrue(self.granted_here("acme/gadget", _ISSUE))
+        self.assertTrue(self.granted_here(_REPO_ID, _OTHER_ISSUE))
+        self.assertTrue(self.granted_here(_OTHER_REPO_ID, _ISSUE))
 
         self.assertEqual(holder.let_go(), 0)
-        self.assertTrue(self.granted_here(_SLUG, _ISSUE))
+        self.assertTrue(self.granted_here(_REPO_ID, _ISSUE))
 
     def test_holding_here_refuses_another_process(self) -> None:
-        with writer_claims.issue_writer(_SLUG, _ISSUE) as held:
+        with writer_claims.issue_writer(_REPO_ID, _ISSUE) as held:
             self.assertTrue(held)
-            contender = self.other_process(_SLUG, _ISSUE, _TRY)
+            contender = self.other_process(_REPO_ID, _ISSUE, _TRY)
             self.assertEqual(contender.said(), REFUSED)
             self.assertEqual(contender.exited(), 0)
-        retry = self.other_process(_SLUG, _ISSUE, _TRY)
+        retry = self.other_process(_REPO_ID, _ISSUE, _TRY)
         self.assertEqual(retry.said(), HELD)
 
 
@@ -69,34 +63,34 @@ class ThreadSharingTest(SharedNamespaceCase):
     """Inside one process: one writer per key, and the receipt let in beside it."""
 
     def test_a_second_writer_here_is_refused(self) -> None:
-        with writer_claims.issue_writer(_SLUG, _ISSUE) as held:
+        with writer_claims.issue_writer(_REPO_ID, _ISSUE) as held:
             self.assertTrue(held)
             with self.assertLogs(_SCHEDULER_LOG) as logged:
-                self.assertFalse(_on_another_thread(self.granted_here, _SLUG, _ISSUE))
+                self.assertFalse(_on_another_thread(self.granted_here, _REPO_ID, _ISSUE))
                 self.assertIn("reason=held_here", logged.output[0])
-            self.assertTrue(_on_another_thread(self.granted_here, _SLUG, _OTHER_ISSUE))
-        self.assertTrue(_on_another_thread(self.granted_here, _SLUG, _ISSUE))
+            self.assertTrue(_on_another_thread(self.granted_here, _REPO_ID, _OTHER_ISSUE))
+        self.assertTrue(_on_another_thread(self.granted_here, _REPO_ID, _ISSUE))
 
     def test_alongside_keeps_the_lock_to_the_last(self) -> None:
-        claim_file = writer_claims.claim_path(_SLUG, _ISSUE)
-        with writer_claims.issue_writer(_SLUG, _ISSUE) as writer:
+        claim_file = writer_claims.claim_path(_REPO_ID, _ISSUE)
+        with writer_claims.issue_writer(_REPO_ID, _ISSUE) as writer:
             self.assertTrue(writer)
-            with writer_claims.issue_writer(_SLUG, _ISSUE, alongside=True) as beside:
+            with writer_claims.issue_writer(_REPO_ID, _ISSUE, alongside=True) as beside:
                 self.assertTrue(beside, "a holder alongside joins this process's writer")
                 self.assertEqual(descriptors_on(claim_file), 1, "one file description per key")
         # The other way round: a holder alongside keeps no writer here out,
         # and keeps the lock against other processes once the writer leaves.
-        with writer_claims.issue_writer(_SLUG, _ISSUE, alongside=True) as beside:
+        with writer_claims.issue_writer(_REPO_ID, _ISSUE, alongside=True) as beside:
             self.assertTrue(beside)
-            self.assertTrue(self.granted_here(_SLUG, _ISSUE))
-            self.assertEqual(self.other_process(_SLUG, _ISSUE, _TRY).said(), REFUSED)
+            self.assertTrue(self.granted_here(_REPO_ID, _ISSUE))
+            self.assertEqual(self.other_process(_REPO_ID, _ISSUE, _TRY).said(), REFUSED)
         self.assertEqual(descriptors_on(claim_file), 0)
-        self.assertEqual(self.other_process(_SLUG, _ISSUE, _TRY).said(), HELD)
+        self.assertEqual(self.other_process(_REPO_ID, _ISSUE, _TRY).said(), HELD)
 
     def test_alongside_is_refused_by_another_process(self) -> None:
-        holder = self.other_process(_SLUG, _ISSUE, _HOLD)
+        holder = self.other_process(_REPO_ID, _ISSUE, _HOLD)
         self.assertEqual(holder.said(), HELD)
-        with writer_claims.issue_writer(_SLUG, _ISSUE, alongside=True) as beside:
+        with writer_claims.issue_writer(_REPO_ID, _ISSUE, alongside=True) as beside:
             self.assertFalse(beside)
         self.assertEqual(holder.let_go(), 0)
 
@@ -105,38 +99,38 @@ class ProcessReleaseTest(SharedNamespaceCase):
     """Every way a holder ends gives the claim back, and leaves its file."""
 
     def test_a_killed_holder_holds_nothing(self) -> None:
-        holder = self.other_process(_SLUG, _ISSUE, _HOLD)
+        holder = self.other_process(_REPO_ID, _ISSUE, _HOLD)
         self.assertEqual(holder.said(), HELD)
-        claim_file = writer_claims.claim_path(_SLUG, _ISSUE)
+        claim_file = writer_claims.claim_path(_REPO_ID, _ISSUE)
         inode = claim_file.stat().st_ino
 
         holder.killed()
 
-        self.assertTrue(self.granted_here(_SLUG, _ISSUE))
+        self.assertTrue(self.granted_here(_REPO_ID, _ISSUE))
         # Never unlinked: a lock lives on the inode, so a file recreated under
         # the same path would let two processes each hold "the" claim.
         self.assertEqual(claim_file.stat().st_ino, inode)
 
     def test_a_raising_body_releases_a_live_holder(self) -> None:
-        holder = self.other_process(_SLUG, _ISSUE, "raise")
+        holder = self.other_process(_REPO_ID, _ISSUE, "raise")
         self.assertEqual(holder.said(), HELD)
         self.assertEqual(holder.said(), RELEASED)
 
         # The holder is still running; only the exception ended its claim.
-        self.assertTrue(self.granted_here(_SLUG, _ISSUE))
+        self.assertTrue(self.granted_here(_REPO_ID, _ISSUE))
         self.assertEqual(holder.let_go(), 0)
 
     def test_every_exit_closes_the_descriptor(self) -> None:
-        claim_file = writer_claims.claim_path(_SLUG, _ISSUE)
-        with self.assertRaises(RuntimeError), writer_claims.issue_writer(_SLUG, _ISSUE) as held:
+        claim_file = writer_claims.claim_path(_REPO_ID, _ISSUE)
+        with self.assertRaises(RuntimeError), writer_claims.issue_writer(_REPO_ID, _ISSUE) as held:
             self.assertTrue(held)
             self.assertEqual(descriptors_on(claim_file), 1)
             raise RuntimeError("the body failed")
         self.assertEqual(descriptors_on(claim_file), 0)
 
-        holder = self.other_process(_SLUG, _ISSUE, _HOLD)
+        holder = self.other_process(_REPO_ID, _ISSUE, _HOLD)
         self.assertEqual(holder.said(), HELD)
-        with writer_claims.issue_writer(_SLUG, _ISSUE) as held:
+        with writer_claims.issue_writer(_REPO_ID, _ISSUE) as held:
             self.assertFalse(held)
             self.assertEqual(descriptors_on(claim_file), 0)
 
@@ -145,11 +139,11 @@ class NamespaceTest(SharedNamespaceCase):
     """Where the claims live, and what a claim that cannot be worked does."""
 
     def test_claims_live_under_the_checkout_root(self) -> None:
-        claim_file = writer_claims.claim_path(_SLUG, _ISSUE)
+        claim_file = writer_claims.claim_path(_REPO_ID, _ISSUE)
 
         self.assertEqual(claim_file.parent, config.WORKTREES_DIR / ".issue-writer-claims")
-        self.assertEqual(claim_file, writer_claims.claim_path("ACME/Widget", _ISSUE))
-        self.assertNotEqual(claim_file, writer_claims.claim_path(_SLUG, _OTHER_ISSUE))
+        self.assertNotEqual(claim_file, writer_claims.claim_path(_REPO_ID, _OTHER_ISSUE))
+        self.assertNotEqual(claim_file, writer_claims.claim_path(_OTHER_REPO_ID, _ISSUE))
 
     def test_an_unopenable_namespace_withholds(self) -> None:
         # A file where the namespace directory belongs: nothing can be
@@ -158,19 +152,19 @@ class NamespaceTest(SharedNamespaceCase):
         (self.root / ".issue-writer-claims").write_text("", encoding="utf-8")
 
         with self.assertLogs(_SCHEDULER_LOG, level="WARNING") as logged:
-            self.assertFalse(self.granted_here(_SLUG, _ISSUE))
+            self.assertFalse(self.granted_here(_REPO_ID, _ISSUE))
             self.assertIn("reason=unusable", logged.output[0])
 
     def test_a_broken_lock_withholds_the_issue(self) -> None:
         # A lock table with no room is not a holder, so it is never waited out
         # or mistaken for contention -- and never treated as granted either.
         broken = OSError(errno.ENOLCK, "no locks available")
-        claim_file = writer_claims.claim_path(_SLUG, _ISSUE)
+        claim_file = writer_claims.claim_path(_REPO_ID, _ISSUE)
         with (
             patch.object(fcntl, "flock", side_effect=broken),
             self.assertLogs(_SCHEDULER_LOG, level="WARNING") as logged,
         ):
-            self.assertFalse(self.granted_here(_SLUG, _ISSUE))
+            self.assertFalse(self.granted_here(_REPO_ID, _ISSUE))
             self.assertIn("reason=unusable", logged.output[0])
         self.assertEqual(descriptors_on(claim_file), 0)
 

@@ -39,14 +39,14 @@ def held_child(
 ) -> Iterator[bool]:
     """Hold one child's writer claim for the body, or say it was refused.
 
-    Keyed on the client's `repo_slug` for the reason the dispatch claim is:
-    the canonical name is the one every poller on this host meets on, whatever
-    each was configured with. `alongside` is for a write that is append-only
-    and built to land beside the child's own handler in this process -- it
-    still keeps every other process out.
+    Keyed on the client's `repo_id` for the reason the dispatch claim is:
+    the id is the one key every poller on this host meets on, whatever name
+    each was configured with or fetched the repository under. `alongside` is
+    for a write that is append-only and built to land beside the child's own
+    handler in this process -- it still keeps every other process out.
     """
     with _writer_claims.issue_writer(
-        gh.repo_slug, int(child_number), alongside=alongside,
+        gh.repo_id, int(child_number), alongside=alongside, repo_name=gh.repo_slug,
     ) as held:
         if not held:
             log.info(

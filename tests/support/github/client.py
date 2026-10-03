@@ -21,6 +21,10 @@ from tests.support.github.state import (
     _FakePullState,
 )
 
+# The id GitHub assigned the repository a fake stands in for, unless a test
+# names one: what writer claims are keyed on, where the name is not.
+_DEFAULT_REPO_ID = 1
+
 
 class _IssueViews(
     issue_service._IssueHistoryView,
@@ -68,10 +72,12 @@ class FakeGitHubClient(_IssueClient, _PullClient, _CommentIdAllocator):
         issues: Iterable[FakeIssue] = (),
         *,
         repo_slug: str = "chippingway/chipping-orchestrator",
+        repo_id: int = _DEFAULT_REPO_ID,
         stale_label_cache: bool = False,
         bot_login: str = DEFAULT_BOT_LOGIN,
     ) -> None:
         self._repo_slug = repo_slug
+        self._repo_id = repo_id
         self._bot_login = bot_login
         self._stale_label_cache = stale_label_cache
         self._pollable_calls = 0
@@ -95,6 +101,15 @@ class FakeGitHubClient(_IssueClient, _PullClient, _CommentIdAllocator):
     def repo_slug(self) -> str:
         """The repository this client stands in for, as `owner/name`."""
         return self._repo_slug
+
+    @property
+    def repo_id(self) -> int:
+        """The numeric id of the repository this client stands in for.
+
+        The real client's identity that no rename changes, so a test that
+        renames a repository gives two fakes one id under two names.
+        """
+        return self._repo_id
 
     def is_own_repository(self, full_name: str | None) -> bool:
         """Whether `full_name` names the repository this client is for.

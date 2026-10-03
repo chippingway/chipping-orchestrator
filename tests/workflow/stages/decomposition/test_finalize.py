@@ -94,7 +94,7 @@ class _FinalizedOnceScanned:
             return issue
         self._scanned = True
         scanned = copy.copy(issue)
-        with held_elsewhere(self._gh.repo_slug, self._child_number):
+        with held_elsewhere(self._gh.repo_id, self._child_number):
             _terminals._finalize_if_pr_merged(self._gh, _TEST_SPEC, issue, self._gh.read_pinned_state(issue))
         return scanned
 
@@ -195,7 +195,7 @@ class ChildMergedPrAutoFinalizeTest(unittest.TestCase, _PatchedWorkflowMixin):
         # not finalized, and not taken for one a human closed by hand either.
         gh, parent = _blocked_on_a_merged_child()
 
-        with held_elsewhere(gh.repo_slug, BLOCKED_MERGED_CHILD_NUMBER):
+        with held_elsewhere(gh.repo_id, BLOCKED_MERGED_CHILD_NUMBER):
             self._run(lambda: _blocked._handle_blocked(gh, _TEST_SPEC, parent), run_agent=_agent())
 
         self.assertEqual(gh.label_history, [], "neither the child nor the parent moves")

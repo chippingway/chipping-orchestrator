@@ -32,10 +32,12 @@ _CANONICAL_OWNER = "Owner"
 _CANONICAL_SLUG = f"{_CANONICAL_OWNER}/Repo"
 _CANONICAL_URL = f"https://api.github.com/repos/{_CANONICAL_SLUG}"
 _CANONICAL_PULLS_URL = f"{_CANONICAL_URL}/pulls"
+_REPO_ID = 42
 _REPO_PATH = f"/repos/{_REPO_SLUG}"
 _MISSING_LABEL_PATH = f"{_REPO_PATH}/labels/{_LEGACY_LABEL}"
 _WIRE_BODIES = MappingProxyType({
     _REPO_PATH: {
+        "id": _REPO_ID,
         "url": _CANONICAL_URL,
         "full_name": _CANONICAL_SLUG,
         "owner": {"login": _CANONICAL_OWNER},
@@ -255,13 +257,16 @@ class WorkerClientTest(unittest.TestCase):
 
     def test_identity_completes_the_repository_once(self) -> None:
         # Built from the configured slug, an unfetched repository already
-        # spells a `full_name`; the canonical one is only on the fetched body.
+        # spells a `full_name`; the canonical one is only on the fetched body,
+        # and so is the id a writer claim is keyed on.
         worker = self.parent._for_worker_thread()
 
         for _ in range(2):
+            self.assertEqual(worker.repo_id, _REPO_ID)
             self.assertEqual(worker.repo_slug, _CANONICAL_SLUG)
             self.assertTrue(worker.is_own_repository(_CANONICAL_SLUG))
         self.assertEqual(worker.repo.owner.login, _CANONICAL_OWNER)
+        self.assertEqual(self.parent.repo_id, _REPO_ID)
 
         self.assertEqual(self.wire.sent_by(worker), [_REPO_PATH])
 

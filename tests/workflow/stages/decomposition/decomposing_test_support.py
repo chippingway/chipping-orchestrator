@@ -92,7 +92,7 @@ class _DecomposingWorkflowMixin(_PatchedWorkflowMixin):
 
     def _held_by_another_poller(self, gh, *issue_numbers: int):
         """These issues' writer claims, held by another poller on this host for the block."""
-        return held_elsewhere(gh.repo_slug, *issue_numbers)
+        return held_elsewhere(gh.repo_id, *issue_numbers)
 
 
 class _ChildCreationSnapshotRecorder:
@@ -149,7 +149,7 @@ class _ReachedFirstByAnotherPoller:
 
     def __call__(self, **kwargs):
         child = self._create_child(**kwargs)
-        with held_elsewhere(self._gh.repo_slug, child.number):
+        with held_elsewhere(self._gh.repo_id, child.number):
             _split_seeds.holds_unseeded(
                 self._gh, child, self._gh.workflow_label(child), self._gh.read_pinned_state(child),
             )

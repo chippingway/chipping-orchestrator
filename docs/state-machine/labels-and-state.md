@@ -296,9 +296,9 @@ reported active to the next poll's submit, which is rejected as `duplicate_activ
 active issue's worktree.
 
 That gate answers for this process alone, so every dispatch path also takes the issue's host-local **writer claim**
-(`scheduler/writer_claims.py`) — an exclusive, non-blocking `flock` keyed by the repository's canonical name (the
-client's `repo_slug`, case-folded, never the configured slug) and the issue number — before anything it does for the
-issue: the refetch, the pinned-state guards, the close recovery wrapped around the pass (the closed reading
+(`scheduler/writer_claims.py`) — an exclusive, non-blocking `flock` keyed by the repository's numeric GitHub id (the
+client's `repo_id`, never a name, so a rename leaves the key alone) and the issue number — before anything it does for
+the issue: the refetch, the pinned-state guards, the close recovery wrapped around the pass (the closed reading
 an ordinary pass keeps, the close a refetch establishes, the cleanup observation a sweep is held under), and the
 handler. The sequential loop takes it once an issue survives the hard-skip classification; the scheduler's fan-out
 task, its family-bucket iteration (inside `track_active`), and the in-tick pool's tasks take it as their worker starts,

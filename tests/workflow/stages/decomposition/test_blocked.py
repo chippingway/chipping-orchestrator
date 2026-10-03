@@ -359,7 +359,7 @@ class HandleBlockedDependencyTest(unittest.TestCase, _PatchedWorkflowMixin):
             child_labels=[LABEL_BLOCKED, LABEL_BLOCKED],
         )
         scan = _parents._read_child_labels(gh, parent, [finished.number, waiting.number])
-        with held_elsewhere(gh.repo_slug, finished.number):
+        with held_elsewhere(gh.repo_id, finished.number):
             gh.add_issue(make_issue(finished.number, label=LABEL_DONE, closed=True))
 
         _activation._activate_ready_children(gh, _TEST_SPEC, parent, gh.read_pinned_state(parent), scan)

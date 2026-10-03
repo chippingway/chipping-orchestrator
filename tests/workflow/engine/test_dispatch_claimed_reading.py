@@ -45,7 +45,7 @@ class AcquisitionGapTest(WriterClaimDispatchCase):
                 self.fresh_repository()
                 self.github.add_issue(make_issue(_ADVANCED, label=LABEL_READY))
                 polled = make_issue(_ADVANCED, label=LABEL_READY)
-                with held_elsewhere(self.github.repo_slug, _ADVANCED):
+                with held_elsewhere(self.github.repo_id, _ADVANCED):
                     self.github.set_workflow_label(self.github.get_issue(_ADVANCED), LABEL_VALIDATING)
                 stand_in = StandInHandler()
 

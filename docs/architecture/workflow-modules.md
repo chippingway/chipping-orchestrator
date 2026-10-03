@@ -248,7 +248,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             submission under the issue's writer claim -- only the latch where it is refused -- and
                             include deferred issues that enumeration did not yield
     issue_processing.py    the issue writer claim every dispatch seam takes before its refetch, guards, close
-                            recovery, and handler, keyed on the client's canonical `repo_slug`, with a contender
+                            recovery, and handler, keyed on the client's rename-proof `repo_id`, with a contender
                             skipping the issue whole, leaving its latch and holds as found, and latching a closed
                             reading its caller says it carries; apply controls, select cleanup or guarded stage
                             dispatch, hold publication through the handler, and record timed evaluation analytics on
@@ -1558,7 +1558,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             written on a comment that will not parse; the seed a restart keeps; and the check recovery
                             and release make that a recorded child's receipt is the one stamped for its slot
       child_claims.py       the writer claim a parent's handler takes on a child before writing it -- one child, or
-                            all a release walk would start at once -- keyed on the client's canonical `repo_slug` as
+                            all a release walk would start at once -- keyed on the client's rename-proof `repo_id` as
                             the dispatch claim is, and logged when refused; each caller answers a refusal as it
                             answers a child it may not act on yet
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is

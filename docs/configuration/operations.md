@@ -408,17 +408,19 @@ a second daemon, or a `--once` run beside one — provided every one of them res
 the in-process scheduler guards (a duplicate active issue, the caps, the family slot) still apply first inside each.
 
 - **One writer per issue.** Each dispatched issue is taken under a host-local writer claim: an exclusive `flock` on a
-  file in `WORKTREES_DIR/.issue-writer-claims/`, named for the repository's canonical `owner/name` — the name GitHub
-  answers for it, case-folded, never the configured slug — and the issue number. A poller that finds the issue held by
-  another skips it for that tick — no refetch, pinned read, guard, recovery pass, close receipt, or handler, so no
-  label, comment, or pinned write, no agent run, and no usage or evaluation record — and takes the issue up on a later
-  tick once the holder is done. A close it read for the issue is kept in its own memory and nowhere else, so a reopen
-  before then cannot take the reading away; a later tick sweeps it under the claim. A poller granted the claim reads the
-  issue again behind it before routing it, so it never resumes a stage another poller advanced the issue past since its
-  poll. Different issues never contend. Inside one process the claim is exclusive between threads too, logged as
-  `reason=held_here`, with one exception: the receipt a poll posts for a close it observed is a comment built to land
-  beside that process's own worker, so it is let in alongside one. The skip is logged on `orchestrator.scheduler` as
-  `writer claim skip repo=<owner/name> issue=#<n> reason=held_elsewhere`.
+  file in `WORKTREES_DIR/.issue-writer-claims/`, named for the repository's numeric GitHub id — which no rename or
+  transfer changes, unlike the configured slug or the `owner/name` a poller fetched at startup — and the issue number. A
+  poller that finds the issue held by another skips it for that tick — no refetch, pinned read, guard, recovery pass,
+  close receipt, or handler, so no label, comment, or pinned write, no agent run, and no usage or evaluation record —
+  and takes the issue up on a later tick once the holder is done. A close it read for the issue is kept in its own
+  memory and nowhere else, so a reopen before then cannot take the reading away; a later tick sweeps it under the claim.
+  A poller granted the claim reads the issue again behind it before routing it, so it never resumes a stage another
+  poller advanced the issue past since its poll. Different issues never contend. Inside one process the claim is
+  exclusive between threads too, logged as `reason=held_here`, with one exception: the receipt a poll posts for a close
+  it observed is a comment built to land beside that process's own worker, so it is let in alongside one. The skip is
+  logged on `orchestrator.scheduler` as
+  `writer claim skip repo=<owner/name> repo_id=<id> issue=#<n> reason=held_elsewhere`, where the name is only a label
+  and the id is the key.
 - **A parent writes a child under the child's claim.** A decomposed parent's handler writes its children too — the walk
   that relabels a `workflow:blocked` child `workflow:ready`, the seeds that give a child its parent link and ancestry,
   the finalize of a child whose pull request merged, and the notice that a reclaimed snapshot is gone — and each of
@@ -428,9 +430,9 @@ the in-process scheduler guards (a duplicate active issue, the caps, the family 
   judged as it reads now: the release walk starts none of them, and the finalize counts it as it stands. An ordinary
   split creates the rest and leaves the held child's seed and its own finalize to the next tick's recovery. Only a late
   split's placement of a held child parks the parent, exactly as a seed that could not be written does.
-- **What the namespace assumes.** Every participating poller can read each repository's canonical name from GitHub,
-  which is what makes two configured spellings of one repository, or a renamed repository's old and new names, meet
-  on one key. They run as a user that can create and open files in that directory, and see it on a local filesystem
+- **What the namespace assumes.** Every participating poller can read each repository's numeric id from GitHub, which is
+  what makes two configured spellings of one repository, or a poller started before a rename and one started after it,
+  meet on one key. They run as a user that can create and open files in that directory, and see it on a local filesystem
   whose `flock` is honored between them — a network filesystem that emulates `flock` per client coordinates nothing.
   Anything else that can write the directory can hold a claim, so keep it writable by the orchestrator's user alone.
 - **Failures withhold.** A claim that cannot be worked — the namespace cannot be created or opened, or `flock` fails

@@ -118,7 +118,7 @@ class LatchedInsideTheFirstReceiptTest(
         # Its claim is another poller's, so nothing is proved or posted on its
         # thread, and the obligation stays for a later pass -- while the
         # sibling nobody holds is told as ever.
-        with _writer_claims.held_elsewhere(self.github.repo_slug, _SIBLINGS[1]):
+        with _writer_claims.held_elsewhere(self.github.repo_id, _SIBLINGS[1]):
             _, told = self._released(closing=False)
 
         self.assertEqual(

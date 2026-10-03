@@ -190,7 +190,8 @@ orchestrator/
                         own and fetches its repository only on the first read of repository metadata, while
                         number, label, and commit operations stay eager at the call; ownership checks complete that
                         repository first, use GitHub's repository name case-insensitively, and reject a head with no
-                        repository
+                        repository; `repo_id` answers the numeric id no rename changes, with no fallback, for the
+                        writer claims to key on
     aliases.py          the descriptor a stateless helper is bound onto the client with, so class, instance, and
                         module access all answer alike
     checks.py           status / check-run normalization, failure-before-pending folding, and the fail-closed check
@@ -441,19 +442,19 @@ orchestrator/
                         workflow keeps that reading where its own stage handlers can reach it; a submission refused
                         by a held barrier costs the caller its next polling pass, which is why it is reported apart
                         from a closed scheduler
-    writer_claims.py    the host-local writer claim one repository issue is dispatched under: an exclusive
-                        `flock` per issue in `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's
-                        canonical name as the client answers it, case-folded, and the issue number, and taken
-                        without waiting. A contender is refused rather than kept waiting, and a claim that cannot
-                        be worked -- an unopenable namespace, a filesystem without `flock` -- is refused too, where
-                        the artifact presence would let a poller go on unclaimed. Exclusive between this process's
-                        threads as well: one lock per key is held for the process and its holders counted, a second
-                        writer here is refused as `held_here`, and a holder asking `alongside` -- the close receipt
-                        -- is let in beside a writer of this process's own. The last holder to leave unlocks and
-                        closes the descriptor, and the kernel drops it with a dead process; no claim file is ever
-                        unlinked, since a path recreated over a held inode would let two processes each hold the
-                        claim. It coordinates the pollers sharing one checkout root on one host and nothing beyond
-                        them, and it is not the artifact presence: neither says anything about the other
+    writer_claims.py    the host-local writer claim one repository issue is dispatched under: an exclusive `flock` per
+                        issue in `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's numeric id as the
+                        client answers it -- never a name, which a rename changes under a running poller -- and the
+                        issue number, and taken without waiting. A contender is refused rather than kept waiting, and a
+                        claim that cannot be worked -- an unopenable namespace, a filesystem without `flock` -- is
+                        refused too, where the artifact presence would let a poller go on unclaimed. Exclusive between
+                        this process's threads as well: one lock per key is held for the process and its holders
+                        counted, a second writer here is refused as `held_here`, and a holder asking `alongside` -- the
+                        close receipt -- is let in beside a writer of this process's own. The last holder to leave
+                        unlocks and closes the descriptor, and the kernel drops it with a dead process; no claim file is
+                        ever unlinked, since a path recreated over a held inode would let two processes each hold the
+                        claim. It coordinates the pollers sharing one checkout root on one host and nothing beyond them,
+                        and it is not the artifact presence: neither says anything about the other
   git/
     branch_transport.py the authenticated fetches, the remote read that answers what a branch is at without trusting
                         a local ref -- in the plain form a caller acts on and the form that also carries why a read

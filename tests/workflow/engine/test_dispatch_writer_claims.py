@@ -7,8 +7,9 @@ no receipt, no handler, and no evaluation record, on every dispatch mode a tick
 can take -- while every other issue in the same tick is dispatched as ever. What
 it does keep is a close it read, in this process's latch and nowhere else, so a
 human reopening the issue before the claim comes back cannot take the reading
-away. The claim is the repository's canonical name and the issue number, so a
-spec configured under another name meets the same holder.
+away. The claim is the repository's numeric id and the issue number, so a spec
+configured under another name, and a poller that fetched the repository before
+it was renamed, meet the same holder.
 """
 from __future__ import annotations
 
@@ -18,19 +19,18 @@ from unittest.mock import Mock, patch
 from orchestrator.scheduler import writer_claims
 from tests.support.writer_claims import claimable, held_elsewhere, unusable_namespace
 from tests.workflow.engine import cleanup_deferral_support as _deferral
+from tests.workflow.engine.renamed_poller_support import RenamedRepositoryCase
 from tests.workflow.engine.writer_claim_test_support import (
+    ALL_ISSUES,
     DISPATCH_MODES,
     FAMILY_PARENT,
-    FREE_ISSUES,
-    HELD_CLOSED,
     HELD_ISSUES,
     WAITING_CHILD,
+    HeldIssuesCase,
     StandInHandler,
     WriterClaimDispatchCase,
 )
 from tests.workflow.fixtures import LABEL_READY
-
-_ALL_ISSUES = HELD_ISSUES | FREE_ISSUES
 
 # The two ways a claim is refused without anyone in this process holding it:
 # another poller holding it, and a namespace nothing can be locked in.
@@ -46,60 +46,55 @@ _REFUSED_IN_EVERY_MODE = tuple(
 _KEY_AWAITING_HUMAN = "awaiting_human"
 
 
-class ContendedDispatchTest(WriterClaimDispatchCase):
+class ContendedDispatchTest(HeldIssuesCase):
     """A held issue is skipped whole, and retried once it is let go."""
 
     def test_held_issues_are_skipped_then_retried(self) -> None:
         for mode, limit, scheduled in DISPATCH_MODES:
             with self.subTest(mode=mode):
                 self.seeded()
-                self._ticked_while_held(limit, scheduled=scheduled)
-                self._ticked_once_released(limit, scheduled=scheduled)
+                held = held_elsewhere(self.github.repo_id, *HELD_ISSUES)
+                self.ticked_while_held(held, limit=limit, scheduled=scheduled)
+                self.ticked_once_released(limit=limit, scheduled=scheduled)
 
     def test_a_raising_handler_gives_its_claim_back(self) -> None:
         for mode, limit, scheduled in DISPATCH_MODES:
             with self.subTest(mode=mode):
                 self.seeded()
 
-                self.ticked(StandInHandler(*_ALL_ISSUES), limit=limit, scheduled=scheduled)
+                self.ticked(StandInHandler(*ALL_ISSUES), limit=limit, scheduled=scheduled)
 
-                for issue_number in _ALL_ISSUES:
-                    self.assertTrue(claimable(self.github.repo_slug, issue_number), f"#{issue_number} still claimed")
+                for issue_number in ALL_ISSUES:
+                    self.assertTrue(claimable(self.github.repo_id, issue_number), f"#{issue_number} still claimed")
                 retry = StandInHandler()
                 self.ticked(retry, limit=limit, scheduled=scheduled)
-                self.assertEqual(set(retry.ran), set(_ALL_ISSUES))
+                self.assertEqual(set(retry.ran), set(ALL_ISSUES))
 
-    def _ticked_while_held(self, limit: int, *, scheduled: bool) -> None:
-        """A tick over the held issues, held under the name GitHub answers.
 
-        The spec is configured under another name, which keys no claim at all.
-        """
-        stand_in = StandInHandler()
-        with held_elsewhere(self.github.repo_slug, *HELD_ISSUES):
-            self.ticked(stand_in, limit=limit, scheduled=scheduled)
+class RenamedRepositoryTest(RenamedRepositoryCase):
+    """A claim held under the name a repository had is held under the name it has.
 
-        self.assertEqual(set(stand_in.ran), set(FREE_ISSUES), "only the free issues run")
-        self.assertEqual(self.written_issues(), set(FREE_ISSUES), "nothing is written on a held one")
-        self.assertEqual(self.evaluated_issues(), set(FREE_ISSUES), "nothing is accounted for one")
-        self.assertEqual(self._observed(_deferral.REPO_SLUG), {HELD_CLOSED}, "the close it read is kept")
+    Each poller names the repository as GitHub answered when it fetched it, so
+    a poller started before a rename and one started after it name it two ways
+    for as long as both run -- and this one's spec a third. The id each keys
+    its claims on is one.
+    """
 
-    def _ticked_once_released(self, limit: int, *, scheduled: bool) -> None:
-        """The ticks after the holder lets go.
+    def test_a_held_issue_is_skipped_then_retried(self) -> None:
+        for mode, limit, scheduled in DISPATCH_MODES:
+            with self.subTest(mode=mode):
+                self.seeded()
+                held = self.held_before_the_rename(*HELD_ISSUES)
+                self.ticked_while_held(held, limit=limit, scheduled=scheduled)
+                self.ticked_once_released(limit=limit, scheduled=scheduled)
 
-        The kept close is swept first, under the claim, and found to end
-        nothing; the issue's own handler runs on the tick after that.
-        """
-        swept = StandInHandler()
-        self.ticked(swept, limit=limit, scheduled=scheduled)
+    def test_a_held_child_is_not_released(self) -> None:
+        self.seeded_family()
 
-        self.assertEqual(set(swept.ran), set(_ALL_ISSUES - {HELD_CLOSED}))
-        self.assertEqual(self._observed(_deferral.REPO_SLUG), frozenset())
+        with self.held_before_the_rename(WAITING_CHILD):
+            self.ticked(StandInHandler(), limit=1, scheduled=False)
 
-        retry = StandInHandler()
-        self.ticked(retry, limit=limit, scheduled=scheduled)
-
-        self.assertEqual(set(retry.ran), set(_ALL_ISSUES), "a released issue runs again")
-        self.assertEqual(self.written_issues(), set(_ALL_ISSUES))
+        self.assertEqual(self.github.label_history, [], "a parent's walk meets the same holder")
 
 
 class ContendedFamilyWriteTest(WriterClaimDispatchCase):
@@ -110,7 +105,7 @@ class ContendedFamilyWriteTest(WriterClaimDispatchCase):
             with self.subTest(mode=mode):
                 self.seeded_family()
 
-                with held_elsewhere(self.github.repo_slug, WAITING_CHILD):
+                with held_elsewhere(self.github.repo_id, WAITING_CHILD):
                     self.ticked(StandInHandler(), limit=limit, scheduled=scheduled)
 
                 self.assertEqual(self.github.label_history, [], "the held child is not released")
@@ -144,7 +139,7 @@ class ContendedCleanupTest(_deferral.DeferralCase, unittest.TestCase):
                 comments = list(self.github.posted_comments)
                 record = self.github.pinned_data(_deferral.OWNER_NUMBER)
 
-                with held_elsewhere(self.github.repo_slug, _deferral.OWNER_NUMBER):
+                with held_elsewhere(self.github.repo_id, _deferral.OWNER_NUMBER):
                     _ticked_on(self, limit, scheduled=scheduled)
 
                 self.assertEqual(self._observed(_deferral.REPO_SLUG), self.owed)
@@ -153,7 +148,7 @@ class ContendedCleanupTest(_deferral.DeferralCase, unittest.TestCase):
                 self.assertFalse(self._cancelled())
 
     def test_a_released_owner_is_swept_next_tick(self) -> None:
-        with held_elsewhere(self.github.repo_slug, _deferral.OWNER_NUMBER):
+        with held_elsewhere(self.github.repo_id, _deferral.OWNER_NUMBER):
             _ticked_on(self, 4, scheduled=True)
 
         _ticked_on(self, 4, scheduled=True)
@@ -197,7 +192,7 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
         # refusal's own recovery reads and writes nothing either.
         reads = Mock(wraps=self.github.read_pinned_state)
         with (
-            held_elsewhere(self.github.repo_slug, _deferral.OWNER_NUMBER),
+            held_elsewhere(self.github.repo_id, _deferral.OWNER_NUMBER),
             patch.object(self.github, "read_pinned_state", reads),
         ):
             self._tick_a_worker_held(self._scheduler())
@@ -210,7 +205,7 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
         # The worker running the owner holds its claim in THIS process, and the
         # receipt is a comment built to land beside that worker, so the poll
         # writes it as it always has.
-        with writer_claims.issue_writer(self.github.repo_slug, _deferral.OWNER_NUMBER) as held:
+        with writer_claims.issue_writer(self.github.repo_id, _deferral.OWNER_NUMBER) as held:
             self.assertTrue(held)
             self._tick_a_worker_held(self._scheduler())
 
@@ -237,7 +232,7 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
 def _refused(refusal: str, github):
     """The refusal a case names, as the block it holds over the owner."""
     if refusal == _HELD_ELSEWHERE:
-        return held_elsewhere(github.repo_slug, _deferral.OWNER_NUMBER)
+        return held_elsewhere(github.repo_id, _deferral.OWNER_NUMBER)
     return unusable_namespace()
 
 

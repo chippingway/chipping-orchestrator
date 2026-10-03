@@ -3,7 +3,7 @@
 """Route one issue through cleanup or guarded stage dispatch and record evaluation timing.
 
 Every dispatch seam enters an issue under its host-local writer claim, keyed
-on the repository's canonical name and taken before the refetch and the close
+on the repository's numeric id and taken before the refetch and the close
 recovery wrapped around this processing, and a contender skips the issue
 whole, keeping only a closed reading in this process's latch. The publication
 claim surrounds the handler, and evaluation analytics run on both success and
@@ -60,12 +60,13 @@ def _writer_claim(
     rewriting. The poll's own receipt for a close it observed is taken under
     it too, `alongside` whatever worker of this process holds the issue.
 
-    Keyed on the client's `repo_slug`, the repository's canonical name, and
-    never on `spec.slug`: an operator's spelling, or a renamed repository's
-    old name, is a different file, and two pollers configured with two names
-    for one repository would each hold "the" claim. Every caller hands in the
-    client its tick or its worker was given, so the name is one GitHub
-    already answered.
+    Keyed on the client's `repo_id`, and never on a name: `spec.slug` is an
+    operator's spelling, and even the client's `repo_slug` is the name GitHub
+    answered when this process fetched the repository, so a poller started
+    before a rename and one started after it would each hold "the" claim on
+    a file of its own. The id is the same for every name the repository has
+    had. Every caller hands in the client its tick or its worker was given,
+    whose repository is already described.
 
     A refusal is answered by doing nothing for the issue at all: no refetch,
     no guard, no recovery, no handler, no receipt, and no evaluation record.
@@ -85,7 +86,9 @@ def _writer_claim(
     resume a cycle the close ended. A latch over an issue with no cycle costs
     the next tick one cleanup pass, under the claim, that settles it.
     """
-    with _writer_claims.issue_writer(gh.repo_slug, issue_number, alongside=alongside) as held:
+    with _writer_claims.issue_writer(
+        gh.repo_id, issue_number, alongside=alongside, repo_name=spec.slug,
+    ) as held:
         if not held and keeps_close:
             _observations.observe_close(spec.slug, issue_number)
             log.info(

@@ -30,11 +30,13 @@ does not. Either kind keeps the lock until the last holder here lets go.
 
 Keyed by the repository's identity and the issue number, and nothing else, so
 different issues never contend and one repository's issue never contends with
-another repository's issue of the same number. The identity is the canonical
-`owner/name` GitHub answers for the repository -- the client's `repo_slug`,
-never the configured slug -- case-folded, since GitHub names a repository
-case-insensitively. So two pollers configured with two spellings of one
-repository, or with a renamed repository's old and new names, meet on one key.
+another repository's issue of the same number. The identity is the numeric id
+GitHub assigns the repository -- the client's `repo_id` -- and never a name:
+the configured slug is an operator's spelling, and even the `owner/name`
+GitHub answers is the one it answered when a poller fetched the repository,
+so a poller started before a rename and one started after it would each name
+the repository differently and hold "the" claim on two files. The id is the
+same for both, and for every spelling of the repository's name.
 
 Only a lock somebody HOLDS is contention. A namespace that cannot be opened, a
 filesystem that does not implement `flock`, or a lock table with no room says
@@ -75,7 +77,6 @@ from __future__ import annotations
 
 import contextlib
 import fcntl
-import hashlib
 import logging
 import threading
 from collections.abc import Iterator
@@ -88,10 +89,6 @@ from orchestrator import config
 log = logging.getLogger("orchestrator.scheduler")
 
 _NAMESPACE_NAME = ".issue-writer-claims"
-
-# Wide enough that two repositories one host polls never share a key by
-# accident, while the file name stays short enough for any filesystem.
-_IDENTITY_DIGEST_WIDTH = 32
 
 # Why a claim was refused, as the skip line spells it.
 _HELD_HERE = "held_here"
@@ -162,17 +159,13 @@ class _Holdings:
 _holdings = _Holdings()
 
 
-def claim_path(repo_identity: str, issue_number: int) -> Path:
+def claim_path(repo_id: int, issue_number: int) -> Path:
     """The file one issue key is claimed on, read off the configuration now.
 
     Read at the call rather than bound at import, so a process coordinates
-    over the checkout root it was started with. The repository is named by a
-    digest of its case-folded identity, which is one safe file-name segment
-    whatever GitHub answered and distinct for every distinct repository.
+    over the checkout root it was started with.
     """
-    identity = repo_identity.casefold().encode("utf-8")
-    digest = hashlib.sha256(identity).hexdigest()[:_IDENTITY_DIGEST_WIDTH]
-    return _namespace() / f"{digest}-issue-{int(issue_number)}.lock"
+    return _namespace() / f"repo-{int(repo_id)}-issue-{int(issue_number)}.lock"
 
 
 def _namespace() -> Path:
@@ -203,46 +196,48 @@ def _taken(path: Path) -> TextIO | None:
     return claim_file
 
 
-def _attempted(
-    repo_identity: str, issue_number: int, path: Path, *, alongside: bool,
-) -> bool:
+def _attempted(issue_key: str, path: Path, *, alongside: bool) -> bool:
     """Try for one key's claim once, and say why if it was not granted."""
     try:
         refusal = _holdings.join(path, alongside=alongside)
     except OSError as error:
         log.warning(
-            "writer claim skip repo=%s issue=#%s reason=unusable (%s at %s); "
+            "writer claim skip %s reason=unusable (%s at %s); "
             "withholding the issue rather than writing it uncoordinated",
-            repo_identity, issue_number, error, path,
+            issue_key, error, path,
         )
         return False
     if refusal is not None:
-        log.info(
-            "writer claim skip repo=%s issue=#%s reason=%s",
-            repo_identity, issue_number, refusal,
-        )
+        log.info("writer claim skip %s reason=%s", issue_key, refusal)
     return refusal is None
 
 
 @contextlib.contextmanager
 def issue_writer(
-    repo_identity: str, issue_number: int, *, alongside: bool = False,
+    repo_id: int,
+    issue_number: int,
+    *,
+    alongside: bool = False,
+    repo_name: str = "",
 ) -> Iterator[bool]:
     """Hold one issue's writer claim for the body, or say it was refused.
 
-    `repo_identity` is the repository's canonical `owner/name`, as the
-    client's `repo_slug` answers it. `True` is this process alone writing the
-    issue on this host until the body ends. `False` is a contender or a claim
-    that could not be worked with, and a caller answers both the same way: it
-    does nothing for the issue that it would need the claim for, and a later
-    polling pass asks again.
+    `repo_id` is the repository's numeric id, as the client's `repo_id`
+    answers it; `repo_name` only names the repository in the skip line, and
+    keys nothing. `True` is this process alone writing the issue on this host
+    until the body ends. `False` is a contender or a claim that could not be
+    worked with, and a caller answers both the same way: it does nothing for
+    the issue that it would need the claim for, and a later polling pass asks
+    again.
 
     `alongside` asks to be let in beside a writer of this process's own,
     which is what the durable half of an observed close needs and nothing
     else does; against every other process it is the same exclusive attempt.
     """
-    path = claim_path(repo_identity, issue_number)
-    if not _attempted(repo_identity, issue_number, path, alongside=alongside):
+    path = claim_path(repo_id, issue_number)
+    named = repo_name or "?"
+    issue_key = f"repo={named} repo_id={repo_id} issue=#{issue_number}"
+    if not _attempted(issue_key, path, alongside=alongside):
         yield False
         return
     try:
