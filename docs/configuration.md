@@ -592,6 +592,10 @@ tick (and retried next pass) when:
 - the global or per-repo cap is reached,
 - another family worker on the same repo is already in flight (family mutex).
 
+Those gates answer for one process. An admitted worker also skips its issue, doing nothing for it, when another
+poller on the same host holds the issue's writer claim; the next pass retries it. See
+[`configuration/operations.md#running-more-than-one-poller`](configuration/operations.md#running-more-than-one-poller).
+
 **No-agent bucket exemption.** When every family-aware issue in this tick's bucket runs a no-agent handler —
 `workflow:blocked` or `workflow:umbrella`, both pure label / dep-graph walks — the dispatcher submits the bucket as
 cap-exempt: it does not consume cap slots and runs on a dedicated executor pool. This keeps a cheap-polling parent

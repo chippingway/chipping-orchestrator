@@ -293,6 +293,22 @@ The duplicate-active gate keys on `(repo_slug, issue_number)`: an in-flight hand
 reported active to the next poll's submit, which is rejected as `duplicate_active`. The pre-tick base-refresh skips any
 active issue's worktree.
 
+That gate answers for this process alone, so every dispatch path also takes the issue's host-local **writer claim**
+(`scheduler/writer_claims.py`) — an exclusive, non-blocking `flock` keyed by the case-folded repository slug and the
+issue number — before anything it does for the issue: the worker's refetch, the pinned-state guards, the close
+recovery wrapped around the pass (the closed reading an ordinary pass keeps, the close a refetch establishes, the
+cleanup observation a sweep is held under), and the handler. The sequential loop takes it once an issue survives the
+hard-skip classification; the scheduler's fan-out task, its family-bucket iteration (inside `track_active`), and the
+in-tick pool's tasks take it as their worker starts, so a queued submit holds no claim. An issue another poller on the
+host holds is skipped whole on every path: nothing is refetched, read, published, relabelled, written, run, or
+accounted for, a latched close and the submit's publication hold are left as they were, and the next tick retries
+it. A claim that cannot be worked withholds the issue the same way rather than dispatching it uncoordinated. The
+scheduler's own gates still run first and are unchanged: duplicate-active, the caps, the family slot, and the
+refused-submit observation hold. The enumeration ahead of dispatch takes no claim, and the close receipt it posts for
+a closed late-cycle owner is an added comment built to be written while a worker holds the issue. The base refresh
+does not take the claim yet. The supported topology and the namespace's access assumptions are in
+[`../configuration/operations.md#running-more-than-one-poller`](../configuration/operations.md#running-more-than-one-poller).
+
 Only issue numbers cross the thread boundary — each scheduler worker mints a fresh `GitHubClient` via
 `gh._for_worker_thread()` and re-fetches its Issue against that client. The mint itself sends no request: the clone
 reuses the parent's token and bot login on a requester of its own, and its repository is lazy. The first read of

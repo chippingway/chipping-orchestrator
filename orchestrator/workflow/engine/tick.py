@@ -111,7 +111,8 @@ def _swept_unyielded(
     sweep does not query at all -- makes the owner unreachable, and the
     reading would be lost with it. So it is swept by number instead, on the
     strength of the observation alone, and the pass holds it exactly as every
-    other cleanup does.
+    other cleanup does -- under the issue's writer claim, which a contender is
+    refused with the observation still owed.
     """
     for owed in sorted(
         _observations.observed_closes(spec.slug) - yielded,

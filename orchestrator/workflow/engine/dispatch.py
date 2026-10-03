@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Drive a sequential poll or submit its partition through the issue scheduler.
 
-Poll-time closure evidence determines which processing scope to enter.
-Refetched issues preserve observed closes, and scheduled work includes
-cleanup that a prior pass left owed outside the current poll results.
+Poll-time closure evidence determines which processing scope to enter, and the
+sequential entry takes the issue's writer claim before any of them. Refetched
+issues preserve observed closes, and scheduled work includes cleanup that a
+prior pass left owed outside the current poll results.
 """
 from __future__ import annotations
 
@@ -88,12 +89,33 @@ def _process_polled_issue(
     issue anyway, and never the mark. And the cleanup it routes to is wrapped
     in the same observation hold the worker paths use, because a pass that
     raises here marked nothing either.
+
+    Everything past the classification runs under the issue's writer claim,
+    which is taken as the worker paths take theirs: before the refetch and
+    the observation hold, so a contender reads and writes nothing for the
+    issue and leaves any latch it found for the next poll. A parked issue
+    never asks for it, because it has nothing to write.
     """
     issue_number = int(issue.number)
     latched = observations.close_observed(spec.slug, issue_number)
     skip, label = _poll_reading._classify_pollable_issue(gh, spec, issue)
     if skip and not latched:
         return
+    with _issue_processing._writer_claim(spec, issue_number) as held:
+        if held:
+            _claimed_polled_issue(gh, spec, issue, label, latched=latched)
+
+
+def _claimed_polled_issue(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    label: str | None,
+    *,
+    latched: bool,
+) -> None:
+    """Route one polled issue whose writer claim this thread holds."""
+    issue_number = int(issue.number)
     closed = issue_is_closed(issue)
     if not latched and not _cleanup_routed(label, closed=closed):
         _dispatch_workers._polled_ordinary(gh, spec, issue, closed=closed)

@@ -245,14 +245,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             under a label no sweep queries; settle only after the defining stage proves it complete
     dispatch_partition.py  combine fresh poll results and still-owed closes, record closed fanout receipts before
                             submission, and include deferred issues that enumeration did not yield
-    issue_processing.py    apply controls, select cleanup or guarded stage dispatch, hold publication through the
-                            handler, and record timed evaluation analytics on success and failure
-    dispatch_workers.py    refetch through each worker's GitHub client and optional semaphore, preserving ordinary
+    issue_processing.py    the issue writer claim every dispatch seam takes before its refetch, guards, close
+                            recovery, and handler, with a contender skipping the issue whole and leaving its latch
+                            and holds as found; apply controls, select cleanup or guarded stage dispatch, hold
+                            publication through the handler, and record timed evaluation analytics on success and
+                            failure
+    dispatch_workers.py    take the writer claim at each worker entry, outside the observation scope it wraps, then
+                            refetch through each worker's GitHub client and optional semaphore, preserving ordinary
                             and cleanup observation scopes across sequential, scheduler, and pool execution
     scheduled_dispatch.py  drain the family bucket under active tracking, enforce capacity rules, and submit fanout
                             with claims released after execution or refusal; observed closes remain cap-exempt
-    dispatch.py            drive the sequential poll's closure classification or submit its partition to the scheduler;
-                            refetched owners and still-owed closes keep the processing scope their reading earned
+    dispatch.py            drive the sequential poll's closure classification under the issue's writer claim, or
+                            submit its partition to the scheduler; refetched owners and still-owed closes keep the
+                            processing scope their reading earned
     observation_state.py    the process-local close, receipt, scan, retirement, publication, and deferred-settlement
                             registries behind one lock; settlement advances the owner generation and clears its latch
                             and receipt memo atomically
