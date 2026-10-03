@@ -771,7 +771,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             descriptive subject alone, since the ` (#N)` suffixes in that history are the publication
                             metadata the orchestrator appends for the pull request and the tracked issue's number is
                             never one of them -- the developer report contract spelled from the report vocabulary with
-                            its fresh-respawn counterpart, and the continuation notes for a session-limit retry
+                            its fresh-respawn counterpart, both forbidding the receipt prefix `github/comments.py`
+                            refuses anywhere in a report, and the continuation notes for a session-limit retry
     prompts.py              implementation, documentation, fixing, conflict-resolution, fresh-session, and
                             report-refresh prompt builders; each response marker agrees with the parser that settles
                             its stage, and the report refresh asks for a `REPORT: READY` report of the rewritten head

@@ -11,7 +11,6 @@ import unittest
 
 from orchestrator.agents import models as _agent_models
 from orchestrator.agents.backends import agy as _agy
-from orchestrator.agents.models import ToolLifecycle
 from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support import agy_stream as _agy_stream
 from tests.support.fakes import (
@@ -20,6 +19,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import report_guidance as _report_guidance
 from tests.workflow.fixtures import (
     LABEL_IMPLEMENTING,
     _agent,
@@ -71,7 +71,7 @@ class HandleImplementingFreshRunTest(unittest.TestCase, _PatchedWorkflowMixin):
         # as a pre-review hop. Implementing routes to the reviewer path and
         # never straight to `in_review`.
         scenario = IssueScenario(*_seed_fresh_issue())
-        self._run_implementing(
+        mocks = self._run_implementing(
             scenario.github,
             scenario.issue,
             run_agent=_agent(session_id="sess-1", last_message=_reported()),
@@ -82,6 +82,11 @@ class HandleImplementingFreshRunTest(unittest.TestCase, _PatchedWorkflowMixin):
             push_branch=True,
         )
 
+        # What the first run is handed, not only the shared note, has to warn
+        # it off quoting a receipt its report would then be refused for.
+        _report_guidance.assert_teaches_receipt_restriction(
+            self, mocks[RUN_AGENT].call_args.args[1],
+        )
         fresh_test_support.assert_pr_routing(
             self,
             scenario,
@@ -186,7 +191,7 @@ class HandleImplementingFreshRunTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
 
     def test_unfinished_command_parks_failure(self) -> None:
-        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+        step = _agent_models.ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
         _run_and_assert_failure_park(
             self,
             _agent(
@@ -346,7 +351,7 @@ class HandleImplementingInterruptedTest(unittest.TestCase, _PatchedWorkflowMixin
         # A trapped SIGTERM -- `claude` exiting 143 with no output -- reaches
         # the stage through the real classification and takes the same quiet
         # retry as a run the signal killed outright, never the silent park.
-        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+        step = _agent_models.ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
         agent_results = (
             ("signal_death", _agent(session_id=_NEW_SESSION, interrupted=True)),
             (

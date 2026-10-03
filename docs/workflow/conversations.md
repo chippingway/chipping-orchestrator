@@ -261,6 +261,15 @@ No other line may open on `REPORT:`, and an outcome never shares a message with 
 finished reply without a report on the prompts that offer it. A question, a disagreement, or work that could not
 finish ends on the question with neither outcome.
 
+The report may not contain the literal text `<!--orchestrator-` anywhere, not even inside inline code, a fenced code
+block, or a quotation; the prompt asks a developer who needs to discuss a receipt or marker to describe its format in
+prose instead. That text is `RECEIPT_MARKER_PREFIX` in `github/comments.py`, which opens every hidden receipt this
+orchestrator writes, and the note spells it from that constant. Receipts are found by searching raw comment text, so
+`carries_reserved_marker` refuses the prefix wherever it sits and Markdown that renders a copied receipt inert does not
+make it publishable: a report carrying one is refused and nothing is published. The restriction rides in
+`_DEVELOPER_REPORT_NOTE` and in `_RESPAWN_REPORT_NOTE`, so a fresh session is taught it whatever task follows the
+preamble.
+
 Where the contract is carried:
 
 - **Whole** in the initial `_build_implement_prompt`, the automated-review `_build_fix_prompt`, the requirements-drift
@@ -279,13 +288,13 @@ Where the contract is carried:
   refuses `REPORT: VERIFIED` by name, since the report already on the pull request is about the head a rewrite replaced;
   it offers no `ACK:`.
 - **Deferred** in `_build_fresh_respawn_preamble`, which carries `_RESPAWN_REPORT_NOTE` instead: the concise report
-  covers the final state of the whole branch, the previous session's commits included, ownership and publication are
-  restated, and the outcome is the one the task below the preamble describes — that preamble also precedes tasks that
-  close on markers of their own. Its conversation block is the caller's FROZEN, classified thread read wherever the
-  caller holds one — the awaiting-human resumes and the explicit `/orchestrator continue` retries (less the commands
-  they consume) take it from `implementing/resume_batch.py` — so the preamble and the record of what the prompt
-  delivered come off one reading and one filter. A caller with no frozen read gets the read `_build_dev_spawn_prompt`
-  takes for itself.
+  covers the final state of the whole branch, the previous session's commits included, ownership, publication, and the
+  receipt restriction are restated, and the outcome is the one the task below the preamble describes — that preamble
+  also precedes tasks that close on markers of their own. Its conversation block is the caller's FROZEN, classified
+  thread read wherever the caller holds one — the awaiting-human resumes and the explicit `/orchestrator continue`
+  retries (less the commands they consume) take it from `implementing/resume_batch.py` — so the preamble and the
+  record of what the prompt delivered come off one reading and one filter. A caller with no frozen read gets the read
+  `_build_dev_spawn_prompt` takes for itself.
 - **Absent** from the documentation, review, and conflict-resolution prompts, which close on markers of their own, and
   from the conflict stage's own reply resume and bare-continue retry, which stays on the plain
   `_CONTINUE_RETRY_PROMPT`.

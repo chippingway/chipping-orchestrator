@@ -7,6 +7,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.engine import prompts as _prompts
+from tests.workflow import report_guidance as _report_guidance
 from tests.workflow.stages.implementing import retry_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
@@ -113,7 +114,8 @@ class ProactiveSessionRotationTest(
     def test_rotation_prompt_is_regrounded(self) -> None:
         # The rotated fresh spawn has no transcript, so its prompt must carry
         # the re-grounding preamble (issue body + branch pointer) AND the
-        # stage followup appended after it.
+        # stage followup appended after it. The followup here teaches no
+        # report, so the receipt restriction it carries is the preamble's.
         gh, issue = self._seeded_issue(resume_count=5)
         run_agent = MagicMock(return_value=_agent(session_id=FRESH_SESSION, last_message=OK_MESSAGE))
 
@@ -122,6 +124,7 @@ class ProactiveSessionRotationTest(
         prompt = run_agent.call_args.args[1]
         self.assertIn(RESUME_PROMPT_FRAGMENT, prompt)
         self.assertIn(IMPLEMENT_PROMPT_FRAGMENT, prompt, "issue body re-grounds")
+        _report_guidance.assert_teaches_receipt_restriction(self, prompt)
         self.assertTrue(
             prompt.rstrip().endswith(FIX_PROMPT_FRAGMENT),
             "stage followup must be appended after the preamble",
