@@ -226,8 +226,10 @@ the action depends on lifecycle position:
   relabelled, or reopened. Nor does either reset touch the `late_ancestry_*` group. The read-only decision of which
   late lineage a re-derived manifest's children would inherit (`late_split/provenance.py`, see
   [inherited lineage](labels-and-state.md#late-generation-state)) is dormant, as is the seed and snapshot pointer
-  `stages/decomposition/replacement_lineage.py` derives from it: no decomposition asks either yet, so those children
-  are still created with no ancestry of their own.
+  `stages/decomposition/replacement_lineage.py` derives from it, and so are the receipts, adoption, repair, and seed
+  hold beside it ([contracts](../workflow/roles.md#what-an-ordinary-re-decomposition-will-hold-its-children-to)): no
+  decomposition asks any of them yet, so those children are still created with no ancestry, receipt, or pointer of
+  their own.
 - **`workflow:implementing` / `workflow:validating` / `in_review` / `workflow:resolving_conflict`** (a dev session
   exists and possibly a PR) — post a `:pencil2: issue body changed; resuming dev session` notice (on the issue for
   implementing/validating, on the PR for in_review/resolving_conflict), resume the locked dev session with

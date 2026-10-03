@@ -20,9 +20,12 @@ tick asks the others in and `outcomes` the three dispositions its reply earns,
 `recovery` owns what a tick that died mid-split left behind, `split` owns the
 crash-safe order children are created in, `replacement_lineage` owns the
 still-dormant decision of the late lineage and snapshot pointer those children
-would be seeded with when the issue sits inside one, and `parents`,
-`activation`, `blocked`, and `umbrella` own the parent-side polling that
-drives the tree to completion.
+would be seeded with when the issue sits inside one -- and the repair a
+recovery would make of each recorded child -- `split_receipts` the
+still-dormant receipt each child would carry and the adoption it lets a
+recovery make, `split_seeds` the still-dormant dispatch hold on a child whose
+seed is not what that receipt owes, and `parents`, `activation`, `blocked`,
+and `umbrella` own the parent-side polling that drives the tree to completion.
 
 The `late_*` owners are an additive second mode under the same `decomposing`
 label, for the issue whose implementation is already committed and turns out to

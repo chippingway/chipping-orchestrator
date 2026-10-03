@@ -138,6 +138,14 @@ def record(
     return state
 
 
+def seeded(ancestry: _ancestry.LateAncestry | None = None, **edits) -> dict:
+    """A child's pinned fields linking it to the parent and carrying `ancestry`, `edits` landing over them."""
+    child = PinnedState(data={"parent_number": PARENT})
+    if ancestry is not None:
+        _lineage.write_late_ancestry(child, ancestry)
+    return {**child.data, **edits}
+
+
 def retired(ref_state: _obligations.LateResourceState, cycle: int | None = CYCLE) -> PinnedState:
     """The parent's split once a retirement took its identity off, keeping its ledgers.
 

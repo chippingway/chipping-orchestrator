@@ -55,6 +55,8 @@ _OWNERS = (
 
     "replacement_lineage",
     "child_creation",
+    "split_receipts",
+    "split_seeds",
     "late_authorization_proof",
     "late_result_payloads",
     "late_reuse_reading",

@@ -38,20 +38,40 @@ measurement, its exemption, or an exact-commit authorization. Each is a claim
 about one commit on one issue, and a child is neither, so nothing here reads
 any of them.
 
+A child already recorded is held to the same answer by `repair`, read off
+the parent's record rather than the child's text: while this split still
+holds its snapshot every recorded child is owed the pointer, so one the
+ledger lost is to be recorded on it again and one carrying no ancestry, or a
+pointer at anything else, seeded with it; once the snapshot has passed to a
+reclamation the lineage alone is owed, and a pointer is dropped with its
+ordering stamp. One carrying exactly what it was owed needs nothing. A child
+this split cannot recognize as its own -- a pinned comment that would not
+parse, a link to anything but this issue's number, text naming any snapshot
+ref it cannot keep, or any other ancestry: a partial group, a field its
+reader would drop, another lineage -- is a refusal, with nothing written over
+what it carries. A child of an ordinary split is owed no lineage and no
+snapshot, so it is recognized only where its comment parses, its link names
+this issue or is not carried at all, it carries none of the group, and its
+text names no snapshot ref. `park_unproved` is the park every refusal here
+would take.
+
 Dormant: no decomposition asks this yet. Ordinary child creation, the park an
 unproved lineage would take, the recovery of an interrupted split, and the
 release of its children all run without it, so replacement children are still
-created with no ancestry and no pointer until the split reads this before its
-first child.
+created with no ancestry and no pointer, and recovered or released with no
+repair, until the split reads this before its first child.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, replace
 
 from github.Issue import Issue
 
 from orchestrator import config
+from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.late_split import (
     endings as _endings,
     entitlement as _entitlement,
@@ -64,13 +84,35 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.ancestry import LateAncestry
 from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH
-from orchestrator.workflow.stages.decomposition import late_child_content as _late_child_content
+from orchestrator.workflow.stages.decomposition import late_child_content as _late_child_content, state as _state
+
+log = logging.getLogger("orchestrator.workflow")
+
+# The reason the `park_awaiting_human` audit record carries for a split whose
+# children's lineage -- or the snapshot it would point them at, or tell them to
+# reuse -- could not be proved.
+PARK_LINEAGE_UNPROVED = "replacement_lineage_unproved"
 
 _NO_ADJUDICATION = "its late record keeps no cycle a child's ancestry could be correlated by"
 
-# What a refusal says, one sentence per thing that did not hold, because each
+_UNREADABLE_CHILD = "child #{child} carries a pinned comment that would not parse, so nothing it records can be checked"
+
+_OTHER_PARENT = "child #{child} records `parent_number` {parent!r}, which is not this issue's number"
+
+_UNPROMISED = (
+    "child #{child} names in its title or body a snapshot this issue's split cannot keep for it -- one it does "
+    "not hold, or another repository's copy of one"
+)
+
+_FOREIGN_SEED = (
+    "child #{child} carries a late ancestry this split did not seed -- part of the group, a field its reader would "
+    "drop, or another lineage"
+)
+
+# What a park says, one sentence per thing that did not hold, because each
 # asks a human for something different: a lineage nobody can read, a bound
-# already reached, and a snapshot nobody can promise.
+# already reached, a snapshot nobody can promise, and a recorded child nobody
+# can vouch for.
 _LINEAGE_NOTICE = (
     "this issue's children cannot be seeded with the late lineage they inherit: {reason}. A child seeded "
     "without it would read as a fresh lineage at depth 0 and buy the split a generation past the bound, so none "
@@ -99,6 +141,29 @@ _BASE_NOTICE = (
     "holds; seeded without it, a child would give up work it may still be owed. So none is created or started "
     "while that stands. Repair `late_base_sha` on this issue's late record, or ask the decomposer not to split it."
 )
+
+_CHILD_NOTICE = (
+    "this issue's split recorded its children, and one of them is not a child it can say it seeded: {reason}. "
+    "Starting it would run a child whose lineage, parent, or snapshot nothing vouches for, so no child of this "
+    "split is started -- by a recovery's finalize or a later release -- while that stands. Repair or close that "
+    "child."
+)
+
+
+@dataclass(frozen=True)
+class SeedRepair:
+    """What a recovery would write onto one recorded child's ancestry before it finalizes.
+
+    The defaults are a child that needs nothing: seeded as it was owed, or
+    owed no lineage at all. An ancestry is the group to write, `protect` says
+    the parent's consumer ledger has to record the child again before that
+    group or any finalize lands, and a refusal is the notice saying why this
+    child may not be finalized -- never beside either of the others.
+    """
+
+    ancestry: LateAncestry | None = None
+    protect: bool = False
+    refusal: str | None = None
 
 
 @dataclass(frozen=True)
@@ -199,13 +264,76 @@ class ReplacementLineage:
         The pointer rides only on a child the consumer ledger names, so a
         seed written right behind `protect` carries it, and one whose slot
         the ledger lost carries the lineage alone rather than a pointer
-        nothing keeps.
+        nothing keeps -- which is how `repair` tells that slot was lost.
         """
         pointed = self.pointed()
         consumers = _late_state.read_late_generation(state).obligations.consumers
         if pointed is None or child_number not in consumers:
             return self.ancestry
         return pointed
+
+    def repair(
+        self,
+        state: PinnedState,
+        parent: int,
+        child_number: int,
+        child_state: PinnedState,
+        instructed: frozenset[str],
+    ) -> SeedRepair:
+        """What a recovered split of `parent` would do with one recorded child's ancestry.
+
+        A deferred release would ask the same of each child it starts, and
+        start only one that needs nothing: no refusal, and nothing to write.
+
+        What a child is owed is read off the parent's own record, never off
+        the child: while this issue's split still holds its snapshot, every
+        child it recorded was owed the pointer -- the split protected each
+        one in the write that recorded it -- and a ledger that no longer names
+        one has lost a slot rather than settled it. So that child is recorded
+        on the consumer ledger again, before its seed and before anything
+        could start it, and seeded with the pointer, whatever its text now
+        says. Once the snapshot has passed to a reclamation, the lineage is
+        all any child is owed, and a pointer one still carries is dropped --
+        with the ordering stamp, which is a claim about that ref; a stamp
+        standing alone, what the child's own guard leaves when it drops a
+        pointer, names no ref and is left as it is.
+
+        `instructed` is every snapshot ref the child's title and body name,
+        read as a slice is read before it is created, and it can only refuse:
+        the text is what its implementer reads, so a child naming any ref but
+        the one this split still holds -- by the names in `told` -- names a
+        snapshot nothing keeps for it. That includes every child of an
+        ordinary split that names one at all.
+
+        Every child has to be one this split can recognize as its own -- see
+        `_unrecognized` -- before anything is written to it or it is
+        finalized, a child of an ordinary split included: that one is owed
+        no lineage, so it is left as it stands once recognized. Any other
+        one carrying none of the group is then seeded with what it was owed,
+        and one carrying the group carries exactly the lineage it was owed
+        and has its pointer written to be the one it is owed.
+        """
+        pointed = self.pointed()
+        owed = self.ancestry if pointed is None else pointed
+        refusal = _unrecognized(
+            child_state,
+            owed or LateAncestry(),
+            parent,
+            child_number,
+            promised=instructed <= self.told,
+        )
+        if refusal is not None:
+            return SeedRepair(refusal=_CHILD_NOTICE.format(reason=refusal))
+        if owed is None:
+            return SeedRepair()
+        # Owed the pointer, and the ledger lost the slot that protects it.
+        protect = self.child_ancestry(state, child_number) != owed
+        if not any(child_state.carries(key) for key in _lineage.LATE_ANCESTRY_KEYS):
+            return SeedRepair(ancestry=owed, protect=protect)
+        recorded = _lineage.read_late_ancestry(child_state)
+        if (recorded.snapshot_ref, recorded.snapshot_sha) == (owed.snapshot_ref, owed.snapshot_sha):
+            return SeedRepair(protect=protect)
+        return SeedRepair(ancestry=owed, protect=protect)
 
 
 def read_replacement_lineage(state: PinnedState, issue: Issue, spec: config.RepoSpec) -> ReplacementLineage:
@@ -246,6 +374,22 @@ def read_replacement_lineage(state: PinnedState, issue: Issue, spec: config.Repo
     ), provenance.snapshot, generation.base_sha, spec)
 
 
+def park_unproved(gh: GitHubClient, issue: Issue, state: PinnedState, notice: str) -> None:
+    """Hand the issue to a human, with the notice its refusal carries.
+
+    The issue is a split whose children's lineage cannot be proved, or a
+    child whose seed is not the one its receipt owes; either runs nothing
+    until it is.
+    """
+    log.warning(
+        "issue=#%s runs nothing until its lineage is proved: %s", issue.number, notice,
+    )
+    _guards._park_awaiting_human(
+        gh, issue, state, f"{config.HITL_MENTIONS} {notice}", reason=PARK_LINEAGE_UNPROVED,
+    )
+    gh.write_pinned_state(issue, state)
+
+
 def _adjudication_of(state: PinnedState) -> tuple[int, int] | None:
     """The cycle and generation a child's ancestry is correlated by, or None.
 
@@ -265,3 +409,51 @@ def _adjudication_of(state: PinnedState) -> tuple[int, int] | None:
         return ancestry.cycle_id, ancestry.generation
     retired = _endings.read_retired_cycle(state)
     return (retired, 0) if retired else None
+
+
+def _unrecognized(
+    child_state: PinnedState, owed: LateAncestry, parent: int, child_number: int, *, promised: bool,
+) -> str | None:
+    """Why a recorded child of `parent` is not one this split can say it seeded, or None.
+
+    A pinned comment that would not parse reads back empty, exactly as a
+    child nobody seeded does, and writing a seed over it would take whatever
+    it carried with it -- so it is refused before anything is read off it. A
+    child whose text names a snapshot this split cannot keep for it is not
+    `promised`. A link proves parentage only as this issue's number: one
+    naming another is a child another tree claims, and a float, a bool, a
+    `null`, or any other value a hand edit leaves is no issue number, whatever
+    it compares equal to. Only a link the comment does not carry at all is
+    the one a crash deferred. And an ancestry has to be the whole group,
+    written back exactly as the comment carries it -- a field its reader would
+    drop, a `null`, or a key it answers with its empty value comes back
+    different -- naming the lineage it was `owed`, its pointer aside; a child
+    of an ordinary split is owed the empty ancestry, which no group names, so
+    any of the group on it is one this split never wrote. A child carrying
+    none of the group is recognized: it is the seed a crash deferred, or all
+    an ordinary split ever seeds.
+    """
+    if not child_state.parsed:
+        return _UNREADABLE_CHILD.format(child=child_number)
+    if not promised:
+        return _UNPROMISED.format(child=child_number)
+    linked = child_state.get(_state._PARENT_NUMBER)
+    if child_state.carries(_state._PARENT_NUMBER) and not _state._links_to(linked, parent):
+        return _OTHER_PARENT.format(child=child_number, parent=linked)
+    if not any(child_state.carries(key) for key in _lineage.LATE_ANCESTRY_KEYS):
+        return None
+    recorded = _lineage.read_late_ancestry(child_state)
+    rewritten = PinnedState()
+    _lineage.write_late_ancestry(rewritten, recorded)
+    carried = {
+        key: child_state.get(key)
+        for key in _lineage.LATE_ANCESTRY_KEYS
+        if child_state.carries(key)
+    }
+    owned = recorded.is_present and _unpointed(recorded) == _unpointed(owed)
+    return None if owned and carried == rewritten.data else _FOREIGN_SEED.format(child=child_number)
+
+
+def _unpointed(ancestry: LateAncestry) -> LateAncestry:
+    """What places an ancestry in a lineage: everything but the pointer and its ordering stamp."""
+    return replace(ancestry, snapshot_ref="", snapshot_sha="", mirror_first=False)
