@@ -4,7 +4,8 @@
 
 The shared observation registry retains a close until its cycle is settled.
 Receipt recording is resolved on its stage owner, and a refused worker
-submission preserves the cleanup obligation for the next poll.
+submission preserves the cleanup obligation for the next poll -- written down
+under the issue's writer claim, or latched alone where that claim is refused.
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ from orchestrator.github.issues import (
     issue_is_closed,
 )
 from orchestrator.workflow.engine import (
+    issue_processing as _issue_processing,
     observations,
     poll_models as _poll_models,
     stage_targets as _stage_targets,
@@ -123,11 +125,23 @@ def _refused_submit(
     the one thing this path exists to keep. A latch held over an issue with
     no cycle costs the next tick one cleanup pass that settles it; a reading
     dropped costs the close itself.
+
+    Both read the record and post on the thread, so both are taken under the
+    issue's writer claim -- `alongside` the worker of this process a duplicate
+    refusal names, since the receipt is a comment built to be written beside
+    it. A claim another poller holds, or one that could not be worked, keeps
+    the reading in the latch alone, for a pass that holds the claim to decide.
     """
-    if cleanup_only:
-        _deferred_cleanup(gh, spec, issue_number, _HELD_BY_A_WORKER)
+    if not (cleanup_only or closed):
         return
-    if closed:
+    with _issue_processing._writer_claim(
+        gh, spec, issue_number, keeps_close=True, alongside=True,
+    ) as held:
+        if not held:
+            return
+        if cleanup_only:
+            _deferred_cleanup(gh, spec, issue_number, _HELD_BY_A_WORKER)
+            return
         _kept_closed_reading(gh, spec, issue_number)
 
 

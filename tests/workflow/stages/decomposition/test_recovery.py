@@ -378,6 +378,29 @@ class DecompositionRecoveryTest(
             ORPHAN_REPAIR_PARENT_NUMBER,
         )
 
+    def test_a_held_orphan_is_repaired_later(self) -> None:
+        # The orphan's own handler is running on another poller on this host,
+        # so its record is that poller's to write: the recovery stops short of
+        # it and of the finalize behind it, parking nothing.
+        gh, parent = _orphan_recovery_fixture()
+        orphan = dict(gh.pinned_data(ORPHAN_CHILD_NUMBER))
+
+        with self._held_by_another_poller(gh, ORPHAN_CHILD_NUMBER):
+            mocks = self._run_decomposing(gh, parent, run_agent=_agent())
+
+        mocks[RUN_AGENT].assert_not_called()
+        self.assertEqual(gh.pinned_data(ORPHAN_CHILD_NUMBER), orphan, "the held orphan is not written")
+        self.assertEqual(gh.label_history, [], "the parent is not finalized past it")
+        self.assertFalse(gh.pinned_data(ORPHAN_REPAIR_PARENT_NUMBER).get(KEY_AWAITING_HUMAN))
+
+        self._run_decomposing(gh, parent, run_agent=_agent())
+
+        self.assertEqual(
+            gh.pinned_data(ORPHAN_CHILD_NUMBER).get(KEY_PARENT_NUMBER),
+            ORPHAN_REPAIR_PARENT_NUMBER,
+        )
+        self.assertIn((ORPHAN_REPAIR_PARENT_NUMBER, LABEL_BLOCKED), gh.label_history)
+
 
 def _written(ancestry, **edits) -> dict:
     """The pinned fields one ancestry is written as, `edits` landing over them."""

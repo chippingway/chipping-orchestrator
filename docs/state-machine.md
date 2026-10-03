@@ -90,7 +90,8 @@ joins only on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` makes due — the first 
 of up to N ticks before a child is activated, a parent completes, or drift on either is detected; `1` dispatches it
 every tick. Only issue numbers cross the thread boundary — each
 worker mints its own `GitHubClient` and re-fetches the issue, under the issue's host-local writer claim, which a
-second poller on the host holding the issue answers by skipping it that tick. The cap exemptions, the
+second poller on the host holding the issue answers by skipping it that tick, keeping only a close it read; a family
+handler writes a child only under that child's claim. The cap exemptions, the
 `duplicate_active` gate, the writer claim, and what each step reads and writes are in
 [`state-machine/labels-and-state.md`][per-tick]; the multi-repo dispatch and
 scheduler lifecycle around them are in

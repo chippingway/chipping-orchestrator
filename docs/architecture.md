@@ -250,16 +250,20 @@ self-exit and be restarted with new code.
   outside the hold entirely: a run that cannot go quiet never takes the host at all. A pass whose process dies
   holds nothing, since the kernel drops the lock with the file description.
 - **Issue writer claims** (`scheduler.writer_claims`): one exclusive `flock` per repository issue under
-  `WORKTREES_DIR/.issue-writer-claims/`, keyed by the case-folded repository slug and the issue number. Every dispatch
-  path takes it before anything it does for the issue — the worker's refetch, the pinned-state guards, the close
-  recovery wrapped around the pass, and the handler — so two pollers sharing a checkout root never write one issue's
-  pinned comment and labels at once. It is never waited for: a contender skips the issue's dispatch with no effect and
-  retries on a later tick, and different issues never contend. A claim that cannot be worked at all — an unopenable
-  namespace, a filesystem without `flock` — withholds the issue too, where the presence above lets a poller go on
-  unclaimed: a tidying job can be given up, an issue's record cannot be written uncoordinated. Released however the
-  dispatch ends and by the kernel when the process dies; the files are never unlinked. It is host-local and separate
-  from the presence: neither says anything about the other, and nothing coordinates pollers on different hosts or
-  checkout roots. The supported topology and the namespace's access assumptions are in the
+  `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's canonical name (the client's `repo_slug`,
+  case-folded, never the configured slug) and the issue number. Every dispatch path takes it before anything it does
+  for the issue — the worker's refetch, the pinned-state guards, the close recovery wrapped around the pass, and the
+  handler — and the enumeration takes it for the close receipt it posts, so two pollers sharing a checkout root never
+  write one issue's pinned comment and labels at once. A family handler's writes to a child take the child's claim
+  the same way. It is never waited for: a contender skips the issue with no effect but a close it read, which it keeps
+  in its own latch, and retries on a later tick; different issues never contend. Inside one process it is exclusive
+  between threads too, except that a close receipt is let in alongside this process's own worker, which it was built
+  to land beside. A claim that cannot be worked at all — an unopenable namespace, a filesystem without `flock` —
+  withholds the issue too, where the presence above lets a poller go on unclaimed: a tidying job can be given up, an
+  issue's record cannot be written uncoordinated. Released however the dispatch ends and by the kernel when the
+  process dies; the files are never unlinked. It is host-local and separate from the presence: neither says anything
+  about the other, and nothing coordinates pollers on different hosts or checkout roots. The supported topology and
+  the namespace's access assumptions are in the
   [operations runbook](configuration/operations.md#running-more-than-one-poller).
 - **Tick cadence**: every `POLL_INTERVAL` seconds (default 60).
 - **Artifact maintenance cadence** (`runtime.artifacts`, scheduled by `runtime.artifact_schedule`): at the end of the
@@ -339,7 +343,8 @@ walk is neither submitted nor handed a worker client — and then folds every re
 parent ↔ child state) into ONE bucket submit per repo that drains sequentially on a single worker, so a stale child
 cannot starve the parent umbrella issue, and submits everything else one callable per issue. Whichever way an issue
 is executed, its pass runs under the issue's [writer claim](#process-model), and an issue another poller on the host
-holds is skipped that tick.
+holds is skipped that tick, keeping only a close the poll read for it. A family handler writes its children under
+each child's own claim.
 
 Per-issue durable state lives in a single **pinned comment** on the issue (`<!--orchestrator-state {...json...}-->`).
 The orchestrator process is stateless; the label and the pinned JSON are the entire dispatch input.

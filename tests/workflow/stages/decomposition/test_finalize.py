@@ -12,6 +12,7 @@ from tests.support.fakes import (
     FakePRRef,
     make_issue,
 )
+from tests.support.writer_claims import held_elsewhere
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     _agent,
@@ -52,6 +53,21 @@ def _seed_child_with_merged_pr(
     gh.add_pr(pr)
     gh.seed_state(number, pr_number=pr_number)
     return child
+
+
+def _blocked_on_a_merged_child() -> tuple[FakeGitHubClient, FakeIssue]:
+    """A blocked parent whose one child was closed by an external merge."""
+    gh = FakeGitHubClient()
+    parent = make_issue(BLOCKED_PARENT_NUMBER, label="workflow:blocked")
+    gh.add_issue(parent)
+    _seed_child_with_merged_pr(
+        gh,
+        number=BLOCKED_MERGED_CHILD_NUMBER,
+        label="workflow:validating",
+        pr_number=BLOCKED_MERGED_PR_NUMBER,
+    )
+    gh.seed_state(BLOCKED_PARENT_NUMBER, children=[BLOCKED_MERGED_CHILD_NUMBER])
+    return gh, parent
 
 
 class ChildMergedPrAutoFinalizeTest(unittest.TestCase, _PatchedWorkflowMixin):
@@ -143,6 +159,24 @@ class ChildMergedPrAutoFinalizeTest(unittest.TestCase, _PatchedWorkflowMixin):
                 if issue_number == UMBRELLA_PARENT_NUMBER
             )
         )
+
+    def test_a_held_merged_child_is_finalized_later(self) -> None:
+        # Finalizing writes the child's label, thread, and record, so a child
+        # another poller on this host is writing is left as the scan read it:
+        # not finalized, and not taken for one a human closed by hand either.
+        gh, parent = _blocked_on_a_merged_child()
+
+        with held_elsewhere(gh.repo_slug, BLOCKED_MERGED_CHILD_NUMBER):
+            self._run(lambda: _blocked._handle_blocked(gh, _TEST_SPEC, parent), run_agent=_agent())
+
+        self.assertEqual(gh.label_history, [], "neither the child nor the parent moves")
+        self.assertNotIn("merged_at", gh.pinned_data(BLOCKED_MERGED_CHILD_NUMBER))
+        self.assertEqual(gh.posted_comments, [], "the parent is not parked over it")
+
+        self._run(lambda: _blocked._handle_blocked(gh, _TEST_SPEC, parent), run_agent=_agent())
+
+        self.assertIn((BLOCKED_MERGED_CHILD_NUMBER, LABEL_DONE), gh.label_history)
+        self.assertIn((BLOCKED_PARENT_NUMBER, "workflow:ready"), gh.label_history)
 
     def test_unmerged_child_pr_keeps_parent_parked(self) -> None:
         # Regression guard: when the child PR is closed-without-merge,

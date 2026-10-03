@@ -10,6 +10,7 @@ from __future__ import annotations
 import errno
 import fcntl
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
 from orchestrator import config
@@ -27,12 +28,17 @@ _ISSUE = 7
 _OTHER_ISSUE = 8
 _SCHEDULER_LOG = "orchestrator.scheduler"
 
+# What a holder process does with the claim once it reports: keeps it until
+# told, or lets it go at once.
+_HOLD = "hold"
+_TRY = "try"
+
 
 class ProcessContentionTest(SharedNamespaceCase):
     """A key another process holds is refused here, and nothing else is."""
 
     def test_a_held_key_is_refused_until_let_go(self) -> None:
-        holder = self.other_process(_SLUG, _ISSUE, "hold")
+        holder = self.other_process(_SLUG, _ISSUE, _HOLD)
         self.assertEqual(holder.said(), HELD)
 
         with self.assertLogs(_SCHEDULER_LOG) as logged:
@@ -52,18 +58,54 @@ class ProcessContentionTest(SharedNamespaceCase):
     def test_holding_here_refuses_another_process(self) -> None:
         with writer_claims.issue_writer(_SLUG, _ISSUE) as held:
             self.assertTrue(held)
-            contender = self.other_process(_SLUG, _ISSUE, "try")
+            contender = self.other_process(_SLUG, _ISSUE, _TRY)
             self.assertEqual(contender.said(), REFUSED)
             self.assertEqual(contender.exited(), 0)
-        retry = self.other_process(_SLUG, _ISSUE, "try")
+        retry = self.other_process(_SLUG, _ISSUE, _TRY)
         self.assertEqual(retry.said(), HELD)
+
+
+class ThreadSharingTest(SharedNamespaceCase):
+    """Inside one process: one writer per key, and the receipt let in beside it."""
+
+    def test_a_second_writer_here_is_refused(self) -> None:
+        with writer_claims.issue_writer(_SLUG, _ISSUE) as held:
+            self.assertTrue(held)
+            with self.assertLogs(_SCHEDULER_LOG) as logged:
+                self.assertFalse(_on_another_thread(self.granted_here, _SLUG, _ISSUE))
+                self.assertIn("reason=held_here", logged.output[0])
+            self.assertTrue(_on_another_thread(self.granted_here, _SLUG, _OTHER_ISSUE))
+        self.assertTrue(_on_another_thread(self.granted_here, _SLUG, _ISSUE))
+
+    def test_alongside_keeps_the_lock_to_the_last(self) -> None:
+        claim_file = writer_claims.claim_path(_SLUG, _ISSUE)
+        with writer_claims.issue_writer(_SLUG, _ISSUE) as writer:
+            self.assertTrue(writer)
+            with writer_claims.issue_writer(_SLUG, _ISSUE, alongside=True) as beside:
+                self.assertTrue(beside, "a holder alongside joins this process's writer")
+                self.assertEqual(descriptors_on(claim_file), 1, "one file description per key")
+        # The other way round: a holder alongside keeps no writer here out,
+        # and keeps the lock against other processes once the writer leaves.
+        with writer_claims.issue_writer(_SLUG, _ISSUE, alongside=True) as beside:
+            self.assertTrue(beside)
+            self.assertTrue(self.granted_here(_SLUG, _ISSUE))
+            self.assertEqual(self.other_process(_SLUG, _ISSUE, _TRY).said(), REFUSED)
+        self.assertEqual(descriptors_on(claim_file), 0)
+        self.assertEqual(self.other_process(_SLUG, _ISSUE, _TRY).said(), HELD)
+
+    def test_alongside_is_refused_by_another_process(self) -> None:
+        holder = self.other_process(_SLUG, _ISSUE, _HOLD)
+        self.assertEqual(holder.said(), HELD)
+        with writer_claims.issue_writer(_SLUG, _ISSUE, alongside=True) as beside:
+            self.assertFalse(beside)
+        self.assertEqual(holder.let_go(), 0)
 
 
 class ProcessReleaseTest(SharedNamespaceCase):
     """Every way a holder ends gives the claim back, and leaves its file."""
 
     def test_a_killed_holder_holds_nothing(self) -> None:
-        holder = self.other_process(_SLUG, _ISSUE, "hold")
+        holder = self.other_process(_SLUG, _ISSUE, _HOLD)
         self.assertEqual(holder.said(), HELD)
         claim_file = writer_claims.claim_path(_SLUG, _ISSUE)
         inode = claim_file.stat().st_ino
@@ -92,7 +134,7 @@ class ProcessReleaseTest(SharedNamespaceCase):
             raise RuntimeError("the body failed")
         self.assertEqual(descriptors_on(claim_file), 0)
 
-        holder = self.other_process(_SLUG, _ISSUE, "hold")
+        holder = self.other_process(_SLUG, _ISSUE, _HOLD)
         self.assertEqual(holder.said(), HELD)
         with writer_claims.issue_writer(_SLUG, _ISSUE) as held:
             self.assertFalse(held)
@@ -131,6 +173,12 @@ class NamespaceTest(SharedNamespaceCase):
             self.assertFalse(self.granted_here(_SLUG, _ISSUE))
             self.assertIn("reason=unusable", logged.output[0])
         self.assertEqual(descriptors_on(claim_file), 0)
+
+
+def _on_another_thread(asked, *args):
+    """What `asked` answers when a thread other than this one asks it."""
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(asked, *args).result()
 
 
 if __name__ == "__main__":

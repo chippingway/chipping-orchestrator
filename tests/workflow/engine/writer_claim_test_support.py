@@ -2,15 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Issues another poller on this host is writing, driven through whole ticks.
 
-The other poller holds its claims through `tests/support/writer_claims.py`.
-Everything below the tick is real except the stage handler, which stands in
-for one that runs, publishes, and records.
+The other poller holds its claims through `tests/support/writer_claims.py`,
+under the name the client answers for the repository rather than the one the
+spec was configured with. Everything below the tick is real except the stage
+handler, which stands in for one that runs, publishes, and records.
 """
 from __future__ import annotations
 
 import contextlib
 import threading
-from collections.abc import Iterable
 from unittest.mock import Mock, patch
 
 from orchestrator import config
@@ -22,10 +22,15 @@ from tests.workflow.engine.dispatch_scheduler_test_support import (
     _SchedulerWorkflowTest,
     patch_base_refresh,
 )
-from tests.workflow.fixtures import LABEL_DECOMPOSING, LABEL_IMPLEMENTING
+from tests.workflow.fixtures import LABEL_BLOCKED, LABEL_DECOMPOSING, LABEL_DONE, LABEL_IMPLEMENTING
+from tests.workflow.observation_support import ObservedCloseCase
 
 # What a pass that ran leaves behind, so a pass that did not is visible.
 RAN_COMMENT = "stand-in handler ran"
+
+# The name GitHub answers for the repository, where the spec is configured
+# under an old one: a claim keyed on the configuration would meet no holder.
+CANONICAL_SLUG = "Acme/Widget-Renamed"
 
 RUNS_KEY = "stand_in_runs"
 
@@ -42,13 +47,19 @@ FREE_CLOSED = 12
 HELD_ISSUES = frozenset((HELD_FANOUT, HELD_FAMILY, HELD_CLOSED))
 FREE_ISSUES = frozenset((FREE_FANOUT, FREE_FAMILY, FREE_CLOSED))
 
+# A blocked parent whose second child waits only on its done first one, so the
+# parent's walk releases that child on a tick unless something holds it back.
+FAMILY_PARENT = 33
+DONE_CHILD = 331
+WAITING_CHILD = 332
+
 _HANDLED_LABELS = (LABEL_IMPLEMENTING, LABEL_DECOMPOSING)
 
 
 class StandInHandler:
     """A stage handler that runs, publishes, and records its run."""
 
-    def __init__(self, failing: Iterable[int] = ()) -> None:
+    def __init__(self, *failing: int) -> None:
         self.ran: list[int] = []
         self._failing = frozenset(failing)
         self._lock = threading.Lock()
@@ -64,12 +75,12 @@ class StandInHandler:
         gh.write_pinned_state(issue, state)
 
 
-class WriterClaimDispatchCase(_SchedulerWorkflowTest):
+class WriterClaimDispatchCase(ObservedCloseCase, _SchedulerWorkflowTest):
     """Three held and three free issues, and the ticks over them."""
 
     def seeded(self) -> None:
-        """A fresh repository carrying the six issues, with nothing recorded."""
-        self.github = FakeGitHubClient()
+        """A fresh repository carrying the six issues, in a fresh process."""
+        self.fresh_repository()
         for issue_number, label in (
             (HELD_FANOUT, LABEL_IMPLEMENTING),
             (FREE_FANOUT, LABEL_IMPLEMENTING),
@@ -81,6 +92,24 @@ class WriterClaimDispatchCase(_SchedulerWorkflowTest):
             self.github.add_issue(make_issue(
                 closed_number, label=LABEL_IMPLEMENTING, closed=True,
             ))
+
+    def seeded_family(self) -> None:
+        """A fresh repository carrying only the blocked parent and its two children."""
+        self.fresh_repository()
+        for issue_number, label in (
+            (FAMILY_PARENT, LABEL_BLOCKED), (DONE_CHILD, LABEL_DONE), (WAITING_CHILD, LABEL_BLOCKED),
+        ):
+            self.github.add_issue(make_issue(issue_number, label=label))
+        for child in (DONE_CHILD, WAITING_CHILD):
+            self.github.seed_state(child, parent_number=FAMILY_PARENT)
+        self.github.seed_state(
+            FAMILY_PARENT, children=[DONE_CHILD, WAITING_CHILD], dep_graph={"1": [0]},
+        )
+
+    def fresh_repository(self) -> None:
+        """An empty repository named canonically, with nothing observed or recorded."""
+        self._fresh_process()
+        self.github = FakeGitHubClient(repo_slug=CANONICAL_SLUG)
         self.evaluated = Mock()
 
     def evaluated_issues(self) -> set[int]:
@@ -114,12 +143,14 @@ class WriterClaimDispatchCase(_SchedulerWorkflowTest):
     def _patched(self, stand_in: StandInHandler):
         """Every collaborator a tick reaches that this case stands in for.
 
-        The closed sweep runs on every tick here, so a retry reaches the
-        closed pair as the first tick did.
+        The closed sweep and the dependency walk run on every tick here, so
+        a retry reaches the closed pair and a family parent as the first tick
+        did.
         """
         with contextlib.ExitStack() as patched:
             patched.enter_context(patch_base_refresh())
             patched.enter_context(patch.object(config, "CLOSED_ISSUE_SWEEP_EVERY_N_TICKS", 1))
+            patched.enter_context(patch.object(config, "DEPENDENCY_POLL_EVERY_N_TICKS", 1))
             patched.enter_context(patch.object(catalog, "_emit_repo_skill_catalog", Mock()))
             patched.enter_context(patch.object(
                 _recording_events, "record_stage_evaluation", self.evaluated,

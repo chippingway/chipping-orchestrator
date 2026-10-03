@@ -8,6 +8,7 @@ from tests.support.fakes import (
     FakeGitHubClient,
     make_issue,
 )
+from tests.support.writer_claims import claimed_on_creation
 from tests.workflow.fixtures import (
     LABEL_DECOMPOSING,
     _agent,
@@ -58,6 +59,9 @@ PRESERVED_HIGH_WATERMARK = 10000
 HALF_COMPLETE_DISABLED_PARENT_NUMBER = 50
 RECOVERY_CHILD_NUMBERS = (101, 102)
 PERSISTENCE_ISSUE_NUMBER = 80
+SEED_CONTENTION_ISSUE_NUMBER = 81
+KEY_AWAITING_HUMAN = "awaiting_human"
+SEED_PARK = "could not seed its pinned state"
 COMPLETE_RECOVERY_PARENT_NUMBER = 50
 AWAITING_RECOVERY_PARENT_NUMBER = 51
 AWAITING_RECOVERY_CHILD_NUMBER = 201
@@ -129,3 +133,27 @@ class DecompositionChildPersistenceTest(
             len(gh.pinned_data(PERSISTENCE_ISSUE_NUMBER).get(KEY_CHILDREN) or []),
             3,
         )
+
+    def test_a_child_reached_first_parks_unseeded(self) -> None:
+        # Another poller on this host dispatches the first child the moment it
+        # exists, so its record is that poller's to write when this split goes
+        # to seed it: the child stays recorded and unwritten, and the split
+        # parks rather than creating the next one past it.
+        gh = FakeGitHubClient()
+        issue = make_issue(SEED_CONTENTION_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        gh.add_issue(issue)
+
+        with claimed_on_creation(gh):
+            self._run_decomposing(
+                gh,
+                issue,
+                run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=SPLIT_MANIFEST),
+            )
+
+        created = [child.number for child in gh.created_child_issues]
+        parent = gh.pinned_data(SEED_CONTENTION_ISSUE_NUMBER)
+        self.assertEqual(len(created), 1, "no child is created past the one it could not seed")
+        self.assertEqual(parent.get(KEY_CHILDREN), created)
+        self.assertTrue(parent.get(KEY_AWAITING_HUMAN))
+        self.assertIn(SEED_PARK, gh.posted_comments[-1][1])
+        self.assertEqual(gh.pinned_data(created[0]), {})

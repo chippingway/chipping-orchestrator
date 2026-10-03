@@ -408,18 +408,26 @@ a second daemon, or a `--once` run beside one — provided every one of them res
 the in-process scheduler guards (a duplicate active issue, the caps, the family slot) still apply first inside each.
 
 - **One writer per issue.** Each dispatched issue is taken under a host-local writer claim: an exclusive `flock` on a
-  file in `WORKTREES_DIR/.issue-writer-claims/`, named for the case-folded `owner/name` slug and the issue number. A
-  poller that finds the issue held by another skips its dispatch for that tick — no refetch, guard, recovery pass,
-  or handler, so no label, comment, or pinned write, no agent run, and no usage or evaluation record — keeps any
-  close it was owed for the issue, and takes the issue up on a later tick once the holder is done. Different issues
-  never contend. The skip is logged on `orchestrator.scheduler` as
-  `writer claim skip repo=<slug> issue=#<n> reason=held_elsewhere`. The enumeration ahead of dispatch is not under
-  the claim: what it can write for a closed late-cycle owner is the receipt recording that close, an added comment
-  built to be posted while a worker holds the issue, which replaces nothing another poller wrote.
-- **What the namespace assumes.** Every participating poller configures each repository under the same slug (case
-  aside: a renamed repository configured by its old name in one poller and its new name in another is two keys), runs
-  as a user that can create and open files in that directory, and sees the directory on a local filesystem whose
-  `flock` is honored between them — a network filesystem that emulates `flock` per client coordinates nothing.
+  file in `WORKTREES_DIR/.issue-writer-claims/`, named for the repository's canonical `owner/name` — the name GitHub
+  answers for it, case-folded, never the configured slug — and the issue number. A poller that finds the issue held
+  by another skips it for that tick — no refetch, pinned read, guard, recovery pass, close receipt, or handler, so no
+  label, comment, or pinned write, no agent run, and no usage or evaluation record — and takes the issue up on a later
+  tick once the holder is done. A close it read for the issue is kept in its own memory and nowhere else, so a reopen
+  before then cannot take the reading away; a later tick sweeps it under the claim. Different issues never contend.
+  Inside one process the claim is exclusive between threads too, logged as `reason=held_here`, with one exception:
+  the receipt a poll posts for a close it observed is a comment built to land beside that process's own worker, so it
+  is let in alongside one. The skip is logged on `orchestrator.scheduler` as
+  `writer claim skip repo=<owner/name> issue=#<n> reason=held_elsewhere`.
+- **A parent writes a child under the child's claim.** A decomposed parent's handler writes its children too — the
+  walk that relabels a `workflow:blocked` child `workflow:ready`, the seeds that give a child its parent link and
+  ancestry, the finalize of a child whose pull request merged, and the notice that a reclaimed snapshot is gone — and
+  each of those is made under that child's own claim. A child another poller holds is left for a later walk, which
+  parks nothing; only a split's seed of a child it is creating or placing parks the parent, exactly as a seed that
+  could not be written does.
+- **What the namespace assumes.** Every participating poller can read each repository's canonical name from GitHub,
+  which is what makes two configured spellings of one repository, or a renamed repository's old and new names, meet
+  on one key. They run as a user that can create and open files in that directory, and see it on a local filesystem
+  whose `flock` is honored between them — a network filesystem that emulates `flock` per client coordinates nothing.
   Anything else that can write the directory can hold a claim, so keep it writable by the orchestrator's user alone.
 - **Failures withhold.** A claim that cannot be worked — the namespace cannot be created or opened, or `flock` fails
   for any reason other than another holder — skips the issue as a held one is skipped, with a `reason=unusable`

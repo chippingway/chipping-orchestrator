@@ -7,8 +7,9 @@ the write that records it is also the one that puts it on the snapshot's
 consumer ledger where the plan's lineage owes it a pointer. The seed is the
 parent link and that lineage, written fresh: nothing of the parent's own size
 gate -- its measurement, its exemption, or an exact-commit authorization --
-is carried across. Creation and seeding failures park the parent with the
-corresponding receipt.
+is carried across. The seed is written under the child's own writer claim, since
+a child is dispatchable the moment it exists. Creation and seeding failures --
+a refused claim among them -- park the parent with the corresponding receipt.
 """
 from __future__ import annotations
 
@@ -22,7 +23,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards, usage as _usage
 from orchestrator.workflow.late_split import lineage as _lineage
 from orchestrator.workflow.late_split.ancestry import LateAncestry
-from orchestrator.workflow.stages.decomposition import state as _state
+from orchestrator.workflow.stages.decomposition import child_claims as _child_claims, state as _state
 from orchestrator.workflow.stages.decomposition.models import _SplitPlan
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -87,16 +88,9 @@ def _seed_created_child(
     plan: _SplitPlan,
     new_issue: Issue,
 ) -> bool:
+    """Seed the child this split just created, or park the parent naming it."""
     _, child = plan.created[-1]
-    try:
-        _write_child_pinned_state(
-            gh, new_issue, issue.number, plan.lineage.child_ancestry(state, new_issue.number),
-        )
-    except Exception:
-        log.exception(
-            "issue=#%s could not seed pinned state on child #%d",
-            issue.number, new_issue.number,
-        )
+    if not _seeded_under_claim(gh, issue, state, plan, new_issue):
         _guards._park_awaiting_human(
             gh, issue, state,
             f"{config.HITL_MENTIONS} created child #{new_issue.number} "
@@ -106,6 +100,36 @@ def _seed_created_child(
             reason="child_seed_failed",
         )
         gh.write_pinned_state(issue, state)
+        return False
+    return True
+
+
+def _seeded_under_claim(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    plan: _SplitPlan,
+    new_issue: Issue,
+) -> bool:
+    """Whether the child's initial pinned state was written, under its own writer claim.
+
+    The child is on GitHub, and dispatchable, from the moment the create
+    returns, so another poller on this host may already be writing it -- and
+    a seed written past that would race the child's own handler for its
+    pinned comment. A refused claim is a seed this split could not make.
+    """
+    try:
+        with _child_claims.held_child(gh, issue.number, new_issue.number) as held:
+            if not held:
+                return False
+            _write_child_pinned_state(
+                gh, new_issue, issue.number, plan.lineage.child_ancestry(state, new_issue.number),
+            )
+    except Exception:
+        log.exception(
+            "issue=#%s could not seed pinned state on child #%d",
+            issue.number, new_issue.number,
+        )
         return False
     return True
 

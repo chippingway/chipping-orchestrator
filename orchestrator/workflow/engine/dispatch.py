@@ -93,15 +93,20 @@ def _process_polled_issue(
     Everything past the classification runs under the issue's writer claim,
     which is taken as the worker paths take theirs: before the refetch and
     the observation hold, so a contender reads and writes nothing for the
-    issue and leaves any latch it found for the next poll. A parked issue
-    never asks for it, because it has nothing to write.
+    issue and leaves any latch it found for the next poll. A CLOSED reading
+    it found is latched too, and nothing more, because no other path of this
+    process would ever hold it -- this loop is the enumeration and the
+    worker both. A parked issue never asks for the claim, because it has
+    nothing to write.
     """
     issue_number = int(issue.number)
     latched = observations.close_observed(spec.slug, issue_number)
     skip, label = _poll_reading._classify_pollable_issue(gh, spec, issue)
     if skip and not latched:
         return
-    with _issue_processing._writer_claim(spec, issue_number) as held:
+    with _issue_processing._writer_claim(
+        gh, spec, issue_number, keeps_close=issue_is_closed(issue),
+    ) as held:
         if held:
             _claimed_polled_issue(gh, spec, issue, label, latched=latched)
 

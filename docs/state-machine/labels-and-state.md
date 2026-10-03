@@ -294,19 +294,34 @@ reported active to the next poll's submit, which is rejected as `duplicate_activ
 active issue's worktree.
 
 That gate answers for this process alone, so every dispatch path also takes the issue's host-local **writer claim**
-(`scheduler/writer_claims.py`) — an exclusive, non-blocking `flock` keyed by the case-folded repository slug and the
-issue number — before anything it does for the issue: the worker's refetch, the pinned-state guards, the close
-recovery wrapped around the pass (the closed reading an ordinary pass keeps, the close a refetch establishes, the
-cleanup observation a sweep is held under), and the handler. The sequential loop takes it once an issue survives the
-hard-skip classification; the scheduler's fan-out task, its family-bucket iteration (inside `track_active`), and the
-in-tick pool's tasks take it as their worker starts, so a queued submit holds no claim. An issue another poller on the
-host holds is skipped whole on every path: nothing is refetched, read, published, relabelled, written, run, or
-accounted for, a latched close and the submit's publication hold are left as they were, and the next tick retries
-it. A claim that cannot be worked withholds the issue the same way rather than dispatching it uncoordinated. The
-scheduler's own gates still run first and are unchanged: duplicate-active, the caps, the family slot, and the
-refused-submit observation hold. The enumeration ahead of dispatch takes no claim, and the close receipt it posts for
-a closed late-cycle owner is an added comment built to be written while a worker holds the issue. The base refresh
-does not take the claim yet. The supported topology and the namespace's access assumptions are in
+(`scheduler/writer_claims.py`) — an exclusive, non-blocking `flock` keyed by the repository's canonical name (the
+client's `repo_slug`, case-folded, never the configured slug) and the issue number — before anything it does for the
+issue: the worker's refetch, the pinned-state guards, the close recovery wrapped around the pass (the closed reading
+an ordinary pass keeps, the close a refetch establishes, the cleanup observation a sweep is held under), and the
+handler. The sequential loop takes it once an issue survives the hard-skip classification; the scheduler's fan-out
+task, its family-bucket iteration (inside `track_active`), and the in-tick pool's tasks take it as their worker starts,
+so a queued submit holds no claim. The enumeration takes it too, for the one thing it writes: the pinned read and close
+receipt behind a closed fan-out issue, and the same pair a refused submit's observation hold spends. Those two ask
+for it *alongside* — granted beside a worker of this same process that holds the issue, since the receipt is an added
+comment built to land beside one, and an ordinary exclusive attempt against every other process.
+
+An issue another poller on the host holds is skipped whole on every path: nothing is refetched, read, published,
+relabelled, written, run, or accounted for, and the submit's publication hold and any latched close are left as they
+were. A close the poll read for it is the one thing kept, in this process's latch alone — no pinned read decides
+whether it is owed and no receipt is posted — so a human reopening the issue before the claim comes back cannot take
+the reading away; the next tick routes it to a cleanup pass under the claim, which marks the cancellation if a cycle
+was live and otherwise just settles the latch. A claim that cannot be worked withholds the issue the same way rather
+than dispatching it uncoordinated. The scheduler's own gates still run first and are unchanged: duplicate-active, the
+caps, the family slot, and the refused-submit observation hold.
+
+A family-aware handler writes issues other than its own, so those writes take the target's claim as well: the walk
+that relabels a `workflow:blocked` child `workflow:ready` claims every child it would release before vouching for the
+first and releases none if one is held; recovery's orphan repair stops short of a held child without parking; a merged
+child's finalize leaves a held child as scanned, counted neither done nor closed by hand; and the snapshot-reclaimed
+notice leaves a held consumer's obligation owed. Only the seed of a child a split is creating or placing parks the
+parent when the child is held, as a seed that could not be written does — `child_seed_failed` for an ordinary split,
+`late_children_failed` for a late one. The base refresh does not take the claim yet. The supported topology and the
+namespace's access assumptions are in
 [`../configuration/operations.md#running-more-than-one-poller`](../configuration/operations.md#running-more-than-one-poller).
 
 Only issue numbers cross the thread boundary — each scheduler worker mints a fresh `GitHubClient` via

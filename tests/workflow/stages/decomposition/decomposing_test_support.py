@@ -6,6 +6,7 @@ from orchestrator.workflow.stages.decomposition import run as _decomposing
 from tests.support.fakes import (
     FakeGitHubClient,
 )
+from tests.support.writer_claims import held_elsewhere
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     _manifest,
@@ -88,6 +89,10 @@ class _DecomposingWorkflowMixin(_PatchedWorkflowMixin):
             lambda: _decomposing._handle_decomposing(gh, _TEST_SPEC, issue),
             **run_options,
         )
+
+    def _held_by_another_poller(self, gh, *issue_numbers: int):
+        """These issues' writer claims, held by another poller on this host for the block."""
+        return held_elsewhere(gh.repo_slug, *issue_numbers)
 
 
 class _ChildCreationSnapshotRecorder:

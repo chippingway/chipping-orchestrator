@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """Route one issue through cleanup or guarded stage dispatch and record evaluation timing.
 
-Every dispatch seam enters an issue under its host-local writer claim, taken
-before the refetch and the close recovery wrapped around this processing, and
-a contender skips the issue whole. The publication claim surrounds the
-handler, and evaluation analytics run on both success and failure. Hard-skip
-controls preserve their observed close exception before that processing
-begins.
+Every dispatch seam enters an issue under its host-local writer claim, keyed
+on the repository's canonical name and taken before the refetch and the close
+recovery wrapped around this processing, and a contender skips the issue
+whole, keeping only a closed reading in this process's latch. The publication
+claim surrounds the handler, and evaluation analytics run on both success and
+failure. Hard-skip controls preserve their observed close exception before
+that processing begins.
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ from orchestrator.observability.analytics.recording import events as _recording_
 from orchestrator.scheduler import writer_claims as _writer_claims
 from orchestrator.workflow.engine import (
     dispatch_guards as _dispatch_guards,
+    observations as _observations,
     poll_models as _poll_models,
     poll_reading as _poll_reading,
     publication_holds as _publication_holds,
@@ -39,7 +41,12 @@ _TERMINAL_LABELS = (WorkflowLabel.DONE, WorkflowLabel.REJECTED)
 
 @contextlib.contextmanager
 def _writer_claim(
-    spec: _config_models.RepoSpec, issue_number: int,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    *,
+    keeps_close: bool = False,
+    alongside: bool = False,
 ) -> Iterator[bool]:
     """Hold this issue's writer claim across one whole dispatch, or refuse it.
 
@@ -50,18 +57,43 @@ def _writer_claim(
     pass keeps -- reads the pinned record and writes receipts on the strength
     of it, so it is as much a writer as the handler is. A seam that took it
     later would let a contender decide on a record another poller is
-    rewriting.
+    rewriting. The poll's own receipt for a close it observed is taken under
+    it too, `alongside` whatever worker of this process holds the issue.
+
+    Keyed on the client's `repo_slug`, the repository's canonical name, and
+    never on `spec.slug`: an operator's spelling, or a renamed repository's
+    old name, is a different file, and two pollers configured with two names
+    for one repository would each hold "the" claim. Every caller hands in the
+    client its tick or its worker was given, so the name is one GitHub
+    already answered.
 
     A refusal is answered by doing nothing for the issue at all: no refetch,
-    no guard, no recovery, no handler, and no evaluation record. Whatever this
-    process was holding for the issue -- a latched close, a publication hold
-    the submit took -- is left exactly as it was, so the next polling pass
-    finds the issue owed what it was owed and tries again. The scheduler's own
-    guards are unchanged by it: an issue this process is already running is
-    refused there first, and the claim is what answers for a process whose
-    scheduler this one cannot read.
+    no guard, no recovery, no handler, no receipt, and no evaluation record.
+    Whatever this process was holding for the issue -- a latched close, a
+    publication hold the submit took -- is left exactly as it was, so the next
+    polling pass finds the issue owed what it was owed and tries again. The
+    scheduler's own guards are unchanged by it: an issue this process is
+    already running is refused there first, and the claim is what answers for
+    a process whose scheduler this one cannot read.
+
+    `keeps_close` is a caller saying the poll read this issue CLOSED and would
+    have held that reading across its pass. A refusal keeps it in the one
+    place a contender may write, this process's latch: the pinned read that
+    decides whether it is owed and the receipt that makes it durable are both
+    the holder's record to touch, but a reading dropped here is gone once a
+    human reopens the issue, and the stage handler its label names would then
+    resume a cycle the close ended. A latch over an issue with no cycle costs
+    the next tick one cleanup pass, under the claim, that settles it.
     """
-    with _writer_claims.issue_writer(spec.slug, issue_number) as held:
+    with _writer_claims.issue_writer(gh.repo_slug, issue_number, alongside=alongside) as held:
+        if not held and keeps_close:
+            _observations.observe_close(spec.slug, issue_number)
+            log.info(
+                "repo=%s issue=#%d observed closed, but its writer claim was "
+                "refused; holding the observation and sweeping it on the "
+                "next polling pass",
+                spec.slug, issue_number,
+            )
         yield held
 
 

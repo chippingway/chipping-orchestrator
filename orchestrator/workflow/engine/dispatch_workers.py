@@ -103,7 +103,7 @@ def _refetch_and_process(
     contender returns having read nothing: the pass is retried on a later
     polling pass, and this one has nothing to keep.
     """
-    with _issue_processing._writer_claim(spec, issue_number) as held:
+    with _issue_processing._writer_claim(gh, spec, issue_number) as held:
         if held:
             _refetched_pass(
                 gh, spec, issue_number,
@@ -203,7 +203,7 @@ def _closed_ordinary_pass(
     latch the enumeration took stays exactly as it was for the next poll.
     """
     closed_reading = _poll_models._PollReading(closed=True)
-    with _issue_processing._writer_claim(spec, issue_number) as held:
+    with _issue_processing._writer_claim(gh, spec, issue_number) as held:
         if not held:
             return
         if not observations.close_observed(spec.slug, issue_number):
@@ -245,7 +245,7 @@ def _swept_for_cleanup(
     found is the latch it leaves, owed to the next poll, and nothing is asked
     of a record another poller is writing.
     """
-    with _issue_processing._writer_claim(spec, issue_number) as held:
+    with _issue_processing._writer_claim(gh, spec, issue_number) as held:
         if not held:
             return
         with _cleanup_observation._cleanup_observation(gh, spec, issue_number):

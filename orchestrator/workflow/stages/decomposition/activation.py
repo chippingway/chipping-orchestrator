@@ -46,6 +46,13 @@ them. The line names the exact unfinished dependencies so an operator reading a
 tick log can tell a waiting parent from a stuck one without opening GitHub, and
 it is emitted only when something is actually held so a healthy parent stays
 quiet.
+
+A child another poller on this host is writing is held the same way, and for
+the same reason: nothing is wrong with it. Every child a walk would release is
+taken under its own writer claim (`child_claims`) before the first is vouched
+for, since vouching reads the child's record and the release writes its label,
+and one refused claim releases none of them, as one lapse does -- without the
+park, because the next walk asks again.
 """
 from __future__ import annotations
 
@@ -61,6 +68,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import observations as _observations
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
+    child_claims as _child_claims,
     late_child_content as _late_child_content,
     late_publication as _late_publication,
     models as _models,
@@ -239,16 +247,28 @@ class _ChildActivation:
         released as it checked would start the children in front of the one
         that lapsed. Each relabel is still licensed on its own, immediately in
         front of it -- see `may_release`.
+
+        Every one of them is taken under its own writer claim before that,
+        and held until the walk ends: the lineage is read off the child's own
+        record and the relabel is a write to it, and a child another poller
+        on this host is writing is one this walk can neither vouch for nor
+        start. So a refused claim releases none of them, as a lapse does, and
+        parks nothing, since it is not one -- the next walk asks again.
         """
-        if any(self.entitlement_lapsed(child, number) for child, number in releasable):
-            self.held.extend((number, []) for _, number in releasable)
-            return
-        for child, number in releasable:
-            if self.may_release():
-                self.gh.set_workflow_label(child, WorkflowLabel.READY)
-                self.relabeled = True
-            else:
-                self.held.append((number, []))
+        numbers = [number for _, number in releasable]
+        with _child_claims.held_children(self.gh, self.owner.number, numbers) as claimed:
+            if not claimed:
+                self.held.extend((number, []) for number in numbers)
+                return
+            if any(self.entitlement_lapsed(child, number) for child, number in releasable):
+                self.held.extend((number, []) for number in numbers)
+                return
+            for child, number in releasable:
+                if self.may_release():
+                    self.gh.set_workflow_label(child, WorkflowLabel.READY)
+                    self.relabeled = True
+                else:
+                    self.held.append((number, []))
 
 
 def _pending_dependencies(state: PinnedState, scan: _models._ChildScan, idx: int) -> list[int]:

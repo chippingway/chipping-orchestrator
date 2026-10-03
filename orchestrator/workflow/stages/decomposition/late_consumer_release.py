@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Deliver snapshot reclamation receipts to consumers while the owner remains open.
 
-Each child's cycle-bound receipt is deduplicated from its thread. Close
-checks surround the reads and writes, and an unreachable child keeps the
+Each child's cycle-bound receipt is deduplicated from its thread under the
+child's writer claim. Close checks surround the reads and writes, and an
+unreachable child -- or one another poller on this host is writing -- keeps the
 notification obligation outstanding.
 """
 from __future__ import annotations
@@ -21,6 +22,7 @@ from orchestrator.workflow.late_split.models import (
     LateGeneration,
 )
 from orchestrator.workflow.stages.decomposition import (
+    child_claims as _child_claims,
     late_cleanup_state as _late_cleanup_state,
 )
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
@@ -134,6 +136,12 @@ def _release(
     answers False -- the ref is gone either way, and a child that was never
     told is the one thing this step exists to prevent, so the obligation stays
     on the ledger until it can be.
+
+    Proved and posted under the child's own writer claim, `alongside` a
+    handler of this process's that holds it, since the comment is built to
+    land beside one. A claim another poller on this host holds is one no
+    handler of this process stands beside, so it answers False as an
+    unreachable child does, and the obligation waits for a later pass.
     """
     child = proven.issues.get(int(consumer))
     if child is None:
@@ -144,13 +152,15 @@ def _release(
         )
         return generation, False
     try:
-        return _told(walk, child, marker, generation)
+        with _child_claims.held_child(walk.gh, walk.issue.number, child.number, alongside=True) as held:
+            if held:
+                return _told(walk, child, marker, generation)
     except Exception:
         log.exception(
             "issue=#%d could not tell consumer #%d its snapshot is gone",
             walk.issue.number, int(consumer),
         )
-        return generation, False
+    return generation, False
 
 
 def _told(

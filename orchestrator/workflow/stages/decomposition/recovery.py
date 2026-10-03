@@ -30,7 +30,9 @@ by its size gate as a fresh root at depth 0 -- a lost consumer slot is
 restored ahead of the seed, and the seeding write lifts the park the missing
 seed earned. A lineage no longer proved, or a child this split cannot
 recognize as its own (see `_seed_orphan_child_state`), parks instead of
-finalizing, which keeps every child of that split unstarted.
+finalizing, which keeps every child of that split unstarted. A child another
+poller on this host is writing is repaired under its own writer claim or not
+at all: the recovery stops there without a park, and the next tick resumes it.
 """
 from __future__ import annotations
 
@@ -45,6 +47,7 @@ from orchestrator.workflow.engine import guards as _guards, usage as _usage
 from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
 from orchestrator.workflow.late_split.ancestry import LateAncestry
 from orchestrator.workflow.stages.decomposition import (
+    child_claims as _child_claims,
     late_child_content as _late_child_content,
     late_relabel as _late_relabel,
     replacement_lineage as _replacement_lineage,
@@ -148,8 +151,20 @@ def _repair_recovered_child(
     child_number,
     lineage: _replacement_lineage.ReplacementLineage,
 ) -> bool:
+    """Repair one recorded child under its own writer claim, or stop the recovery.
+
+    The claim is taken in front of the read the repair decides on and held
+    through its write, because both are the child's record. A child another
+    poller on this host is writing is not one this tick may repair, and not
+    one it may finalize past either -- so the recovery stops where it stands,
+    parking nothing, and the next tick's recovery asks again. The children
+    repaired before it carry exactly what they were owed.
+    """
     try:
-        refusal = _seed_orphan_child_state(gh, issue, state, child_number, lineage)
+        with _child_claims.held_child(gh, issue.number, child_number) as held:
+            if not held:
+                return False
+            refusal = _seed_orphan_child_state(gh, issue, state, child_number, lineage)
     except Exception:
         log.exception(
             "issue=#%s could not repair orphan child #%s during "

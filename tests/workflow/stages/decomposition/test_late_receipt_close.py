@@ -25,7 +25,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_consumer_release as _late_consumer_release,
     parents as _parents,
 )
-from tests.support.fakes import FakeGitHubClient, make_issue
+from tests.support import fakes as _fakes, writer_claims as _writer_claims
 from tests.workflow.fixtures import _TEST_SPEC
 from tests.workflow.observation_support import ObservedCloseCase
 from tests.workflow.stages.decomposition.late_cleanup_support import (
@@ -69,11 +69,11 @@ class LatchedInsideTheFirstReceiptTest(
 
     def setUp(self) -> None:
         self._fresh_process()
-        self.github = FakeGitHubClient()
-        self.owner = make_issue(PARENT_NUMBER, label=UMBRELLA)
+        self.github = _fakes.FakeGitHubClient()
+        self.owner = _fakes.make_issue(PARENT_NUMBER, label=UMBRELLA)
         self.github.add_issue(self.owner)
         for number in _SIBLINGS:
-            self.github.add_issue(make_issue(number, closed=True))
+            self.github.add_issue(_fakes.make_issue(number, closed=True))
 
     def test_only_the_first_sibling_is_told(self) -> None:
         with self.assertLogs(_WORKFLOW_LOG):
@@ -113,6 +113,19 @@ class LatchedInsideTheFirstReceiptTest(
         self.assertEqual(self.github.posted_comments, [])
         self.assertTrue(generation.cancelled)
         self.assertTrue(told)
+
+    def test_a_held_sibling_stays_owed(self) -> None:
+        # Its claim is another poller's, so nothing is proved or posted on its
+        # thread, and the obligation stays for a later pass -- while the
+        # sibling nobody holds is told as ever.
+        with _writer_claims.held_elsewhere(self.github.repo_slug, _SIBLINGS[1]):
+            _, told = self._released(closing=False)
+
+        self.assertEqual(
+            [number for number, _ in self.github.posted_comments],
+            [_SIBLINGS[0]],
+        )
+        self.assertFalse(told)
 
     def _released(self, *, closing: bool = True, reading: bool = False):
         """Deliver this ref's receipts, closing inside the first if asked."""
@@ -177,7 +190,7 @@ def _consuming_both() -> _late_models.LateGeneration:
     )
 
 
-def _scan_of(github: FakeGitHubClient):
+def _scan_of(github: _fakes.FakeGitHubClient):
     """The reading a reclamation proves its consumers ended on."""
     return _parents._read_child_labels(
         github, github.get_issue(PARENT_NUMBER), list(_SIBLINGS),
