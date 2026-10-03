@@ -1008,7 +1008,9 @@ The keys that matter for the state machine fall into a few groups:
   reads and does not fit is refused for the room (`workflow/engine/report_record_room.py`), naming the comment that
   came out too large: the record's own write, the transaction a delivery is reserved against, or the settlement, with
   whether the receipt or the hand-back was reserved beside it, and its size against the ceiling. No pinned field
-  records the reason: the comment carries a record or does not.
+  records the reason: the comment carries a record or does not. A refused DELIVERY's reason reaches a human through
+  the `report_undeliverable` park its caller takes, whose notice and log line say the same thing in words
+  (`workflow/engine/report_refusal_notices.py`), and it is gone once that park is announced.
 
   The watermark fields a record may advance are not spelled in this domain at all: they are read off
   `workflow/engine/prompt_delivery.py`, the owner that produces the consumed pairs a transaction freezes. Two lists

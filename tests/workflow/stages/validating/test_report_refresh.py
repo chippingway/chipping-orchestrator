@@ -9,15 +9,16 @@ passes through. The next tick finds the debt paid by that report and hands it
 to the reviewer. A later rebase is refreshed at its own head.
 
 A run that brings no fresh report -- a question, a silent exit, a timeout, a
-verification of the report the rebase left behind, a commit, loose work --
-parks once and asks again of nobody until a reply comes, and the report that
-reply brings pays the debt. A receipt nobody can read, or loose work in the
-checkout as it stands, parks before any run. A world that moves while the
-agent is out records nothing: a head somebody pushed is left to the reviewer
-road's refusal, and an edit to the drift resume that answers it -- as is an
-edit the drift check stood down for, which nothing pays or asks for until it
-is answered. An interrupted publication finishes
-on a later tick with no second run and no second comment.
+verification of the report the rebase left behind, a commit, loose work, a
+report quoting a receipt -- parks once and asks again of nobody until a reply
+comes, and the report that reply brings is published once, pays the debt, and
+is reviewed, with nothing a later tick repeats. A receipt nobody can read, or
+loose work in the checkout as it stands, parks before any run. A world that
+moves while the agent is out records nothing: a head somebody pushed is left to
+the reviewer road's refusal, and an edit to the drift resume that answers it --
+as is an edit the drift check stood down for, which nothing pays or asks for
+until it is answered. An interrupted publication finishes on a later tick with
+no second run and no second comment.
 
 A claim nobody can read, or one saying nothing about the head standing, earns
 no refresh: the reviewer road parks for the stale report as it always did, and
@@ -43,6 +44,7 @@ from tests.workflow import (
     fix_reports as _fix_world,
     published_reports as _published_reports,
     report_guidance as _report_guidance,
+    report_refusals as _refusals,
     reviewed_reports as _reviewed,
 )
 from tests.workflow.fixtures import _agent
@@ -64,6 +66,13 @@ PARK_REASON = "park_reason"
 UNDELIVERABLE = _report_delivery.UNDELIVERABLE_REPORT
 
 OWES_A_ROUND = "validating_reviewer_owes_a_round"
+
+# What settling a report writes, and what a settlement replayed would write
+# again: the report the pull request now carries, the handoff saying this
+# transaction finished, and the round the road behind it spent.
+SETTLED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_round")
+
+PUSH = "_push_branch"
 
 # The records `records()` reads a report's progress off.
 DELIVERED = "delivered"
@@ -260,6 +269,30 @@ class RefreshFailureTest(unittest.TestCase, _support._RefreshedReports):
         self.assertIsNone(self.records()["current"])
         self.assert_recovered_by_a_reply()
 
+    def test_a_quoted_receipt_parks_until_prose(self) -> None:
+        # A delimited report well inside the writing budget that quotes a split
+        # child's receipt in inline code is refused for that receipt, in the
+        # notice and the log alike and with nothing said about size: nothing
+        # is recorded, pushed, or posted on the pull request, and the settled
+        # report stands. The reply's resume commits nothing and says the same
+        # in prose, which is the report published, paid, and reviewed.
+        self.rebased()
+        standing = (len(self.pull_request.issue_comments), _settled(self))
+        self.assertLess(len(_refusals.QUOTING_REPORT), _refusals.WRITING_BUDGET)
+
+        with self.assertLogs("orchestrator.workflow", "ERROR") as captured:
+            self.refreshed(_support.fresh(_refusals.QUOTING_REPORT))[PUSH].assert_not_called()
+            logged = "\n".join(captured.output)
+
+        self.assertEqual((len(self.pull_request.issue_comments), _settled(self)), standing)
+        self.assert_parked(UNDELIVERABLE, _refusals.RECEIPT_REFUSAL.notice[0])
+        notice = next(
+            body for _, body in reversed(self.github.posted_comments)
+            if _refusals.RECEIPT_REFUSAL.notice[0] in body
+        )
+        _refusals.RECEIPT_REFUSAL.assert_said(self, notice, logged)
+        self.assert_recovered_by_a_reply(_refusals.PROSE_REPORT)
+
     def test_a_run_that_moves_the_checkout_parks(self) -> None:
         # A run asked for a report alone that committed or left loose work
         # handed back a report of something the pull request does not carry.
@@ -316,11 +349,34 @@ class RefreshFailureTest(unittest.TestCase, _support._RefreshedReports):
         self.refreshed()[RUN_AGENT].assert_not_called()
         self.assertEqual(len(self.github.posted_comments), notices)
 
-    def assert_recovered_by_a_reply(self) -> None:
-        """A reply resumes the developer, whose report settles, pays the debt, and is reviewed."""
+    def assert_recovered_by_a_reply(self, text: str = _support.FRESH_REPORT) -> None:
+        """A reply's resume commits nothing and reports `text`, which is published once and reviewed.
+
+        The report reaches the pull request exactly as the developer wrote
+        it, with no code pushed, the report debt the park recorded paid, and
+        the reviewer handed it. The reconciliation and the ticks behind it
+        publish no second report and settle nothing again.
+        """
         _fix_world.replied(self, "please write the report of the rebased head")
-        self.refreshed(_support.fresh())
-        self.assert_reviewed_fresh(self.reviewed())
+        self.refreshed(_support.fresh(text))[PUSH].assert_not_called()
+
+        settled = _settled(self)
+        self.assertEqual(
+            (
+                _support.published_texts(self, text),
+                self.pull_request.head.sha,
+                _report_delivery.owes_a_report(self.github.read_pinned_state(self.issue)),
+                self.pinned().get(_report_delivery.UNREPORTED_WORK),
+            ),
+            ([text], REWRITTEN_HEAD, False, None),
+        )
+        self.assert_reviewed_fresh(self.reviewed(), text)
+        self.reconcile()
+        self.refreshed()[RUN_AGENT].assert_not_called()
+        self.assertEqual(
+            (_support.published_texts(self, text), _settled(self)),
+            ([text], settled),
+        )
 
 
 class RefreshWorldMovedTest(unittest.TestCase, _support._RefreshedReports):
@@ -448,6 +504,11 @@ class RewriteDebtHoldTest(unittest.TestCase, _support._RefreshedReports):
                 self.refreshed(_support.fresh())
 
                 self.assert_reviewed_fresh(self.reviewed())
+
+
+def _settled(case) -> dict:
+    """What the case's pinned comment holds of every record a settlement writes."""
+    return {key: case.pinned().get(key) for key in SETTLED_RECORDS}
 
 
 def _second_rebase(case, second) -> None:

@@ -35,11 +35,15 @@ session that can still write one.
 A report this build cannot record HOLDS the tick instead, parked for a human.
 That is the one answer left: the record is what every later tick works from, so
 a report that cannot be written is one nothing can publish -- and the run that
-wrote it has ended, so nothing here can ask for a shorter one. Published
-anyway, the work would reach review with no report and the record of what the
+wrote it has ended, so nothing here can ask it for another. Published anyway,
+the work would reach review with no report and the record of what the
 developer said would be gone. Held here, before the size gate and the push,
 nothing is published at all: the commit stays in the worktree, the branch is
 untouched, and a reply resumes the session that can write the report again.
+The notice says which refusal held it -- a quoted receipt marker, a report past
+its own ceiling, a pinned comment with no room for it, or a record this build's
+reader refuses for anything else -- because each is answered differently, and
+`report_refusal_notices` is what words it.
 
 What that resumed session comes back with is a report rather than a commit, and
 `report_redelivery` beside this owner is what keeps it from being read as a
@@ -89,6 +93,9 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.report_consumed_values import (
     advance_consumed as _advance_consumed,
+)
+from orchestrator.workflow.engine.report_refusal_notices import (
+    explains_the_refusal as _explains_the_refusal,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -160,20 +167,6 @@ _NOTHING_ADDED = (
 _UNDER_REVIEW = frozenset((
     WorkflowLabel.VALIDATING, WorkflowLabel.IN_REVIEW, WorkflowLabel.FIXING,
 ))
-
-_UNRECORDABLE_PARK = (
-    "{mentions} this issue's developer run finished with a completion report "
-    "this orchestrator cannot record on its pinned comment -- most likely one "
-    "far past what a single comment holds -- so nothing was published: "
-    "{withheld}. The report is recorded before any code goes out, "
-    "because that record is the only thing a later tick could publish it "
-    "from: a report that cannot be written is one this workflow has no way to "
-    "put on a pull request, and publishing the code anyway would hand review "
-    "an implementation with no report and no record of what the run said. "
-    "Reply and the orchestrator resumes the session; the report it writes "
-    "then is the one that gets published."
-)
-
 
 # The refusals that are not a contract violation: no process produced the
 # result at all, or the one that did never got to the end of its own run. Each
@@ -258,11 +251,21 @@ def recording_stops_the_tick(
     through. The record is what every later tick would publish from, so a
     report that cannot be written is one nothing can ever put on a pull
     request -- and the run that wrote it has ended, so there is nobody left to
-    ask for a shorter one. Held here the cost is bounded and visible: nothing
-    is published, the commit is still in the worktree, and the notice says
-    what happened. Published instead, the reviewer would be handed work with
-    no report while the only copy of what the developer said went out of
-    memory with the tick.
+    ask for another. Held here the cost is bounded and visible: nothing is
+    published, the commit is still in the worktree, and the notice says what
+    happened. Published instead, the reviewer would be handed work with no
+    report while the only copy of what the developer said went out of memory
+    with the tick.
+
+    What happened is the refusal the record's own writer gave, never a guess
+    at it. A report quoting a receipt marker is asked for again without the
+    literal text, one past its ceiling for a shorter one, and one the comment
+    has no room for is told which write measured too large, by how much, and
+    whether rewriting the report can give that back -- which only a written-out
+    report's text, escaped as the comment stores it, ever does -- while any
+    other refusal is an invalid record, worded without a claim about
+    length or room it has no measurement for. A reply asking for the wrong
+    correction buys a run that is refused again.
 
     A record that IS stored retires the park this owner may have taken, since
     what that park asked for was exactly a report it could record -- and left
@@ -290,17 +293,12 @@ def recording_stops_the_tick(
     delivered = _delivered_report(gh, issue, state, agent_result, handed)
     if delivered is None:
         return _unreported_run_holds(gh, issue, state, agent_result, handed)
-    if not _delivery_state.record_delivered_report(state, delivered):
-        log.error(
-            "issue=#%d wrote a developer report this build cannot record; "
-            "publishing nothing and holding for a human", issue.number,
-        )
+    refusal = _delivery_state.stage_delivered_report(state, delivered)
+    if refusal is not None:
         state.set(UNREPORTED_WORK, True)
         parks_an_undeliverable_report(
             gh, issue, state,
-            _UNRECORDABLE_PARK.format(
-                mentions=config.HITL_MENTIONS, withheld=withheld,
-            ),
+            _explains_the_refusal(issue.number, delivered, refusal, withheld),
             consumed=handed.watermarks,
         )
         return True
