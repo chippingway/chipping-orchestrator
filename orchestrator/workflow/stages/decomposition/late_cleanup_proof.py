@@ -3,8 +3,11 @@
 """Prove that a snapshot's complete consumer ledger has ended before reclamation.
 
 A cancelled partial split uses its recorded seal or count, and a pre-split
-phase proves completeness only when no child publication began. Every
-consumer in that complete ledger must be freshly known closed.
+phase proves completeness only when no child publication began. An ordinary
+replacement split still short of its own count, or one recording a replacement
+the ledger no longer names, proves nothing at any phase: that replacement may
+be on GitHub, told to reuse the ref, and not on the ledger. Every consumer in
+that complete ledger must be freshly known closed.
 """
 from __future__ import annotations
 
@@ -76,12 +79,14 @@ def _reclaimable(
     gave would destroy the only copy of work a child was told to reuse.
 
     All of which is about the consumers the ledger NAMES, and the prior
-    question is whether it names all of them -- see `_whole_ledger`. Asked
-    first, because every proof below is only as complete as the list it walks.
+    question is whether it names all of them -- see `_whole_ledger`, and
+    `_replacements_unaccounted` for the replacements an ordinary split of the same
+    owner adds to it. Asked first, because every proof below is only as
+    complete as the list it walks.
     """
     if _late_cleanup_reading._unwritable(generation) or generation.obligations.is_opaque:
         return False
-    if not _whole_ledger(state, generation):
+    if _replacements_unaccounted(state, generation) or not _whole_ledger(state, generation):
         return False
     return all(_ended(scan, consumer) for consumer in generation.obligations.consumers)
 
@@ -148,6 +153,30 @@ def _whole_ledger(state: PinnedState, generation: LateGeneration) -> bool:
     if boundary not in _PRE_SPLIT_PHASES:
         return False
     return not _split_began(state, generation)
+
+
+def _replacements_unaccounted(state: PinnedState, generation: LateGeneration) -> bool:
+    """Whether an ordinary split of this owner may have a replacement on GitHub its ledger does not name.
+
+    The ordinary split a genuine edit's reroute answers with -- the one that
+    writes `split_attempt` -- records each replacement it points at this ref
+    on `late_consumers` in the write that records it in `children`, behind
+    its create. So whatever phase the generation stands at, a register short
+    of the split's count may have its last create off the ledger, and a
+    recorded replacement the ledger no longer names is a slot lost rather than
+    settled, held here until that split's recovery or release puts it back.
+    Fail-closed on a count or register this binary cannot measure by.
+    """
+    if state.get(_state._SPLIT_ATTEMPT) is None:
+        return False
+    expected = state.get(_EXPECTED_CHILDREN)
+    recorded = state.get(_state._CHILDREN)
+    if not isinstance(recorded, list):
+        return True
+    if not _formats.whole_number(expected) or expected <= 0:
+        return True
+    unlisted = set(recorded) - set(generation.obligations.consumers)
+    return len(recorded) < expected or bool(unlisted)
 
 
 def _every_child_recorded(

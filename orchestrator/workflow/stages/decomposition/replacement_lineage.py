@@ -1,65 +1,65 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The late lineage an ordinary split would seed its children with, or why it may not.
+"""The late lineage an ordinary split seeds its children with, or the park when it cannot.
 
 An ordinary decomposition of an issue a late split made, or of one whose own
 late split a genuine edit is replacing, creates its children inside a lineage
 the bound already counts. Which lineage that is, is `late_split/provenance.py`'s
-decision; this owner turns it into what each child would be seeded with.
+decision; this owner turns it into what each child is seeded with, and it is
+asked before the first child is created, again before a recovered split is
+finalized -- the step that hands the children to the walk that starts them --
+and again in front of every walk that would release one.
 
 Each child is born one level below its parent under the same root, never as a
 fresh root at depth 0 and never past `MAX_LINEAGE_DEPTH`: a parent already at
-the bound has no room for children, so it is refused rather than given any. The
-ancestry names the parent and an adjudication to correlate by -- the parent's
-own cycle where its record keeps one, the one its own ancestry names otherwise,
-and the cycle a retirement dropped where neither does. None of that is a claim
-about a snapshot.
+the bound has no room for children, so its split parks rather than creating
+any. The ancestry names the parent and an adjudication to correlate by -- the
+parent's own cycle where its record keeps one, the one its own ancestry names
+otherwise, and the cycle a retirement dropped where neither does. None of that
+is a claim about a snapshot.
 
 A pointer is. A child may be pointed only at the snapshot the parent's own
-split still holds, and only once the parent's consumer ledger records it --
-written onto the state that records the child in `children`, so the
-reclamation that could take the ref counts the child as one more consumer that
-has to end first. Its body would carry the same pointer as instructions,
-rendered the way a late split's own children are told, since the body is what
-its implementer reads -- and they name that ref and this repository's mirror of
-it, the only two names a child's text may give a snapshot. A mirror under
-another repository's segment is that repository's copy of the same numbers,
-kept by no ledger here. A snapshot another issue holds is protected by a ledger
-only that issue writes, so a child is born without that pointer rather than
-with one nothing keeps. A parent whose own split's record cannot say whether
-its snapshot is still there for a new consumer is not the same as one whose ref
-is settled gone, and it is refused rather than read as the second -- as is one
-holding it with no base recorded, since the instructions name what the
-candidate adds as the range from that base, and a range from nothing is read
-against whatever a checkout holds.
+split still holds, and only once the parent's consumer ledger records it, in
+the same write that records it in `children` -- so the reclamation that could
+take the ref counts the child as one more consumer that has to end first. Its
+body carries the same pointer as instructions, rendered the way a late
+split's own children are told, since the body is what its implementer reads --
+and they name that ref and this repository's mirror of it, the only two names
+a child's text may give a snapshot. A mirror under another repository's
+segment is that repository's copy of the same numbers, kept by no ledger here.
+A snapshot another issue holds is protected by a ledger only that issue writes,
+so a child is born without that pointer rather than with one nothing keeps; a
+child whose parent record never landed has no pointer to lose. A parent whose
+own split's record cannot say whether its snapshot is still there for a new
+consumer is not the same as one whose ref is settled gone, and it is refused
+rather than read as the second -- as is one holding it with no base recorded,
+since the instructions name what the candidate adds as the range from that
+base, and a range from nothing is read against whatever a checkout holds.
 
 What a seed never carries is anything of the parent's own size gate -- its
 measurement, its exemption, or an exact-commit authorization. Each is a claim
-about one commit on one issue, and a child is neither, so nothing here reads
-any of them.
+about one commit on one issue, and a child is neither.
 
-A child already recorded is held to the same answer by `repair`, read off
-the parent's record rather than the child's text: while this split still
-holds its snapshot every recorded child is owed the pointer, so one the
-ledger lost is to be recorded on it again and one carrying no ancestry, or a
-pointer at anything else, seeded with it; once the snapshot has passed to a
-reclamation the lineage alone is owed, and a pointer is dropped with its
-ordering stamp. One carrying exactly what it was owed needs nothing. A child
-this split cannot recognize as its own -- a pinned comment that would not
-parse, a link to anything but this issue's number, text naming any snapshot
-ref it cannot keep, or any other ancestry: a partial group, a field its
-reader would drop, another lineage -- is a refusal, with nothing written over
-what it carries. A child of an ordinary split is owed no lineage and no
-snapshot, so it is recognized only where its comment parses, its link names
-this issue or is not carried at all, it carries none of the group, and its
-text names no snapshot ref. `park_unproved` is the park every refusal here
-would take.
-
-Dormant: no decomposition asks this yet. Ordinary child creation, the park an
-unproved lineage would take, the recovery of an interrupted split, and the
-release of its children all run without it, so replacement children are still
-created with no ancestry and no pointer, and recovered or released with no
-repair, until the split reads this before its first child.
+A lineage the record cannot prove is a refusal, and it parks the parent before
+any child exists, or -- where a crash left children recorded -- before the
+split is finalized and anything could start them. That recovery holds every
+recorded child to the same answer, read off the parent's record rather than
+the child's text: while this split still holds its snapshot every recorded
+child is owed the pointer, so one the ledger lost is recorded on it again
+and one carrying no ancestry, or a pointer at anything else, is seeded with
+it; once the snapshot has passed to a reclamation the lineage alone is
+owed, and a pointer is dropped with its ordering stamp. One carrying exactly
+what it was owed is left alone. A child this split cannot recognize as its
+own -- a pinned comment that would not parse, a link to anything but this
+issue's number, text naming any snapshot ref it cannot keep, or any other
+ancestry: a partial group, a field its reader would drop, another lineage --
+refuses the finalize that would start it, with nothing written over what it
+carries. A child of an ordinary split is held to the same recognition: it is
+owed no lineage and no snapshot, so it is left as it stands only where its
+comment parses, its link names this issue or is not carried at all (a `null`
+link is refused), it carries none of the group, and its text names no
+snapshot ref -- and refused otherwise. A walk releasing a split's children
+holds each one to the same answer before the first is started.
 """
 from __future__ import annotations
 
@@ -152,7 +152,7 @@ _CHILD_NOTICE = (
 
 @dataclass(frozen=True)
 class SeedRepair:
-    """What a recovery would write onto one recorded child's ancestry before it finalizes.
+    """What recovery writes onto one recorded child's ancestry before it finalizes.
 
     The defaults are a child that needs nothing: seeded as it was owed, or
     owed no lineage at all. An ancestry is the group to write, `protect` says
@@ -168,14 +168,14 @@ class SeedRepair:
 
 @dataclass(frozen=True)
 class ReplacementLineage:
-    """What one ordinary split would seed its children with.
+    """What one ordinary split seeds its children with.
 
     The defaults are the ordinary issue, whose children carry a parent link
     and nothing more. An ancestry is the lineage every child is born into,
     with no pointer on it; a snapshot is the one this issue's own split holds
-    and may protect, beside the reuse instructions a child pointed at it is
-    told -- see `born_under`; and a refusal is the sentence a park would post
-    saying why neither could be told -- never beside either.
+    and may protect, beside the reuse instructions appended to the body of a
+    child pointed at it -- see `born_under`; and a refusal is the notice its
+    park posts saying why neither could be told -- never beside either.
     """
 
     ancestry: LateAncestry | None = None
@@ -261,10 +261,10 @@ class ReplacementLineage:
     def child_ancestry(self, state: PinnedState, child_number: int) -> LateAncestry | None:
         """The ancestry the ledger, as it stands, lets one child carry.
 
-        The pointer rides only on a child the consumer ledger names, so a
-        seed written right behind `protect` carries it, and one whose slot
-        the ledger lost carries the lineage alone rather than a pointer
-        nothing keeps -- which is how `repair` tells that slot was lost.
+        The pointer rides only on a child the consumer ledger names. A split
+        seeds each child with this right behind the write that protected it,
+        and a recovery compares what is owed against it to tell a child whose
+        slot the ledger lost -- see `repair`.
         """
         pointed = self.pointed()
         consumers = _late_state.read_late_generation(state).obligations.consumers
@@ -280,10 +280,10 @@ class ReplacementLineage:
         child_state: PinnedState,
         instructed: frozenset[str],
     ) -> SeedRepair:
-        """What a recovered split of `parent` would do with one recorded child's ancestry.
+        """What a recovered split of `parent` does with one recorded child's ancestry.
 
-        A deferred release would ask the same of each child it starts, and
-        start only one that needs nothing: no refusal, and nothing to write.
+        A deferred release asks the same of each child it would start, and
+        starts only one that needs nothing: no refusal, and nothing to write.
 
         What a child is owed is read off the parent's own record, never off
         the child: while this issue's split still holds its snapshot, every
@@ -337,9 +337,9 @@ class ReplacementLineage:
 
 
 def read_replacement_lineage(state: PinnedState, issue: Issue, spec: config.RepoSpec) -> ReplacementLineage:
-    """Decide what this issue's children would be seeded with, or why they may not be.
+    """Decide what this issue's children are seeded with, or why they may not be.
 
-    Read off the record the caller already holds, so it costs no request. An
+    Read off the record the tick already holds, so it costs no request. An
     issue no late split charged answers the ordinary lineage, and a refused
     provenance answers its own refusal, since reading either as the other is
     how a lineage starts over at 0. The bound is asked before anything is
@@ -347,7 +347,7 @@ def read_replacement_lineage(state: PinnedState, issue: Issue, spec: config.Repo
     this issue's own whose snapshot cannot be told held or released is a
     refusal too, though the lineage beside it is proved: seeding its children
     without a pointer would read a record nobody can read as one that settled
-    the ref gone.
+    the ref gone. Each refusal is the notice its park posts.
     """
     provenance = _provenance.read_provenance(state, issue.number, issue.body)
     if not provenance.is_inherited:
@@ -378,8 +378,7 @@ def park_unproved(gh: GitHubClient, issue: Issue, state: PinnedState, notice: st
     """Hand the issue to a human, with the notice its refusal carries.
 
     The issue is a split whose children's lineage cannot be proved, or a
-    child whose seed is not the one its receipt owes; either runs nothing
-    until it is.
+    child whose own seed never landed; either runs nothing until it is.
     """
     log.warning(
         "issue=#%s runs nothing until its lineage is proved: %s", issue.number, notice,

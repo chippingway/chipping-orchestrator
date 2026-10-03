@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """A split's child whose seed is not the one its receipt owes it is held, and one whose seed is runs.
 
-No dispatcher asks the hold yet, so it is driven directly against one child
-this orchestrator opened carrying a receipt. A seed is whole when it links
-exactly the receipt's parent and carries exactly the lineage the receipt owes
--- none on a child owed none -- and a pointer only at that split's snapshot,
-or none once the child's own guard dropped it.
+Driven directly here against one child this orchestrator opened carrying a
+receipt; the dispatcher asking it ahead of every runnable handler is
+`test_unseeded_children`'s subject. A seed is whole when it links exactly the
+receipt's parent and carries exactly the lineage the receipt owes -- none on a
+child owed none -- and a pointer only at that split's snapshot, or none once
+the child's own guard dropped it.
 """
 from __future__ import annotations
 

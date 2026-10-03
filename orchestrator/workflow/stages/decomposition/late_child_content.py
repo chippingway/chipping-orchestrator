@@ -10,9 +10,9 @@ same thing. What any issue text names in the snapshot namespace is read by one
 reader, so every caller holding a slice or a child's text to a snapshot gets
 the same answer -- and the names a kept snapshot may go by are read off those
 instructions by the same reader, so no spelling they use is refused. The
-replacement lineage renders those instructions for a replacement and reads
-their names through that reader, and it is dormant: no ordinary split renders
-or reads either yet.
+replacement lineage renders those instructions for every replacement an
+ordinary split points at its parent's snapshot, and holds both a slice before
+creation and a recorded child before release to that reader.
 """
 from __future__ import annotations
 

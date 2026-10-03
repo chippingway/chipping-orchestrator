@@ -22,7 +22,8 @@ been edited while children were running, and unlike an implementing issue there
 is no later stage to notice; the reroute back to `decomposing` re-derives the
 manifest against what the body says now. The children it stops tracking are
 orphaned rather than forgotten where a late split made them: that split's
-generation survives the reroute, and its consumer ledger still names them.
+generation survives the reroute, and its consumer ledger still names them --
+replacements included, written there before the reroute drops them.
 """
 from __future__ import annotations
 
@@ -35,7 +36,7 @@ from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import drift as _drift, guards as _guards, terminals as _terminals
-from orchestrator.workflow.stages.decomposition import state as _state
+from orchestrator.workflow.stages.decomposition import drift as _decomposition_drift, state as _state
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
 
 log = logging.getLogger("orchestrator.workflow")
@@ -70,7 +71,7 @@ def _route_parent_drift(
     new_hash = _drift._detect_user_content_change(gh, issue, state)
     if new_hash is None:
         return False
-    orphans = list(state.get(_state._CHILDREN) or [])
+    orphans = _decomposition_drift._account_discarded(gh, issue, state)
     _drift._route_drift_to_decomposing(gh, issue, state, new_hash, orphans)
     gh.write_pinned_state(issue, state)
     return True

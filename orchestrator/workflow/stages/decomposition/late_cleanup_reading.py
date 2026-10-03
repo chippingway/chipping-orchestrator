@@ -7,8 +7,8 @@ a lazy issue's state or labels failing past the lookup included -- and only
 the snapshot derived from this generation's identity belongs to it.
 Consumers are the ones the ledger records, never the manifest the caller
 tracks, so an umbrella whose edit replaced its children still reads the
-originals its ref was preserved for, beside any replacement the ledger
-records with them.
+originals its ref was preserved for, beside every replacement it pointed at
+that ref.
 """
 from __future__ import annotations
 
@@ -118,9 +118,10 @@ def _consumer_scan(
     replacements, and the originals it orphaned are still ones the ref was
     preserved for. So the ledger decides who is read, never the manifest
     beside it, and an original that is open, was reopened, or cannot be read
-    keeps the ref however finished its replacements are. A replacement the
-    ledger records beside them is a child that scan was asked about, so it
-    answers for it the way it does for any child it tracks.
+    keeps the ref however finished its replacements are. A replacement that
+    re-decomposition pointed at this ref was recorded here in the write that
+    tracked it, so the scan the caller took answers for it the way it does
+    for any child it tracks.
 
     Shaped as the parent scan the umbrella hands over, because the rule it
     feeds is the same rule and may not learn a second shape to ask it in.

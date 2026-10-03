@@ -1689,15 +1689,16 @@ delete the only copy of the work it came back for. The issues come off the child
 wherever that scan was asked about them, so the ordinary proof costs no request of its own, and a closed `done`
 covers a nested split too — a child that reached it has published, so its own descendants are past needing the
 ancestor. A recorded consumer the scan was **not** asked about is read afresh instead: a genuine edit re-decomposes
-the umbrella, and from then on its scan is of the replacements while the originals it orphaned are still the
-consumers the ref was preserved for. The ledger decides who is read, never the manifest beside it, and the orphans
-are only read and, once the ref goes, told so — never adopted, relabelled, or reopened. A replacement the ledger
-records beside them is a consumer like any other, so the ref waits for it too, and one reopened after it resolved
-keeps the ref the same way. What the ledger does not change is *when* the question is asked: only on a tick that
-finds every tracked child resolved, or one a child's disposition parks. So the ref goes on the first such tick after
-the last recorded consumer has ended, not sooner — an original that ends while the replacements are still running
-frees nothing until they resolve or one parks the parent — and the terminal waits behind the same settlement, so
-nothing closes over the ref in between. Anything that cannot be
+the umbrella, and from then on its scan is of the replacements while the originals it orphaned are still consumers
+the ref was preserved for. The ledger decides who is read, never the manifest beside it, and the orphans are only
+read and, once the ref goes, told so — never adopted, relabelled, or reopened. A replacement the re-decomposition
+pointed at the ref is on that ledger too ([below](#what-an-ordinary-re-decomposition-holds-its-children-to)), so the
+ref waits for it exactly as it waits for an original, and a replacement reopened after it resolved keeps the ref the
+same way. What the ledger does not change is *when* the question is asked: only on a tick that finds every tracked
+child resolved, or one a child's disposition parks. So the ref goes on the first such tick after the last recorded
+consumer — an original, or a replacement pointed at the ref — has ended, not sooner; an original that ends while
+the replacements are still running frees nothing until they resolve or one parks the parent, and the terminal waits
+behind the same settlement, so nothing closes over the ref in between. Anything that cannot be
 proved keeps the ref: a consumer that is open or was reopened, one whose read failed, or a consumer ledger this
 binary could not type. All of that
 is about the consumers the ledger *names*, so the prior question is whether it names all of them, and the record's
@@ -1706,7 +1707,13 @@ parent does not record is a child nothing would come back to — so while `split
 one that already exists, and its length decides nothing: a set of ended consumers says as little about the child it
 has not reached as an empty one does. Nothing on the ref is reclaimed in that window. Either side of it the list is
 whole — before the split nothing has been created, and past it the loop ran to the end — which is also what makes an
-*empty* list a fact rather than a gap, since the ref is retained ahead of the first child.
+*empty* list a fact rather than a gap, since the ref is retained ahead of the first child. The same window opens again
+when a genuine edit's ordinary re-decomposition points replacements at the ref: each joins the list in the write that
+records it, behind its create, so while that split's register is short of the count it wrote — the parent still
+carrying its `split_attempt` — the list may be short by a replacement already on GitHub, whatever phase the late
+generation stands at; so it is while the register names a replacement the list has lost. Either way nothing on the
+ref is reclaimed, by the umbrella's terminal, a `blocked` parent's hand-back,
+or the closed-owner sweep alike.
 
 The boundary an interrupted transaction stood at is therefore **kept**, because a phase is otherwise written only
 forwards. Every completed run claims the owner read, and a transaction re-entered after a crash comes back through
@@ -1892,37 +1899,153 @@ ledgers it kept are readable they hold either hand-off only on an entry still ow
 own work, and re-decomposed by a later edit, is not held on the history its own settlement already finished. A ledger
 this binary cannot read is no such history, and holds the hand-off as it would on any record with no identity.
 
-### What an ordinary re-decomposition will hold its children to
+### What an ordinary re-decomposition holds its children to
 
-A genuine edit can hand the ordinary decomposer an issue already inside a late lineage, and children created there
-as ordinary issues would each read as a fresh root at depth 0. `replacement_lineage.py` decides off the parent's
-record which lineage they inherit and which snapshot, if any, they may be pointed at
-([inherited lineage](../state-machine/labels-and-state.md#late-generation-state)). Beside that decision sit the
-contracts a split, its recovery, and the dispatcher are to hold those children to. All of them are **dormant**: no
-split, recovery, release, or dispatch asks any of them yet, so children are still created with no receipt, ancestry,
-or pointer, and no label, pinned key, or marker an issue already carries changes meaning.
+A genuine edit hands the ordinary decomposer an issue that is already inside a late lineage: the umbrella a split made,
+rerouted by a body edit or a trusted comment written after the reading the late path consumed, or a child a split made,
+rerouted before its implementation started. The children the decomposer answers with are cut inside that lineage
+whatever manifest they come from, and children created as ordinary issues would each read as a fresh root at depth 0 —
+which is exactly how a lineage buys itself generations past `MAX_LINEAGE_DEPTH`. So before the split writes anything,
+`replacement_lineage.py` asks `late_split/provenance.py` which lineage the issue's children inherit, and the answer is
+one of three.
 
-- **Receipt** (`split_receipts.py`). Each child's body is to carry, after its slice, a hidden marker naming the
-  parent, the `split_attempt` minted for that split, the slice, and the lineage the child is owed. Only a whole
-  receipt counts, and the last one in a body governs: a slice may quote another child's body, receipt and all, ahead
-  of its own stamp.
-- **Adoption.** A recovery whose register is short of its count looks for the next slice's receipt among issues
-  this orchestrator opened. The one it finds — open, still on `workflow:blocked`, and ending on that receipt whole —
-  is recorded in `children`, and on `late_consumers` wherever the parent's proved lineage points its children at a
-  snapshot, in one parent write; a receipt its slice quoted ahead of the stamp is no second claim. A closed or
-  relabelled candidate, or one ending on another receipt or on none whole, is named for the park instead, and a
-  parent with no attempt this binary minted has nothing to look for.
-- **Repair** (`ReplacementLineage.repair`). A recorded child is owed what the parent's record says, never what its
-  text says. It needs nothing when it carries that, the owed group when it carries none or points elsewhere, its
-  consumer slot back when the held snapshot's ledger lost it, and the lineage alone once the ref has passed to a
-  reclamation. A child the split cannot recognize as its own is refused with nothing written over it: an unparsed
-  comment, a `parent_number` that is not exactly this issue's number, any other ancestry (any at all on an ordinary
-  split's child), or text naming a snapshot ref nothing keeps for it.
-- **Seed hold** (`split_seeds.py`). A receipted child this orchestrator opened whose seed is not the one its receipt
-  owes — the exact parent link, the whole bounded lineage, a pointer only at that split's snapshot, its ref and
-  commit together — is held under every runnable label and parked `replacement_lineage_unproved` once. A pointer
-  its own reuse guard removed whole after the ref was released is not a lapse. A child whose pinned comment will not
-  parse is held too, with nothing written over that comment and nothing said but the log.
+**None**, for an issue no late split charged: its children are seeded with a parent link and a creation stamp and
+nothing else, like the children of any split outside a lineage.
+
+**An inherited lineage**: each child is born one level below the parent under the same root, with an ancestry naming the
+parent and a cycle and generation to correlate by — the parent's own where its record keeps one, the one its own
+ancestry names where it has none, and the retired cycle where neither stands. A parent already at `MAX_LINEAGE_DEPTH`
+has no room for a child, so it is a refusal rather than a child at the bound's far side. The snapshot pointer is the
+part that needs protecting: the reclamation deletes a ref once every consumer its owner's ledger records has ended, so a
+child pointed at a ref nothing records is a child whose only copy of the work can be taken while it works. A child is
+therefore pointed only at the snapshot the parent's **own** split still holds — the ledger naming it exactly once and
+`retained` — and only once that ledger records it, in the same write that records it in `children`, ahead of its seed. A
+snapshot another issue's split holds is protected by a ledger only that issue writes, and a pinned comment is written
+whole by whoever writes it, so this issue may not add a consumer there: its children are born with the lineage and
+without that pointer. A child that is pointed at the ref is also told about it where its implementer reads: the same
+reuse instructions a late split's own children carry — the ref, its local mirror, the commit, the base it was cut
+against, and how to cherry-pick or copy from it — are appended to its declared body when it is created. A ref the
+parent's own split no longer holds is settled only where its entry has passed to a reclamation — `reclaiming`,
+`reconciled`, or a `failed` delete — and its replacements are then born without it; a ledger that cannot say whether the
+ref is held or released is not that answer, and is refused below. What never descends is the parent's own gate — its
+measurement, its `late_exempt_sha`, and the `late_override_*` terms an operator authorized one of its commits on — so a
+replacement's first oversized candidate is measured and adjudicated as the lineage's next generation, one level below
+its parent.
+
+**A refusal**, for a record that cannot say which lineage the children would be born into or which snapshot they may be
+pointed at: every shape `provenance.py` refuses, a parent at the bound, a record naming no cycle at all, or a split of
+the parent's own whose ledger cannot say whether its snapshot is held or released — a ledger this binary cannot read, a
+held ref no consumer can be recorded against, an entry never proved or recorded twice (released twice included), or none
+for its own ref (`late_split/entitlement.py`) — or a split of the parent's own holding its snapshot with no
+`late_base_sha`, since the reuse instructions name the candidate's change as the range from that base and a range from
+nothing is read against whatever the child's checkout holds. A manifest is refused the same way when a slice's own title
+or body names a snapshot ref its child would not be kept — anything under `refs/orchestrator/late-split` other than the
+one ref the child is pointed at and this repository's mirror of it. That includes the ref a descendant was itself cut
+from, which its parent's ledger keeps for the descendant and for none of the children it creates, and every ref where
+the child is pointed at none: the implementer reads the body, so a slice copying reuse instructions from the thread
+would otherwise hand a child a snapshot nothing keeps for it. It includes a mirror under another repository's segment
+too: a `REPOS` entry sharing the clone fetches its own split of the same issue, cycle, and generation numbers there,
+which may be other work and is on no ledger this parent writes. And each mention is read as the whole ref name it could
+be — as far as ref characters run on either side of the namespace, which is anything but an ASCII space or control
+character and the few characters git refuses, so a non-breaking space runs a name on as surely as `@` does. What is
+taken off is only what no ref under `refs/` can hold: quotes, backticks, or round, angle, or square brackets that open
+the mention and are closed at its end, one leading `+` forcing the whole refspec, and a trailing full stop or slash. An
+opener left unclosed, a second `+`, a pattern's `*`, and every other character a ref may contain are part of the name,
+so a longer name that merely contains the child's ref (`…/gen-1@foreign`, `` `…/gen-1!` ``, `…/gen-1,`, `…/gen-1*`,
+`'…/gen-1` with no closing quote, `++…/gen-1`, `refs/heads/refs/…`) is the different, unkept ref it is. A refspec names
+both its sides, and wrapping opened before its source may close after its destination: the instructions themselves quote
+the fetch as `'+ref:mirror'`, so they read back as exactly the ref and its mirror. The split parks
+`replacement_lineage_unproved` before `expected_children_count` is written, so no child exists and nothing is left for a
+recovery to finalize; a reply is an edit, and re-runs the decomposer against the thread as it then stands.
+
+A crash inside the split is repaired to the same answer before anything can start a child. The recovery that finalizes a
+split whose every child was recorded asks the parent's record again and holds every recorded child to it, and what a
+child is owed is read off that record rather than off the child. While the parent's split still holds its snapshot,
+every child it recorded is owed the pointer — the split protected each one in the write that recorded it — so a child
+`late_consumers` no longer names has lost a slot rather than settled one: it is recorded there again, in a write of the
+parent's own ahead of its seed and of the finalize, and a child carrying none of the ancestry group, or a pointer at
+anything else, is seeded with the pointer, whatever its title or body now says. Once the snapshot has passed to a
+reclamation the lineage alone is owed, and a pointer still on a child is dropped, its ordering stamp with it and the
+lineage beside it kept. A child carrying exactly the group it was owed is left as it stands. The child's text can only
+refuse: the title and body are what the implementer reads, so they are read exactly as a slice is before creation —
+every ref named under the namespace, whatever line or line ending it sits on, each as the whole name git would take it
+for, a mirror standing for the ref only under this repository's own segment — and a child naming any ref but the one the
+split still holds is not one this recovery may finalize. A child that split cannot recognize as its own is refused
+rather than overwritten: a pinned comment that would not parse (it reads back empty, exactly like the seed a crash
+deferred, and nothing on it can be checked), a `parent_number` that is not this issue's number — another issue's, or no
+positive integer at all, since a float or a bool compares equal to one without being one — text naming a snapshot ref
+the split no longer holds or never preserved (or another repository's mirror of one), or any other group — part of it, a
+field its reader would drop, another lineage — which a child's own size gate would read as whatever it says. A split of
+an issue no late split charged is held to the same recognition: its children are owed no lineage and no snapshot, so a
+recorded child of one is left as it stands only where its comment parses, its `parent_number` is this issue's number or
+not carried at all (a `null` is refused like any other non-number), it carries none of the group, and its text names no
+snapshot ref at all — and refused otherwise. Only once every child passes is the parent finalized into the walk that
+activates children; a record that no longer proves the lineage, or a child refused, parks the same way instead and
+leaves every child unstarted. That walk — which is also how the split itself releases its children with no dependency,
+in the tick that created them, over the same fresh read of every child's label and behind the same parks a rejected or
+hand-closed child earns, since a human can act on one while its siblings are still being created — asks the same
+decision again before it releases any of them, since a child starts off a record that may have changed since its seed,
+and, before the first release, holds every child it would release, as each
+then reads, to the recognition a recovery applies: its pinned comment has to parse, its `parent_number` has to be this
+issue's number, its ancestry has to be the whole group it was owed, its pointer only one the parent's ledger still keeps
+for it (the ref held, the child on `late_consumers`), and its title and body may name no ref but that one. A child a
+recovery would have to refuse or repair — a seed taken off, a pointer at a released ref, a consumer slot lost, another
+issue's ref added to its body — releases none of them. A child of an ordinary split is held to the same recognition,
+owed no lineage and no snapshot, so every child either walk releases costs one read of its pinned comment. Either
+refusal parks the parent, once. What the text is held to is naming no ref the split cannot keep, not keeping the
+instructions: a child whose reuse instructions a human took out of its body keeps its pointer and its slot on the ledger
+— a recovery puts back either one it finds missing — and is released uninstructed.
+
+A child created and never recorded — the crash between the create and the parent write that records it — is found again
+by what the split put in it. Every child's body carries a hidden receipt naming the parent, a `split_attempt` minted for
+that split alone, its slice, and the late lineage the split seeds it with — root, depth, cycle, and generation, or
+none — and the attempt goes onto the parent in the same write as the expected count and the
+whole dependency graph, before the first child exists. A recovery whose register is short looks for the next slice's
+receipt among the issues this orchestrator opened, walking every one of them, and records the one it finds — the only
+issue carrying that receipt, not already in the register, open, still `workflow:blocked`, and ending on that receipt
+whole — in a parent write of its own. Only a whole receipt counts, and the last one in a
+body governs, since the split stamps its own after the slice and a slice may quote another child's body, receipt and
+all, ahead of it; a receipt quoted there is no second claim. That write also records it on `late_consumers` wherever the
+parent's proved lineage points its children at a snapshot, exactly as the write the crash lost would have: every child
+of such a split is owed the pointer, so the entitlement is read off that lineage rather than off the child's text, which
+may have been edited since. The recovery above then holds it to the same lineage and seeds it before anything finalizes.
+A candidate a human closed or relabelled, one ending on another receipt or on none whole, one the register already
+names (a sibling whose body was made to end on the receipt is still the slice it was recorded as), a receipt more than
+one issue carries (no single child is named, and adopting the first could record a sibling twice while the real orphan
+stays outside the register), a register still short once it is recorded (the rest were never created, and the
+manifest is not kept to create them from), and a split an older binary prepared with no attempt all park
+`decomposition_crash` instead, naming the candidate where there is one, so nothing points an unrecorded child at a
+snapshot or starts it.
+
+Every recorded child a recovery or a release would vouch for is also held to its receipt, where its body carries one
+on an issue this orchestrator opened: the last whole receipt has to be exactly the one the split stamped for the slot
+the register names the child in, once — this parent, the recorded attempt, that slice, and the lineage the parent's
+record owes. The dispatcher holds the child's seed to that receipt once it runs, so one naming another slice, attempt,
+or lineage would be seeded or released here and held there; it is refused instead, before anything is written,
+finalized, or released. A child carrying no receipt — every child of an older binary's split — answers the rest alone.
+
+A child that carries a receipt and no `parent_number` naming that receipt's parent is one whose seed never landed — one
+a crash left created and never recorded, the child a short register leaves recorded and unseeded behind its parent's
+park, or one a crash left between its record and its seed — and nothing has proved its lineage. A seed that did land can
+lose its late ancestry, or part of it, or come to name another place in the lineage, by hand. An edit can still route
+any of them into its own `workflow:decomposing`, and a human can relabel it to `workflow:ready` or any other stage;
+every one of them would read the record as an issue no split made, or as one at another depth, run an agent with no ref
+kept for it, and start whatever it creates there — a replacement owed the lineage's last level splitting again past the
+bound. So the dispatcher holds the child against what its receipt says it was owed, ahead of every handler but a
+terminal's, ahead of the step aside a live adjudication of the child's own candidate takes, and ahead of the reuse
+guard that holds a late split's child whose ref is gone: a `parent_number` that is
+exactly the receipt's parent, and the `late_ancestry_*` group exactly as the receipt owes it — none of it on a child
+owed none, the whole group at that root, depth, parent, cycle, and generation on one owed a lineage. A pointer is the
+one part it may lack, because the reuse guard drops the ref and its commit together once the ref is gone; one it
+carries has to be that pair whole, naming the snapshot that split preserved. It is read off the last whole receipt in
+the body and the record the dispatcher already holds, so it costs no request, and only a receipt on an issue this
+orchestrator opened counts — a body is a field anyone can paste into. A held child parks `replacement_lineage_unproved`
+once — a park already standing holds it silently, and a reply is no seed — until its parent's recovery seeds it, which
+clears `awaiting_human` in the same write, or a human writes that seed and clears the park by hand. A restart an
+operator authorizes on the child's own cancelled cycle keeps the seed — the parent link and the ancestry, pointer
+included, and nothing of the cycle's candidate — so the restarted child is not held for a seed its split did write. A
+child whose pinned comment will not parse is held too, with nothing written over that comment and nothing said but the
+log on every tick, since the park's own write would replace whatever it carries.
 
 ### What a close mid-cycle ends, and what it still settles
 

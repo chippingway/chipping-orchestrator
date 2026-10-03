@@ -155,12 +155,15 @@ class _IssueService:
         child nobody has attributed yet, and a human is free to close it or
         move its label in that window.
         """
-        for candidate in self._issues.values():
-            if carries_own_marker(
-                [candidate], marker, bot_login=self._bot_login,
-            ):
-                return candidate
-        return None
+        carrying = self.find_issues_carrying(marker)
+        return carrying[0] if carrying else None
+
+    def find_issues_carrying(self, marker: str) -> list[FakeIssue]:
+        """Every issue this client created carrying `marker`, in any state, in the order they were added."""
+        return [
+            candidate for candidate in self._issues.values()
+            if carries_own_marker([candidate], marker, bot_login=self._bot_login)
+        ]
 
 
 class _WorkflowStateService:

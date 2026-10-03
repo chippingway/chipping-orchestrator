@@ -88,6 +88,21 @@ class MarkerLookupTest(unittest.TestCase):
 
         self.assertIsNone(client.find_issue_carrying(_MARKER))
 
+    def test_every_match_is_found(self) -> None:
+        # A caller that has to know its match is the only one walks to the
+        # end, held to the same author and pull-request rules on the way.
+        first = _candidate(f"a slice\n\n{_MARKER}")
+        second = _candidate(f"a quote of {_MARKER}")
+        client = _client_over(
+            first,
+            _candidate(_MARKER, login="outsider"),
+            _candidate(_MARKER, is_pull=True),
+            _candidate("some other issue"),
+            second,
+        )
+
+        self.assertEqual(client.find_issues_carrying(_MARKER), [first, second])
+
 
 class MarkerLookupReachTest(unittest.TestCase):
     """Nothing about a candidate's current state hides it from the lookup."""

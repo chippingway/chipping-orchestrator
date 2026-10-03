@@ -3,7 +3,10 @@
 """Persist restart identities and project the fresh cycle onto retained issue usage.
 
 The retired cycle keeps thread attribution and lifetime spending while
-dropping its sessions, publications, candidates, and children.
+dropping its sessions, publications, candidates, and children. A split's
+receipted child keeps the seed its receipt holds it to as well -- see
+`split_seeds.carried_seed` -- since that is a fact about where the issue sits
+in its tree rather than about the cycle that ended.
 """
 from __future__ import annotations
 
@@ -27,6 +30,7 @@ from orchestrator.workflow.late_split import (
     telemetry as _telemetry,
 )
 from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.stages.decomposition import split_seeds as _split_seeds
 from orchestrator.workflow.state import stage_name
 
 log = logging.getLogger("orchestrator.workflow")
@@ -134,7 +138,7 @@ def _retired(
     """
     target = generation.restart_target
     fresh = _restart.retire_restart(generation)
-    _projected(state, fresh)
+    _projected(state, fresh, _split_seeds.carried_seed(gh, issue, state))
     gh.write_pinned_state(issue, state)
     log.warning(
         "issue=#%d is restarted as late-split cycle %d after cycle %s; every "
@@ -156,7 +160,7 @@ def _retired(
 
 
 def _projected(
-    state: _pinned_state.PinnedState, fresh: LateGeneration,
+    state: _pinned_state.PinnedState, fresh: LateGeneration, seed: dict[str, object],
 ) -> None:
     """Rewrite this pinned comment as the fresh cycle's whole durable state.
 
@@ -166,11 +170,13 @@ def _projected(
     set, a pull request nobody opened, a watermark over a thread the fresh
     cycle has not read. What is kept is named instead, and the identity of the
     comment itself is kept by rewriting the payload in place rather than by
-    minting a second one no reader would find.
+    minting a second one no reader would find. `seed` is the one group kept
+    beside that list, and only on an issue whose body says a split owed it.
     """
     kept = {
         key: state.data[key] for key in _RETAINED_KEYS if key in state.data
     }
+    kept.update(seed)
     state.data.clear()
     state.data.update(kept)
     _late_state.write_late_generation(state, fresh)

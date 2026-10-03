@@ -1,40 +1,43 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The receipt an ordinary split would stamp into each child, and the adoption it lets a recovery make.
+"""The receipt an ordinary split stamps into each child, and the adoption it lets a recovery make.
 
 A split records each child on its parent in the write right behind the create
 that opened it, and a process can die between the two. The issue then exists
 and nothing outside GitHub knows its number, so the only way back to it is
 something the split put IN it: a hidden marker naming the parent, the split
-attempt, and the slice. The attempt is minted for each split and belongs on
+attempt, and the slice. The attempt is minted for every split and written on
 the parent's `split_attempt` in the same write as the expected count and the
-dependency graph -- ahead of the first child -- so a receipt an earlier split
-of the same issue stamped is never read as this one's.
+whole dependency graph -- ahead of the first child -- so a receipt an earlier
+split of the same issue stamped is never read as this one's, and the slice a
+recovered child was cut for still has its dependencies on record.
 
 A recovery that finds the parent short of its count looks for the one slice a
 crash can leave unrecorded: the next one, since the loop records each child
-before it creates another. An issue this orchestrator opened whose last
-whole receipt is that one, open and still on the label a child is born with,
-is recorded on the parent -- and, in that same write, on the consumer ledger of
-the snapshot the parent's proved lineage points its children at, exactly as
-the write the crash lost would have recorded it. The entitlement comes from
-that lineage rather than from the child's text, which anyone may have edited
-since. One closed or relabelled is something a human acted on, and one
-ending on another receipt -- or on none whole -- is one nothing can
-attribute, so it is neither adopted nor reported as absent: the answer names
-it for a park. A parent with no attempt
-this binary minted -- one an older binary split -- leaves nothing to look for.
+before it creates another. The one issue this orchestrator opened carrying
+that receipt, ending on it whole, unrecorded, open, and still on the label a
+child is born with, is recorded on the parent -- and, in that same write, on
+the consumer ledger of the snapshot the parent's proved lineage points its
+children at, exactly as the write the crash lost would have recorded it. The
+entitlement comes from that lineage rather than from the child's text, which
+anyone may have edited since: every child of a split that points is owed the
+pointer. From there it is a recorded child like any other, held to the
+recovery's recognition and seeded before anything finalizes the split. One
+closed or relabelled is something a human acted on, and one ending on another
+receipt -- or on none whole -- is one nothing can attribute; one the register
+already names is another slice's child, and taking it again would record one
+issue twice; and a receipt more than one issue carries names no single child
+at all. None of them is adopted or created again: the answer names them for
+the park the split takes. A parent with no attempt this binary minted -- one
+an older binary split -- leaves nothing to look for.
 
 The receipt also names the lineage the split owed its child -- root, depth,
 cycle, and generation under the parent it names, or none -- decided off the
 parent's record before the child existed. The last whole receipt in a body is
 the one that counts, since the split stamps it after the declared slice and a
-slice may quote another child's body, receipt and all, ahead of it.
-`split_seeds` holds a child's pinned seed to it.
-
-Dormant: no split mints an attempt or stamps a receipt yet, and no recovery
-adopts, so every child is still created with neither and a short register
-still parks as it always has.
+slice may quote another child's body, receipt and all, ahead of it. Its
+pinned seed is the copy every stage reads, and the receipt is what
+`split_seeds` holds that copy to before any stage runs the child.
 """
 from __future__ import annotations
 
@@ -88,6 +91,11 @@ _MOVED = "was moved off the label a child is born with"
 
 _UNATTRIBUTED = "its last whole receipt is not that one"
 
+_AMBIGUOUS = "is one of {count} issues that do"
+
+_RECORDED = "is already recorded as another slice's child"
+
+
 # A receipt read whole, exactly as `receipt` writes one: anything else -- a
 # placeholder in prose quoting the format, a number edited out -- is no
 # receipt, and claims no parent and no lineage.
@@ -104,6 +112,12 @@ class Adoption:
     children: list
     stranded: str | None = None
 
+    @classmethod
+    def refused(cls, recorded: list, orphan: Issue, why: str) -> Adoption:
+        """The register as it stands, beside the park sentence naming the candidate it could not take and why."""
+        stranded = _STRANDED.format(number=orphan.number, index=len(recorded), why=why)
+        return cls(list(recorded), stranded)
+
 
 def mint_attempt() -> str:
     """A fresh identity for one split, which no other split's receipt carries."""
@@ -111,10 +125,10 @@ def mint_attempt() -> str:
 
 
 def receipt(issue: int, attempt: str, index: int, owed: LateAncestry | None) -> str:
-    """The hidden receipt the child cut for one slice of one split would be created carrying.
+    """The hidden receipt the child cut for one slice of one split is created carrying.
 
-    `owed` is the lineage the split would seed that child with, its pointer
-    aside, or None -- or the empty ancestry -- for a split that seeds none.
+    `owed` is the lineage the split seeds that child with, its pointer aside,
+    or None -- or the empty ancestry -- for a split that seeds none.
     """
     lineage = _NONE if owed is None or not owed.is_present else _OWED.format(
         root=owed.root_issue, depth=owed.lineage_depth, cycle=owed.cycle_id, generation=owed.generation,
@@ -134,34 +148,18 @@ def stamped(
     return receipted
 
 
-def owed_by(body: object) -> LateAncestry | None:
-    """The lineage the last whole receipt in a body says its split owed, or None where it carries none.
+def final_receipt(body: object) -> str:
+    """The last whole receipt in a body, as `receipt` writes one, or "" where it carries none whole.
 
-    The last, because `stamped` writes the receipt after the declared slice
-    and nothing but reuse instructions after it, and an ordinary manifest's
-    slice may quote the body of a parent that was itself a split's child --
-    receipt and all -- so the first could be the parent's own.
-
-    Its `parent_issue` is the parent that receipt names; a split that owed no
-    lineage answers that parent and nothing else, which `is_present` reads
-    as no lineage at all.
+    The one that counts wherever a body is read for its receipt --
+    `split_seeds` reads the lineage it owes off it -- since `stamped` writes
+    it after the declared slice and a slice may quote another child's body,
+    receipt and all, ahead of it.
     """
     if not isinstance(body, str):
-        return None
-    readings = list(_RECEIPT_READING.finditer(body))
-    if not readings:
-        return None
-    read = readings[-1]
-    parent = int(read["parent"])
-    if read["root"] is None:
-        return LateAncestry(parent_issue=parent)
-    return LateAncestry(
-        root_issue=int(read["root"]),
-        lineage_depth=int(read["depth"]),
-        parent_issue=parent,
-        cycle_id=int(read["cycle"]),
-        generation=int(read["generation"]),
-    )
+        return ""
+    readings = [reading.group(0) for reading in _RECEIPT_READING.finditer(body)]
+    return readings[-1] if readings else ""
 
 
 def adopt_unrecorded(
@@ -169,10 +167,10 @@ def adopt_unrecorded(
 ) -> Adoption:
     """Record the child a crash left created and unrecorded, where there is one to find.
 
-    For a parent short of its expected count. The lookup walks the
+    Asked only of a parent short of its expected count. The lookup walks the
     repository's issues in every state, the price of a marker nobody indexed,
-    so a recovery would ask it once: the answer either completes the register
-    or parks the split. The adopted child is recorded -- and protected, where the
+    and a recovery asks it once: the answer either completes the register or
+    parks the split. The adopted child is recorded -- and protected, where the
     lineage asked off the parent's record now points its children at a
     snapshot -- in its own parent write, so a crash behind it leaves a
     register the next recovery reads as complete and a ref kept for the child
@@ -183,46 +181,46 @@ def adopt_unrecorded(
     if not isinstance(attempt, str) or _ATTEMPT.fullmatch(attempt) is None:
         return Adoption(list(recorded))
     lookup = _LOOKUP.format(issue=issue.number, attempt=attempt, index=len(recorded))
-    orphan = gh.find_issue_carrying(lookup)
-    if orphan is None:
+    candidates = gh.find_issues_carrying(lookup)
+    if not candidates:
         return Adoption(list(recorded))
-    stranded = _unadoptable(gh, orphan, lookup, len(recorded))
-    if stranded is not None:
-        return Adoption(list(recorded), stranded)
+    orphan = candidates[0]
+    why = _unadoptable(gh, orphan, lookup, recorded)
+    if len(candidates) > 1:
+        # A receipt more than one issue carries names no single child:
+        # adopting the first could record a sibling twice while the real
+        # orphan stays outside the register.
+        why = _AMBIGUOUS.format(count=len(candidates))
+    if why is not None:
+        return Adoption.refused(recorded, orphan, why)
     log.warning(
         "issue=#%s adopting child #%s for slice %d: it was created and never recorded",
         issue.number, orphan.number, len(recorded),
     )
-    adopted = [*recorded, orphan.number]
-    state.set(_state._CHILDREN, adopted)
+    state.set(_state._CHILDREN, [*recorded, orphan.number])
     _replacement_lineage.read_replacement_lineage(state, issue, spec).protect(state, orphan.number)
     gh.write_pinned_state(issue, state)
-    return Adoption(adopted)
+    return Adoption(state.get(_state._CHILDREN))
 
 
-def _unadoptable(gh: GitHubClient, orphan: Issue, lookup: str, index: int) -> str | None:
-    """Why this candidate may not be taken over as slice `index`'s child, said for the park, or None.
+def _unadoptable(gh: GitHubClient, orphan: Issue, lookup: str, recorded: list) -> str | None:
+    """Why the one issue carrying the next slice's receipt may not be taken over as its child, or None.
 
-    The lookup matches a receipt as a substring, so it finds a body quoting
-    that receipt as readily as one stamped with it, and a receipt cut short as
-    readily as a whole one. Attribution is the last whole receipt, read as
-    `owed_by` reads it: the split stamps its own after the slice, so one the
-    slice quoted ahead of it is not a second claim, while one appended behind
-    it, or a body ending on no whole receipt, names nothing this split can
-    vouch for. A closed candidate, or one moved off the label it was born on,
-    is one a human acted on before anything here attributed it: reopening or
-    relabelling it would undo that, and creating a second beside it is worse.
+    Attribution is its last whole receipt, read as `final_receipt` reads it:
+    the split stamps its own after the slice, so one the slice quoted ahead of
+    it is not a second claim, while one appended behind it, or a body ending
+    on no whole receipt, names nothing this split can vouch for. One the register already records is
+    another slice's child however its body reads. A closed candidate, or one
+    moved off the label it was born on, is one a human acted on before
+    anything here attributed it: reopening or relabelling it would undo that,
+    and creating a second beside it is worse.
     """
-    body = getattr(orphan, _BODY, "") or ""
-    readings = list(_RECEIPT_READING.finditer(body))
-    final = readings[-1].group(0) if readings else ""
-    why = None
-    if not final.startswith(lookup):
-        why = _UNATTRIBUTED
-    elif issue_is_closed(orphan):
-        why = _CLOSED
-    elif gh.workflow_label(orphan) != _child_creation._child_initial_labels()[0]:
-        why = _MOVED
-    if why is None:
-        return None
-    return _STRANDED.format(number=orphan.number, index=index, why=why)
+    if not final_receipt(getattr(orphan, _BODY, None)).startswith(lookup):
+        return _UNATTRIBUTED
+    if orphan.number in recorded:
+        return _RECORDED
+    if issue_is_closed(orphan):
+        return _CLOSED
+    if gh.workflow_label(orphan) != _child_creation._child_initial_labels()[0]:
+        return _MOVED
+    return None

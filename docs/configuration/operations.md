@@ -567,8 +567,11 @@ agent sessions, its pull request and branch, its child issues and dependency gra
 any park, the drift baseline, the retry and review counters, and the timestamps. What is kept is the pinned comment
 itself, the ids of the comments the orchestrator has posted on the thread, and the issue's cumulative agent-run,
 token, and cost counters — so the receipt a later terminal posts still reports what the whole issue has spent, not
-just what the newest attempt did. Child issues the cancelled cycle created on GitHub are **not** touched: they are
-real issues carrying real work, and what happens to them stays a human's decision.
+just what the newest attempt did. A child an ordinary split created keeps its seed as well — its `parent_number` and
+its `late_ancestry_*` group, the snapshot pointer included — because the receipt in its body holds every later
+dispatch to that seed ([below](#re-decomposing-an-issue-inside-a-late-lineage)); nothing of the cancelled cycle's
+candidate, exemption, or authorization comes with it. Child issues the cancelled cycle created on GitHub are **not**
+touched: they are real issues carrying real work, and what happens to them stays a human's decision.
 
 If you apply that same target label by hand while a restart is mid-transaction, you will see the orchestrator take
 it off and put it straight back. That is deliberate, not a fight over the label: its own application of the target
@@ -600,13 +603,13 @@ control label comes off; the authorization is not lost meanwhile.
   finishing) the child is what lets both go. That includes a child the umbrella no longer tracks: after an edit
   re-decomposed the umbrella, the children its drift notice named as ORPHANED are still the ref's recorded consumers,
   so an orphan left open (or one the orchestrator cannot read) holds the ref and the umbrella after every replacement
-  is done. A replacement the ledger records as a consumer holds the ref exactly as an original does until it is
-  closed — reopened after it resolved included. Close the orphans that no longer apply; the ref goes on the next
-  dependency poll that finds the replacements resolved and every recorded consumer, original or replacement, closed.
-  Where the re-decomposition kept work for the parent, the same hold shows as a parent staying on `workflow:blocked`
-  after every child is `done`, logging what it holds its return to implementation on; closing the consumers is what
-  lets it go. On its way out it retires the split's late cycle, so its next implementation run starts a cycle of its
-  own rather than looking for the split's superseded candidate.
+  is done. A replacement that re-decomposition pointed at the ref is a recorded consumer as well, so it holds the ref
+  exactly as an original does until it is closed — reopened after it resolved included. Close the orphans that no
+  longer apply; the ref goes on the next dependency poll that finds the replacements resolved and every recorded
+  consumer, original or replacement, closed. Where the re-decomposition kept work for the parent, the same hold
+  shows as a parent staying on `workflow:blocked` after every child is `done`, logging what it holds its return to
+  implementation on; closing the consumers is what lets it go. On its way out it retires the split's late cycle, so
+  its next implementation run starts a cycle of its own rather than looking for the split's superseded candidate.
 - An umbrella that will not close with **nothing owed at all** — every obligation `reconciled`, no failure on
   either sink. The issue was split on the far side of publication, and the pull request that split superseded is
   open again (or was merged, or has been pushed to since). Everything the umbrella still had to do was licensed by
@@ -674,6 +677,66 @@ and it makes sure nothing resumes against one:
 
 Continuing after such a park means either implementing the issue as an ordinary change or starting an explicit new
 split cycle on the owner, which preserves a candidate of its own.
+
+### Re-decomposing an issue inside a late lineage
+
+A genuine edit to an issue a late split made, or to the umbrella of one, sends it back to the ordinary decomposer.
+The children that answer creates stay inside the same lineage: each is seeded one level below its parent under the
+same root, and a parent whose own split still holds its snapshot ref points each child at that ref, appends the
+reuse instructions to its body, and records it on the ref's consumer ledger in the write that records the child — so
+the replacements hold the ref exactly as the originals do (see the signals above). Nothing of the parent's own size
+gate is carried over: a child is measured on its own commits, at its own depth. Each child also carries a hidden
+receipt naming its parent, the split's attempt, and its slice, which is how a crash between creating a child and
+recording it is recovered without opening a second issue for the same slice.
+
+Every refusal on this road parks the issue it lands on: a notice on its thread mentioning `HITL_HANDLE`, saying which
+refusal it is, and `awaiting_human: true` on its pinned comment. The pinned `park_reason` is left cleared, as every
+ordinary park leaves it; the reason is recorded only on the `park_awaiting_human` record both sinks receive, as
+`reason: replacement_lineage_unproved` (see
+[`../observability/event-streams.md`](../observability/event-streams.md)), so filter the event stream on that to find
+every such park. Where it lands tells you what to repair:
+
+- **On the parent, before any child exists.** Its record cannot prove the lineage, it already sits at the lineage
+  depth bound, its own split's snapshot reads as neither held nor released or is held with no base recorded, or a
+  slice the decomposer proposed names a snapshot ref its child would not be kept. Nothing was created and no
+  split marker was written, so repair the record the notice names, or reply asking the decomposer not to split (or
+  to leave snapshot refs out of its slices); the reply resumes the decomposer.
+- **On the parent, after children exist.** A crash recovery or a dependency poll found a recorded child it cannot
+  vouch for — an unreadable pinned comment, a `parent_number` that is not the parent's number, a late ancestry or
+  pointer the split did not write, text naming a snapshot ref it cannot keep, a register naming it twice, or a
+  receipt in its body other than the one the split stamped for its slice (another slice's, another split's, or one
+  owing a different lineage). No child of that split is started while it stands, and the parent is parked once
+  rather than on every poll. Repair or close the child the notice names; for a receipt, put back the one the split
+  stamped, since the child's own dispatch holds its seed to it.
+- **On a child.** Its pinned seed is not the one its receipt says it was owed: it never landed, or its late ancestry
+  was taken off, cut down, or rewritten. It is held under every label but `done` and `rejected` — a hand relabel to
+  `workflow:ready`, and the adjudication of an oversized candidate of its own, included — until its seed is whole.
+  Where its parent is still recovering the split, that recovery writes the seed and clears `awaiting_human` in the
+  same write; otherwise write the parent link and the lineage the receipt names, set `awaiting_human` back to
+  `false`, or close the child. A child whose pinned comment will not parse is held without a park or a write, logged
+  on every tick, so the comment is left for you to repair. A restart you authorize on such a child keeps its seed
+  (see [the restart](#restarting-an-issue-whose-cycle-was-cancelled)), so it is not held afterwards.
+
+A crash recovery that cannot take over the child it finds — one a human closed or relabelled, one whose body ends on
+a receipt other than this slice's, one the register already records, or a receipt more than one issue carries —
+parks the parent under `decomposition_crash` and names it rather than creating the slice again. A drift reset that
+discards a manifest also drops the split's attempt, so a child the discarded split left behind is never adopted into
+the next one — but it is written onto `late_consumers` first, so the ref waits for it as an orphan.
+
+While such a split is still short of its own count, the snapshot ref its replacements are pointed at is held whatever
+the original split's ledger says: the replacement it created last may be on GitHub and not yet recorded as a
+consumer. So is a finished one's ref while a replacement it recorded is missing from `late_consumers`, until it is
+recorded there again. Either holds the umbrella's terminal, a `blocked` parent's return to its own work, and the
+closed-owner sweep — so an owner closed mid-split keeps `workflow:decomposing` and its ref, visited on every sweep.
+Two ways out, each in this order:
+
+- **Recover, then close.** On an open owner, the next `workflow:decomposing` tick adopts the unrecorded replacement,
+  records it on the ledger, and finalizes; the ref then waits on it like any consumer. Do not close it first: the
+  recovery refuses a closed candidate and parks the owner under `decomposition_crash` instead.
+- **Discard by hand** where nothing will recover it — a closed owner, or a recovery parked on a candidate it could not
+  adopt: close every issue this orchestrator opened carrying the owner's receipt for that `split_attempt`, then remove
+  `split_attempt` from the owner's pinned record. The ledger reads as whole again and the ref goes once every recorded
+  consumer has ended; closing the unrecorded replacements first keeps it from going while one still works from it.
 
 ## Reclaiming a finished issue's artifacts
 

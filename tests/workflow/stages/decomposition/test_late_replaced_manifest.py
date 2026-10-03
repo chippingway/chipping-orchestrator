@@ -6,9 +6,10 @@ The drift reroute orphans the children the split made, and the ordinary decompos
 place. The snapshot was preserved for the originals, though, and the generation still records them as its
 consumers -- so the ref is proved against them, read afresh because the parent's own scan is of the
 replacements, while the branch, which no consumer has a claim on, is reclaimed as it always was. A replacement the
-ledger records beside them holds the ref until its own work has ended too. Both hold the ref under an umbrella and
-under a parent the re-decomposition left work of its own, which settles the ref before it goes back to that work;
-what that parent does once it is back is `test_late_hand_back`'s subject.
+re-decomposition pointed at that ref is recorded beside them by the split that created it, so it holds the ref until
+its own work has ended too. Both hold the ref under an umbrella and under a parent the re-decomposition left work of
+its own, which settles the ref before it goes back to that work; what that parent does once it is back is
+`test_late_hand_back`'s subject.
 """
 from __future__ import annotations
 
@@ -20,7 +21,8 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.workflow.late_split.obligations import LateResourceState
-from tests.workflow.fixtures import _PatchedWorkflowMixin
+from orchestrator.workflow.stages.decomposition import run as _decomposing
+from tests.workflow.fixtures import _TEST_SPEC, LABEL_DECOMPOSING, _agent, _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition import (
     late_cleanup_support as _support,
     replaced_manifest_support as _redecomposition,
@@ -36,6 +38,8 @@ _PAST_LOOKUP = "labels"
 _REFUSED = "the original could not be read"
 
 _RELEASE_MARKER = "<!--orchestrator-late-release owner=41"
+
+KEY_CONSUMERS = "late_consumers"
 
 
 @dataclass(frozen=True)
@@ -153,8 +157,8 @@ class ReplacedManifestCleanupTest(_PatchedWorkflowMixin, unittest.TestCase):
             return _redecomposition.walk(self, seeded, _support.HAND_OFFS[label])
 
 
-class RecordedReplacementTest(_PatchedWorkflowMixin, unittest.TestCase):
-    """A replacement the ledger records keeps the ref until its own work ends."""
+class ProtectedReplacementTest(_PatchedWorkflowMixin, unittest.TestCase):
+    """A replacement the split pointed at the ref keeps it until its own work ends."""
 
     def test_a_reopened_replacement_keeps_the_ref(self) -> None:
         # Settled in front of either hand-off, since nothing revisits the
@@ -162,7 +166,11 @@ class RecordedReplacementTest(_PatchedWorkflowMixin, unittest.TestCase):
         # is live, and is handed on once the ref goes.
         for label in _support.HANDED_ON:
             with self.subTest(parent=label):
-                seeded, replacement = _redecomposition.redecomposed(label)
+                seeded, replacement = _redecomposition.redecomposed(self, label)
+                self.assertEqual(
+                    seeded.github.pinned_data(_support.PARENT_NUMBER)[KEY_CONSUMERS],
+                    sorted((_support.CHILD_NUMBER, replacement.number)),
+                )
                 seeded.github.get_issue(_support.CHILD_NUMBER).closed = True
                 # Resolved and put back by a human: the label says `done`,
                 # and the issue is live again.
@@ -181,6 +189,74 @@ class RecordedReplacementTest(_PatchedWorkflowMixin, unittest.TestCase):
                 )
                 self.assertEqual(seeded.github.workflow_label(seeded.parent), _support.HANDED_ON[label])
                 self.assertTrue(any(_RELEASE_MARKER in comment.body for comment in replacement.comments))
+
+
+class InterruptedReplacementTest(_PatchedWorkflowMixin, unittest.TestCase):
+    """A replacement the ledger does not name keeps the ref, whatever else the ledger says."""
+
+    def test_the_closed_owner_keeps_the_ref(self) -> None:
+        # The re-decomposition's replacement is off the ledger -- its split died
+        # behind the create, short of its count, or a hand edit took its slot
+        # after the split finished -- when the original ends and the parent is
+        # closed. The sweep may not read the ledger as whole: the ref, the
+        # label, and the replacement's only copy of the work all stay.
+        for dying, label in ((True, LABEL_DECOMPOSING), (False, _support.UMBRELLA)):
+            with self.subTest(dying=dying):
+                seeded, replacement = _redecomposition.redecomposed(self, dying=dying)
+                self._unprotected(seeded)
+
+                deleted = seeded.swept(self)
+
+                self.assertEqual(deleted.refs, [])
+                self.assertEqual(
+                    _support.resource_states(seeded.github)[_support.SNAPSHOT_REF], _support.STATE_RETAINED,
+                )
+                self.assertEqual(seeded.github.workflow_label(seeded.parent), label)
+                self.assertFalse(replacement.closed)
+
+    def test_a_discarded_orphan_keeps_the_ref(self) -> None:
+        # The replacement split died behind its create and the parent was
+        # edited before anything recovered it. The reset that drops the
+        # attempt puts the orphan on the ledger first, so once the split that
+        # answers the edit and the original have all ended, the ref is still
+        # held for the orphan -- until it ends too.
+        seeded, orphan = _redecomposition.redecomposed(self, dying=True)
+        seeded.parent.body = "edited again before the crash was recovered"
+        answer = _redecomposition.REPLACEMENT_MANIFESTS[_support.UMBRELLA]
+        self._run(
+            lambda: _decomposing._handle_decomposing(seeded.github, _TEST_SPEC, seeded.parent),
+            run_agent=_agent(session_id="again", last_message=answer),
+        )
+        _redecomposition.ended(seeded, seeded.github.created_child_issues[-1])
+
+        held = _redecomposition.walk(self, seeded)
+        orphan.closed = True
+        released = _redecomposition.walk(self, seeded)
+
+        self.assertIn(orphan.number, seeded.github.pinned_data(_support.PARENT_NUMBER)[KEY_CONSUMERS])
+        self.assertEqual((held.refs, released.refs), ([], [_support.SNAPSHOT_REF]))
+
+    def test_a_reroute_restores_a_lost_slot(self) -> None:
+        # A finished replacement split lost its replacement's slot, and the
+        # umbrella is then edited: the reroute that drops its manifest puts
+        # that replacement back on the ledger, which keeps the ref for it.
+        seeded, replacement = _redecomposition.redecomposed(self)
+        self._unprotected(seeded, ended=False)
+        seeded.parent.body = "edited after the split finished"
+
+        _redecomposition.walk(self, seeded)
+
+        self.assertEqual(seeded.github.workflow_label(seeded.parent), LABEL_DECOMPOSING)
+        self.assertIn(replacement.number, seeded.github.pinned_data(_support.PARENT_NUMBER)[KEY_CONSUMERS])
+
+    def _unprotected(self, seeded: SeededUmbrella, *, ended: bool = True) -> None:
+        """Leave only the original on the ledger -- and, where `ended`, end it and close the parent."""
+        github = seeded.github
+        github.seed_state(_support.PARENT_NUMBER, **{
+            **github.pinned_data(_support.PARENT_NUMBER), KEY_CONSUMERS: [_support.CHILD_NUMBER],
+        })
+        github.get_issue(_support.CHILD_NUMBER).closed = ended
+        seeded.parent.closed = ended
 
 
 def _replaced(original: _Original, label: str = _support.UMBRELLA) -> SeededUmbrella:

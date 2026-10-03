@@ -88,9 +88,12 @@ file is the durable record.
   clean rebase left, the head it started from, the head a body-edit resume begins at, or the head recovered commits
   leave the branch on — so the push behind it would carry neither a lease nor a named candidate),
   `reviewer_timeout`, `reviewer_failed`, `reviewer_no_verdict`, `decomposer_timeout`, `decomposer_silent`,
-  `decomposer_question`, `decomposer_invalid_manifest`, `decomposer_dirty`, `replacement_lineage_unproved` (reserved
-  and dormant, since nothing parks under it yet: a split whose children's late lineage, snapshot, or recorded children
-  cannot be proved, or, on the child itself, a split's child whose seed is not the one its receipt owes),
+  `decomposer_question`, `decomposer_invalid_manifest`, `decomposer_dirty`, `replacement_lineage_unproved` (a split
+  whose children's late lineage or snapshot the issue's record cannot prove, whose parent is already at the lineage
+  bound, or one of whose slices names a snapshot ref its child would not be kept; a recovery or a dependency walk that
+  found a recorded child it cannot recognize as its own — a link, ancestry, pointer, text, or receipt that split did
+  not give it; and, on the child itself, a seed that is not the one its receipt owes it, held at dispatch under every
+  label but a terminal),
   `verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`, `agent_run_limit`
   (the issue has spent every agent run its lifetime ceiling allows), `question_*`, `discussion_*`, ...). Failed-run
   parks in validating and decomposing forward explicit, bounded correlation fields (`agent_role`, `session_id`,

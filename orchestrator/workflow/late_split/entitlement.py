@@ -4,7 +4,7 @@
 
 Two readings the provenance of an ordinary decomposition asks of an issue's
 late record before naming the lineage its replacement children inherit, and a
-third the replacement lineage asks before it would seed them with no pointer.
+third the replacement lineage asks before it seeds them with no pointer.
 
 Whether the record's own split made children is proved only by what children
 leave behind: the ordered register, or a consumer or child entry on the
@@ -32,7 +32,7 @@ split offers the pointer its ancestry carries instead, and only where that
 pointer is the ref the ancestry's own identity mints.
 
 Entitling nothing is two different answers, though, and the replacement
-lineage a split would seed its children from has to tell them apart. A ref
+lineage a split seeds its children from has to tell them apart. A ref
 whose entry a reclamation has taken past `retained` is settled: nothing new
 may be pointed at it, and a child seeded without it loses nothing it was
 owed. Every other refusal -- a ledger this binary cannot read or add a
