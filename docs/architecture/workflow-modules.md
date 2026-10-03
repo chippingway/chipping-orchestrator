@@ -137,7 +137,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             as the FINAL line, alone and unpunctuated, because "nothing to write" is a claim the next
                             sentence can take back. That stage's other outcome -- docs WERE updated -- is a commit on
                             the branch and is read there instead. Each parser returns the slice above its marker, the
-                            part a human is shown
+                            part a human is shown; the review slice keeps any verification declaration exactly as
+                            written, since setting it aside for display belongs to `review_findings`, not to the parser
     review_verification_models.py the reviewer verification vocabulary, kept apart from the `VERDICT:` line: the
                             `VERIFICATION: RUN` / `VERIFICATION: END` block with its `COMMAND:` and `EXIT:` step
                             lines, and the `VERIFICATION: REUSED` line naming a SHA-256 evidence revision; the subject
