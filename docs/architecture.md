@@ -265,10 +265,10 @@ self-exit and be restarted with new code.
   what the last hold left, empties the file, and signs it with a per-process token, and a hold its own process lets go
   of stamps the moment it did on the host's monotonic clock (a killed one stamps nothing, and counts as ending when
   found, as does one whose last line was cut short), so a holder can ask (`scheduler.claim_notes`) whether another
-  poller held the issue after a given moment, and a contender can read the late cycle a hold that has not let go noted
-  it is retiring. It is host-local and separate from the presence: neither says anything about the other, and nothing
-  coordinates pollers on different hosts or checkout roots. The namespace's access and lifetime assumptions are in the
-  [operations runbook](configuration/operations.md#running-more-than-one-poller).
+  poller held the issue after a given moment, and a contender can read the late cycle a hold that has not stamped its
+  release noted it is retiring. It is host-local and separate from the presence: neither says anything about the other,
+  and nothing coordinates pollers on different hosts or checkout roots. The namespace's access and lifetime assumptions
+  are in the [operations runbook](configuration/operations.md#running-more-than-one-poller).
 - **Tick cadence**: every `POLL_INTERVAL` seconds (default 60).
 - **Artifact maintenance cadence** (`runtime.artifacts`, scheduled by `runtime.artifact_schedule`): at the end of the
   wait between two polling passes — never inside a tick, since a tick is what makes the host busy — and at most
