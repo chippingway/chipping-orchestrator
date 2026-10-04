@@ -484,9 +484,9 @@ orchestrator/
                         contender it refuses. A note is its own hold's, and read only off a file that hold signed and
                         has not stamped as released: the next holder has the lock a moment before it empties the
                         file, and the stamp keeps a released hold's note from being read in that moment. A hold
-                        killed holding the claim stamps nothing, so its note is read until the next holder empties
-                        the file -- the last hold to write the issue until then. One that cannot be written whole, or
-                        parsed from a whole line, reads as no note
+                        killed holding the claim, or whose release stamp could not be written, leaves no stamp, so
+                        its note is read until the next holder empties the file -- the last hold to write the issue
+                        until then. One that cannot be written whole, or parsed from a whole line, reads as no note
   git/
     branch_transport.py the authenticated fetches, the remote read that answers what a branch is at without trusting
                         a local ref -- in the plain form a caller acts on and the form that also carries why a read

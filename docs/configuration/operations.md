@@ -437,16 +437,16 @@ the claim assumes of the host holds whenever it is taken:
   at startup, which tells another poller's holds from its own; while a hold retires a late cycle and says so, that
   cycle's id, which a refused process can read; and the moment the hold let go, on the host's monotonic clock. Every
   acquisition empties the file before signing it, a moment after it takes the lock, and a refused process reads a note
-  only off a file its hold signed and has not stamped as released, so no note outlives a hold that let go. A hold
-  whose process was killed holding it — `SIGKILL`, an OOM kill, the forced exit past `SHUTDOWN_GRACE_SECONDS` — stamps
-  nothing and counts as ending when the next holder finds it; its note, if it left one, is read until that holder
-  empties the file, since it was the last hold to write the issue until then. The same holds for a hold whose release
-  stamp could not be written. Each line is written whole or not at all: one a file-size limit or a full disk
-  lets land only in part is taken back and logged as not written, and a line with no end, or a file nobody signed, is
-  never read as a release time or a retiring cycle — only as a hold that ended when it is found. That includes an empty
-  file, even the one an issue's first claim on the host creates, since another poller can have held and emptied it
-  before that claim locked it; what it costs is that a reading taken before the issue's first claim on the host is
-  never trusted as undisturbed.
+  only off a file its hold signed and has not stamped as released, so no note outlives a hold that stamped its
+  release. A hold whose process was killed holding it — `SIGKILL`, an OOM kill, the forced exit past
+  `SHUTDOWN_GRACE_SECONDS` — stamps nothing and counts as ending when the next holder finds it; its note, if it left
+  one, is read until that holder empties the file, since it was the last hold to write the issue until then. The same
+  holds for a hold whose release stamp could not be written. Each line is written whole or not at all: one a file-size
+  limit or a full disk lets land only in part is taken back and logged as not written, and a line with no end, or a
+  file nobody signed, is never read as a release time or a retiring cycle — only as a hold that ended when it is
+  found. That includes an empty file, even the one an issue's first claim on the host creates, since another poller
+  can have held and emptied it before that claim locked it; what it costs is that a reading taken before the issue's
+  first claim on the host is never trusted as undisturbed.
 - **Not covered.** Processes on different hosts, or on one host with different `WORKTREES_DIR` values, are not
   coordinated by it at all. It is also separate from the artifact presence on
   `WORKTREES_DIR/.artifact-maintenance.lock`: a maintenance pass neither takes nor reads a writer claim, and holding

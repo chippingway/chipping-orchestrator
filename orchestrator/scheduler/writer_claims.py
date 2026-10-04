@@ -60,12 +60,12 @@ names itself on it by a token this process draws at import, before anything
 else is done under it; and every hold that ends in its own process's hands
 stamps the moment it let go on the file, on the host's monotonic clock, just
 before it unlocks. So a note a hold left is gone once the next holder has
-the file, and the note of a hold that let go is never read at all, not even
-in the instant a new holder has the lock and has not yet emptied the file
-(`claim_notes`). And a holder that finds another process's token there
-learns when another poller last held the issue: that hold's stamp, or --
-where it left none, because it died holding the claim -- the moment it is
-found, since it ended by then and nothing says sooner. That
+the file, and the note of a hold that stamped its release is never read at
+all, not even in the instant a new holder has the lock and has not yet
+emptied the file (`claim_notes`). And a holder that finds another process's
+token there learns when another poller last held the issue: that hold's
+stamp, or -- where it left none, because it died holding the claim -- the
+moment it is found, since it ended by then and nothing says sooner. That
 is what lets a holder decide whether a close its own poll read is still about
 the record it now holds (`claim_notes`): a poll that read the issue after the
 last such moment was reading what that hold left. A hold counts as of the
