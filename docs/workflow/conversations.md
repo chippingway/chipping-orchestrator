@@ -601,6 +601,13 @@ message they sit in. The transaction keeps every command, exit status, and outpu
 nothing: a missing, malformed, stale, failing, or incomplete declaration is disposed of exactly as it would be
 unformatted, and no approval rests on what the findings show.
 
+A request persisted before that formatting still carries its declaration raw. Its record stays exactly as written,
+since every comparison its recovery makes is against it, and so does any feedback post an earlier handoff made. Only
+the words that go out are formatted: the post a recovery makes where none was made, the fix prompt it resumes the
+developer on (`stages/validating/review_handoffs.py`), and the anchored post an accepted `/orchestrator continue`
+replays, whose findings are quoted formatted while the comment and its id stay as posted
+(`stages/validating/feedback_posts.py`).
+
 A change request stands without evidence: its failed run is published before its feedback, and it is handed to the one
 developer it owes behind that feedback posted and anchored (`stages/validating/review_handoffs.py`), keeping its
 record through the relabel to `workflow:fixing` so a tick that stops between the relabel and the launch launches
