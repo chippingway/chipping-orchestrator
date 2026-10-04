@@ -58,6 +58,8 @@ _OWNERS = (
     "child_creation",
     "split_receipts",
     "split_seeds",
+    "split_repair",
+    "split_summary",
     "late_authorization_proof",
     "late_result_payloads",
     "late_reuse_reading",

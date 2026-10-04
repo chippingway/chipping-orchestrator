@@ -17,8 +17,9 @@ snapshotting, superseding, or recording what the remote is owed. The tick ends
 having changed nothing, which is what leaves the transaction free to resume
 from its own durable facts.
 
-Equal counts mean the loop finished and only the label flip was lost, so the
-parent finalizes to whatever the manifest asked for. Fewer mean the loop
+Equal counts mean the loop finished and only its finalize was lost, so the
+parent finalizes to whatever the manifest asked for, posting first the summary
+the split owes (`split_summary`). Fewer mean the loop
 stopped short: the one child a crash can leave created and unrecorded is
 adopted by its receipt (`split_receipts`), and anything short of that parks,
 since the manifest that declared the rest is not kept to create them from.
@@ -29,15 +30,17 @@ or ancestry is seeded -- a child started without its ancestry would be read
 by its size gate as a fresh root at depth 0 -- a lost consumer slot is
 restored ahead of the seed, and the seeding write lifts the park the missing
 seed earned. A lineage no longer proved, or a child this split cannot
-recognize as its own (see `_seed_orphan_child_state`), parks instead of
-finalizing, which keeps every child of that split unstarted.
+recognize as its own (see `split_repair`), parks instead of finalizing, which
+keeps every child of that split unstarted.
 
 Inside `child_claims.claiming()` each child is repaired under its own writer
 claim or not at all: one another poller on this host is writing stops the
 recovery there without a park, and the next tick resumes it. That is also how
-a claimed split that met such a child at its seed is finished -- every child
-created and recorded, that one unseeded, and the finalize left to this
-recovery. No production recovery claims a child yet.
+a claimed split that met such a child at its seed is completed: it creates and
+records every child, leaves that one unseeded, and stops short of its summary,
+its finalize, and its first release. This recovery seeds that child and makes
+the first two once that poller lets go, and the parent's next dependency walk
+the release. No production split or recovery claims a child yet.
 """
 from __future__ import annotations
 
@@ -52,15 +55,13 @@ from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     child_claims as _child_claims,
-    child_creation as _child_creation,
-    late_child_content as _late_child_content,
     late_relabel as _late_relabel,
     replacement_lineage as _replacement_lineage,
     split_receipts as _split_receipts,
-    split_seeds as _split_seeds,
+    split_repair as _split_repair,
+    split_summary as _split_summary,
     state as _state,
 )
-from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -87,46 +88,6 @@ def _park_incomplete_decomposition(
     gh.write_pinned_state(issue, state)
 
 
-def _seed_orphan_child_state(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    child_number,
-    lineage: _replacement_lineage.ReplacementLineage,
-) -> str | None:
-    """Backfill `parent_number` (and creation stamp) and the owed ancestry on
-    an orphan child so the parent's dependency walk can find it again, and
-    its own size gate reads the lineage it was born into -- lifting, in the
-    same write, the park its missing seed earned.
-
-    Answers why this child may not be finalized, or None once it is repaired.
-    It is held to the parent's record before anything is written -- the
-    recognition `ReplacementLineage.repair` applies, and the receipt stamped
-    for its slot (`split_seeds.stamp_lapse`) -- and a child refused keeps
-    exactly what it carried. One owed the snapshot the consumer ledger no
-    longer names is recorded there again, in a parent write ahead of its seed
-    and of the finalize that would let anything start it.
-    """
-    child_issue = gh.get_issue(int(child_number))
-    child_state = gh.read_pinned_state(child_issue)
-    seed = lineage.repair(
-        state, issue.number, int(child_number), child_state,
-        _late_child_content._named_snapshots(getattr(child_issue, "title", None), getattr(child_issue, "body", None)),
-    )
-    refusal = seed.refusal or _split_seeds.stamp_lapse(gh, issue, state, child_issue, lineage.ancestry)
-    if refusal is not None:
-        return refusal
-    if seed.protect:
-        lineage.protect(state, int(child_number))
-        gh.write_pinned_state(issue, state)
-    attributed = _state._links_to(child_state.get(_state._PARENT_NUMBER), issue.number)
-    if attributed and seed.ancestry is None:
-        return None
-    _child_creation._complete_seed(child_state, issue.number, seed.ancestry)
-    gh.write_pinned_state(child_issue, child_state)
-    return None
-
-
 def _repair_recovered_child(
     gh: GitHubClient,
     issue: Issue,
@@ -148,7 +109,7 @@ def _repair_recovered_child(
         with _child_claims.held_child(gh, issue.number, child_number) as held:
             if not held:
                 return False
-            refusal = _seed_orphan_child_state(gh, issue, state, child_number, lineage)
+            refusal = _split_repair._seed_orphan_child_state(gh, issue, state, child_number, lineage)
     except Exception:
         log.exception(
             "issue=#%s could not repair orphan child #%s during "
@@ -270,17 +231,11 @@ def _recover_stale_manifest(
     # that did reach it would mint it a fresh lineage at depth 0.
     if not _repair_recovered_children(gh, spec, issue, state, children_recorded):
         return True
-    # `umbrella=True` is persisted alongside `expected_children_count`
-    # before any child is created, so the recovery path here picks
-    # it up and finalizes to `umbrella` instead of `blocked`. Without
-    # this branch, a SIGKILL between the umbrella manifest's child
-    # creation loop and the final label flip would resume as a
-    # plain blocked parent and re-enter implementation after all
-    # children resolved -- the opposite of what the manifest asked.
-    finalize_label = (
-        WorkflowLabel.UMBRELLA if state.get(_state._UMBRELLA)
-        else WorkflowLabel.BLOCKED
-    )
+    # The summary the split never posted -- one that left a held child to
+    # this recovery deferred it on purpose, and a crash may have cut it off
+    # -- goes out ahead of the label flip, as the split's own finalize posts
+    # it, and only where the thread carries no receipt for this attempt.
+    finalize_label = _split_summary.recovered(gh, issue, state, children_recorded)
     gh.set_workflow_label(issue, finalize_label)
     gh.write_pinned_state(issue, state)
     return True

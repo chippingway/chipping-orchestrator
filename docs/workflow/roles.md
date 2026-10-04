@@ -2026,7 +2026,8 @@ finalized, or released. A child carrying no receipt — every child of an older 
 
 A child that carries a receipt and no `parent_number` naming that receipt's parent is one whose seed never landed — one
 a crash left created and never recorded, the child a short register leaves recorded and unseeded behind its parent's
-park, or one a crash left between its record and its seed — and nothing has proved its lineage. A seed that did land can
+park, one a crash left between its record and its seed, or one another poller on the host held when a split inside
+the dormant `child_claims.claiming()` went to seed it — and nothing has proved its lineage. A seed that did land can
 lose its late ancestry, or part of it, or come to name another place in the lineage, by hand. An edit can still route
 any of them into its own `workflow:decomposing`, and a human can relabel it to `workflow:ready` or any other stage;
 every one of them would read the record as an issue no split made, or as one at another depth, run an agent with no ref
