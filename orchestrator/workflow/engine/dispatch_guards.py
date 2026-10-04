@@ -187,7 +187,7 @@ def _pinned_state_refuses(
         # since. A reopen in that window would leave the fresh object saying
         # open with a live cycle under it, so the reading is applied here
         # rather than re-derived from the object the guard is about to read.
-        late_close_observation._mark_observed_close(gh, issue, state)
+        late_close_observation._mark_observed_close(gh, spec, issue, state)
     if _cycle_stops_the_tick(gh, spec, issue, label, state):
         return True
     split_seeds = importlib.import_module(_stage_targets._SPLIT_SEEDS_OWNER)

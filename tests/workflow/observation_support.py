@@ -8,12 +8,13 @@ latch is what the run in flight asks before every step the remote keeps; the
 receipt is what the process after a restart has instead of it.
 
 All of it is process state -- the latch, the cycle a read tied each latched
-close to, the moment each was read at, the memo saying the receipt landed, the
-generation that memo is counted against, the claim a poll posts one under, the
-claim on the one thread walk a process owes each owner, the cycle a worker is
-retiring off a record right now, the issues a worker is acting on, and the
-settlements one of those windows has postponed -- so every case that touches
-any of them replaces all ten first. That is also how a RESTART
+close to, the moment each was read at, the memo saying which cycle's receipt
+landed, the generation that memo is counted against, the claim a poll posts
+one under, the claim on the thread walk a process owes each owner and cycle,
+the cycle a worker is retiring off a record right now, the issues a worker is
+acting on, the settlements one of those windows has postponed, and the moment
+this process last restarted each owner's cycle -- so every case that touches
+any of them replaces all eleven first. That is also how a RESTART
 is written: fresh registries beside a thread that still carries the receipt are
 exactly what a new process wakes up to.
 
@@ -23,8 +24,10 @@ fixture would drift from whichever of the two it was not written for.
 """
 from __future__ import annotations
 
+import contextlib
 from unittest.mock import patch
 
+from orchestrator.scheduler import claim_notes as _claim_notes, writer_claims as _writer_claims
 from orchestrator.workflow.engine import observation_state as _observation_state, observations as _observations
 from orchestrator.workflow.stages.decomposition import (
     late_close_reading as _late_close_reading,
@@ -41,11 +44,21 @@ _REGISTRIES = (
     ("_receipted", dict),
     ("_posting", set),
     ("_settlements", dict),
-    ("_scanned", set),
+    ("_scanned", dict),
     ("_retiring", dict),
     ("_publishing", dict),
     ("_deferred", set),
+    ("_restarted", dict),
 )
+
+
+def read_now() -> int:
+    """The moment a reading these cases take in-process is read at: now.
+
+    Taken where the case reads the issue, so a hold of another poller the case
+    makes after it is one the reading predates.
+    """
+    return _claim_notes.moment()
 
 
 def receipt_for(issue_number: int, cycle_id: int) -> str:
@@ -66,6 +79,21 @@ class ObservedCloseCase:
             replaced = patch.object(_observation_state, held, empty())
             replaced.start()
             self.addCleanup(replaced.stop)
+
+    @contextlib.contextmanager
+    def _under_the_claim(self, repo_id: int, issue_number: int, *, alongside: bool = False):
+        """Hold the issue's writer claim, every close reconciliation inside answering as a pass under it.
+
+        Both explicitly, since no production pass takes the claim or enters
+        `claiming_closes()` yet; `alongside` is the poll's receipt beside
+        this process's own writer.
+        """
+        with (
+            _writer_claims.issue_writer(repo_id, issue_number, alongside=alongside) as held,
+            _observation_state.claiming_closes(),
+        ):
+            self.assertTrue(held)
+            yield
 
     def _latch_close(self, repo_slug: str, issue_number: int) -> None:
         """What the polling thread does with a close it can hand nowhere."""

@@ -258,30 +258,43 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             with claims released after execution or refusal; observed closes remain cap-exempt
     dispatch.py            drive the sequential poll's closure classification or submit its partition to the scheduler;
                             refetched owners and still-owed closes keep the processing scope their reading earned
-    observation_state.py    the process-local close, receipt, scan, retirement, publication, and deferred-settlement
-                            registries behind one lock -- with the cycle each latched close was scoped to and the
-                            moment it was read at; settlement advances the owner generation and clears its latch,
-                            scope, moment, and receipt memo atomically, and whether a latched close ends a given cycle
-                            is answered under the same lock for the claim-aware callers that ask it
+    observation_state.py    the process-local close, receipt, scan, retirement, publication, deferred-settlement, and
+                            restart registries behind one lock -- with the cycle each latched close was scoped to, the
+                            moment it was read at, and the cycle each memo and scan answered for; settlement advances
+                            the owner generation and clears its latch, scope, moment, and receipt memo atomically, and
+                            whether a latched close ends a given cycle is answered under the same lock for the
+                            claim-aware callers that ask it, behind this process's own restart fence. Dormant beside
+                            them: `claiming_closes()`, the context-local entry the claim-aware stage reconciliations
+                            are reached through, which no production path enters
     observations.py         latch, read, enumerate, and settle observed closes; settlement is deferred while a
                             publication holds the owner, so a record read cannot erase a close a running worker still
                             owes. Dormant beside them, for passes under the issue's writer claim: a latch's read moment,
                             its scope to the cycle a read tied it to, and whether it ends a cycle -- the one it is
                             scoped to, or one asked under the claim where no other poller held the issue since it was
-                            read. Production latches carry neither, and every barrier asks the latch alone
-    contended_closes.py     dormant: what a poll refused an issue's writer claim keeps of the close it read -- its
-                            own latch and nothing on GitHub, scoped only where the record is read first and the issue
-                            still reads closed behind it, or to the retired cycle the holder noted on the claim; a
-                            close reopened, restarted past, or unreadable is held unresolved, and a record naming no
-                            cycle leaves an older latch as it was. No dispatch path routes a refused issue here yet
-    observation_receipts.py generation-scoped exclusive receipt-post claims and landed memos; bounded thread scans
-                            release on failure and reopen when a receipt lands, so a failed or stale attempt suppresses
-                            no later receipt
+                            read; and a `fresh` latch, which withdraws a settlement a hold still postpones, while a
+                            postponed latch keeps its scope but not its moment. Production latches carry none of them,
+                            and every production barrier asks the latch alone
+    contended_closes.py     dormant: what a poll refused an issue's writer claim keeps of the close it read -- its own
+                            fresh latch and nothing on GitHub, scoped only where the record is read first, the issue
+                            still reads closed behind it, and the record read again behind that names the same cycle (a
+                            moved record is read again, a bounded number of times), or to the retired cycle the holder
+                            noted on the claim -- the note is asked before the first read and behind every read,
+                            whatever the record says, and one found is kept for the rest of the reads, past a release
+                            stamped over it; a close reopened, restarted past, unreadable, never confirmed, or read
+                            behind a record that named a cycle and then none is held unresolved, and a record naming no
+                            cycle at every read leaves an older latch as it was. No dispatch path routes a refused issue
+                            here yet
+    observation_receipts.py generation-scoped exclusive receipt-post claims and landed memos naming the cycle their
+                            receipt was for; bounded thread scans release on failure and reopen when a receipt lands,
+                            so a failed or stale attempt suppresses no later receipt. Dormant beside them: a claim
+                            taken by cycle, which carries that memo rather than being declined by it, and a scan owed
+                            once per owner and cycle and again once another poller held the issue since it walked
     retiring_cycles.py      the held cycle id across a retirement write and its final barrier; exit removes the marker
                             and reports the close observed inside the window under the same lock. A window opened
                             with the repository id also notes its cycle on the issue's writer claim for a refused
                             poller, and reports only a close that ends its own cycle; no production retirement
-                            passes the id yet
+                            passes the id yet. Dormant too: `restarting()`, which holds every close read before this
+                            process's own restart write ended off the fresh cycle, since no claim note records it
     publication_holds.py    counted holds taken when a worker is admitted and nested around handler execution; only the
                             final release settles a deferred close, preserving the reading through queueing and refetch
     content_hash.py         the user-content hash and filters for pinned records, orchestrator output, bots, untrusted
@@ -1878,7 +1891,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             retried for as long as the remote refuses it because the owner keeps the swept label
                             until it lands; and a swept label put BACK on an owner still owing the remote that a
                             hand relabel moved outside all four, since after a restart the label is the only
-                            thing that reaches a closed issue
+                            thing that reaches a closed issue. Inside `claiming_closes()` (dormant), a reopened owner
+                            whose record is on a cycle the held close cannot be tied to is marked nothing, and a
+                            closed one scopes the held close to the record's cycle
       late_cancellation_reading.py
                             outstanding cleanup and pull-request obligations, unprovable holds, and the combined
                             settled-ledger proof required before a cancelled cycle may end or restart
@@ -1890,8 +1905,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             read off the whole record -- so can the cycle a retirement dropped, where a contender
                             scoped the held close to it (`engine/contended_closes.py`, dormant)
       late_close_observation.py
-                            claim and post observed-close receipts, adopt them after a process restart, and turn fresh
-                            or latched closure into durable cancellation without letting a later reopen erase it
+                            claim and post observed-close receipts, adopt them after a process restart -- the mark
+                            written inside the scan claim, so a refused mark is walked for again -- and turn fresh or
+                            latched closure into durable cancellation without letting a later reopen erase it. Inside
+                            `claiming_closes()` (dormant): receipts confirmed by an issue read between two record reads
+                            naming the same cycle -- a record that moved there binds nothing -- posted only for a cycle
+                            the held close ends and remembered per cycle, scans per cycle and behind another poller's
+                            hold, a retired cycle adopted from a close scoped to it, and a dependency-walk barrier and
+                            poll guard that end no cycle restarted since the close -- the guard stopping the tick
       late_cancellation_pr.py
                             release and close the held pull request with a cycle receipt, persist changed obligations,
                             report their outcome, and verify the publication again after cleanup

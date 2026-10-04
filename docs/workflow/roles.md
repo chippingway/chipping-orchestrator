@@ -1394,7 +1394,17 @@ A latch is memory, so the poll that takes one also leaves a cycle-scoped receipt
 because the pinned comment is written whole and the worker holding the issue owns it. A post GitHub refuses is
 retried by the next poll, since an observation with no durable half is one a restart takes away entirely. After a
 restart the dispatcher's cancelled-cycle guard scans for that receipt once per owner per process, adopts it, and runs
-the ending from the mark ([state-machine/delivery-stages.md](../state-machine/delivery-stages.md)).
+the ending from the mark ([state-machine/delivery-stages.md](../state-machine/delivery-stages.md)); a walk that could
+not answer, or whose mark GitHub refused, is taken again.
+
+Under the issue's writer claim, which no dispatch takes yet, the same reading is scoped to a cycle as well — the one
+the record named while the issue still read closed behind it — because another poller on the host can settle that
+cycle and start the fresh one an operator authorizes before this process holds the issue again. Those claim-aware
+reconciliations are complete and dormant, reached only inside `observation_state.claiming_closes()`: a close no read
+scoped ends the cycle a later pass finds only where no other poller has held the issue since it was read, nor this
+process restarted the cycle after it; a reopened owner on a cycle its close cannot be tied to is swept with nothing
+marked; no receipt is posted or remembered for a cycle a held close did not end, so the next poll that reads a fresh
+close still posts one; and the scan is owed per cycle and again behind another poller's hold.
 
 The latch is also held past a cleanup pass that RETURNED without finishing the ending — a ref a live consumer keeps,
 a delete the remote refused, a terminal GitHub declined — but only where nothing else would come back: an owner
@@ -2140,7 +2150,8 @@ which is where a receipt would only ever have been read.
 human who reopens the issue does not get that cycle back, and both labels an adjudication can be wearing name a
 handler that would act on the issue rather than settle it. Reopening fast enough does not undo it either: reaching
 the closed-owner route at all is what says a close was *observed*, so an issue that pass finds open again — a human
-who reopened it between the poll and the worker's refetch — is marked cancelled all the same, and stopped there.
+who reopened it between the poll and the worker's refetch — is marked cancelled all the same, and stopped there (under
+the dormant writer-claim reconciliation, unless its record has moved on to a cycle restarted after the close).
 Nothing external is done to an issue somebody has just reopened and no terminal is written; the mark is what hands
 it to the guard below from the next tick. The dispatcher's own pinned-state guard catches that
 window: it runs exactly the reconciliation above, reaches no handler, and writes the same terminal below. It *runs*

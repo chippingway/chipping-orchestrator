@@ -8,17 +8,25 @@ host has held the issue since the moment the close was read at -- so a cycle
 another poller settled and restarted is ended by a close read after it let go,
 never by the reading it settled. A retirement made under the claim notes its
 cycle there for the pollers it refuses, and reports a close latched inside it
-only where that close ends the cycle being retired.
+only where that close ends the cycle being retired. A restart this process
+writes, which no claim note records, holds every close read before it ended
+off the fresh cycle; and a receipt scan asked under the claim is owed again
+once another poller has held the issue since it walked.
 
-Asked directly: no production pass carries a read moment, scopes a close, or
-opens a retirement window with the repository's id yet.
+Asked directly: no production pass carries a read moment, scopes a close,
+opens a retirement window with the repository's id, fences a restart, or
+scans under the claim yet.
 """
 from __future__ import annotations
 
 import unittest
 
 from orchestrator.scheduler import claim_notes as _claim_notes, writer_claims as _writer_claims
-from orchestrator.workflow.engine import observations as _observations, retiring_cycles as _retiring_cycles
+from orchestrator.workflow.engine import (
+    observation_receipts as _observation_receipts,
+    observations as _observations,
+    retiring_cycles as _retiring_cycles,
+)
 from tests.support.writer_claims import claimable, signed_by_another_poller
 from tests.workflow.observation_support import ObservedCloseCase
 
@@ -32,6 +40,11 @@ _RESTARTED = _CYCLE + 1
 def _held_here():
     """This process's own writer claim on the issue, as a pass under it holds it."""
     return _writer_claims.issue_writer(_REPO_ID, _ISSUE)
+
+
+def _ends_the_restarted_cycle() -> bool:
+    """Whether the held close ends the restarted cycle, asked with the repository's id."""
+    return _observations.close_ends(_SLUG, _ISSUE, _RESTARTED, repo_id=_REPO_ID)
 
 
 class CloseScopeTest(ObservedCloseCase, unittest.TestCase):
@@ -140,6 +153,67 @@ class ClaimedRetirementTest(ObservedCloseCase, unittest.TestCase):
 
         self.assertIsNone(noted)
         self.assertTrue(window.observed)
+
+
+class RestartFenceTest(ObservedCloseCase, unittest.TestCase):
+    """A restart this process writes under the claim, which no claim note records."""
+
+    def setUp(self) -> None:
+        self._fresh_process()
+        self.assertTrue(claimable(_REPO_ID, _ISSUE))
+
+    def test_a_close_read_after_the_write_ends_it(self) -> None:
+        # Read while the write was in flight -- and the write's answer lost --
+        # the close may be the old cycle's, so it ends the fresh one only once
+        # it is read again behind the write.
+        with self.assertRaises(ConnectionError), _held_here(), _retiring_cycles.restarting(_SLUG, _ISSUE):
+            _observations.observe_close(_SLUG, _ISSUE, _claim_notes.moment())
+            during = _ends_the_restarted_cycle()
+            raise ConnectionError("the restart write's answer was lost")
+
+        with _held_here():
+            after = _ends_the_restarted_cycle()
+            _observations.observe_close(_SLUG, _ISSUE, _claim_notes.moment())
+            reread = _ends_the_restarted_cycle()
+
+        self.assertFalse(during, "no moment ties a close while the write is in flight")
+        self.assertFalse(after, "nor one read before it ended, however it ended")
+        self.assertTrue(reread, "a close read behind the write is the fresh cycle's")
+
+    def test_a_scoped_close_is_not_fenced(self) -> None:
+        # The fence holds off the read moment alone: a close a read tied to
+        # the fresh cycle ends it whenever it was latched.
+        with _retiring_cycles.restarting(_SLUG, _ISSUE):
+            self._latch_close(_SLUG, _ISSUE)
+            _observations.scope_close(_SLUG, _ISSUE, _RESTARTED)
+
+        with _held_here():
+            self.assertTrue(_ends_the_restarted_cycle())
+
+
+class ClaimedScanTest(ObservedCloseCase, unittest.TestCase):
+    """The receipt walk a pass under the claim owes, against another poller's holds."""
+
+    def setUp(self) -> None:
+        self._fresh_process()
+
+    def test_another_pollers_hold_owes_the_walk_again(self) -> None:
+        with _held_here():
+            first = self._walked()
+            undisturbed = self._walked()
+        signed_by_another_poller(_REPO_ID, _ISSUE)
+        with _held_here():
+            disturbed = self._walked()
+            walked_since = self._walked()
+
+        self.assertEqual((first, undisturbed), (True, False), "nothing has held the issue since the walk")
+        self.assertTrue(disturbed, "the other poller may have posted a receipt meanwhile")
+        self.assertFalse(walked_since, "and the walk taken behind its hold is bounded again")
+
+    def _walked(self) -> bool:
+        """Whether this cycle's thread is owed a walk, asked under the claim."""
+        with _observation_receipts.scanning_receipt(_SLUG, _ISSUE, _CYCLE, repo_id=_REPO_ID) as claimed:
+            return claimed
 
 
 if __name__ == "__main__":

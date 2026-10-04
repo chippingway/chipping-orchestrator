@@ -293,6 +293,18 @@ The duplicate-active gate keys on `(repo_slug, issue_number)`: an in-flight hand
 reported active to the next poll's submit, which is rejected as `duplicate_active`. The pre-tick base-refresh skips any
 active issue's worktree.
 
+That gate answers for this process alone. The host-local issue **writer claim** that is to answer for every poller on
+the host (`scheduler/writer_claims.py`) is complete and dormant: no dispatch path takes it yet, and the close handling
+that is to run under it is reached only directly. A poll refused the claim is to keep the close it read in its own
+latch, posting nothing, and scope it to a cycle only where the record, the issue behind it, and the record again behind
+that agree — a record that keeps moving or stops naming the cycle, or an issue open again, leaves it unresolved
+(`engine/contended_closes.py`). Inside `observation_state.claiming_closes()`, which no production path enters, a
+latched close ends a cycle only where a read scoped it there or no other poller has held the issue since it was read —
+nor this process's own restart, which no claim note records (`retiring_cycles.restarting()`) — so the dependency-walk
+barrier, the poll's close guard, and the closed-owner sweep leave a restarted cycle unmarked, a receipt is posted and
+remembered only for the cycle a confirmed close ends, and the receipt scan is owed per cycle and again behind another
+poller's hold. Production latches carry no scope or read moment, and every production barrier reads the latch alone.
+
 Only issue numbers cross the thread boundary — each scheduler worker mints a fresh `GitHubClient` via
 `gh._for_worker_thread()` and re-fetches its Issue against that client. The mint itself sends no request: the clone
 reuses the parent's token and bot login on a requester of its own, and its repository is lazy. The first read of

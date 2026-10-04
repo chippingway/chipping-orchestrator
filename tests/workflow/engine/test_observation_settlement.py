@@ -17,6 +17,10 @@ discharged.
 Driven by a lock that lets the race in at the first release it sees, because
 that is the seam: one acquisition means the poll arrives after the settlement,
 and two mean it arrives between them.
+
+A close latched BEFORE the hold goes is another matter: the claim-aware poll
+that reads it again says it is `fresh`, and the postponed drop is withdrawn
+for it, while an owed one handed back unchanged leaves that drop to land.
 """
 
 from __future__ import annotations
@@ -31,10 +35,16 @@ from orchestrator.workflow.engine import (
     observations,
     publication_holds as _publication_holds,
 )
-from tests.workflow.observation_support import ObservedCloseCase
+from tests.workflow.observation_support import ObservedCloseCase, read_now
 
 _SLUG = "acme/widget"
 _ISSUE = 7710
+
+# The late cycle the poll's receipt names.
+_CYCLE = 4
+
+# The repository a pass under the issue's writer claim asks with.
+_REPO_ID = 4242
 
 # The registry name the instrumented lock is installed over.
 _LOCK = "_lock"
@@ -93,6 +103,8 @@ class DeferredSettlementRaceTest(ObservedCloseCase, unittest.TestCase):
         self._released_while(self._polls)
 
         self.assertIsNone(_observation_receipts.claim_receipt_post(_SLUG, _ISSUE))
+        claim = _observation_receipts.claim_receipt_post(_SLUG, _ISSUE, by_cycle=True)
+        self.assertEqual(claim.landed, _CYCLE, "and names the cycle it was posted for")
 
     def test_nothing_arriving_still_settles(self) -> None:
         # The other side, so the critical section is about the gap rather
@@ -106,7 +118,7 @@ class DeferredSettlementRaceTest(ObservedCloseCase, unittest.TestCase):
         """One poll observing a close of its own, receipt and all."""
         observations.observe_close(_SLUG, _ISSUE)
         _observation_receipts.receipt_written(
-            _observation_receipts.claim_receipt_post(_SLUG, _ISSUE),
+            _observation_receipts.claim_receipt_post(_SLUG, _ISSUE), _CYCLE,
         )
 
     def _released_while(self, races) -> None:
@@ -115,6 +127,35 @@ class DeferredSettlementRaceTest(ObservedCloseCase, unittest.TestCase):
             _observation_state, _LOCK, _RacesTheFirstRelease(threading.Lock(), races),
         ):
             _publication_holds.release_publication(_SLUG, _ISSUE)
+
+
+class FreshCloseTest(ObservedCloseCase, unittest.TestCase):
+    """A close latched while a hold still postpones the drop decided for the reading before it."""
+
+    def test_only_a_fresh_close_withdraws_the_drop(self) -> None:
+        for fresh in (True, False):
+            with self.subTest(fresh=fresh):
+                self._postponed()
+                observations.observe_close(_SLUG, _ISSUE, fresh=fresh)
+                _publication_holds.release_publication(_SLUG, _ISSUE)
+
+                self.assertIs(observations.close_observed(_SLUG, _ISSUE), fresh)
+
+    def test_a_postponed_latch_keeps_only_its_scope(self) -> None:
+        # Its moment would tie it to a cycle restarted since; its scope ties
+        # it only to the cycle it was read against.
+        self._postponed()
+
+        self.assertEqual(observations.close_scope(_SLUG, _ISSUE), _CYCLE)
+        self.assertFalse(observations.close_ends(_SLUG, _ISSUE, _CYCLE + 1, repo_id=_REPO_ID))
+
+    def _postponed(self) -> None:
+        """A scoped reading read now, settled while a worker's hold postpones the drop."""
+        self._fresh_process()
+        _publication_holds.claim_publication(_SLUG, _ISSUE)
+        observations.observe_close(_SLUG, _ISSUE, read_now())
+        observations.scope_close(_SLUG, _ISSUE, _CYCLE)
+        observations.settle_close(_SLUG, _ISSUE)
 
 
 if __name__ == "__main__":

@@ -7,36 +7,73 @@ generation and clears its observation, the cycle that observation was scoped
 to, the moment it was read at, and its receipt memo together; callers hold the
 lock so those changes remain atomic with their own gate decisions. Whether a
 latched close ends a given cycle is answered here too, under that lock
-(`_ends`), for the claim-aware callers that ask it -- none in production yet,
-so no scope or moment is recorded there and every barrier reads the latch
-alone."""
+(`_ends`), for the claim-aware callers that ask it.
+
+Dormant: those callers are the stage reconciliations made inside
+`claiming_closes()`, which no production path enters, and the contender and
+restart owners nothing in production calls -- so no production latch carries
+a scope or a moment, and every production barrier reads the latch alone.
+"""
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import threading
+from collections.abc import Iterator
 
 from orchestrator.scheduler import claim_notes as _claim_notes
 
 # Closes observed and not yet settled; the cycle a read of the record said each
 # one ends; a moment no later than the read that found each, where its reader
-# knew one; the ones whose durable receipt is on the thread, against the
-# generation it was posted for; the owners a receipt is being posted for right
-# now; how many readings of each owner a pass has actually settled; and the
-# owners whose thread has been asked about an inherited receipt; and the cycle
-# a worker is retiring off each record right now. Module-level and
-# lock-guarded, like the running-process registry the agent runner keeps: the
-# writer is the polling thread and the readers are workers, so the record has
-# to outlive both.
+# knew one; the cycle whose durable receipt each reading has put on the thread
+# (none, for a production memo, which answers for the reading whole); the
+# owners a receipt is being posted for right now; how many readings of each
+# owner a pass has actually settled; the owners whose thread has been asked
+# about an inherited receipt, with the cycle it was asked for and the moment
+# it was asked at (neither, for a production walk); the cycle a worker is
+# retiring off each record right now; and the moment this process last wrote a
+# restarted cycle onto each. Module-level and lock-guarded, like the
+# running-process registry the agent runner keeps: the writer is the polling
+# thread and the readers are workers, so the record has to outlive both.
 _observed: set[tuple[str, int]] = set()
 _scopes: dict[tuple[str, int], int] = {}
 _since: dict[tuple[str, int], int] = {}
-_receipted: dict[tuple[str, int], int] = {}
+_receipted: dict[tuple[str, int], int | None] = {}
 _posting: set[tuple[str, int]] = set()
 _settlements: dict[tuple[str, int], int] = {}
-_scanned: set[tuple[str, int]] = set()
+_scanned: dict[tuple[str, int], tuple[int | None, int | None]] = {}
 _retiring: dict[tuple[str, int], int] = {}
 _publishing: dict[tuple[str, int], int] = {}
 _deferred: set[tuple[str, int]] = set()
+_restarted: dict[tuple[str, int], float] = {}
 _lock = threading.Lock()
+
+# Whether the stage reconciliations made in this context answer as passes
+# under the issue's writer claim. A context variable rather than a registry,
+# so a worker thread -- which starts on a fresh context -- never inherits it
+# from whoever entered it.
+_claimed: contextvars.ContextVar[bool] = contextvars.ContextVar("claimed_closes", default=False)
+
+
+@contextlib.contextmanager
+def claiming_closes() -> Iterator[None]:
+    """Have every close reconciliation made inside the body answer under the issue's writer claim.
+
+    The internal entry point the claim-aware receipts, adoptions, barriers,
+    and sweep visits are reached through until the dispatch takes the issue's
+    writer claim, when entering it is the activation's to make. Outside it
+    each of them answers exactly as production always has.
+    """
+    token = _claimed.set(True)
+    try:
+        yield
+    finally:
+        _claimed.reset(token)
+
+
+def claims_closes() -> bool:
+    """Whether a close reconciliation made here answers under the issue's writer claim."""
+    return _claimed.get()
 
 
 def _owner_key(repo_slug: str, issue_number: int) -> tuple[str, int]:
@@ -71,8 +108,10 @@ def _ends(key: tuple[str, int], cycle_id: int, repo_id: int | None) -> bool:
     held the issue since the latest moment the latch was read closed at, and
     is scoped to it from then on. A cycle another poller settled and restarted
     is therefore ended only by a close read after that poller let go, never by
-    the reading it settled. Spelled once, so a barrier that has to decide
-    under this lock answers exactly as one that takes it.
+    the reading it settled -- and one this process restarted (`_restarted`),
+    which no claim note records, only by a close read after that write.
+    Spelled once, so a barrier that has to decide under this lock answers
+    exactly as one that takes it.
     """
     if key not in _observed:
         return False
@@ -81,7 +120,8 @@ def _ends(key: tuple[str, int], cycle_id: int, repo_id: int | None) -> bool:
     read_at = _since.get(key)
     if None in {repo_id, read_at}:
         return False
-    if not _claim_notes.undisturbed_since(repo_id, key[1], read_at):
+    after_restart = read_at > _restarted.get(key, -1)
+    if not (after_restart and _claim_notes.undisturbed_since(repo_id, key[1], read_at)):
         return False
     _scopes[key] = int(cycle_id)
     return True

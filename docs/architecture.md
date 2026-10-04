@@ -261,8 +261,12 @@ self-exit and be restarted with new code.
   `claiming()` entry point, which no production path enters; an ordinary split there that meets a child another
   poller holds leaves it unseeded and the parent `workflow:decomposing`, for `stages/decomposition/recovery.py` to
   seed it, post the summary, and finalize), the close evidence a contender keeps
-  (`engine/contended_closes.py`), the scope and read moment of a latched close (`engine/observations.py`), and a
-  retirement window noted on the claim (`engine/retiring_cycles.py`). The
+  (`engine/contended_closes.py`), the scope, read moment, and freshness of a latched close
+  (`engine/observations.py`), cycle-bound receipt claims and scans (`engine/observation_receipts.py`), a retirement
+  window noted on the claim and the fence a restart of this process's own holds older closes behind
+  (`engine/retiring_cycles.py`), and the close reconciliations that ask them — receipts, inherited and retired-close
+  adoption, the dependency-walk barrier, the poll's close guard, and the closed-owner sweep — reached as claim-aware
+  only inside `observation_state.claiming_closes()`, which no production path enters either. The
   [workflow module map](architecture/workflow-modules.md) says what each does once called. It never waits: a key
   another process holds is refused at once, and different issues never contend. A claim that cannot be worked at
   all — an unopenable namespace, a filesystem without `flock` — is refused

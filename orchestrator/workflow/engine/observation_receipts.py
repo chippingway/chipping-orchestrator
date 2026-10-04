@@ -3,13 +3,21 @@
 """Generation-scoped claims, durable receipt memos, and bounded thread scans.
 
 Only one post claims an owner at a time. A receipt landing after settlement
-cannot memoize the next generation, and a landed receipt reopens its thread
-scan. A failed scan releases only the scan claim this attempt acquired."""
+cannot memoize the next generation, a memo names the cycle its receipt was
+for, and a landed receipt reopens its thread scan. A failed scan releases only
+the scan claim this attempt acquired.
+
+Dormant beside them, for the claim-aware callers: a claim taken `by_cycle`,
+which no memo declines, and a scan asked for one cycle -- owed once per owner
+and cycle, and again once another poller on this host has held the issue
+since. No production caller asks either: its claim is declined by any memo,
+and its scan is owed once per owner per process."""
 from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass
 
+from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.workflow.engine import observation_state as _observation_state
 
 
@@ -21,15 +29,18 @@ class ReceiptClaim:
     the attempt finished it, so the owner it names and the reading it was
     taken for travel together: a claim settled against a different generation
     is one a cleanup ended while the post was still in flight, and the memo
-    behind it belongs to nobody.
+    behind it belongs to nobody. `landed` is the cycle whose receipt this
+    reading has already put on the thread, where a claim taken `by_cycle`
+    found one.
     """
 
     key: tuple[str, int]
     generation: int
+    landed: int | None = None
 
 
 def claim_receipt_post(
-    repo_slug: str, issue_number: int,
+    repo_slug: str, issue_number: int, *, by_cycle: bool = False,
 ) -> ReceiptClaim | None:
     """Take the one right to post this observation's receipt, or decline.
 
@@ -46,20 +57,33 @@ def claim_receipt_post(
     gap together, and both would otherwise walk a thread that carries no
     receipt yet and post one apiece.
 
+    Taken `by_cycle`, a recorded receipt declines nothing by itself: the claim
+    carries the cycle it named (`landed`), and owes nothing only where the
+    record still names that cycle -- a close of a cycle restarted since is
+    owed a receipt of its own, which a memo of the issue alone would suppress.
+
     Handed back by `receipt_written` or `release_receipt_post`, never left
     standing: a claim over an attempt that ended would suppress every later
     poll's receipt for good.
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:
-        if key in _observation_state._posting or key in _observation_state._receipted:
+        if key in _observation_state._posting or (not by_cycle and key in _observation_state._receipted):
             return None
         _observation_state._posting.add(key)
-        return ReceiptClaim(key=key, generation=_observation_state._settlements.get(key, 0))
+        return ReceiptClaim(
+            key=key,
+            generation=_observation_state._settlements.get(key, 0),
+            landed=_observation_state._receipted.get(key),
+        )
 
 
-def receipt_written(claim: ReceiptClaim) -> None:
-    """Record that this reading's receipt is on the thread for good.
+def receipt_written(claim: ReceiptClaim, cycle_id: int | None) -> None:
+    """Record that this reading's receipt for `cycle_id` is on the thread for good.
+
+    `None` where the receipt discharged nothing a cycle names, which only a
+    production post records: a claim-aware one writes a memo for a receipt
+    that names the cycle it is about, or none at all.
 
     Only where the reading is still the one the claim was taken for. A pass
     that settled the observation in the meantime has already dropped the memo
@@ -77,12 +101,12 @@ def receipt_written(claim: ReceiptClaim) -> None:
         _observation_state._posting.discard(claim.key)
         if _observation_state._settlements.get(claim.key, 0) != claim.generation:
             return
-        _observation_state._receipted[claim.key] = claim.generation
+        _observation_state._receipted[claim.key] = cycle_id
         # A thread this process already walked has something on it now, so
         # the one look it owed is owed again: the claim was taken when there
         # was nothing to find, and a later pass reading past it would step
         # straight over the receipt this attempt just landed.
-        _observation_state._scanned.discard(claim.key)
+        _observation_state._scanned.pop(claim.key, None)
 
 
 def release_receipt_post(claim: ReceiptClaim) -> None:
@@ -92,7 +116,9 @@ def release_receipt_post(claim: ReceiptClaim) -> None:
 
 
 @contextlib.contextmanager
-def scanning_receipt(repo_slug: str, issue_number: int):
+def scanning_receipt(
+    repo_slug: str, issue_number: int, cycle_id: int | None = None, *, repo_id: int | None = None,
+):
     """Whether this process still owes this owner's thread one look.
 
     True once per owner per process, and the claim is taken as this is
@@ -100,6 +126,14 @@ def scanning_receipt(repo_slug: str, issue_number: int):
     no receipt is not walked again every dispatch. What the scan recovers is an
     observation a process that died was holding: anything observed since is
     in the latch, which costs nothing to ask.
+
+    Asked for a `cycle_id`, once per owner and cycle: a walk for one cycle
+    proved nothing about a receipt naming another. Given the repository's id
+    too, and asked under the issue's writer claim, it is owed again once
+    another poller on this host has held the issue since the walk, as the
+    claim notes say: every receipt is posted under the claim, so one that
+    poller left -- dying, perhaps, before marking what it observed -- landed
+    after this walk began. Only a claim-aware caller passes either.
 
     Handed back where the walk established nothing, which is what makes the
     claim honest. A listing that raises proved neither answer, and a claim
@@ -109,13 +143,28 @@ def scanning_receipt(repo_slug: str, issue_number: int):
     a walk that answered and a walk that did not.
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
+    walk = (cycle_id, None if repo_id is None else _claim_notes.moment())
     with _observation_state._lock:
-        claimed = key not in _observation_state._scanned
-        _observation_state._scanned.add(key)
+        walked = _observation_state._scanned.get(key)
+        claimed = walked is None or walked[0] != cycle_id or (
+            repo_id is not None and _disturbed_since(walked[1], repo_id, issue_number)
+        )
+        if claimed:
+            _observation_state._scanned[key] = walk
     try:
         yield claimed
     except Exception:
         if claimed:
             with _observation_state._lock:
-                _observation_state._scanned.discard(key)
+                if _observation_state._scanned.get(key) == walk:
+                    _observation_state._scanned.pop(key)
         raise
+
+
+def _disturbed_since(walked_at: int | None, repo_id: int, issue_number: int) -> bool:
+    """Whether another poller may have held the issue since a walk began, as the claim notes say.
+
+    A walk taken without the repository's id carries no moment, and nothing
+    says when it began, so it counts as disturbed.
+    """
+    return walked_at is None or not _claim_notes.undisturbed_since(repo_id, issue_number, walked_at)

@@ -5,9 +5,17 @@
 Receipt claims serialize posts and scans. A later reopen cannot erase a
 close already observed, and a receipt over a retired cycle reconstructs its
 cancellation before any new work can start.
+
+Inside `observation_state.claiming_closes()` each of them answers as a pass
+under the issue's writer claim does: a close is tied to the cycle a read
+confirms, a receipt memo names the cycle it was posted for, and a close
+another poller on this host -- or this process -- restarted the cycle past
+ends nothing. Dormant: no production path enters it, and outside it every
+entry answers as production always has.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from github.Issue import Issue
@@ -20,6 +28,7 @@ from orchestrator.github import (
 )
 from orchestrator.workflow.engine import (
     observation_receipts as _observation_receipts,
+    observation_state as _observation_state,
     observations as _observations,
 )
 from orchestrator.workflow.late_split import (
@@ -70,7 +79,10 @@ def _record_observed_close(
     Skipped where there is nothing to end: an owner with no cycle, and one
     whose record already carries the mark. Skipped too where the thread
     already says it, since a receipt is one sentence rather than one per poll
-    that observes the same close.
+    that observes the same close. Under the claim, skipped as well where this
+    reading already put one there for the cycle the record still names, which
+    costs no thread walk; a receipt it put there for another cycle says
+    nothing of this one.
 
     Retried, though, for as long as the thread does not have one. Raising
     here would cost the tick that was posting it, so a refusal is logged and
@@ -78,7 +90,10 @@ def _record_observed_close(
     an observation whose receipt never landed is one a restart takes away
     entirely. So the memo that suppresses the second attempt is written by
     the attempt that SUCCEEDED, and every later poll tries again until one
-    does.
+    does. Under the claim, one that posted nothing -- its close tied to no
+    cycle the record names, or nothing for it to end -- writes no memo
+    either: it would send the next poll that reads a fresh close straight past
+    the receipt that close is owed.
 
     Under a claim, because asking and posting cannot be made one operation.
     The claim is what stops two polls in that gap -- a worker's failed pass
@@ -102,13 +117,18 @@ def _record_observed_close(
     `polled` is the object the caller already has, where it has one. The
     enumeration writes the receipt from the issue it just listed rather than
     fetching the same one again, which is the whole of what asking at poll
-    time costs over asking at the end of a pass: one pinned read.
+    time costs over asking at the end of a pass: one pinned read -- and,
+    under the claim, the issue read behind it that confirms the close where
+    the record names a cycle it would end.
     """
-    claim = _observation_receipts.claim_receipt_post(spec.slug, issue_number)
+    claimed = _observation_state.claims_closes()
+    claim = _observation_receipts.claim_receipt_post(spec.slug, issue_number, by_cycle=claimed)
     if claim is None:
         return _late_close_reading._owns_a_live_cycle(gh, spec, issue_number) is not False
     try:
-        cycle = _observed_close_posted(gh, spec, issue_number, polled=polled)
+        cycle, said = _observed_close_posted(
+            gh, spec, issue_number, polled=polled, landed=claim.landed,
+        )
     except Exception:
         log.exception(
             "repo=%s issue=#%d observed closed, but the receipt saying so "
@@ -119,7 +139,10 @@ def _record_observed_close(
         )
         _observation_receipts.release_receipt_post(claim)
         return True
-    _observation_receipts.receipt_written(claim)
+    if said and not (claimed and cycle in {None, claim.landed}):
+        _observation_receipts.receipt_written(claim, cycle)
+    else:
+        _observation_receipts.release_receipt_post(claim)
     return cycle is not None
 
 
@@ -129,23 +152,46 @@ def _observed_close_posted(
     issue_number: int,
     *,
     polled: Issue | None = None,
-) -> int | None:
+    landed: int | None = None,
+) -> tuple[int | None, bool]:
     """Post this cycle's close receipt, unless something already says it.
 
-    Answers which cycle this observation belongs to, having discharged the
-    receipt in three ways rather than one: the post landed, the thread
-    already carries it, or there is nothing for it to say -- an owner with no
-    cycle a close would end, which is a state no later reader needs a receipt
-    for and the caller drops the reading on.
+    Answers which cycle the record names for this observation, and whether
+    the receipt is discharged: the post landed, the thread already carries it,
+    this reading's own receipt for that very cycle is already there
+    (`landed`), or there is nothing for it to say -- an owner with no cycle a
+    close would end, which is a state no later reader needs a receipt for and
+    the caller drops the reading on.
+
+    Under the claim, a close that is not this cycle's to post for is answered
+    for and NOT discharged, since a later close may yet be. The scope is taken
+    only off a close standing between two record reads naming this cycle, so
+    the issue is always read again behind the record, and the record again
+    behind that: a `polled` issue is older than the claim, and a caller
+    alongside this process's own writer can have that writer reopen and
+    restart the issue between any two of its reads. A record that moved there
+    ties the close to neither cycle -- nothing is scoped, posted, or
+    remembered off it, and the next poll reads again. Anything else -- a close
+    latched earlier, or one reopened before it could be confirmed -- is posted
+    for only where the latch already ends that cycle (`close_ends`), since a
+    receipt would end it for a close that may predate it.
     """
     issue = gh.get_issue(issue_number) if polled is None else polled
     state = gh.read_pinned_state(issue)
     cycle = _late_close_reading._ending_cycle(spec, issue_number, state)
-    if cycle is None:
-        return None
+    if cycle in {None, landed}:
+        return cycle, True
+    if _observation_state.claims_closes():
+        standing = _issues.issue_is_closed(issue) and _issues.issue_is_closed(gh.get_issue(issue_number))
+        if _late_close_reading._ending_cycle(spec, issue_number, gh.read_pinned_state(issue)) != cycle:
+            return cycle, False
+        if standing:
+            _observations.scope_close(spec.slug, issue_number, cycle)
+        if not _observations.close_ends(spec.slug, issue_number, cycle, repo_id=gh.repo_id):
+            return cycle, False
     marker = _late_close_reading._observed_close_marker(issue_number, cycle)
     if _late_close_reading._carries_observed_close(gh, issue, marker):
-        return cycle
+        return cycle, True
     gh.comment(issue, _OBSERVED_CLOSE_NOTICE.format(
         cycle=cycle, marker=marker,
     ))
@@ -154,13 +200,17 @@ def _observed_close_posted(
         "cycle %d is cancelled and the thread now says so",
         spec.slug, issue_number, cycle,
     )
-    return cycle
+    return cycle, True
 
 
 def _mark_observed_close(
-    gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState,
-) -> None:
-    """Mark a live cycle on an issue the POLL read closed.
+    gh: _client.GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    read_at: int | None = None,
+) -> bool:
+    """Mark a live cycle on an issue the POLL read closed, and say if the tick stops.
 
     The dispatcher's own reading, applied where it can still change
     something. It is BOUND to the task rather than re-derived because the
@@ -170,10 +220,36 @@ def _mark_observed_close(
 
     Nothing to do where the record carries no cycle or already carries the
     mark, which is every closed issue but the narrow window this exists for.
+
+    Under the claim the poll is older than this pass, and another poller on
+    this host may have settled the cycle its close ended and started a fresh
+    one in between. So the close is tied to the cycle first: an issue the
+    refetch still finds closed ends whatever cycle the record names; a latch
+    scoped to a cycle ends that one; and an unscoped close ends the record's
+    cycle where no other poller has held the issue since `read_at`, the moment
+    the poll read before listing -- latched here as a fresh reading, merged
+    into the enumeration's latch. Anywhere else the cycle is left live, but
+    the handler is not run either, since its barriers would read the latch as
+    a close of this cycle: the tick stops, and the cleanup pass the latch
+    routes the issue to settles it. Outside the claim the tick never stops
+    here, and `read_at` goes unread.
     """
     generation = _late_state.read_late_generation(state)
     if not generation.is_present or generation.cancelled:
-        return
+        return False
+    if _observation_state.claims_closes():
+        _observations.observe_close(spec.slug, issue.number, read_at, fresh=True)
+        if not (_issues.issue_is_closed(issue) or _observations.close_ends(
+            spec.slug, issue.number, generation.cycle_id, repo_id=gh.repo_id,
+        )):
+            log.info(
+                "repo=%s issue=#%s was read closed by the poll and is open "
+                "again on cycle %d, which that close cannot be tied to; "
+                "leaving the cycle live and the issue to the cleanup pass "
+                "that settles the reading",
+                spec.slug, issue.number, generation.cycle_id,
+            )
+            return True
     log.warning(
         "issue=#%s was read closed by the poll that classified it and wears "
         "a LIVE late cycle; ending cycle %d rather than dispatching it on a "
@@ -181,6 +257,7 @@ def _mark_observed_close(
         issue.number, generation.cycle_id,
     )
     _late_cancellation_state._marked(gh, issue, state, generation)
+    return False
 
 
 def _closed_under_a_label(
@@ -243,27 +320,37 @@ def _inherited_close(
     latch costs no request at all. So a thread that carries no receipt is
     walked on the first tick that sees this owner and never again.
 
-    Once it has actually ANSWERED, that is. A claim standing over a walk that
-    raised would send every later tick straight past the receipt and on to
-    the live stage handler, which is the one thing this exists to prevent --
-    so the claim is held for the length of the walk and handed back by an
-    exception leaving it, and the tick fails where it stands, exactly as the
-    pinned read above it does.
+    Under the claim, once per owner and cycle instead, and again once another
+    poller on this host has held the issue since: that poller posts its
+    receipts under its claim, and may have died before marking what it
+    observed.
+
+    Once it has actually ANSWERED and what it found is durable, that is. A
+    claim standing over a walk that raised -- or over a receipt whose mark
+    the write below never landed -- would send every later tick straight past
+    the receipt and on to the live stage handler, which is the one thing this
+    exists to prevent: so the mark is written inside the claim, an exception
+    leaving it hands the claim back, and the tick fails where it stands,
+    exactly as the pinned read above it does.
     """
     if generation.cancelled:
         return generation
-    with _observation_receipts.scanning_receipt(spec.slug, issue.number) as claimed:
-        if not claimed:
+    claimed = _observation_state.claims_closes()
+    with _observation_receipts.scanning_receipt(
+        spec.slug, issue.number, generation.cycle_id if claimed else None,
+        repo_id=gh.repo_id if claimed else None,
+    ) as walked:
+        if not walked:
             return generation
         marker = _late_close_reading._observed_close_marker(issue.number, generation.cycle_id)
         if not _late_close_reading._carries_observed_close(gh, issue, marker):
             return generation
-    log.warning(
-        "repo=%s issue=#%s carries a receipt for a close its own record "
-        "never recorded; adopting that observation and ending cycle %d",
-        spec.slug, issue.number, generation.cycle_id,
-    )
-    return _late_cancellation_state._marked(gh, issue, state, generation)
+        log.warning(
+            "repo=%s issue=#%s carries a receipt for a close its own record "
+            "never recorded; adopting that observation and ending cycle %d",
+            spec.slug, issue.number, generation.cycle_id,
+        )
+        return _late_cancellation_state._marked(gh, issue, state, generation)
 
 
 def _latched_close_ends(
@@ -290,12 +377,19 @@ def _latched_close_ends(
 
     True only where there is a cycle to end. An umbrella the initial
     decomposer made carries no generation, and a latched close against one is
-    a closed issue the ordinary terminals own.
+    a closed issue the ordinary terminals own. Under the claim, only where the
+    latched close ends THIS cycle, too (`close_ends`): one scoped to a cycle
+    another poller on this host, or this process, restarted from is no close
+    of the cycle this walk holds.
     """
-    if not _observations.close_observed(spec.slug, issue.number):
-        return False
     generation = _late_state.read_late_generation(state)
     if not generation.is_present:
+        return False
+    if _observation_state.claims_closes():
+        ended = _observations.close_ends(spec.slug, issue.number, generation.cycle_id, repo_id=gh.repo_id)
+    else:
+        ended = _observations.close_observed(spec.slug, issue.number)
+    if not ended:
         return False
     log.warning(
         "repo=%s issue=#%s was observed closed while its children were being "
@@ -322,10 +416,20 @@ def _retired_close_adopted(
     closed-owner sweep reads the same field to decide anything is owed.
 
     So the retirement records which cycle it dropped, and this is what reads
-    it back. The thread is asked exactly once per owner per process, under the
-    same claim the inherited-close scan takes and for the same reason: what it
-    recovers is an observation a DEAD process was holding, and one this
-    process makes is in the latch already.
+    it back. The thread is asked once per owner per process -- under the
+    claim, once per owner and cycle, and again once another poller on this
+    host has held the issue since -- under the same claim the inherited-close
+    scan takes and for the same reason: what it recovers is an observation a
+    DEAD process was holding, and one this process makes is in the latch
+    already.
+
+    The latch answers first, and costs nothing: a close held scoped to the
+    very cycle the record says it retired was read inside a retirement
+    another poller noted on the claim, whose barrier never saw it -- a close
+    of that cycle, adopted as a receipt would be. Only its SCOPE answers, and
+    only a claim-aware read records one: the record keeps the correlation
+    long after its window closed, so a close nothing tied to a cycle would
+    reconstruct a split that already finished.
 
     The cycle goes back with the ledgers the retirement carried across and an
     identity rebuilt beside them -- see `_reconstructed`, which is what makes
@@ -340,24 +444,32 @@ def _retired_close_adopted(
     None wherever there is nothing to adopt: a record no retirement wrote, a
     thread that carries no receipt for the cycle it names, and a walk that
     could not answer -- which hands its claim back and leaves the tick to the
-    dispatcher's own per-issue isolation.
+    dispatcher's own per-issue isolation. So does a mark that could not be
+    written, which is made inside the walk's claim for that reason.
     """
     retired = _endings.read_retired_cycle(state)
     if retired is None:
         return None
-    with _observation_receipts.scanning_receipt(spec.slug, issue.number) as claimed:
-        if not claimed:
+    claimed = _observation_state.claims_closes()
+    scoped = _observations.close_scope(spec.slug, issue.number) == retired
+    if scoped:
+        walk = contextlib.nullcontext(True)
+    else:
+        walk = _observation_receipts.scanning_receipt(
+            spec.slug, issue.number, retired if claimed else None, repo_id=gh.repo_id if claimed else None,
+        )
+    with walk as walked:
+        if not (scoped or walked and _late_close_reading._carries_observed_close(
+            gh, issue, _late_close_reading._observed_close_marker(issue.number, retired),
+        )):
             return None
-        marker = _late_close_reading._observed_close_marker(issue.number, retired)
-        if not _late_close_reading._carries_observed_close(gh, issue, marker):
-            return None
-    log.warning(
-        "repo=%s issue=#%s carries a receipt for a close observed inside the "
-        "write that retired cycle %d; putting that cycle back so the ending "
-        "has something to run from",
-        spec.slug, issue.number, retired,
-    )
-    return _late_cancellation_state._marked(
-        gh, issue, state,
-        _late_cancellation_state._reconstructed(issue, state, retired),
-    )
+        log.warning(
+            "repo=%s issue=#%s carries a close observed inside the write that "
+            "retired cycle %d; putting that cycle back so the ending has "
+            "something to run from",
+            spec.slug, issue.number, retired,
+        )
+        return _late_cancellation_state._marked(
+            gh, issue, state,
+            _late_cancellation_state._reconstructed(issue, state, retired),
+        )

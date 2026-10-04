@@ -232,9 +232,11 @@ def _owns_a_live_cycle(
 
     Taken only where the receipt above is not being written from a read of
     its own, which is the repeat case -- a poll whose thread already carries
-    the receipt, or one another poll is posting right now. The first pass
-    answers this from the read it wrote the receipt with, so the two never
-    disagree about the same record.
+    the receipt, or one another poll is posting right now; under the issue's
+    writer claim only the second, since a memo there answers for one cycle
+    and the record is read to see which. The first pass answers this from the
+    read it wrote the receipt with, so the two never disagree about the same
+    record.
 
     Three answers rather than two, and the third is what keeps the reading
     safe. False is the record positively saying there is nothing to end -- no
