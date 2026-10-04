@@ -19,7 +19,13 @@ command and how it ended, over the output the reviewer quoted as a code block.
 The disposition of a verdict a live reviewer round returns
 (`stages/validating/review_disposition.py`) formats its feedback here once the
 declaration is read, and that is the feedback a change request is persisted
-with, posted as, and handed to its developer as.
+with, posted as, and handed to its developer as. A later tick's handoff of a
+persisted request (`stages/validating/review_handoffs.py`) formats the
+record's feedback here again where it posts it and resumes the developer on
+it: a record persisted before that formatting still carries its declaration
+raw, and one persisted concise goes out as it was. The post a
+`/orchestrator continue` replays has its findings formatted here too, as the
+replay quotes it (`stages/validating/feedback_posts.py`).
 
 Display is read apart from validation, and more loosely, since nothing here is
 accepted -- there is only text to show. A line opening on a marker or step

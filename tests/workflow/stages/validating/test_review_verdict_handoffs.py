@@ -8,7 +8,10 @@ from the record by the later tick that finishes it, with no reviewer again. A
 feedback post that failed or left no id hands nothing on, and the next tick
 posts it again. A request a tick already handed -- its relabel refused, or its
 developer's start -- is replayed from where that handoff stopped: its
-feedback never posted twice, and its developer launched once and charged once.
+feedback never posted twice, and its developer launched once and charged once. A request persisted before findings
+were formatted, its verification declaration raw beside whatever claim it
+earned, is posted and handed on concise by the tick finishing it, from its
+record as persisted.
 
 The handoff's own races -- the subject, the evidence, the run ledger, and the
 anchor moving behind each of its requests -- are covered beside
@@ -22,7 +25,10 @@ from unittest.mock import patch
 from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING
 from tests.workflow.stages.validating import (
     disposed_verdict_test_support as _disposed,
+    raw_feedback_test_support as _raw,
+    resumed_verdict_test_support as _resumed,
     review_handoff_test_support as _handoff,
+    review_verdict_readings as _read,
     review_verdict_test_support as _world,
 )
 
@@ -39,6 +45,31 @@ UNDECLARED_REQUEST = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
 
 # A reviewer asking for that change beside its declared run, which failed.
 REQUESTING = _world.declared_run(exit_status=1, verdict="CHANGES_REQUESTED")
+
+# The member of a handed verdict's record naming the post it was handed over with.
+HANDED_WITH = "anchor"
+
+# Each request a tick persisted before findings were formatted: the reply its
+# reviewer returned, where that tick stopped, and the findings the tick
+# finishing it posts and hands its developer. A fresh run's evidence still
+# owed; a reuse, and a run declared and nothing else, whose feedback post was
+# refused -- the last handed on as no findings rather than as the declaration
+# it was persisted as.
+_HISTORICAL = (
+    ("a fresh run, its evidence owed", lambda _case: _world.PASSED_REQUEST, _raw.owes_its_evidence, _world.REQUESTED),
+    (
+        "a reuse, its post refused",
+        lambda case: _world.REQUEST_REUSING.format(digest=_read.settles_evidence(case).content_revision),
+        _resumed.refuses_the_post,
+        _world.REQUESTED,
+    ),
+    (
+        "a run declared alone, its post refused",
+        lambda _case: _world.DECLARED_ALONE,
+        _resumed.refuses_the_post,
+        _world.NO_FINDINGS,
+    ),
+)
 
 
 def _refuses_the_relabel(case) -> None:
@@ -153,6 +184,79 @@ class HandedReplayTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
                     ),
                     (True, 1, 1, 1, None),
                 )
+
+
+class HistoricalRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
+    """A request persisted with its declaration raw is posted and handed on concise, its record kept as persisted."""
+
+    def test_a_raw_request_is_handed_on_concise(self) -> None:
+        # Persisted raw beside the claim its declaration earned -- a fresh
+        # run's or a reuse's -- and left waiting on its evidence or on its
+        # feedback post: the tick finishing it posts the concise findings
+        # once and resumes the one developer on exactly them.
+        for name, reply, leaves, concise in _HISTORICAL:
+            with self.subTest(name):
+                self.setUp()
+
+                finished = self._finishes_raw(reply, leaves, concise)
+
+                self.assertEqual(
+                    (finished, self.waiting()),
+                    ((True, 1, ((concise,), True)), None),
+                )
+
+    def test_a_recovered_handoff_keeps_the_record(self) -> None:
+        # A failed run's request persisted raw, its post refused, and the tick
+        # recovering it dying on the relabel behind its concise post: the
+        # record handed is the one persisted -- round, subject, raw feedback,
+        # and the claim with its receipt -- beside that post as its anchor,
+        # and the next tick launches the one developer on the concise
+        # findings, posting nothing again.
+        _raw.leaves_raw(self, _resumed.refuses_the_post)
+        persisted = self.pinned()[_world.RETURNED_VERDICT]
+        refused = patch.object(self.github, SET_LABEL, side_effect=RuntimeError("refused"))
+        with refused, self.assertRaises(RuntimeError):
+            self.finishes(**_disposed.fixing())
+        handed = self.pinned()[_world.RETURNED_VERDICT]
+
+        ran = self.finishes(**_disposed.fixing())[_world.RUN_AGENT]
+
+        self.assertEqual(
+            (
+                persisted["feedback"],
+                handed,
+                self._feedback_ids(),
+                ran.call_count,
+                _raw.handed(self, ran.call_args.args[1], _world.CONCISE_FAILURE),
+                self.waiting(),
+            ),
+            (
+                _raw.RAW_FAILURE,
+                {**persisted, _disposed.HANDED: handed[_disposed.HANDED], HANDED_WITH: handed.get(HANDED_WITH)},
+                [handed.get(HANDED_WITH)],
+                1,
+                ((_world.CONCISE_FAILURE,), True),
+                None,
+            ),
+        )
+
+    def _finishes_raw(self, reply, leaves, concise: str) -> tuple:
+        """Leave the request `reply(self)` waiting unformatted, as `leaves` does, then finish it in a later tick.
+
+        Whether its record was persisted with the reply's feedback raw, the
+        developers the later tick launched, and what it posted and handed on
+        of `concise` (`raw_feedback_test_support.handed`).
+        """
+        replied = reply(self)
+        _raw.leaves_raw(self, leaves, replied)
+        persisted = self.pinned()[_world.RETURNED_VERDICT]["feedback"]
+        ran = self.finishes(**_disposed.fixing())[_world.RUN_AGENT]
+        handed = _raw.handed(self, ran.call_args.args[1], concise)
+        return persisted == _raw.as_persisted(replied), ran.call_count, handed
+
+    def _feedback_ids(self) -> list:
+        """The id of every reviewer-feedback comment on the pull request, oldest first."""
+        return [said.id for said in self.pull_request.issue_comments if _handoff.FEEDBACK_NOTICE in said.body]
 
 
 if __name__ == "__main__":

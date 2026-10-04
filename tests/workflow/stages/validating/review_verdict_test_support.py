@@ -123,8 +123,15 @@ def declared_run(
 # A change request whose run of the suite failed, printing `FAILURE_OUTPUT`.
 FAILED_REQUEST = declared_run(exit_status=1, verdict="CHANGES_REQUESTED", output=FAILURE_OUTPUT)
 
+# A change request beside a passing run of the suite, whose findings are the
+# reviewer's words alone once the declaration is set aside.
+PASSED_REQUEST = declared_run(verdict="CHANGES_REQUESTED")
+
 # A change request declaring a passing run of the suite and saying nothing else.
-DECLARED_ALONE = declared_run(verdict="CHANGES_REQUESTED").removeprefix(f"{REQUESTED}\n\n")
+DECLARED_ALONE = PASSED_REQUEST.removeprefix(f"{REQUESTED}\n\n")
+
+# A change request reusing the evidence revision `digest` names.
+REQUEST_REUSING = f"{REQUESTED}\n\nVERIFICATION: REUSED sha256:{{digest}}\n\nVERDICT: CHANGES_REQUESTED"
 
 
 def pushes(case) -> None:

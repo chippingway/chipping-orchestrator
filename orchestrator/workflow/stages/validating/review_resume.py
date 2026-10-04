@@ -14,6 +14,17 @@ spends a round of its own. By then the dispatcher's reconciliation has
 published and settled the evidence the verdict claims, or held the tick before
 any handler, so what is left is the disposition itself.
 
+A change request is finished from its record alone, and held to the round,
+subject, claim, receipt, and anchor that record was persisted and handed
+with, read as written. Only the words it hands on are formatted as they go
+out (`review_handoffs.HandedLaunch.of`): a record persisted before findings
+were formatted, its verification declaration still raw, posts -- where its
+feedback was never posted -- and resumes its developer on the concise
+findings, with the record's feedback never rewritten, no evidence read again
+off those words, and a post already made never made again -- a park's
+`/orchestrator continue` quoting that post's findings formatted
+(`feedback_posts`).
+
 On `workflow:validating` (`resumes_a_returned_verdict`) it is asked ahead of
 the round-cap check and the spawn. A verdict never handed over is finished
 through a run rebuilt of its own round over the subject resolved again exactly

@@ -29,12 +29,12 @@ the record and are closed by the write that settles the report.
 
 The reviewer-feedback comment's id is recorded because a session-failure park
 on this route has to be retryable by `/orchestrator continue`, and the fixing
-handler replays that exact comment to reconstruct the batch. It is the one
-durable copy of the feedback once the persisted verdict is handed on, so the
-handoff (`review_handoffs`) goes on only behind a post whose id it read. It is
-a standalone key rather than part of the in_review bookmark
-pair, since `pending_fix_at` is what tells that route's round RESET from this
-route's bump.
+handler replays that exact comment to reconstruct the batch, quoting its
+findings formatted (`feedback_posts`) whatever words it was posted in. It is
+the one durable copy of the feedback once the persisted verdict is handed on,
+so the handoff (`review_handoffs`) goes on only behind a post whose id it read.
+It is a standalone key rather than part of the in_review bookmark pair, since
+`pending_fix_at` is what tells that route's round RESET from this route's bump.
 
 A reviewer that emitted no VERDICT line is the other verdict, and it splits by
 whose failure it was. An empty last message with a non-zero exit is a crash,
@@ -73,6 +73,7 @@ from orchestrator.workflow.stages.implementing import (
     resume as _dev_resume,
 )
 from orchestrator.workflow.stages.validating import (
+    feedback_posts as _feedback_posts,
     fix_reports as _fix_reports,
     models as _models,
     report_settlement as _report_settlement,
@@ -180,6 +181,8 @@ def _park_reviewer_no_verdict(
 def _post_reviewer_feedback(context: _models._RequestedChanges) -> int | None:
     """Post the reviewer's feedback on the PR; the id it landed as, or None where none was read.
 
+    The post is in the words `feedback_posts.posted` writes, which that owner
+    also reads back where a replay shows the post (`feedback_posts.ShownPost`).
     The id is the replay anchor a `/orchestrator continue` on a later park of
     this route hands a fresh developer, and it is its caller's to stage: this
     route stages it at once, while a persisted verdict's handoff goes on only
@@ -191,17 +194,12 @@ def _post_reviewer_feedback(context: _models._RequestedChanges) -> int | None:
     """
     if context.pr_number is None:
         return None
-    round_display = context.round_n + 1
-    feedback = context.feedback
     try:
         reviewer_comment = _comments._post_pr_comment(
             context.gh,
             int(context.pr_number),
             context.state,
-            f":eyes: {config.REVIEW_AGENT} review "
-            f"(round {round_display}/"
-            f"{config.MAX_REVIEW_ROUNDS}) requested changes:\n\n"
-            f"{feedback}",
+            _feedback_posts.posted(context.round_n, context.feedback),
         )
     except Exception:
         log.exception(

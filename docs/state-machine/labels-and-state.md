@@ -2359,8 +2359,9 @@ The keys that matter for the state machine fall into a few groups:
   key is the route discriminator that drives the review-round reset). `_reconstruct_pending_fix_batch` re-fetches that
   exact comment by id — onto the PR conversation, the surface it was posted on, and outside `filter_trusted`, since it
   is the orchestrator's own reviewer output the author allowlist would otherwise drop — as the validating-route replay
-  anchor. The rebuilt batch is what the `/orchestrator continue`
-  operator command replays when retrying a session-failure park (see
+  anchor, quoted with the findings it carries formatted (`validating/feedback_posts.py`), so a post made before
+  findings were formatted is replayed concise while the comment and its id stay as posted. The rebuilt batch is what
+  the `/orchestrator continue` operator command replays when retrying a session-failure park (see
   [`_handle_fixing`](delivery-stages.md#_handle_fixing-label-workflowfixing)); the anchor is cleared on a
   pushed fix and inside `_clear_pending_fix_bookmarks`. A persisted change request's handoff stages it only in the
   write that hands the request over, from a post whose id it read, and launches its developer only while it names the

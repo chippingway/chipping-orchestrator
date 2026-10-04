@@ -109,18 +109,18 @@ def starts(case, how: str) -> None:
     case.github.write_pinned_state(case.issue, state)
 
 
-def refuses_the_post(case) -> None:
-    """The tick whose reviewer requested changes and whose feedback post GitHub refuses, handing nothing over."""
+def refuses_the_post(case, message: str = UNDECLARED_REQUEST) -> None:
+    """The tick whose reviewer requested changes as `message`, its feedback post refused, handing nothing over."""
     refuses = _handoff.RefusesOnce(case.github.pr_comment, _handoff.FEEDBACK_NOTICE, lands=False)
     with patch.object(case.github, "pr_comment", refuses):
-        case.returns(UNDECLARED_REQUEST, **_disposed.fixing())
+        case.returns(message, **_disposed.fixing())
 
 
-def refuses_the_relabel(case) -> None:
-    """The tick handing a request over, dying on the relabel GitHub refuses ahead of its developer."""
+def refuses_the_relabel(case, message: str = UNDECLARED_REQUEST) -> None:
+    """The tick handing the request `message` asks for over, dying on the relabel refused ahead of its developer."""
     refused = patch.object(case.github, "set_workflow_label", side_effect=RuntimeError("refused"))
     with refused, case.assertRaises(RuntimeError):
-        case.returns(UNDECLARED_REQUEST, **_disposed.fixing())
+        case.returns(message, **_disposed.fixing())
 
 
 def asks_for_a_continue(body: str) -> bool:
