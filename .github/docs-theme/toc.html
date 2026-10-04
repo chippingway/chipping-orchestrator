@@ -1,0 +1,75 @@
+{#- Copyright 2026 Geser Dugarov -#}
+{#- SPDX-License-Identifier: Apache-2.0 -#}
+{#-
+The bundled theme's sidebar, with the pages of the current top-level section listed above this page's headings. A
+subsection is a link to its first page and opens onto its own pages only while it holds the current one, so the list
+stays short however many pages the section has. The current page is marked with `aria-current` rather than the
+`active` class, which the theme's scrollspy clears from every link in the sidebar as the reader scrolls.
+
+The card scrolls on its own, held inside the window under the top bar, so the end of a long contents list stays in
+reach while the sidebar sticks. The bundled theme's rule for that names `.bs-sidebar.card`, a class pair no element
+carries, and the head is left as the bundled theme writes it, so the limit is an attribute here. A heading that names a
+dotted path breaks inside the path, since a scrolling card would otherwise scroll sideways to show it whole.
+-#}
+{%- macro first_page(section) -%}
+    {%- for target in nav.pages if section in target.ancestors %}{% if loop.first %}{{ target.url|url }}{% endif %}
+    {%- endfor %}
+{%- endmacro %}
+
+{%- macro area_entry(item) %}
+            <li class="nav-item">
+            {%- if item.children %}
+                <a href="{{ first_page(item) }}" class="nav-link {{ 'fw-semibold' if item.active else 'fw-normal' }}">
+                    {{- item.title }}</a>
+                {%- if item.active %}
+                <ul class="nav flex-column ms-3">
+                {%- for child in item.children %}{{ area_entry(child) }}{% endfor %}
+                </ul>
+                {%- endif %}
+            {%- elif item.active %}
+                <a href="{{ item.url|url }}" class="nav-link fw-bold" aria-current="page">{{ item.title }}</a>
+            {%- else %}
+                <a href="{{ item.url|url }}" class="nav-link fw-normal">{{ item.title }}
+                    {%- if item.is_link %} <span aria-hidden="true">&#8599;</span>{% endif %}</a>
+            {%- endif %}
+            </li>
+{%- endmacro %}
+
+{%- set area = page.ancestors|last if page and page.ancestors else none %}
+<div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse"
+                title="{% trans %}Table of Contents{% endtrans %}">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    {% macro toc_item(item) %}
+        {%- if item.level <= config.theme.navigation_depth %}
+            <li class="nav-item" data-bs-level="{{ item.level }}">
+              <a href="{{ item.url }}" class="nav-link">{{ item.title }}</a>
+              <ul class="nav flex-column">
+                {%- for child in item.children %}
+                    {{- toc_item(child) }}
+                {%- endfor %}
+              </ul>
+            </li>
+        {%- endif %}
+    {%- endmacro %}
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary flex-column align-items-stretch"
+         style="max-height: calc(100vh - 3.5rem - 40px); overflow-y: auto; overflow-wrap: anywhere">
+        {%- if area %}
+        <nav class="border-bottom py-2" aria-label="{{ area.title }}">
+            <div class="px-3 pb-1 small text-uppercase text-body-secondary">{{ area.title }}</div>
+            <ul class="nav flex-column">
+            {%- for item in area.children %}{{ area_entry(item) }}{% endfor %}
+            </ul>
+        </nav>
+        {%- endif %}
+        <ul class="nav flex-column">
+        {%- for item in page.toc %}
+            {{ toc_item(item) }}
+        {%- endfor %}
+        </ul>
+    </div>
+</div>

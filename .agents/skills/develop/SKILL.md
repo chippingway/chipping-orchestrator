@@ -204,6 +204,22 @@ repository-wide agent instructions, safety rules, or documentation routing chang
 Be precise about what a package does and does not publish — overstated claims like "every helper is re-exported"
 get flagged.
 
+## Documentation pages and links
+
+The pages directly under `docs/` are the stable addresses. Write a link — from the README, from `AGENTS.md`, from an
+issue, from a commit message — against one of those rather than against a page inside an area directory: a landing
+page is where its area's overview lives and stays put, while the pages beside it are split further as the area grows.
+A landing page is not a table of contents. It keeps a section for every part of its area, and where that part has
+grown a page of its own the section stays behind as a summary naming the owner, so a deep link written before the
+split, such as [the fixing handler](../../../docs/state-machine.md#_handle_fixing-label-workflowfixing), still lands on
+that summary.
+
+A new page under `docs/` is listed twice, grouped the same way in both: under **Every page** in `docs/README.md`, and
+under `nav:` in `mkdocs.yml`. In the site a section's first page is its landing page, since the top bar links the
+section to it, so an area's overview goes first. `tests/repository/test_doc_links.py` checks both lists, and every
+relative path and `#anchor` in the docs, the README, `AGENTS.md`, and the skill files, without the documentation
+builder installed.
+
 ## `plans/` is working notes, not spec
 
 Files under `plans/` (roadmap, design explorations, proposal write-ups) are human working notes, not

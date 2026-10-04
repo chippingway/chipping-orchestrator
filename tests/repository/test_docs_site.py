@@ -20,11 +20,12 @@ use their own refs and cancel superseded builds without displacing a deploy.
 The workflow runs on GitHub, so each policy is checked as the text GitHub
 receives.
 
-The site renders through the template in `.github/docs-theme`, which writes a
+The site renders through the templates in `.github/docs-theme`, which write a
 page's `description` front matter into its one description meta tag, escaped,
 ahead of the homepage's `site_description` fallback. Sample sites built through
-that template hold it to that, and to leaving every undescribed page's markup
-and search entry as the bundled theme renders them.
+them hold the templates to that, and to leaving every undescribed page's head
+and search entry as the bundled theme renders them. The body is theirs to
+change -- `test_docs_navigation.py` holds what they put there.
 """
 from __future__ import annotations
 
@@ -64,7 +65,9 @@ _BUILD_STEP = """      - name: Build documentation
 _CHECK_STEP = f"""      - name: Check the built documentation
         env:
           {_site_support.SITE_VARIABLE}: {_site_support.SITE_DIRECTORY}
-        run: uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_docs_output.py
+        run: >-
+          uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_docs_output.py
+          tests/repository/test_docs_navigation.py
 """
 _PUBLISHING_STEPS = (_BUILD_STEP, _CHECK_STEP, _ARTIFACT_STEP)
 _UPLOADED_SITE = f"        with:\n          path: {_site_support.SITE_DIRECTORY}\n"
@@ -206,7 +209,7 @@ class DocumentationWebsiteTest(unittest.TestCase):
                 self.assertEqual(_site_support.SitePage(site / page).descriptions, descriptions)
 
     def test_undescribed_pages_match_bundled_theme(self) -> None:
-        """Without front matter the homepage keeps `site_description`, and no page's markup or search entry moves."""
+        """Without front matter the homepage keeps `site_description`, and no page's head or search entry moves."""
         bundled = self._sample_site(_SAMPLE, theme=None)
         site = self._sample_site(_SAMPLE)
         self.assertEqual(_site_support.SitePage(site / _HOMEPAGE).descriptions, [_site_support.SAMPLE_DESCRIPTION])
@@ -253,9 +256,9 @@ class DocumentationWebsiteTest(unittest.TestCase):
         return site
 
     def _rendering(self, site: Path) -> dict[str, object]:
-        """Every page's tags and the search index, keyed by their path in the site."""
+        """Every page's head tags and the search index, keyed by their path in the site."""
         rendering: dict[str, object] = {
-            path.relative_to(site).as_posix(): _site_support.SitePage(path).tags
+            path.relative_to(site).as_posix(): _site_support.SitePage(path).head
             for path in site.rglob("*.html")
         }
         rendering[_SEARCH_INDEX] = json.loads((site / _SEARCH_INDEX).read_text(encoding=_ENCODING))

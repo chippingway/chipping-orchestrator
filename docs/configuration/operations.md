@@ -270,7 +270,8 @@ checks at that output, as the **Documentation** workflow does:
 
 ```sh
 uv run --no-sync mkdocs build --strict
-DOCS_SITE_DIR=site uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_docs_output.py
+DOCS_SITE_DIR=site uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_docs_output.py \
+  tests/repository/test_docs_navigation.py
 ```
 
 The build writes to the ignored `site/` directory. `DOCS_SITE_DIR` makes `tests/repository/test_docs_output.py` check
@@ -283,13 +284,32 @@ documentation builder and runs with the rest of the suite in [Continuous integra
 the documentation builder.
 
 [`../../mkdocs.yml`](../../mkdocs.yml) defines the navigation, site URL, search-enabled theme, the template directory
-the theme's `custom_dir` layers over it ([Page descriptions](#page-descriptions)), and validation rules. Every page
-must appear in navigation; missing pages, links, and heading anchors fail the strict build. The hook in
-[`../../.github/scripts/docs_site.py`](../../.github/scripts/docs_site.py) preserves GitHub-style heading anchors for
-unique headings and turns links to repository files outside `docs/` into GitHub links while building. Repeated headings
-use Python-Markdown suffixes such as `_1` instead of GitHub's `-1`. Relative links between documentation pages keep
-pointing within the site. Link examples in code blocks are left intact, and the source files retain the relative paths
-the repository's documentation checks validate.
+the theme's `custom_dir` layers over it ([Site navigation](#site-navigation), [Page descriptions](#page-descriptions)),
+and validation rules. Every page must appear in navigation; missing pages, links, and heading anchors fail the strict
+build. The hook in [`../../.github/scripts/docs_site.py`](../../.github/scripts/docs_site.py) preserves GitHub-style
+heading anchors for unique headings and turns links to repository files outside `docs/` into GitHub links while
+building. Repeated headings use Python-Markdown suffixes such as `_1` instead of GitHub's `-1`. Relative links between
+documentation pages keep pointing within the site. Link examples in code blocks are left intact, and the source files
+retain the relative paths the repository's documentation checks validate.
+
+### Site navigation
+
+`nav:` in [`../../mkdocs.yml`](../../mkdocs.yml) groups the pages by what a reader came to do: **Operate** (quick start,
+settings, operations, snapshot capability check, security), **How it works** (architecture, the state machine, and the
+agents), **Observability**, and **Releases**, beside the homepage the site name links to. [`../README.md`](../README.md)
+lists every page under the same grouping for readers browsing on GitHub. A page's URL follows its path under `docs/`,
+not its place in `nav:`, so moving a page between groups changes no address. The templates in
+[`../../.github/docs-theme/`](../../.github/docs-theme/) render that list over the bundled `mkdocs` theme:
+
+- The top bar names each top-level entry once, as a plain link rather than a dropdown. A section links to its first
+  page, which makes that page the section's landing page, so an area's overview goes first. Search, a link to the
+  repository, and the light / dark / auto theme menu sit on the right.
+- The sidebar lists the pages of the current page's top-level section above that page's own headings. A subsection
+  there is a link to its first page, and opens onto its own pages only while it holds the current one.
+- Previous and next links sit under the page, where the theme's `n` and `p` keyboard shortcuts find them.
+
+`tests/repository/test_docs_navigation.py` builds a sample site through the templates to hold each of those rules. It
+needs the `docs` group but not `DOCS_SITE_DIR`, and the **Documentation** workflow runs it beside the two checks above.
 
 ### Page descriptions
 
@@ -311,15 +331,15 @@ parses as one string. Front matter is held to the same 120-column line target as
 `>-` folded block indented under the key, as every described page under `docs/` does; its lines join on single spaces
 and need no quoting.
 
-The template [`../../.github/docs-theme/main.html`](../../.github/docs-theme/main.html) overrides one block of the
-bundled `mkdocs` theme, `site_meta`, and writes the value into the page's single `<meta name="description">` tag,
-HTML-escaped. On the homepage the page's own description takes precedence over `site_description` in
-[`../../mkdocs.yml`](../../mkdocs.yml), which remains the homepage's fallback; any other page without front matter
-emits no description. The rest of that block is the theme's own, so every page keeps the canonical URL, head
-metadata, navigation, and search the bundled theme gives it, and a page without front matter renders as that theme
-renders it. `tests/repository/test_docs_site.py` builds sample sites through the template to hold each of those rules,
-and checks that `mkdocs.yml` names the template directory. GitHub's file view shows front matter as a table above the
-page.
+The template [`../../.github/docs-theme/main.html`](../../.github/docs-theme/main.html) overrides the bundled `mkdocs`
+theme's `site_meta` block, and writes the value into the page's single `<meta name="description">` tag, HTML-escaped. On
+the homepage the page's own description takes precedence over `site_description` in
+[`../../mkdocs.yml`](../../mkdocs.yml), which remains the homepage's fallback; any other page without front matter emits
+no description. The rest of that block is the theme's own, so every page keeps the canonical URL and the rest of the
+head metadata the bundled theme gives it; a page without front matter has the bundled head plus the two verification
+tags described in [GitHub Pages setup](#github-pages-setup), with the same search entry as under that theme.
+`tests/repository/test_docs_site.py` builds sample sites through the template to hold each of those rules, and checks
+that `mkdocs.yml` names the template directory. GitHub's file view shows front matter as a table above the page.
 
 `tests/repository/test_docs_output.py` holds the repository's own pages to those rules in the built site: the homepage
 and each landing page it lists emit exactly the description their front matter gives, and no two of those descriptions
@@ -334,6 +354,10 @@ In `chippingway/chipping-orchestrator`, configure these settings once:
 2. Create or open **Settings → Environments → github-pages**, and restrict deployment branches to `main`.
 3. In the repository's **About** panel, open its settings and set **Website** to
    `https://chippingway.github.io/chipping-orchestrator/`.
+
+The `extrahead` block in [`../../.github/docs-theme/main.html`](../../.github/docs-theme/main.html) adds the Google
+Search Console `google-site-verification` and Bing Webmaster Tools `msvalidate.01` meta tags to every page, including
+the 404 page; update their verification values when moving the site or changing the verification owner.
 
 [`../../.github/workflows/docs.yml`](../../.github/workflows/docs.yml) builds and checks every pull request and the
 pushes to `main` that change a documentation source, using the committed lockfile. The `pull_request` trigger carries

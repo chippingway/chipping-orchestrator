@@ -11,6 +11,7 @@ import json
 import subprocess
 import sys
 from html.parser import HTMLParser
+from itertools import takewhile
 from pathlib import Path
 from types import MappingProxyType
 from urllib.parse import unquote, urlsplit
@@ -42,7 +43,15 @@ class SitePage(HTMLParser):
         self.links: list[str] = []
         self.anchors: set[str] = set()
         self.tags: list[tuple[str, _Attributes]] = []
+        # Each `<nav>` by its `aria-label`, against the attributes of every link inside it.
+        self.landmarks: dict[str, list[_Attributes]] = {}
+        self._open_landmarks: list[str] = []
         self.feed(path.read_text(encoding=_ENCODING))
+
+    @property
+    def head(self) -> list[tuple[str, _Attributes]]:
+        """The tags ahead of `<body>`, in document order."""
+        return list(takewhile(lambda parsed: parsed[0] != "body", self.tags))
 
     @property
     def descriptions(self) -> list[str | None]:
@@ -56,6 +65,7 @@ class SitePage(HTMLParser):
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
         self.tags.append((tag, attributes))
+        self._record_landmark(tag, attributes)
         anchor = attributes.get("id") or attributes.get("name")
         if anchor:
             self.anchors.add(anchor)
@@ -63,6 +73,18 @@ class SitePage(HTMLParser):
         href = attributes.get(attribute)
         if href:
             self.links.append(href)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "nav" and self._open_landmarks:
+            self._open_landmarks.pop()
+
+    def _record_landmark(self, tag: str, attributes: _Attributes) -> None:
+        if tag == "nav":
+            label = attributes.get("aria-label") or ""
+            self._open_landmarks.append(label)
+            self.landmarks.setdefault(label, [])
+        elif tag == "a" and self._open_landmarks:
+            self.landmarks[self._open_landmarks[-1]].append(attributes)
 
 
 def build_site(config: Path, site: Path) -> subprocess.CompletedProcess[str]:

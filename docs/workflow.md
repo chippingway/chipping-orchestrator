@@ -3,7 +3,7 @@ description: >-
   The agent role each stage spawns, what its prompt grants and forbids, and how the DEV_AGENT, REVIEW_AGENT, and
   DECOMPOSE_AGENT specs are parsed and pinned.
 ---
-# Workflow — agent roles and command specs
+# Agents — roles and command specs
 
 This area documents who runs an issue: which stage invokes which agent role, what that role's prompt grants and
 forbids, how the role command specs (`DEV_AGENT` / `REVIEW_AGENT` / `DECOMPOSE_AGENT`) are parsed, and how the spec an
