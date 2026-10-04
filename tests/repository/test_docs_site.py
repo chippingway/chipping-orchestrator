@@ -23,7 +23,7 @@ receives.
 The site renders through the templates in `.github/docs-theme`, which write a
 page's `description` front matter into its one description meta tag, escaped,
 ahead of the homepage's `site_description` fallback. Sample sites built through
-them hold the templates to that, and to the bundled theme's head, body scripts,
+them hold the templates to that, and to the bundled theme's head, footer, complete scripts,
 modals, and search entries apart from the Google Search Console and Bing Webmaster
 Tools verification tags. `test_docs_navigation.py` holds the navigation to its own rules.
 """
@@ -114,6 +114,14 @@ _BING_SITE_VERIFICATION = MappingProxyType({
     "name": "msvalidate.01",
     "content": "315D232BAAC7F85AE24926BB4B72B62E",
 })
+_FOOTER = re.compile(r"<footer\b[^>]*>.*?</footer>", re.DOTALL)
+_SCRIPTS = re.compile(r"<script\b[^>]*>.*?</script>", re.DOTALL)
+_THEME_FAULTS = (
+    ('<footer class="col-md-12">', '<footer class="changed">'),
+    ("Documentation built with", "Documentation generated with"),
+    ("var base_url =", "var changed_base_url ="),
+    ("hljs.highlightAll();", "hljs.changed();"),
+)
 
 
 def _blocks(text: str, indent: int) -> dict[str, str]:
@@ -217,20 +225,24 @@ class DocumentationWebsiteTest(unittest.TestCase):
                 self.assertEqual(_site_support.SitePage(site / page).descriptions, descriptions)
 
     def test_undescribed_pages_match_bundled_theme(self) -> None:
-        """Undescribed pages retain bundled metadata, scripts, modals, and search, plus the site's verification tags."""
-        bundled = self._sample_site(_SAMPLE, theme=None)
+        """Undescribed pages retain bundled metadata, footer, scripts, modals, and search, plus verification tags."""
+        expected = self._rendering(self._sample_site(_SAMPLE, theme=None))
         site = self._sample_site(_SAMPLE)
         self.assertEqual(_site_support.SitePage(site / _HOMEPAGE).descriptions, [_site_support.SAMPLE_DESCRIPTION])
         self.assertIn(("link", _CANONICAL), _site_support.SitePage(site / _INTERIOR).tags)
-        rendering = self._rendering(site)
-        self.assertIn(_NESTED, rendering)
-        expected = self._rendering(bundled)
+        self.assertIn(_NESTED, expected)
         for page in expected.keys() - {_SEARCH_INDEX}:
             expected[page]["head"].extend((
                 ("meta", _GOOGLE_SITE_VERIFICATION),
                 ("meta", _BING_SITE_VERIFICATION),
             ))
-        self.assertEqual(rendering, expected)
+        self.assertEqual(self._rendering(site), expected)
+        markup = (site / _HOMEPAGE).read_text(encoding=_ENCODING)
+        for fault in _THEME_FAULTS:
+            with self.subTest(changed=fault[0]):
+                self.assertIn(fault[0], markup)
+                (site / _HOMEPAGE).write_text(markup.replace(*fault), encoding=_ENCODING)
+                self.assertNotEqual(self._rendering(site), expected)
 
     def test_unique_heading_anchors_match_github(self) -> None:
         anchors = _site_support.SitePage(self._sample_site(_HEADING_SAMPLE) / _HOMEPAGE).anchors
@@ -270,17 +282,15 @@ class DocumentationWebsiteTest(unittest.TestCase):
         return site
 
     def _rendering(self, site: Path) -> dict[str, object]:
-        """Every page's head, body script sources, and modal ids, plus the search index, keyed by their site path."""
+        """Every page's head, footer and script markup, and modal ids, plus search, keyed by their site path."""
         rendering: dict[str, object] = {}
         for path in site.rglob("*.html"):
             page = _site_support.SitePage(path)
+            markup = path.read_text(encoding=_ENCODING)
             rendering[path.relative_to(site).as_posix()] = {
                 "head": page.head,
-                "scripts": [
-                    attributes["src"]
-                    for tag, attributes in page.tags[len(page.head):]
-                    if tag == "script" and "src" in attributes
-                ],
+                "footer": _FOOTER.findall(markup),
+                "scripts": _SCRIPTS.findall(markup),
                 "modals": [
                     attributes.get("id")
                     for _, attributes in page.tags[len(page.head):]
