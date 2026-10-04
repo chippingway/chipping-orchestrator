@@ -29,7 +29,6 @@ Tools verification tags. `test_docs_navigation.py` holds the navigation to its o
 """
 from __future__ import annotations
 
-import json
 import re
 import unittest
 from importlib.util import find_spec
@@ -37,7 +36,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import MappingProxyType
 
-from tests.repository import docs_site_test_support as _site_support
+from tests.repository import docs_site_test_support as _site_support, docs_theme_test_support as _theme_support
 from tests.repository.doc_link_test_support import HEADING_ANCHOR_CASES
 
 _ENCODING = "utf-8"
@@ -114,8 +113,6 @@ _BING_SITE_VERIFICATION = MappingProxyType({
     "name": "msvalidate.01",
     "content": "315D232BAAC7F85AE24926BB4B72B62E",
 })
-_FOOTER = re.compile(r"<footer\b[^>]*>.*?</footer>", re.DOTALL)
-_SCRIPTS = re.compile(r"<script\b[^>]*>.*?</script>", re.DOTALL)
 _THEME_FAULTS = (
     ('<footer class="col-md-12">', '<footer class="changed">'),
     ("Documentation built with", "Documentation generated with"),
@@ -216,6 +213,30 @@ class DocumentationWorkflowTest(unittest.TestCase):
 
 @unittest.skipUnless(find_spec("mkdocs"), _site_support.INSTALL_HINT)
 class DocumentationWebsiteTest(unittest.TestCase):
+    def test_theme_fragments_preserve_complete_markup(self) -> None:
+        """Footer and script comparisons retain tag casing, multiline bodies, and permissive closing tags."""
+        site = Path(self.enterContext(TemporaryDirectory()))
+        footer = [
+            '<footer class="theme">\nFooter\n</footer>',
+            '<FOOTER class="theme">\nFooter\n</FOOTER>',
+            '<FoOtEr class="theme">\nFooter\n</fOoTeR >',
+            '<footer class="theme">\nFooter\n</footer data-theme="sample">',
+        ]
+        scripts = [
+            '<script src="theme.js"></script>',
+            '<SCRIPT>\nrun();\n</SCRIPT>',
+            '<ScRiPt>\nrun();\n</sCrIpT >',
+            '<script src="theme.js">\nrun();\n</script foo="bar">',
+            '<script src="theme.js">\nrun();\n</script\t\n bar>',
+        ]
+        markup = "".join(footer + scripts)
+        (site / _HOMEPAGE).write_text(f"<body>{markup}</body>", encoding=_ENCODING)
+        (site / _SEARCH_INDEX).parent.mkdir()
+        (site / _SEARCH_INDEX).write_text("{}", encoding=_ENCODING)
+        rendering = _theme_support.rendering(site)[_HOMEPAGE]
+        self.assertEqual(rendering["footer"], footer)
+        self.assertEqual(rendering["scripts"], scripts)
+
     def test_front_matter_describes_its_own_page(self) -> None:
         """A page's `description` is its one description tag, escaped, and the homepage's wins over its fallback."""
         site = self._sample_site(_DESCRIBED_HOMEPAGE, interior=_DESCRIBED_INTERIOR)
@@ -226,7 +247,7 @@ class DocumentationWebsiteTest(unittest.TestCase):
 
     def test_undescribed_pages_match_bundled_theme(self) -> None:
         """Undescribed pages retain bundled metadata, footer, scripts, modals, and search, plus verification tags."""
-        expected = self._rendering(self._sample_site(_SAMPLE, theme=None))
+        expected = _theme_support.rendering(self._sample_site(_SAMPLE, theme=None))
         site = self._sample_site(_SAMPLE)
         self.assertEqual(_site_support.SitePage(site / _HOMEPAGE).descriptions, [_site_support.SAMPLE_DESCRIPTION])
         self.assertIn(("link", _CANONICAL), _site_support.SitePage(site / _INTERIOR).tags)
@@ -236,13 +257,13 @@ class DocumentationWebsiteTest(unittest.TestCase):
                 ("meta", _GOOGLE_SITE_VERIFICATION),
                 ("meta", _BING_SITE_VERIFICATION),
             ))
-        self.assertEqual(self._rendering(site), expected)
+        self.assertEqual(_theme_support.rendering(site), expected)
         markup = (site / _HOMEPAGE).read_text(encoding=_ENCODING)
         for fault in _THEME_FAULTS:
             with self.subTest(changed=fault[0]):
                 self.assertIn(fault[0], markup)
                 (site / _HOMEPAGE).write_text(markup.replace(*fault), encoding=_ENCODING)
-                self.assertNotEqual(self._rendering(site), expected)
+                self.assertNotEqual(_theme_support.rendering(site), expected)
 
     def test_unique_heading_anchors_match_github(self) -> None:
         anchors = _site_support.SitePage(self._sample_site(_HEADING_SAMPLE) / _HOMEPAGE).anchors
@@ -280,25 +301,6 @@ class DocumentationWebsiteTest(unittest.TestCase):
         built = _site_support.build_site(config, site)
         self.assertEqual(built.returncode, 0, built.stderr)
         return site
-
-    def _rendering(self, site: Path) -> dict[str, object]:
-        """Every page's head, footer and script markup, and modal ids, plus search, keyed by their site path."""
-        rendering: dict[str, object] = {}
-        for path in site.rglob("*.html"):
-            page = _site_support.SitePage(path)
-            markup = path.read_text(encoding=_ENCODING)
-            rendering[path.relative_to(site).as_posix()] = {
-                "head": page.head,
-                "footer": _FOOTER.findall(markup),
-                "scripts": _SCRIPTS.findall(markup),
-                "modals": [
-                    attributes.get("id")
-                    for _, attributes in page.tags[len(page.head):]
-                    if "modal" in (attributes.get("class") or "").split()
-                ],
-            }
-        rendering[_SEARCH_INDEX] = json.loads((site / _SEARCH_INDEX).read_text(encoding=_ENCODING))
-        return rendering
 
 
 if __name__ == "__main__":

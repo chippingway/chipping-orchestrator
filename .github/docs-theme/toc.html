@@ -8,8 +8,9 @@ stays short however many pages the section has. The current page is marked with 
 
 The card scrolls on its own, held inside the window under the top bar, so the end of a long contents list stays in
 reach while the sidebar sticks. The bundled theme's rule for that names `.bs-sidebar.card`, a class pair no element
-carries, and the head is left as the bundled theme writes it, so the limit is an attribute here. A heading that names a
-dotted path breaks inside the path, since a scrolling card would otherwise scroll sideways to show it whole.
+carries. The theme comparison allows only the Google and Bing verification meta tags as additions to the bundled
+head, so the height limit stays in an inline style here. A heading that names a dotted path breaks inside the path,
+since a scrolling card would otherwise scroll sideways to show it whole.
 -#}
 {%- macro first_page(section) -%}
     {%- for target in nav.pages if section in target.ancestors %}{% if loop.first %}{{ target.url|url }}{% endif %}

@@ -45,7 +45,9 @@ class SitePage(HTMLParser):
         self.tags: list[tuple[str, _Attributes]] = []
         # Each `<nav>` by its `aria-label`, against the attributes of every link inside it.
         self.landmarks: dict[str, list[_Attributes]] = {}
+        self.sidebar_headings: list[_Attributes] = []
         self._open_landmarks: list[str] = []
+        self._sidebar_depth = 0
         self.feed(path.read_text(encoding=_ENCODING))
 
     @property
@@ -66,6 +68,7 @@ class SitePage(HTMLParser):
         attributes = dict(attrs)
         self.tags.append((tag, attributes))
         self._record_landmark(tag, attributes)
+        self._record_sidebar(tag, attributes)
         anchor = attributes.get("id") or attributes.get("name")
         if anchor:
             self.anchors.add(anchor)
@@ -77,6 +80,8 @@ class SitePage(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         if tag == "nav" and self._open_landmarks:
             self._open_landmarks.pop()
+        elif tag == "div" and self._sidebar_depth:
+            self._sidebar_depth -= 1
 
     def _record_landmark(self, tag: str, attributes: _Attributes) -> None:
         if tag == "nav":
@@ -85,6 +90,14 @@ class SitePage(HTMLParser):
             self.landmarks.setdefault(label, [])
         elif tag == "a" and self._open_landmarks:
             self.landmarks[self._open_landmarks[-1]].append(attributes)
+
+    def _record_sidebar(self, tag: str, attributes: _Attributes) -> None:
+        """Heading links inside the sidebar card, outside the section's navigation landmark."""
+        if tag == "div":
+            if self._sidebar_depth or attributes.get("id") == "toc-collapse":
+                self._sidebar_depth += 1
+        elif tag == "a" and self._sidebar_depth and not self._open_landmarks:
+            self.sidebar_headings.append(attributes)
 
 
 def build_site(config: Path, site: Path) -> subprocess.CompletedProcess[str]:
