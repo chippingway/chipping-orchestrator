@@ -16,6 +16,7 @@ keeps yielding until one of them lands.
 """
 from __future__ import annotations
 
+import contextlib
 import unittest
 from unittest.mock import patch
 
@@ -64,6 +65,19 @@ _PINNED_WRITE = "write_pinned_state"
 
 # What a process that does not come back from the terminal looks like here.
 _DIED = RuntimeError("the process holding this issue is gone")
+
+# The listing the receipt scan walks the thread with.
+_THREAD_WALK = "comments_after"
+
+# Each way an adoption can fail -- the thread walk raising, or the write
+# putting the cycle back refused -- taken as production takes it and under the
+# issue's writer claim, where the walk is per cycle and the claim-aware scan is
+# the one owed.
+_FAILED_ADOPTIONS = tuple(
+    (claimed, failing)
+    for claimed in (False, True)
+    for failing in (_THREAD_WALK, _PINNED_WRITE)
+)
 
 
 class _TerminalCase(ObservedCloseCase, _PatchedWorkflowMixin):
@@ -233,6 +247,41 @@ class DiedInsideTheRetirementTest(_TerminalCase, unittest.TestCase):
 
         self.assertTrue(self._record()[KEYS.cancelled])
         self.assertEqual(self._label(), WorkflowLabel.REJECTED)
+
+    def test_a_refused_adoption_is_retried(self) -> None:
+        # The walk raised, or found the receipt and the write putting the
+        # cycle back did not land: the next sweep walks the thread again and
+        # cancels the cycle rather than finish the terminal over a close the
+        # thread still says was observed.
+        for claimed, failing in _FAILED_ADOPTIONS:
+            with self.subTest(claimed=claimed, failing=failing):
+                self.setUp()
+                self._died_inside_the_retirement()
+                self.seeded.parent.closed = True
+                self._fresh_process()
+                with self.assertRaises(RuntimeError):
+                    self._swept(claimed, failing=failing)
+                self.assertIsNone(self._record().get(_CYCLE_ID), "the failed sweep puts nothing back")
+
+                github = self.seeded.github
+                with (
+                    patch.object(github, _THREAD_WALK, wraps=github.comments_after) as walked,
+                    self.assertLogs(_WORKFLOW_LOG),
+                ):
+                    self._swept(claimed)
+                    self.assertTrue(walked.called, "the next sweep walks the thread again")
+
+                self.assertTrue(self._record()[KEYS.cancelled])
+                self.assertEqual(self._label(), WorkflowLabel.REJECTED)
+
+    def _swept(self, claimed: bool, *, failing: str | None = None) -> None:
+        """Sweep this owner, under its writer claim if `claimed`, the client call `failing` names refusing."""
+        with contextlib.ExitStack() as sweeping:
+            if claimed:
+                sweeping.enter_context(self._under_the_claim(self.seeded.github.repo_id, PARENT_NUMBER))
+            if failing is not None:
+                sweeping.enter_context(patch.object(self.seeded.github, failing, side_effect=_DIED))
+            self.seeded.swept(self)
 
     def _died_inside_the_retirement(self) -> None:
         """Retire the cycle, poll behind the write, and end the process."""

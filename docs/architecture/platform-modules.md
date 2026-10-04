@@ -478,8 +478,9 @@ orchestrator/
                         one checkout root on one host and nothing beyond them, imports nothing of the runtime, and is
                         not the artifact presence: neither says anything about the other
     claim_notes.py      what the holds on an issue's writer claim tell the pollers sharing it, asked by nothing in
-                        production yet -- its callers, `workflow/engine/observation_state.py`, `retiring_cycles.py`
-                        given a repository id, and `contended_closes.py`, are reached by no tick:
+                        production yet -- its callers, `workflow/engine/observation_state.py`, `observation_receipts.py`
+                        and `retiring_cycles.py` given a repository id, the restart fence `retiring_cycles.py` keeps,
+                        and `contended_closes.py`, are reached by no tick:
                         the moment a poll is to read before it lists anything, and whether every hold by another
                         poller this process has found on the key had let go before such a moment -- asked under the
                         claim, no other poller wrote the record since the poll read it, while a hold that ended

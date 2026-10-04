@@ -9,16 +9,17 @@ requested while a publication holds the owner waits for its final release.
 A latch can also be scoped to the cycle it ends (`scope_close`), and carry the
 moment it was read at, so a close another poller on this host settled cannot
 end the cycle that poller started after it, and one no read could tie to a
-cycle ends none until a read does (`close_ends`). Those are for the callers
-that hold the issue's writer claim, and none does yet: production latches
-carry neither, and every barrier asks `close_observed` alone."""
+cycle ends none until a read does (`close_ends`); a `fresh` one withdraws a
+settlement still waiting for that release. Those are for the callers that hold
+the issue's writer claim, and none does yet: production latches carry none of
+them, and every production barrier asks `close_observed` alone."""
 from __future__ import annotations
 
 from orchestrator.workflow.engine import observation_state as _observation_state
 
 
 def observe_close(
-    repo_slug: str, issue_number: int, read_at: int | None = None,
+    repo_slug: str, issue_number: int, read_at: int | None = None, *, fresh: bool = False,
 ) -> None:
     """Latch a close this poll saw, so what reads it cannot miss it.
 
@@ -29,10 +30,23 @@ def observe_close(
     proves soonest: a close read again after another poller restarted the
     cycle is a close of the fresh cycle, which an older moment would never
     tie to it.
+
+    A settlement a publication hold postponed (`settle_close`) was decided
+    for the readings latched before it, and a `fresh` reading -- one read
+    again, rather than an owed one handed back unchanged -- is not among them:
+    it may have been read after the worker that decided the drop let go of the
+    issue's writer claim and another poller restarted the cycle, a close of
+    that fresh cycle. So it withdraws the postponed drop, and is left to the
+    next pass under the claim, which settles it again once it has reconciled
+    it -- one more pass over a reading that may owe nothing, where the drop
+    would have cost the close. Only a claim-aware caller says so: a production
+    latch is never fresh, and leaves the drop to land as the hold goes.
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:
         _observation_state._observed.add(key)
+        if fresh:
+            _observation_state._deferred.discard(key)
         if read_at is not None:
             moment = int(read_at)
             _observation_state._since[key] = max(moment, _observation_state._since.get(key, moment))
@@ -42,13 +56,14 @@ def scope_close(repo_slug: str, issue_number: int, cycle_id: int) -> None:
     """Say which cycle the close held on this issue ends.
 
     Taken only where a read of the record is followed by a read of the issue
-    that still finds it closed, or where both are taken under this process's
-    writer claim: either way the issue was closed while the record named this
-    cycle, so this is the cycle a close ends. A record read after a closed
-    reading proves nothing of the kind -- another poller on this host may have
-    settled the cycle that close ended and started a fresh one in between, an
-    operator's restart being exactly that -- and only the scope tells a close
-    that ended the old one from a close that ends the new one.
+    that still finds it closed -- and, for a contender, a read of the record
+    again that still names this cycle -- or where both are taken under this
+    process's writer claim: either way the issue was closed while the record
+    named this cycle, so this is the cycle a close ends. A record read after a
+    closed reading proves nothing of the kind -- another poller on this host
+    may have settled the cycle that close ended and started a fresh one in
+    between, an operator's restart being exactly that -- and only the scope
+    tells a close that ended the old one from a close that ends the new one.
     """
     with _observation_state._lock:
         _observation_state._scopes[_observation_state._owner_key(repo_slug, issue_number)] = int(cycle_id)
@@ -134,10 +149,15 @@ def settle_close(repo_slug: str, issue_number: int) -> None:
     drop itself is not refused -- it is taken again on the way out of that
     window, where it is the same decision one moment later -- so nothing is
     kept for good and nothing is dropped out from under the reader it was for.
+    Unless a `fresh` close is latched before then (`observe_close`): the
+    window outlasts the worker's writer claim, and a reading taken after the
+    drop was decided is one the drop was never about. Deferred, the latch keeps
+    its scope but not its moment, so it ties to no cycle it was not scoped to.
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:
         if key in _observation_state._publishing:
             _observation_state._deferred.add(key)
+            _observation_state._since.pop(key, None)
             return
         _observation_state._settled(key)

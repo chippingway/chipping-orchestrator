@@ -1383,7 +1383,10 @@ because there it is the claim that this stage has already rerouted rather than a
   irreversibly. So the handler's own re-read decides how far the pass goes, never whether the cycle ends: an issue
   that is open again is marked cancelled all the same and stopped there — nothing external is done to an issue
   somebody has just reopened, and no terminal is written — and the mark is what hands it to the dispatcher's own
-  guard, which owns a reopened cancelled owner and settles it from the next tick.
+  guard, which owns a reopened cancelled owner and settles it from the next tick. Under the issue's writer claim —
+  dormant, reached only inside `observation_state.claiming_closes()` — the one exception is a record on a cycle the
+  held close cannot be tied to, one another poller or this process restarted after it (`late_sweep._settled_elsewhere`):
+  nothing is marked, and the reading is settled out of the sweep.
 - **A submission no pass settles is latched, not dropped.** The scheduler admits no second worker for an issue one
   is already running, and this is the only submission whose loss costs an *observation* rather than a turn: the poll
   saw the issue closed, and if a human reopens it before the next pass, no later poll sees that again. So the
@@ -1520,7 +1523,11 @@ because there it is the claim that this stage has already rerouted rather than a
   and a settle arriving under it is recorded rather than taken. Nothing is refused and nothing is held for good: the
   same decision is made again as the last hold goes, one moment later, where it can no longer be made out from under
   the reader it was for — so an issue somebody reopens inherits no latch a later poll would never clear. Both
-  production drops are covered, the enumeration's and the one a refused fan-out submit takes.
+  production drops are covered, the enumeration's and the one a refused fan-out submit takes. A postponed latch keeps
+  its scope but not its read moment, and a *fresh* close latched before the last hold goes withdraws the postponed
+  drop, while an owed one handed back leaves it to land: once the dispatch takes the writer claim, the scheduler's
+  hold outlasts the worker's claim, and a close read in between may be the fresh cycle's, after another poller on the
+  host restarted it. No production latch is fresh yet; the contender and the claim-aware poll guard are.
 - **The hold starts at the CLAIM**, which is the scheduler admitting the submit — not where the worker first reads
   anything. The queue, the worker's own refetch and its label checks all sit between the two, and the refused submit
   is refused *because* a worker has the issue, so a reading dropped in that gap is one no barrier ever sees. Holds
@@ -1586,7 +1593,12 @@ because there it is the claim that this stage has already rerouted rather than a
   holds, and the *next* close — a fresh cycle an operator authorized by removing `rejected` — would be suppressed
   into having no durable half, which a restart before its worker reaches a barrier takes away entirely. The claim is
   handed back either way, by the write that recorded the memo or by the failure that recorded nothing; a claim left
-  standing would suppress every later poll's receipt for good.
+  standing would suppress every later poll's receipt for good. The memo names the cycle its receipt was for. Under the
+  issue's writer claim (dormant) a claim is taken by cycle and suppresses a post only while the record still names
+  that cycle — another poller on the host can settle it and an operator restart it while this reading is held, and a
+  close of the fresh cycle is owed a receipt of its own; the close is confirmed by an issue read between two record
+  reads naming the same cycle — a record this process's own writer moved in between binds no scope, receipt, or
+  memo — a post is made only for a cycle the held close ends, and a post skipped for either reason records no memo.
 - **The receipt is read back once per owner per process.** After a restart the fresh process finds an issue a human
   reopened, a record still saying the cycle is live, and nothing in memory; the dispatcher's own cancelled-cycle
   guard therefore scans the thread for a receipt scoped to the cycle the record names, adopts it, marks the
@@ -1598,8 +1610,14 @@ because there it is the claim that this stage has already rerouted rather than a
   listing that raises leaves `observation_receipts.scanning_receipt` by exception and the claim goes with it — because a
   claim standing over a read that established nothing would send every later tick straight past the receipt and on
   to the live stage handler. It is handed back again whenever a receipt actually LANDS: a claim taken when the thread
-  carried nothing proved nothing about one posted since, and every later pass would read straight past it. Cycle
-  scoping is what keeps an old close from ending the fresh cycle an operator authorized by removing `rejected`.
+  carried nothing proved nothing about one posted since, and every later pass would read straight past it. The mark
+  an adoption writes is made inside the claim too, so a mark GitHub refuses hands the claim back and the next tick walks
+  again. Cycle scoping is what keeps an old close from ending the fresh cycle an operator authorized by removing
+  `rejected`. Under the issue's writer claim (dormant) the walk is owed once per owner and cycle, and again once a claim
+  this process takes finds another poller held the issue after the walk began — that poller posts its receipts under
+  the claim and can die before marking what it observed — and a retirement's correlation is adopted from the latch as
+  well, where this process holds a close scoped to the very cycle the record says was retired, as a contender keeps
+  one read while another poller noted that retirement on the claim.
 - **Every path that runs a cleanup holds its observation the same way.** The scheduler's fan-out submit, the
   in-tick parallel one, and the sequential stream all wrap the pass in
   `cleanup_observation._cleanup_observation`, with the refetch *inside* the wrapper — that read is the first

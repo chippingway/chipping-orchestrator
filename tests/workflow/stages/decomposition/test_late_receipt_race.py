@@ -263,7 +263,9 @@ class ReopenedScanClaimTest(_ReceiptCase, unittest.TestCase):
     The walk is claimed once per owner per process because what it recovers
     is an observation a DEAD process was holding -- but a claim taken when
     there was nothing to find proved nothing about a receipt posted since,
-    and every later pass would read straight past it.
+    and every later pass would read straight past it. Asked for a cycle, as a
+    pass under the issue's writer claim asks it, it proved nothing about a
+    receipt naming another cycle either.
     """
 
     def test_a_landed_receipt_owes_the_walk_again(self) -> None:
@@ -287,10 +289,18 @@ class ReopenedScanClaimTest(_ReceiptCase, unittest.TestCase):
         ) as claimed:
             self.assertFalse(claimed)
 
-    def _already_walked(self) -> None:
+    def test_another_cycle_is_owed_its_own_walk(self) -> None:
+        self._already_walked(CYCLE_ID)
+
+        with _observation_receipts.scanning_receipt(
+            _TEST_SLUG, LATE_ISSUE_NUMBER, _NEXT_CYCLE,
+        ) as claimed:
+            self.assertTrue(claimed)
+
+    def _already_walked(self, cycle_id: int | None = None) -> None:
         """Take the one walk this process owes, finding nothing on it."""
         with _observation_receipts.scanning_receipt(
-            _TEST_SLUG, LATE_ISSUE_NUMBER,
+            _TEST_SLUG, LATE_ISSUE_NUMBER, cycle_id,
         ) as claimed:
             self.assertTrue(claimed)
 

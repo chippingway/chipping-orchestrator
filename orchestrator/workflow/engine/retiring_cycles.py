@@ -9,10 +9,17 @@ Another poller on this host cannot read this process's registry, so a window
 opened with the repository's id is also noted on the issue's writer claim,
 which is what that poller asks when the claim refuses it. No production
 retirement passes one yet: until the dispatch takes the claim, there is no
-claim to note it on."""
+claim to note it on.
+
+A restart this process writes is fenced as well (`restarting`): no claim note
+records a write of this process's own, so a claim-aware barrier ties a close
+to the fresh cycle by its read moment only where it was read after that write.
+No production restart enters the fence yet, and no production barrier asks a
+read moment."""
 from __future__ import annotations
 
 import contextlib
+import math
 from dataclasses import dataclass
 
 from orchestrator.scheduler import claim_notes as _claim_notes
@@ -123,6 +130,30 @@ def retiring(
         cycle_id=int(cycle_id),
         repo_id=repo_id,
     )
+
+
+@contextlib.contextmanager
+def restarting(repo_slug: str, issue_number: int):
+    """Hold older closes off the cycle a restart of this issue writes, for as long as the write runs and after it.
+
+    The restart is this process's own write under the issue's writer claim,
+    so no claim note says it happened: a close read before it would otherwise
+    pass for one no other poller disturbed, and end the fresh cycle it
+    predates (`observation_state._ends`). Fenced from before the write lands,
+    since a poll may read the fresh record while the write has yet to
+    return, and from then on at the moment the write ended -- however it
+    ended, since one that raised may still have landed. A close scoped to a
+    cycle by a read is unaffected: only the read moment is fenced.
+    """
+    key = _observation_state._owner_key(repo_slug, issue_number)
+    with _observation_state._lock:
+        _observation_state._restarted[key] = math.inf
+    try:
+        yield
+    finally:
+        moment = _claim_notes.moment()
+        with _observation_state._lock:
+            _observation_state._restarted[key] = moment
 
 
 def cycle_being_retired(
