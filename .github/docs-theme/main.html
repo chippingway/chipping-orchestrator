@@ -20,3 +20,73 @@ own. MkDocs renders without autoescaping, so the description is escaped here.
         {% if config.site_favicon %}<link rel="shortcut icon" href="{{ config.site_favicon|url }}">
         {% else %}<link rel="shortcut icon" href="{{ 'img/favicon.ico'|url }}">{% endif %}
 {%- endblock %}
+
+{#-
+The top bar names each top-level nav entry once, as a plain link rather than a dropdown. A section links to its first
+page, which makes that page the section's landing page, and the sidebar (`toc.html`) lists the rest. The homepage is
+left to the site name.
+-#}
+{%- block site_nav %}
+                    {%- if nav|length>1 %}
+                    <nav aria-label="Site">
+                        <ul class="nav navbar-nav">
+                        {%- for nav_item in nav if not (nav_item.is_page and nav_item.is_homepage) %}
+                        {%- set landing = namespace(page=nav_item) %}
+                        {%- for target in nav.pages|reverse if nav_item in target.ancestors %}
+                            {%- set landing.page = target %}
+                        {%- endfor %}
+                        {%- set current = 'page' if landing.page == page else 'true' %}
+                        {%- if landing.page.url %}
+                            <li class="nav-item">
+                                <a href="{{ landing.page.url|url }}" class="nav-link
+                                {%- if nav_item.active %} active" aria-current="{{ current }}{% endif %}">
+                                    {{- nav_item.title }}</a>
+                            </li>
+                        {%- endif %}
+                        {%- endfor %}
+                        </ul>
+                    </nav>
+                    {%- endif %}
+{%- endblock %}
+
+{#- Previous and next sit under the page instead (the `content` block), where the theme's `n` and `p` keys find
+them. -#}
+{%- block next_prev %}{%- endblock %}
+
+{#- The repository, as an icon; there is no per-page edit link. Its name shows in the collapsed menu, as the theme
+toggle's label does. -#}
+{%- block repo %}
+                      {%- if config.repo_url %}
+                        <li class="nav-item">
+                            <a href="{{ config.repo_url }}" class="nav-link" title="{{ config.repo_name }}">
+                                <i class="fa-brands fa-github"></i>
+                                <span class="d-lg-none ms-2">{{ config.repo_name }}</span>
+                            </a>
+                        </li>
+                      {%- endif %}
+{%- endblock %}
+
+{#-
+The bundled layout, plus a pager under the page. It carries the `navbar` class because the theme's keyboard shortcuts
+look for `.navbar a[rel="next"]` and `.navbar a[rel="prev"]`.
+-#}
+{%- block content %}
+                    <div class="col-md-3">{% include "toc.html" %}</div>
+                    <div class="col-md-9" role="main">
+                        {%- include "content.html" %}
+                        {%- if page and (page.next_page or page.previous_page) %}
+                        <nav class="navbar border-top mt-5" aria-label="Pages">
+                            {%- if page.previous_page %}
+                            <a rel="prev" href="{{ page.previous_page.url|url }}" class="nav-link">
+                                <i class="fa fa-arrow-left"></i> {% trans %}Previous{% endtrans %}
+                            </a>
+                            {%- endif %}
+                            {%- if page.next_page %}
+                            <a rel="next" href="{{ page.next_page.url|url }}" class="nav-link ms-auto">
+                                {% trans %}Next{% endtrans %} <i class="fa fa-arrow-right"></i>
+                            </a>
+                            {%- endif %}
+                        </nav>
+                        {%- endif %}
+                    </div>
+{%- endblock %}

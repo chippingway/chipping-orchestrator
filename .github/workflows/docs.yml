@@ -55,7 +55,9 @@ jobs:
       - name: Check the built documentation
         env:
           DOCS_SITE_DIR: site
-        run: uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_docs_output.py
+        run: >-
+          uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_docs_output.py
+          tests/repository/test_docs_navigation.py
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

@@ -16,9 +16,9 @@ orchestrator process is stateless.
 
 ## Where the details live
 
-[`docs/README.md`](docs/README.md) is the documentation landing page: it maps every page in the set, names the focused
-page under each area, and explains which addresses stay stable. Open it when the area below is not obviously the right
-one.
+[`docs/README.md`](docs/README.md) is the documentation landing page: it maps every page in the set, grouped the way the
+site's navigation groups them. Open it when the area below is not obviously the right one. Which documentation
+addresses stay stable is in the [`develop` skill](.agents/skills/develop/SKILL.md#documentation-pages-and-links).
 
 - User-facing overview: [`README.md`](README.md)
 - Architecture, module ownership, process / agent / push model: [`docs/architecture.md`](docs/architecture.md), with

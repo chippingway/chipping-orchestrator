@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Every documentation link resolves, and the index and nav reach every page.
+"""Every documentation link resolves, and the index and nav group every page the same way.
 
 A cross-document link is the one reference nothing else checks: moving a page
 or renaming a heading leaves the link syntactically valid and silently pointing
@@ -19,6 +19,7 @@ from tempfile import TemporaryDirectory
 from tests.repository import doc_link_test_support as _link_support, docs_nav_test_support as _nav_support
 
 _ENCODING = "utf-8"
+_CONFIG_NAME = "mkdocs.yml"
 # One written link per case, with the paths the check is expected to report.
 _PATH_CASES = (
     ("moved page", "[gone](docs/nowhere.md)", ("docs/nowhere.md",)),
@@ -40,6 +41,44 @@ extra:
   links:
     - Example: configuration/new-page.md
 """
+_INDEX_SAMPLE = """# Documentation
+## Where to start
+[details](configuration/new-page.md)
+## Every page
+- **Configuration** — [overview](configuration/README.md),
+  [details](configuration/new-page.md), [upstream](https://example.com/upstream.md)
+- **How it works**
+    - Agents — [overview](workflow.md), [roles](workflow/roles.md)
+- **Releases** — [timeline](release-timeline.md)
+## Help
+[other](elsewhere.md)
+"""
+_GROUPED_NAV_SAMPLE = """site_name: Sample
+nav: # Site navigation
+  - 'README.md'
+  - Configuration:
+      - Upstream: https://example.com/upstream.md
+      - 'Landing page': 'configuration/README.md' # Area overview
+      - Details: configuration/new-page.md
+  - How it works:
+      - Agents:
+          - Overview: workflow.md
+          - Roles: workflow/roles.md
+  - Releases: release-timeline.md
+extra:
+  links:
+    - Example: elsewhere.md
+"""
+_GROUPING_CASES = (
+    ("matching groups", _GROUPED_NAV_SAMPLE, True),
+    ("different section", _GROUPED_NAV_SAMPLE.replace("  - Configuration:", "  - Operate:"), False),
+    ("different subsection", _GROUPED_NAV_SAMPLE.replace("      - Agents:", "      - Workflow:"), False),
+    ("page outside its subsection", _GROUPED_NAV_SAMPLE.replace("          - Roles:", "      - Roles:"), False),
+    ("different page order", _GROUPED_NAV_SAMPLE.replace(
+        "          - Overview: workflow.md\n          - Roles: workflow/roles.md",
+        "          - Roles: workflow/roles.md\n          - Overview: workflow.md",
+    ), False),
+)
 
 
 class DocumentAnchorTest(unittest.TestCase):
@@ -104,10 +143,35 @@ class DocumentationIndexTest(unittest.TestCase):
 
     def test_nav_lists_every_docs_page(self) -> None:
         self.assertEqual(
-            _nav_support.unnavigated_pages(_link_support.tracked_markdown(), _link_support.REPO_ROOT / "mkdocs.yml"),
+            _nav_support.unnavigated_pages(_link_support.tracked_markdown(), _link_support.REPO_ROOT / _CONFIG_NAME),
             [],
             "Add omitted docs pages to nav in mkdocs.yml",
         )
+
+    def test_index_and_nav_share_groups_and_order(self) -> None:
+        self.assertEqual(
+            _nav_support.index_grouped_pages(_link_support.REPO_ROOT / _link_support.INDEX_PAGE),
+            _nav_support.nav_grouped_pages(_link_support.REPO_ROOT / _CONFIG_NAME),
+            "Keep Every page in docs/README.md and nav in mkdocs.yml grouped and ordered the same way",
+        )
+
+    def test_grouping_sees_section_and_order_drift(self) -> None:
+        with TemporaryDirectory() as directory:
+            index = Path(directory) / "README.md"
+            index.write_text(_INDEX_SAMPLE, encoding=_ENCODING)
+            expected = _nav_support.index_grouped_pages(index)
+            self.assertEqual(expected, [
+                (("Configuration",), "docs/configuration/README.md"),
+                (("Configuration",), "docs/configuration/new-page.md"),
+                (("How it works", "Agents"), "docs/workflow.md"),
+                (("How it works", "Agents"), "docs/workflow/roles.md"),
+                (("Releases",), "docs/release-timeline.md"),
+            ])
+            config = Path(directory) / _CONFIG_NAME
+            for case in _GROUPING_CASES:
+                with self.subTest(case=case[0]):
+                    config.write_text(case[1], encoding=_ENCODING)
+                    self.assertEqual(_nav_support.nav_grouped_pages(config) == expected, case[2])
 
     def test_index_links_do_not_replace_nav(self) -> None:
         with TemporaryDirectory() as directory:
@@ -123,7 +187,7 @@ class DocumentationIndexTest(unittest.TestCase):
                 encoding=_ENCODING,
             )
             self.assertEqual(_link_support.unindexed_pages(pages), [])
-            config = Path(directory) / "mkdocs.yml"
+            config = Path(directory) / _CONFIG_NAME
             config.write_text(_NAV_SAMPLE, encoding=_ENCODING)
             self.assertEqual(_nav_support.unnavigated_pages(pages, config), ["docs/configuration/new-page.md"])
             config.write_text(
