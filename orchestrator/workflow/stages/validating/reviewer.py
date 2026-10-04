@@ -54,7 +54,9 @@ persists the verdict with the evidence its declaration earned before
 publishing that evidence or acting on either verdict, and lets an approval
 reach the approval arc only over settled evidence that passed and covers every
 configured `VERIFY_COMMANDS` command -- parking one that does not under
-`reviewer_unverified`. A change request goes to its one developer from there.
+`reviewer_unverified`. A change request goes to its one developer from there,
+its feedback the reviewer's findings with that declaration set aside once it
+is read, save each check not shown passing.
 The event is emitted for all of them, before the fan-out, so the analytics
 record exists even for the paths that park. An approval and a change request
 alike are acted on only while the whole subject the reviewer was handed --

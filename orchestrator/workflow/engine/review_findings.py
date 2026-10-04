@@ -16,6 +16,10 @@ command inventory gives a developer nothing to act on. Any other check not
 shown to pass -- an exit line missing, blank, repeated, or reading anything
 else -- is what a developer has to act on, so it stays as a sentence naming its
 command and how it ended, over the output the reviewer quoted as a code block.
+The disposition of a verdict a live reviewer round returns
+(`stages/validating/review_disposition.py`) formats its feedback here once the
+declaration is read, and that is the feedback a change request is persisted
+with, posted as, and handed to its developer as.
 
 Display is read apart from validation, and more loosely, since nothing here is
 accepted -- there is only text to show. A line opening on a marker or step

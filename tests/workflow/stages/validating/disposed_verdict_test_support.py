@@ -6,8 +6,9 @@ A returned run goes to `review_disposition.disposes_of_the_verdict`, and a
 later tick is the dispatcher's evidence reconciliation and then
 `review_disposition.finishes_the_verdict`, over the run the verdict was
 returned in, which a later tick's caller rebuilds (`run`). What those ticks
-leave is read back here -- the verdict waiting, the park, the feedback posted,
-the last notice -- beside how a tick runs whose developer answers a change
+leave is read back here -- the verdict waiting, the park, the feedback posted
+and the fix prompt quoting it, the commands the artifacts carry, the last
+notice -- beside how a tick runs whose developer answers a change
 request and pushes (`fixing`), and the replies no pinned comment can record
 over the notes that fill it (`UNRECORDED`, `fills`). The doubles a tick posts
 or writes through are the owners' own: `review_handoff_test_support` for the
@@ -18,8 +19,9 @@ from __future__ import annotations
 
 from types import MappingProxyType
 
+from orchestrator.github import comments as _trust
 from orchestrator.github.pinned_state import MAX_PINNED_BODY
-from orchestrator.workflow.engine import completion_verdicts as _completion_verdicts
+from orchestrator.workflow.engine import completion_verdicts as _completion_verdicts, prompts as _prompts
 from orchestrator.workflow.stages.validating import (
     models as _models,
     review_disposition as _disposition,
@@ -29,6 +31,7 @@ from tests.workflow.repo_values import _TEST_SPEC
 from tests.workflow.stages.validating import (
     review_handoff_test_support as _handoff,
     review_park_test_support as _parked,
+    review_verdict_readings as _read,
     review_verdict_test_support as _world,
 )
 from tests.workflow.stages.validating.validating_review_test_support import FIX_HEAD_SHAS
@@ -70,6 +73,12 @@ UNRECORDED = (
 # was handed.
 ON_THE_HEAD = MappingProxyType({"head_shas": (_world.HEAD,)})
 
+# What a reviewer's feedback post says ahead of the findings it quotes, and
+# the hidden marker it closes on.
+_FEEDBACK_OPENS = f"{_handoff.FEEDBACK_NOTICE}:\n\n"
+
+_MARKED = f"\n\n{_trust.ORCHESTRATOR_COMMENT_MARKER}"
+
 
 def fixing() -> dict:
     """How a tick runs in which the one developer a change request owes answers it and pushes."""
@@ -86,6 +95,31 @@ def fills(case, filled: int) -> None:
     state = case.github.read_pinned_state(case.issue)
     state.set("operator_notes", "x" * filled)
     case.github.write_pinned_state(case.issue, state)
+
+
+def carried(case) -> tuple:
+    """Every command, exit status, and output the artifacts on `case`'s pull request carry, oldest first."""
+    return tuple(
+        (ran.command, ran.exit_status, ran.output)
+        for found in _read.artifacts(case)
+        for ran in found.commands
+    )
+
+
+def handed_on(case, prompted: str) -> tuple:
+    """The findings each feedback post on `case`'s pull request quotes, oldest first, and whether `prompted` has them.
+
+    `prompted` is the prompt a developer was resumed on, which hands them on
+    only where it is the fix prompt quoting the last of them.
+    """
+    bodies = [said.body for said in case.pull_request.issue_comments]
+    quoted = tuple(
+        body.split(_FEEDBACK_OPENS, 1)[1].removesuffix(_MARKED)
+        for body in bodies
+        if _FEEDBACK_OPENS in body
+    )
+    fix = _prompts._build_fix_prompt(quoted[-1]) if quoted else None
+    return quoted, fix is not None and fix in prompted
 
 
 def last_notice(case) -> str:

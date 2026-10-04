@@ -39,6 +39,7 @@ from orchestrator.observability.usage.metrics import UsageMetrics
 from orchestrator.workflow.engine import (
     completion_verdicts as _completion_verdicts,
     prompt_context as _prompt_context,
+    review_findings as _findings,
     verification_transaction as _transaction,
 )
 from orchestrator.workflow.stages.validating import (
@@ -87,6 +88,16 @@ SUITE_OUTPUT = "12 passed"
 
 REQUESTED = "1. The suite fails on the empty configuration; handle it."
 
+# What a failing run of the suite printed, and the findings a human is shown of
+# a change request declaring it: the reviewer's words, then that check as the
+# diagnostic a developer acts on, its output quoted whole.
+FAILURE_OUTPUT = "FAILED tests/test_config.py::test_empty - KeyError: 'VERIFY_COMMANDS'\n1 failed, 11 passed"
+
+CONCISE_FAILURE = f"{REQUESTED}\n\n`{SUITE}` exited with status 1:\n\n```\n{FAILURE_OUTPUT}\n```"
+
+# What findings that are a declaration and nothing else read as.
+NO_FINDINGS = _findings._NO_FINDINGS
+
 # The full tree every commit in the fake checkout reads as.
 TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
@@ -107,6 +118,13 @@ def declared_run(
         "VERIFICATION: END\n\n"
         f"VERDICT: {verdict}"
     )
+
+
+# A change request whose run of the suite failed, printing `FAILURE_OUTPUT`.
+FAILED_REQUEST = declared_run(exit_status=1, verdict="CHANGES_REQUESTED", output=FAILURE_OUTPUT)
+
+# A change request declaring a passing run of the suite and saying nothing else.
+DECLARED_ALONE = declared_run(verdict="CHANGES_REQUESTED").removeprefix(f"{REQUESTED}\n\n")
 
 
 def pushes(case) -> None:
