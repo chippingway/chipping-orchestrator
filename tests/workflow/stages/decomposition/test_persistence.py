@@ -144,13 +144,9 @@ class DecompositionChildPersistenceTest(
         )
 
     def test_a_held_child_is_seeded_by_the_recovery(self) -> None:
-        # Another poller on this host dispatches each child the moment it
-        # exists, so neither is this split's to seed. Both are still created
-        # and recorded -- the manifest is not kept to create the rest from
-        # later -- and nothing parks, finalizes, summarizes, or writes to
-        # them. Once that poller lets go, the parent's next tick recovers the
-        # split: it seeds each child under its claim, posts the summary the
-        # split owed, and finalizes, with no human and no decomposer run.
+        # Another poller holds each child as it is created: both are recorded,
+        # nothing else is written, and the next tick's recovery seeds them,
+        # posts the owed summary, and finalizes, with no decomposer run.
         gh, issue, created = self._left_to_recovery(SEED_CONTENTION_ISSUE_NUMBER)
 
         parent = gh.pinned_data(SEED_CONTENTION_ISSUE_NUMBER)
@@ -167,9 +163,7 @@ class DecompositionChildPersistenceTest(
         self._assert_recovered(gh, SEED_CONTENTION_ISSUE_NUMBER, created)
 
     def test_a_retried_recovery_posts_one_summary(self) -> None:
-        # A recovery that fails between its summary and its finalize is run
-        # again by the next tick: a summary GitHub refused is posted then, and
-        # one that landed ahead of a label flip that failed is not posted twice.
+        # A refused summary is posted on the retry; a landed one is not posted twice.
         for step in ("comment", "set_workflow_label"):
             with self.subTest(failing=step):
                 gh, issue, created = self._left_to_recovery(SEED_RETRY_ISSUE_NUMBER)
@@ -185,11 +179,8 @@ class DecompositionChildPersistenceTest(
                 self._assert_recovered(gh, SEED_RETRY_ISSUE_NUMBER, created)
 
     def test_the_seed_lands_on_the_record_held_first(self) -> None:
-        # Another poller on this host reaches each child before the split
-        # seeds it and holds it for the seed it lacks, parked on a pinned
-        # comment of its own. The seed lands on that one comment -- the one
-        # every reader takes -- and lifts the hold it answers, rather than in
-        # a second comment beside it that no reader takes.
+        # Another poller parked each child on a pinned comment of its own first:
+        # the seed lands on that one comment, lifting the hold it answers.
         gh, issue = _decomposing_issue(SEED_RECORD_ISSUE_NUMBER)
         gh.create_child_issue = _ReachedFirstByAnotherPoller(gh)
 

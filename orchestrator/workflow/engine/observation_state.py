@@ -35,7 +35,7 @@ _scanned: dict[tuple[str, int], tuple[int, int]] = {}
 _retiring: dict[tuple[str, int], int] = {}
 _publishing: dict[tuple[str, int], int] = {}
 _deferred: set[tuple[str, int]] = set()
-_restarted: dict[tuple[str, int], int] = {}
+_restarted: dict[tuple[str, int], float] = {}
 _lock = threading.Lock()
 
 

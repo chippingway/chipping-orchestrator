@@ -79,8 +79,8 @@ def _restarts(
     )
     begun = _begun(gh, issue, state, _late_restart_state._identified(issue, state, generation))
     if _applied(gh, issue, state, begun):
-        _late_restart_state._retired(gh, issue, state, begun)
-        _retiring_cycles.restarted(spec.slug, issue.number)
+        with _retiring_cycles.restarting(spec.slug, issue.number):
+            _late_restart_state._retired(gh, issue, state, begun)
     return True
 
 

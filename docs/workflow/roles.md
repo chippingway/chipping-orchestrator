@@ -2153,9 +2153,10 @@ which is where a receipt would only ever have been read.
 human who reopens the issue does not get that cycle back, and both labels an adjudication can be wearing name a
 handler that would act on the issue rather than settle it. Reopening fast enough does not undo it either: reaching
 the closed-owner route at all is what says a close was *observed*, so an issue that pass finds open again — a human
-who reopened it between the poll and the worker's refetch — is marked cancelled all the same, and stopped there.
-Nothing external is done to an issue somebody has just reopened and no terminal is written; the mark is what hands
-it to the guard below from the next tick. The dispatcher's own pinned-state guard catches that
+who reopened it between the poll and the worker's refetch — is marked cancelled all the same, and stopped there,
+unless its record has moved on to a cycle restarted after the close, which that close does not end and the pass
+leaves alone. Nothing external is done to an issue somebody has just reopened and no terminal is written; the mark is
+what hands it to the guard below from the next tick. The dispatcher's own pinned-state guard catches that
 window: it runs exactly the reconciliation above, reaches no handler, and writes the same terminal below. It *runs*
 the cleanup rather than merely refusing because the closed-owner sweep visits closed issues only, so a refusal with
 nothing behind it would freeze the issue until somebody closed it again. What it does not do is close the issue: a

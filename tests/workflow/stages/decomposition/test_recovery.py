@@ -379,9 +379,8 @@ class DecompositionRecoveryTest(
         )
 
     def test_a_held_orphan_is_repaired_later(self) -> None:
-        # The orphan's own handler is running on another poller on this host,
-        # so its record is that poller's to write: the recovery stops short of
-        # it and of the finalize behind it, parking nothing.
+        # Another poller holds the orphan: the recovery stops short of it and
+        # of the finalize, parking nothing.
         gh, parent = _orphan_recovery_fixture()
         orphan = dict(gh.pinned_data(ORPHAN_CHILD_NUMBER))
 

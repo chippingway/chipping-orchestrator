@@ -120,14 +120,11 @@ def _refused_submit(
 ) -> None:
     """Hold whatever observation a refused fan-out submit was carrying, as the enumeration left it.
 
-    The enumeration reconciled each reading it read a moment before, and that
-    disposition stands: the worker this refusal names is this process's own,
-    which may restart the cycle in a write no claim note records, so a dropped
-    reading revived here, or one bound again by the poll's moment, would end a
-    cycle that started after it. Only a cleanup still held -- possibly an owed
-    close the enumeration never yielded -- is written down again, alongside
-    that worker and with no moment: only a close standing behind the record
-    ties to its cycle.
+    The enumeration reconciled each reading a moment before, and that stands:
+    the worker this refusal names may restart the cycle, so a reading revived
+    or re-bound here could end a cycle started after it. Only a cleanup still
+    held -- maybe an owed close never yielded -- is written down again,
+    alongside that worker and with no moment.
     """
     if not observations.close_observed(spec.slug, issue_number):
         return

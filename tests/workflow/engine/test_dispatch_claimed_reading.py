@@ -45,10 +45,8 @@ _ADVANCED = 13
 _STALE = 14
 _OCCUPIER = 15
 
-# What the poll admitted that issue on -- its label and whether it was closed --
-# and the label its pass reads: an `implementing` issue with no late cycle
-# reopened, a `ready` one moved into family work, and a `blocked` child
-# released out of a dependency walk.
+# (label polled, polled closed, label read): reopened, moved into family work,
+# and released out of a dependency walk.
 _REOPENED_WORK = (LABEL_IMPLEMENTING, True, LABEL_IMPLEMENTING)
 _FAMILY_WORK = (LABEL_READY, False, LABEL_DECOMPOSING)
 _WALKED_OUT = (LABEL_BLOCKED, False, LABEL_READY)

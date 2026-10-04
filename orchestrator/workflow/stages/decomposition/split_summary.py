@@ -2,12 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """The summary an ordinary split posts on its parent as it finalizes, once per split attempt.
 
-Posted by the split, or by its recovery where the split stopped short of the
-finalize -- a crash, or a child another poller on this host held. A recovery
-cannot tell a split that never posted it from one that died after posting, so
-the summary ends on a hidden receipt naming the parent and the attempt, and a
-recovery posts it only where no comment of ours carries that receipt. An older
-binary's split names no attempt, and its recovery finalizes without one.
+Posted by the split, or by its recovery where the split stopped short -- a
+crash, or a child another poller held. It ends on a hidden receipt naming the
+parent and the attempt, which a recovery posts behind only where no comment
+of ours carries it; an older binary's split names no attempt, and gets none.
 """
 from __future__ import annotations
 
@@ -30,12 +28,7 @@ def announced(
     created: list[tuple[int, str]],
     attempt: str,
 ) -> WorkflowLabel:
-    """Post the summary of the children `created` names, and answer the label the parent is finalized to.
-
-    `created` is each child's number and title, in creation order; the
-    comment's id goes on the in-memory record, which the caller's finalize
-    writes.
-    """
+    """Post the summary of the children `created` (number, title) names, and answer the parent's final label."""
     final_label = _final_label(state)
     announcement = _announcement(created, final_label)
     if attempt:
@@ -47,12 +40,7 @@ def announced(
 def recovered(
     gh: GitHubClient, issue: Issue, state: PinnedState, children: list,
 ) -> WorkflowLabel:
-    """Post the summary a recovered split still owes, and answer the label the parent is finalized to.
-
-    Not owed where a comment of ours carries this attempt's receipt: a
-    recovery that posted it and failed before the finalize is retried by the
-    next tick. Each title is read off the child the slice created.
-    """
+    """Post the summary a recovered split still owes -- none where ours carries the receipt -- and answer the label."""
     attempt = str(state.get(_state._SPLIT_ATTEMPT) or "")
     if not attempt or _github_comments.carries_own_marker(
         gh.comments_after(issue, None),

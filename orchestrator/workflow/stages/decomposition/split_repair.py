@@ -1,14 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The seed a recovered split writes onto one recorded child, under the claim its caller holds.
-
-A child the split recorded and never seeded -- one a crash cut off, or one
-another poller on this host held when the split went to seed it -- carries no
-parent link and none of the lineage it was owed. It is held to the lineage the
-parent's record proves and to the receipt stamped for its slot, and seeded in
-one write that lifts the park its missing seed earned; `recovery` takes the
-claim and answers a refusal.
-"""
+"""The seed a recovered split writes onto one recorded child, under the claim `recovery` holds."""
 from __future__ import annotations
 
 from github.Issue import Issue
@@ -37,12 +29,10 @@ def _seed_orphan_child_state(
     same write, the park its missing seed earned.
 
     Answers why this child may not be finalized, or None once it is repaired.
-    It is held to the parent's record before anything is written -- the
-    recognition `ReplacementLineage.repair` applies, and the receipt stamped
-    for its slot (`split_seeds.stamp_lapse`) -- and a child refused keeps
-    exactly what it carried. One owed the snapshot the consumer ledger no
-    longer names is recorded there again, in a parent write ahead of its seed
-    and of the finalize that would let anything start it.
+    It is held to the parent's record first -- `ReplacementLineage.repair`
+    and the receipt stamped for its slot (`split_seeds.stamp_lapse`) -- and a
+    refused child keeps what it carried; a lost consumer slot is recorded
+    again in a parent write ahead of the seed.
     """
     child_issue = gh.get_issue(int(child_number))
     child_state = gh.read_pinned_state(child_issue)

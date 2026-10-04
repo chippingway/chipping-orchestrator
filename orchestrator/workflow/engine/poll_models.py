@@ -44,11 +44,8 @@ class _PollReading:
     the guard that ends a live cycle is what reads it.
 
     `read_at` is the moment the poll took before it listed the issue
-    (`claim_notes.moment`), and `None` where nobody took one. The worker asks
-    under its claim whether another poller has held the issue since, and only
-    where none has does a close nothing else ties to a cycle end the one the
-    record names: another poller holding the issue in between may have
-    settled the cycle that close ended and started a fresh one.
+    (`claim_notes.moment`), or `None`: an unscoped close ends the record's
+    cycle only where no other poller has held the issue since.
 
     `lane` is the admission the pass was given, which its refetch may not
     widen; `None` is a pass nothing else runs beside.

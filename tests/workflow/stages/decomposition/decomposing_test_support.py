@@ -136,12 +136,7 @@ class _ChildSeedOrderRecorder:
 
 
 class _ReachedFirstByAnotherPoller:
-    """A child create whose child another poller on this host dispatches before the split seeds it.
-
-    That poller's dispatcher finds the split's receipt and no seed, so it
-    holds the child -- parked on a pinned comment of its own -- under the
-    child's claim, and lets the claim go before the split asks for it.
-    """
+    """A child create whose child another poller parks, missing its seed, before the split seeds it."""
 
     def __init__(self, gh: FakeGitHubClient) -> None:
         self._gh = gh

@@ -11,6 +11,7 @@ the claim refuses it."""
 from __future__ import annotations
 
 import contextlib
+import math
 from dataclasses import dataclass
 
 from orchestrator.scheduler import claim_notes as _claim_notes
@@ -115,11 +116,22 @@ def retiring(
     )
 
 
-def restarted(repo_slug: str, issue_number: int) -> None:
-    """Note, after the write, that this process restarted this issue's cycle -- a write no claim note reports."""
-    moment = _claim_notes.moment()
+@contextlib.contextmanager
+def restarting(repo_slug: str, issue_number: int):
+    """Hold the write that restarts this issue's cycle -- one no claim note reports -- against older closes.
+
+    No read moment ties a close to a cycle while the write is in flight, and
+    once it is over only one read after it does, however the write ended.
+    """
+    key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:
-        _observation_state._restarted[_observation_state._owner_key(repo_slug, issue_number)] = moment
+        _observation_state._restarted[key] = math.inf
+    try:
+        yield
+    finally:
+        moment = _claim_notes.moment()
+        with _observation_state._lock:
+            _observation_state._restarted[key] = moment
 
 
 def cycle_being_retired(

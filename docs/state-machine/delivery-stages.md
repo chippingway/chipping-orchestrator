@@ -1373,18 +1373,21 @@ because there it is the claim that this stage has already rerouted rather than a
   a `cleanup_only` route the worker cannot re-derive, so a human who reopens the issue between the poll and the
   refetch cannot turn a cap-exempt submit into an agent-spawning stage handler; a closed reading on any other label
   that finds the issue open again runs no stage either, and waits for the next poll's admission.
-- **Reaching this route at all is what says a close was observed**, and an observed close cancels the generation
-  irreversibly. So the handler's own re-read decides how far the pass goes, never whether the cycle ends: an issue
-  that is open again is marked cancelled all the same and stopped there — nothing external is done to an issue
-  somebody has just reopened, and no terminal is written — and the mark is what hands it to the dispatcher's own
-  guard, which owns a reopened cancelled owner and settles it from the next tick.
+- **Reaching this route at all is what says a close was observed**, and an observed close cancels the cycle it
+  ended irreversibly. So the handler's own re-read decides how far the pass goes: an issue that is open again is
+  marked cancelled all the same and stopped there — nothing external is done to an issue somebody has just reopened,
+  and no terminal is written — and the mark is what hands it to the dispatcher's own guard, which owns a reopened
+  cancelled owner and settles it from the next tick. The one exception is a record on a cycle the owed close cannot
+  be tied to — one another poller, or this process, restarted after it (`late_sweep._settled_elsewhere`): nothing is
+  marked, and the reading is settled out of the sweep.
 - **A submission no pass settles is latched, not dropped.** The scheduler admits no second worker for an issue one
   is already running, and this is the only submission whose loss costs an *observation* rather than a turn: the poll
   saw the issue closed, and if a human reopens it before the next pass, no later poll sees that again. So the
   dispatcher latches the reading on `workflow/engine/observations.py` instead of discarding it, and the next tick
   reads it back and routes the issue to this sweep on the strength of it — ahead of the label, ahead of the close,
   and out of the family bucket, because the reading those come from is exactly what the reopen took away. What the
-  sweep does with an owner that is open again is the bullet above: mark the cancellation and stop.
+  sweep does with an owner that is open again is the bullet above: mark the cancellation and stop, unless the close
+  cannot be tied to the cycle the record names.
 - **A pass that RETURNED is not a pass that finished the ending, and the reading is kept where nothing else would
   come back.** A cleanup can run every step and leave the ending owed: a consumer that is live again keeps the ref,
   a remote that refuses a delete keeps the branch, and the `rejected` terminal is one more request GitHub can
