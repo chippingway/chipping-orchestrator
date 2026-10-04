@@ -19,15 +19,19 @@ def observe_close(
     """Latch a close this poll saw, so what reads it cannot miss it.
 
     `read_at` is a moment no later than the read that found the issue closed,
-    where its reader knew one (`claim_notes.moment`). A latch keeps the first
-    moment it is given: a later reading of the same close merged into it is no
-    older than that.
+    where its reader knew one (`claim_notes.moment`). A latch keeps the latest
+    moment it is given. Each is a closed reading, and what one proves -- that
+    no other poller has held the issue since it was taken -- the newest
+    proves soonest: a close read again after another poller restarted the
+    cycle is a close of the fresh cycle, which an older moment would never
+    tie to it.
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:
         _observation_state._observed.add(key)
         if read_at is not None:
-            _observation_state._since.setdefault(key, int(read_at))
+            moment = int(read_at)
+            _observation_state._since[key] = max(moment, _observation_state._since.get(key, moment))
 
 
 def scope_close(repo_slug: str, issue_number: int, cycle_id: int) -> None:

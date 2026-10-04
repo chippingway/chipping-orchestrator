@@ -1397,14 +1397,16 @@ restart the dispatcher's cancelled-cycle guard scans for that receipt once per o
 poller on the host has held the issue since, adopts it, and runs the ending from the mark
 ([state-machine/delivery-stages.md](../state-machine/delivery-stages.md)).
 
-The latch is scoped to a cycle as well, the one the record named while the issue still read closed behind it — by
-that receipt's read, by a poller refused the issue's writer claim, or by the sweep of the closed owner. Another poller
-on the host can settle that cycle and start the fresh one an operator authorizes before this process holds the issue
-again, so a latch that remembered only the issue would end the fresh cycle for a close older than it, and a record
-read after the issue was found closed proves nothing about which cycle that close ended. A close no read scoped ends
-the cycle a later pass finds only where no other poller has held the issue since it was read, which the claim's
-signed holds tell. A reopened owner whose record names a cycle its close cannot be tied to is swept with nothing
-marked and its latch let go, and no receipt is posted for a cycle a held close did not end.
+The latch is scoped to a cycle as well, the one the record named while the issue still read closed behind it — by that
+receipt's read, by a poller refused the issue's writer claim, or by the sweep of the closed owner. Another poller on the
+host can settle that cycle and start the fresh one an operator authorizes before this process holds the issue again, so
+a latch that remembered only the issue would end the fresh cycle for a close older than it, and a record read after the
+issue was found closed proves nothing about which cycle that close ended. A close no read scoped to the cycle a later
+pass finds ends it only where no other poller has held the issue since the latest moment it was read closed, which the
+claim's signed holds tell: a close read again after a restart is a close of the fresh cycle. A reopened owner whose
+record names a cycle its close cannot be tied to is swept with nothing marked and its latch let go, and no receipt is
+posted for a cycle a held close did not end — nor remembered as posted, so the next poll that reads a fresh close still
+posts one.
 
 The latch is also held past a cleanup pass that RETURNED without finishing the ending — a ref a live consumer keeps,
 a delete the remote refused, a terminal GitHub declined — but only where nothing else would come back: an owner

@@ -287,14 +287,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the moment it began
     observations.py         latch, scope, read, enumerate, and settle observed closes; a close is scoped to the cycle it
                             ends only by a record read with the issue closed behind it, so a close another poller
-                            settled cannot end the cycle it restarted into, and one no read scoped ends the cycle it is
-                            asked about only where every other poller's hold this process has found had let go before
-                            the moment it was read at; settlement is deferred while a publication holds the owner, so a
-                            record read cannot erase a close a running worker still owes
-    observation_receipts.py generation-scoped exclusive receipt-post claims and landed memos; bounded thread scans, owed
-                            once per owner and cycle, that release on failure and reopen when a receipt lands or once
-                            another poller on this host has held the issue since the scan, so a failed or stale attempt
-                            suppresses no later receipt
+                            settled cannot end the cycle it restarted into, and one no read scoped to the cycle it is
+                            asked about ends it only where every other poller's hold this process has found had let go
+                            before the latest moment it was read closed at; settlement is deferred while a publication
+                            holds the owner, so a record read cannot erase a close a running worker still owes
+    observation_receipts.py generation-scoped exclusive receipt-post claims and landed memos, written only once the
+                            thread says the close; bounded thread scans, owed once per owner and cycle, that release on
+                            failure and reopen when a receipt lands or once another poller on this host has held the
+                            issue since the scan, so a failed or stale attempt suppresses no later receipt
     retiring_cycles.py      the held cycle id across a retirement write and its final barrier; exit removes the marker
                             and reports, under the same lock, a close observed inside the window that ends this cycle;
                             the cycle is also noted on the issue's writer claim for the rest of the hold, where a

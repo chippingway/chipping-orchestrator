@@ -78,7 +78,11 @@ def _record_observed_close(
     an observation whose receipt never landed is one a restart takes away
     entirely. So the memo that suppresses the second attempt is written by
     the attempt that SUCCEEDED, and every later poll tries again until one
-    does.
+    does. An attempt that posted nothing because the close it holds could not
+    be tied to the cycle the record names succeeded at nothing either, and
+    writes no memo: the next poll that reads the issue closed is what ties a
+    fresh close to that cycle and posts for it, and a memo standing over the
+    old reading would send that poll straight past both.
 
     Under a claim, because asking and posting cannot be made one operation.
     The claim is what stops two polls in that gap -- a worker's failed pass
@@ -108,7 +112,7 @@ def _record_observed_close(
     if claim is None:
         return _late_close_reading._owns_a_live_cycle(gh, spec, issue_number) is not False
     try:
-        cycle = _observed_close_posted(gh, spec, issue_number, polled=polled)
+        cycle, said = _observed_close_posted(gh, spec, issue_number, polled=polled)
     except Exception:
         log.exception(
             "repo=%s issue=#%d observed closed, but the receipt saying so "
@@ -119,7 +123,10 @@ def _record_observed_close(
         )
         _observation_receipts.release_receipt_post(claim)
         return True
-    _observation_receipts.receipt_written(claim)
+    if said:
+        _observation_receipts.receipt_written(claim)
+    else:
+        _observation_receipts.release_receipt_post(claim)
     return cycle is not None
 
 
@@ -129,15 +136,15 @@ def _observed_close_posted(
     issue_number: int,
     *,
     polled: Issue | None = None,
-) -> int | None:
+) -> tuple[int | None, bool]:
     """Post this cycle's close receipt, unless something already says it.
 
-    Answers which cycle the record names for this observation, having
-    discharged the receipt in four ways rather than one: the post landed, the
-    thread already carries it, the close is not this cycle's to post for, or
-    there is nothing for it to say -- an owner with no cycle a close would
+    Answers which cycle the record names for this observation, and whether
+    the receipt is discharged: the post landed, the thread already carries it,
+    or there is nothing for it to say -- an owner with no cycle a close would
     end, which is a state no later reader needs a receipt for and the caller
-    drops the reading on.
+    drops the reading on. A close that is not this cycle's to post for is
+    answered for and NOT discharged, since a later close may yet be.
 
     Not this cycle's, because the held close is scoped to the cycle it ended,
     and the scope is taken only off a close standing AFTER the record was
@@ -165,17 +172,17 @@ def _observed_close_posted(
     state = gh.read_pinned_state(issue)
     cycle = _late_close_reading._ending_cycle(spec, issue_number, state)
     if cycle is None:
-        return None
+        return None, True
     standing = _issues.issue_is_closed(issue) and (
         polled is None or _issues.issue_is_closed(gh.get_issue(issue_number))
     )
     if standing:
         _observations.scope_close(spec.slug, issue_number, cycle)
     if not _observations.close_ends(spec.slug, issue_number, cycle, repo_id=gh.repo_id):
-        return cycle
+        return cycle, False
     marker = _late_close_reading._observed_close_marker(issue_number, cycle)
     if _late_close_reading._carries_observed_close(gh, issue, marker):
-        return cycle
+        return cycle, True
     gh.comment(issue, _OBSERVED_CLOSE_NOTICE.format(
         cycle=cycle, marker=marker,
     ))
@@ -184,7 +191,7 @@ def _observed_close_posted(
         "cycle %d is cancelled and the thread now says so",
         spec.slug, issue_number, cycle,
     )
-    return cycle
+    return cycle, True
 
 
 def _mark_observed_close(

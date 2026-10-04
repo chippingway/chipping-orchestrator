@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.scheduler import writer_claims
 from orchestrator.workflow.engine import observations as _observations
 from orchestrator.workflow.state import WorkflowLabel
+from tests.support.writer_claims import signed_by_another_poller
 from tests.workflow.fixtures import _TEST_SPEC, _PatchedWorkflowMixin
 from tests.workflow.observation_support import ObservedCloseCase, read_now
 from tests.workflow.stages.decomposition.late_cancel_support import (
@@ -123,9 +125,10 @@ class AnotherCyclesCloseTest(
     """An umbrella holding a close scoped to the cycle a restart replaced.
 
     Another poller on this host settled the cycle that close ended and an
-    operator restarted it. The close is no reading of the cycle this walk
-    holds, so neither the walk's barriers nor the window its terminal retires
-    the cycle through may end that cycle with it.
+    operator restarted it, and let go after the close was read. The close is
+    no reading of the cycle this walk holds, so neither the walk's barriers
+    nor the window its terminal retires the cycle through may end that cycle
+    with it.
     """
 
     def setUp(self) -> None:
@@ -135,8 +138,11 @@ class AnotherCyclesCloseTest(
         seeded = _settled_umbrella()
         _observations.observe_close(_TEST_SLUG, PARENT_NUMBER, read_now())
         _observations.scope_close(_TEST_SLUG, PARENT_NUMBER, _RESTARTED_FROM)
+        signed_by_another_poller(seeded.github.repo_id, PARENT_NUMBER)
 
-        walk_owner(self, seeded)
+        with writer_claims.issue_writer(seeded.github.repo_id, PARENT_NUMBER) as held:
+            self.assertTrue(held)
+            walk_owner(self, seeded)
 
         self.assertFalse(seeded.github.pinned_data(PARENT_NUMBER).get(KEYS.cancelled))
         self.assertEqual(seeded.github.label_history, [(PARENT_NUMBER, WorkflowLabel.DONE)])

@@ -312,39 +312,42 @@ a refused submit's observation hold spends. Those two ask for it *alongside* —
 process that holds the issue, since the receipt is an added comment built to land beside one, and an ordinary exclusive
 attempt against every other process.
 
-An issue another poller on the host holds is skipped whole on every path: nothing is refetched, published,
-relabelled, written, run, or accounted for, and the submit's publication hold and any latched close are left as they
-were. A close the poll read for it is the one thing kept, in this process's latch alone — no receipt is posted — so a
-human reopening the issue before the claim comes back cannot take the reading away. The poll's reading is older than
-any read after it, and the holder may settle the cycle that close ended and start the fresh one an operator
-authorized in between, so the contender reads the record first and the issue behind it: only a close still standing
-there is scoped to the late cycle the record names. A record a retirement has just emptied names none, and there the
-close is scoped to the cycle the holder noted on the claim it is retiring (`scheduler/claim_notes.py`), which a poller
-inside a retirement window notes for the rest of its hold; the record's own correlation is not enough, since it
-outlives every retirement. A close the record says ends nothing — no cycle, or one already marked — adds nothing, and
-leaves an older latch as it was. One reopened between the two reads, or whose reads failed, is kept *unresolved*.
-The next tick routes the latch to a cleanup pass under the claim. A scoped close marks the cancellation if its cycle
-is still the record's — and puts a retired one back and cancels it — and is settled with nothing marked if the holder
-has since started a fresh cycle; an unresolved one marks only a cycle the issue reads closed over under the claim, and
-is settled with nothing marked on an issue open again.
+An issue another poller on the host holds is skipped whole on every path: nothing is refetched, published, relabelled,
+written, run, or accounted for, and the submit's publication hold and any latched close are left as they were. A close
+the poll read for it is the one thing kept, in this process's latch alone — no receipt is posted — so a human reopening
+the issue before the claim comes back cannot take the reading away. The poll's reading is older than any read after it,
+and the holder may settle the cycle that close ended and start the fresh one an operator authorized in between, so the
+contender reads the record first and the issue behind it: only a close still standing there is scoped to the late cycle
+the record names. A record a retirement has just emptied names none, and there the close is scoped to the cycle the
+holder noted on the claim it is retiring (`scheduler/claim_notes.py`), which a poller inside a retirement window notes
+for the rest of its hold; the record's own correlation is not enough, since it outlives every retirement. A close the
+record says ends nothing — no cycle, or one already marked — adds nothing, and leaves an older latch as it was. One
+reopened between the two reads, or whose reads failed, is kept *unresolved*. The next tick routes the latch to a cleanup
+pass under the claim. A scoped close marks the cancellation if its cycle is still the record's — and puts a retired one
+back and cancels it — and is settled with nothing marked if the holder has since started a fresh cycle, unless the issue
+is read closed again after the holder let go, which is a close of the fresh cycle; an unresolved one marks only a cycle
+the issue reads closed over under the claim, and is settled with nothing marked on an issue open again.
 
 The same proof binds a close this process's own poll read. Every acquisition signs the claim file with a per-process
 token, every hold stamps the moment it let go on the host's monotonic clock, and an acquisition that finds another
 process's token notes when that hold ended — when it is found, for a hold killed before it could say, and for the empty
 file an issue's first claim on the host finds, which cannot say who held it last. A poll reads that clock before it
-lists anything; a closed reading carries the moment, and a latch keeps the moment of the reading that made it, so the
-pass under the claim asks whether every hold of another poller found on the key had ended before it. If so, no other
-poller has written the record since the close was read, and a close nothing else ties to a cycle ends the one the record
-names. A lone poller is in that case, restarted or not — its predecessor's stamped hold ended before its poll began —
-except on an issue its predecessor was killed holding, or one no poller on the host has claimed before, until a claim
-finds that file. Otherwise the worker's guard marks nothing on a reopened issue and stops the tick, and the cleanup pass
-the latch routes it to next settles the reading. A claim that cannot be worked withholds the issue the same way rather
-than dispatching it uncoordinated. The scheduler's own gates still run first and are unchanged: duplicate-active, the
-caps, the family slot, and the refused-submit observation hold. An ordinary pass that finds a close latched once it
-holds the claim — a family drain or fan-out queued before a poll took it — runs as that close's cleanup rather than as
-the handler its label names, which is the route the partition gives an issue it finds owed. And every barrier that marks
-a cancellation inside a pass, the retirement window included, ends a cycle only with a close that ends that cycle, by
-the same scope and the same claim notes: a close held for a cycle another poller settled and restarted from ends none.
+lists anything; a closed reading carries the moment, and a latch keeps the moment of the latest closed reading merged
+into it, so the pass under the claim asks whether every hold of another poller found on the key had ended before it. If
+so, no other poller has written the record since the close was read, and a close nothing else ties to the record's cycle
+— none, or a scope the record has moved off — ends that cycle and is scoped to it. A lone poller is in that case,
+restarted or not — its predecessor's stamped hold ended before its poll began — except on an issue its predecessor was
+killed holding, or one no poller on the host has claimed before, until a claim finds that file. Otherwise the worker's
+guard marks nothing on a reopened issue and stops the tick, and the cleanup pass the latch routes it to next settles the
+reading. A claim that cannot be worked withholds the issue the same way rather than dispatching it uncoordinated. The
+scheduler's own gates still run first and are unchanged: duplicate-active, the caps, the family slot, and the
+refused-submit observation hold. An ordinary pass that finds a close latched once it holds the claim — a family drain or
+fan-out queued before a poll took it — runs as that close's cleanup rather than as the handler its label names, which is
+the route the partition gives an issue it finds owed. And every barrier that marks a cancellation inside a pass, the
+retirement window included, ends a cycle only with a close that ends that cycle, by the same scope and the same claim
+notes: a close held for a cycle another poller settled and restarted from ends none, and no receipt is posted or
+remembered for it, so the next poll that reads the issue closed ties that fresh close to the fresh cycle and posts for
+it.
 
 A family-aware handler writes issues other than its own, so those writes take the target's claim as well, and decide on
 what they read behind it. The walk that relabels a `workflow:blocked` child `workflow:ready` claims every child it would

@@ -64,17 +64,23 @@ def _settled(key: tuple[str, int]) -> None:
 def _ends(key: tuple[str, int], cycle_id: int, repo_id: int | None) -> bool:
     """Whether the close held under `key` ends this cycle; the caller holds the lock.
 
-    A close scoped to a cycle ends that one. One no read has scoped ends it
-    only where, with the repository's id, the claim notes say no other poller
-    has held the issue since the moment the latch was read at -- and is scoped
-    to it from then on. Spelled once, so a barrier that has to decide under
-    this lock answers exactly as one that takes it.
+    A close scoped to this cycle ends it. Any other -- one no read has scoped,
+    or one scoped to a cycle the record has since moved off -- ends it only
+    where, with the repository's id, the claim notes say no other poller has
+    held the issue since the latest moment the latch was read closed at, and
+    is scoped to it from then on. A cycle another poller settled and restarted
+    is therefore ended only by a close read after that poller let go, never by
+    the reading it settled. Spelled once, so a barrier that has to decide
+    under this lock answers exactly as one that takes it.
     """
     if key not in _observed:
         return False
+    if _scopes.get(key) == int(cycle_id):
+        return True
     read_at = _since.get(key)
-    if key not in _scopes and None not in {repo_id, read_at} and (
-        _claim_notes.undisturbed_since(repo_id, key[1], read_at)
-    ):
-        _scopes[key] = int(cycle_id)
-    return _scopes.get(key) == int(cycle_id)
+    if None in {repo_id, read_at}:
+        return False
+    if not _claim_notes.undisturbed_since(repo_id, key[1], read_at):
+        return False
+    _scopes[key] = int(cycle_id)
+    return True
