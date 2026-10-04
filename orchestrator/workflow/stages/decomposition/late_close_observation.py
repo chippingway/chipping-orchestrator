@@ -70,7 +70,9 @@ def _record_observed_close(
     Skipped where there is nothing to end: an owner with no cycle, and one
     whose record already carries the mark. Skipped too where the thread
     already says it, since a receipt is one sentence rather than one per poll
-    that observes the same close.
+    that observes the same close -- and where this reading already put one
+    there for the cycle the record still names, which costs no thread walk.
+    A receipt it put there for another cycle says nothing of this one.
 
     Retried, though, for as long as the thread does not have one. Raising
     here would cost the tick that was posting it, so a refusal is logged and
@@ -112,7 +114,9 @@ def _record_observed_close(
     if claim is None:
         return _late_close_reading._owns_a_live_cycle(gh, spec, issue_number) is not False
     try:
-        cycle, said = _observed_close_posted(gh, spec, issue_number, polled=polled)
+        cycle, said = _observed_close_posted(
+            gh, spec, issue_number, polled=polled, landed=claim.landed,
+        )
     except Exception:
         log.exception(
             "repo=%s issue=#%d observed closed, but the receipt saying so "
@@ -123,8 +127,8 @@ def _record_observed_close(
         )
         _observation_receipts.release_receipt_post(claim)
         return True
-    if said:
-        _observation_receipts.receipt_written(claim)
+    if said and cycle not in {None, claim.landed}:
+        _observation_receipts.receipt_written(claim, cycle)
     else:
         _observation_receipts.release_receipt_post(claim)
     return cycle is not None
@@ -136,15 +140,17 @@ def _observed_close_posted(
     issue_number: int,
     *,
     polled: Issue | None = None,
+    landed: int | None = None,
 ) -> tuple[int | None, bool]:
     """Post this cycle's close receipt, unless something already says it.
 
     Answers which cycle the record names for this observation, and whether
     the receipt is discharged: the post landed, the thread already carries it,
-    or there is nothing for it to say -- an owner with no cycle a close would
-    end, which is a state no later reader needs a receipt for and the caller
-    drops the reading on. A close that is not this cycle's to post for is
-    answered for and NOT discharged, since a later close may yet be.
+    this reading's own receipt for that very cycle is already there
+    (`landed`), or there is nothing for it to say -- an owner with no cycle a
+    close would end, which is a state no later reader needs a receipt for and
+    the caller drops the reading on. A close that is not this cycle's to post
+    for is answered for and NOT discharged, since a later close may yet be.
 
     Not this cycle's, because the held close is scoped to the cycle it ended,
     and the scope is taken only off a close standing AFTER the record was
@@ -173,6 +179,8 @@ def _observed_close_posted(
     cycle = _late_close_reading._ending_cycle(spec, issue_number, state)
     if cycle is None:
         return None, True
+    if cycle == landed:
+        return cycle, True
     standing = _issues.issue_is_closed(issue) and (
         polled is None or _issues.issue_is_closed(gh.get_issue(issue_number))
     )

@@ -1567,18 +1567,21 @@ because there it is the claim that this stage has already rerouted rather than a
   the attempt that succeeded, so a comment GitHub declines is tried again on the next poll. Without that, an
   observation with no durable half would be one a restart takes away entirely — the latch alone does not survive the
   process.
-- **The attempt is claimed, and the memo is counted against the reading it was claimed for.** Asking whether the
-  thread already carries a receipt and getting one onto it are two operations, and the other two parties are inside
-  that gap: a second poll owing the same observation (a worker's failed pass and the following tick's enumeration
-  meet there), and the worker running the pass that settles the reading. So `observation_receipts.claim_receipt_post`
-  hands
-  out the sole right to attempt the post — one poll walks the receipt-less thread, not two — and it carries the
-  per-owner **generation** that reading was taken at. Every `settle_close` moves that generation, so a receipt
-  landing either side of a settlement records no memo at all: without it the memo would stand for a reading nobody
-  holds, and the *next* close — a fresh cycle an operator authorized by removing `rejected` — would be suppressed
-  into having no durable half, which a restart before its worker reaches a barrier takes away entirely. The claim is
-  handed back either way, by the write that recorded the memo or by the failure that recorded nothing; a claim left
-  standing would suppress every later poll's receipt for good.
+- **The attempt is claimed, and the memo is counted against the reading it was claimed for.** Asking whether the thread
+  already carries a receipt and getting one onto it are two operations, and the other two parties are inside that gap: a
+  second poll owing the same observation (a worker's failed pass and the following tick's enumeration meet there), and
+  the worker running the pass that settles the reading. So `observation_receipts.claim_receipt_post` hands out the sole
+  right to attempt the post — one poll walks the receipt-less thread, not two — and it carries the per-owner
+  **generation** that reading was taken at. Every `settle_close` moves that generation, so a receipt landing either side
+  of a settlement records no memo at all: without it the memo would stand for a reading nobody holds, and the *next*
+  close — a fresh cycle an operator authorized by removing `rejected` — would be suppressed into having no durable half,
+  which a restart before its worker reaches a barrier takes away entirely. The claim is handed back either way, by the
+  write that recorded the memo or by the failure that recorded nothing; a claim left standing would suppress every later
+  poll's receipt for good. The memo names the cycle its receipt was for, and suppresses a post only while the record
+  still names that cycle: another poller on the host can settle that cycle and an operator restart it while this reading
+  is still held, and a close of the fresh cycle is owed a receipt of its own — without one, a restart of this process
+  after the issue is reopened would lose that close. A post skipped because the close could not be tied to the record's
+  cycle records no memo either.
 - **The receipt is read back once per owner and cycle.** After a restart the fresh process finds an issue a human
   reopened, a record still saying the cycle is live, and nothing in memory; the dispatcher's own cancelled-cycle guard
   therefore scans the thread for a receipt scoped to the cycle the record names, adopts it, marks the cancellation, and

@@ -4,23 +4,25 @@
 
 A poll read the owner closed while its record named cycle 4. Another poller on
 this host then settled that cycle and an operator restarted it, and this
-process's worker took the owner up on the fresh cycle. The submit that worker
-refused hands the old reading back to the latch, and no read can tie it to the
-fresh cycle -- so it is held, with no receipt. What it may not do is stand in
+process's worker took the owner up on the fresh cycle. Whatever this process
+still holds of the old close -- a reading no read can tie to the fresh cycle,
+or the memo of the receipt it already posted for cycle 4 -- may not stand in
 the way of the next close: the owner is closed again, which is a close of the
 fresh cycle, and reopened, and the worker's barriers have to end that cycle
-with it.
+with it, and so does the process after a restart, from the thread.
 """
 from __future__ import annotations
 
+import contextlib
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from orchestrator.scheduler import writer_claims
 from orchestrator.workflow.engine import (
     dispatch_closure as _dispatch_closure,
     poll_models as _poll_models,
     poll_reading as _poll_reading,
+    stage_targets as _stage_targets,
 )
 from orchestrator.workflow.stages.decomposition import late_close_observation as _late_close_observation
 from tests.support.fakes import FakeLabel
@@ -43,7 +45,7 @@ class FreshCloseBesideAWorkerTest(ClosedOwnerCase, unittest.TestCase):
 
                 ended = self._closed_again_beside_the_worker(reopened_early=reopened_early)
 
-                self.assertTrue(self._thread_says(fresh), "the thread says the fresh cycle's close")
+                self.assertTrue(_thread_says(self.github, fresh), "the thread says the fresh cycle's close")
                 self.assertTrue(ended, "the worker's barrier ends the fresh cycle")
                 self.assertTrue(self._generation().cancelled)
 
@@ -71,17 +73,9 @@ class FreshCloseBesideAWorkerTest(ClosedOwnerCase, unittest.TestCase):
         Answers whether that worker's cancellation barrier, asked once the
         owner is open again, ends the fresh cycle.
         """
-        scheduler = self._scheduler()
-        with scheduler.track_active(_deferral.REPO_SLUG, _deferral.OWNER_NUMBER) as tracked, \
-                writer_claims.issue_writer(self.github.repo_id, _deferral.OWNER_NUMBER) as held:
-            self.assertTrue(tracked and held, "the worker holds the owner")
+        with _worker_holding(self) as scheduler:
             self._closed_again(scheduler, reopened_early=reopened_early)
             return self._barrier_ends()
-
-    def _thread_says(self, cycle_id: int) -> bool:
-        """Whether the owner's thread carries the receipt for this cycle's close."""
-        receipt = receipt_for(_deferral.OWNER_NUMBER, cycle_id)
-        return any(receipt in body for _, body in self.github.posted_comments)
 
     def _barrier_ends(self) -> bool:
         """Ask the barrier a worker's walk takes whether a latched close ends its cycle."""
@@ -99,6 +93,68 @@ class FreshCloseBesideAWorkerTest(ClosedOwnerCase, unittest.TestCase):
         with patch.object(_poll_reading, "_classify_pollable_issue", reopening):
             self._ticked(scheduler, held=True)
         owner.closed = False
+
+
+class ReceiptedThenRestartedTest(ClosedOwnerCase, unittest.TestCase):
+    """A fresh cycle's close, read while this process remembers the old cycle's receipt.
+
+    The poll read the owner closed beside this process's worker and put cycle
+    4's receipt on the thread, and the cleanup that reading owed was still
+    pending when another poller on this host settled that cycle and an
+    operator restarted it. The owner is closed again beside this process's
+    worker -- a close of the fresh cycle -- then reopened, and this process is
+    restarted before any pass reaches it: the thread is all the next one has.
+    """
+
+    def test_the_fresh_close_outlives_the_restart(self) -> None:
+        fresh = self._closed_again_after_a_receipt()
+        self._fresh_process()
+        stand_in = Mock()
+
+        with patch(".".join(_stage_targets._STAGE_HANDLER_TARGETS[LABEL_IMPLEMENTING]), stand_in):
+            self._ticked(self._scheduler())
+
+        self.assertTrue(_thread_says(self.github, fresh), "the fresh cycle's close is on the thread")
+        self.assertTrue(self._generation().cancelled, "the next process ends the fresh cycle from it")
+        stand_in.assert_not_called()
+
+    def _closed_again_after_a_receipt(self) -> int:
+        """Cycle 4's close receipted beside the worker, the restart, and the fresh close and reopen.
+
+        Answers the fresh cycle's id.
+        """
+        self._seeded_owner()
+        owner = self.github.get_issue(_deferral.OWNER_NUMBER)
+        owner.labels = [FakeLabel(LABEL_IMPLEMENTING)]
+        with _worker_holding(self) as scheduler:
+            self._ticked(scheduler, held=True)
+        self.assertTrue(_thread_says(self.github, _deferral.CYCLE_ID), "the old cycle's receipt landed")
+        restarted_elsewhere(self.github)
+        owner.closed = True
+        with _worker_holding(self) as scheduler:
+            self._ticked(scheduler, held=True)
+        owner.closed = False
+        return self._generation().cycle_id
+
+
+@contextlib.contextmanager
+def _worker_holding(case: ClosedOwnerCase):
+    """This process's worker holding the owner, as its scheduler and its writer claim say.
+
+    Hands back the scheduler that is tracking it, which refuses every submit
+    for the owner while the block runs.
+    """
+    scheduler = case._scheduler()
+    with scheduler.track_active(_deferral.REPO_SLUG, _deferral.OWNER_NUMBER) as tracked, \
+            writer_claims.issue_writer(case.github.repo_id, _deferral.OWNER_NUMBER) as held:
+        case.assertTrue(tracked and held, "the worker holds the owner")
+        yield scheduler
+
+
+def _thread_says(github, cycle_id: int) -> bool:
+    """Whether the owner's thread carries the receipt for this cycle's close."""
+    receipt = receipt_for(_deferral.OWNER_NUMBER, cycle_id)
+    return any(receipt in body for _, body in github.posted_comments)
 
 
 class _ReopenedOnClassify:

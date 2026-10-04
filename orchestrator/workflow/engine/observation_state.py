@@ -16,15 +16,14 @@ from orchestrator.scheduler import claim_notes as _claim_notes
 
 # Closes observed and not yet settled; the cycle a read of the record said each
 # one ends; a moment no later than the read that found each, where its reader
-# knew one; the ones whose durable receipt is on the thread, against the
-# generation it was posted for; the owners a receipt is being posted for right
-# now; how many readings of each owner a pass has actually settled; and the
-# owners whose thread has been asked about an inherited receipt, with the cycle
-# it was asked for and the moment it was asked at; and the cycle a worker is
-# retiring off each record right now. Module-level and
-# lock-guarded, like the running-process registry the agent runner keeps: the
-# writer is the polling thread and the readers are workers, so the record has
-# to outlive both.
+# knew one; the cycle whose durable receipt each reading has put on the thread;
+# the owners a receipt is being posted for right now; how many readings of each
+# owner a pass has actually settled; and the owners whose thread has been asked
+# about an inherited receipt, with the cycle it was asked for and the moment it
+# was asked at; and the cycle a worker is retiring off each record right now.
+# Module-level and lock-guarded, like the running-process registry the agent
+# runner keeps: the writer is the polling thread and the readers are workers,
+# so the record has to outlive both.
 _observed: set[tuple[str, int]] = set()
 _scopes: dict[tuple[str, int], int] = {}
 _since: dict[tuple[str, int], int] = {}

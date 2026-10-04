@@ -230,10 +230,9 @@ def _owns_a_live_cycle(
     a read this orchestrator can afford.
 
     Taken only where the receipt above is not being written from a read of
-    its own, which is the repeat case -- a poll whose thread already carries
-    the receipt, or one another poll is posting right now. The first pass
-    answers this from the read it wrote the receipt with, so the two never
-    disagree about the same record.
+    its own, which is the one case another poll is posting it right now. The
+    poll posting it answers this from the read it wrote the receipt with, so
+    the two never disagree about the same record.
 
     Three answers rather than two, and the third is what keeps the reading
     safe. False is the record positively saying there is nothing to end -- no
