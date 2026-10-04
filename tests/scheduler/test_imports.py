@@ -15,6 +15,8 @@ _MODULES = (
     "orchestrator.scheduler",
     "orchestrator.scheduler.models",
     "orchestrator.scheduler.service",
+    "orchestrator.scheduler.writer_claims",
+    "orchestrator.scheduler.claim_notes",
 )
 
 # Owner-only names the facade must not resolve: the normalized submission and
