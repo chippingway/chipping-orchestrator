@@ -62,8 +62,11 @@ def _drain_scheduler_family_bucket(
     handler does not abort the rest of the bucket.
 
     Each per-issue call mirrors the fanout path: ``_refetch_and_process``
-    mints a fresh ``GitHubClient`` via ``gh._for_worker_thread()`` and
-    refetches the Issue against it (PyGithub is not documented thread-safe).
+    takes the issue's writer claim, mints a fresh ``GitHubClient`` via
+    ``gh._for_worker_thread()``, and refetches the Issue against it (PyGithub
+    is not documented thread-safe). The claim is taken inside the tracked
+    iteration, so an issue another poller on this host holds costs that one
+    iteration and the drain moves on to the next.
     """
     for issue_number in family_numbers:
         try:
@@ -131,7 +134,6 @@ def _submit_scheduler_fanout_issues(
     per_repo_cap: int,
 ) -> None:
     for issue_number in partition.fanout_numbers:
-        cleanup_only = issue_number in partition.cleanup_numbers
         # Held from here rather than from wherever the worker first reads
         # something: the claim exists the moment this submit is admitted, and
         # a poll meeting the issue between that and the handler is refused
@@ -143,10 +145,7 @@ def _submit_scheduler_fanout_issues(
             spec.slug,
             issue_number,
             _released_after(spec, issue_number, _dispatch_workers._fanout_task(
-                gh, spec, issue_number, reading=_poll_models._PollReading(
-                    cleanup_only=cleanup_only,
-                    closed=issue_number in partition.fanout_closed,
-                ),
+                gh, spec, issue_number, reading=partition.reading(issue_number),
             )),
             family=False,
             # A closed issue's handler is a cheap terminal finalization with
@@ -161,11 +160,7 @@ def _submit_scheduler_fanout_issues(
         if submitted:
             continue
         _publication_holds.release_publication(spec.slug, issue_number)
-        _dispatch_closure._refused_submit(
-            gh, spec, issue_number,
-            cleanup_only=cleanup_only,
-            closed=issue_number in partition.fanout_closed,
-        )
+        _dispatch_closure._refused_submit(gh, spec, issue_number, partition.reading(issue_number))
 
 
 def _released_after(
@@ -176,7 +171,7 @@ def _released_after(
     The hold starts at the submit and has to outlive the queue, so the worker
     is what ends it -- and it ends whichever way the task goes, since a pass
     that raised is one that stopped holding the issue just as surely as one
-    that returned.
+    that returned, and a task refused the issue's writer claim never held it.
     """
     return functools.partial(_releases_the_claim, spec.slug, issue_number, task)
 

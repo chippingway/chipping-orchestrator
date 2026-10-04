@@ -243,6 +243,7 @@ class CleanupRouteSurvivesRefetchTest(ObservedCloseCase, unittest.TestCase):
         issue = make_issue(_OWNER_NUMBER, label=LABEL_UMBRELLA)
         github.add_issue(issue)
         github.seed_state(_OWNER_NUMBER, late_cycle_id=3)
+        self._latch_close(_SPEC.slug, _OWNER_NUMBER)
 
         with self.assertLogs(_WORKFLOW_LOG):
             _late_sweep._handle_closed_owner_cleanup(github, _SPEC, issue)

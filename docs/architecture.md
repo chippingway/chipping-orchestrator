@@ -109,10 +109,9 @@ orchestrator/
                         the group operations every teardown spends, and one
                         module per backend
   scheduler/            the `IssueScheduler` every tick shares, the typed
-                        submissions it takes, and the dormant host-local
-                        writer claim one issue's writes are meant to run
-                        under, with what a hold of it tells the pollers
-                        sharing it
+                        submissions it takes, the host-local writer claim
+                        one issue is dispatched under, and what a hold of it
+                        tells the pollers sharing it
   workflow/             the state machine: the label vocabularies and the
                         transition guard, the `engine/` owners one tick is
                         composed of, the `late_split/` domain a late generation
@@ -251,24 +250,33 @@ self-exit and be restarted with new code.
   one host scan in front of the candidates spends too) plus the candidate in hand. The barrier's own ≤30s wait is
   outside the hold entirely: a run that cannot go quiet never takes the host at all. A pass whose process dies
   holds nothing, since the kernel drops the lock with the file description.
-- **Issue writer claims** (`scheduler.writer_claims`, dormant): one exclusive `flock` per repository issue under
+- **Issue writer claims** (`scheduler.writer_claims`): one exclusive `flock` per repository issue under
   `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's numeric GitHub id (the client's `repo_id`, never a
-  name: neither the configured slug nor the `owner/name` a poller fetched before a rename) and the issue number, for
-  keeping a second poller on the host off one issue's pinned comment and labels. No dispatch path, family handler,
-  close recovery, or base refresh takes it yet, so pollers sharing a checkout root do not coordinate their issue
-  writes through it. It never waits: a key another process holds is refused at once, and different issues never
-  contend. A claim that cannot be worked at all — an unopenable namespace, a filesystem without `flock` — is refused
-  too, where the presence above lets a poller go on unclaimed: a tidying job can be given up, an issue's record cannot
-  be written uncoordinated. Inside one process it is exclusive between threads as well, except for a holder that asks
-  to be let in alongside this process's own writer, and the lock is kept until the last holder here leaves. Released
-  however the body ends and by the kernel when the process dies; the files are never unlinked. Every acquisition reads
-  what the last hold left, empties the file, and signs it with a per-process token, and a hold its own process lets go
-  of stamps the moment it did on the host's monotonic clock (a killed one stamps nothing, and counts as ending when
-  found, as does one whose last line was cut short), so a holder can ask (`scheduler.claim_notes`) whether another
-  poller held the issue after a given moment, and a contender can read the late cycle a hold that has not stamped its
-  release noted it is retiring. It is host-local and separate from the presence: neither says anything about the other,
-  and nothing coordinates pollers on different hosts or checkout roots. The namespace's access and lifetime assumptions
-  are in the [operations runbook](configuration/operations.md#running-more-than-one-poller).
+  name: neither the configured slug nor the `owner/name` a poller fetched before a rename) and the issue number. Every
+  dispatch path takes it before anything it does for the issue — the worker's refetch, the pinned-state guards, the
+  close recovery wrapped around the pass, and the handler — and the enumeration takes it for the close receipt it posts,
+  so two pollers sharing a checkout root never write one issue's pinned comment and labels at once. A family handler's
+  writes to a child take the child's claim the same way, and the walk that releases children reads each again behind it
+  rather than trusting its scan. The pre-tick base refresh takes none. It is never waited for: a contender skips the
+  issue with no effect but a close it read, which it keeps in its own latch and retries on a later tick; different
+  issues never contend. That latch is tied to a late cycle only where the record is read first and the issue still
+  reads closed behind it, or where the holder noted on the claim that it is retiring the cycle the record has just
+  dropped (`scheduler.claim_notes`) — so a cycle the holder settles and an operator restarts meanwhile is not ended by
+  it. Every acquisition reads what the last hold left, empties the file, and signs it with a per-process token, and a
+  hold its own process lets go of stamps the moment it did on the host's monotonic clock, so a poll that later passes
+  the issue can tell whether another poller held it after the moment the poll took before listing it; only where none
+  did does a close no read tied to a cycle end the one the record names. A hold a restarted poller's predecessor
+  stamped before that moment costs nothing, while a killed hold, one whose last line was cut short, and the empty file
+  an issue's first claim on the host finds each count as ending when found, so a reading taken before them is tied to
+  no cycle by that alone. A note of a retiring cycle is read only off a hold that has not stamped its release. Inside
+  one process it is exclusive between threads too, except that a close receipt or a consumer notice is let in
+  alongside this process's own worker, which it was built to land beside. A claim that cannot be worked at all — an
+  unopenable namespace, a filesystem without `flock` — withholds the issue too, where the presence above lets a poller
+  go on unclaimed: a tidying job can be given up, an issue's record cannot be written uncoordinated. Released however
+  the dispatch ends and by the kernel when the process dies; the files are never unlinked. It is host-local and
+  separate from the presence: neither says anything about the other, and nothing coordinates pollers on different
+  hosts or checkout roots. The supported topology and the namespace's access assumptions are in the
+  [operations runbook](configuration/operations.md#running-more-than-one-poller).
 - **Tick cadence**: every `POLL_INTERVAL` seconds (default 60).
 - **Artifact maintenance cadence** (`runtime.artifacts`, scheduled by `runtime.artifact_schedule`): at the end of the
   wait between two polling passes — never inside a tick, since a tick is what makes the host busy — and at most
@@ -345,7 +353,10 @@ The dispatch behind that split first drops each open `workflow:blocked` / `workf
 walk is neither submitted nor handed a worker client — and then folds every remaining family-aware issue
 (`workflow:decomposing` / `workflow:blocked` / `workflow:umbrella` / unlabeled — the labels that write cross-issue
 parent ↔ child state) into ONE bucket submit per repo that drains sequentially on a single worker, so a stale child
-cannot starve the parent umbrella issue, and submits everything else one callable per issue.
+cannot starve the parent umbrella issue, and submits everything else one callable per issue. Whichever way an issue
+is executed, its pass runs under the issue's [writer claim](#process-model), and an issue another poller on the host
+holds is skipped that tick, keeping only a close the poll read for it. A family handler writes its children under
+each child's own claim.
 
 Per-issue durable state lives in a single **pinned comment** on the issue (`<!--orchestrator-state {...json...}-->`).
 The orchestrator process is stateless; the label and the pinned JSON are the entire dispatch input.
@@ -381,11 +392,11 @@ Two things sit ahead of that table, and both can end a tick before any handler r
 label does **not** choose the handler: a CLOSED issue on `workflow:decomposing`, `workflow:umbrella`,
 `workflow:ready`, or `workflow:blocked` goes to the cleanup sweep (`stages/decomposition/late_sweep.py`) instead of
 the stage its label names, because that stage would spawn the decomposer, activate children, or hand the issue to a
-developer on an issue a human ended — so the close is read first, and on the sequential path an owner on either of
-the two labels an adjudication RUNS under is refetched so neither reading of it is taken from the poll. The other
-two are asked about only while closed, so an open `workflow:ready` issue costs nothing it did not already. It is
-also the one route the `backlog` / `paused` hard skip steps aside for: discarding a closed owner there discards the
-close itself, so the route is taken and the control label defers only the external work behind it. The other is one
+developer on an issue a human ended — so the close is read first, off the issue as every dispatch path reads it
+again under its writer claim, and never off the poll alone. The two recovery labels are routed there only while
+closed, so an open `workflow:ready` issue goes to its own handler as ever. It is also the one route the `backlog` /
+`paused` hard skip steps aside for: discarding a closed owner there discards the close itself, so the route is taken
+and the control label defers only the external work behind it. The other is one
 read of the issue's own pinned comment, which answers nine questions that stop a dispatch outright: a live late
 adjudication the label was moved out from under, a child of a split whose snapshot has since been reclaimed, an
 owner whose cancelled cycle has not reached its ending — which settles the cycle and writes its `rejected`
@@ -882,8 +893,10 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
    │         caps                                                         │
    │     scheduler rejects duplicate active / cap hit / family-slot       │
    │       conflict → skipped this tick AND logged with reason            │
-   │     accepted workers call gh._for_worker_thread() + refetch the      │
-   │       Issue, then run _process_issue → dispatch by label             │
+   │     accepted workers take the issue's host-local writer claim        │
+   │       (held by another poller → skipped, retried next tick),         │
+   │       call gh._for_worker_thread() + refetch the Issue, then         │
+   │       run _process_issue → dispatch by label                         │
    │                                                                      │
    └─────────┬───────────────────────────────────────┬────────────────────┘
              │ subprocess                            │ subprocess (hardened)

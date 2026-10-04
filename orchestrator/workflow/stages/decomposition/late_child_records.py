@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Durable late-child walk records, cancellation seals, and ancestry seeding.
 
-The parent records every created issue before the child is seeded. A close
-seen inside the child read prevents its write, and a resumed walk seals
-only after every possible unrecorded child has been accounted for.
+The parent records every created issue before seeding it, and seeds it only
+under the child's own writer claim. A close seen inside the child read prevents
+its write, and a resumed walk seals only after every possible unrecorded child
+has been accounted for.
 """
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.late_split.obligations import LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
+    child_claims as _child_claims,
     late_child_content as _late_child_content,
     late_outcome as _late_outcome,
     late_owner as _late_owner,
@@ -245,16 +247,28 @@ def _seeded(
     would let the loop go on opening real issues against an ended cycle, and
     would leave the barriers behind it marking a cancellation that is already
     marked.
+
+    The read and the write are both the child's record, so they are made
+    under the child's own writer claim. A child another poller on this host
+    is writing -- or any claim this transaction cannot take -- is one it
+    cannot seed, and that is answered as the seed that could not be made:
+    the same park, which the next attempt supersedes and resumes from the
+    same recorded verdict, adopting the children already recorded.
     """
+    described = f"child #{child_issue.number} ({child.get('title')!r})"
     try:
-        return _seed_child_state(context, walk, child_issue, child)
+        with _child_claims.held_child(context.gh, context.issue.number, child_issue.number) as held:
+            if held:
+                return _seed_child_state(context, walk, child_issue, child)
     except Exception:
         log.exception(
             "issue=#%d could not seed child #%d with its ancestry",
             context.issue.number, child_issue.number,
         )
-        _parked(context, f"child #{child_issue.number} ({child.get('title')!r})")
+        _parked(context, described)
         return False
+    _parked(context, f"{described}, whose writer claim was refused,")
+    return False
 
 
 def _seed_child_state(

@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
-from orchestrator.workflow.stages.decomposition import run as _decomposing
+from orchestrator.workflow.stages.decomposition import run as _decomposing, split_seeds as _split_seeds
 from tests.support.fakes import (
     FakeGitHubClient,
 )
+from tests.support.writer_claims import held_elsewhere
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     _manifest,
@@ -89,6 +90,10 @@ class _DecomposingWorkflowMixin(_PatchedWorkflowMixin):
             **run_options,
         )
 
+    def _held_by_another_poller(self, gh, *issue_numbers: int):
+        """These issues' writer claims, held by another poller on this host for the block."""
+        return held_elsewhere(gh.repo_id, *issue_numbers)
+
 
 class _ChildCreationSnapshotRecorder:
     def __init__(self, gh: FakeGitHubClient, parent_number: int) -> None:
@@ -128,3 +133,24 @@ class _ChildSeedOrderRecorder:
             parent_state = self._gh.pinned_data(self._parent_number)
             self.snapshots.append(list(parent_state.get(KEY_CHILDREN) or []))
         return self._write_state(target_issue, state)
+
+
+class _ReachedFirstByAnotherPoller:
+    """A child create whose child another poller on this host dispatches before the split seeds it.
+
+    That poller's dispatcher finds the split's receipt and no seed, so it
+    holds the child -- parked on a pinned comment of its own -- under the
+    child's claim, and lets the claim go before the split asks for it.
+    """
+
+    def __init__(self, gh: FakeGitHubClient) -> None:
+        self._gh = gh
+        self._create_child = gh.create_child_issue
+
+    def __call__(self, **kwargs):
+        child = self._create_child(**kwargs)
+        with held_elsewhere(self._gh.repo_id, child.number):
+            _split_seeds.holds_unseeded(
+                self._gh, child, self._gh.workflow_label(child), self._gh.read_pinned_state(child),
+            )
+        return child

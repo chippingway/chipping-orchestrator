@@ -42,10 +42,18 @@ class _PollReading:
     classified into and may not be re-derived out of; `closed` is the same
     reading for an issue whose label names an ordinary terminal instead, where
     the guard that ends a live cycle is what reads it.
+
+    `read_at` is the moment the poll took before it listed the issue
+    (`claim_notes.moment`), and `None` where nobody took one. The worker asks
+    under its claim whether another poller has held the issue since, and only
+    where none has does a close nothing else ties to a cycle end the one the
+    record names: another poller holding the issue in between may have
+    settled the cycle that close ended and started a fresh one.
     """
 
     cleanup_only: bool = False
     closed: bool = False
+    read_at: int | None = None
 
 
 # What an ordinary open issue carries, which is nothing at all.
@@ -61,13 +69,24 @@ class _PollablePartition:
     family-aware issue's workflow label. ``fanout_closed`` is the subset of
     ``fanout_numbers`` whose issue is already closed -- a cheap terminal
     finalize, or a cleanup pass over a closed owner's ledger, and neither
-    spawns, so both are submitted cap-exempt.
+    spawns, so both are submitted cap-exempt. ``read_at`` is the moment the
+    poll took before it listed any of them, which every worker's reading
+    carries.
     """
     family_numbers: list[int]
     family_labels: list[str | None]
     fanout_numbers: list[int]
     fanout_closed: set[int]
     cleanup_numbers: set[int] = field(default_factory=set)
+    read_at: int | None = None
+
+    def reading(self, issue_number: int) -> _PollReading:
+        """What the poll established about one fan-out issue, for its worker."""
+        return _PollReading(
+            cleanup_only=issue_number in self.cleanup_numbers,
+            closed=issue_number in self.fanout_closed,
+            read_at=self.read_at,
+        )
 
 
 @dataclass
@@ -90,6 +109,7 @@ class _PollablePartitionBuilder:
     fanout_numbers: list[int] = field(default_factory=list)
     fanout_closed: set[int] = field(default_factory=set)
     cleanup_numbers: set[int] = field(default_factory=set)
+    read_at: int | None = None
     deferred: frozenset[int] = frozenset()
 
     yielded: set[int] = field(default_factory=set)
@@ -131,6 +151,7 @@ class _PollablePartitionBuilder:
             self.fanout_numbers,
             self.fanout_closed,
             self.cleanup_numbers,
+            self.read_at,
         )
 
 

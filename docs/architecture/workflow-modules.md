@@ -217,7 +217,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`stages/fixing/round_marks.py`); and the records a reviewer round writes onto that
                             comment (`stages/validating/review_records.py`)
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
-                            absent from enumeration and the blocked/umbrella family capacity exemption
+                            absent from enumeration and the blocked/umbrella family capacity exemption; a closed
+                            reading carries the moment its poll took before listing anything
     run_limit_dispatch.py   hold exhausted work, replay its owed notice, and admit grants or terminal cleanup;
                             an implementing plan PR does not prove that implementation work ended
     dispatch_guards.py      pinned-state admission, restart before cancellation, publication reconciliation, and
@@ -245,30 +246,52 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             blocked/umbrella dependency walks on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` skips;
                             a failed label read reaches per-issue exception isolation through the family bucket
     dispatch_closure.py     persist poll and refetch closes, retain them across ordinary processing, and preserve
-                            receipts and deferred cleanup when a worker submission is refused
+                            receipts and deferred cleanup when a worker submission is refused -- under the issue's
+                            writer claim alongside this process's worker, leaving the enumeration's latch as it was
+                            where the claim is refused
     cleanup_observation.py keep a close through cleanup exceptions and unsettled endings, including an ending owed
                             under a label no sweep queries; settle only after the defining stage proves it complete
     dispatch_partition.py  combine fresh poll results and still-owed closes, record closed fanout receipts before
-                            submission, and include deferred issues that enumeration did not yield
-    issue_processing.py    apply controls, select cleanup or guarded stage dispatch, hold publication through the
-                            handler, and record timed evaluation analytics on success and failure
-    dispatch_workers.py    refetch through each worker's GitHub client and optional semaphore, preserving ordinary
-                            and cleanup observation scopes across sequential, scheduler, and pool execution
+                            submission under the issue's writer claim -- only the latch where it is refused -- carry
+                            the moment read before the listing to each closed reading's worker, and include deferred
+                            issues that enumeration did not yield
+    issue_processing.py    the issue writer claim every dispatch seam takes before its refetch, guards, close recovery,
+                            and handler, keyed on the client's rename-proof `repo_id`, with a contender skipping the
+                            issue whole, leaving its latch and holds as found, and keeping a closed reading its caller
+                            hands in through `contended_closes`; apply controls, select cleanup or guarded stage
+                            dispatch, hold publication through the handler, and record timed evaluation analytics on
+                            success and failure
+    dispatch_workers.py    take the writer claim at each worker entry, outside the observation scope it wraps, then
+                            refetch through each worker's GitHub client and optional semaphore, and refetch the
+                            sequential loop's claimed issue on its own client, preserving ordinary and cleanup
+                            observation scopes across sequential, scheduler, and pool execution
     scheduled_dispatch.py  drain the family bucket under active tracking, enforce capacity rules, and submit fanout
                             with claims released after execution or refusal; observed closes remain cap-exempt
-    dispatch.py            drive the sequential poll's closure classification or submit its partition to the scheduler;
-                            refetched owners and still-owed closes keep the processing scope their reading earned
-    observation_state.py    the process-local close, receipt, scan, retirement, publication, and deferred-settlement
-                            registries behind one lock; settlement advances the owner generation and clears its latch
-                            and receipt memo atomically
-    observations.py         latch, read, enumerate, and settle observed closes; settlement is deferred while a
-                            publication holds the owner, so a record read cannot erase a close a running worker still
-                            owes
+    contended_closes.py    keep a close read while another poller holds the issue: the record is read first and the
+                            issue behind it, and only a close still standing there is scoped to the cycle the record
+                            names -- or, on a record a retirement just emptied, to the cycle the holder noted on the
+                            claim it is retiring; one reopened in between, or whose reads failed, is kept unresolved,
+                            and one the record says ends nothing adds nothing and leaves an older latch as it was
+    dispatch.py            drive the sequential poll's closure classification under the issue's writer claim --
+                            a contender keeping only a closed reading's latch -- refetching every issue it routes
+                            under that claim with the reading and the moment the loop read before listing it carried
+                            in, or submit its partition to the scheduler; refetched issues and still-owed closes keep
+                            the processing scope their reading earned
+    observation_state.py    the process-local close, close-scope, read-moment, receipt, scan, retirement, publication,
+                            and deferred-settlement registries behind one lock; settlement advances the owner
+                            generation and clears its latch, its scope, its moment, and its receipt memo atomically
+    observations.py         latch, scope, read, enumerate, and settle observed closes; a close is scoped to the cycle it
+                            ends only by a record read with the issue closed behind it, so a close another poller
+                            settled cannot end the cycle it restarted into, and one no read scoped ends the cycle it is
+                            asked about only where every other poller's hold this process has found had let go before
+                            the moment it was read at; settlement is deferred while a publication holds the owner, so a
+                            record read cannot erase a close a running worker still owes
     observation_receipts.py generation-scoped exclusive receipt-post claims and landed memos; bounded thread scans
                             release on failure and reopen when a receipt lands, so a failed or stale attempt suppresses
                             no later receipt
     retiring_cycles.py      the held cycle id across a retirement write and its final barrier; exit removes the marker
-                            and reports the close observed inside the window under the same lock
+                            and reports the close observed inside the window under the same lock; the cycle is also
+                            noted on the issue's writer claim for the rest of the hold, where a contender reads it
     publication_holds.py    counted holds taken when a worker is admitted and nested around handler execution; only the
                             final release settles a deferred close, preserving the reading through queueing and refetch
     content_hash.py         the user-content hash and filters for pinned records, orchestrator output, bots, untrusted
@@ -1573,19 +1596,29 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             lineage, a whole pointer only at that split's snapshot -- parked once, or held with nothing
                             written on a comment that will not parse; the seed a restart keeps; and the check recovery
                             and release make that a recorded child's receipt is the one stamped for its slot
+      child_claims.py       the writer claim a parent's handler takes on a child before writing it -- one child, or
+                            all a release walk would start at once -- keyed on the client's rename-proof `repo_id` as
+                            the dispatch claim is, and logged when refused; each caller answers a refusal as it
+                            answers a child it may not act on yet
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
                             recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
-                            a pointer -- in one write before it is seeded with its parent link, creation stamp, and
-                            that lineage, never with the parent's measurement, exemption, or authorization, and either
-                            failure parks the parent for repair
+                            a pointer -- in one write before it is seeded, under the child's own writer claim, with
+                            its parent link, creation stamp, and that lineage, never with the parent's measurement,
+                            exemption, or authorization, added to the record the child carries by then and lifting the
+                            park its missing seed earned -- the seed completion recovery's repair writes too; a child
+                            another poller holds is left unseeded on the plan for the recovery, and a failed create
+                            or seed write parks the parent for repair
       split.py              decide the children's lineage and park an unprovable one before any marker -- or a slice
                             naming a snapshot ref its child would not be kept -- stamp each child's receipt and
                             append the snapshot's reuse instructions to the body of each child owed it, then persist
                             the expected count, the umbrella flag, the attempt, and the whole dependency graph in one
                             write, create the planned children, and publish the summary and parent label before
-                            activating children without dependencies through `activation.py`'s walk
-      recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the adoption of a
-                            child created and never recorded through `split_receipts.py`, the orphan-child repair -- the
+                            activating children without dependencies through `activation.py`'s walk -- or, where a
+                            child was left unseeded because another poller held it, publish neither and leave the
+                            parent `decomposing` for `recovery.py` to seed it and finalize
+      recovery.py           what a tick that died mid-split -- or a split that met a held child -- left behind: the
+                            stale-manifest markers, the adoption of a child created and never recorded through
+                            `split_receipts.py`, the orphan-child repair -- the
                             parent link and the owed lineage, asked of the parent's record again, a lost consumer slot
                             restored ahead of its seed, the park the missing seed earned lifted in the write that
                             seeds it, and parked rather than finalized where it no longer proves one or a child is not
@@ -1593,10 +1626,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             cannot keep, or whose receipt is not the one stamped for its slot, included -- the
                             incomplete park, and the two owners that hold
                             those markers instead -- a human the issue is parked awaiting, and the late transaction
-                            while its generation is live
-      parents.py            the fresh child scan, the rejected and manually-closed parks it earns -- published
-                            apart from the scan, since one caller settles its ledger on the way out of them -- and
-                            the parent's own drift reroute, which first writes the children it drops onto the ledger
+                            while its generation is live; each child is repaired under its own writer claim, and one
+                            another poller holds stops the recovery, unparked, for the next tick
+      parents.py            the fresh child scan -- fresh as of its read, which another poller can outlive -- the
+                            rejected and manually-closed parks it earns -- published apart from the scan, since one
+                            caller settles its ledger on the way out of them, and a closed child's merge finalize taken
+                            under that child's writer claim off the child read again behind it, a held one counted
+                            neither done nor closed by hand -- and the parent's own drift reroute, which first writes
+                            the children it drops onto the ledger
       activation.py         the dep-graph walk that releases the next children, the child it passes over because GitHub
                             reports it closed or the scan holds no issue for it, the latch asked before EVERY relabel --
                             a relabel is a request, so a close observed after the first child was released may not
@@ -1611,7 +1648,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             for its slot -- parking the parent, once, rather
                             than releasing any child under a record that changed; the same walk, over the same fresh
                             child scan and behind the same rejected and manually-closed parks, the split's own
-                            same-tick release runs; and the held-dependency line it logs
+                            same-tick release runs; every child it would release claimed for writing and read again
+                            before the first is vouched for, and vouched for and relabelled off that reading -- one
+                            held by another poller, unreadable, or no longer open and `blocked` releasing none and
+                            parking nothing; and the held-dependency line it logs
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
                             consumed-comment ratchet; a parent whose children all resolved settles what a late split
                             still owes the remote before it goes back to its own work, and waits on `blocked` while a
@@ -1754,7 +1794,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             closes after its destination wrapping the whole (the fetch the instructions quote), and a
                             mirror kept whole with the repository segment it was fetched for -- and exact slice
                             receipts; reserved markers in proposed scope are refused before publication
-      late_child_records.py retain the child walk, write each child on every parent ledger before seeding its ancestry,
+      late_child_records.py retain the child walk, write each child on every parent ledger before seeding its ancestry
+                            under the child's writer claim -- a held child parks the split as a failed seed would --
                             and seal a cancelled consumer ledger only once possible unrecorded children are accounted for
       late_child_adoption.py
                             recover the exact issue for a resumed slice or create it after the close latch; ambiguous,
@@ -1802,7 +1843,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             either remote or local refusal leaves the obligation failed
       late_consumer_release.py
                             deliver cycle-bound snapshot reclamation receipts once per child, checking closure around
-                            every thread read and post; an unreachable child keeps delivery outstanding
+                            every thread read and post, under the child's writer claim alongside this process's own
+                            writer; an unreachable child, or one another poller holds, keeps delivery outstanding
       late_snapshot_reclamation.py
                             persist reclamation intent, refresh the consumer proof, and delete the exact snapshot;
                             recover missing refs and interrupted receipts without recreating or repointing the ref
@@ -1825,10 +1867,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             whether there is a cycle to end, and the two readings that withhold everything but the
                             mark -- an issue open again between the poll and the refetch, and one an operator has
                             parked with `backlog` or `paused`. Being routed here at all says a close was observed,
-                            so either leaves the mark behind and the rest to a later visit. What that ending
-                            consists of is `late_cancellation`'s; what is here is the entry a closed issue has
-                            no handler to give it -- the close a dead terminal left correlated on the record and
-                            receipted on the thread, adopted before anything else is decided; and the one terminal
+                            so either leaves the mark behind and the rest to a later visit -- unless the reopened
+                            record names a cycle the held close cannot be tied to: one other than the cycle it was
+                            scoped to, which another poller settled and restarted from, or any cycle at all for a
+                            close no read scoped and another poller has held the issue since; those are left
+                            unmarked. What that ending consists of is `late_cancellation`'s; what is here is the
+                            entry a closed issue has no handler to give it -- the close a dead terminal left
+                            correlated on the record and receipted on the thread, adopted before anything else is
+                            decided; and the one terminal
                             it writes itself, the `done` an
                             umbrella recorded in the write that retired its cycle and a crash took the label off,
                             retried for as long as the remote refuses it because the owner keeps the swept label
@@ -1842,10 +1888,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             persist cancellation before telemetry and reconstruct a retired cycle from retained
                             obligations and this issue's ancestry; already-cancelled generations remain unchanged
       late_close_reading.py fresh owner and cycle readings, close-receipt markers, and the proof that cleanup ended;
-                            a retirement in flight can still supply the cycle a concurrent close must name
+                            a retirement in flight can still supply the cycle a concurrent close must name, and so can
+                            a latch scoped to the cycle the record says a retirement dropped
       late_close_observation.py
                             claim and post observed-close receipts, adopt them after a process restart, and turn fresh
-                            or latched closure into durable cancellation without letting a later reopen erase it
+                            or latched closure into durable cancellation without letting a later reopen erase it;
+                            scope a polled close only where the issue still reads closed behind its record, post no
+                            receipt for a cycle a held close was not tied to, stop the tick rather than mark a cycle the
+                            poll's close cannot be tied to, and adopt a retired cycle a latch is scoped to
       late_cancellation_pr.py
                             release and close the held pull request with a cycle receipt, persist changed obligations,
                             report their outcome, and verify the publication again after cleanup
@@ -2066,8 +2116,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading
       late_models.py        mutable tick context, tri-state owner readings, held pull requests, and staged park values
       models.py             the run plan and its worktree policy, the locked session, the split plan -- with the
-                            lineage it seeds, the attempt its receipts name, and the whole declared dependency graph
-                            -- and the child scan
+                            lineage it seeds, the attempt its receipts name, the whole declared dependency graph, and
+                            the children it left unseeded for its recovery -- and the child scan, with the one
+                            reading a release walk starts a child from: open and `blocked`, the closed-unended reading
+                            a merge finalize is asked about, and the later reading of a child it adopts
       state.py              the pinned-state field names the owners share, `split_attempt` among them, the
                             held-child alias, the strict parent-link check, and the issue-reference renderer
     discussion/             `discussion`

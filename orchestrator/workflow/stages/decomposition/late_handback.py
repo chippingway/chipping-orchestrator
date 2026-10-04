@@ -169,7 +169,7 @@ def _published(context: _LateContext) -> _LateDisposition | None:
     if stopped is not None:
         return stopped
     retiring = _retiring_cycles.retiring(
-        context.spec.slug, context.issue.number, live.cycle_id,
+        context.spec.slug, context.issue.number, live.cycle_id, context.gh.repo_id,
     )
     with retiring.held():
         context.generation = LateGeneration(

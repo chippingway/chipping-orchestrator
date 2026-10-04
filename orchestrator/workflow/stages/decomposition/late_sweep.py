@@ -36,7 +36,10 @@ observed close cancels the generation irreversibly. So an issue that is open
 again is marked all the same and stopped there -- nothing external is done to
 an issue somebody just reopened, and the ending it now owes is the
 dispatcher's own guard's from the next tick, which is the one pass that owns a
-reopened cancelled owner.
+reopened cancelled owner. Marked, that is, while its record is still on the
+cycle the close ended: the close is scoped to that cycle, and a record another
+poller has since moved to a fresh one is not this close's to end -- nor is any
+cycle a close no read could tie to one.
 
 An issue with no recorded generation is every issue the initial decomposer
 ever made, and it leaves without a write of its own.
@@ -65,7 +68,8 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.late_split import state as _late_state
+from orchestrator.workflow.engine import observations as _observations
+from orchestrator.workflow.late_split import models as _late_models, state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation as _late_cancellation,
     late_cancellation_reading as _late_cancellation_reading,
@@ -97,7 +101,8 @@ def _handle_closed_owner_cleanup(
     cycle irreversibly, and nothing else is done to it here: acting externally
     on an issue somebody has just reopened is not this pass's to do, and the
     mark is what hands it to the dispatcher's own guard, which owns a reopened
-    cancelled owner from the next tick and settles it there.
+    cancelled owner from the next tick and settles it there. The one cycle it
+    is not marked on is one the close never ended -- see `_settled_elsewhere`.
 
     An owner with no cycle left is asked one question before it is stepped
     over, and then finished rather than stepped over. The question is the
@@ -123,6 +128,8 @@ def _handle_closed_owner_cleanup(
         )
     if generation is None:
         _finished_terminal(gh, issue, state)
+        return
+    if _settled_elsewhere(gh, spec, issue, generation):
         return
     withheld = _withheld(issue)
     if withheld is not None:
@@ -232,6 +239,44 @@ def _finished_terminal(
             "issue=#%s could not be handed the terminal its record already "
             "earned; it stays swept until it is", issue.number,
         )
+
+
+def _settled_elsewhere(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    generation: _late_models.LateGeneration,
+) -> bool:
+    """Whether the close this visit was routed for cannot be tied to this cycle.
+
+    Only an issue open again can answer yes, because that is the one reading
+    on which a close can be older than the cycle it is held against. Another
+    poller on this host can hold the issue between this process's poll and
+    its pass, settle the cycle that close ended, and start the fresh one an
+    operator authorized -- and the mark below would end that fresh cycle for
+    a close that happened before it existed. The held close is scoped to the
+    cycle it ended, so a record on any other cycle is one that close no
+    longer reaches. A close no read ever tied to a cycle reaches this one only
+    where no other poller has held the issue since it was read; otherwise the
+    cycle this visit finds may be the fresh one. Either way nothing is marked,
+    and the reopened issue is settled out of the sweep as any other is.
+
+    A closed issue is a close standing now, read under the claim beside the
+    record, which ends whatever cycle the record names, so the visit scopes
+    what it is holding to that cycle and goes on.
+    """
+    if issue_is_closed(issue):
+        _observations.scope_close(spec.slug, issue.number, generation.cycle_id)
+        return False
+    if _observations.close_ends(spec.slug, issue.number, generation.cycle_id, repo_id=gh.repo_id):
+        return False
+    log.info(
+        "repo=%s issue=#%s is open again on cycle %d, and the close this "
+        "visit was routed for ended an earlier cycle or was never tied to "
+        "one; marking nothing",
+        spec.slug, issue.number, generation.cycle_id,
+    )
+    return True
 
 
 def _withheld(issue: Issue) -> str | None:

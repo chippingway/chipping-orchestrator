@@ -34,13 +34,14 @@ re-parses the holder against its own environment reloads it in place, so
 the values it lands would otherwise outlive it and decide what the next
 test reads.
 
-The second exists because the host-local issue writer claim's namespace
-sits under `WORKTREES_DIR` -- which, unset as it is here, is the operator's
-own checkout root beside this repository. A test claiming `#7` there would
-contend with whatever else on the host holds it, and would leave its files
-behind. So each test claims in a directory of its own under one
-session root, made only if the test takes a claim at all, and a claim a
-test leaves held cannot reach the next one. A test that needs the real
+The second exists because every dispatched issue is taken under a
+host-local writer claim, and the claim's namespace sits under
+`WORKTREES_DIR` -- which, unset as it is here, is the operator's own
+checkout root beside this repository. A test dispatching `#7` there would
+contend with a live poller holding it, and would leave its files behind.
+So each test claims in a directory of its own under one session root,
+made only if the test takes a claim at all, and a claim a test leaves
+held cannot reach the next one. A test that needs the real
 namespace patches `_namespace` back for itself.
 """
 from __future__ import annotations

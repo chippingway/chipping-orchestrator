@@ -2,17 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 """Refetch and process ordinary and cleanup work under the appropriate close scope.
 
-Workers retain their thread-local GitHub client and optional semaphore.
-Closed readings and cleanup passes finish through their observation
-contexts so a race or failed pass cannot discard the owed ending.
+Each worker entry takes the issue's writer claim before anything else, so its
+refetch and observation scopes run under it and a contender leaves every
+reading as it found it; the sequential loop's pass refetches under the claim
+its own entry took. Workers retain their thread-local GitHub client and
+optional semaphore. Closed readings and cleanup passes finish through their
+observation contexts so a race or failed pass cannot discard the owed ending.
 """
 from __future__ import annotations
 
 import contextlib
 import functools
 from collections.abc import Callable
-
-from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
@@ -25,41 +26,43 @@ from orchestrator.workflow.engine import (
 )
 
 
-def _polled_open_owner(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
-) -> None:
-    """Refetch an owner the poll read OPEN, and dispatch what comes back.
-
-    The refetch is the load-bearing half of this route: a cleanup-swept label
-    decides which handler runs off the close, and this path has no hand-off
-    to take that reading for it. So it is also where a close can first exist
-    at all, which is why the dispatch is wrapped in the hold one earns.
-    """
-    refetched = gh.get_issue(issue_number)
-    with _dispatch_closure._refetched_close(gh, spec, refetched, _poll_models._POLLED_OPEN):
-        _issue_processing._process_issue(gh, spec, refetched)
-
-
-def _polled_ordinary(
+def _polled_refetch(
     gh: GitHubClient,
     spec: _config_models.RepoSpec,
-    issue: Issue,
+    issue_number: int,
     *,
-    closed: bool,
+    reading: _poll_models._PollReading,
 ) -> None:
-    """Dispatch one polled issue whose label names its own handler.
+    """Read one polled issue again under its writer claim, and dispatch that.
 
-    A CLOSED one carries the poll's reading and keeps it unless the pass
-    spent it, for the reason the worker paths do: nothing latched it, this
-    pass is what would have acted on it, and neither a raise nor a pinned
-    read the guard could not take leaves anything behind. An open one carries
-    nothing and has nothing to keep.
+    The sequential entry took the claim after the poll did its reading, and
+    another poller on this host may have advanced the issue in between: a
+    handler routed off the enumeration's object would resume a stage that
+    poller already left -- relabelling the issue back and handing it to an
+    agent a second time. So the label a handler is chosen by is the one this
+    read returns, as on every worker path.
+
+    What the poll established is carried over that read only where it is a
+    close. A CLOSED reading is held across the whole pass, refetch included,
+    for the reason the worker paths hold theirs: nothing latched it, this pass
+    is what would have acted on it, and neither a raise nor a pinned read the
+    guard could not take may cost it. It is bound rather than re-read, so a
+    reopen in between cannot turn it into an agent-spawning stage handler. An
+    OPEN reading carries nothing, which makes the refetch the place a close
+    can first exist, and the dispatch is wrapped in the hold one earns.
+
+    Refetched on the caller's own client rather than through
+    `_refetch_and_process`: nothing here crosses a thread, so what that mints
+    a per-worker client for does not apply, while the read it takes does.
     """
-    if not closed:
-        _issue_processing._process_issue(gh, spec, issue)
-        return
-    with _dispatch_closure._closed_reading(gh, spec, int(issue.number)):
-        _issue_processing._process_issue(gh, spec, issue, reading=_poll_models._PollReading(closed=True))
+    held = (
+        _dispatch_closure._closed_reading(gh, spec, issue_number, reading.read_at)
+        if reading.closed else contextlib.nullcontext()
+    )
+    with held:
+        refetched = gh.get_issue(issue_number)
+        with _dispatch_closure._refetched_close(gh, spec, refetched, reading):
+            _issue_processing._process_issue(gh, spec, refetched, reading=reading)
 
 
 def _refetch_and_process(
@@ -94,6 +97,32 @@ def _refetch_and_process(
     than a route: an issue open when it was listed can be closed by the time
     this reads it, and nothing in this process holds that reading. It is
     taken here, against the object the refetch just returned.
+
+    The issue's writer claim is taken first, ahead of the refetch, and a
+    contender returns having read nothing: the pass is retried on a later
+    polling pass, and this one has nothing to keep.
+    """
+    with _issue_processing._writer_claim(gh, spec, issue_number) as held:
+        if held:
+            _refetched_pass(
+                gh, spec, issue_number,
+                semaphore_cm=semaphore_cm, reading=reading,
+            )
+
+
+def _refetched_pass(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    *,
+    semaphore_cm: contextlib.AbstractContextManager | None,
+    reading: _poll_models._PollReading,
+) -> None:
+    """The refetch and dispatch a worker runs once it holds the issue.
+
+    Apart from its claim because the closed and cleanup passes take that claim
+    outside the observation scope they wrap this in, and a second claim on the
+    same issue would be refused by the first.
     """
     worker_gh = gh._for_worker_thread()
     worker_issue = worker_gh.get_issue(issue_number)
@@ -130,7 +159,7 @@ def _fanout_task(
     if reading.closed:
         return functools.partial(
             _closed_ordinary_pass, gh, spec, issue_number,
-            semaphore_cm=semaphore_cm,
+            reading=reading, semaphore_cm=semaphore_cm,
         )
     return functools.partial(
         _refetch_and_process, gh, spec, issue_number,
@@ -143,6 +172,7 @@ def _closed_ordinary_pass(
     spec: _config_models.RepoSpec,
     issue_number: int,
     *,
+    reading: _poll_models._PollReading,
     semaphore_cm: contextlib.AbstractContextManager | None = None,
 ) -> None:
     """Run a closed issue's ordinary pass, keeping the reading if it fails.
@@ -167,18 +197,23 @@ def _closed_ordinary_pass(
     cycle: asking again would spend a pinned read to reach the same answer,
     and re-latching in between would route an ordinary terminal through a
     cleanup pass on the tick after this one.
+
+    The writer claim is taken outside that hold, because the hold's own exit
+    reads the record and writes a receipt. A contender asks nothing, and the
+    latch the enumeration took stays exactly as it was for the next poll.
     """
-    if not observations.close_observed(spec.slug, issue_number):
-        _refetch_and_process(
-            gh, spec, issue_number,
-            semaphore_cm=semaphore_cm, reading=_poll_models._PollReading(closed=True),
-        )
-        return
-    with _dispatch_closure._closed_reading(gh, spec, issue_number):
-        _refetch_and_process(
-            gh, spec, issue_number,
-            semaphore_cm=semaphore_cm, reading=_poll_models._PollReading(closed=True),
-        )
+    with _issue_processing._writer_claim(gh, spec, issue_number) as held:
+        if not held:
+            return
+        if not observations.close_observed(spec.slug, issue_number):
+            _refetched_pass(
+                gh, spec, issue_number, semaphore_cm=semaphore_cm, reading=reading,
+            )
+            return
+        with _dispatch_closure._closed_reading(gh, spec, issue_number, reading.read_at):
+            _refetched_pass(
+                gh, spec, issue_number, semaphore_cm=semaphore_cm, reading=reading,
+            )
 
 
 def _swept_for_cleanup(
@@ -203,9 +238,17 @@ def _swept_for_cleanup(
     cleanup again on the strength of it, and the sweep it reaches repeats
     whatever the failed pass did manage: every step of the ending is
     idempotent, and the mark itself is kept from its first stamp.
+
+    The writer claim is taken outside the observation hold, since the hold
+    reads the record on its way out. A contender never enters it: the latch it
+    found is the latch it leaves, owed to the next poll, and nothing is asked
+    of a record another poller is writing.
     """
-    with _cleanup_observation._cleanup_observation(gh, spec, issue_number):
-        _refetch_and_process(
-            gh, spec, issue_number, semaphore_cm=semaphore_cm,
-            reading=_poll_models._PollReading(cleanup_only=True, closed=True),
-        )
+    with _issue_processing._writer_claim(gh, spec, issue_number) as held:
+        if not held:
+            return
+        with _cleanup_observation._cleanup_observation(gh, spec, issue_number):
+            _refetched_pass(
+                gh, spec, issue_number, semaphore_cm=semaphore_cm,
+                reading=_poll_models._PollReading(cleanup_only=True, closed=True),
+            )

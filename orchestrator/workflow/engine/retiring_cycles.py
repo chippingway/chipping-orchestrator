@@ -4,12 +4,16 @@
 
 The held cycle id and the close noticed during retirement share the process
 observation lock. Leaving the window always drops its cycle marker and hands
-the retiring caller the close that its own remote write could not reread."""
+the retiring caller the close that its own remote write could not reread.
+Another poller on this host cannot read this process's registry, so the window
+is also noted on the issue's writer claim, which is what that poller asks when
+the claim refuses it."""
 from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass
 
+from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.workflow.engine import observation_state as _observation_state
 
 
@@ -28,6 +32,7 @@ class RetiringCycle:
 
     key: tuple[str, int]
     cycle_id: int
+    repo_id: int | None = None
     observed: bool = False
 
     @contextlib.contextmanager
@@ -67,10 +72,21 @@ class RetiringCycle:
 
         A worker holds one for one issue at a time, because the scheduler
         admits no second worker for an issue one is already running.
+
+        A poller in another process on this host reads none of that, so the
+        cycle is noted on the writer claim this worker holds as well, where a
+        poller the claim refuses asks for it. That note outlives the window:
+        it stands for the rest of the hold, because what the other poller
+        cannot tell from outside is whether the close it read landed before
+        this write or inside it, and a close kept over a cycle this hold went
+        on to retire is reconciled under the claim afterwards, where one
+        dropped is lost. Nothing is noted where the repository id is not known.
         """
         if not self.cycle_id:
             yield
             return
+        if self.repo_id is not None:
+            _claim_notes.note_retirement(self.repo_id, self.key[1], self.cycle_id)
         with _observation_state._lock:
             _observation_state._retiring[self.key] = self.cycle_id
         try:
@@ -82,11 +98,17 @@ class RetiringCycle:
 
 
 def retiring(
-    repo_slug: str, issue_number: int, cycle_id: int,
+    repo_slug: str, issue_number: int, cycle_id: int, repo_id: int | None = None,
 ) -> RetiringCycle:
-    """The window one retirement is made inside, before it is held."""
+    """The window one retirement is made inside, before it is held.
+
+    `repo_id` is the client's numeric repository id, which keys the writer
+    claim the window is noted on.
+    """
     return RetiringCycle(
-        key=_observation_state._owner_key(repo_slug, issue_number), cycle_id=int(cycle_id),
+        key=_observation_state._owner_key(repo_slug, issue_number),
+        cycle_id=int(cycle_id),
+        repo_id=repo_id,
     )
 
 

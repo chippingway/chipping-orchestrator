@@ -105,10 +105,10 @@ changes. [`../.env.example`](../.env.example) holds the basic parameters for a f
 - [`configuration/observability.md`](configuration/observability.md) — the sink paths and retention windows, the
   analytics database URL, skill-trigger tracking, the dashboard read mode, and the dashboard quickstart.
 - [`configuration/operations.md`](configuration/operations.md) — continuous integration, documentation publishing,
-  run modes, what the dormant issue writer claim assumes of pollers sharing a host, the systemd user service, what a
-  split leaves on the remote and what reclaims it, how to restart an issue whose cycle was cancelled, how a finished
-  issue's worktrees and branches are reclaimed and what each result asks of an operator, and what an edited `.env`
-  takes to apply.
+  run modes, the one-host topology several pollers may share and the issue writer claim that keeps them off each
+  other's issues, the systemd user service, what a split leaves on the remote and what reclaims it, how to restart an
+  issue whose cycle was cancelled, how a finished issue's worktrees and branches are reclaimed and what each result
+  asks of an operator, and what an edited `.env` takes to apply.
 - [`configuration/snapshot-capability-check.md`](configuration/snapshot-capability-check.md) — the
   disposable-repository check that proves a production token and its rulesets can create, fetch, verify, and delete
   the late split's snapshot refs, and what each failure means.

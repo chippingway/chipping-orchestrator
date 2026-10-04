@@ -103,7 +103,7 @@ def _retired(
     if _cancelled(gate, generation):
         return True
     retiring = _retiring_cycles.retiring(
-        gate.spec.slug, gate.issue.number, generation.cycle_id,
+        gate.spec.slug, gate.issue.number, generation.cycle_id, gate.gh.repo_id,
     )
     with retiring.held():
         _late_state.clear_late_generation(gate.state)

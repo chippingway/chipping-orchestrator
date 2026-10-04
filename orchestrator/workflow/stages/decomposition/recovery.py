@@ -18,7 +18,10 @@ having changed nothing, which is what leaves the transaction free to resume
 from its own durable facts.
 
 Equal counts mean the loop finished and only the label flip was lost, so the
-parent finalizes to whatever the manifest asked for. Fewer mean the loop
+parent finalizes to whatever the manifest asked for. A split that met a child
+another poller on this host was writing when it went to seed it leaves exactly
+this behind on purpose: every child created and recorded, that one unseeded,
+and the finalize to this recovery. Fewer mean the loop
 stopped short: the one child a crash can leave created and unrecorded is
 adopted by its receipt (`split_receipts`), and anything short of that parks,
 since the manifest that declared the rest is not kept to create them from.
@@ -30,7 +33,9 @@ by its size gate as a fresh root at depth 0 -- a lost consumer slot is
 restored ahead of the seed, and the seeding write lifts the park the missing
 seed earned. A lineage no longer proved, or a child this split cannot
 recognize as its own (see `_seed_orphan_child_state`), parks instead of
-finalizing, which keeps every child of that split unstarted.
+finalizing, which keeps every child of that split unstarted. A child another
+poller on this host is writing is repaired under its own writer claim or not
+at all: the recovery stops there without a park, and the next tick resumes it.
 """
 from __future__ import annotations
 
@@ -41,10 +46,11 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import guards as _guards, usage as _usage
-from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
-from orchestrator.workflow.late_split.ancestry import LateAncestry
+from orchestrator.workflow.engine import guards as _guards
+from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
+    child_claims as _child_claims,
+    child_creation as _child_creation,
     late_child_content as _late_child_content,
     late_relabel as _late_relabel,
     replacement_lineage as _replacement_lineage,
@@ -114,31 +120,9 @@ def _seed_orphan_child_state(
     attributed = _state._links_to(child_state.get(_state._PARENT_NUMBER), issue.number)
     if attributed and seed.ancestry is None:
         return None
-    _complete_seed(child_state, issue.number, seed.ancestry)
+    _child_creation._complete_seed(child_state, issue.number, seed.ancestry)
     gh.write_pinned_state(child_issue, child_state)
     return None
-
-
-def _complete_seed(child_state: PinnedState, parent_number: int, ancestry: LateAncestry | None) -> None:
-    """Write what a recorded child's seed lacks, and take off the park its missing seed earned.
-
-    The parent link only where it is missing, stamped as created now where
-    nothing stamped it, and the owed ancestry where the repair names one. A
-    child recorded on a parent still recovering its split was never
-    released, so the only parks it can be wearing are the ones that missing
-    seed earned: the dispatcher's hold on a seed its receipt does not match,
-    and the unattributed-child park a `blocked` tick takes on one with no
-    parent link. Left standing past the write that answers it, either would
-    meet the child at its implementer, which would wait on a reply nobody owes.
-    """
-    if not _state._links_to(child_state.get(_state._PARENT_NUMBER), parent_number):
-        child_state.set(_state._PARENT_NUMBER, parent_number)
-        if not child_state.get(_state._CREATED_AT):
-            child_state.set(_state._CREATED_AT, _usage._now_iso())
-    if ancestry is not None:
-        _lineage.write_late_ancestry(child_state, ancestry)
-    child_state.set(_state._AWAITING_HUMAN, False)
-    child_state.set(_state._PARK_REASON, None)
 
 
 def _repair_recovered_child(
@@ -148,8 +132,20 @@ def _repair_recovered_child(
     child_number,
     lineage: _replacement_lineage.ReplacementLineage,
 ) -> bool:
+    """Repair one recorded child under its own writer claim, or stop the recovery.
+
+    The claim is taken in front of the read the repair decides on and held
+    through its write, because both are the child's record. A child another
+    poller on this host is writing is not one this tick may repair, and not
+    one it may finalize past either -- so the recovery stops where it stands,
+    parking nothing, and the next tick's recovery asks again. The children
+    repaired before it carry exactly what they were owed.
+    """
     try:
-        refusal = _seed_orphan_child_state(gh, issue, state, child_number, lineage)
+        with _child_claims.held_child(gh, issue.number, child_number) as held:
+            if not held:
+                return False
+            refusal = _seed_orphan_child_state(gh, issue, state, child_number, lineage)
     except Exception:
         log.exception(
             "issue=#%s could not repair orphan child #%s during "
@@ -258,8 +254,9 @@ def _recover_stale_manifest(
             return True
         children_recorded = adoption.children
     # Before finalizing to `blocked`, repair any child whose pinned
-    # state was never seeded. A SIGKILL between the parent's
-    # incremental `children` write and the child-state write at
+    # state was never seeded -- one a split left to this recovery because
+    # another poller held it, or one a crash left. A SIGKILL between the
+    # parent's incremental `children` write and the child-state write at
     # the LAST child satisfies `len(children) == expected_children_count`
     # but leaves that child orphaned: no `parent_number`, no late
     # ancestry, and likely already parked with `awaiting_human=True` by a

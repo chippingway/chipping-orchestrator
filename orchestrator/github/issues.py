@@ -85,10 +85,11 @@ CLOSED_SWEEP_LABELS: tuple[_workflow_state.WorkflowLabel, ...] = (
 # `decomposing` is where a candidate is adjudicated and where the split
 # transaction runs, and `umbrella` is what the parent is handed on to once it
 # lands; between them they cover every state in which a generation ledger can
-# START holding something the remote owes. They are the pair an OPEN issue is
-# refetched on, too -- there a close decides which handler runs, and the wrong
-# answer spawns the decomposer or activates children on an issue somebody has
-# ended.
+# START holding something the remote owes. They are also the pair on which a
+# close landing after the poll decides which handler an OPEN issue reaches --
+# the wrong answer spawns the decomposer or activates children on an issue
+# somebody has ended -- which is one reason every dispatch path reads an issue
+# again before routing it.
 CLEANUP_SWEEP_LABELS: tuple[_workflow_state.WorkflowLabel, ...] = (
     _workflow_state.WorkflowLabel.DECOMPOSING,
     _workflow_state.WorkflowLabel.UMBRELLA,

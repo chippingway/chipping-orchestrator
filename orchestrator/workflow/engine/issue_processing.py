@@ -2,21 +2,30 @@
 # SPDX-License-Identifier: Apache-2.0
 """Route one issue through cleanup or guarded stage dispatch and record evaluation timing.
 
-The publication claim surrounds the handler, and evaluation analytics run
-on both success and failure. Hard-skip controls preserve their observed
-close exception before that processing begins.
+Every dispatch seam enters an issue under its host-local writer claim, keyed
+on the repository's numeric id and taken before the refetch and the close
+recovery wrapped around this processing, and a contender skips the issue
+whole, keeping only a closed reading in this process's latch, tied to the
+cycle it ends only where a read proves it. The publication claim surrounds
+the handler, and evaluation analytics run on both success and failure.
+Hard-skip controls preserve their observed close exception before that
+processing begins.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import time
+from collections.abc import Iterator
 
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.observability.analytics.recording import events as _recording_events
+from orchestrator.scheduler import writer_claims as _writer_claims
 from orchestrator.workflow.engine import (
+    contended_closes as _contended_closes,
     dispatch_guards as _dispatch_guards,
     poll_models as _poll_models,
     poll_reading as _poll_reading,
@@ -29,6 +38,63 @@ log = logging.getLogger("orchestrator.workflow")
 
 
 _TERMINAL_LABELS = (WorkflowLabel.DONE, WorkflowLabel.REJECTED)
+
+
+@contextlib.contextmanager
+def _writer_claim(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    *,
+    closed: Issue | None = None,
+    alongside: bool = False,
+) -> Iterator[bool]:
+    """Hold this issue's writer claim across one whole dispatch, or refuse it.
+
+    The one claim every dispatch seam takes, and taken where the seam starts
+    rather than around `_process_issue`: what the seam wraps around this
+    processing -- the worker's refetch, the close a refetch establishes, the
+    cleanup observation a sweep is held under, the closed reading an ordinary
+    pass keeps -- reads the pinned record and writes receipts on the strength
+    of it, so it is as much a writer as the handler is. A seam that took it
+    later would let a contender decide on a record another poller is
+    rewriting. The poll's own receipt for a close it observed is taken under
+    it too, `alongside` whatever worker of this process holds the issue.
+
+    Keyed on the client's `repo_id`, and never on a name: `spec.slug` is an
+    operator's spelling, and even the client's `repo_slug` is the name GitHub
+    answered when this process fetched the repository, so a poller started
+    before a rename and one started after it would each hold "the" claim on
+    a file of its own. The id is the same for every name the repository has
+    had. Every caller hands in the client its tick or its worker was given,
+    whose repository is already described.
+
+    A refusal is answered by writing nothing for the issue at all: no refetch,
+    no guard, no recovery, no handler, no receipt, and no evaluation record.
+    Whatever this process was holding for the issue -- a latched close, a
+    publication hold the submit took -- is left as it was, unless the poll has
+    just read the issue closed (below), so the next polling pass finds the
+    issue owed what it was owed and tries again. The scheduler's own guards
+    are unchanged by it: an issue this process is already running is refused
+    there first, and the claim is what answers for a process whose scheduler
+    this one cannot read.
+
+    `closed` is the issue as the poll read it, handed in where that reading
+    was CLOSED and the caller would have held it across its pass. A refusal
+    keeps it in the one place a contender may write, this process's latch:
+    the receipt that would make it durable is the holder's to post, but a
+    reading dropped here is gone once a human reopens the issue. It is scoped
+    to the cycle it ends only where the issue still reads closed behind the
+    record, since the holder can settle that cycle and start an authorized
+    fresh one before this process holds the issue again. See
+    `contended_closes`.
+    """
+    with _writer_claims.issue_writer(
+        gh.repo_id, issue_number, alongside=alongside, repo_name=spec.slug,
+    ) as held:
+        if not held and closed is not None:
+            _contended_closes._kept_contended_close(gh, spec, closed)
+        yield held
 
 
 def _route_issue_to_handler(
@@ -82,7 +148,7 @@ def _route_issue_to_handler(
         _stage_targets._call_handler(gh, spec, issue, _stage_targets._CLEANUP_SWEEP_TARGET)
         return
     if _dispatch_guards._pinned_state_refuses(
-        gh, spec, issue, label, observed_closed=reading.closed,
+        gh, spec, issue, label, reading=reading,
     ):
         return
     if _dispatch_guards._parked_past_the_mark(spec, issue):

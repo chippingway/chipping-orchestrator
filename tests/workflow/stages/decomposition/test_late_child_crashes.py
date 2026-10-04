@@ -19,6 +19,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_child_records as _late_child_records,
 )
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
+from tests.support.writer_claims import claimed_on_creation
 from tests.workflow.fixtures import _TEST_SPEC
 from tests.workflow.stages.decomposition.late_crash_support import (
     killed_after,
@@ -36,6 +37,7 @@ from tests.workflow.stages.decomposition.late_transaction_support import (
     KEY_CONSUMERS,
     KEY_EXPECTED_CHILDREN,
     KEY_UMBRELLA,
+    PARK_CHILDREN_FAILED,
     LateSplitCase,
 )
 
@@ -47,6 +49,33 @@ KEY_PARENT_NUMBER = "parent_number"
 
 # A park a child took for itself, after it had been attributed.
 _ITS_OWN_PARK = "implementing_timeout"
+
+
+class ChildReachedFirstTest(LateSplitCase, unittest.TestCase):
+    """A child another poller on this host reaches first is not this split's to seed.
+
+    Poll order is the repository's, so the child the split has just created can
+    be dispatched by a second poller before the seed lands, and while that
+    poller holds the child's writer claim its record is that poller's to write.
+    The split records the child, writes nothing to it, and parks as a seed that
+    could not be made -- the park the next attempt supersedes.
+    """
+
+    def test_a_held_child_waits_for_the_next_attempt(self) -> None:
+        with claimed_on_creation(self.github), self.assertLogs(level="INFO"):
+            outcome = self._transact()
+
+        held = self.github.created_child_issues[0].number
+        self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
+        self.assertEqual(self._pinned()[KEY_PARK_REASON], PARK_CHILDREN_FAILED)
+        self.assertEqual(self._pinned()[KEY_CHILDREN], [held])
+        self.assertEqual(len(self.github.created_child_issues), 1, "no child is opened past it")
+        self.assertEqual(self._child_state(held), {}, "nothing is written to it")
+
+        resumed = self._resume()
+
+        self.assertEqual(resumed.disposition, _LateDisposition.SETTLED)
+        self.assertEqual(self._child_state(held)[KEY_PARENT_NUMBER], LATE_ISSUE_NUMBER)
 
 
 class ChildBoundaryTest(LateSplitCase, unittest.TestCase):

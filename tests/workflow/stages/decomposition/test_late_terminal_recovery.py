@@ -24,6 +24,7 @@ from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import _TEST_SPEC, _PatchedWorkflowMixin
 from tests.workflow.observation_support import (
     ObservedCloseCase,
+    read_now,
     receipt_for,
 )
 from tests.workflow.stages.decomposition.late_cancel_support import (
@@ -362,6 +363,7 @@ class _PollsAfterTheRetirement:
         self._polled = True
         _dispatch_closure._kept_closed_reading(
             self._github, _TEST_SPEC, PARENT_NUMBER,
+            read_now(),
         )
         if self._dying:
             raise _DIED

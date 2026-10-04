@@ -451,42 +451,42 @@ orchestrator/
                         workflow keeps that reading where its own stage handlers can reach it; a submission refused
                         by a held barrier costs the caller its next polling pass, which is why it is reported apart
                         from a closed scheduler
-    writer_claims.py    the host-local writer claim one repository issue's writes are meant to run under, dormant:
-                        no dispatch path, family handler, close recovery, or base refresh takes it yet. An exclusive
-                        `flock` per issue in `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's numeric
-                        id as the client answers it -- never a name, which a rename changes under a running poller
-                        -- and the issue number, and taken without waiting. A contender is refused rather than kept
-                        waiting, and a claim that cannot be worked -- an unopenable namespace, a filesystem without
-                        `flock` -- is refused too, where the artifact presence would let a poller go on unclaimed.
-                        Exclusive between this process's threads as well: one lock per key is held for the process
-                        and its holders counted, a second writer here is refused as `held_here`, and a holder asking
-                        `alongside` is let in beside a writer of this process's own. The last holder to leave unlocks
-                        and closes the descriptor, and the kernel drops it with a dead process; no claim file is ever
-                        unlinked, since a path recreated over a held inode would let two processes each hold the
-                        claim. Every acquisition reads what the last hold left -- its token, and the moment it let go
-                        on the host's monotonic clock -- notes when that hold ended where it was another process's
-                        (when it is found, for a holder killed holding it, which stamped nothing; never, for a stamp
-                        from before the host last started), then empties the file and signs it with this process's
-                        own token; the last holder here stamps its release before it unlocks. Every record is a
-                        whole line or nothing: a write that lands short is cut back and fails, and what a reader
-                        cannot take for whole -- a line with no end, a file nobody signed, an empty one included --
-                        reads as a hold that ended when found, never as a stamp or a note. An empty file is no
-                        proof nobody held the key, even one this process just created: between its open and its
-                        lock, others can have held the key and emptied the file. It coordinates the pollers sharing
-                        one checkout root on one host and nothing beyond them, imports nothing of the runtime, and is
-                        not the artifact presence: neither says anything about the other
-    claim_notes.py      what the holds on an issue's writer claim tell the pollers sharing it, asked by nothing yet:
-                        the moment a poll is to read before it lists anything, and whether every hold by another
-                        poller this process has found on the key had let go before such a moment -- asked under the
-                        claim, no other poller wrote the record since the poll read it, while a hold that ended
-                        earlier, a restarted poller's predecessor's included, costs the reading nothing -- and the
-                        late cycle a hold notes it is retiring, written by a writer holding the key and read by a
-                        contender it refuses. A note is its own hold's, and read only off a file that hold signed and
-                        has not stamped as released: the next holder has the lock a moment before it empties the
-                        file, and the stamp keeps a released hold's note from being read in that moment. A hold
-                        killed holding the claim, or whose release stamp could not be written, leaves no stamp, so
-                        its note is read until the next holder empties the file -- the last hold to write the issue
-                        until then. One that cannot be written whole, or parsed from a whole line, reads as no note
+    writer_claims.py    the host-local writer claim every dispatch path takes for one repository issue, and a family
+                        handler takes for each child it writes; the base refresh takes none. An exclusive `flock` per
+                        issue in `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's numeric id as the
+                        client answers it -- never a name, which a rename changes under a running poller -- and the
+                        issue number, and taken without waiting. A contender is refused rather than kept waiting, and a
+                        claim that cannot be worked -- an unopenable namespace, a filesystem without `flock` -- is
+                        refused too, where the artifact presence would let a poller go on unclaimed. Exclusive between
+                        this process's threads as well: one lock per key is held for the process and its holders
+                        counted, a second writer here is refused as `held_here`, and a holder asking `alongside` -- a
+                        close receipt, a consumer notice -- is let in beside a writer of this process's own. The last
+                        holder to leave unlocks and closes the descriptor, and the kernel drops it with a dead process;
+                        no claim file is ever unlinked, since a path recreated over a held inode would let two processes
+                        each hold the claim. Every acquisition reads what the last hold left -- its token, and the
+                        moment it let go on the host's monotonic clock -- notes when that hold ended where it was
+                        another process's (when it is found, for a holder killed holding it, which stamped nothing;
+                        never, for a stamp from before the host last started), then empties the file and signs it with
+                        this process's own token; the last holder here stamps its release before it unlocks. Every
+                        record is a whole line or nothing: a write that lands short is cut back and fails, and what a
+                        reader cannot take for whole -- a line with no end, a file nobody signed, an empty one included
+                        -- reads as a hold that ended when found, never as a stamp or a note. An empty file is no proof
+                        nobody held the key, even one this process just created: between its open and its lock, others
+                        can have held the key and emptied the file. It coordinates the pollers sharing one checkout root
+                        on one host and nothing beyond them, imports nothing of the runtime, and is not the artifact
+                        presence: neither says anything about the other
+    claim_notes.py      what the holds on an issue's writer claim tell the pollers sharing it: the moment a poll reads
+                        before it lists anything, and whether every hold by another poller this process has found on the
+                        key had let go before such a moment -- asked under the claim, no other poller wrote the record
+                        since the poll read it, while a hold that ended earlier, a restarted poller's predecessor's
+                        included, costs the reading nothing -- and the late cycle a hold notes it is retiring, written
+                        by a writer holding the key and read by a contender it refuses. A note is its own hold's, and
+                        read only off a file that hold signed and has not stamped as released: the next holder has the
+                        lock a moment before it empties the file, and the stamp keeps a released hold's note from being
+                        read in that moment. A hold killed holding the claim, or whose release stamp could not be
+                        written, leaves no stamp, so its note is read until the next holder empties the file -- the last
+                        hold to write the issue until then. One that cannot be written whole, or parsed from a whole
+                        line, reads as no note
   git/
     branch_transport.py the authenticated fetches, the remote read that answers what a branch is at without trusting
                         a local ref -- in the plain form a caller acts on and the form that also carries why a read

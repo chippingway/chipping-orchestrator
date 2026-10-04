@@ -7,7 +7,9 @@ one that cannot be proved -- or a slice naming a snapshot ref its child would
 not be kept -- parks the split with no child created. Each child carries a
 receipt (`split_receipts`), and reuse instructions where it is owed the
 parent's snapshot. Children without dependencies are released after the
-summary and parent label land, through the walk a later poll runs.
+summary and parent label land, through the walk a later poll runs. A split
+that had to leave a child unseeded, because another poller on this host held
+it, publishes neither: its recovery seeds the child and finalizes the parent.
 """
 from __future__ import annotations
 
@@ -96,7 +98,8 @@ def _create_child_issues(
 
     Returns the populated split plan on success, or None when the lineage
     could not be proved or a create/seed step failed and the parent was
-    parked (caller must return).
+    parked, or when a child was left unseeded for the recovery to finish
+    (caller must return).
 
     Crash-safe sequence:
       0. Decide the late lineage the children inherit, off the record this
@@ -121,7 +124,12 @@ def _create_child_issues(
          created by a decomposer respawn.
       3. Seed child pinned state: the parent link, and the lineage decided
          in step 0. Failure here parks but parent state already records
-         the child, so no respawn happens.
+         the child, so no respawn happens. A child another poller on this
+         host holds is left unseeded and the loop creates the rest, since
+         the manifest is not kept for anything to create them from later;
+         the split then stops short of its finalize, which leaves the
+         parent `decomposing` with every child recorded -- the state the
+         recovery seeds that child from, under its claim, and finalizes.
     """
     lineage = _replacement_lineage.read_replacement_lineage(state, issue, spec)
     refusal = lineage.refusal or _unsupported_reuse(lineage, parsed)
@@ -133,6 +141,13 @@ def _create_child_issues(
     for idx, _child in enumerate(plan.children_manifest):
         if not _child_creation._create_planned_child(gh, issue, state, plan, idx):
             return None
+    if plan.unseeded:
+        log.info(
+            "issue=#%s leaving its split to recovery: another poller on this "
+            "host held %s when it went to seed them",
+            issue.number, _state._issue_ref_list(plan.unseeded),
+        )
+        return None
     return plan
 
 

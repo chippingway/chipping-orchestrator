@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.stages.decomposition import blocked as _blocked
+from orchestrator.workflow.stages.decomposition import (
+    activation as _activation,
+    blocked as _blocked,
+    parents as _parents,
+)
 from tests.support.fakes import (
     FakeGitHubClient,
     FakeIssue,
     make_issue,
 )
+from tests.support.writer_claims import held_elsewhere
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     _agent,
@@ -32,6 +37,7 @@ REJECTED_CHILD_PARENT_NUMBER = 32
 DEPENDENCY_PARENT_NUMBER = 33
 HELD_DEPENDENCY_PARENT_NUMBER = 34
 NO_HELD_CHILDREN_PARENT_NUMBER = 35
+MOVED_CHILD_PARENT_NUMBER = 37
 MANUALLY_CLOSED_PARENT_NUMBER = 40
 MANUALLY_CLOSED_DONE_CHILD_NUMBER = 401
 MANUALLY_CLOSED_CHILD_NUMBER = 402
@@ -156,13 +162,11 @@ class HandleBlockedResolutionTest(unittest.TestCase, _PatchedWorkflowMixin):
 
     def test_manually_closed_child_parks_parent(self) -> None:
         # A child closed manually (e.g. via the GitHub UI) before
-        # reaching `in_review` is invisible to `list_pollable_issues`
-        # (which only sweeps closed issues for `in_review`). Its
-        # workflow label stays frozen, so without this branch the
-        # parent reads the stale label, neither the rejected nor the
-        # all-done branch fires, and the parent waits forever for a
-        # child that is gone. Park it for human adjudication, exactly
-        # like a rejected child.
+        # reaching `in_review` keeps the label it was closed on, and no
+        # merge explains the close. Without this branch the parent
+        # reads that label, neither the rejected nor the all-done
+        # branch fires, and the parent waits on a child that is gone.
+        # Park it for human adjudication, exactly like a rejected child.
         gh = FakeGitHubClient()
         parent = make_issue(MANUALLY_CLOSED_PARENT_NUMBER, label=LABEL_BLOCKED)
         gh.add_issue(parent)
@@ -260,7 +264,7 @@ class HandleBlockedResolutionTest(unittest.TestCase, _PatchedWorkflowMixin):
     def test_manual_closed_unlabeled_child_parks(self) -> None:
         # Defensive corner: a child with no workflow label at all
         # (e.g. a label was manually stripped before the issue was
-        # closed) is also invisible to the closed-in_review sweep.
+        # closed) is also one no closed-issue sweep query reaches.
         # The "manually closed" branch must catch it -- otherwise the
         # parent would still wait forever.
         gh = FakeGitHubClient()
@@ -342,6 +346,31 @@ class HandleBlockedDependencyTest(unittest.TestCase, _PatchedWorkflowMixin):
             (children[1].number, LABEL_READY),
             gh.label_history,
         )
+
+    def test_a_child_finished_after_its_scan_stays(self) -> None:
+        # The walk chooses its children off a scan read before it takes any
+        # child's writer claim, and another poller on this host can finish a
+        # child in that window. Read again under the claim, a child no longer
+        # open and `blocked` is not put back to `ready`, and it holds its
+        # siblings for this walk without parking anything; the next walk
+        # scans again and releases the rest.
+        gh, parent, (finished, waiting) = _seed_parent_with_children(
+            parent_number=MOVED_CHILD_PARENT_NUMBER,
+            child_labels=[LABEL_BLOCKED, LABEL_BLOCKED],
+        )
+        scan = _parents._read_child_labels(gh, parent, [finished.number, waiting.number])
+        with held_elsewhere(gh.repo_id, finished.number):
+            gh.add_issue(make_issue(finished.number, label=LABEL_DONE, closed=True))
+
+        _activation._activate_ready_children(gh, _TEST_SPEC, parent, gh.read_pinned_state(parent), scan)
+
+        self.assertEqual(gh.label_history, [], "nothing is released off the stale scan")
+        self.assertEqual(gh.workflow_label(gh.get_issue(finished.number)), LABEL_DONE)
+        self.assertFalse(gh.pinned_data(MOVED_CHILD_PARENT_NUMBER).get(KEY_AWAITING_HUMAN))
+
+        _run_dependency(self, gh, parent)
+
+        self.assertEqual(gh.label_history, [(waiting.number, LABEL_READY)])
 
     def test_no_held_children_emits_no_log(self) -> None:
         # When every child is either done or already running (none still

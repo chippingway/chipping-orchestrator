@@ -76,7 +76,7 @@ class DeferralCase(ObservedCloseCase, _SchedulerWorkflowTest):
     """A closed umbrella, a worker holding it, and the ticks around that."""
 
     def setUp(self) -> None:
-        self.github = _owner_holding_a_ref()
+        self.github = owner_holding_a_ref()
         self.stage = Mock()
         self._fresh_process()
 
@@ -218,7 +218,7 @@ def _taken() -> Mock:
     return Mock(return_value=_snapshot_refs.SnapshotOutcome.DELETED)
 
 
-def _owner_holding_a_ref() -> FakeGitHubClient:
+def owner_holding_a_ref() -> FakeGitHubClient:
     """A closed umbrella whose ledger still holds one snapshot ref."""
     github = FakeGitHubClient()
     github.add_issue(make_issue(
