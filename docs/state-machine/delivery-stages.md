@@ -1373,7 +1373,9 @@ because there it is the claim that this stage has already rerouted rather than a
   therefore reads *closed* before it reads the label and routes to `late_sweep._handle_closed_owner_cleanup`
   instead, ahead of even the live-adjudication relabel guard. That classification then **binds**: the submit carries
   a `cleanup_only` route the worker cannot re-derive, so a human who reopens the issue between the poll and the
-  refetch cannot turn a cap-exempt submit into an agent-spawning stage handler.
+  refetch cannot turn a cap-exempt submit into an agent-spawning stage handler. A closed reading on any other label
+  binds too: its pass, finding the issue open again, applies the close to a live cycle and runs no stage, and the
+  reopened issue waits for the next poll's ordinary, cap-counted admission.
 - **Reaching this route at all is what says a close was observed**, and an observed close cancels the generation
   irreversibly. So the handler's own re-read decides how far the pass goes, never whether the cycle ends: an issue
   that is open again is marked cancelled all the same and stopped there — nothing external is done to an issue

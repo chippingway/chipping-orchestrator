@@ -51,7 +51,9 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
+    child_claims as _child_claims,
     late_relabel as _late_relabel,
+    replacement_lineage as _replacement_lineage,
     split_receipts as _split_receipts,
     split_repair as _split_repair,
     split_summary as _split_summary,
@@ -81,6 +83,70 @@ def _park_incomplete_decomposition(
         reason="decomposition_crash",
     )
     gh.write_pinned_state(issue, state)
+
+
+def _repair_recovered_child(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    child_number,
+    lineage: _replacement_lineage.ReplacementLineage,
+) -> bool:
+    """Repair one recorded child under its own writer claim, or stop the recovery.
+
+    The claim is taken in front of the read the repair decides on and held
+    through its write, because both are the child's record. A child another
+    poller on this host is writing is not one this tick may repair, and not
+    one it may finalize past either -- so the recovery stops where it stands,
+    parking nothing, and the next tick's recovery asks again. The children
+    repaired before it carry exactly what they were owed.
+    """
+    try:
+        with _child_claims.held_child(gh, issue.number, child_number) as held:
+            if not held:
+                return False
+            refusal = _split_repair._seed_orphan_child_state(gh, issue, state, child_number, lineage)
+    except Exception:
+        log.exception(
+            "issue=#%s could not repair orphan child #%s during "
+            "decomposition recovery", issue.number, child_number,
+        )
+        _guards._park_awaiting_human(
+            gh, issue, state,
+            f"{config.HITL_MENTIONS} could not repair child #{child_number} "
+            "during decomposition recovery (seed `parent_number`, and any "
+            "late lineage it inherits, on its pinned state); manual "
+            "intervention needed (check orchestrator logs).",
+            reason="child_seed_failed",
+        )
+        gh.write_pinned_state(issue, state)
+        return False
+    if refusal is not None:
+        _replacement_lineage.park_unproved(gh, issue, state, refusal)
+        return False
+    return True
+
+
+def _repair_recovered_children(
+    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState, children: list,
+) -> bool:
+    """Repair every recorded child, or park where their lineage is unproved.
+
+    The lineage is asked before any child is touched, because a repair that
+    seeded some children and then refused the rest would leave a split half
+    one lineage and half none -- and the park that refusal takes is what keeps
+    all of them from being finalized into the walk that starts them. A child
+    whose own ancestry is refused stops the walk the same way; the children
+    seeded before it carry exactly what they were owed either way.
+    """
+    lineage = _replacement_lineage.read_replacement_lineage(state, issue, spec)
+    if lineage.refusal is not None:
+        _replacement_lineage.park_unproved(gh, issue, state, lineage.refusal)
+        return False
+    return all(
+        _repair_recovered_child(gh, issue, state, child_number, lineage)
+        for child_number in children
+    )
 
 
 def _markers_not_ours(issue: Issue, state: PinnedState) -> bool:
@@ -159,7 +225,7 @@ def _recover_stale_manifest(
     # `ready`, but `_handle_implementing` reads the stale park and
     # sits waiting for a human reply that never comes -- and a size gate
     # that did reach it would mint it a fresh lineage at depth 0.
-    if not _split_repair._repair_recovered_children(gh, spec, issue, state, children_recorded):
+    if not _repair_recovered_children(gh, spec, issue, state, children_recorded):
         return True
     # The summary the split never posted -- one that left a held child to
     # this recovery deferred it on purpose, and a crash may have cut it off

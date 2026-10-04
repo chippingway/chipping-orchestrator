@@ -143,6 +143,14 @@ def _route_issue_to_handler(
     and a record with no late cycle to mark has nothing to record -- so the
     stage handler below it would be the one reaction an operator's `paused`
     exists to prevent.
+
+    For the same reason a closed reading on an issue that now reads OPEN stops
+    the tick behind the guard. The guard has applied the close to whatever
+    late cycle the record carries, which is all the reading is for; what is
+    left is the stage the reopened issue's label names -- an agent run, on a
+    pass admitted as closed work, which the scheduler submits outside the caps
+    -- and that is the next poll's to dispatch, as the open issue it is, under
+    ordinary admission.
     """
     if reading.cleanup_only or _poll_reading._cleanup_sweep_only(issue, label):
         _stage_targets._call_handler(gh, spec, issue, _stage_targets._CLEANUP_SWEEP_TARGET)
@@ -150,6 +158,13 @@ def _route_issue_to_handler(
     if _dispatch_guards._pinned_state_refuses(
         gh, spec, issue, label, reading=reading,
     ):
+        return
+    if _poll_reading._reopened_since_polled(issue, reading):
+        log.info(
+            "repo=%s issue=#%s was read closed by the poll and is open again; "
+            "leaving its %s stage to the next poll's ordinary admission",
+            spec.slug, issue.number, label,
+        )
         return
     if _dispatch_guards._parked_past_the_mark(spec, issue):
         return

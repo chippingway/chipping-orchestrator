@@ -18,7 +18,7 @@ INITIAL decomposition -- held ahead of every road that would walk past one, and
 lifted only by the command that renews the budget -- `run` owns the order one
 tick asks the others in and `outcomes` the three dispositions its reply earns,
 `recovery` owns what a tick that died mid-split left behind and `split_repair`
-the repair it makes of each recorded child, `split` owns the crash-safe order
+the seed it writes onto each recorded child, `split` owns the crash-safe order
 children are created in and `split_summary` the summary it finalizes the parent
 with, `split_receipts` the receipt each child carries so a child created and
 never recorded can be found again, `split_seeds` the dispatch hold on a child

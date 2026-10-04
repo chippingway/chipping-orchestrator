@@ -440,8 +440,9 @@ the in-process scheduler guards (a duplicate active issue, the caps, the family 
   costs a pinned read and an issue read behind it, and is kept in its own memory and nowhere else: a reopen before
   then cannot take the reading away, and a later tick sweeps it under the claim. It is tied to the late cycle the
   record names only where the issue still reads closed behind that read — or, where a retirement has just taken the
-  cycle off the record, to the cycle the holder noted on the claim it is retiring — so a cycle the holder settled and
-  an operator restarted in the meantime is left alone. One the poller cannot tie to a cycle ends one later only if the
+  cycle off the record, to the cycle the holder noted on the claim it is retiring, a note read as the claim is
+  refused, so a holder letting go during those reads costs nothing — so a cycle the holder settled and an operator
+  restarted in the meantime is left alone. One the poller cannot tie to a cycle ends one later only if the
   issue is closed again then. A close the record says ends no cycle is not kept. A poller granted the claim reads the
   issue again behind it before routing it, so it never resumes a stage another poller advanced the issue past since
   its poll, and a close its own poll read ends the cycle the record names only where it still reads closed, or where

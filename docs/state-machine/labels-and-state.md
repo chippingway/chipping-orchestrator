@@ -306,11 +306,12 @@ always does, as it does the partition's; the scheduler's fan-out task, its famil
 one of them then reads the issue again under it, the sequential loop included: the poll is older than the claim, and a
 poller that advanced the issue and let go in between would otherwise have its stage resumed from the label the poll
 read. The handler is the one the fresh label names; what the poll read is carried over that read only where it is a
-close, and binds there, so a reopen in between cannot send the issue to an agent-spawning stage. The enumeration takes
-it too, for the one thing it writes: the pinned read and close receipt behind a closed fan-out issue, and the same pair
-a refused submit's observation hold spends. Those two ask for it *alongside* — granted beside a worker of this same
-process that holds the issue, since the receipt is an added comment built to land beside one, and an ordinary exclusive
-attempt against every other process.
+close, and binds there: a pass carrying one that reads the issue open again applies the close to any late cycle the
+record carries and runs no stage, leaving the reopened issue to the next poll's ordinary, cap-counted admission. The
+enumeration takes it too, for the one thing it writes: the pinned read and close receipt behind a closed fan-out
+issue, and the same pair a refused submit's observation hold spends. Those two ask for it *alongside* — granted beside a
+worker of this same process that holds the issue, since the receipt is an added comment built to land beside one, and
+an ordinary exclusive attempt against every other process.
 
 An issue another poller on the host holds is skipped whole on every path: nothing is refetched, published, relabelled,
 written, run, or accounted for, and the submit's publication hold and any latched close are left as they were. A close
@@ -320,7 +321,9 @@ and the holder may settle the cycle that close ended and start the fresh one an 
 contender reads the record first and the issue behind it: only a close still standing there is scoped to the late cycle
 the record names. A record a retirement has just emptied names none, and there the close is scoped to the cycle the
 holder noted on the claim it is retiring (`scheduler/claim_notes.py`), which a poller inside a retirement window notes
-for the rest of its hold; the record's own correlation is not enough, since it outlives every retirement. A close the
+for the rest of its hold. The note is read as the claim is refused, ahead of both reads, and again behind them, since a
+holder letting go in between stamps its release over it; the record's own correlation is not enough, since it outlives
+every retirement. A close the
 record says ends nothing — no cycle, or one already marked — adds nothing, and leaves an older latch as it was. One
 reopened between the two reads, or whose reads failed, is kept *unresolved*. The next tick routes the latch to a cleanup
 pass under the claim. A scoped close marks the cancellation if its cycle is still the record's — and puts a retired one

@@ -214,13 +214,17 @@ class RunLimitHoldTest(_HoldCase, unittest.TestCase):
 
     def test_the_polls_own_closed_reading_counts(self) -> None:
         # The issue this tick was routed on was closed when it was
-        # enumerated, whatever the object in hand now reads as.
+        # enumerated, so the hold steps aside whatever the object in hand now
+        # reads as. That object reads open again, though, and a reopened
+        # issue's stage is the next poll's ordinary work, so nothing below
+        # the hold is reached either.
         issue = self._issue()
         self._seed(_limit_seeds.parked_state())
 
         self._route(issue, reading=_poll_models._PollReading(closed=True))
 
-        self._assert_dispatched(issue)
+        self.assertEqual(self.gh.recorded_events, [], "the hold steps aside, saying nothing")
+        self.reached.assert_not_called()
 
     def test_another_park_is_not_this_one(self) -> None:
         # `awaiting_human` alone is every stage's park, and each of those has

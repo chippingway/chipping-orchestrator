@@ -170,11 +170,12 @@ class DecompositionChildPersistenceTest(
         # A recovery that fails between its summary and its finalize is run
         # again by the next tick: a summary GitHub refused is posted then, and
         # one that landed ahead of a label flip that failed is not posted twice.
-        for step, fragment in (("comment", _SUMMARY), ("set_workflow_label", "")):
+        for step in ("comment", "set_workflow_label"):
             with self.subTest(failing=step):
                 gh, issue, created = self._left_to_recovery(SEED_RETRY_ISSUE_NUMBER)
+                refused = patch.object(gh, step, side_effect=RuntimeError("github refused the write"))
 
-                with _FailsOnce.over(gh, step, fragment), self.assertRaises(RuntimeError):
+                with refused, self.assertRaises(RuntimeError):
                     self._run_decomposing(gh, issue, run_agent=_agent())
 
                 self.assertEqual(gh.label_history, [], "the failed recovery finalizes nothing")
@@ -207,7 +208,6 @@ class DecompositionChildPersistenceTest(
             self.assertFalse(seed.get(KEY_AWAITING_HUMAN), "the hold the seed answers is lifted")
         self.assertIn((SEED_RECORD_ISSUE_NUMBER, LABEL_BLOCKED), gh.label_history)
 
-
     def _left_to_recovery(self, number: int) -> tuple[FakeGitHubClient, FakeIssue, list[int]]:
         """A split whose every child another poller held as it was created, and the children it recorded."""
         gh, issue = _decomposing_issue(number)
@@ -229,30 +229,6 @@ class DecompositionChildPersistenceTest(
             self.assertIn(f"- #{child}: {title}", summaries[0])
         self.assertEqual(gh.label_history, [(number, LABEL_BLOCKED)])
         self.assertFalse(gh.pinned_data(number).get(KEY_AWAITING_HUMAN))
-
-
-class _FailsOnce:
-    """A client write that GitHub refuses the first time it is made to the parent naming `fragment`."""
-
-    def __init__(self, write, parent: int, fragment: str) -> None:
-        self._write = write
-        self._parent = parent
-        self._fragment = fragment
-        self._refused = False
-
-    def __call__(self, issue, *written):
-        """Refuse the first matching write the way an outage does, and land every other."""
-        if self._refused or issue.number != self._parent:
-            return self._write(issue, *written)
-        if self._fragment not in str(written):
-            return self._write(issue, *written)
-        self._refused = True
-        raise RuntimeError("github refused the write")
-
-    @classmethod
-    def over(cls, gh: FakeGitHubClient, step: str, fragment: str):
-        """Install one over the client's `step`, refusing its first write to the retried parent."""
-        return patch.object(gh, step, cls(getattr(gh, step), SEED_RETRY_ISSUE_NUMBER, fragment))
 
 
 def _summaries(gh: FakeGitHubClient, number: int) -> list[str]:

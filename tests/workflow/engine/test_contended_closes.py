@@ -27,7 +27,7 @@ from orchestrator.workflow.stages.decomposition import (
     umbrella_terminal as _umbrella_terminal,
 )
 from tests.support.fakes import FakeGitHubClient
-from tests.support.writer_claims import held_elsewhere
+from tests.support.writer_claims import held_elsewhere, signed_by_another_poller
 from tests.workflow.fixtures import _TEST_SPEC
 from tests.workflow.observation_support import ObservedCloseCase
 from tests.workflow.stages.decomposition.late_test_support import (
@@ -83,6 +83,19 @@ class _RestartedBeforeTheRecord:
         self._github.write_pinned_state(issue, state)
         self._github.get_issue(LATE_ISSUE_NUMBER).closed = False
         return self._reading(issue)
+
+
+class _LetGoDuring:
+    """A read the owner's retiring holder lets go during, stamping its release before the read answers."""
+
+    def __init__(self, github: FakeGitHubClient, read: str) -> None:
+        self._github = github
+        self._read = getattr(github, read)
+
+    def __call__(self, *asked):
+        """Let the holder go, then answer the read."""
+        signed_by_another_poller(self._github.repo_id, LATE_ISSUE_NUMBER, retiring=CYCLE_ID)
+        return self._read(*asked)
 
 
 class _ContendedCase(ObservedCloseCase):
@@ -191,6 +204,20 @@ class NotedRetirementTest(_ContendedCase, unittest.TestCase):
         self.assertEqual(_observations.close_scope(_SLUG, LATE_ISSUE_NUMBER), CYCLE_ID)
         state = self.github.read_pinned_state(self.owner)
         self.assertEqual(_late_close_reading._ending_cycle(_TEST_SPEC, LATE_ISSUE_NUMBER, state), CYCLE_ID)
+
+    def test_a_note_outlives_its_holder_letting_go(self) -> None:
+        # The holder lets go while the contender reads, and its release stamp
+        # ends the note on the claim -- so the note the refusal found, before
+        # either read, is what ties the close to the retired cycle.
+        for read in ("read_pinned_state", "get_issue"):
+            with self.subTest(released_during=read):
+                self.setUp()
+                self._retired()
+                signed_by_another_poller(self.github.repo_id, LATE_ISSUE_NUMBER, retiring=CYCLE_ID, released=False)
+                with patch.object(self.github, read, _LetGoDuring(self.github, read)):
+                    self._kept()
+
+                self.assertEqual(_observations.close_scope(_SLUG, LATE_ISSUE_NUMBER), CYCLE_ID)
 
     def test_a_retirement_nobody_noted_keeps_nothing(self) -> None:
         # The retired correlation outlives every retirement, so on its own --

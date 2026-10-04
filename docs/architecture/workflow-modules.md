@@ -246,7 +246,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     poll_reading.py         classify labels and hard-skip controls while admitting observed-close cleanup; drop open
                             blocked/umbrella dependency walks on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` skips;
                             a failed label read reaches per-issue exception isolation through the family bucket,
-                            with any closed reading carried there
+                            with any closed reading carried there; and whether a pass's refetch finds a closed
+                            reading's issue open again
     dispatch_closure.py     persist poll and refetch closes, retain them across ordinary processing, and preserve
                             receipts and deferred cleanup when a worker submission is refused -- under the issue's
                             writer claim alongside this process's worker, leaving the enumeration's latch as it was
@@ -262,8 +263,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and handler, keyed on the client's rename-proof `repo_id`, with a contender skipping the
                             issue whole, leaving its latch and holds as found, and keeping a closed reading its caller
                             hands in through `contended_closes`; apply controls, select cleanup or guarded stage
-                            dispatch, hold publication through the handler, and record timed evaluation analytics on
-                            success and failure
+                            dispatch -- a closed reading on an issue its pass reads open again reaching no stage, so a
+                            closed admission does no ordinary work -- hold publication through the handler, and record
+                            timed evaluation analytics on success and failure
     dispatch_workers.py    take the writer claim at each worker entry, outside the observation scope it wraps, then
                             refetch through each worker's GitHub client and optional semaphore, and refetch the
                             sequential loop's claimed issue on its own client, preserving ordinary and cleanup
@@ -276,7 +278,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     contended_closes.py    keep a close read while another poller holds the issue: the record is read first and the
                             issue behind it, and only a close still standing there is scoped to the cycle the record
                             names -- or, on a record a retirement just emptied, to the cycle the holder noted on the
-                            claim it is retiring; one reopened in between, or whose reads failed, is kept unresolved,
+                            claim it is retiring, read as the claim is refused and again behind the reads; one
+                            reopened in between, or whose reads failed, is kept unresolved,
                             and one the record says ends nothing adds nothing and leaves an older latch as it was
     dispatch.py            drive the sequential poll's closure classification under the issue's writer claim --
                             a contender keeping only a closed reading's latch -- refetching every issue it routes
@@ -1637,18 +1640,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             never for an older binary's split, which names no attempt
       recovery.py           what a tick that died mid-split -- or a split that met a held child -- left behind: the
                             stale-manifest markers, the adoption of a child created and never recorded through
-                            `split_receipts.py`, every recorded child repaired through `split_repair.py` before the
-                            summary `split_summary.py` still owes and the finalize, the incomplete park, and the two
-                            owners that hold those markers instead -- a human the issue is parked awaiting, and the
-                            late transaction while its generation is live
-      split_repair.py       the orphan-child repair a recovery makes of each recorded child -- the parent link and the
-                            owed lineage, asked of the parent's record again, a lost consumer slot restored ahead of
-                            its seed, the park the missing seed earned lifted in the write that seeds it, and parked
-                            rather than finalized where it no longer proves one or a child is not one the split can
-                            recognize as its own -- any child whose text names a snapshot the split cannot keep, or
-                            whose receipt is not the one stamped for its slot, included; each child is repaired under
-                            its own writer claim, and one another poller holds stops the recovery, unparked, for the
-                            next tick
+                            `split_receipts.py`, the orphan-child repair -- the
+                            parent link and the owed lineage, asked of the parent's record again, a lost consumer slot
+                            restored ahead of its seed, the park the missing seed earned lifted in the write that
+                            seeds it, and parked rather than finalized where it no longer proves one or a child is not
+                            one the split can recognize as its own -- any child whose text names a snapshot the split
+                            cannot keep, or whose receipt is not the one stamped for its slot, included -- the summary
+                            `split_summary.py` still owes ahead of the finalize, the incomplete park, and the two owners
+                            that hold those markers instead -- a human the issue is parked awaiting, and the late
+                            transaction while its generation is live; each child is repaired under its own writer
+                            claim, and one another poller holds stops the recovery, unparked, for the next tick
+      split_repair.py       the seed write of that repair, onto one recorded child under the claim recovery holds
       parents.py            the fresh child scan -- fresh as of its read, which another poller can outlive -- the
                             rejected and manually-closed parks it earns -- published apart from the scan, since one
                             caller settles its ledger on the way out of them, and a closed child's merge finalize taken

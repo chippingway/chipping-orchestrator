@@ -10,13 +10,15 @@ rather than lost to it.
 """
 from __future__ import annotations
 
+import threading
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import dispatch as _dispatch, stage_targets as _stage_targets
+from orchestrator.workflow.engine import dispatch as _dispatch, stage_targets as _stage_targets, tick as _tick
 from tests.support.fakes import make_issue
 from tests.support.writer_claims import claimable, held_elsewhere
 from tests.workflow.engine import refused_submit_support as _closed
+from tests.workflow.engine.dispatch_scheduler_test_support import REPO_SLUG
 from tests.workflow.engine.writer_claim_test_support import (
     DISPATCH_MODES,
     StandInHandler,
@@ -28,6 +30,12 @@ from tests.workflow.observation_support import ObservedCloseCase, read_now
 # An issue another poller moves from `ready` to `validating`, and lets go of,
 # between this tick's poll and its claim.
 _ADVANCED = 13
+
+# A closed `implementing` issue with no late cycle, which a human reopens
+# between this tick's poll and its pass; and another issue's run, holding the
+# only slot the scheduler's caps leave.
+_REOPENED = 14
+_OCCUPIER = 15
 
 
 class AcquisitionGapTest(WriterClaimDispatchCase):
@@ -56,6 +64,72 @@ class AcquisitionGapTest(WriterClaimDispatchCase):
                 self.assertEqual(
                     self.github.label_history, [(_ADVANCED, LABEL_VALIDATING)], "only the holder relabelled it",
                 )
+
+
+class ReopenedAcrossTheGapTest(WriterClaimDispatchCase):
+    """An issue the poll read closed, open again by the time its pass reads it.
+
+    It carries no late cycle, so the close has nothing to end. The pass was
+    admitted as closed work -- cap-exempt, on the scheduler -- and the stage
+    an open `implementing` issue's label names is an agent run, so the pass
+    stops there and the next poll dispatches the issue as the open one it is,
+    under ordinary admission.
+    """
+
+    def test_ordinary_admission_runs_it(self) -> None:
+        for mode, limit, scheduled in DISPATCH_MODES:
+            with self.subTest(mode=mode):
+                self._reopened_after_the_poll()
+                stand_in = StandInHandler()
+
+                with patch.object(self.github, "list_pollable_issues", return_value=[self._polled()]):
+                    self.ticked(stand_in, limit=limit, scheduled=scheduled)
+
+                self.assertEqual(stand_in.ran, [], "the pass admitted as closed work runs no stage")
+
+                self.ticked(stand_in, limit=limit, scheduled=scheduled)
+
+                self.assertEqual(stand_in.ran, [_REOPENED], "the next poll runs it as open work")
+
+    def test_saturated_caps_hold_it_back(self) -> None:
+        self._reopened_after_the_poll()
+        scheduler = self._scheduler(global_cap=1, per_repo_cap=1)
+        occupied = self._occupied(scheduler)
+        stand_in = StandInHandler()
+
+        with patch.object(self.github, "list_pollable_issues", return_value=[self._polled()]):
+            self._ticked_on(scheduler, stand_in)
+        self._ticked_on(scheduler, stand_in)
+
+        self.assertEqual(stand_in.ran, [], "neither the exempt closed pass nor a capped open submit runs it")
+
+        occupied.set()
+        self._wait_issue_idle(scheduler, _OCCUPIER)
+        self._ticked_on(scheduler, stand_in)
+
+        self.assertEqual(stand_in.ran, [_REOPENED])
+
+    def _reopened_after_the_poll(self) -> None:
+        """A fresh repository whose issue reads open again, on the label it was closed on."""
+        self.fresh_repository()
+        self.github.add_issue(make_issue(_REOPENED, label=LABEL_IMPLEMENTING))
+
+    def _polled(self):
+        """The issue as the poll read it, before the reopen."""
+        return make_issue(_REOPENED, label=LABEL_IMPLEMENTING, closed=True)
+
+    def _occupied(self, scheduler) -> threading.Event:
+        """Another issue's run holding the scheduler's only slot until the event is set."""
+        occupied = threading.Event()
+        self.addCleanup(occupied.set)
+        self.assertTrue(scheduler.submit(REPO_SLUG, _OCCUPIER, occupied.wait))
+        return occupied
+
+    def _ticked_on(self, scheduler, stand_in: StandInHandler) -> None:
+        """One scheduled tick at a `parallel_limit` of 1, waited out on the issue."""
+        with self._patched(stand_in, (LABEL_IMPLEMENTING,)):
+            _tick.tick(self.github, self._spec(parallel_limit=1), scheduler=scheduler)
+            self._wait_issue_idle(scheduler, _REOPENED)
 
 
 class ClosedAcrossTheGapTest(ObservedCloseCase, unittest.TestCase):

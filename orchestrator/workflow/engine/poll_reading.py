@@ -67,6 +67,17 @@ def _cleanup_sweep_only(issue: Issue, label: str | None) -> bool:
     return label in _poll_models._CLEANUP_ROUTE_LABELS and issue_is_closed(issue)
 
 
+def _reopened_since_polled(issue: Issue, reading: _poll_models._PollReading) -> bool:
+    """Whether the poll read this issue closed and the object in hand reads open again.
+
+    Asked of a pass's refetch, behind the guard that applies the close to a
+    live late cycle: the reading admitted the pass as closed work, and the
+    stage an open issue's label names is ordinary work the reading never
+    licensed.
+    """
+    return reading.closed and not issue_is_closed(issue)
+
+
 def _read_issue_routing(
     gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
 ) -> tuple[bool, str | None]:
