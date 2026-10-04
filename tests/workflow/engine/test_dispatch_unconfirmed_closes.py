@@ -23,6 +23,7 @@ from unittest.mock import Mock, patch
 
 from orchestrator.workflow.engine import (
     dispatch_partition as _dispatch_partition,
+    poll_models as _poll_models,
     poll_reading as _poll_reading,
     scheduled_dispatch as _scheduled_dispatch,
     stage_targets as _stage_targets,
@@ -206,7 +207,8 @@ class QueuedFamilyRestartTest(ClosedOwnerCase, unittest.TestCase):
 
         with patch.object(importlib.import_module(owner), name, self.stage):
             _scheduled_dispatch._drain_scheduler_family_bucket(
-                self.github, self._spec(), self._scheduler(), [_deferral.OWNER_NUMBER],
+                self.github, self._spec(), self._scheduler(),
+                _poll_models._PollablePartition([_deferral.OWNER_NUMBER], [None], [], set()),
             )
 
         self._assert_restarted_cycle_spared(before)

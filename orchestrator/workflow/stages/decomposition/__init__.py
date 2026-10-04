@@ -17,15 +17,17 @@ resume under it, `retry_cap` owns the park a spent spawn budget leaves an
 INITIAL decomposition -- held ahead of every road that would walk past one, and
 lifted only by the command that renews the budget -- `run` owns the order one
 tick asks the others in and `outcomes` the three dispositions its reply earns,
-`recovery` owns what a tick that died mid-split left behind, `split` owns the
-crash-safe order children are created in, `split_receipts` the receipt each one
-carries so a child created and never recorded can be found again, `split_seeds`
-the dispatch hold on a child whose seed is not what that receipt says it was
-owed, `replacement_lineage` owns the late lineage and snapshot pointer those
-children are seeded with when the issue sits inside one -- and the park when
-either cannot be proved, and the repair a recovery makes of each recorded
-child -- and `parents`, `activation`, `blocked`, and `umbrella` own the
-parent-side polling that drives the tree to completion.
+`recovery` owns what a tick that died mid-split left behind and `split_repair`
+the repair it makes of each recorded child, `split` owns the crash-safe order
+children are created in and `split_summary` the summary it finalizes the parent
+with, `split_receipts` the receipt each child carries so a child created and
+never recorded can be found again, `split_seeds` the dispatch hold on a child
+whose seed is not what that receipt says it was owed, `replacement_lineage`
+owns the late lineage and snapshot pointer those children are seeded with when
+the issue sits inside one -- and the park when either cannot be proved, and the
+lineage a recovery's repair holds each recorded child to -- and `parents`,
+`activation`, `blocked`, and `umbrella` own the parent-side polling that drives
+the tree to completion.
 
 The `late_*` owners are an additive second mode under the same `decomposing`
 label, for the issue whose implementation is already committed and turns out to

@@ -9,7 +9,8 @@ receipt (`split_receipts`), and reuse instructions where it is owed the
 parent's snapshot. Children without dependencies are released after the
 summary and parent label land, through the walk a later poll runs. A split
 that had to leave a child unseeded, because another poller on this host held
-it, publishes neither: its recovery seeds the child and finalizes the parent.
+it, publishes neither: its recovery seeds the child, posts the summary
+(`split_summary`), and finalizes the parent.
 """
 from __future__ import annotations
 
@@ -21,17 +22,16 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.decomposition import (
     activation as _activation,
     child_creation as _child_creation,
     late_child_content as _late_child_content,
     replacement_lineage as _replacement_lineage,
     split_receipts as _split_receipts,
+    split_summary as _split_summary,
     state as _state,
 )
 from orchestrator.workflow.stages.decomposition.models import _SplitPlan
-from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -151,25 +151,6 @@ def _create_child_issues(
     return plan
 
 
-def _split_summary(plan: _SplitPlan) -> tuple[str, WorkflowLabel]:
-    summary = "\n".join(
-        f"- #{number}: {child['title']}" for number, child in plan.created
-    )
-    if plan.is_umbrella:
-        announcement = (
-            f":bookmark_tabs: decomposer split this into {len(plan.created)} "
-            f"child issue(s); marking parent as `{WorkflowLabel.UMBRELLA}` "
-            "(no implementation of its own; will auto-resolve once every "
-            f"child resolves):\n\n{summary}"
-        )
-        return announcement, WorkflowLabel.UMBRELLA
-    announcement = (
-        f":bookmark_tabs: decomposer split this into {len(plan.created)} "
-        f"child issue(s):\n\n{summary}"
-    )
-    return announcement, WorkflowLabel.BLOCKED
-
-
 def _activate_initial_split_children(
     gh: GitHubClient,
     spec: _config_models.RepoSpec,
@@ -205,10 +186,11 @@ def _finalize_split(
     final parent-state write, so a crash here cannot leave a runnable
     orphan child against a `decomposing`-labeled parent; and it is the
     dependency walk's own, so a child is released here only as that walk
-    would release it.
+    would release it. The summary carries this attempt's receipt, which is
+    what keeps a recovery of a crash behind it from posting it again.
     """
-    summary_intro, final_label = _split_summary(plan)
-    _comments._post_issue_comment(gh, issue, state, summary_intro)
+    created = [(number, child["title"]) for number, child in plan.created]
+    final_label = _split_summary.announced(gh, issue, state, created, plan.attempt)
     gh.set_workflow_label(issue, final_label)
     gh.write_pinned_state(issue, state)
     _activate_initial_split_children(gh, spec, issue, state, plan)

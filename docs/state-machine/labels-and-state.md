@@ -680,10 +680,12 @@ The keys that matter for the state machine fall into a few groups:
   `<owed>` is the late lineage the split seeds that child with, `<root>-<depth>-<cycle>-<generation>`, or `none`. Only
   a whole receipt counts, and the last one in a body governs, since a slice may quote another child's body ahead of
   its own stamp. Any other `split_attempt` — another split's, a value no binary mints, or none — finds no receipt, so
-  a split an older binary made leaves nothing to adopt. A drift reset clears `split_attempt` with the rest of the
-  manifest, after writing that split's children — any unrecorded one found by its receipt — onto `late_consumers`,
-  and a `blocked` parent whose children all resolved drops it in a write ahead of its flip back to
-  `workflow:ready`. A child this orchestrator opened whose seed is not the one its receipt owes it — no
+  a split an older binary made leaves nothing to adopt. The summary the split posts on the parent as it finalizes ends
+  on `<!--orchestrator-split-summary:issue=<parent>:attempt=<split_attempt>-->`, so a recovery that finalizes the
+  split instead posts that summary only where no comment of ours carries it. A drift reset clears `split_attempt`
+  with the rest of the manifest, after writing that split's children — any unrecorded one found by its receipt —
+  onto `late_consumers`, and a `blocked` parent whose children all resolved drops it in a write ahead of its flip
+  back to `workflow:ready`. A child this orchestrator opened whose seed is not the one its receipt owes it — no
   `parent_number` naming that parent, none of an owed `late_ancestry_*` group, a group partial, rewritten, or naming
   another place in the lineage, any group on a child owed none, or a pointer at a snapshot other than the one that
   split preserved, or half of one — is held by the dispatcher ahead of every handler but `done`'s and `rejected`'s,

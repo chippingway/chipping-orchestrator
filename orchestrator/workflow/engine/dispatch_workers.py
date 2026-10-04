@@ -155,7 +155,7 @@ def _fanout_task(
     reading: _poll_models._PollReading,
     semaphore_cm: contextlib.AbstractContextManager | None = None,
 ) -> Callable[[], None]:
-    """The callable one fan-out submit hands the scheduler.
+    """The callable one fan-out submit hands the scheduler, and the pass a family drain runs per issue.
 
     An ordinary issue is refetched and dispatched, and what it carries with it
     is the poll's own CLOSED reading: the worker refetches, so a human who

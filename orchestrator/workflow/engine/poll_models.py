@@ -69,9 +69,11 @@ class _PollablePartition:
     family-aware issue's workflow label. ``fanout_closed`` is the subset of
     ``fanout_numbers`` whose issue is already closed -- a cheap terminal
     finalize, or a cleanup pass over a closed owner's ledger, and neither
-    spawns, so both are submitted cap-exempt. ``read_at`` is the moment the
-    poll took before it listed any of them, which every worker's reading
-    carries.
+    spawns, so both are submitted cap-exempt. ``family_closed`` is the subset
+    of ``family_numbers`` the poll read closed, which is only ever one whose
+    label it could not read: every closed issue the enumeration yields wears a
+    label that routes it to fan-out. ``read_at`` is the moment the poll took
+    before it listed any of them, which every worker's reading carries.
     """
     family_numbers: list[int]
     family_labels: list[str | None]
@@ -79,12 +81,13 @@ class _PollablePartition:
     fanout_closed: set[int]
     cleanup_numbers: set[int] = field(default_factory=set)
     read_at: int | None = None
+    family_closed: set[int] = field(default_factory=set)
 
     def reading(self, issue_number: int) -> _PollReading:
-        """What the poll established about one fan-out issue, for its worker."""
+        """What the poll established about one issue, for the worker or the drain that runs it."""
         return _PollReading(
             cleanup_only=issue_number in self.cleanup_numbers,
-            closed=issue_number in self.fanout_closed,
+            closed=issue_number in self.fanout_closed or issue_number in self.family_closed,
             read_at=self.read_at,
         )
 
@@ -111,6 +114,7 @@ class _PollablePartitionBuilder:
     cleanup_numbers: set[int] = field(default_factory=set)
     read_at: int | None = None
     deferred: frozenset[int] = frozenset()
+    family_closed: set[int] = field(default_factory=set)
 
     yielded: set[int] = field(default_factory=set)
 
@@ -124,6 +128,8 @@ class _PollablePartitionBuilder:
         if not owed and _drains_in_family_bucket(label, closed):
             self.family_numbers.append(issue_number)
             self.family_labels.append(label)
+            if closed:
+                self.family_closed.add(issue_number)
             return
         self.fanout_numbers.append(issue_number)
         if closed or owed:
@@ -152,6 +158,7 @@ class _PollablePartitionBuilder:
             self.fanout_closed,
             self.cleanup_numbers,
             self.read_at,
+            self.family_closed,
         )
 
 

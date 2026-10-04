@@ -218,7 +218,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             comment (`stages/validating/review_records.py`)
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption; a closed
-                            reading carries the moment its poll took before listing anything
+                            reading -- a family-bucket issue's included, there only when its label could not be read
+                            -- carries the moment its poll took before listing anything
     run_limit_dispatch.py   hold exhausted work, replay its owed notice, and admit grants or terminal cleanup;
                             an implementing plan PR does not prove that implementation work ended
     dispatch_guards.py      pinned-state admission, restart before cancellation, publication reconciliation, and
@@ -244,15 +245,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             included, so nothing runs it on a lineage nothing proved
     poll_reading.py         classify labels and hard-skip controls while admitting observed-close cleanup; drop open
                             blocked/umbrella dependency walks on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` skips;
-                            a failed label read reaches per-issue exception isolation through the family bucket
+                            a failed label read reaches per-issue exception isolation through the family bucket,
+                            with any closed reading carried there
     dispatch_closure.py     persist poll and refetch closes, retain them across ordinary processing, and preserve
                             receipts and deferred cleanup when a worker submission is refused -- under the issue's
                             writer claim alongside this process's worker, leaving the enumeration's latch as it was
                             where the claim is refused
     cleanup_observation.py keep a close through cleanup exceptions and unsettled endings, including an ending owed
                             under a label no sweep queries; settle only after the defining stage proves it complete
-    dispatch_partition.py  combine fresh poll results and still-owed closes, record closed fanout receipts before
-                            submission under the issue's writer claim -- only the latch where it is refused -- carry
+    dispatch_partition.py  combine fresh poll results and still-owed closes, record every closed reading's receipt
+                            before submission, a family-bucket fallback's included, under the issue's writer claim --
+                            only the latch where it is refused -- carry
                             the moment read before the listing to each closed reading's worker, and include deferred
                             issues that enumeration did not yield
     issue_processing.py    the issue writer claim every dispatch seam takes before its refetch, guards, close recovery,
@@ -267,8 +270,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             observation scopes across sequential, scheduler, and pool execution; an ordinary pass that
                             finds a close latched once it holds the claim (one a poll took after the pass was queued)
                             runs as that close's cleanup instead
-    scheduled_dispatch.py  drain the family bucket under active tracking, enforce capacity rules, and submit fanout
-                            with claims released after execution or refusal; observed closes remain cap-exempt
+    scheduled_dispatch.py  drain the family bucket under active tracking, each issue through the pass its reading
+                            earns, enforce capacity rules, and submit fanout with claims released after execution or
+                            refusal; observed closes remain cap-exempt
     contended_closes.py    keep a close read while another poller holds the issue: the record is read first and the
                             issue behind it, and only a close still standing there is scoped to the cycle the record
                             names -- or, on a record a retirement just emptied, to the cycle the holder noted on the
@@ -1260,7 +1264,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             across, the submission plan the executor is sized from -- which is why this half
                             materializes the enumeration the sequential one streams -- the family bucket folded
                             into exactly ONE task so it costs one worker slot however many family-aware issues
-                            are pending, and the completion drain that reports each failure as it lands. Reached
+                            are pending, each run through the pass its reading earns, and the completion drain that
+                            reports each failure as it lands. Reached
                             only from the tick above, and every collaborator under it is named on the owner that
                             defines it
     run_requests.py         agent invocation requests, stable logical-round fingerprints, launch identities, and
@@ -1622,22 +1627,28 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             naming a snapshot ref its child would not be kept -- stamp each child's receipt and
                             append the snapshot's reuse instructions to the body of each child owed it, then persist
                             the expected count, the umbrella flag, the attempt, and the whole dependency graph in one
-                            write, create the planned children, and publish the summary and parent label before
-                            activating children without dependencies through `activation.py`'s walk -- or, where a
-                            child was left unseeded because another poller held it, publish neither and leave the
-                            parent `decomposing` for `recovery.py` to seed it and finalize
+                            write, create the planned children, and publish the summary (`split_summary.py`) and
+                            parent label before activating children without dependencies through `activation.py`'s
+                            walk -- or, where a child was left unseeded because another poller held it, publish
+                            neither and leave the parent `decomposing` for `recovery.py` to seed it and finalize
+      split_summary.py      the summary an ordinary split posts on its parent as it finalizes, ending on a hidden
+                            receipt naming the parent and `split_attempt`; a recovery finalizing the split posts it,
+                            each child named by its own title, only where no comment of ours carries that receipt --
+                            never for an older binary's split, which names no attempt
       recovery.py           what a tick that died mid-split -- or a split that met a held child -- left behind: the
                             stale-manifest markers, the adoption of a child created and never recorded through
-                            `split_receipts.py`, the orphan-child repair -- the
-                            parent link and the owed lineage, asked of the parent's record again, a lost consumer slot
-                            restored ahead of its seed, the park the missing seed earned lifted in the write that
-                            seeds it, and parked rather than finalized where it no longer proves one or a child is not
-                            one the split can recognize as its own -- any child whose text names a snapshot the split
-                            cannot keep, or whose receipt is not the one stamped for its slot, included -- the
-                            incomplete park, and the two owners that hold
-                            those markers instead -- a human the issue is parked awaiting, and the late transaction
-                            while its generation is live; each child is repaired under its own writer claim, and one
-                            another poller holds stops the recovery, unparked, for the next tick
+                            `split_receipts.py`, every recorded child repaired through `split_repair.py` before the
+                            summary `split_summary.py` still owes and the finalize, the incomplete park, and the two
+                            owners that hold those markers instead -- a human the issue is parked awaiting, and the
+                            late transaction while its generation is live
+      split_repair.py       the orphan-child repair a recovery makes of each recorded child -- the parent link and the
+                            owed lineage, asked of the parent's record again, a lost consumer slot restored ahead of
+                            its seed, the park the missing seed earned lifted in the write that seeds it, and parked
+                            rather than finalized where it no longer proves one or a child is not one the split can
+                            recognize as its own -- any child whose text names a snapshot the split cannot keep, or
+                            whose receipt is not the one stamped for its slot, included; each child is repaired under
+                            its own writer claim, and one another poller holds stops the recovery, unparked, for the
+                            next tick
       parents.py            the fresh child scan -- fresh as of its read, which another poller can outlive -- the
                             rejected and manually-closed parks it earns -- published apart from the scan, since one
                             caller settles its ledger on the way out of them, and a closed child's merge finalize taken

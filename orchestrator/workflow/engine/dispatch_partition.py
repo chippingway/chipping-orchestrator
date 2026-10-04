@@ -106,9 +106,14 @@ def _sorted_pollable(
     record says there is nothing to end has its latch dropped again here, so
     the machinery is carried only by the owners that actually need it.
 
-    Only where the reading actually travels with the route: the closed
-    fan-out set is exactly what carries one, and a closed issue drained in the
-    family bucket is a hard human stop with nothing to finalize.
+    Wherever a reading travels with the route, which is every closed reading
+    and every owed one. A closed issue reaches the family bucket only where
+    its label could not be read -- the fallback that leaves a sustained
+    failure to the drain's per-issue isolation -- and its reading is carried
+    there as a fan-out issue's is: latched and written down here, and bound
+    to the drain's pass. A family submission the scheduler refuses, or an
+    iteration it skips, runs nothing, so what this kept is what the next poll
+    finds owed.
 
     The read and the receipt are taken under the issue's writer claim, since
     both are the record's: the read decides whether a reading is owed, and the
@@ -138,7 +143,7 @@ def _sorted_pollable(
     if skip and not (closed or builder.owed(issue_number)):
         return
     builder.add(issue_number, label, closed)
-    if issue_number not in builder.fanout_closed:
+    if not (closed or builder.owed(issue_number)):
         return
     with _issue_processing._writer_claim(
         gh, spec, issue_number, closed=issue if closed else None, alongside=True,

@@ -38,7 +38,7 @@ def _drain_scheduler_family_bucket(
     gh: GitHubClient,
     spec: _config_models.RepoSpec,
     scheduler: IssueScheduler,
-    family_numbers: list[int],
+    partition: _poll_models._PollablePartition,
 ) -> None:
     """Drain this tick's family-aware issues sequentially under one bucket.
 
@@ -61,14 +61,16 @@ def _drain_scheduler_family_bucket(
     Per-issue exception isolation lives inside the loop so one raising family
     handler does not abort the rest of the bucket.
 
-    Each per-issue call mirrors the fanout path: ``_refetch_and_process``
-    takes the issue's writer claim, mints a fresh ``GitHubClient`` via
-    ``gh._for_worker_thread()``, and refetches the Issue against it (PyGithub
-    is not documented thread-safe). The claim is taken inside the tracked
-    iteration, so an issue another poller on this host holds costs that one
-    iteration and the drain moves on to the next.
+    Each per-issue call is the pass a fanout submit would run for the same
+    reading (``_fanout_task``): it takes the issue's writer claim, mints a
+    fresh ``GitHubClient`` via ``gh._for_worker_thread()``, and refetches the
+    Issue against it (PyGithub is not documented thread-safe). The claim is
+    taken inside the tracked iteration, so an issue another poller on this
+    host holds costs that one iteration and the drain moves on to the next. An
+    issue the poll read closed -- here only when its label could not be read
+    -- carries that reading into its pass, bound as a fan-out issue's is.
     """
-    for issue_number in family_numbers:
+    for issue_number in partition.family_numbers:
         try:
             with scheduler.track_active(spec.slug, issue_number) as claimed:
                 if not claimed:
@@ -78,7 +80,9 @@ def _drain_scheduler_family_bucket(
                         spec.slug, issue_number,
                     )
                     continue
-                _dispatch_workers._refetch_and_process(gh, spec, issue_number)
+                _dispatch_workers._fanout_task(
+                    gh, spec, issue_number, reading=partition.reading(issue_number),
+                )()
         except Exception:
             log.exception(
                 _PROCESSING_FAILED_LOG,
@@ -105,7 +109,7 @@ def _submit_scheduler_family_bucket(
         spec.slug,
         _FAMILY_BUCKET_ISSUE,
         functools.partial(
-            _drain_scheduler_family_bucket, gh, spec, scheduler, family_numbers,
+            _drain_scheduler_family_bucket, gh, spec, scheduler, partition,
         ),
         family=True,
         cap_exempt=_poll_models._family_bucket_cap_exempt(partition.family_labels),
@@ -118,7 +122,9 @@ def _submit_scheduler_family_bucket(
     # cap, ...) inside `submit`; this line gives the dispatch-layer context
     # -- which issues were waiting on this bucket -- so an operator can
     # correlate "umbrella not advancing" with a previous tick's bucket
-    # still in flight.
+    # still in flight. A closed reading one of them carried is already
+    # latched, and written down where its claim was granted, by the partition
+    # that classified it, so the next polling pass finds it owed.
     log.info(
         "repo=%s family bucket (%d issues) not submitted this "
         "tick; next polling pass retries",

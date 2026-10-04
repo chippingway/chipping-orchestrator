@@ -14,10 +14,12 @@ it was renamed, meet the same holder.
 """
 from __future__ import annotations
 
+import contextlib
 import unittest
 from unittest.mock import Mock, patch
 
 from orchestrator.scheduler import writer_claims
+from orchestrator.workflow.engine import scheduled_dispatch as _scheduled_dispatch
 from tests.support.writer_claims import claimable, held_elsewhere, unusable_namespace
 from tests.workflow.engine import cleanup_deferral_support as _deferral
 from tests.workflow.engine.contended_close_support import ticked_on
@@ -43,6 +45,14 @@ _REFUSED_IN_EVERY_MODE = tuple(
     (refusal, mode)
     for refusal in (_HELD_ELSEWHERE, _UNUSABLE)
     for mode in DISPATCH_MODES
+)
+
+# Each of those with the poll's label read answered, and with it failing,
+# which routes a closed owner to the family bucket rather than its cleanup.
+_REFUSED_READINGS = tuple(
+    (refusal, mode, labelled)
+    for refusal, mode in _REFUSED_IN_EVERY_MODE
+    for labelled in (True, False)
 )
 
 _KEY_AWAITING_HUMAN = "awaiting_human"
@@ -177,10 +187,14 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
         self.owed = frozenset((_deferral.OWNER_NUMBER,))
 
     def test_a_refused_claim_keeps_the_close(self) -> None:
-        for refusal, (mode, limit, scheduled) in _REFUSED_IN_EVERY_MODE:
-            with self.subTest(refusal=refusal, mode=mode):
+        # Kept just the same where the poll could not read the owner's label
+        # and fell back to the family bucket: the drain that reaches it is
+        # refused the claim too, and asks nothing.
+        for refusal, (mode, limit, scheduled), labelled in _REFUSED_READINGS:
+            with self.subTest(refusal=refusal, mode=mode, labelled=labelled):
                 self._seeded_owner()
-                self._ticked_refused(refusal, limit, scheduled=scheduled)
+                with _label_read(self.github, labelled=labelled):
+                    self._ticked_refused(refusal, limit, scheduled=scheduled)
 
                 self._reopened()
                 ticked_on(self, limit, scheduled=scheduled)
@@ -205,6 +219,26 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
         self.assertEqual(_deferral.receipts_on(self.github), [])
         self.assertEqual(self._observed(_deferral.REPO_SLUG), self.owed)
 
+    def test_a_refused_family_submit_keeps_the_close(self) -> None:
+        # The poll could not read the owner's label, and the family bucket it
+        # falls back to is refused: the last one is still in flight. No pass
+        # runs, so what the partition wrote down under the claim is what the
+        # next poll sweeps, however the owner reads by then.
+        scheduler = self._scheduler()
+        bucket = scheduler.track_active(_deferral.REPO_SLUG, _scheduled_dispatch._FAMILY_BUCKET_ISSUE)
+        with _label_read(self.github, labelled=False), bucket:
+            self._ticked(scheduler, held=True)
+
+        self.assertEqual(len(_deferral.receipts_on(self.github)), 1)
+        self.assertEqual(self._observed(_deferral.REPO_SLUG), self.owed)
+        self.assertFalse(self._cancelled(), "no pass ran")
+
+        self._reopened()
+        self._ticked(scheduler)
+
+        self.assertTrue(self._cancelled(), "the reopened owner's cycle is still ended")
+        self.stage.assert_not_called()
+
     def test_a_receipt_lands_beside_our_own_writer(self) -> None:
         # The worker running the owner holds its claim in THIS process, and the
         # receipt is a comment built to land beside that worker, so the poll
@@ -227,12 +261,24 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
         record = self.github.pinned_data(_deferral.OWNER_NUMBER)
         reads = Mock(wraps=self.github.read_pinned_state)
         with _refused(refusal, self.github), patch.object(self.github, "read_pinned_state", reads):
-            ticked_on(self, limit, scheduled=scheduled)
+            if scheduled:
+                # Drained whole: a family bucket claims the owner only once
+                # the drain reaches it, which a wait on the owner can precede.
+                self._ticked(self._scheduler(), drained=True)
+            else:
+                ticked_on(self, limit, scheduled=False)
 
         self.assertEqual(reads.call_count, 1, "the record is read once, for the cycle the close ends")
         self.assertEqual(self.github.pinned_data(_deferral.OWNER_NUMBER), record, "and not written")
         self.assertEqual(_deferral.receipts_on(self.github), [], "the close is not written down")
         self.assertEqual(self._observed(_deferral.REPO_SLUG), self.owed, "but it is latched")
+
+
+def _label_read(github, *, labelled: bool):
+    """The poll's workflow-label reads, answered or failing for the block."""
+    if labelled:
+        return contextlib.nullcontext()
+    return patch.object(github, "workflow_label", side_effect=ConnectionError("github unreachable"))
 
 
 def _refused(refusal: str, github):

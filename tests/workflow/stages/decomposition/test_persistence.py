@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from orchestrator.github.pinned_state import PINNED_STATE_MARKER
 from tests.support.fakes import (
@@ -66,7 +67,10 @@ RECOVERY_CHILD_NUMBERS = (101, 102)
 PERSISTENCE_ISSUE_NUMBER = 80
 SEED_CONTENTION_ISSUE_NUMBER = 81
 SEED_RECORD_ISSUE_NUMBER = 84
+SEED_RETRY_ISSUE_NUMBER = 85
 KEY_AWAITING_HUMAN = "awaiting_human"
+# What every split summary opens with, umbrella or not.
+_SUMMARY = ":bookmark_tabs: decomposer split this into"
 COMPLETE_RECOVERY_PARENT_NUMBER = 50
 AWAITING_RECOVERY_PARENT_NUMBER = 51
 AWAITING_RECOVERY_CHILD_NUMBER = 201
@@ -143,36 +147,41 @@ class DecompositionChildPersistenceTest(
         # Another poller on this host dispatches each child the moment it
         # exists, so neither is this split's to seed. Both are still created
         # and recorded -- the manifest is not kept to create the rest from
-        # later -- and nothing parks, finalizes, or writes to them. Once that
-        # poller lets go, the parent's next tick recovers the split: it seeds
-        # each child under its claim and finalizes, with no human and no
-        # decomposer run.
-        gh, issue = _decomposing_issue(SEED_CONTENTION_ISSUE_NUMBER)
+        # later -- and nothing parks, finalizes, summarizes, or writes to
+        # them. Once that poller lets go, the parent's next tick recovers the
+        # split: it seeds each child under its claim, posts the summary the
+        # split owed, and finalizes, with no human and no decomposer run.
+        gh, issue, created = self._left_to_recovery(SEED_CONTENTION_ISSUE_NUMBER)
 
-        with claimed_on_creation(gh):
-            self._run_decomposing(
-                gh,
-                issue,
-                run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=SPLIT_MANIFEST),
-            )
-
-        created = [child.number for child in gh.created_child_issues]
         parent = gh.pinned_data(SEED_CONTENTION_ISSUE_NUMBER)
         self.assertEqual(parent.get(KEY_CHILDREN), created)
         # Both created, neither written.
         self.assertEqual(list(map(gh.pinned_data, created)), [{}, {}])
         self.assertFalse(parent.get(KEY_AWAITING_HUMAN), "nothing parks")
         self.assertEqual(gh.label_history, [], "the parent is not finalized past them")
+        self.assertEqual(_summaries(gh, SEED_CONTENTION_ISSUE_NUMBER), [], "nor summarized")
 
         mocks = self._run_decomposing(gh, issue, run_agent=_agent())
 
         mocks[RUN_AGENT].assert_not_called()
-        self.assertEqual(
-            {gh.pinned_data(number).get(KEY_PARENT_NUMBER) for number in created},
-            {SEED_CONTENTION_ISSUE_NUMBER},
-        )
-        self.assertEqual(gh.label_history, [(SEED_CONTENTION_ISSUE_NUMBER, LABEL_BLOCKED)])
-        self.assertFalse(gh.pinned_data(SEED_CONTENTION_ISSUE_NUMBER).get(KEY_AWAITING_HUMAN))
+        self._assert_recovered(gh, SEED_CONTENTION_ISSUE_NUMBER, created)
+
+    def test_a_retried_recovery_posts_one_summary(self) -> None:
+        # A recovery that fails between its summary and its finalize is run
+        # again by the next tick: a summary GitHub refused is posted then, and
+        # one that landed ahead of a label flip that failed is not posted twice.
+        for step, fragment in (("comment", _SUMMARY), ("set_workflow_label", "")):
+            with self.subTest(failing=step):
+                gh, issue, created = self._left_to_recovery(SEED_RETRY_ISSUE_NUMBER)
+
+                with _FailsOnce.over(gh, step, fragment), self.assertRaises(RuntimeError):
+                    self._run_decomposing(gh, issue, run_agent=_agent())
+
+                self.assertEqual(gh.label_history, [], "the failed recovery finalizes nothing")
+
+                self._run_decomposing(gh, issue, run_agent=_agent())
+
+                self._assert_recovered(gh, SEED_RETRY_ISSUE_NUMBER, created)
 
     def test_the_seed_lands_on_the_record_held_first(self) -> None:
         # Another poller on this host reaches each child before the split
@@ -197,6 +206,61 @@ class DecompositionChildPersistenceTest(
             self.assertEqual(seed.get(KEY_PARENT_NUMBER), SEED_RECORD_ISSUE_NUMBER)
             self.assertFalse(seed.get(KEY_AWAITING_HUMAN), "the hold the seed answers is lifted")
         self.assertIn((SEED_RECORD_ISSUE_NUMBER, LABEL_BLOCKED), gh.label_history)
+
+
+    def _left_to_recovery(self, number: int) -> tuple[FakeGitHubClient, FakeIssue, list[int]]:
+        """A split whose every child another poller held as it was created, and the children it recorded."""
+        gh, issue = _decomposing_issue(number)
+        with claimed_on_creation(gh):
+            self._run_decomposing(
+                gh,
+                issue,
+                run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=SPLIT_MANIFEST),
+            )
+        return gh, issue, [child.number for child in gh.created_child_issues]
+
+    def _assert_recovered(self, gh: FakeGitHubClient, number: int, created: list[int]) -> None:
+        """Every recorded child seeded, one summary naming each, and the parent finalized once."""
+        parents = {gh.pinned_data(child).get(KEY_PARENT_NUMBER) for child in created}
+        self.assertEqual(parents, {number})
+        summaries = _summaries(gh, number)
+        self.assertEqual(len(summaries), 1, "the summary is posted exactly once")
+        for child, title in zip(created, ("A", "B"), strict=True):
+            self.assertIn(f"- #{child}: {title}", summaries[0])
+        self.assertEqual(gh.label_history, [(number, LABEL_BLOCKED)])
+        self.assertFalse(gh.pinned_data(number).get(KEY_AWAITING_HUMAN))
+
+
+class _FailsOnce:
+    """A client write that GitHub refuses the first time it is made to the parent naming `fragment`."""
+
+    def __init__(self, write, parent: int, fragment: str) -> None:
+        self._write = write
+        self._parent = parent
+        self._fragment = fragment
+        self._refused = False
+
+    def __call__(self, issue, *written):
+        """Refuse the first matching write the way an outage does, and land every other."""
+        if self._refused or issue.number != self._parent:
+            return self._write(issue, *written)
+        if self._fragment not in str(written):
+            return self._write(issue, *written)
+        self._refused = True
+        raise RuntimeError("github refused the write")
+
+    @classmethod
+    def over(cls, gh: FakeGitHubClient, step: str, fragment: str):
+        """Install one over the client's `step`, refusing its first write to the retried parent."""
+        return patch.object(gh, step, cls(getattr(gh, step), SEED_RETRY_ISSUE_NUMBER, fragment))
+
+
+def _summaries(gh: FakeGitHubClient, number: int) -> list[str]:
+    """The split summaries posted on one parent's thread."""
+    return [
+        body for posted_on, body in gh.posted_comments
+        if posted_on == number and _SUMMARY in body
+    ]
 
 
 def _decomposing_issue(number: int) -> tuple[FakeGitHubClient, FakeIssue]:

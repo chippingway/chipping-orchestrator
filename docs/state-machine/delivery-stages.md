@@ -525,8 +525,11 @@ because there it is the claim that this stage has already rerouted rather than a
      so one `late_consumers` no longer names is recorded there again (a parent write ahead of the seed and the finalize)
      and one carrying none of the `late_ancestry_*` group, or a pointer at anything else, is seeded with it; once the
      snapshot has passed to a reclamation the lineage alone is owed and a pointer still on a child is dropped with its
-     `late_ancestry_mirror_first` stamp; one carrying exactly what it was owed is left — then finalize to
-     `workflow:umbrella` (when the flag is true) or `workflow:blocked`. A parent whose record no longer proves that
+     `late_ancestry_mirror_first` stamp; one carrying exactly what it was owed is left — then post the split's summary
+     of every recorded child, unless a comment of ours already carries that `split_attempt`'s summary receipt (or no
+     `split_attempt` names the split, an older binary's), and finalize to `workflow:umbrella` (when the flag is true)
+     or `workflow:blocked`. A recovery that fails between the two is run again by the next tick, which posts a summary
+     that never landed and does not post one that did. A parent whose record no longer proves that
      lineage, or a child it cannot recognize as its own — an unparsed comment, a `parent_number` that is not exactly
      this issue's number (only a missing one is backfilled), text naming a snapshot ref the split cannot keep, any
      other group (any at all on an ordinary split's child), a register naming it twice, or a receipt other than the one
@@ -589,8 +592,8 @@ because there it is the claim that this stage has already rerouted rather than a
        parent's measurement, exemption, or authorization. The seed is made under the child's writer claim and added
        to the record the child carries by then, lifting the `replacement_lineage_unproved` hold another poller on the
        host may have parked there first; a child that poller still holds is left unseeded while the rest are
-       created, and the split then publishes no summary and no label, leaving step 3 to seed it under the claim and
-       finalize on a later tick. A child owed that snapshot is created with the reuse
+       created, and the split then publishes no summary and no label, leaving step 3 to seed it under the claim, post
+       the summary, and finalize on a later tick. A child owed that snapshot is created with the reuse
        instructions a late split's own children carry appended after its receipt — the ref, its local mirror, the
        commit, the base it was cut against, and how to read and reuse it — since the body is what its implementer
        reads; activate no-dep children through the dependency walk `_handle_blocked` / `_handle_umbrella` run — over
@@ -1487,8 +1490,11 @@ because there it is the claim that this stage has already rerouted rather than a
   repository) and the submit decision itself, and a worker already holding the issue asks the latch before every
   irreversible step it takes for the whole of that window: a reading installed only once the scheduler had refused
   would leave that worker free to spawn, create a child, or activate one against an issue the poll had already seen
-  ended. It is taken for every closed issue the fan-out set records, which is exactly the set whose route carries a
-  closed reading; a closed issue drained in the family bucket is a hard human stop with nothing to finalize.
+  ended. It is taken for every closed issue the enumeration yields and every owed one, since each route carries its
+  reading. A closed issue reaches the family bucket only where its label could not be read — every closed label the
+  enumeration queries routes to fan-out — and its reading is latched and written down there, under the claim, and
+  bound to the drain's pass as a fan-out issue's is; a family submission the scheduler refuses, or an iteration it
+  skips, runs nothing, so the next poll finds the reading owed.
 - **A close the enumeration never saw is taken at the REFETCH.** An issue open when it was listed carries no
   reading at all — nothing was latched, because there was nothing to latch — and the refetch every route takes on
   its way to a handler can be where that stops being true. From there the reading exists in one place only, and
