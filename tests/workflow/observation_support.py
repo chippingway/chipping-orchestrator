@@ -42,7 +42,7 @@ _REGISTRIES = (
     ("_receipted", dict),
     ("_posting", set),
     ("_settlements", dict),
-    ("_scanned", set),
+    ("_scanned", dict),
     ("_retiring", dict),
     ("_publishing", dict),
     ("_deferred", set),

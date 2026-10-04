@@ -10,7 +10,6 @@ this host settled cannot end the cycle that poller started after it, and one
 no read could tie to a cycle ends none until a read does."""
 from __future__ import annotations
 
-from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.workflow.engine import observation_state as _observation_state
 
 
@@ -66,14 +65,7 @@ def close_ends(
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:
-        if key not in _observation_state._observed:
-            return False
-        read_at = _observation_state._since.get(key)
-        if key not in _observation_state._scopes and None not in {repo_id, read_at} and (
-            _claim_notes.undisturbed_since(repo_id, issue_number, read_at)
-        ):
-            _observation_state._scopes[key] = int(cycle_id)
-        return _observation_state._scopes.get(key) == int(cycle_id)
+        return _observation_state._ends(key, cycle_id, repo_id)
 
 
 def close_scope(repo_slug: str, issue_number: int) -> int | None:

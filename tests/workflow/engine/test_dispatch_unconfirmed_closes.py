@@ -24,6 +24,7 @@ from unittest.mock import Mock, patch
 from orchestrator.workflow.engine import (
     dispatch_partition as _dispatch_partition,
     poll_reading as _poll_reading,
+    scheduled_dispatch as _scheduled_dispatch,
     stage_targets as _stage_targets,
 )
 from tests.support.fakes import FakeLabel
@@ -182,6 +183,33 @@ class PolledUnconfirmedTest(ClosedOwnerCase, unittest.TestCase):
 
         self.assertEqual(restarting.found_by, [True] if found else [], "the claim between is granted")
         return restarted, stand_in
+
+
+class QueuedFamilyRestartTest(ClosedOwnerCase, unittest.TestCase):
+    """A family drain queued before a close was latched, reaching an owner restarted since.
+
+    This process read the umbrella owner closed while another poller held it,
+    and kept that close scoped to the cycle it ended. That poller then settled
+    the cycle and an operator restarted it, so the owner is open on a fresh
+    one. A drain this process submitted before any of it reaches the owner
+    only now, as ordinary family work carrying no reading of its own.
+    """
+
+    def test_the_old_close_spares_the_restarted_cycle(self) -> None:
+        self._seeded_owner()
+        with held_elsewhere(self.github.repo_id, _deferral.OWNER_NUMBER):
+            _ticked_in(self, DISPATCH_MODES[0])
+        self.assertEqual(self._observed(_deferral.REPO_SLUG), _OWED, "the contender keeps the close")
+        restarted_elsewhere(self.github)
+        before = written(self.github)
+        owner, name = _deferral.UMBRELLA_TARGET
+
+        with patch.object(importlib.import_module(owner), name, self.stage):
+            _scheduled_dispatch._drain_scheduler_family_bucket(
+                self.github, self._spec(), self._scheduler(), [_deferral.OWNER_NUMBER],
+            )
+
+        self._assert_restarted_cycle_spared(before)
 
 
 class RestartedPollerTest(ClosedOwnerCase, unittest.TestCase):

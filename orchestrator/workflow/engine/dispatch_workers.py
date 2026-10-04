@@ -7,7 +7,9 @@ refetch and observation scopes run under it and a contender leaves every
 reading as it found it; the sequential loop's pass refetches under the claim
 its own entry took. Workers retain their thread-local GitHub client and
 optional semaphore. Closed readings and cleanup passes finish through their
-observation contexts so a race or failed pass cannot discard the owed ending.
+observation contexts so a race or failed pass cannot discard the owed ending,
+and an ordinary pass that finds a close latched since it was submitted runs as
+that close's cleanup.
 """
 from __future__ import annotations
 
@@ -101,13 +103,27 @@ def _refetch_and_process(
     The issue's writer claim is taken first, ahead of the refetch, and a
     contender returns having read nothing: the pass is retried on a later
     polling pass, and this one has nothing to keep.
+
+    An ordinary pass that finds a close latched once it holds the claim runs
+    as the cleanup that close is owed instead, which is the route the
+    partition gives an issue it finds owed. This one was submitted before the
+    latch existed -- a family drain or a fan-out queued behind a poll that
+    then read the issue closed -- and another poller may have settled the
+    cycle that close ended and started a fresh one before this claim was
+    granted. The sweep is what ties the close to the cycle the record names
+    now, and lets it go with nothing marked where it ended another; the stage
+    handler would read it, unscoped, at every barrier on its road.
     """
     with _issue_processing._writer_claim(gh, spec, issue_number) as held:
-        if held:
-            _refetched_pass(
-                gh, spec, issue_number,
-                semaphore_cm=semaphore_cm, reading=reading,
-            )
+        if not held:
+            return
+        if not (reading.closed or reading.cleanup_only) and observations.close_observed(spec.slug, issue_number):
+            _swept_pass(gh, spec, issue_number, semaphore_cm=semaphore_cm)
+            return
+        _refetched_pass(
+            gh, spec, issue_number,
+            semaphore_cm=semaphore_cm, reading=reading,
+        )
 
 
 def _refetched_pass(
@@ -245,10 +261,20 @@ def _swept_for_cleanup(
     of a record another poller is writing.
     """
     with _issue_processing._writer_claim(gh, spec, issue_number) as held:
-        if not held:
-            return
-        with _cleanup_observation._cleanup_observation(gh, spec, issue_number):
-            _refetched_pass(
-                gh, spec, issue_number, semaphore_cm=semaphore_cm,
-                reading=_poll_models._PollReading(cleanup_only=True, closed=True),
-            )
+        if held:
+            _swept_pass(gh, spec, issue_number, semaphore_cm=semaphore_cm)
+
+
+def _swept_pass(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    *,
+    semaphore_cm: contextlib.AbstractContextManager | None,
+) -> None:
+    """The cleanup a worker runs once it holds the issue, inside the hold its latch is owed."""
+    with _cleanup_observation._cleanup_observation(gh, spec, issue_number):
+        _refetched_pass(
+            gh, spec, issue_number, semaphore_cm=semaphore_cm,
+            reading=_poll_models._PollReading(cleanup_only=True, closed=True),
+        )

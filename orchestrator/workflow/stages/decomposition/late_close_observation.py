@@ -310,11 +310,14 @@ def _inherited_close(
     good as the reading that produced it -- the cycle is marked cancelled
     here, and the ending below runs from the mark like any other.
 
-    Asked ONCE per owner per process, which is what keeps it off the wire in
+    Asked ONCE per owner and cycle, which is what keeps it off the wire in
     the steady state. What it recovers is an observation a DEAD process was
     holding; every observation this one makes is in the latch already, and the
     latch costs no request at all. So a thread that carries no receipt is
-    walked on the first tick that sees this owner and never again.
+    walked on the first tick that sees this owner on this cycle, and again only
+    once another poller on this host has held the issue since: that poller
+    posts its receipts under its claim, and may have died before marking what
+    it observed.
 
     Once it has actually ANSWERED, that is. A claim standing over a walk that
     raised would send every later tick straight past the receipt and on to
@@ -325,7 +328,9 @@ def _inherited_close(
     """
     if generation.cancelled:
         return generation
-    with _observation_receipts.scanning_receipt(spec.slug, issue.number) as claimed:
+    with _observation_receipts.scanning_receipt(
+        spec.slug, issue.number, generation.cycle_id, repo_id=gh.repo_id,
+    ) as claimed:
         if not claimed:
             return generation
         marker = _late_close_reading._observed_close_marker(issue.number, generation.cycle_id)
@@ -361,14 +366,18 @@ def _latched_close_ends(
     dispatcher's own guard if a human has reopened it. Doing that work HERE
     would be doing it on a reading this walk cannot trust.
 
-    True only where there is a cycle to end. An umbrella the initial
-    decomposer made carries no generation, and a latched close against one is
-    a closed issue the ordinary terminals own.
+    True only where there is a cycle to end, and where the latched close ends
+    THIS one. An umbrella the initial decomposer made carries no generation,
+    and a latched close against one is a closed issue the ordinary terminals
+    own. And a close scoped to another cycle -- one another poller on this
+    host settled and restarted from before this walk held the issue -- is not
+    this walk's to mark, nor one no read has tied to a cycle where that poller
+    has held the issue since it was read.
     """
-    if not _observations.close_observed(spec.slug, issue.number):
-        return False
     generation = _late_state.read_late_generation(state)
-    if not generation.is_present:
+    if not generation.is_present or not _observations.close_ends(
+        spec.slug, issue.number, generation.cycle_id, repo_id=gh.repo_id,
+    ):
         return False
     log.warning(
         "repo=%s issue=#%s was observed closed while its children were being "
@@ -395,8 +404,9 @@ def _retired_close_adopted(
     closed-owner sweep reads the same field to decide anything is owed.
 
     So the retirement records which cycle it dropped, and this is what reads
-    it back. The thread is asked exactly once per owner per process, under the
-    same claim the inherited-close scan takes and for the same reason: what it
+    it back. The thread is asked once per owner and cycle, and again once
+    another poller on this host has held the issue since, under the same
+    claim the inherited-close scan takes and for the same reason: what it
     recovers is an observation a DEAD process was holding, and one this
     process makes is in the latch already.
 
@@ -431,7 +441,9 @@ def _retired_close_adopted(
     if retired is None:
         return None
     if _observations.close_scope(spec.slug, issue.number) != retired:
-        with _observation_receipts.scanning_receipt(spec.slug, issue.number) as claimed:
+        with _observation_receipts.scanning_receipt(
+            spec.slug, issue.number, retired, repo_id=gh.repo_id,
+        ) as claimed:
             if not claimed:
                 return None
             marker = _late_close_reading._observed_close_marker(issue.number, retired)

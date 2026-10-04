@@ -27,7 +27,7 @@ from orchestrator.workflow.stages.decomposition import (
 )
 from tests.support import fakes as _fakes, writer_claims as _writer_claims
 from tests.workflow.fixtures import _TEST_SPEC
-from tests.workflow.observation_support import ObservedCloseCase
+from tests.workflow.observation_support import ObservedCloseCase, read_now
 from tests.workflow.stages.decomposition.late_cleanup_support import (
     PARENT_NUMBER,
     SNAPSHOT_REF,
@@ -173,7 +173,7 @@ class _LatchingChildThread:
 
     def __call__(self):
         """Latch the owner's close, then answer the walk it interrupted."""
-        _observations.observe_close(_TEST_SLUG, self._owner)
+        _observations.observe_close(_TEST_SLUG, self._owner, read_now())
         return list(self._child.comments)
 
     def answering(self):

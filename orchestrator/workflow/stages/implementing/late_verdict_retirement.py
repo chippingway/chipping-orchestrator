@@ -135,11 +135,15 @@ def _cancelled(gate: _late_gate_models._Gate, generation: LateGeneration) -> boo
 
     The mark is durable before it is reported, and it is the same mark the
     adjudication's own barriers write -- the cleanup that settles a cancelled
-    cycle reads this record and cannot tell which barrier put it there.
+    cycle reads this record and cannot tell which barrier put it there. Only a
+    close that ends this cycle marks it: one scoped to a cycle another poller
+    on this host settled and restarted from is not this gate's to end.
     """
     if not generation.is_present or generation.cancelled:
         return False
-    if not _observations.close_observed(gate.spec.slug, gate.issue.number):
+    if not _observations.close_ends(
+        gate.spec.slug, gate.issue.number, generation.cycle_id, repo_id=gate.gh.repo_id,
+    ):
         return False
     log.warning(
         "repo=%s issue=#%d was observed closed as its measured candidate was "

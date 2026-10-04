@@ -340,7 +340,11 @@ except on an issue its predecessor was killed holding, or one no poller on the h
 finds that file. Otherwise the worker's guard marks nothing on a reopened issue and stops the tick, and the cleanup pass
 the latch routes it to next settles the reading. A claim that cannot be worked withholds the issue the same way rather
 than dispatching it uncoordinated. The scheduler's own gates still run first and are unchanged: duplicate-active, the
-caps, the family slot, and the refused-submit observation hold.
+caps, the family slot, and the refused-submit observation hold. An ordinary pass that finds a close latched once it
+holds the claim — a family drain or fan-out queued before a poll took it — runs as that close's cleanup rather than as
+the handler its label names, which is the route the partition gives an issue it finds owed. And every barrier that marks
+a cancellation inside a pass, the retirement window included, ends a cycle only with a close that ends that cycle, by
+the same scope and the same claim notes: a close held for a cycle another poller settled and restarted from ends none.
 
 A family-aware handler writes issues other than its own, so those writes take the target's claim as well, and decide on
 what they read behind it. The walk that relabels a `workflow:blocked` child `workflow:ready` claims every child it would

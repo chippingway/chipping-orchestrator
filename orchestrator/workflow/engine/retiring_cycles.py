@@ -63,7 +63,10 @@ class RetiringCycle:
         Deciding it at the exit leaves no such interval: every observation
         made while the cycle was advertised is reported, and one made after it
         finds a record with no cycle and no window to correlate against, so it
-        is dropped rather than written down.
+        is dropped rather than written down. Reported, that is, where it ends
+        THIS cycle, as every cancellation barrier asks: a close scoped to a
+        cycle another poller on this host settled and restarted from is not
+        this retirement's to put back.
 
         A cycle id of zero is no cycle at all -- an umbrella the initial
         decomposer made retires nothing -- and advertising one would have a
@@ -94,7 +97,7 @@ class RetiringCycle:
         finally:
             with _observation_state._lock:
                 _observation_state._retiring.pop(self.key, None)
-                self.observed = self.key in _observation_state._observed
+                self.observed = _observation_state._ends(self.key, self.cycle_id, self.repo_id)
 
 
 def retiring(

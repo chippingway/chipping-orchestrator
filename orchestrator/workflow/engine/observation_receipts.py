@@ -4,12 +4,15 @@
 
 Only one post claims an owner at a time. A receipt landing after settlement
 cannot memoize the next generation, and a landed receipt reopens its thread
-scan. A failed scan releases only the scan claim this attempt acquired."""
+scan. So does another poller on this host holding the issue since the scan,
+and a scan answered for one cycle says nothing of another's receipt. A failed
+scan releases only the scan claim this attempt acquired."""
 from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass
 
+from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.workflow.engine import observation_state as _observation_state
 
 
@@ -82,7 +85,7 @@ def receipt_written(claim: ReceiptClaim) -> None:
         # the one look it owed is owed again: the claim was taken when there
         # was nothing to find, and a later pass reading past it would step
         # straight over the receipt this attempt just landed.
-        _observation_state._scanned.discard(claim.key)
+        _observation_state._scanned.pop(claim.key, None)
 
 
 def release_receipt_post(claim: ReceiptClaim) -> None:
@@ -92,14 +95,26 @@ def release_receipt_post(claim: ReceiptClaim) -> None:
 
 
 @contextlib.contextmanager
-def scanning_receipt(repo_slug: str, issue_number: int):
-    """Whether this process still owes this owner's thread one look.
+def scanning_receipt(
+    repo_slug: str, issue_number: int, cycle_id: int, *, repo_id: int | None = None,
+):
+    """Whether this process still owes this owner's thread one look for this cycle.
 
-    True once per owner per process, and the claim is taken as this is
-    ENTERED rather than once the walk has answered, so a thread that carries
-    no receipt is not walked again every dispatch. What the scan recovers is an
-    observation a process that died was holding: anything observed since is
-    in the latch, which costs nothing to ask.
+    True once per owner and cycle while no other poller writes the issue, and
+    the claim is taken as this is ENTERED rather than once the walk has
+    answered, so a thread that carries no receipt is not walked again every
+    dispatch. What the scan recovers is an observation a process that died was
+    holding: anything this process observed since is in the latch, which costs
+    nothing to ask. A walk for one cycle proved nothing about a receipt naming
+    another, so a different cycle is owed a walk of its own.
+
+    Owed again, too, once another poller on this host has held the issue since
+    the walk. Every receipt is posted under the issue's writer claim, so a
+    receipt that poller left -- and it may have died before marking what it
+    observed -- landed inside a hold that ended after this walk began. Asked
+    under this process's own claim, with the repository's id, the claim notes
+    say whether any such hold has been found; one that ended before the walk
+    was there to be read by it. Without the id, the walk is owed only by cycle.
 
     Handed back where the walk established nothing, which is what makes the
     claim honest. A listing that raises proved neither answer, and a claim
@@ -109,13 +124,20 @@ def scanning_receipt(repo_slug: str, issue_number: int):
     a walk that answered and a walk that did not.
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
+    walk = (int(cycle_id), _claim_notes.moment())
     with _observation_state._lock:
-        claimed = key not in _observation_state._scanned
-        _observation_state._scanned.add(key)
+        walked = _observation_state._scanned.get(key)
+        claimed = walked is None or walked[0] != walk[0] or (
+            repo_id is not None
+            and not _claim_notes.undisturbed_since(repo_id, issue_number, walked[1])
+        )
+        if claimed:
+            _observation_state._scanned[key] = walk
     try:
         yield claimed
     except Exception:
         if claimed:
             with _observation_state._lock:
-                _observation_state._scanned.discard(key)
+                if _observation_state._scanned.get(key) == walk:
+                    _observation_state._scanned.pop(key)
         raise

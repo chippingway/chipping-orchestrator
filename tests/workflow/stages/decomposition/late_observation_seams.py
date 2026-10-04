@@ -9,13 +9,16 @@ that looks a half-created child up, the child-label scan an umbrella opens
 with, the request that opens a child issue, the branch delete a terminal
 settles with, the relabel that releases the first child. A human closes the
 issue inside one of those, a poll sees it, and no second worker may be handed
-the reading -- which is exactly the shape these seams plant.
+the reading -- which is exactly the shape these seams plant. Each latch carries
+the moment the poll read it at, as a poll's does, which is what ties it to the
+cycle the run holds: no other poller has held the issue since.
 """
 from __future__ import annotations
 
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import observations as _observations
+from tests.workflow.observation_support import read_now
 
 # The client calls each once-only window is, named so a case says which
 # request it is closing the issue inside of rather than spelling a method.
@@ -143,10 +146,10 @@ class _LatchingSeam:
         """Latch the close around this call, if this call is the one."""
         latching = self._when(asked)
         if latching and not self.after_the_call:
-            _observations.observe_close(self._slug, self._number)
+            _observations.observe_close(self._slug, self._number, read_now())
         answered = self._answering(*asked, **answering)
         if latching and self.after_the_call:
-            _observations.observe_close(self._slug, self._number)
+            _observations.observe_close(self._slug, self._number, read_now())
         return answered
 
     def answering(self):

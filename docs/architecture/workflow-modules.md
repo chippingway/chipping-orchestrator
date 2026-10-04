@@ -264,7 +264,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     dispatch_workers.py    take the writer claim at each worker entry, outside the observation scope it wraps, then
                             refetch through each worker's GitHub client and optional semaphore, and refetch the
                             sequential loop's claimed issue on its own client, preserving ordinary and cleanup
-                            observation scopes across sequential, scheduler, and pool execution
+                            observation scopes across sequential, scheduler, and pool execution; an ordinary pass that
+                            finds a close latched once it holds the claim (one a poll took after the pass was queued)
+                            runs as that close's cleanup instead
     scheduled_dispatch.py  drain the family bucket under active tracking, enforce capacity rules, and submit fanout
                             with claims released after execution or refusal; observed closes remain cap-exempt
     contended_closes.py    keep a close read while another poller holds the issue: the record is read first and the
@@ -278,20 +280,25 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             in, or submit its partition to the scheduler; refetched issues and still-owed closes keep
                             the processing scope their reading earned
     observation_state.py    the process-local close, close-scope, read-moment, receipt, scan, retirement, publication,
-                            and deferred-settlement registries behind one lock; settlement advances the owner
-                            generation and clears its latch, its scope, its moment, and its receipt memo atomically
+                            and deferred-settlement registries behind one lock; settlement advances the owner generation
+                            and clears its latch, its scope, its moment, and its receipt memo atomically; the one
+                            lock-held answer to whether a latched close ends a given cycle, which every cancellation
+                            barrier and the retirement window share; a scan is remembered with the cycle it looked for
+                            and the moment it began
     observations.py         latch, scope, read, enumerate, and settle observed closes; a close is scoped to the cycle it
                             ends only by a record read with the issue closed behind it, so a close another poller
                             settled cannot end the cycle it restarted into, and one no read scoped ends the cycle it is
                             asked about only where every other poller's hold this process has found had let go before
                             the moment it was read at; settlement is deferred while a publication holds the owner, so a
                             record read cannot erase a close a running worker still owes
-    observation_receipts.py generation-scoped exclusive receipt-post claims and landed memos; bounded thread scans
-                            release on failure and reopen when a receipt lands, so a failed or stale attempt suppresses
-                            no later receipt
+    observation_receipts.py generation-scoped exclusive receipt-post claims and landed memos; bounded thread scans, owed
+                            once per owner and cycle, that release on failure and reopen when a receipt lands or once
+                            another poller on this host has held the issue since the scan, so a failed or stale attempt
+                            suppresses no later receipt
     retiring_cycles.py      the held cycle id across a retirement write and its final barrier; exit removes the marker
-                            and reports the close observed inside the window under the same lock; the cycle is also
-                            noted on the issue's writer claim for the rest of the hold, where a contender reads it
+                            and reports, under the same lock, a close observed inside the window that ends this cycle;
+                            the cycle is also noted on the issue's writer claim for the rest of the hold, where a
+                            contender reads it
     publication_holds.py    counted holds taken when a worker is admitted and nested around handler execution; only the
                             final release settles a deferred close, preserving the reading through queueing and refetch
     content_hash.py         the user-content hash and filters for pinned records, orchestrator output, bots, untrusted

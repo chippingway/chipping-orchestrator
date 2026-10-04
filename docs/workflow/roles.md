@@ -1393,8 +1393,9 @@ the ending while the mark still goes down.
 A latch is memory, so the poll that takes one also leaves a cycle-scoped receipt on the issue thread — a comment,
 because the pinned comment is written whole and the worker holding the issue owns it. A post GitHub refuses is
 retried by the next poll, since an observation with no durable half is one a restart takes away entirely. After a
-restart the dispatcher's cancelled-cycle guard scans for that receipt once per owner per process, adopts it, and runs
-the ending from the mark ([state-machine/delivery-stages.md](../state-machine/delivery-stages.md)).
+restart the dispatcher's cancelled-cycle guard scans for that receipt once per owner and cycle, and again once another
+poller on the host has held the issue since, adopts it, and runs the ending from the mark
+([state-machine/delivery-stages.md](../state-machine/delivery-stages.md)).
 
 The latch is scoped to a cycle as well, the one the record named while the issue still read closed behind it — by
 that receipt's read, by a poller refused the issue's writer claim, or by the sweep of the closed owner. Another poller
