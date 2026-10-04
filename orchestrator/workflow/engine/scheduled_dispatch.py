@@ -134,7 +134,6 @@ def _submit_scheduler_fanout_issues(
     per_repo_cap: int,
 ) -> None:
     for issue_number in partition.fanout_numbers:
-        cleanup_only = issue_number in partition.cleanup_numbers
         # Held from here rather than from wherever the worker first reads
         # something: the claim exists the moment this submit is admitted, and
         # a poll meeting the issue between that and the handler is refused
@@ -146,10 +145,7 @@ def _submit_scheduler_fanout_issues(
             spec.slug,
             issue_number,
             _released_after(spec, issue_number, _dispatch_workers._fanout_task(
-                gh, spec, issue_number, reading=_poll_models._PollReading(
-                    cleanup_only=cleanup_only,
-                    closed=issue_number in partition.fanout_closed,
-                ),
+                gh, spec, issue_number, reading=partition.reading(issue_number),
             )),
             family=False,
             # A closed issue's handler is a cheap terminal finalization with
@@ -164,11 +160,7 @@ def _submit_scheduler_fanout_issues(
         if submitted:
             continue
         _publication_holds.release_publication(spec.slug, issue_number)
-        _dispatch_closure._refused_submit(
-            gh, spec, issue_number,
-            cleanup_only=cleanup_only,
-            closed=issue_number in partition.fanout_closed,
-        )
+        _dispatch_closure._refused_submit(gh, spec, issue_number, partition.reading(issue_number))
 
 
 def _released_after(

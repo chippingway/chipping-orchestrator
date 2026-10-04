@@ -3,9 +3,10 @@
 """Partition fresh poll results together with cleanup the observation registry still owes.
 
 Closed fanout entries receive their durable observation before submission,
-under the issue's writer claim, and only their latch, scoped to the cycle it
-ends, where that claim is refused. A missing issue in the poll response
-remains scheduled when a prior close has not been settled.
+under the issue's writer claim, and only their latch where that claim is
+refused, tied to the cycle it ends only where a read behind the record still
+finds the issue closed. A missing issue in the poll response remains scheduled
+when a prior close has not been settled.
 """
 from __future__ import annotations
 
@@ -16,6 +17,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import (
     issue_is_closed,
 )
+from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.workflow.engine import (
     dispatch_closure as _dispatch_closure,
     issue_processing as _issue_processing,
@@ -108,9 +110,15 @@ def _sorted_pollable(
     receipt was built beside. A claim another poller holds -- or one that
     could not be worked -- leaves the reading in this process's latch and
     nothing else: no receipt, and a cleanup pass owed to whichever poll next
-    holds the claim. A close this poll read is scoped there to the cycle one
-    read of the record says it ends; an owed issue that reads open again is
-    carrying an older close, whose latch is left exactly as it was.
+    holds the claim. A close this poll read is scoped there to a cycle only
+    where the issue still reads closed behind the record; an owed issue that
+    reads open again is carrying an older close, whose latch is left exactly
+    as it was.
+
+    How many holds of the issue by another poller this process has found is
+    taken here too, before the claim, and travels with the issue's reading: the
+    worker that passes reads it again under its own claim, and an unchanged
+    count is what tells it no other poller has written the record since.
     """
     issue_number = int(issue.number)
     closed = issue_is_closed(issue)
@@ -120,8 +128,9 @@ def _sorted_pollable(
     builder.add(issue_number, label, closed)
     if issue_number not in builder.fanout_closed:
         return
+    builder.foreign_holds[issue_number] = _claim_notes.foreign_holds(gh.repo_id, issue_number)
     with _issue_processing._writer_claim(
         gh, spec, issue_number, closed=issue if closed else None, alongside=True,
     ) as held:
         if held:
-            _dispatch_closure._recorded_at_poll(gh, spec, issue)
+            _dispatch_closure._recorded_at_poll(gh, spec, issue, builder.foreign_holds[issue_number])

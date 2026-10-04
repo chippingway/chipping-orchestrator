@@ -31,7 +31,7 @@ def _polled_refetch(
     spec: _config_models.RepoSpec,
     issue_number: int,
     *,
-    closed: bool,
+    reading: _poll_models._PollReading,
 ) -> None:
     """Read one polled issue again under its writer claim, and dispatch that.
 
@@ -55,8 +55,10 @@ def _polled_refetch(
     `_refetch_and_process`: nothing here crosses a thread, so what that mints
     a per-worker client for does not apply, while the read it takes does.
     """
-    reading = _poll_models._PollReading(closed=closed)
-    held = _dispatch_closure._closed_reading(gh, spec, issue_number) if closed else contextlib.nullcontext()
+    held = (
+        _dispatch_closure._closed_reading(gh, spec, issue_number, reading.foreign_holds)
+        if reading.closed else contextlib.nullcontext()
+    )
     with held:
         refetched = gh.get_issue(issue_number)
         with _dispatch_closure._refetched_close(gh, spec, refetched, reading):
@@ -157,7 +159,7 @@ def _fanout_task(
     if reading.closed:
         return functools.partial(
             _closed_ordinary_pass, gh, spec, issue_number,
-            semaphore_cm=semaphore_cm,
+            reading=reading, semaphore_cm=semaphore_cm,
         )
     return functools.partial(
         _refetch_and_process, gh, spec, issue_number,
@@ -170,6 +172,7 @@ def _closed_ordinary_pass(
     spec: _config_models.RepoSpec,
     issue_number: int,
     *,
+    reading: _poll_models._PollReading,
     semaphore_cm: contextlib.AbstractContextManager | None = None,
 ) -> None:
     """Run a closed issue's ordinary pass, keeping the reading if it fails.
@@ -199,18 +202,17 @@ def _closed_ordinary_pass(
     reads the record and writes a receipt. A contender asks nothing, and the
     latch the enumeration took stays exactly as it was for the next poll.
     """
-    closed_reading = _poll_models._PollReading(closed=True)
     with _issue_processing._writer_claim(gh, spec, issue_number) as held:
         if not held:
             return
         if not observations.close_observed(spec.slug, issue_number):
             _refetched_pass(
-                gh, spec, issue_number, semaphore_cm=semaphore_cm, reading=closed_reading,
+                gh, spec, issue_number, semaphore_cm=semaphore_cm, reading=reading,
             )
             return
-        with _dispatch_closure._closed_reading(gh, spec, issue_number):
+        with _dispatch_closure._closed_reading(gh, spec, issue_number, reading.foreign_holds):
             _refetched_pass(
-                gh, spec, issue_number, semaphore_cm=semaphore_cm, reading=closed_reading,
+                gh, spec, issue_number, semaphore_cm=semaphore_cm, reading=reading,
             )
 
 

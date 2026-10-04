@@ -119,15 +119,7 @@ class _ParallelTickPlan:
                         self.gh,
                         self.spec,
                         issue_number,
-                        reading=_poll_models._PollReading(
-                            cleanup_only=(
-                                issue_number
-                                in self.partition.cleanup_numbers
-                            ),
-                            closed=(
-                                issue_number in self.partition.fanout_closed
-                            ),
-                        ),
+                        reading=self.partition.reading(issue_number),
                         semaphore_cm=self.semaphore_cm,
                     ),
                 )

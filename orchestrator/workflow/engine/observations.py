@@ -6,42 +6,88 @@ The shared state owner keeps every registry under one lock. Receipt claims,
 retiring cycles, and publication holds use that same state; a settlement
 requested while a publication holds the owner waits for its final release. A
 latched close is scoped to the cycle it ends, so a close another poller on
-this host settled cannot end the cycle that poller started after it."""
+this host settled cannot end the cycle that poller started after it, and one
+no read could tie to a cycle ends none until a read does."""
 from __future__ import annotations
 
+from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.workflow.engine import observation_state as _observation_state
 
 
-def observe_close(repo_slug: str, issue_number: int) -> None:
-    """Latch a close this poll saw, so what reads it cannot miss it."""
+def observe_close(
+    repo_slug: str, issue_number: int, foreign_holds: int | None = None,
+) -> None:
+    """Latch a close this poll saw, so what reads it cannot miss it.
+
+    `foreign_holds` is how many holds of the issue by another poller this
+    process had found when the close was read, where its reader knew
+    (`claim_notes.foreign_holds`). A latch keeps the first count it is given:
+    a later reading of the same close merged into it is no older than that.
+    """
+    key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:
-        _observation_state._observed.add(_observation_state._owner_key(repo_slug, issue_number))
+        _observation_state._observed.add(key)
+        if foreign_holds is not None:
+            _observation_state._since.setdefault(key, int(foreign_holds))
 
 
 def scope_close(repo_slug: str, issue_number: int, cycle_id: int) -> None:
     """Say which cycle the close held on this issue ends.
 
-    Taken off a read of the record made while the issue was still closed, so
-    the cycle the record named is the one that close ended. Another poller on
-    this host can settle that cycle and start a fresh one before this process
-    holds the issue again -- an operator's restart is exactly that -- and only
-    the scope tells a close that ended the old one from a close that ends the
-    new one.
+    Taken only where a read of the record is followed by a read of the issue
+    that still finds it closed, or where both are taken under this process's
+    writer claim: either way the issue was closed while the record named this
+    cycle, so this is the cycle a close ends. A record read after a closed
+    reading proves nothing of the kind -- another poller on this host may have
+    settled the cycle that close ended and started a fresh one in between, an
+    operator's restart being exactly that -- and only the scope tells a close
+    that ended the old one from a close that ends the new one.
     """
     with _observation_state._lock:
         _observation_state._scopes[_observation_state._owner_key(repo_slug, issue_number)] = int(cycle_id)
 
 
-def close_ends(repo_slug: str, issue_number: int, cycle_id: int) -> bool:
+def close_ends(
+    repo_slug: str, issue_number: int, cycle_id: int, *, repo_id: int | None = None,
+) -> bool:
     """Whether the close held on this issue is one that ends this cycle.
 
-    A close no read has scoped yet is taken to end the first cycle it is asked
-    about, and is scoped to it from then on, so it cannot reach past that
-    cycle to the next one either.
+    A close scoped to a cycle ends that one. One no read has tied to a cycle
+    -- its record could not be read, or the issue was open again by the read
+    that would have confirmed it -- ends the cycle it is asked about only where
+    no other poller has held the issue since it was read. Asked under the
+    issue's writer claim, with the repository's id: the count of other
+    pollers' holds this process has found on the key now, equal to the one the
+    latch was read at, says the record the asker holds is the one the close
+    was read against, and the close is scoped to that cycle from then on.
+    Anywhere else it ends none, since the cycle it is asked about may be one
+    another poller started after it; it is still held, routing the issue to a
+    pass under the claim.
+    """
+    key = _observation_state._owner_key(repo_slug, issue_number)
+    foreign_holds = None if repo_id is None else _claim_notes.foreign_holds(repo_id, issue_number)
+    with _observation_state._lock:
+        if key not in _observation_state._observed:
+            return False
+        if key not in _observation_state._scopes and foreign_holds is not None and (
+            _observation_state._since.get(key) == foreign_holds
+        ):
+            _observation_state._scopes[key] = int(cycle_id)
+        return _observation_state._scopes.get(key) == int(cycle_id)
+
+
+def close_scope(repo_slug: str, issue_number: int) -> int | None:
+    """The cycle the close held on this issue ends, or `None` if none is known.
+
+    `None` both where no close is held and where one is held that no read has
+    tied to a cycle -- the two a caller holding other proof of the cycle
+    answers alike.
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:
-        return _observation_state._scopes.setdefault(key, int(cycle_id)) == int(cycle_id)
+        if key not in _observation_state._observed:
+            return None
+        return _observation_state._scopes.get(key)
 
 
 def close_observed(repo_slug: str, issue_number: int) -> bool:

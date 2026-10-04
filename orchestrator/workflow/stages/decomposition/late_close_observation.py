@@ -139,27 +139,39 @@ def _observed_close_posted(
     end, which is a state no later reader needs a receipt for and the caller
     drops the reading on.
 
-    Not this cycle's, because the held close is scoped to the cycle it ended.
-    A `polled` issue that reads closed is a close standing now, so it ends
-    the cycle the record names now and is scoped to it. Anything else is
-    writing down a close latched earlier, and another poller on this host may
-    have settled that close's cycle and started a fresh one since: a receipt
-    naming the fresh cycle would end it for a close that happened before it
-    existed. Nothing is posted for that one, and it is still answered for
-    rather than dropped: the cleanup route it is bound to is what recognizes
-    it by its scope and lets it go, and a latch dropped here would leave that
-    route's sweep nothing to recognize.
+    Not this cycle's, because the held close is scoped to the cycle it ended,
+    and the scope is taken only off a close standing AFTER the record was
+    read. Every caller holds the issue's writer claim, so an issue fetched here
+    and the record behind it are one reading no other poller can write
+    between. A `polled` issue is older than the claim, though: another poller
+    may have settled the cycle its close ended and started a fresh one before
+    this process took the claim, so the record it names now is not proof the
+    close ended it, and the issue is read again behind the record. Only where
+    that read still finds it closed is the close scoped to the record's cycle
+    -- a request spent on an issue whose record names a cycle a close would
+    end, and on no other.
+
+    Anything else is a close latched earlier, or one reopened before it could
+    be confirmed. A receipt naming the record's cycle would end that cycle for
+    a close that may have happened before it existed, so nothing is posted
+    unless the latch is already scoped to it -- or holds a close read when this
+    process had found exactly as many holds by other pollers as it has now,
+    which no other poller can have written the record between. It is still
+    answered for rather than dropped: the cleanup route it is bound to is what
+    recognizes it by its scope -- or by having none -- and lets it go, and a
+    latch dropped here would leave that route's sweep nothing to recognize.
     """
     issue = gh.get_issue(issue_number) if polled is None else polled
     state = gh.read_pinned_state(issue)
-    cycle = _late_close_reading._ending_cycle(
-        spec, issue_number, _late_state.read_late_generation(state),
-    )
+    cycle = _late_close_reading._ending_cycle(spec, issue_number, state)
     if cycle is None:
         return None
-    if polled is not None and _issues.issue_is_closed(polled):
+    standing = _issues.issue_is_closed(issue) and (
+        polled is None or _issues.issue_is_closed(gh.get_issue(issue_number))
+    )
+    if standing:
         _observations.scope_close(spec.slug, issue_number, cycle)
-    elif not _observations.close_ends(spec.slug, issue_number, cycle):
+    if not _observations.close_ends(spec.slug, issue_number, cycle, repo_id=gh.repo_id):
         return cycle
     marker = _late_close_reading._observed_close_marker(issue_number, cycle)
     if _late_close_reading._carries_observed_close(gh, issue, marker):
@@ -176,9 +188,13 @@ def _observed_close_posted(
 
 
 def _mark_observed_close(
-    gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState,
-) -> None:
-    """Mark a live cycle on an issue the POLL read closed.
+    gh: _client.GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    foreign_holds: int | None,
+) -> bool:
+    """Mark a live cycle on an issue the POLL read closed, and say if the tick stops.
 
     The dispatcher's own reading, applied where it can still change
     something. It is BOUND to the task rather than re-derived because the
@@ -188,10 +204,44 @@ def _mark_observed_close(
 
     Nothing to do where the record carries no cycle or already carries the
     mark, which is every closed issue but the narrow window this exists for.
+
+    The poll is older than the writer claim this pass holds, so the cycle the
+    record names now is not necessarily one the poll's close ended: another
+    poller on this host may have settled that cycle and started an authorized
+    fresh one in between. So the close is tied to the cycle before it marks
+    anything, in one of three ways. An issue the refetch still finds closed is
+    a close standing under the claim, which ends whatever cycle the record
+    names. A latch scoped to a cycle ends that cycle and no other. And a close
+    nothing has scoped ends the record's cycle where no other poller has held
+    the issue since it was read: the reading is latched here with the count
+    of other pollers' holds the poll had found (`foreign_holds`) -- merged into
+    the latch the enumeration took, where it took one -- and an equal count
+    under this claim means the record is the one the close was read against.
+    A single poller is always in that case. Latching it here costs nothing the
+    pass's own hold would not: that hold latches the reading as the pass ends
+    and drops it again where the record says there is nothing to end.
+
+    Anywhere else the close either ended an earlier cycle or cannot be tied to
+    this one, and the cycle is left live -- but the handler is not run either,
+    since the latch it carries would be read by the barriers on its road as a
+    close of this cycle. The tick stops, and the cleanup pass the latch routes
+    the issue to next settles it with nothing marked.
     """
     generation = _late_state.read_late_generation(state)
     if not generation.is_present or generation.cancelled:
-        return
+        return False
+    _observations.observe_close(spec.slug, issue.number, foreign_holds)
+    if not (_issues.issue_is_closed(issue) or _observations.close_ends(
+        spec.slug, issue.number, generation.cycle_id, repo_id=gh.repo_id,
+    )):
+        log.info(
+            "repo=%s issue=#%s was read closed by the poll and is open again "
+            "on cycle %d, which that close cannot be tied to; leaving the "
+            "cycle live and the issue to the cleanup pass that settles the "
+            "reading",
+            spec.slug, issue.number, generation.cycle_id,
+        )
+        return True
     log.warning(
         "issue=#%s was read closed by the poll that classified it and wears "
         "a LIVE late cycle; ending cycle %d rather than dispatching it on a "
@@ -199,6 +249,7 @@ def _mark_observed_close(
         issue.number, generation.cycle_id,
     )
     _late_cancellation_state._marked(gh, issue, state, generation)
+    return False
 
 
 def _closed_under_a_label(
@@ -345,6 +396,18 @@ def _retired_close_adopted(
     recovers is an observation a DEAD process was holding, and one this
     process makes is in the latch already.
 
+    The latch answers first, and costs nothing. A close this process holds
+    scoped to the very cycle the record says it retired is one it read while
+    that cycle was still live, or while another poller on this host held the
+    issue and had noted on the claim that it was retiring that cycle -- a
+    hold whose own barrier never saw this process's reading, and so carried
+    the retirement through. Either way it is a close of that cycle, and it is
+    adopted exactly as a receipt would be. Only its SCOPE answers, never a
+    close nothing tied to a cycle: the record keeps the correlation long after
+    its window closed -- the next cycle is numbered from it -- so a close of
+    an issue that has gone back to its own work would otherwise reconstruct a
+    split that already finished.
+
     The cycle goes back with the ledgers the retirement carried across and an
     identity rebuilt beside them -- see `_reconstructed`, which is what makes
     the ending REPORTABLE as well as runnable.
@@ -363,16 +426,17 @@ def _retired_close_adopted(
     retired = _endings.read_retired_cycle(state)
     if retired is None:
         return None
-    with _observation_receipts.scanning_receipt(spec.slug, issue.number) as claimed:
-        if not claimed:
-            return None
-        marker = _late_close_reading._observed_close_marker(issue.number, retired)
-        if not _late_close_reading._carries_observed_close(gh, issue, marker):
-            return None
+    if _observations.close_scope(spec.slug, issue.number) != retired:
+        with _observation_receipts.scanning_receipt(spec.slug, issue.number) as claimed:
+            if not claimed:
+                return None
+            marker = _late_close_reading._observed_close_marker(issue.number, retired)
+            if not _late_close_reading._carries_observed_close(gh, issue, marker):
+                return None
     log.warning(
-        "repo=%s issue=#%s carries a receipt for a close observed inside the "
-        "write that retired cycle %d; putting that cycle back so the ending "
-        "has something to run from",
+        "repo=%s issue=#%s carries a close observed inside the write that "
+        "retired cycle %d; putting that cycle back so the ending has "
+        "something to run from",
         spec.slug, issue.number, retired,
     )
     return _late_cancellation_state._marked(

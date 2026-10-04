@@ -453,8 +453,16 @@ orchestrator/
                         close receipt -- is let in beside a writer of this process's own. The last holder to leave
                         unlocks and closes the descriptor, and the kernel drops it with a dead process; no claim file is
                         ever unlinked, since a path recreated over a held inode would let two processes each hold the
-                        claim. It coordinates the pollers sharing one checkout root on one host and nothing beyond them,
+                        claim. Every acquisition reads the token the last hold signed the file with, counts it against
+                        the key where it is another process's, then empties the file and signs it with this process's
+                        own. It coordinates the pollers sharing one checkout root on one host and nothing beyond them,
                         and it is not the artifact presence: neither says anything about the other
+    claim_notes.py      what the holds on an issue's writer claim tell the pollers sharing it: how many holds by
+                        another poller this process has found on the key -- equal at the poll and under the claim
+                        means no other poller wrote the record in between -- and the late cycle a hold notes it is
+                        retiring, written by a writer holding the key and read by a contender it refuses. A note is
+                        its own hold's: the next acquisition empties it, and one that cannot be written or parsed
+                        reads as no note
   git/
     branch_transport.py the authenticated fetches, the remote read that answers what a branch is at without trusting
                         a local ref -- in the plain form a caller acts on and the form that also carries why a read

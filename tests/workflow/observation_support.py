@@ -8,12 +8,13 @@ latch is what the run in flight asks before every step the remote keeps; the
 receipt is what the process after a restart has instead of it.
 
 All of it is process state -- the latch, the cycle each latched close was read
-as ending, the memo saying the receipt landed, the generation that memo is
-counted against, the claim a poll posts one under, the claim on the one thread
-walk a process owes each owner, the cycle a worker is retiring off a record
-right now, the issues a worker is acting on, and the settlements one of those
-windows has postponed -- so every case that touches any of them replaces all
-nine first. That is also how a RESTART
+as ending, how many holds by another poller the process had found when each was
+read, the memo saying the receipt landed, the generation that memo is counted
+against, the claim a poll posts one under, the claim on the one thread walk a
+process owes each owner, the cycle a worker is retiring off a record right now,
+the issues a worker is acting on, and the settlements one of those windows has
+postponed -- so every case that touches any of them replaces all ten first.
+That is also how a RESTART
 is written: fresh registries beside a thread that still carries the receipt are
 exactly what a new process wakes up to.
 
@@ -37,6 +38,7 @@ from orchestrator.workflow.stages.decomposition import (
 _REGISTRIES = (
     ("_observed", set),
     ("_scopes", dict),
+    ("_since", dict),
     ("_receipted", dict),
     ("_posting", set),
     ("_settlements", dict),
@@ -45,6 +47,12 @@ _REGISTRIES = (
     ("_publishing", dict),
     ("_deferred", set),
 )
+
+
+# How many holds by another poller a process has found on an issue's claim
+# when it has never taken one another poller held: what every reading these
+# cases take in-process is read at.
+NO_OTHER_POLLER = 0
 
 
 def receipt_for(issue_number: int, cycle_id: int) -> str:
@@ -67,8 +75,13 @@ class ObservedCloseCase:
             self.addCleanup(replaced.stop)
 
     def _latch_close(self, repo_slug: str, issue_number: int) -> None:
-        """What the polling thread does with a close it can hand nowhere."""
-        _observations.observe_close(repo_slug, issue_number)
+        """What the polling thread does with a close it can hand nowhere.
+
+        Read by a process that had found no other poller's hold of the issue,
+        which is every process these cases run as until one takes a claim
+        another poller held.
+        """
+        _observations.observe_close(repo_slug, issue_number, NO_OTHER_POLLER)
 
     def _observed(self, repo_slug: str) -> frozenset:
         """Which of this repo's closes no pass has settled."""

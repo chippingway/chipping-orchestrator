@@ -23,6 +23,7 @@ from orchestrator.workflow.engine import dispatch_closure as _dispatch_closure
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import _TEST_SPEC, _PatchedWorkflowMixin
 from tests.workflow.observation_support import (
+    NO_OTHER_POLLER,
     ObservedCloseCase,
     receipt_for,
 )
@@ -362,6 +363,7 @@ class _PollsAfterTheRetirement:
         self._polled = True
         _dispatch_closure._kept_closed_reading(
             self._github, _TEST_SPEC, PARENT_NUMBER,
+            NO_OTHER_POLLER,
         )
         if self._dying:
             raise _DIED

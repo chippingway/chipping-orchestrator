@@ -594,7 +594,8 @@ tick (and retried next pass) when:
 
 Those gates answer for one process. An admitted worker also skips its issue, doing nothing for it, when another
 poller on the same host holds the issue's writer claim — keyed on the repository's numeric GitHub id, not on any name
-it goes by — and the next pass retries it; a close the poll read for the issue is kept in this process's latch. See
+it goes by — and the next pass retries it; a close the poll read for the issue is kept in this process's latch, tied
+to a late cycle only by a read that proves the close ended it. See
 [`configuration/operations.md#running-more-than-one-poller`](configuration/operations.md#running-more-than-one-poller).
 
 **No-agent bucket exemption.** When every family-aware issue in this tick's bucket runs a no-agent handler —

@@ -25,6 +25,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    poll_models as _poll_models,
     report_rewrite_debt as _rewrite_debt,
     report_transaction as _report_transaction,
     run_limit_dispatch as _run_limit_dispatch,
@@ -46,7 +47,7 @@ def _pinned_state_refuses(
     issue: Issue,
     label: str | None,
     *,
-    observed_closed: bool = False,
+    reading: _poll_models._PollReading = _poll_models._POLLED_OPEN,
 ) -> bool:
     """True when what this issue's own pinned comment records stops the tick.
 
@@ -182,18 +183,22 @@ def _pinned_state_refuses(
     if state is None:
         return True
     late_close_observation = importlib.import_module(_stage_targets._LATE_CLOSE_OBSERVATION_OWNER)
-    if observed_closed:
-        # The poll read this issue closed and the worker has refetched it
-        # since. A reopen in that window would leave the fresh object saying
-        # open with a live cycle under it, so the reading is applied here
-        # rather than re-derived from the object the guard is about to read.
-        late_close_observation._mark_observed_close(gh, issue, state)
-    if _cycle_stops_the_tick(gh, spec, issue, label, state):
+    # The poll read this issue closed and the worker has refetched it since. A
+    # reopen in that window would leave the fresh object saying open with a
+    # live cycle under it, so the reading is applied here rather than
+    # re-derived from the object the guard is about to read -- and where it
+    # cannot be tied to that cycle, the tick stops rather than handing a
+    # handler a latch its barriers would read as this cycle's close.
+    if (
+        reading.closed and late_close_observation._mark_observed_close(
+            gh, spec, issue, state, reading.foreign_holds,
+        )
+    ) or _cycle_stops_the_tick(gh, spec, issue, label, state):
         return True
     split_seeds = importlib.import_module(_stage_targets._SPLIT_SEEDS_OWNER)
     if _run_limit_dispatch._run_limit_holds_the_tick(
         gh, spec, issue, state,
-        _run_limit_dispatch._spent_work_has_ended(gh, issue, state, label, observed_closed),
+        _run_limit_dispatch._spent_work_has_ended(gh, issue, state, label, reading.closed),
     ) or split_seeds.holds_unseeded(gh, issue, label, state):
         return True
     if label == WorkflowLabel.DECOMPOSING and late_relabel._adjudicating(state):

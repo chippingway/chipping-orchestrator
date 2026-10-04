@@ -1591,7 +1591,10 @@ because there it is the claim that this stage has already rerouted rather than a
   claim standing over a read that established nothing would send every later tick straight past the receipt and on
   to the live stage handler. It is handed back again whenever a receipt actually LANDS: a claim taken when the thread
   carried nothing proved nothing about one posted since, and every later pass would read straight past it. Cycle
-  scoping is what keeps an old close from ending the fresh cycle an operator authorized by removing `rejected`.
+  scoping is what keeps an old close from ending the fresh cycle an operator authorized by removing `rejected`. A
+  retirement's correlation is adopted from the latch as well as from the thread, where this process holds a close
+  scoped to the very cycle the record says was retired — one it read while another poller on the host was retiring
+  that cycle and had noted so on the issue's writer claim.
 - **Every path that runs a cleanup holds its observation the same way.** The scheduler's fan-out submit, the
   in-tick parallel one, and the sequential stream all wrap the pass in
   `cleanup_observation._cleanup_observation`, with the refetch *inside* the wrapper — that read is the first

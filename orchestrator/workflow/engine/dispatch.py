@@ -17,6 +17,7 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
+from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.workflow.engine import (
     cleanup_observation as _cleanup_observation,
@@ -46,11 +47,12 @@ def _process_polled_issue(
     Everything past that classification runs under the issue's writer claim,
     which is taken as the worker paths take theirs: before any read or write
     for the issue, so a contender writes nothing and leaves any latch it found
-    for the next poll. A CLOSED reading it found is latched too, scoped to the
-    cycle the record says it ends, and nothing more, because no other path of
-    this process would ever hold it -- this loop is the enumeration and the
-    worker both. A parked issue never asks for the claim, because it has
-    nothing to write.
+    for the next poll. A CLOSED reading it found is latched too, tied to a
+    cycle only where a read proves it, and nothing more, because no other
+    path of this process would ever hold it -- this loop is the enumeration
+    and the worker both. A parked issue never asks for the claim, because it
+    has nothing to write. The closed reading is taken off the enumeration's
+    object BEFORE the classification, as the partition takes its own.
 
     Once the claim is held, the issue is read again before anything routes it,
     on every route. The object in hand is the enumeration's, and it is older
@@ -78,31 +80,68 @@ def _process_polled_issue(
     in the same observation hold the worker paths use, because a pass that
     raises here marked nothing either.
     """
-    issue_number = int(issue.number)
-    latched = observations.close_observed(spec.slug, issue_number)
+    latched = observations.close_observed(spec.slug, int(issue.number))
+    closed = issue_is_closed(issue)
     skip, label = _poll_reading._classify_pollable_issue(gh, spec, issue)
     if skip and not latched:
         return
+    _claimed_poll(
+        gh, spec, issue,
+        closed=closed,
+        cleanup=latched or (closed and label in _poll_models._CLEANUP_ROUTE_LABELS),
+    )
+
+
+def _claimed_poll(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    *,
+    closed: bool,
+    cleanup: bool,
+) -> None:
+    """Take one polled issue's writer claim, and pass it down the route it earned.
+
+    What the poll read travels into the pass as a reading, and with it how
+    many holds of the issue by another poller this process had found when it
+    did: counted BEFORE the claim, because taking the claim is what finds a
+    hold another poller made since, and the pass compares the two to know
+    whether the record it reads is the one the poll's close was read against.
+    """
+    issue_number = int(issue.number)
+    reading = _poll_models._PollReading(
+        closed=closed, foreign_holds=_claim_notes.foreign_holds(gh.repo_id, issue_number),
+    )
     with _issue_processing._writer_claim(
-        gh, spec, issue_number, closed=issue if issue_is_closed(issue) else None,
+        gh, spec, issue_number, closed=issue if reading.closed else None,
     ) as held:
         if not held:
             return
-        if latched or _poll_reading._cleanup_sweep_only(issue, label):
-            _claimed_cleanup(gh, spec, issue_number)
+        if cleanup:
+            _claimed_cleanup(gh, spec, issue_number, reading)
             return
-        _dispatch_workers._polled_refetch(gh, spec, issue_number, closed=issue_is_closed(issue))
+        _dispatch_workers._polled_refetch(gh, spec, issue_number, reading=reading)
 
 
 def _claimed_cleanup(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    reading: _poll_models._PollReading,
 ) -> None:
     """Sweep one polled issue whose writer claim this thread holds.
 
     The refetch is INSIDE the hold, because it is the first thing a cleanup
     spends and the likeliest thing to fail: a read that raised marked nothing,
     and the reading this pass was taking would otherwise be gone.
+
+    A closed reading is latched first, with the count of other pollers' holds
+    it was taken at, as the enumeration latches its own on the worker paths:
+    the sweep ties a close to the cycle it finds by that latch, and an owner
+    reopened before the refetch is one whose close nothing else would carry.
     """
+    if reading.closed:
+        observations.observe_close(spec.slug, issue_number, reading.foreign_holds)
     with _cleanup_observation._cleanup_observation(gh, spec, issue_number):
         _issue_processing._process_issue(
             gh, spec, gh.get_issue(issue_number),

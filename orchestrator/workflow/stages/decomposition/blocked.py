@@ -173,7 +173,7 @@ def _retired_for_implementation(
     if _late_close_observation._latched_close_ends(gh, spec, issue, state):
         return False
     live = _umbrella_terminal._retired_cycle(state)
-    retiring = _retiring_cycles.retiring(spec.slug, issue.number, live.cycle_id)
+    retiring = _retiring_cycles.retiring(spec.slug, issue.number, live.cycle_id, gh.repo_id)
     with retiring.held():
         gh.write_pinned_state(issue, state)
     return not _umbrella._reinstated(gh, issue, state, live, retiring)

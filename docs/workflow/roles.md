@@ -1396,12 +1396,14 @@ retried by the next poll, since an observation with no durable half is one a res
 restart the dispatcher's cancelled-cycle guard scans for that receipt once per owner per process, adopts it, and runs
 the ending from the mark ([state-machine/delivery-stages.md](../state-machine/delivery-stages.md)).
 
-The latch is scoped to a cycle as well, the one the record named when the close was read on a closed issue — by that
-receipt's read, by a poller refused the issue's writer claim, or by the sweep of the closed owner. Another poller on
-the host can settle that cycle and start the fresh one an operator authorizes before this process holds the issue
-again, so a latch that remembered only the issue would end the fresh cycle for a close older than it. A reopened owner
-whose record names any other cycle is swept with nothing marked and its latch let go, and no receipt is posted for a
-cycle a held close did not end.
+The latch is scoped to a cycle as well, the one the record named while the issue still read closed behind it — by
+that receipt's read, by a poller refused the issue's writer claim, or by the sweep of the closed owner. Another poller
+on the host can settle that cycle and start the fresh one an operator authorizes before this process holds the issue
+again, so a latch that remembered only the issue would end the fresh cycle for a close older than it, and a record
+read after the issue was found closed proves nothing about which cycle that close ended. A close no read scoped ends
+the cycle a later pass finds only where no other poller has held the issue since it was read, which the claim's
+signed holds tell. A reopened owner whose record names a cycle its close cannot be tied to is swept with nothing
+marked and its latch let go, and no receipt is posted for a cycle a held close did not end.
 
 The latch is also held past a cleanup pass that RETURNED without finishing the ending — a ref a live consumer keeps,
 a delete the remote refused, a terminal GitHub declined — but only where nothing else would come back: an owner

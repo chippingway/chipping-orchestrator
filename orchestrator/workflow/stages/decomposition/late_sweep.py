@@ -38,7 +38,8 @@ an issue somebody just reopened, and the ending it now owes is the
 dispatcher's own guard's from the next tick, which is the one pass that owns a
 reopened cancelled owner. Marked, that is, while its record is still on the
 cycle the close ended: the close is scoped to that cycle, and a record another
-poller has since moved to a fresh one is not this close's to end.
+poller has since moved to a fresh one is not this close's to end -- nor is any
+cycle a close no read could tie to one.
 
 An issue with no recorded generation is every issue the initial decomposer
 ever made, and it leaves without a write of its own.
@@ -128,7 +129,7 @@ def _handle_closed_owner_cleanup(
     if generation is None:
         _finished_terminal(gh, issue, state)
         return
-    if _settled_elsewhere(spec, issue, generation):
+    if _settled_elsewhere(gh, spec, issue, generation):
         return
     withheld = _withheld(issue)
     if withheld is not None:
@@ -241,11 +242,12 @@ def _finished_terminal(
 
 
 def _settled_elsewhere(
+    gh: GitHubClient,
     spec: _config_models.RepoSpec,
     issue: Issue,
     generation: _late_models.LateGeneration,
 ) -> bool:
-    """Whether the close this visit was routed for ended an earlier cycle.
+    """Whether the close this visit was routed for cannot be tied to this cycle.
 
     Only an issue open again can answer yes, because that is the one reading
     on which a close can be older than the cycle it is held against. Another
@@ -254,22 +256,24 @@ def _settled_elsewhere(
     operator authorized -- and the mark below would end that fresh cycle for
     a close that happened before it existed. The held close is scoped to the
     cycle it ended, so a record on any other cycle is one that close no
-    longer reaches: nothing is marked, and the reopened issue is settled out
-    of the sweep as any other is.
+    longer reaches. A close no read ever tied to a cycle reaches this one only
+    where no other poller has held the issue since it was read; otherwise the
+    cycle this visit finds may be the fresh one. Either way nothing is marked,
+    and the reopened issue is settled out of the sweep as any other is.
 
-    A closed issue is a close standing now, which ends whatever cycle the
-    record names, so the visit scopes what it is holding to that cycle and
-    goes on.
+    A closed issue is a close standing now, read under the claim beside the
+    record, which ends whatever cycle the record names, so the visit scopes
+    what it is holding to that cycle and goes on.
     """
     if issue_is_closed(issue):
         _observations.scope_close(spec.slug, issue.number, generation.cycle_id)
         return False
-    if _observations.close_ends(spec.slug, issue.number, generation.cycle_id):
+    if _observations.close_ends(spec.slug, issue.number, generation.cycle_id, repo_id=gh.repo_id):
         return False
     log.info(
         "repo=%s issue=#%s is open again on cycle %d, and the close this "
-        "visit was routed for ended an earlier cycle another pass has "
-        "settled; marking nothing",
+        "visit was routed for ended an earlier cycle or was never tied to "
+        "one; marking nothing",
         spec.slug, issue.number, generation.cycle_id,
     )
     return True

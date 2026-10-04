@@ -412,16 +412,19 @@ the in-process scheduler guards (a duplicate active issue, the caps, the family 
   transfer changes, unlike the configured slug or the `owner/name` a poller fetched at startup — and the issue number. A
   poller that finds the issue held by another skips it for that tick — no refetch, guard, recovery pass, close
   receipt, or handler, so no label, comment, or pinned write, no agent run, and no usage or evaluation record — and
-  takes the issue up on a later tick once the holder is done. A close it read for the issue costs one pinned read, for
-  the late cycle that close ends, and is kept in its own memory scoped to that cycle and nowhere else: a reopen before
-  then cannot take the reading away, a later tick sweeps it under the claim, and a cycle the holder settled and an
-  operator restarted in the meantime is left alone. A close the record says ends no cycle is not kept.
-  A poller granted the claim reads the issue again behind it before routing it, so it never resumes a stage another
-  poller advanced the issue past since its poll. Different issues never contend. Inside one process the claim is
-  exclusive between threads too, logged as `reason=held_here`, with one exception: the receipt a poll posts for a close
-  it observed is a comment built to land beside that process's own worker, so it is let in alongside one. The skip is
-  logged on `orchestrator.scheduler` as
-  `writer claim skip repo=<owner/name> repo_id=<id> issue=#<n> reason=held_elsewhere`, where the name is only a label
+  takes the issue up on a later tick once the holder is done. A close it read for the issue costs a pinned read and an
+  issue read behind it, and is kept in its own memory and nowhere else: a reopen before then cannot take the reading
+  away, and a later tick sweeps it under the claim. It is tied to the late cycle the record names only where the issue
+  still reads closed behind that read — or, where a retirement has just taken the cycle off the record, to the cycle
+  the holder noted on the claim it is retiring — so a cycle the holder settled and an operator restarted in the
+  meantime is left alone. One the poller cannot tie to a cycle ends one later only if the issue is closed again then.
+  A close the record says ends no cycle is not kept. A poller granted the claim reads the issue again behind it before
+  routing it, so it never resumes a stage another poller advanced the issue past since its poll, and a close its own
+  poll read ends the cycle the record names only where no other poller has held the issue since — or where it still
+  reads closed. Different issues never contend. Inside one process the claim is exclusive between threads too, logged
+  as `reason=held_here`, with one exception: the receipt a poll posts for a close it observed is a comment built to
+  land beside that process's own worker, so it is let in alongside one. The skip is logged on `orchestrator.scheduler`
+  as `writer claim skip repo=<owner/name> repo_id=<id> issue=#<n> reason=held_elsewhere`, where the name is only a label
   and the id is the key.
 - **A parent writes a child under the child's claim.** A decomposed parent's handler writes its children too — the walk
   that relabels a `workflow:blocked` child `workflow:ready`, the seeds that give a child its parent link and ancestry,
@@ -440,10 +443,15 @@ the in-process scheduler guards (a duplicate active issue, the caps, the family 
 - **Failures withhold.** A claim that cannot be worked — the namespace cannot be created or opened, or `flock` fails
   for any reason other than another holder — skips the issue as a held one is skipped, with a `reason=unusable`
   warning, rather than letting it be written uncoordinated. Repair the directory and the next tick proceeds.
+- **What a claim file holds.** The lock, and a line or two from the hold holding it: a token the poller draws at
+  startup, which is how a poller tells another's holds from its own, and — while a hold retires a late cycle — that
+  cycle's id, which a refused poller reads. Every acquisition empties the file before signing it, so neither outlives
+  its hold. Pollers must all run a build that signs its claims: one that does not is a hold nobody counts, and a close
+  read beside it can end a cycle that poller restarted.
 - **Release.** A claim ends when its dispatch ends, however it ends, and the kernel drops it when a process dies, so
   a crashed poller leaves nothing held. The files stay: never delete the directory or a file in it while any poller
   runs, since a recreated file is a new inode another process can lock beside a holder of the old one. They are
-  empty, one per issue ever dispatched, and safe to remove once every poller has stopped.
+  small, one per issue ever dispatched, and safe to remove once every poller has stopped.
 - **Not covered.** Pollers on different hosts, or on one host with different `WORKTREES_DIR` values, are not
   coordinated at all and are not supported against the same repository. The pre-tick base refresh does not take the
   claim either; it leaves alone only the issues its own process's scheduler reports active. And the claim is separate

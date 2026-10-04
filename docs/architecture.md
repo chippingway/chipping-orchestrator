@@ -109,8 +109,9 @@ orchestrator/
                         the group operations every teardown spends, and one
                         module per backend
   scheduler/            the `IssueScheduler` every tick shares, the typed
-                        submissions it takes, and the host-local writer claim
-                        one issue is dispatched under
+                        submissions it takes, the host-local writer claim
+                        one issue is dispatched under, and what a hold of it
+                        tells the pollers sharing it
   workflow/             the state machine: the label vocabularies and the
                         transition guard, the `engine/` owners one tick is
                         composed of, the `late_split/` domain a late generation
@@ -257,15 +258,19 @@ self-exit and be restarted with new code.
   so two pollers sharing a checkout root never write one issue's pinned comment and labels at once. A family handler's
   writes to a child take the child's claim the same way, and the walk that releases children reads each again behind it
   rather than trusting its scan. It is never waited for: a contender skips the issue with no effect but a close it read,
-  which it keeps in its own latch scoped to the late cycle one read of the record says that close ends — so a cycle the
-  holder settles and an operator restarts meanwhile is not ended by it — and retries on a later tick; different issues
-  never contend. Inside one process it is
-  exclusive between threads too, except that a close receipt is let in alongside this process's own worker, which it was
-  built to land beside. A claim that cannot be worked at all — an unopenable namespace, a filesystem without `flock` —
-  withholds the issue too, where the presence above lets a poller go on unclaimed: a tidying job can be given up, an
-  issue's record cannot be written uncoordinated. Released however the dispatch ends and by the kernel when the process
-  dies; the files are never unlinked. It is host-local and separate from the presence: neither says anything about the
-  other, and nothing coordinates pollers on different hosts or checkout roots. The supported topology and the
+  which it keeps in its own latch and retries on a later tick; different issues never contend. That latch is tied to a
+  late cycle only where the record is read first and the issue still reads closed behind it, or where the holder noted
+  on the claim that it is retiring the cycle the record has just dropped (`scheduler.claim_notes`) — so a cycle the
+  holder settles and an operator restarts meanwhile is not ended by it. Every acquisition also signs the file with a
+  per-process token, so a poll that later passes the issue can tell whether another poller has held it since the poll
+  read it closed; only where none has does a close no read tied to a cycle end the one the record names. Inside one
+  process it is exclusive between threads too, except that a close receipt is let in alongside this process's own
+  worker, which it was built to land beside. A claim that cannot be worked at all — an unopenable namespace, a
+  filesystem without `flock` — withholds the issue too, where the presence above lets a poller go on unclaimed: a
+  tidying job can be given up, an issue's record cannot be written uncoordinated. Released however the dispatch ends
+  and by the kernel when the process dies; the files are never unlinked, and every acquisition empties what the last
+  hold left on one before signing it. It is host-local and separate from the presence: neither says anything about
+  the other, and nothing coordinates pollers on different hosts or checkout roots. The supported topology and the
   namespace's access assumptions are in the
   [operations runbook](configuration/operations.md#running-more-than-one-poller).
 - **Tick cadence**: every `POLL_INTERVAL` seconds (default 60).

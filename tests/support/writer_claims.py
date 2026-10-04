@@ -4,8 +4,12 @@
 
 A second open file description on an issue's claim file, which `flock` treats
 exactly as it treats another process's: nothing in this interpreter's own
-bookkeeping knows about it. The claim owner's tests prove the same refusal
-across real processes; a caller here asks what its own path does with it.
+bookkeeping knows about it. It leaves on the file what another poller's hold
+leaves -- a holder token that is not this process's, and the retirement it
+noted where a case says it was retiring a cycle -- so the next acquisition
+here finds another poller's hold, and a contender finds the note. The claim
+owner's tests prove the same refusal across real processes; a caller here asks
+what its own path does with it.
 """
 from __future__ import annotations
 
@@ -16,15 +20,20 @@ from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.scheduler import writer_claims
+from orchestrator.scheduler import claim_notes, writer_claims
+
+# The token the other poller's holds are signed with.
+_OTHER_POLLER = "other-poller"
 
 
 @contextlib.contextmanager
-def held_elsewhere(repo_id: int, *issue_numbers: int) -> Iterator[None]:
+def held_elsewhere(repo_id: int, *issue_numbers: int, retiring: int | None = None) -> Iterator[None]:
     """Hold these issues' writer claims for the block, as another poller would.
 
     `repo_id` is the repository's numeric id -- the client's `repo_id` --
-    since that, and no name the repository goes by, is the key.
+    since that, and no name the repository goes by, is the key. `retiring`
+    is a late cycle the holds say they are retiring, as a poller inside a
+    retirement window notes it.
     """
     with contextlib.ExitStack() as holding:
         for issue_number in issue_numbers:
@@ -33,7 +42,21 @@ def held_elsewhere(repo_id: int, *issue_numbers: int) -> Iterator[None]:
             claim_file = holding.enter_context(claim_path.open("a", encoding="utf-8"))
             fcntl.flock(claim_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
             holding.callback(fcntl.flock, claim_file, fcntl.LOCK_UN)
+            signed_by_another_poller(repo_id, issue_number, retiring=retiring)
         yield
+
+
+def signed_by_another_poller(repo_id: int, issue_number: int, *, retiring: int | None = None) -> None:
+    """Leave on an issue's claim file what another poller's hold of it leaves.
+
+    Every write another poller makes to the issue is made under its claim, so
+    a case that writes the issue as that poller would signs the claim too; the
+    next acquisition here then finds that poller's hold, as it would.
+    """
+    noted = "" if retiring is None else f"{claim_notes._RETIRING}{retiring}\n"
+    claim_path = writer_claims.claim_path(repo_id, issue_number)
+    claim_path.parent.mkdir(parents=True, exist_ok=True)
+    claim_path.write_text(f"{writer_claims.HOLDER_LINE}{_OTHER_POLLER}\n{noted}", encoding="utf-8")
 
 
 @contextlib.contextmanager

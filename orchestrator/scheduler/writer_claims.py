@@ -49,14 +49,25 @@ not work would cost an issue's record.
 
 Released on every exit. The descriptor is unlocked and closed however the body
 ends, and the kernel drops the lock with the file description if the process
-dies, so a crash leaves no claim behind -- only an empty file. The descriptor is
+dies, so a crash leaves no claim behind -- only the file. The descriptor is
 not inheritable, so an agent this process spawns while holding the claim does
 not carry it past this process's own exit.
+
+What the file carries is the lock, and a few lines about the hold holding it.
+Every acquisition reads what the last hold left, then empties the file and
+names itself on it by a token this process draws at import, before anything
+else is done under it. So a note a crashed holder left is gone before any
+contender can read it as the next holder's, and a holder that finds another
+process's token there knows another poller held the issue since it last did:
+it counts that against the key, which is how a pass decides whether a close
+its own poll read is still about the record it now holds (`claim_notes`).
+Beside the token, a hold may note what a contender cannot see from outside --
+the late cycle it is retiring.
 
 The files are never unlinked, by this module or by anything else while a poller
 runs. A lock lives on the inode, and a path unlinked while one process holds its
 inode would be recreated as a new inode the next process locks freely: both
-would then hold "the" claim. What that costs is one empty file per issue key
+would then hold "the" claim. What that costs is one small file per issue key
 this host has ever dispatched.
 
 The namespace is `WORKTREES_DIR/.issue-writer-claims`, for the reason the
@@ -79,6 +90,7 @@ import contextlib
 import fcntl
 import logging
 import threading
+import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -93,6 +105,12 @@ _NAMESPACE_NAME = ".issue-writer-claims"
 # Why a claim was refused, as the skip line spells it.
 _HELD_HERE = "held_here"
 _HELD_ELSEWHERE = "held_elsewhere"
+
+# The line every acquisition opens the file with, and this process's token on
+# it: drawn once, so no other process -- a restarted one reusing this pid
+# included -- can ever be taken for this one.
+HOLDER_LINE = "holder="
+_TOKEN = uuid.uuid4().hex
 
 
 @dataclass
@@ -115,6 +133,7 @@ class _Holdings:
 
     def __init__(self) -> None:
         self._held: dict[Path, _Holding] = {}
+        self._foreign: dict[Path, int] = {}
         self._lock = threading.Lock()
 
     def join(self, path: Path, *, alongside: bool) -> str | None:
@@ -127,9 +146,12 @@ class _Holdings:
         with self._lock:
             holding = self._held.get(path)
             if holding is None:
-                claim_file = _taken(path)
-                if claim_file is None:
+                taken = _taken(path)
+                if taken is None:
                     return _HELD_ELSEWHERE
+                claim_file, last_holder = taken
+                if last_holder not in {"", _TOKEN}:
+                    self._foreign[path] = self._foreign.get(path, 0) + 1
                 self._held[path] = _Holding(claim_file, writing=not alongside)
                 return None
             if holding.writing and not alongside:
@@ -137,6 +159,34 @@ class _Holdings:
             holding.holders += 1
             holding.writing = holding.writing or not alongside
             return None
+
+    def noted(self, path: Path, line: str) -> bool:
+        """Add one line to a key a writer of this process holds.
+
+        Refused -- `False`, and nothing written -- where no writer here holds
+        the key: a file this process has not locked is another hold's, and an
+        `alongside` holder writes no record a note could be about. Raises what
+        the write raises.
+        """
+        with self._lock:
+            holding = self._held.get(path)
+            if holding is None or not holding.writing:
+                return False
+            holding.claim_file.write(line)
+            holding.claim_file.flush()
+            return True
+
+    def foreign_holds(self, path: Path) -> int:
+        """How many times this process has found another's token on the key.
+
+        Counted at this process's own acquisitions, so a hold by another poller
+        is counted once this process next takes the key -- never sooner, and
+        never missed: the token it finds is the last holder's, and any other
+        poller's hold since this process last took the key leaves its token
+        there or under a later one's.
+        """
+        with self._lock:
+            return self._foreign.get(path, 0)
 
     def leave(self, path: Path, *, alongside: bool) -> None:
         """Give one holder's share back, and the lock with the last of them.
@@ -173,27 +223,34 @@ def _namespace() -> Path:
     return config.WORKTREES_DIR / _NAMESPACE_NAME
 
 
-def _taken(path: Path) -> TextIO | None:
-    """The key's file with a lock on it, or `None` if another holds it.
+def _taken(path: Path) -> tuple[TextIO, str] | None:
+    """The key's file with a lock on it and its last holder's token, or `None`.
 
     Opened for appending, creating it and the namespace if missing, so nothing
-    is truncated under a holder; the file stays empty, since what it carries is
-    the lock. `None` is contention and nothing else: `BlockingIOError` is
-    exactly what a non-blocking request that would have waited raises. Every
-    other `OSError` is raised, because none of them is a holder. The file is
-    closed on both of those ways out, so a refused claim keeps no descriptor.
+    is truncated under a holder, and emptied only once the lock is this one's:
+    whatever the file says is what the last hold left, and that hold is over.
+    The token it names comes back with the file -- `""` where it names none,
+    which is a key nobody has held, or one whose holder died before writing a
+    thing -- and this process's own token is written in its place. `None` is
+    contention and nothing else: `BlockingIOError` is exactly what a
+    non-blocking request that would have waited raises. Every other `OSError`
+    is raised, because none of them is a holder. The file is closed on both of
+    those ways out, so a refused claim keeps no descriptor.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    claim_file = path.open("a", encoding="utf-8")
-    try:
-        fcntl.flock(claim_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        claim_file.close()
-        return None
-    except OSError:
-        claim_file.close()
-        raise
-    return claim_file
+    with contextlib.ExitStack() as opened:
+        claim_file = opened.enter_context(path.open("a+", encoding="utf-8"))
+        try:
+            fcntl.flock(claim_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return None
+        claim_file.seek(0)
+        last = claim_file.readline().strip()
+        claim_file.truncate(0)
+        claim_file.write(f"{HOLDER_LINE}{_TOKEN}\n")
+        claim_file.flush()
+        opened.pop_all()
+    return claim_file, last.removeprefix(HOLDER_LINE) if last.startswith(HOLDER_LINE) else ""
 
 
 def _attempted(issue_key: str, path: Path, *, alongside: bool) -> bool:

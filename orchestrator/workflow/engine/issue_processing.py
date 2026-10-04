@@ -5,10 +5,11 @@
 Every dispatch seam enters an issue under its host-local writer claim, keyed
 on the repository's numeric id and taken before the refetch and the close
 recovery wrapped around this processing, and a contender skips the issue
-whole, keeping only a closed reading in this process's latch, scoped to the
-cycle it ends. The publication claim surrounds the handler, and evaluation
-analytics run on both success and failure. Hard-skip controls preserve their
-observed close exception before that processing begins.
+whole, keeping only a closed reading in this process's latch, tied to the
+cycle it ends only where a read proves it. The publication claim surrounds
+the handler, and evaluation analytics run on both success and failure.
+Hard-skip controls preserve their observed close exception before that
+processing begins.
 """
 from __future__ import annotations
 
@@ -80,11 +81,11 @@ def _writer_claim(
 
     `closed` is the issue as the poll read it, handed in where that reading
     was CLOSED and the caller would have held it across its pass. A refusal
-    keeps it in the one place a contender may write, this process's latch,
-    scoped to the cycle the record says it ends: the receipt that would make
-    it durable is the holder's to post, but a reading dropped here is gone
-    once a human reopens the issue. The scope is what keeps that latch from
-    outliving its cycle -- the holder can settle it and start an authorized
+    keeps it in the one place a contender may write, this process's latch:
+    the receipt that would make it durable is the holder's to post, but a
+    reading dropped here is gone once a human reopens the issue. It is scoped
+    to the cycle it ends only where the issue still reads closed behind the
+    record, since the holder can settle that cycle and start an authorized
     fresh one before this process holds the issue again. See
     `contended_closes`.
     """
@@ -147,7 +148,7 @@ def _route_issue_to_handler(
         _stage_targets._call_handler(gh, spec, issue, _stage_targets._CLEANUP_SWEEP_TARGET)
         return
     if _dispatch_guards._pinned_state_refuses(
-        gh, spec, issue, label, observed_closed=reading.closed,
+        gh, spec, issue, label, reading=reading,
     ):
         return
     if _dispatch_guards._parked_past_the_mark(spec, issue):

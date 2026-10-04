@@ -15,21 +15,27 @@ from pathlib import Path
 from orchestrator.scheduler import writer_claims
 from tests.support import writer_claim_processes as _processes
 
+# The late cycle a holder in `retire` mode says it is retiring.
+RETIRED_CYCLE = 4
+
 # The holder program. It reports what the claim answered, then does what its
-# mode says with it: holds it until told to let go, raises out of it and
-# stays alive, or lets it go at once.
-_HOLDER = """
+# mode says with it: holds it until told to let go, notes on it that the hold
+# is retiring a late cycle and then holds it, raises out of it and stays
+# alive, or lets it go at once.
+_HOLDER = f"""
 import sys
 
-from orchestrator.scheduler import writer_claims
+from orchestrator.scheduler import claim_notes, writer_claims
 
 repo_id, number, mode = int(sys.argv[1]), int(sys.argv[2]), sys.argv[3]
 try:
     with writer_claims.issue_writer(repo_id, number) as held:
+        if mode == "retire":
+            claim_notes.note_retirement(repo_id, number, {RETIRED_CYCLE})
         print("held" if held else "refused", flush=True)
         if mode == "raise":
             raise RuntimeError("the body failed")
-        if mode == "hold":
+        if mode in ("hold", "retire"):
             sys.stdin.readline()
 except RuntimeError:
     print("released", flush=True)

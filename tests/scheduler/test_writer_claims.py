@@ -14,8 +14,8 @@ from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.scheduler import writer_claims
-from tests.scheduler.writer_claim_helpers import SharedNamespaceCase, descriptors_on
+from orchestrator.scheduler import claim_notes, writer_claims
+from tests.scheduler.writer_claim_helpers import RETIRED_CYCLE, SharedNamespaceCase, descriptors_on
 from tests.support.writer_claim_processes import HELD, REFUSED, RELEASED
 
 # The repository's numeric id, and another repository's.
@@ -26,8 +26,10 @@ _OTHER_ISSUE = 8
 _SCHEDULER_LOG = "orchestrator.scheduler"
 
 # What a holder process does with the claim once it reports: keeps it until
-# told, or lets it go at once.
+# told, keeps it having noted the late cycle its hold retires, or lets it go
+# at once.
 _HOLD = "hold"
+_RETIRE = "retire"
 _TRY = "try"
 
 
@@ -133,6 +135,51 @@ class ProcessReleaseTest(SharedNamespaceCase):
         with writer_claims.issue_writer(_REPO_ID, _ISSUE) as held:
             self.assertFalse(held)
             self.assertEqual(descriptors_on(claim_file), 0)
+
+
+class HoldNotesTest(SharedNamespaceCase):
+    """What a hold tells the pollers it refuses, and what the next holder finds."""
+
+    def test_a_retirement_note_ends_with_its_hold(self) -> None:
+        holder = self.other_process(_REPO_ID, _ISSUE, _RETIRE)
+        self.assertEqual(holder.said(), HELD)
+
+        with self.assertLogs(_SCHEDULER_LOG):
+            self.assertFalse(self.granted_here(_REPO_ID, _ISSUE))
+        self.assertEqual(claim_notes.noted_retirement(_REPO_ID, _ISSUE), RETIRED_CYCLE)
+        self.assertIsNone(claim_notes.noted_retirement(_REPO_ID, _OTHER_ISSUE), "a key nobody noted on")
+
+        self.assertEqual(holder.let_go(), 0)
+        with writer_claims.issue_writer(_REPO_ID, _ISSUE) as held:
+            self.assertTrue(held)
+            self.assertIsNone(
+                claim_notes.noted_retirement(_REPO_ID, _ISSUE), "a note is its own hold's, and ends with it",
+            )
+
+    def test_only_a_holding_writer_notes(self) -> None:
+        claim_notes.note_retirement(_REPO_ID, _ISSUE, RETIRED_CYCLE)
+        with writer_claims.issue_writer(_REPO_ID, _ISSUE, alongside=True) as beside:
+            self.assertTrue(beside)
+            claim_notes.note_retirement(_REPO_ID, _ISSUE, RETIRED_CYCLE)
+        self.assertIsNone(claim_notes.noted_retirement(_REPO_ID, _ISSUE))
+
+        with writer_claims.issue_writer(_REPO_ID, _ISSUE) as held:
+            self.assertTrue(held)
+            claim_notes.note_retirement(_REPO_ID, _ISSUE, RETIRED_CYCLE)
+            self.assertEqual(claim_notes.noted_retirement(_REPO_ID, _ISSUE), RETIRED_CYCLE)
+
+    def test_only_other_pollers_holds_are_counted(self) -> None:
+        for _ in range(2):
+            self.assertTrue(self.granted_here(_REPO_ID, _ISSUE))
+        self.assertEqual(claim_notes.foreign_holds(_REPO_ID, _ISSUE), 0, "this process's own holds")
+
+        for counted in (1, 2):
+            self.assertEqual(self.other_process(_REPO_ID, _ISSUE, _TRY).said(), HELD)
+            self.assertEqual(claim_notes.foreign_holds(_REPO_ID, _ISSUE), counted - 1, "found only by taking it")
+            self.assertTrue(self.granted_here(_REPO_ID, _ISSUE))
+            self.assertTrue(self.granted_here(_REPO_ID, _ISSUE))
+            self.assertEqual(claim_notes.foreign_holds(_REPO_ID, _ISSUE), counted)
+        self.assertEqual(claim_notes.foreign_holds(_REPO_ID, _OTHER_ISSUE), 0, "counted per key")
 
 
 class NamespaceTest(SharedNamespaceCase):

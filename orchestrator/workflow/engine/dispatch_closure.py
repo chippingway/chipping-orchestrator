@@ -21,6 +21,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import (
     issue_is_closed,
 )
+from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.workflow.engine import (
     issue_processing as _issue_processing,
     observations,
@@ -40,7 +41,10 @@ _HELD_BY_A_WORKER = "a worker is already running it"
 
 
 def _recorded_at_poll(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    foreign_holds: int | None,
 ) -> bool:
     """Latch this closed reading and get its durable half written.
 
@@ -48,13 +52,15 @@ def _recorded_at_poll(
     and everything after it is a request that can fail. Dropped again only
     where the record positively says there is nothing to end -- a closed issue
     with no late cycle is owed a turn, not an observation, and carrying one
-    would send it through a cleanup pass it never earned.
+    would send it through a cleanup pass it never earned. `foreign_holds` is
+    the count of other pollers' holds this process had found when `issue` was
+    read, which the latch keeps.
 
     Answers whether the reading was kept, so a caller that has to hold one
     across the pass it is handing it to knows whether it is holding anything.
     """
     issue_number = int(issue.number)
-    observations.observe_close(spec.slug, issue_number)
+    observations.observe_close(spec.slug, issue_number, foreign_holds)
     late_close_observation = importlib.import_module(_stage_targets._LATE_CLOSE_OBSERVATION_OWNER)
     if late_close_observation._record_observed_close(
         gh, spec, issue_number, polled=issue,
@@ -94,10 +100,11 @@ def _refetched_close(
     if reading.closed or not issue_is_closed(issue):
         yield
         return
-    if not _recorded_at_poll(gh, spec, issue):
+    held_now = _claim_notes.foreign_holds(gh.repo_id, int(issue.number))
+    if not _recorded_at_poll(gh, spec, issue, held_now):
         yield
         return
-    with _closed_reading(gh, spec, int(issue.number)):
+    with _closed_reading(gh, spec, int(issue.number), held_now):
         yield
 
 
@@ -105,9 +112,7 @@ def _refused_submit(
     gh: GitHubClient,
     spec: _config_models.RepoSpec,
     issue_number: int,
-    *,
-    cleanup_only: bool,
-    closed: bool,
+    reading: _poll_models._PollReading,
 ) -> None:
     """Hold whatever observation a refused fan-out submit was carrying.
 
@@ -132,25 +137,29 @@ def _refused_submit(
     refusal names, since the receipt is a comment built to be written beside
     it. A claim another poller holds, or one that could not be worked, leaves
     the latch as the partition left it: the enumeration took this tick's
-    closed reading under the same claim, or kept it scoped where that claim
-    was refused, so there is nothing newer here to keep.
+    closed reading under the same claim, or kept it as a contender where that
+    claim was refused, so there is nothing newer here to keep. The reading's
+    count of other pollers' holds goes into the latch with it.
     """
-    if not (cleanup_only or closed):
+    if not (reading.cleanup_only or reading.closed):
         return
     with _issue_processing._writer_claim(
         gh, spec, issue_number, alongside=True,
     ) as held:
         if not held:
             return
-        if cleanup_only:
+        if reading.cleanup_only:
             _deferred_cleanup(gh, spec, issue_number, _HELD_BY_A_WORKER)
             return
-        _kept_closed_reading(gh, spec, issue_number)
+        _kept_closed_reading(gh, spec, issue_number, reading.foreign_holds)
 
 
 @contextlib.contextmanager
 def _closed_reading(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    foreign_holds: int | None = None,
 ):
     """Hold one closed issue's reading across the pass that would spend it.
 
@@ -159,16 +168,20 @@ def _closed_reading(
     built on answers a refusal of its own, so a tick that could not read the
     record refuses the issue and marks nothing. What a pass that DID mark it
     leaves behind is a record positively saying there is nothing to end,
-    which is exactly what drops the reading again.
+    which is exactly what drops the reading again. `foreign_holds` is the
+    count the reading was taken at, where its taker knew it.
     """
     try:
         yield
     finally:
-        _kept_closed_reading(gh, spec, issue_number)
+        _kept_closed_reading(gh, spec, issue_number, foreign_holds)
 
 
 def _kept_closed_reading(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    foreign_holds: int | None = None,
 ) -> None:
     """Hold a closed reading no pass acted on, unless the record says not to.
 
@@ -187,7 +200,7 @@ def _kept_closed_reading(
     So the owner writes the receipt from the read that decides this, and
     answers with what that read established.
     """
-    observations.observe_close(spec.slug, issue_number)
+    observations.observe_close(spec.slug, issue_number, foreign_holds)
     late_close_observation = importlib.import_module(_stage_targets._LATE_CLOSE_OBSERVATION_OWNER)
     if not late_close_observation._record_observed_close(gh, spec, issue_number):
         observations.settle_close(spec.slug, issue_number)
