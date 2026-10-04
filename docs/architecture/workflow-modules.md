@@ -247,10 +247,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             blocked/umbrella dependency walks on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` skips;
                             a failed label read reaches per-issue exception isolation through the family bucket,
                             with any closed reading carried there; and whether a pass's refetch leaves its admission
-    dispatch_closure.py     persist poll and refetch closes, retain them across ordinary processing, and preserve
-                            receipts and deferred cleanup when a worker submission is refused -- under the issue's
-                            writer claim alongside this process's worker, leaving the enumeration's latch as it was
-                            where the claim is refused
+    dispatch_closure.py     persist poll and refetch closes, retain them across ordinary processing, and keep the
+                            enumeration's own disposition when a worker submission is refused -- re-recording only a
+                            cleanup it still holds, alongside this process's worker and with no read moment
     cleanup_observation.py keep a close through cleanup exceptions and unsettled endings, including an ending owed
                             under a label no sweep queries; settle only after the defining stage proves it complete
     dispatch_partition.py  combine fresh poll results and still-owed closes, record every closed reading's receipt

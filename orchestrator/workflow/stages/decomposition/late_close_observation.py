@@ -152,27 +152,17 @@ def _observed_close_posted(
     the caller drops the reading on. A close that is not this cycle's to post
     for is answered for and NOT discharged, since a later close may yet be.
 
-    Not this cycle's, because the held close is scoped to the cycle it ended,
-    and the scope is taken only off a close standing AFTER the record was
-    read. Every caller holds the issue's writer claim, so an issue fetched here
-    and the record behind it are one reading no other poller can write
-    between. A `polled` issue is older than the claim, though: another poller
-    may have settled the cycle its close ended and started a fresh one before
-    this process took the claim, so the record it names now is not proof the
-    close ended it, and the issue is read again behind the record. Only where
-    that read still finds it closed is the close scoped to the record's cycle
-    -- a request spent on an issue whose record names a cycle a close would
-    end, and on no other.
+    The scope is taken only off a close standing AFTER the record was read.
+    Every caller holds the issue's writer claim, but a `polled` issue is older
+    than it -- another poller may have settled the cycle its close ended and
+    started a fresh one meanwhile -- so the issue is read again behind the
+    record, and only a close still standing there is scoped to its cycle.
 
-    Anything else is a close latched earlier, or one reopened before it could
-    be confirmed. A receipt naming the record's cycle would end that cycle for
-    a close that may have happened before it existed, so nothing is posted
-    unless the latch is already scoped to it -- or holds a close read after
-    every other poller's hold this process has found had let go, so that no
-    other poller can have written the record since. It is still
-    answered for rather than dropped: the cleanup route it is bound to is what
-    recognizes it by its scope -- or by having none -- and lets it go, and a
-    latch dropped here would leave that route's sweep nothing to recognize.
+    Anything else -- a close latched earlier, or one reopened before it could
+    be confirmed -- is posted for only where the latch already ends that cycle
+    (`close_ends`), since a receipt would end it for a close that may predate
+    it. It is still answered for rather than dropped: the cleanup route it is
+    bound to recognizes it by its scope, or by having none, and lets it go.
     """
     issue = gh.get_issue(issue_number) if polled is None else polled
     state = gh.read_pinned_state(issue)
@@ -220,31 +210,19 @@ def _mark_observed_close(
     Nothing to do where the record carries no cycle or already carries the
     mark, which is every closed issue but the narrow window this exists for.
 
-    The poll is older than the writer claim this pass holds, so the cycle the
-    record names now is not necessarily one the poll's close ended: another
-    poller on this host may have settled that cycle and started an authorized
-    fresh one in between. So the close is tied to the cycle before it marks
-    anything, in one of three ways. An issue the refetch still finds closed is
-    a close standing under the claim, which ends whatever cycle the record
-    names. A latch scoped to a cycle ends that cycle and no other. And a close
-    nothing has scoped ends the record's cycle where no other poller has held
-    the issue since it was read: the reading is latched here with the moment
-    the poll read before listing it (`read_at`) -- merged into the latch the
-    enumeration took, where it took one -- and no hold of another poller found
-    standing at or after that moment means the record is the one the close
-    was read against. A lone poller is in that case, restarted or not, unless
-    the process before it was killed while holding the issue, or no poller on
-    this host had claimed the issue before: a hold that left no release stamp,
-    and a file nobody signed, are taken to have ended only when found.
-    Latching it here costs nothing the pass's own hold would not: that hold
-    latches the reading as the pass ends and drops it again where the record
-    says there is nothing to end.
+    The poll is older than this pass's writer claim, and another poller on
+    this host may have settled the cycle its close ended and started a fresh
+    one in between. So the close is tied to the cycle first: an issue the
+    refetch still finds closed ends whatever cycle the record names; a latch
+    scoped to a cycle ends that one; and an unscoped close ends the record's
+    cycle where no other poller has held the issue since `read_at`, the moment
+    the poll read before listing -- latched here, merged into the
+    enumeration's latch. A hold that left no release stamp, and a file nobody
+    signed, count as ending only when found.
 
-    Anywhere else the close either ended an earlier cycle or cannot be tied to
-    this one, and the cycle is left live -- but the handler is not run either,
-    since the latch it carries would be read by the barriers on its road as a
-    close of this cycle. The tick stops, and the cleanup pass the latch routes
-    the issue to next settles it with nothing marked.
+    Anywhere else the cycle is left live, but the handler is not run either,
+    since its barriers would read the latch as a close of this cycle: the tick
+    stops, and the cleanup pass the latch routes the issue to settles it.
     """
     generation = _late_state.read_late_generation(state)
     if not generation.is_present or generation.cancelled:

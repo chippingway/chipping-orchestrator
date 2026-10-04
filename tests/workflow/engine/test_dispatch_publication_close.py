@@ -127,8 +127,8 @@ class _PublishingCase(ObservedCloseCase, _PatchedWorkflowMixin):
         )
 
     def _refused_submit(self) -> None:
-        """What the poll does when the scheduler turns its submit away."""
-        self.issue.closed = True
+        """What the poll does when the scheduler turns its submit away, having read the issue closed."""
+        self._polled_closed()
         _dispatch_closure._refused_submit(
             self.github, _TEST_SPEC, _ISSUE, _poll_models._PollReading(
                 closed=True, read_at=read_now(),

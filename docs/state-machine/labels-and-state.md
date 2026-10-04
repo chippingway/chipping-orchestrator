@@ -310,9 +310,9 @@ close, and binds there: a pass reading the issue open again applies the close to
 does one reading a stage outside its admitted lane (family work on a fan-out pass, anything but a dependency walk in a
 capacity-exempt bucket); the next poll admits either afresh, under the caps and the family bucket. The enumeration takes
 it too, for the one thing it writes: the pinned read and close receipt behind a closed fan-out issue, and the same pair
-a refused submit's observation hold spends. Those two ask for it *alongside* — granted beside a worker of this same
-process that holds the issue, since the receipt is an added comment built to land beside one, and an ordinary exclusive
-attempt against every other process.
+a refused cleanup submit spends on a reading still held. Those two ask for it *alongside* — granted beside a worker of
+this same process that holds the issue, since the receipt is an added comment built to land beside one, and an
+ordinary exclusive attempt against every other process.
 
 An issue another poller on the host holds is skipped whole on every path: nothing is refetched, published, relabelled,
 written, run, or accounted for, and the submit's publication hold and any latched close are left as they were. A close

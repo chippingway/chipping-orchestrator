@@ -20,14 +20,18 @@ from unittest.mock import Mock, patch
 from orchestrator.scheduler import writer_claims
 from orchestrator.workflow.engine import (
     dispatch_closure as _dispatch_closure,
-    poll_models as _poll_models,
+    dispatch_partition as _dispatch_partition,
     poll_reading as _poll_reading,
     stage_targets as _stage_targets,
 )
 from orchestrator.workflow.stages.decomposition import late_close_observation as _late_close_observation
-from tests.support.fakes import FakeLabel
+from tests.support.fakes import FakeLabel, make_issue
 from tests.workflow.engine import cleanup_deferral_support as _deferral
-from tests.workflow.engine.contended_close_support import ClosedOwnerCase, restarted_elsewhere
+from tests.workflow.engine.contended_close_support import (
+    ClosedOwnerCase,
+    RestartedAfter,
+    restarted_elsewhere,
+)
 from tests.workflow.fixtures import LABEL_IMPLEMENTING
 from tests.workflow.observation_support import read_now, receipt_for
 
@@ -50,7 +54,7 @@ class FreshCloseBesideAWorkerTest(ClosedOwnerCase, unittest.TestCase):
                 self.assertTrue(self._generation().cancelled)
 
     def _restarted_owner(self) -> int:
-        """The owner restarted elsewhere behind an old reading the worker's refused submit hands back.
+        """The owner restarted elsewhere behind an old reading a poll kept beside the worker.
 
         Answers the fresh cycle's id.
         """
@@ -58,12 +62,10 @@ class FreshCloseBesideAWorkerTest(ClosedOwnerCase, unittest.TestCase):
         self.github.get_issue(_deferral.OWNER_NUMBER).labels = [FakeLabel(LABEL_IMPLEMENTING)]
         read_before = read_now()
         restarted_elsewhere(self.github)
+        polled = make_issue(_deferral.OWNER_NUMBER, label=LABEL_IMPLEMENTING, closed=True)
         with writer_claims.issue_writer(self.github.repo_id, _deferral.OWNER_NUMBER) as held:
             self.assertTrue(held)
-            _dispatch_closure._refused_submit(
-                self.github, self._spec(), _deferral.OWNER_NUMBER,
-                _poll_models._PollReading(closed=True, read_at=read_before),
-            )
+            _dispatch_closure._recorded_at_poll(self.github, self._spec(), polled, read_before)
         self.assertEqual(self._observed(_deferral.REPO_SLUG), frozenset((_deferral.OWNER_NUMBER,)))
         return self._generation().cycle_id
 
@@ -135,6 +137,30 @@ class ReceiptedThenRestartedTest(ClosedOwnerCase, unittest.TestCase):
             self._ticked(scheduler, held=True)
         owner.closed = False
         return self._generation().cycle_id
+
+
+class RestartedByOurWorkerTest(ClosedOwnerCase, unittest.TestCase):
+    """A close the poll found ending nothing, refused as this process's worker restarts the cycle."""
+
+    def test_the_old_close_spares_the_fresh_cycle(self) -> None:
+        self._seeded_owner()
+        owner = self.github.get_issue(_deferral.OWNER_NUMBER)
+        owner.labels = [FakeLabel(LABEL_IMPLEMENTING)]
+        self._ended_over()
+        restart = RestartedAfter(self.github, _dispatch_partition._partition_pollable_issues, signed=False)
+
+        with _worker_holding(self) as scheduler:
+            with patch.object(_dispatch_partition, "_partition_pollable_issues", restart):
+                self._ticked(scheduler, held=True)
+            ended = _late_close_observation._latched_close_ends(
+                self.github, self._spec(), owner, self.github.read_pinned_state(owner),
+            )
+
+        fresh = self._generation()
+        self.assertGreater(fresh.cycle_id, _deferral.CYCLE_ID)
+        self.assertFalse(_thread_says(self.github, fresh.cycle_id), "no receipt names the fresh cycle")
+        self.assertFalse(ended or fresh.cancelled, "and the old close ends nothing")
+        self.assertEqual(self._observed(_deferral.REPO_SLUG), frozenset())
 
 
 @contextlib.contextmanager

@@ -21,7 +21,7 @@ from orchestrator.workflow.engine import (
     tick as _tick,
 )
 from tests.support.fakes import make_issue
-from tests.support.writer_claims import claimable, held_elsewhere
+from tests.support.writer_claims import held_elsewhere
 from tests.workflow.engine import refused_submit_support as _closed
 from tests.workflow.engine.dispatch_scheduler_test_support import REPO_SLUG
 from tests.workflow.engine.writer_claim_test_support import (
@@ -169,19 +169,6 @@ class ClosedAcrossTheGapTest(ObservedCloseCase, unittest.TestCase):
         stage = patch(f"{owner}.{name}")
         self.stage = stage.start()
         self.addCleanup(stage.stop)
-
-    def test_a_reopen_in_the_gap_ends_the_cycle(self) -> None:
-        # The issue has been written on this host before the poll read it,
-        # which is what ties the reading to the record the claim finds.
-        self.assertTrue(claimable(self.github.repo_id, _closed.OWNER_NUMBER))
-        read_at = read_now()
-        self.github.get_issue(_closed.OWNER_NUMBER).closed = False
-
-        with self.assertLogs(_closed.WORKFLOW_LOG):
-            _dispatch._process_polled_issue(self.github, _closed.SPEC, self.polled, read_at=read_at)
-
-        self.assertTrue(self.github.pinned_data(_closed.OWNER_NUMBER).get(_closed.KEY_CANCELLED))
-        self.stage.assert_not_called()
 
     def test_a_first_claim_unties_an_older_reading(self) -> None:
         # The issue's first claim on this host finds a file that cannot say

@@ -9,6 +9,7 @@ dispatch mode a case names.
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from unittest.mock import patch
 
 from orchestrator.workflow.late_split import restart as _restart, state as _late_state
@@ -26,14 +27,14 @@ def ticked_on(case: _deferral.DeferralCase, limit: int, *, scheduled: bool) -> N
     _deferral.ticked_directly(case, limit)
 
 
-def restarted_elsewhere(github: FakeGitHubClient) -> None:
+def restarted_elsewhere(github: FakeGitHubClient, *, signed: bool = True) -> None:
     """What another poller leaves on the closed owner while it holds it.
 
     It ends the cycle the close ended and settles everything that cycle owed,
     and an operator then authorizes a fresh attempt: the issue is open again,
     and its record carries the live cycle the restart projects, which owes
     nothing yet. All of it under that poller's claim, which it signs as it
-    lets go.
+    lets go -- or, `signed` False, by this process's own worker, unrecorded.
     """
     owner = github.get_issue(_deferral.OWNER_NUMBER)
     state = github.read_pinned_state(owner)
@@ -45,7 +46,8 @@ def restarted_elsewhere(github: FakeGitHubClient) -> None:
     )))
     github.write_pinned_state(owner, state)
     owner.closed = False
-    signed_by_another_poller(github.repo_id, _deferral.OWNER_NUMBER)
+    if signed:
+        signed_by_another_poller(github.repo_id, _deferral.OWNER_NUMBER)
 
 
 class ClosedOwnerCase(_deferral.DeferralCase):
@@ -56,6 +58,13 @@ class ClosedOwnerCase(_deferral.DeferralCase):
         self.github = _deferral.owner_holding_a_ref()
         self._fresh_process()
         self.stage.reset_mock()
+
+    def _ended_over(self) -> None:
+        """The owner's record with its cycle already ended, before any restart."""
+        owner = self.github.get_issue(_deferral.OWNER_NUMBER)
+        state = self.github.read_pinned_state(owner)
+        _late_state.write_late_generation(state, replace(self._generation(), cancelled=True))
+        self.github.write_pinned_state(owner, state)
 
     def _generation(self) -> LateGeneration:
         """The late cycle the owner's record carries right now."""
@@ -91,10 +100,11 @@ class RestartedAfter:
     poll's reading does. `found_by` keeps whether each such claim was granted.
     """
 
-    def __init__(self, github: FakeGitHubClient, step, *, found: bool = False) -> None:
+    def __init__(self, github: FakeGitHubClient, step, *, found: bool = False, signed: bool = True) -> None:
         self._github = github
         self._step = step
         self._found = found
+        self._signed = signed
         self.found_by: list[bool] = []
 
     def __call__(self, *asked):
@@ -102,7 +112,7 @@ class RestartedAfter:
         answered = self._step(*asked)
         owner = self._github.get_issue(_deferral.OWNER_NUMBER)
         if not _late_state.read_late_generation(self._github.read_pinned_state(owner)).restart_predecessor:
-            restarted_elsewhere(self._github)
+            restarted_elsewhere(self._github, signed=self._signed)
             if self._found:
                 with ThreadPoolExecutor(max_workers=1) as another_thread:
                     claiming = another_thread.submit(claimable, self._github.repo_id, _deferral.OWNER_NUMBER)

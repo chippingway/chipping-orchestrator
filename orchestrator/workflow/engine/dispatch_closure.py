@@ -4,9 +4,8 @@
 
 The shared observation registry retains a close until its cycle is settled.
 Receipt recording is resolved on its stage owner, and a refused worker
-submission preserves the cleanup obligation for the next poll -- written down
-under the issue's writer claim, or left as the enumeration latched it where
-that claim is refused.
+submission leaves the obligation as the enumeration's own reconciliation left
+it, for the next poll.
 """
 from __future__ import annotations
 
@@ -118,44 +117,28 @@ def _refused_submit(
     issue_number: int,
     reading: _poll_models._PollReading,
 ) -> None:
-    """Hold whatever observation a refused fan-out submit was carrying.
+    """Hold whatever observation a refused fan-out submit was carrying, as the enumeration left it.
 
-    A cleanup route already says a late owner was observed closed, so the
-    reading is latched on the strength of the route alone. A closed issue on
-    any OTHER label may be carrying the same reading and no label says so: an
-    authorized settlement hands its issue to `implementing` a moment before it
-    retires the cycle, and a close landing in that window wears a label whose
-    handler is an ordinary terminal.
-
-    That one was latched by the enumeration that read it closed, and is
-    dropped here only where the record positively says there is nothing to
-    end. The order is the whole of it: the probe is a request, and a request
-    can fail or can land after the very retirement it was asking about -- so
-    a reading conditioned on it would be lost to either, and the reading is
-    the one thing this path exists to keep. A latch held over an issue with
-    no cycle costs the next tick one cleanup pass that settles it; a reading
-    dropped costs the close itself.
-
-    Both read the record and post on the thread, so both are taken under the
-    issue's writer claim -- `alongside` the worker of this process a duplicate
-    refusal names, since the receipt is a comment built to be written beside
-    it. A claim another poller holds, or one that could not be worked, leaves
-    the latch as the partition left it: the enumeration took this tick's
-    closed reading under the same claim, or kept it as a contender where that
-    claim was refused, so there is nothing newer here to keep. The moment the
-    reading was taken at goes into the latch with it.
+    The enumeration reconciled each reading it read a moment before, and that
+    disposition stands: the worker this refusal names is this process's own,
+    which may restart the cycle in a write no claim note records, so a dropped
+    reading revived here, or one bound again by the poll's moment, would end a
+    cycle that started after it. Only a cleanup still held -- possibly an owed
+    close the enumeration never yielded -- is written down again, alongside
+    that worker and with no moment: only a close standing behind the record
+    ties to its cycle.
     """
-    if not (reading.cleanup_only or reading.closed):
+    if not observations.close_observed(spec.slug, issue_number):
+        return
+    if not reading.cleanup_only:
+        if reading.closed:
+            _said_deferred(spec, issue_number, _HELD_BY_A_WORKER)
         return
     with _issue_processing._writer_claim(
         gh, spec, issue_number, alongside=True,
     ) as held:
-        if not held:
-            return
-        if reading.cleanup_only:
+        if held:
             _deferred_cleanup(gh, spec, issue_number, _HELD_BY_A_WORKER)
-            return
-        _kept_closed_reading(gh, spec, issue_number, reading.read_at)
 
 
 @contextlib.contextmanager

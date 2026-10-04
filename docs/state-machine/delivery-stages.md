@@ -1515,7 +1515,7 @@ because there it is the claim that this stage has already rerouted rather than a
   it is recorded rather than taken. Nothing is refused and nothing is held for good: the same decision is made again as
   the last hold goes, one moment later, where it can no longer be made out from under the reader it was for — so an
   issue somebody reopens inherits no latch a later poll would never clear. Both production drops are covered, the
-  enumeration's and the one a refused fan-out submit takes. A close latched again before the last hold goes withdraws
+  enumeration's and a closed pass's on its way out. A close latched again before the last hold goes withdraws
   the postponed drop: the scheduler's hold is given back only after its worker has let go of the issue's writer claim,
   so another poller on the host can restart the cycle in between and this process, refused the claim, read a close of
   the fresh cycle — a reading the drop was never about, left for the next pass under the claim to reconcile.

@@ -37,25 +37,16 @@ def _polled_refetch(
 ) -> None:
     """Read one polled issue again under its writer claim, and dispatch that.
 
-    The sequential entry took the claim after the poll did its reading, and
-    another poller on this host may have advanced the issue in between: a
-    handler routed off the enumeration's object would resume a stage that
-    poller already left -- relabelling the issue back and handing it to an
-    agent a second time. So the label a handler is chosen by is the one this
-    read returns, as on every worker path.
+    The claim came after the poll's reading, and another poller on this host
+    may have advanced the issue in between, so the handler is chosen by the
+    label this read returns, as on every worker path -- on the caller's own
+    client, since nothing here crosses a thread.
 
-    What the poll established is carried over that read only where it is a
-    close. A CLOSED reading is held across the whole pass, refetch included,
-    for the reason the worker paths hold theirs: nothing latched it, this pass
-    is what would have acted on it, and neither a raise nor a pinned read the
-    guard could not take may cost it. It is bound rather than re-read, so a
-    reopen in between cannot turn it into an agent-spawning stage handler. An
-    OPEN reading carries nothing, which makes the refetch the place a close
-    can first exist, and the dispatch is wrapped in the hold one earns.
-
-    Refetched on the caller's own client rather than through
-    `_refetch_and_process`: nothing here crosses a thread, so what that mints
-    a per-worker client for does not apply, while the read it takes does.
+    A CLOSED reading is held across the whole pass, refetch included, as the
+    worker paths hold theirs, so neither a raise nor a pinned read the guard
+    could not take may cost it; it is bound rather than re-read. An OPEN
+    reading carries nothing, which makes the refetch the place a close can
+    first exist, and the dispatch is wrapped in the hold one earns.
     """
     held = (
         _dispatch_closure._closed_reading(gh, spec, issue_number, reading.read_at)
@@ -104,15 +95,11 @@ def _refetch_and_process(
     contender returns having read nothing: the pass is retried on a later
     polling pass, and this one has nothing to keep.
 
-    An ordinary pass that finds a close latched once it holds the claim runs
-    as the cleanup that close is owed instead, which is the route the
-    partition gives an issue it finds owed. This one was submitted before the
-    latch existed -- a family drain or a fan-out queued behind a poll that
-    then read the issue closed -- and another poller may have settled the
-    cycle that close ended and started a fresh one before this claim was
-    granted. The sweep is what ties the close to the cycle the record names
-    now, and lets it go with nothing marked where it ended another; the stage
-    handler would read it, unscoped, at every barrier on its road.
+    An ordinary pass that finds a close latched once it holds the claim --
+    one a poll took after this pass was queued -- runs as that close's cleanup
+    instead, the route the partition gives an owed issue: the sweep ties the
+    close to the cycle the record names now, where the stage handler would
+    read it, unscoped, at every barrier on its road.
     """
     with _issue_processing._writer_claim(gh, spec, issue_number) as held:
         if not held:
@@ -205,7 +192,7 @@ def _closed_ordinary_pass(
     fail to spend the reading without failing at all: the pinned read the
     guard is built on answers a refusal of its own, so a tick that could not
     read the record refuses the issue and marks nothing. Settled the same way
-    a refused submit settles one -- only where the record positively says
+    the enumeration settles one -- only where the record positively says
     there is nothing to end, which is exactly what a pass that DID mark it
     leaves behind.
 
