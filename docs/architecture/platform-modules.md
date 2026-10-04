@@ -452,7 +452,9 @@ orchestrator/
                         by a held barrier costs the caller its next polling pass, which is why it is reported apart
                         from a closed scheduler
     writer_claims.py    the host-local writer claim one repository issue's writes are meant to run under, dormant:
-                        no dispatch path, family handler, close recovery, or base refresh takes it yet. An exclusive
+                        no dispatch path, family handler, close recovery, or base refresh takes it yet -- the one
+                        owner that takes it, `workflow/stages/decomposition/child_claims.py`, does so only inside an
+                        entry point no production path enters. An exclusive
                         `flock` per issue in `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's numeric
                         id as the client answers it -- never a name, which a rename changes under a running poller
                         -- and the issue number, and taken without waiting. A contender is refused rather than kept
@@ -475,7 +477,9 @@ orchestrator/
                         lock, others can have held the key and emptied the file. It coordinates the pollers sharing
                         one checkout root on one host and nothing beyond them, imports nothing of the runtime, and is
                         not the artifact presence: neither says anything about the other
-    claim_notes.py      what the holds on an issue's writer claim tell the pollers sharing it, asked by nothing yet:
+    claim_notes.py      what the holds on an issue's writer claim tell the pollers sharing it, asked by nothing in
+                        production yet -- its callers, `workflow/engine/observation_state.py`, `retiring_cycles.py`
+                        given a repository id, and `contended_closes.py`, are reached by no tick:
                         the moment a poll is to read before it lists anything, and whether every hold by another
                         poller this process has found on the key had let go before such a moment -- asked under the
                         claim, no other poller wrote the record since the poll read it, while a hold that ended
