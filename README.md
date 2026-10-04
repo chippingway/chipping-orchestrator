@@ -1,5 +1,7 @@
 # chipping-orchestrator
 
+**Autonomous GitHub issue → reviewed PR pipeline for Claude Code, Codex CLI, and Antigravity CLI.**
+
 [![CI][ci-badge]][ci-link]
 [![OpenSSF Scorecard][scorecard-badge]][scorecard-link]
 [![OpenSSF Best Practices][best-practices-badge]][best-practices-link]
@@ -10,6 +12,13 @@ human to make the final merge decision.
 
 Workflow state lives on the issue itself, so progress stays visible on GitHub and survives process restarts without a
 separate queue or workflow database.
+
+## When to use it
+
+- **Use it when:** you work solo or on a small team, have an authenticated `codex`, `claude`, or `agy` CLI, and want
+  issue-to-PR autonomy without running a separate planner, queue, or workflow database. You decide what to merge.
+- **Don't use it when:** you need a hosted service or automatic merges, cannot let agents run with the host account as
+  their security boundary, or need issue trackers other than GitHub.
 
 ## How it works
 
@@ -117,7 +126,7 @@ effects.
 agent outcomes, usage, and cost estimates. Optional surfaces add an audit log, a Postgres-backed analytics dashboard,
 and a file-backed trajectory viewer without becoming part of workflow state.
 
-![Analytics page](./pics/analytics_page.png)
+![Analytics page with spend and token usage over time categorized by different dimensions](./pics/analytics_page.png)
 
 See the [observability overview](docs/observability.md) for every surface and the
 [dashboard quickstart](docs/configuration.md#analytics-dashboard-quickstart) for setup commands.
@@ -139,7 +148,7 @@ Browse the [documentation website](https://chippingway.github.io/chipping-orches
 |---|---|
 | [Architecture](docs/architecture.md) | Process model, agent model, push model, and module ownership |
 | [State machine](docs/state-machine.md) | Labels, state, stage handlers, and lifecycle |
-| [Workflow](docs/workflow.md) | Agent roles, conversation contracts, and command specs |
+| [Agents](docs/workflow.md) | Agent roles, conversation contracts, and command specs |
 | [Configuration](docs/configuration.md) | Environment variables, defaults, and operator runbooks |
 | [Observability](docs/observability.md) | Logs, analytics, dashboards, trajectories, usage, and cost |
 | [Security](docs/security.md) | Deployment checklist and operator-owned controls |
