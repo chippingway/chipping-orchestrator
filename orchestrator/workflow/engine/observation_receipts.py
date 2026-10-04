@@ -51,12 +51,9 @@ def claim_receipt_post(
     one apiece.
 
     A receipt already recorded for the reading in hand declines nothing by
-    itself: the claim carries the cycle it named, and the poster owes nothing
-    only where the record still names that cycle. Another poller on this host
-    can settle the cycle a landed receipt was for and an operator restart it
-    while the reading is still held, and a close of the fresh cycle is owed a
-    receipt of its own -- one a memo remembering only the issue would
-    suppress, so that a restart of this process lost the close outright.
+    itself: the claim carries the cycle it named, and owes nothing only where
+    the record still names that cycle -- a close of a cycle restarted since is
+    owed a receipt of its own, which a memo of the issue alone would suppress.
 
     Handed back by `receipt_written` or `release_receipt_post`, never left
     standing: a claim over an attempt that ended would suppress every later
@@ -122,12 +119,9 @@ def scanning_receipt(
     another, so a different cycle is owed a walk of its own.
 
     Owed again, too, once another poller on this host has held the issue since
-    the walk. Every receipt is posted under the issue's writer claim, so a
-    receipt that poller left -- and it may have died before marking what it
-    observed -- landed inside a hold that ended after this walk began. Asked
-    under this process's own claim, with the repository's id, the claim notes
-    say whether any such hold has been found; one that ended before the walk
-    was there to be read by it. Without the id, the walk is owed only by cycle.
+    the walk, as the claim notes say given the repository's id: every receipt
+    is posted under the claim, so one that poller left -- dying, perhaps,
+    before marking what it observed -- landed after this walk began.
 
     Handed back where the walk established nothing, which is what makes the
     claim honest. A listing that raises proved neither answer, and a claim

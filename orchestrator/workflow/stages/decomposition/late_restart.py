@@ -20,6 +20,7 @@ from orchestrator.github import (
     labels as _labels,
     pinned_state as _pinned_state,
 )
+from orchestrator.workflow.engine import retiring_cycles as _retiring_cycles
 from orchestrator.workflow.late_split import (
     endings as _endings,
     events as _events,
@@ -79,6 +80,7 @@ def _restarts(
     begun = _begun(gh, issue, state, _late_restart_state._identified(issue, state, generation))
     if _applied(gh, issue, state, begun):
         _late_restart_state._retired(gh, issue, state, begun)
+        _retiring_cycles.restarted(spec.slug, issue.number)
     return True
 
 

@@ -80,11 +80,9 @@ def _record_observed_close(
     an observation whose receipt never landed is one a restart takes away
     entirely. So the memo that suppresses the second attempt is written by
     the attempt that SUCCEEDED, and every later poll tries again until one
-    does. An attempt that posted nothing because the close it holds could not
-    be tied to the cycle the record names succeeded at nothing either, and
-    writes no memo: the next poll that reads the issue closed is what ties a
-    fresh close to that cycle and posts for it, and a memo standing over the
-    old reading would send that poll straight past both.
+    does. One that posted nothing, its close tied to no cycle the record
+    names, writes no memo either: it would send the next poll that reads a
+    fresh close straight past the receipt that close is owed.
 
     Under a claim, because asking and posting cannot be made one operation.
     The claim is what stops two polls in that gap -- a worker's failed pass
@@ -360,12 +358,9 @@ def _latched_close_ends(
     would be doing it on a reading this walk cannot trust.
 
     True only where there is a cycle to end, and where the latched close ends
-    THIS one. An umbrella the initial decomposer made carries no generation,
-    and a latched close against one is a closed issue the ordinary terminals
-    own. And a close scoped to another cycle -- one another poller on this
-    host settled and restarted from before this walk held the issue -- is not
-    this walk's to mark, nor one no read has tied to a cycle where that poller
-    has held the issue since it was read.
+    THIS one (`close_ends`). An umbrella the initial decomposer made carries
+    no generation, and a latched close against one is a closed issue the
+    ordinary terminals own.
     """
     generation = _late_state.read_late_generation(state)
     if not generation.is_present or not _observations.close_ends(
@@ -403,16 +398,12 @@ def _retired_close_adopted(
     recovers is an observation a DEAD process was holding, and one this
     process makes is in the latch already.
 
-    The latch answers first, and costs nothing. A close this process holds
-    scoped to the very cycle the record says it retired is one it read while
-    that cycle was still live, or while another poller on this host held the
-    issue and had noted on the claim that it was retiring that cycle -- a
-    hold whose own barrier never saw this process's reading, and so carried
-    the retirement through. Either way it is a close of that cycle, and it is
-    adopted exactly as a receipt would be. Only its SCOPE answers, never a
-    close nothing tied to a cycle: the record keeps the correlation long after
-    its window closed -- the next cycle is numbered from it -- so a close of
-    an issue that has gone back to its own work would otherwise reconstruct a
+    The latch answers first, and costs nothing: a close held scoped to the
+    very cycle the record says it retired was read while that cycle was live,
+    or inside a retirement another poller noted on the claim, whose barrier
+    never saw it -- a close of that cycle, adopted as a receipt would be.
+    Only its SCOPE answers: the record keeps the correlation long after its
+    window closed, so a close nothing tied to a cycle would reconstruct a
     split that already finished.
 
     The cycle goes back with the ledgers the retirement carried across and an

@@ -115,6 +115,13 @@ def retiring(
     )
 
 
+def restarted(repo_slug: str, issue_number: int) -> None:
+    """Note, after the write, that this process restarted this issue's cycle -- a write no claim note reports."""
+    moment = _claim_notes.moment()
+    with _observation_state._lock:
+        _observation_state._restarted[_observation_state._owner_key(repo_slug, issue_number)] = moment
+
+
 def cycle_being_retired(
     repo_slug: str, issue_number: int,
 ) -> int | None:

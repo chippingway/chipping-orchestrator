@@ -15,7 +15,7 @@ from orchestrator.workflow.engine import observation_state as _observation_state
 
 
 def observe_close(
-    repo_slug: str, issue_number: int, read_at: int | None = None,
+    repo_slug: str, issue_number: int, read_at: int | None = None, *, retried: bool = False,
 ) -> None:
     """Latch a close this poll saw, so what reads it cannot miss it.
 
@@ -34,11 +34,14 @@ def observe_close(
     cycle. So the postponed drop is withdrawn, and the reading is left to the
     next pass under the claim, which settles it again once it has reconciled
     it -- one more pass over a reading that may owe nothing, where the drop
-    would have cost the close.
+    would have cost the close. A `retried` reading -- one already latched,
+    handed back unchanged -- is no fresh close, and withdraws nothing.
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:
         _observation_state._observed.add(key)
+        if retried:
+            return
         _observation_state._deferred.discard(key)
         if read_at is not None:
             moment = int(read_at)
@@ -143,11 +146,13 @@ def settle_close(repo_slug: str, issue_number: int) -> None:
     kept for good and nothing is dropped out from under the reader it was for.
     Unless a close is latched again before then: the window outlasts the
     worker's writer claim, and a reading taken after the drop was decided is
-    one the drop was never about (`observe_close`).
+    one the drop was never about (`observe_close`). Deferred, it keeps its
+    scope but not its moment, so it ties to no cycle it was not scoped to.
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:
         if key in _observation_state._publishing:
             _observation_state._deferred.add(key)
+            _observation_state._since.pop(key, None)
             return
         _observation_state._settled(key)

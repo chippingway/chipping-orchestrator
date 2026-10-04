@@ -249,21 +249,13 @@ def _settled_elsewhere(
 ) -> bool:
     """Whether the close this visit was routed for cannot be tied to this cycle.
 
-    Only an issue open again can answer yes, because that is the one reading
-    on which a close can be older than the cycle it is held against. Another
-    poller on this host can hold the issue between this process's poll and
-    its pass, settle the cycle that close ended, and start the fresh one an
-    operator authorized -- and the mark below would end that fresh cycle for
-    a close that happened before it existed. The held close is scoped to the
-    cycle it ended, so a record on any other cycle is one that close no
-    longer reaches. A close no read ever tied to a cycle reaches this one only
-    where no other poller has held the issue since it was read; otherwise the
-    cycle this visit finds may be the fresh one. Either way nothing is marked,
-    and the reopened issue is settled out of the sweep as any other is.
-
-    A closed issue is a close standing now, read under the claim beside the
-    record, which ends whatever cycle the record names, so the visit scopes
-    what it is holding to that cycle and goes on.
+    Only an issue open again can answer yes: the cycle the record names may
+    be a fresh one started after the close, which the mark below would end
+    for a close that predates it. The held close reaches only the cycle it is
+    scoped to, or one `close_ends` ties it to; anything else is settled out of
+    the sweep with nothing marked. A closed issue is a close standing now,
+    which ends whatever cycle the record names, so the visit scopes what it
+    holds to that cycle and goes on.
     """
     if issue_is_closed(issue):
         _observations.scope_close(spec.slug, issue.number, generation.cycle_id)

@@ -304,7 +304,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     retiring_cycles.py      the held cycle id across a retirement write and its final barrier; exit removes the marker
                             and reports, under the same lock, a close observed inside the window that ends this cycle;
                             the cycle is also noted on the issue's writer claim for the rest of the hold, where a
-                            contender reads it
+                            contender reads it; and the moment this process restarts a cycle, which no claim notes
     publication_holds.py    counted holds taken when a worker is admitted and nested around handler execution; only the
                             final release settles a deferred close, preserving the reading through queueing and refetch;
                             a close latched again before that release withdraws the deferred drop, since the scheduler's

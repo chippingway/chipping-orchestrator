@@ -52,13 +52,14 @@ def _recorded_at_poll(
     where the record positively says there is nothing to end -- a closed issue
     with no late cycle is owed a turn, not an observation, and carrying one
     would send it through a cleanup pass it never earned. `read_at` is a
-    moment no later than the read `issue` is, which the latch keeps.
+    moment no later than the read `issue` is, which the latch keeps; without
+    one this is an owed reading retried, which withdraws nothing.
 
     Answers whether the reading was kept, so a caller that has to hold one
     across the pass it is handing it to knows whether it is holding anything.
     """
     issue_number = int(issue.number)
-    observations.observe_close(spec.slug, issue_number, read_at)
+    observations.observe_close(spec.slug, issue_number, read_at, retried=read_at is None)
     late_close_observation = importlib.import_module(_stage_targets._LATE_CLOSE_OBSERVATION_OWNER)
     if late_close_observation._record_observed_close(
         gh, spec, issue_number, polled=issue,
@@ -227,7 +228,7 @@ def _deferred_cleanup(
     itself is what bounds the repeats: it writes nothing where the thread
     already says this, and remembers the attempt that landed.
     """
-    observations.observe_close(spec.slug, issue_number)
+    observations.observe_close(spec.slug, issue_number, retried=True)
     _said_deferred(spec, issue_number, reason)
     late_close_observation = importlib.import_module(_stage_targets._LATE_CLOSE_OBSERVATION_OWNER)
     late_close_observation._record_observed_close(gh, spec, issue_number)

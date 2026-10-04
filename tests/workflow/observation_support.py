@@ -46,6 +46,7 @@ _REGISTRIES = (
     ("_retiring", dict),
     ("_publishing", dict),
     ("_deferred", set),
+    ("_restarted", dict),
 )
 
 

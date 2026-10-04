@@ -40,52 +40,20 @@ def _process_polled_issue(
     `read_at` is the moment the loop read before it listed anything
     (`claim_notes.moment`), so no later than the read `issue` is.
 
-    The sequential path's own entry, and what it adds over `_process_issue` is
-    the classification the other two paths get on their way to a worker, and
-    the refetch their worker takes. Hard-skipped issues are dropped here as the
-    partition drops them, rather than inside `_process_issue`, so the
-    classification this path takes is the same one the other two take.
+    The sequential path's own entry: it takes the classification the other two
+    paths take on their way to a worker, dropping hard-skipped issues as the
+    partition does, then runs under the issue's writer claim -- a contender
+    writes nothing and keeps only a closed reading in its latch, tied to a
+    cycle only where a read proves it. The closed reading is taken off the
+    enumeration's object before the classification, as the partition's is.
 
-    Everything past that classification runs under the issue's writer claim,
-    which is taken as the worker paths take theirs: before any read or write
-    for the issue, so a contender writes nothing and leaves any latch it found
-    for the next poll. A CLOSED reading it found is latched too, tied to a
-    cycle only where a read proves it, and nothing more, because no other
-    path of this process would ever hold it -- this loop is the enumeration
-    and the worker both. An open parked issue never asks for the claim,
-    because it has nothing to write. The closed reading is taken off the
-    enumeration's object BEFORE the classification, as the partition takes
-    its own.
-
-    Once the claim is held, the issue is read again before anything routes it,
-    on every route. The object in hand is the enumeration's, and it is older
-    than the claim: another poller on this host can advance the issue between
-    the poll and the moment this one holds it, and an owner closed or reopened
-    after the poll would otherwise reach the stage its label names, or a sweep
-    of a ledger the live cycle is writing again, on a stale reading. The stage
-    handler is chosen by the label that read returns.
-
-    What the poll read is carried over that refetch only where it is a close,
-    and the binding is one-way for the reason the workers' is: a closed
-    classification may not become an agent-spawning stage handler on the
-    strength of a reopen this tick raced, while an issue that was open when it
-    was polled has been classified as ordinary work all along and a
-    freshly-read close is what sends it to the sweep. Which closes are a
-    cleanup is the partition's question too: one on any of the four cleanup
-    labels, and one latched here earlier.
-
-    A latched close overrides the label as it does in the partition, and for
-    the same reason: the reading it carries is one the reopen it survived took
-    off the remote, so nothing this path could read would find it. It
-    overrides the hard-skip filter with it -- an operator's park defers the
-    external half of the ending, which is what the sweep does with a parked
-    issue anyway, and never the mark. A closed reading passes the filter too,
-    on any label, as it does in the partition: this pass is the only one that
-    records the close, under the claim or in a contender's latch, and an owner
-    dropped here would come back from a reopen and an unpark with its cycle
-    live. The park is applied again behind the mark. And the cleanup a latch
-    routes to is wrapped in the same observation hold the worker paths use,
-    because a pass that raises here marked nothing either.
+    Under the claim the issue is read again before anything routes it, since
+    another poller may have advanced, closed, or reopened it since the poll;
+    the poll's reading carries over only where it is a close, one-way as the
+    workers' does. A latched close, or a closed reading on a cleanup label,
+    goes to the sweep inside the observation hold the worker paths use --
+    past the hard-skip filter too, since an operator's park defers the
+    ending's external half and never the mark.
     """
     latched = observations.close_observed(spec.slug, int(issue.number))
     closed = issue_is_closed(issue)
@@ -109,14 +77,9 @@ def _claimed_poll(
 ) -> None:
     """Take one polled issue's writer claim, and pass it down the route it earned.
 
-    What the poll read travels into the pass as a reading, and with it the
-    moment the loop read before listing the issue: taking the claim is what
-    finds a hold another poller made since, and the pass asks whether any
-    such hold was still standing at that moment to know whether the record
-    it reads is the one the poll's close was read against. Not a moment read
-    here, after the classification: a hold made while this thread classified
-    the issue, and found by a claim another thread of this process took and
-    let go meanwhile, would read as one the close was read after.
+    The reading carries the moment the loop read before listing, not one read
+    here: a hold another thread of this process found while this one
+    classified the issue would otherwise read as one the close was read after.
     """
     issue_number = int(issue.number)
     with _issue_processing._writer_claim(
@@ -138,14 +101,9 @@ def _claimed_cleanup(
 ) -> None:
     """Sweep one polled issue whose writer claim this thread holds.
 
-    The refetch is INSIDE the hold, because it is the first thing a cleanup
-    spends and the likeliest thing to fail: a read that raised marked nothing,
-    and the reading this pass was taking would otherwise be gone.
-
-    A closed reading is latched first, with the moment it was taken at, as the
-    enumeration latches its own on the worker paths: the sweep ties a close to
-    the cycle it finds by that latch, and an owner reopened before the refetch
-    is one whose close nothing else would carry.
+    A closed reading is latched first, with its moment, as the enumeration
+    latches its own on the worker paths; the refetch is inside the hold,
+    being the likeliest thing to fail, and a read that raised marked nothing.
     """
     if reading.closed:
         observations.observe_close(spec.slug, issue_number, reading.read_at)

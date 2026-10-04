@@ -20,10 +20,11 @@ from orchestrator.scheduler import claim_notes as _claim_notes
 # the owners a receipt is being posted for right now; how many readings of each
 # owner a pass has actually settled; and the owners whose thread has been asked
 # about an inherited receipt, with the cycle it was asked for and the moment it
-# was asked at; and the cycle a worker is retiring off each record right now.
-# Module-level and lock-guarded, like the running-process registry the agent
-# runner keeps: the writer is the polling thread and the readers are workers,
-# so the record has to outlive both.
+# was asked at; the cycle a worker is retiring off each record right now; and
+# the moment this process last wrote a restarted cycle onto each. Module-level
+# and lock-guarded, like the running-process registry the agent runner keeps:
+# the writer is the polling thread and the readers are workers, so the record
+# has to outlive both.
 _observed: set[tuple[str, int]] = set()
 _scopes: dict[tuple[str, int], int] = {}
 _since: dict[tuple[str, int], int] = {}
@@ -34,6 +35,7 @@ _scanned: dict[tuple[str, int], tuple[int, int]] = {}
 _retiring: dict[tuple[str, int], int] = {}
 _publishing: dict[tuple[str, int], int] = {}
 _deferred: set[tuple[str, int]] = set()
+_restarted: dict[tuple[str, int], int] = {}
 _lock = threading.Lock()
 
 
@@ -69,8 +71,10 @@ def _ends(key: tuple[str, int], cycle_id: int, repo_id: int | None) -> bool:
     held the issue since the latest moment the latch was read closed at, and
     is scoped to it from then on. A cycle another poller settled and restarted
     is therefore ended only by a close read after that poller let go, never by
-    the reading it settled. Spelled once, so a barrier that has to decide
-    under this lock answers exactly as one that takes it.
+    the reading it settled -- and one this process restarted (`_restarted`),
+    which no claim note records, only by a close read after that write.
+    Spelled once, so a barrier that has to decide under this lock answers
+    exactly as one that takes it.
     """
     if key not in _observed:
         return False
@@ -79,7 +83,8 @@ def _ends(key: tuple[str, int], cycle_id: int, repo_id: int | None) -> bool:
     read_at = _since.get(key)
     if None in {repo_id, read_at}:
         return False
-    if not _claim_notes.undisturbed_since(repo_id, key[1], read_at):
+    after_restart = read_at > _restarted.get(key, -1)
+    if not (after_restart and _claim_notes.undisturbed_since(repo_id, key[1], read_at)):
         return False
     _scopes[key] = int(cycle_id)
     return True
