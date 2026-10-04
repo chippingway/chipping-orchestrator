@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.github.pinned_state import PINNED_STATE_MARKER
 from tests.support.fakes import (
     FakeGitHubClient,
+    FakeIssue,
     make_issue,
 )
+from tests.support.writer_claims import claimed_on_creation
 from tests.workflow.fixtures import (
+    KEY_PARENT_NUMBER,
+    LABEL_BLOCKED,
     LABEL_DECOMPOSING,
     _agent,
     _manifest,
@@ -16,6 +21,7 @@ from tests.workflow.fixtures import (
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _ChildCreationSnapshotRecorder,
     _DecomposingWorkflowMixin,
+    _ReachedFirstByAnotherPoller,
 )
 
 KEY_DECOMPOSER_AGENT = "decomposer_agent"
@@ -58,6 +64,9 @@ PRESERVED_HIGH_WATERMARK = 10000
 HALF_COMPLETE_DISABLED_PARENT_NUMBER = 50
 RECOVERY_CHILD_NUMBERS = (101, 102)
 PERSISTENCE_ISSUE_NUMBER = 80
+SEED_CONTENTION_ISSUE_NUMBER = 81
+SEED_RECORD_ISSUE_NUMBER = 84
+KEY_AWAITING_HUMAN = "awaiting_human"
 COMPLETE_RECOVERY_PARENT_NUMBER = 50
 AWAITING_RECOVERY_PARENT_NUMBER = 51
 AWAITING_RECOVERY_CHILD_NUMBER = 201
@@ -129,3 +138,70 @@ class DecompositionChildPersistenceTest(
             len(gh.pinned_data(PERSISTENCE_ISSUE_NUMBER).get(KEY_CHILDREN) or []),
             3,
         )
+
+    def test_a_held_child_is_seeded_by_the_recovery(self) -> None:
+        # Another poller on this host dispatches each child the moment it
+        # exists, so neither is this split's to seed. Both are still created
+        # and recorded -- the manifest is not kept to create the rest from
+        # later -- and nothing parks, finalizes, or writes to them. Once that
+        # poller lets go, the parent's next tick recovers the split: it seeds
+        # each child under its claim and finalizes, with no human and no
+        # decomposer run.
+        gh, issue = _decomposing_issue(SEED_CONTENTION_ISSUE_NUMBER)
+
+        with claimed_on_creation(gh):
+            self._run_decomposing(
+                gh,
+                issue,
+                run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=SPLIT_MANIFEST),
+            )
+
+        created = [child.number for child in gh.created_child_issues]
+        parent = gh.pinned_data(SEED_CONTENTION_ISSUE_NUMBER)
+        self.assertEqual(parent.get(KEY_CHILDREN), created)
+        # Both created, neither written.
+        self.assertEqual(list(map(gh.pinned_data, created)), [{}, {}])
+        self.assertFalse(parent.get(KEY_AWAITING_HUMAN), "nothing parks")
+        self.assertEqual(gh.label_history, [], "the parent is not finalized past them")
+
+        mocks = self._run_decomposing(gh, issue, run_agent=_agent())
+
+        mocks[RUN_AGENT].assert_not_called()
+        self.assertEqual(
+            {gh.pinned_data(number).get(KEY_PARENT_NUMBER) for number in created},
+            {SEED_CONTENTION_ISSUE_NUMBER},
+        )
+        self.assertEqual(gh.label_history, [(SEED_CONTENTION_ISSUE_NUMBER, LABEL_BLOCKED)])
+        self.assertFalse(gh.pinned_data(SEED_CONTENTION_ISSUE_NUMBER).get(KEY_AWAITING_HUMAN))
+
+    def test_the_seed_lands_on_the_record_held_first(self) -> None:
+        # Another poller on this host reaches each child before the split
+        # seeds it and holds it for the seed it lacks, parked on a pinned
+        # comment of its own. The seed lands on that one comment -- the one
+        # every reader takes -- and lifts the hold it answers, rather than in
+        # a second comment beside it that no reader takes.
+        gh, issue = _decomposing_issue(SEED_RECORD_ISSUE_NUMBER)
+        gh.create_child_issue = _ReachedFirstByAnotherPoller(gh)
+
+        self._run_decomposing(
+            gh,
+            issue,
+            run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=SPLIT_MANIFEST),
+        )
+
+        self.assertEqual(len(gh.created_child_issues), 2)
+        for child in gh.created_child_issues:
+            records = [comment.id for comment in child.comments if PINNED_STATE_MARKER in comment.body]
+            seed = gh.read_pinned_state(child)
+            self.assertEqual(records, [seed.comment_id], f"#{child.number} carries one pinned record")
+            self.assertEqual(seed.get(KEY_PARENT_NUMBER), SEED_RECORD_ISSUE_NUMBER)
+            self.assertFalse(seed.get(KEY_AWAITING_HUMAN), "the hold the seed answers is lifted")
+        self.assertIn((SEED_RECORD_ISSUE_NUMBER, LABEL_BLOCKED), gh.label_history)
+
+
+def _decomposing_issue(number: int) -> tuple[FakeGitHubClient, FakeIssue]:
+    """A client holding one `decomposing` issue the decomposer is about to split."""
+    gh = FakeGitHubClient()
+    issue = make_issue(number, label=LABEL_DECOMPOSING)
+    gh.add_issue(issue)
+    return gh, issue

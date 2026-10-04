@@ -21,9 +21,14 @@ from unittest.mock import Mock, patch
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.skills import catalog
 from orchestrator.workflow.engine import stage_targets as _stage_targets, tick
-from orchestrator.workflow.late_split import obligations as _obligations, phases as _late_phases, state as _late_state
-from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split import (
+    models as _late_models,
+    obligations as _obligations,
+    phases as _late_phases,
+    state as _late_state,
+)
 from tests.support.fakes import FakeGitHubClient, make_issue
+from tests.support.writer_claims import claimable
 from tests.workflow.fixtures import _TEST_SPEC, LABEL_UMBRELLA
 from tests.workflow.git_owners import seam_patch
 
@@ -93,7 +98,10 @@ class SequentialTickRefetchTest(unittest.TestCase):
         # the refetch is what decides how far this pass goes, and an issue
         # somebody has just reopened gets nothing external done to it and no
         # terminal. The mark is what hands it to the dispatcher's own guard.
+        # The issue has been written on this host before the poll read it,
+        # which is what ties the reading to the record the claim finds.
         github = self._owner_holding_a_ref()
+        self.assertTrue(claimable(github.repo_id, _OWNER_NUMBER))
         deleted = Mock()
 
         with patch.object(_snapshot_refs, "delete_snapshot_ref", deleted), self.assertLogs(_WORKFLOW_LOG):
@@ -146,7 +154,7 @@ class SequentialTickRefetchTest(unittest.TestCase):
             _OWNER_NUMBER, label=LABEL_UMBRELLA, closed=not reopened,
         ))
         state = github.read_pinned_state(github.get_issue(_OWNER_NUMBER))
-        _late_state.write_late_generation(state, LateGeneration(
+        _late_state.write_late_generation(state, _late_models.LateGeneration(
             cycle_id=_CYCLE_ID,
             generation=_GENERATION,
             root_issue=_OWNER_NUMBER,

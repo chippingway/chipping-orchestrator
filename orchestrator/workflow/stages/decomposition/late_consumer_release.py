@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Deliver snapshot reclamation receipts to consumers while the owner remains open.
 
-Each child's cycle-bound receipt is deduplicated from its thread -- inside
-`child_claims.claiming()`, under the child's writer claim, which no production
-pass takes yet. Close checks surround the reads and writes, and an unreachable
-child -- or, there, one another poller on this host is writing -- keeps the
+Each child's cycle-bound receipt is deduplicated from its thread under the
+child's writer claim. Close checks surround the reads and writes, and an
+unreachable child -- or one another poller on this host is writing -- keeps the
 notification obligation outstanding.
 """
 from __future__ import annotations
@@ -138,12 +137,11 @@ def _release(
     told is the one thing this step exists to prevent, so the obligation stays
     on the ledger until it can be.
 
-    Inside `child_claims.claiming()`, proved and posted under the child's own
-    writer claim, `alongside` a handler of this process's that holds it, since
-    the comment is built to land beside one. A claim another poller on this
-    host holds is one no handler of this process stands beside, so it answers
-    False as an unreachable child does, and the obligation waits for a later
-    pass.
+    Proved and posted under the child's own writer claim, `alongside` a
+    handler of this process's that holds it, since the comment is built to
+    land beside one. A claim another poller on this host holds is one no
+    handler of this process stands beside, so it answers False as an
+    unreachable child does, and the obligation waits for a later pass.
     """
     child = proven.issues.get(int(consumer))
     if child is None:

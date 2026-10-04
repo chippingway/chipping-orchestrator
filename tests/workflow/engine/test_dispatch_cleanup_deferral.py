@@ -24,6 +24,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import Mock
 
+from tests.support.writer_claims import claimable
 from tests.workflow.engine import cleanup_deferral_support as _support
 from tests.workflow.engine.cleanup_deferral_support import DeferralCase
 from tests.workflow.engine.unfinished_cleanup_support import (
@@ -213,7 +214,10 @@ class FailedCleanupPassTest(DeferralCase, unittest.TestCase):
         # The whole of it: nothing ever reads this issue closed again, and
         # its label names the handler that walks a dependency graph and
         # activates children. Without the hold the reopened owner would reach
-        # exactly that handler over a cycle a close already ended.
+        # exactly that handler over a cycle a close already ended. The issue
+        # has been written on this host before, so the claim the failed pass
+        # took finds a hold that ended ahead of the poll's reading.
+        self.assertTrue(claimable(self.github.repo_id, _support.OWNER_NUMBER))
         self._tick_the_pass_failed(self.scheduler)
         self._reopened()
 

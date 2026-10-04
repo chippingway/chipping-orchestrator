@@ -9,9 +9,6 @@ another poller settled and restarted is ended by a close read after it let go,
 never by the reading it settled. A retirement made under the claim notes its
 cycle there for the pollers it refuses, and reports a close latched inside it
 only where that close ends the cycle being retired.
-
-Asked directly: no production pass carries a read moment, scopes a close, or
-opens a retirement window with the repository's id yet.
 """
 from __future__ import annotations
 
@@ -41,7 +38,7 @@ class CloseScopeTest(ObservedCloseCase, unittest.TestCase):
         self._fresh_process()
 
     def test_a_scoped_close_ends_only_its_cycle(self) -> None:
-        self._latch_close(_SLUG, _ISSUE)
+        _observations.observe_close(_SLUG, _ISSUE)
         _observations.scope_close(_SLUG, _ISSUE, _CYCLE)
 
         self.assertTrue(_observations.close_ends(_SLUG, _ISSUE, _CYCLE))
@@ -95,7 +92,7 @@ class CloseScopeTest(ObservedCloseCase, unittest.TestCase):
         _observations.scope_close(_SLUG, _ISSUE, _CYCLE)
 
         self._settle_latches(_SLUG)
-        self._latch_close(_SLUG, _ISSUE)
+        _observations.observe_close(_SLUG, _ISSUE)
 
         self.assertIsNone(_observations.close_scope(_SLUG, _ISSUE))
         with _held_here():
@@ -125,21 +122,21 @@ class ClaimedRetirementTest(ObservedCloseCase, unittest.TestCase):
                 self._fresh_process()
                 window = _retiring_cycles.retiring(_SLUG, _ISSUE, _CYCLE, _REPO_ID)
                 with _held_here(), window.held():
-                    self._latch_close(_SLUG, _ISSUE)
+                    _observations.observe_close(_SLUG, _ISSUE)
                     _observations.scope_close(_SLUG, _ISSUE, scope)
                 self.assertIs(window.observed, reported)
 
     def test_a_window_without_the_id_notes_none(self) -> None:
-        # Every production retirement leaves the id out: nothing is noted on
-        # the claim, and any close latched inside the window is reported.
+        # Nothing is noted on a claim the window cannot name, and a close
+        # scoped to another cycle is still not this retirement's to report.
         window = _retiring_cycles.retiring(_SLUG, _ISSUE, _CYCLE)
         with _held_here(), window.held():
-            self._latch_close(_SLUG, _ISSUE)
+            _observations.observe_close(_SLUG, _ISSUE)
             _observations.scope_close(_SLUG, _ISSUE, _RESTARTED)
             noted = _claim_notes.noted_retirement(_REPO_ID, _ISSUE)
 
         self.assertIsNone(noted)
-        self.assertTrue(window.observed)
+        self.assertFalse(window.observed)
 
 
 if __name__ == "__main__":

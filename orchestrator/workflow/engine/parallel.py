@@ -64,7 +64,9 @@ def _drain_family_bucket(
     exception isolation lives INSIDE this loop (one try/except per issue) so
     the bucket keeps draining if any single family handler raises; the function
     itself never raises, so the caller's `fut.result()` only ever surfaces a
-    programming-level failure.
+    programming-level failure. Each issue is taken under its own writer claim
+    inside `_refetch_and_process`, so one held by another poller on this host
+    is skipped and the drain goes on.
     """
     for issue_number in family_numbers:
         try:
@@ -117,15 +119,7 @@ class _ParallelTickPlan:
                         self.gh,
                         self.spec,
                         issue_number,
-                        reading=_poll_models._PollReading(
-                            cleanup_only=(
-                                issue_number
-                                in self.partition.cleanup_numbers
-                            ),
-                            closed=(
-                                issue_number in self.partition.fanout_closed
-                            ),
-                        ),
+                        reading=self.partition.reading(issue_number),
                         semaphore_cm=self.semaphore_cm,
                     ),
                 )

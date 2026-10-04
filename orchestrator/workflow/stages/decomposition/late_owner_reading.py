@@ -67,14 +67,17 @@ def _read_owner(context: _LateContext) -> _OwnerState:
 
 
 def _latched_close(context: _LateContext) -> bool:
-    """Whether a poll observed this issue closed and nothing has settled it.
+    """Whether a poll observed this issue closed, ending this cycle, and nothing has settled it.
 
     Said out loud when it answers, because it is the one closed reading that
     no request of this run's would ever show and an operator reading the log
-    would otherwise see a cycle end against an issue GitHub reports open.
+    would otherwise see a cycle end against an issue GitHub reports open. A
+    close scoped to a cycle another poller on this host settled and restarted
+    from is no reading of this one's owner, which GitHub is asked about instead.
     """
-    if not _observations.close_observed(
-        context.spec.slug, context.issue.number,
+    if not _observations.close_ends(
+        context.spec.slug, context.issue.number, context.generation.cycle_id,
+        repo_id=context.gh.repo_id,
     ):
         return False
     log.warning(

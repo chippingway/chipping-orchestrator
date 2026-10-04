@@ -4,7 +4,9 @@
 
 The shared observation registry retains a close until its cycle is settled.
 Receipt recording is resolved on its stage owner, and a refused worker
-submission preserves the cleanup obligation for the next poll.
+submission preserves the cleanup obligation for the next poll -- written down
+under the issue's writer claim, or left as the enumeration latched it where
+that claim is refused.
 """
 from __future__ import annotations
 
@@ -19,7 +21,9 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import (
     issue_is_closed,
 )
+from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.workflow.engine import (
+    issue_processing as _issue_processing,
     observations,
     poll_models as _poll_models,
     stage_targets as _stage_targets,
@@ -37,7 +41,10 @@ _HELD_BY_A_WORKER = "a worker is already running it"
 
 
 def _recorded_at_poll(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    read_at: int | None,
 ) -> bool:
     """Latch this closed reading and get its durable half written.
 
@@ -45,13 +52,14 @@ def _recorded_at_poll(
     and everything after it is a request that can fail. Dropped again only
     where the record positively says there is nothing to end -- a closed issue
     with no late cycle is owed a turn, not an observation, and carrying one
-    would send it through a cleanup pass it never earned.
+    would send it through a cleanup pass it never earned. `read_at` is a
+    moment no later than the read `issue` is, which the latch keeps.
 
     Answers whether the reading was kept, so a caller that has to hold one
     across the pass it is handing it to knows whether it is holding anything.
     """
     issue_number = int(issue.number)
-    observations.observe_close(spec.slug, issue_number)
+    observations.observe_close(spec.slug, issue_number, read_at)
     late_close_observation = importlib.import_module(_stage_targets._LATE_CLOSE_OBSERVATION_OWNER)
     if late_close_observation._record_observed_close(
         gh, spec, issue_number, polled=issue,
@@ -87,14 +95,20 @@ def _refetched_close(
 
     A pass already carrying a closed reading holds nothing here: the poll's
     own is the older of the two and is already latched and already written.
+
+    The moment it is latched at is read after the refetch, which is sound
+    only because the refetch was taken under this pass's claim: every other
+    poller's hold this process can find had ended before the claim was
+    granted, so none falls between the read and the moment.
     """
     if reading.closed or not issue_is_closed(issue):
         yield
         return
-    if not _recorded_at_poll(gh, spec, issue):
+    read_at = _claim_notes.moment()
+    if not _recorded_at_poll(gh, spec, issue, read_at):
         yield
         return
-    with _closed_reading(gh, spec, int(issue.number)):
+    with _closed_reading(gh, spec, int(issue.number), read_at):
         yield
 
 
@@ -102,9 +116,7 @@ def _refused_submit(
     gh: GitHubClient,
     spec: _config_models.RepoSpec,
     issue_number: int,
-    *,
-    cleanup_only: bool,
-    closed: bool,
+    reading: _poll_models._PollReading,
 ) -> None:
     """Hold whatever observation a refused fan-out submit was carrying.
 
@@ -123,17 +135,35 @@ def _refused_submit(
     the one thing this path exists to keep. A latch held over an issue with
     no cycle costs the next tick one cleanup pass that settles it; a reading
     dropped costs the close itself.
+
+    Both read the record and post on the thread, so both are taken under the
+    issue's writer claim -- `alongside` the worker of this process a duplicate
+    refusal names, since the receipt is a comment built to be written beside
+    it. A claim another poller holds, or one that could not be worked, leaves
+    the latch as the partition left it: the enumeration took this tick's
+    closed reading under the same claim, or kept it as a contender where that
+    claim was refused, so there is nothing newer here to keep. The moment the
+    reading was taken at goes into the latch with it.
     """
-    if cleanup_only:
-        _deferred_cleanup(gh, spec, issue_number, _HELD_BY_A_WORKER)
+    if not (reading.cleanup_only or reading.closed):
         return
-    if closed:
-        _kept_closed_reading(gh, spec, issue_number)
+    with _issue_processing._writer_claim(
+        gh, spec, issue_number, alongside=True,
+    ) as held:
+        if not held:
+            return
+        if reading.cleanup_only:
+            _deferred_cleanup(gh, spec, issue_number, _HELD_BY_A_WORKER)
+            return
+        _kept_closed_reading(gh, spec, issue_number, reading.read_at)
 
 
 @contextlib.contextmanager
 def _closed_reading(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    read_at: int | None = None,
 ):
     """Hold one closed issue's reading across the pass that would spend it.
 
@@ -142,16 +172,20 @@ def _closed_reading(
     built on answers a refusal of its own, so a tick that could not read the
     record refuses the issue and marks nothing. What a pass that DID mark it
     leaves behind is a record positively saying there is nothing to end,
-    which is exactly what drops the reading again.
+    which is exactly what drops the reading again. `read_at` is the moment
+    the reading was taken at, where its taker knew one.
     """
     try:
         yield
     finally:
-        _kept_closed_reading(gh, spec, issue_number)
+        _kept_closed_reading(gh, spec, issue_number, read_at)
 
 
 def _kept_closed_reading(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    read_at: int | None = None,
 ) -> None:
     """Hold a closed reading no pass acted on, unless the record says not to.
 
@@ -170,7 +204,7 @@ def _kept_closed_reading(
     So the owner writes the receipt from the read that decides this, and
     answers with what that read established.
     """
-    observations.observe_close(spec.slug, issue_number)
+    observations.observe_close(spec.slug, issue_number, read_at)
     late_close_observation = importlib.import_module(_stage_targets._LATE_CLOSE_OBSERVATION_OWNER)
     if not late_close_observation._record_observed_close(gh, spec, issue_number):
         observations.settle_close(spec.slug, issue_number)

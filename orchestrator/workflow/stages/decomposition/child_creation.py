@@ -8,17 +8,15 @@ consumer ledger where the plan's lineage owes it a pointer. The seed is the
 parent link and that lineage: nothing of the parent's own size gate -- its
 measurement, its exemption, or an exact-commit authorization -- is carried
 across. The same seed completes a child the split's recovery repairs
-(`_complete_seed`). A create or a seed write that fails parks the parent with
-the corresponding receipt.
+(`_complete_seed`).
 
-A child is dispatchable the moment it exists, so a seed made inside
-`child_claims.claiming()` is written under the child's own writer claim, onto
-the record the child carries by then: another poller on this host may have
-reached it first and held it for the seed it lacked. A child that poller is
-still writing is left unseeded on the plan (`_SplitPlan.unseeded`) and the loop
-goes on, for the split's recovery to seed under the claim on a later tick. No
-production split seeds there yet: until the dispatch takes the claim, each
-seed is written fresh and the split finalizes as it always has.
+A child is dispatchable the moment it exists, so the seed is written under the
+child's own writer claim, onto the record the child carries by then: another
+poller on this host may have reached it first and held it for the seed it
+lacked. A child that poller is still writing is left unseeded and the loop goes
+on, leaving the split to its recovery, which seeds it under the claim on a
+later tick and finalizes. A create or a seed write that fails parks the parent
+with the corresponding receipt.
 """
 from __future__ import annotations
 
@@ -53,14 +51,13 @@ def _write_child_pinned_state(
     """Seed a freshly-created child: the parent link, the creation stamp, and
     the late ancestry its lineage owes it, if any.
 
-    Inside `child_claims.claiming()`, read and added to rather than written
-    fresh, under the claim the caller holds. Whatever another poller wrote to
-    the child first -- the hold the dispatcher puts on a child whose seed is
-    missing -- sits on the one pinned comment every reader takes, and a fresh
-    record would land in a second comment beside it that no reader takes,
-    leaving the child held unseeded.
+    Read and added to rather than written fresh, under the claim the caller
+    holds. Whatever another poller wrote to the child first -- the hold the
+    dispatcher puts on a child whose seed is missing -- sits on the one pinned
+    comment every reader takes, and a fresh record would land in a second
+    comment beside it that no reader takes, leaving the child held unseeded.
     """
-    child_state = gh.read_pinned_state(new_issue) if _child_claims.claims_children() else PinnedState()
+    child_state = gh.read_pinned_state(new_issue)
     _complete_seed(child_state, parent_number, ancestry)
     gh.write_pinned_state(new_issue, child_state)
 
@@ -129,13 +126,12 @@ def _seed_created_child(
 ) -> bool:
     """Seed the child this split just created, or park the parent naming it.
 
-    Under the child's own writer claim inside `child_claims.claiming()`,
-    since the child is on GitHub, and dispatchable, from the moment the
-    create returns. A claim another poller on this host holds is no failure:
-    the child is already recorded, so it is left on the plan as unseeded and
-    the loop goes on -- the caller that sees `plan.unseeded` leaves the split
-    to its recovery, which seeds it under the claim once that poller lets
-    go. Only a seed that could not be written parks.
+    Under the child's own writer claim, since the child is on GitHub, and
+    dispatchable, from the moment the create returns. A claim another poller
+    on this host holds is no failure: the child is already recorded, so it is
+    left on the plan as unseeded and the loop goes on, and the split's
+    recovery seeds it under the claim once that poller lets go. Only a seed
+    that could not be written parks.
     """
     _, child = plan.created[-1]
     try:

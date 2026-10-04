@@ -15,15 +15,18 @@ record still saying the cycle is live, nothing in memory -- and a thread that
 remembers. Adopting that receipt is the whole of this module, along with the
 two things that keep the adoption from costing more than it is worth: it is
 scoped to the cycle it was written for, and the thread is walked once per
-owner per process.
+owner and cycle -- again only once another poller on this host has held the
+issue since.
 """
 from __future__ import annotations
 
 import unittest
 from unittest.mock import Mock, patch
 
+from orchestrator.scheduler import writer_claims
 from orchestrator.workflow.late_split.obligations import LateResourceState
 from orchestrator.workflow.state import WorkflowLabel
+from tests.support.writer_claims import signed_by_another_poller
 from tests.workflow.fixtures import _PatchedWorkflowMixin
 from tests.workflow.observation_support import ObservedCloseCase, receipt_for
 from tests.workflow.stages.decomposition.late_cleanup_support import (
@@ -152,6 +155,41 @@ class InheritedCloseCostTest(
 
         self.assertEqual(first, 1)
         self.assertEqual(walked.calls, 1)
+
+
+class AnotherPollersReceiptTest(
+    ObservedCloseCase, _PatchedWorkflowMixin, unittest.TestCase,
+):
+    """A receipt another poller on this host posted after this process walked the thread.
+
+    That poller observed the close under its own claim, wrote the receipt, and
+    was killed before marking the cycle; a human has reopened the issue since.
+    This process walked the thread before any of it and found nothing, so its
+    record of that walk is all that stands between the receipt and a handler
+    resuming the cycle the close ended.
+    """
+
+    def setUp(self) -> None:
+        self._fresh_process()
+
+    def test_the_receipt_is_adopted_before_any_work(self) -> None:
+        seeded = _live_owner()
+        first = self._routed_under_the_claim(seeded)
+        seeded.github.comment(seeded.parent, receipt_for(PARENT_NUMBER, CYCLE_ID))
+        signed_by_another_poller(seeded.github.repo_id, PARENT_NUMBER, released=False)
+
+        with self.assertLogs(_WORKFLOW_LOG):
+            second = self._routed_under_the_claim(seeded)
+
+        first.assert_called_once()
+        second.assert_not_called()
+        self.assertTrue(_record(seeded)[KEYS.cancelled])
+
+    def _routed_under_the_claim(self, seeded: SeededUmbrella) -> Mock:
+        """Route this owner holding its writer claim, as every dispatch path does."""
+        with writer_claims.issue_writer(seeded.github.repo_id, PARENT_NUMBER) as held:
+            self.assertTrue(held)
+            return routed_owner(self, seeded, WorkflowLabel.DECOMPOSING)
 
 
 def _live_owner() -> SeededUmbrella:

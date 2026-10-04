@@ -503,7 +503,8 @@ because there it is the claim that this stage has already rerouted rather than a
      made on a read that established nothing spends an attempt no human asked for.
   2. **User-content drift check** (inline) — see drift section above.
   3. **Half-finished decomposition recovery.** If `expected_children_count` is set OR `children` is non-empty (a prior
-     tick crashed mid-split), the handler cannot safely respawn the decomposer. When `expected_children_count` is set
+     tick crashed mid-split, or left a child another poller held unseeded), the handler cannot safely respawn the
+     decomposer. When `expected_children_count` is set
      and `len(children) < expected_children_count`, look for the one child a crash between a create and the write
      recording it can leave behind: an issue this orchestrator opened whose body carries the receipt naming this
      parent, its `split_attempt`, and the next slice, every issue walked to find it. The only one carrying it, found
@@ -585,7 +586,11 @@ because there it is the claim that this stage has already rerouted rather than a
        `<owed>` the late lineage it is seeded with, or `none` — after its declared slice, record it in `children` —
        and in the same write on `late_consumers`, where the parent's own split holds the snapshot it will be pointed
        at — and seed the child's pinned state with `parent_number`, `created_at`, and that lineage, never the
-       parent's measurement, exemption, or authorization. A child owed that snapshot is created with the reuse
+       parent's measurement, exemption, or authorization. The seed is made under the child's writer claim and added
+       to the record the child carries by then, lifting the `replacement_lineage_unproved` hold another poller on the
+       host may have parked there first; a child that poller still holds is left unseeded while the rest are
+       created, and the split then publishes no summary and no label, leaving step 3 to seed it under the claim and
+       finalize on a later tick. A child owed that snapshot is created with the reuse
        instructions a late split's own children carry appended after its receipt — the ref, its local mirror, the
        commit, the base it was cut against, and how to read and reuse it — since the body is what its implementer
        reads; activate no-dep children through the dependency walk `_handle_blocked` / `_handle_umbrella` run — over
@@ -1214,7 +1219,7 @@ because there it is the claim that this stage has already rerouted rather than a
   half of one. It parks `replacement_lineage_unproved` once and returns before the handler; a park already standing
   holds it silently, and a reply is no seed. A pinned comment that will not parse is held with nothing written, since
   the park's own write would replace whatever it carries.
-- **Runs**: a child whose seed is whole — written by the split, by its parent's recovery, which clears
+- **Runs**: a child whose seed is whole — written by the split or by its parent's recovery, either of which clears
   `awaiting_human` in the same write, or by hand — and one whose pointer its own reuse guard dropped, ref and commit
   together, after its ref was released. A restart an operator authorizes on the child's own cancelled cycle keeps the
   seed, so the restarted child runs on its next dispatch.
@@ -1500,14 +1505,17 @@ because there it is the claim that this stage has already rerouted rather than a
   answers whether the reading is owed at all — an issue whose record says there is nothing to end has its latch
   dropped again right there, so the machinery is carried only by the owners that need it (and the admitted pass
   skips its own end-of-pass probe, since the poll already asked that record).
-- **That drop is POSTPONED while a worker holds the issue.** "Nothing to end" is read off the late cycle, which is
-  the right answer for the protocol this record was built for and the wrong one for the barriers standing
-  immediately before a push: those ask the same latch, and every publication they guard carries no cycle — a first
-  push has none yet, and an approved or recovered one retires its own before pushing. So a hold is taken per issue,
-  and a settle arriving under it is recorded rather than taken. Nothing is refused and nothing is held for good: the
-  same decision is made again as the last hold goes, one moment later, where it can no longer be made out from under
-  the reader it was for — so an issue somebody reopens inherits no latch a later poll would never clear. Both
-  production drops are covered, the enumeration's and the one a refused fan-out submit takes.
+- **That drop is POSTPONED while a worker holds the issue.** "Nothing to end" is read off the late cycle, which is the
+  right answer for the protocol this record was built for and the wrong one for the barriers standing immediately before
+  a push: those ask the same latch, and every publication they guard carries no cycle — a first push has none yet, and
+  an approved or recovered one retires its own before pushing. So a hold is taken per issue, and a settle arriving under
+  it is recorded rather than taken. Nothing is refused and nothing is held for good: the same decision is made again as
+  the last hold goes, one moment later, where it can no longer be made out from under the reader it was for — so an
+  issue somebody reopens inherits no latch a later poll would never clear. Both production drops are covered, the
+  enumeration's and the one a refused fan-out submit takes. A close latched again before the last hold goes withdraws
+  the postponed drop: the scheduler's hold is given back only after its worker has let go of the issue's writer claim,
+  so another poller on the host can restart the cycle in between and this process, refused the claim, read a close of
+  the fresh cycle — a reading the drop was never about, left for the next pass under the claim to reconcile.
 - **The hold starts at the CLAIM**, which is the scheduler admitting the submit — not where the worker first reads
   anything. The queue, the worker's own refetch and its label checks all sit between the two, and the refused submit
   is refused *because* a worker has the issue, so a reading dropped in that gap is one no barrier ever sees. Holds
@@ -1562,31 +1570,39 @@ because there it is the claim that this stage has already rerouted rather than a
   the attempt that succeeded, so a comment GitHub declines is tried again on the next poll. Without that, an
   observation with no durable half would be one a restart takes away entirely — the latch alone does not survive the
   process.
-- **The attempt is claimed, and the memo is counted against the reading it was claimed for.** Asking whether the
-  thread already carries a receipt and getting one onto it are two operations, and the other two parties are inside
-  that gap: a second poll owing the same observation (a worker's failed pass and the following tick's enumeration
-  meet there), and the worker running the pass that settles the reading. So `observation_receipts.claim_receipt_post`
-  hands
-  out the sole right to attempt the post — one poll walks the receipt-less thread, not two — and it carries the
-  per-owner **generation** that reading was taken at. Every `settle_close` moves that generation, so a receipt
-  landing either side of a settlement records no memo at all: without it the memo would stand for a reading nobody
-  holds, and the *next* close — a fresh cycle an operator authorized by removing `rejected` — would be suppressed
-  into having no durable half, which a restart before its worker reaches a barrier takes away entirely. The claim is
-  handed back either way, by the write that recorded the memo or by the failure that recorded nothing; a claim left
-  standing would suppress every later poll's receipt for good.
-- **The receipt is read back once per owner per process.** After a restart the fresh process finds an issue a human
-  reopened, a record still saying the cycle is live, and nothing in memory; the dispatcher's own cancelled-cycle
-  guard therefore scans the thread for a receipt scoped to the cycle the record names, adopts it, marks the
-  cancellation, and runs the ending from the mark. The scan is claimed through
-  `observation_receipts.scanning_receipt`, so
-  a thread carrying no receipt is walked on the first tick that sees the owner and never again — what it recovers is
-  an observation a *dead* process was holding, and every observation this one makes is in the latch, which costs no
-  request. The claim is held for the length of the walk and handed back where the walk established nothing — a
-  listing that raises leaves `observation_receipts.scanning_receipt` by exception and the claim goes with it — because a
-  claim standing over a read that established nothing would send every later tick straight past the receipt and on
-  to the live stage handler. It is handed back again whenever a receipt actually LANDS: a claim taken when the thread
-  carried nothing proved nothing about one posted since, and every later pass would read straight past it. Cycle
-  scoping is what keeps an old close from ending the fresh cycle an operator authorized by removing `rejected`.
+- **The attempt is claimed, and the memo is counted against the reading it was claimed for.** Asking whether the thread
+  already carries a receipt and getting one onto it are two operations, and the other two parties are inside that gap: a
+  second poll owing the same observation (a worker's failed pass and the following tick's enumeration meet there), and
+  the worker running the pass that settles the reading. So `observation_receipts.claim_receipt_post` hands out the sole
+  right to attempt the post — one poll walks the receipt-less thread, not two — and it carries the per-owner
+  **generation** that reading was taken at. Every `settle_close` moves that generation, so a receipt landing either side
+  of a settlement records no memo at all: without it the memo would stand for a reading nobody holds, and the *next*
+  close — a fresh cycle an operator authorized by removing `rejected` — would be suppressed into having no durable half,
+  which a restart before its worker reaches a barrier takes away entirely. The claim is handed back either way, by the
+  write that recorded the memo or by the failure that recorded nothing; a claim left standing would suppress every later
+  poll's receipt for good. The memo names the cycle its receipt was for, and suppresses a post only while the record
+  still names that cycle: another poller on the host can settle that cycle and an operator restart it while this reading
+  is still held, and a close of the fresh cycle is owed a receipt of its own — without one, a restart of this process
+  after the issue is reopened would lose that close. A post skipped because the close could not be tied to the record's
+  cycle records no memo either.
+- **The receipt is read back once per owner and cycle.** After a restart the fresh process finds an issue a human
+  reopened, a record still saying the cycle is live, and nothing in memory; the dispatcher's own cancelled-cycle guard
+  therefore scans the thread for a receipt scoped to the cycle the record names, adopts it, marks the cancellation, and
+  runs the ending from the mark. The scan is claimed through `observation_receipts.scanning_receipt`, so a thread
+  carrying no receipt is walked on the first tick that sees the owner on that cycle and not again while nothing else
+  writes the issue — what it recovers is an observation a *dead* process was holding, and every observation this one
+  makes is in the latch, which costs no request. Another poller on the host is something else that writes it: it posts
+  its receipts under the issue's writer claim and can die before marking what it observed, so once a claim this process
+  takes finds that poller held the issue after the walk began, the walk is owed again. A walk for one cycle says nothing
+  about another's receipt, and owes that cycle a walk of its own. The claim is held for the length of the walk and
+  handed back where the walk established nothing — a listing that raises leaves `observation_receipts.scanning_receipt`
+  by exception and the claim goes with it — because a claim standing over a read that established nothing would send
+  every later tick straight past the receipt and on to the live stage handler. It is handed back again whenever a
+  receipt actually LANDS: a claim taken when the thread carried nothing proved nothing about one posted since, and every
+  later pass would read straight past it. Cycle scoping is what keeps an old close from ending the fresh cycle an
+  operator authorized by removing `rejected`. A retirement's correlation is adopted from the latch as well as from the
+  thread, where this process holds a close scoped to the very cycle the record says was retired — one it read while
+  another poller on the host was retiring that cycle and had noted so on the issue's writer claim.
 - **Every path that runs a cleanup holds its observation the same way.** The scheduler's fan-out submit, the
   in-tick parallel one, and the sequential stream all wrap the pass in
   `cleanup_observation._cleanup_observation`, with the refetch *inside* the wrapper — that read is the first

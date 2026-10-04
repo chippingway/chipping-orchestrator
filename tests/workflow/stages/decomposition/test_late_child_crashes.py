@@ -16,7 +16,6 @@ import unittest
 from orchestrator.git.snapshots.refs import SnapshotOutcome
 from orchestrator.workflow.engine import issue_processing as _issue_processing
 from orchestrator.workflow.stages.decomposition import (
-    child_claims as _child_claims,
     late_child_records as _late_child_records,
 )
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
@@ -58,13 +57,12 @@ class ChildReachedFirstTest(LateSplitCase, unittest.TestCase):
     Poll order is the repository's, so the child the split has just created can
     be dispatched by a second poller before the seed lands, and while that
     poller holds the child's writer claim its record is that poller's to write.
-    Inside `child_claims.claiming()` -- which no production transaction enters
-    yet -- the split records the child, writes nothing to it, and parks as a
-    seed that could not be made: the park the next attempt supersedes.
+    The split records the child, writes nothing to it, and parks as a seed that
+    could not be made -- the park the next attempt supersedes.
     """
 
     def test_a_held_child_waits_for_the_next_attempt(self) -> None:
-        with claimed_on_creation(self.github), _child_claims.claiming(), self.assertLogs(level="INFO"):
+        with claimed_on_creation(self.github), self.assertLogs(level="INFO"):
             outcome = self._transact()
 
         held = self.github.created_child_issues[0].number
@@ -74,8 +72,7 @@ class ChildReachedFirstTest(LateSplitCase, unittest.TestCase):
         self.assertEqual(len(self.github.created_child_issues), 1, "no child is opened past it")
         self.assertEqual(self._child_state(held), {}, "nothing is written to it")
 
-        with _child_claims.claiming():
-            resumed = self._resume()
+        resumed = self._resume()
 
         self.assertEqual(resumed.disposition, _LateDisposition.SETTLED)
         self.assertEqual(self._child_state(held)[KEY_PARENT_NUMBER], LATE_ISSUE_NUMBER)

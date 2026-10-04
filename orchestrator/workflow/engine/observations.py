@@ -4,14 +4,11 @@
 
 The shared state owner keeps every registry under one lock. Receipt claims,
 retiring cycles, and publication holds use that same state; a settlement
-requested while a publication holds the owner waits for its final release.
-
-A latch can also be scoped to the cycle it ends (`scope_close`), and carry the
-moment it was read at, so a close another poller on this host settled cannot
+requested while a publication holds the owner waits for its final release,
+and a close latched again before then withdraws it. A latched close is scoped
+to the cycle it ends, so a close another poller on this host settled cannot
 end the cycle that poller started after it, and one no read could tie to a
-cycle ends none until a read does (`close_ends`). Those are for the callers
-that hold the issue's writer claim, and none does yet: production latches
-carry neither, and every barrier asks `close_observed` alone."""
+cycle ends none until a read does."""
 from __future__ import annotations
 
 from orchestrator.workflow.engine import observation_state as _observation_state
@@ -29,10 +26,20 @@ def observe_close(
     proves soonest: a close read again after another poller restarted the
     cycle is a close of the fresh cycle, which an older moment would never
     tie to it.
+
+    A settlement a publication hold postponed (`settle_close`) was decided
+    for the readings latched before it, and this one is not among them: it
+    may have been read after the worker that decided it let go of the issue's
+    writer claim and another poller restarted the cycle, a close of that fresh
+    cycle. So the postponed drop is withdrawn, and the reading is left to the
+    next pass under the claim, which settles it again once it has reconciled
+    it -- one more pass over a reading that may owe nothing, where the drop
+    would have cost the close.
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:
         _observation_state._observed.add(key)
+        _observation_state._deferred.discard(key)
         if read_at is not None:
             moment = int(read_at)
             _observation_state._since[key] = max(moment, _observation_state._since.get(key, moment))
@@ -134,6 +141,9 @@ def settle_close(repo_slug: str, issue_number: int) -> None:
     drop itself is not refused -- it is taken again on the way out of that
     window, where it is the same decision one moment later -- so nothing is
     kept for good and nothing is dropped out from under the reader it was for.
+    Unless a close is latched again before then: the window outlasts the
+    worker's writer claim, and a reading taken after the drop was decided is
+    one the drop was never about (`observe_close`).
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:

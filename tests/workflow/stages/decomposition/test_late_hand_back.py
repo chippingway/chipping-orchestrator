@@ -23,7 +23,7 @@ from unittest.mock import patch
 from orchestrator.workflow.engine import observations as _observations, retiring_cycles as _retiring_cycles
 from orchestrator.workflow.stages.decomposition import blocked as _blocked
 from tests.workflow.fixtures import _TEST_SPEC, _agent, _PatchedWorkflowMixin
-from tests.workflow.observation_support import ObservedCloseCase
+from tests.workflow.observation_support import ObservedCloseCase, read_now
 from tests.workflow.stages.decomposition import (
     late_cleanup_support as _support,
     late_run_support as _run_support,
@@ -96,7 +96,7 @@ class _LatchesDuringRetirement:
 
     def __call__(self, issue, state):
         if _retiring_cycles.cycle_being_retired(_TEST_SPEC.slug, issue.number):
-            _observations.observe_close(_TEST_SPEC.slug, issue.number)
+            _observations.observe_close(_TEST_SPEC.slug, issue.number, read_now())
         return self._wrote(issue, state)
 
 

@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Partition fresh poll results together with cleanup the observation registry still owes.
 
-Closed fanout entries receive their durable observation before submission.
-A missing issue in the poll response remains scheduled when a prior close
-has not been settled.
+Closed fanout entries receive their durable observation before submission,
+under the issue's writer claim, and only their latch where that claim is
+refused, tied to the cycle it ends only where a read behind the record still
+finds the issue closed. A missing issue in the poll response remains scheduled
+when a prior close has not been settled.
 """
 from __future__ import annotations
 
@@ -15,8 +17,10 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import (
     issue_is_closed,
 )
+from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.workflow.engine import (
     dispatch_closure as _dispatch_closure,
+    issue_processing as _issue_processing,
     poll_models as _poll_models,
     poll_reading as _poll_reading,
 )
@@ -51,8 +55,15 @@ def _partition_pollable_issues(
     enumeration does not even yield is added on the strength of the
     observation alone, since a human who moved the label off the two the
     closed sweep queries would otherwise take the reading away for good.
+
+    The moment every closed reading here carries is read before the listing
+    asks GitHub for anything, so it is no later than any read the listing
+    takes: another poller's hold that ended before it ended before the issue
+    was read, and one that did not may have written the record since.
     """
-    builder = _poll_models._PollablePartitionBuilder(deferred=deferred or frozenset())
+    builder = _poll_models._PollablePartitionBuilder(
+        deferred=deferred or frozenset(), read_at=_claim_notes.moment(),
+    )
     for issue in gh.list_pollable_issues():
         _sorted_pollable(builder, gh, spec, issue)
     builder.add_unyielded()
@@ -98,6 +109,28 @@ def _sorted_pollable(
     Only where the reading actually travels with the route: the closed
     fan-out set is exactly what carries one, and a closed issue drained in the
     family bucket is a hard human stop with nothing to finalize.
+
+    The read and the receipt are taken under the issue's writer claim, since
+    both are the record's: the read decides whether a reading is owed, and the
+    receipt is posted on the strength of it. It is asked `alongside` a worker
+    of this process that is still running the issue, which is what the
+    receipt was built beside. A claim another poller holds -- or one that
+    could not be worked -- leaves the reading in this process's latch and
+    nothing else: no receipt, and a cleanup pass owed to whichever poll next
+    holds the claim. A close this poll read is scoped there to a cycle only
+    where the issue still reads closed behind the record; an owed issue that
+    reads open again is carrying an older close, whose latch is left exactly
+    as it was.
+
+    A close this poll read is latched at the moment the partition read before
+    its listing, which travels with the issue's reading too: the worker that
+    passes asks under its own claim whether another poller has held the issue
+    since, and none having done so is what tells it no other poller has
+    written the record since the close was read. Not a moment read here: the
+    enumeration read the issue before this, and a hold another poller made in
+    between -- found by any claim this process took since -- is one the
+    reading predates. An owed issue this poll read open carries no moment at
+    all, since the close it is owed for was read by an earlier poll.
     """
     issue_number = int(issue.number)
     closed = issue_is_closed(issue)
@@ -105,5 +138,10 @@ def _sorted_pollable(
     if skip and not (closed or builder.owed(issue_number)):
         return
     builder.add(issue_number, label, closed)
-    if issue_number in builder.fanout_closed:
-        _dispatch_closure._recorded_at_poll(gh, spec, issue)
+    if issue_number not in builder.fanout_closed:
+        return
+    with _issue_processing._writer_claim(
+        gh, spec, issue_number, closed=issue if closed else None, alongside=True,
+    ) as held:
+        if held:
+            _dispatch_closure._recorded_at_poll(gh, spec, issue, builder.read_at if closed else None)

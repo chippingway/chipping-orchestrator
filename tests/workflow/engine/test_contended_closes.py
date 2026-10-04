@@ -11,7 +11,8 @@ that it is retiring the cycle the record says was dropped. Every other reading
 is held unresolved, and one whose record names no cycle leaves whatever an
 earlier reading kept.
 
-Called directly: no dispatch path routes a refused issue here yet.
+Called directly, so each reading can be staged exactly; the dispatch suites
+reach the same owner through a refused writer claim.
 """
 from __future__ import annotations
 

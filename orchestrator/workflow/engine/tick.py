@@ -44,6 +44,7 @@ import threading
 from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import refresh as _base_refresh
 from orchestrator.github.client import GitHubClient
+from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.skills import catalog as _catalog
 from orchestrator.workflow.engine import (
@@ -75,19 +76,28 @@ def _run_sequential_tick(
     the rest.
 
     Handed to `_process_polled_issue` rather than straight to `_process_issue`,
-    because the object this loop holds is the enumeration's own reading and one
-    route may not be taken on a stale one: the cleanup sweep settles a closed
-    owner's ledger, and an owner reopened after this tick listed it has to be
-    seen as reopened. The other two paths get that from the refetch their
-    worker hand-off already makes; this one has no hand-off, so it takes the
-    same classification and the same fresh read itself.
+    because the object this loop holds is the enumeration's own reading and no
+    route may be taken on it: another poller on this host can advance the
+    issue before this one holds its writer claim, and an owner reopened after
+    this tick listed it has to be seen as reopened. The other two paths get
+    that from the refetch their worker hand-off already makes; this one has no
+    hand-off, so it takes the same classification and the same fresh read
+    itself.
+
+    Each issue goes with the moment read before the enumeration asks GitHub
+    for its first page, which is no later than the read of any issue it
+    yields -- a page this loop reaches an hour of agent runs later included.
+    A pass under an issue's claim asks whether another poller held it after
+    that moment, and a hold that ended before it is one the reading was taken
+    after.
     """
     yielded: set[int] = set()
+    read_at = _claim_notes.moment()
     for issue in gh.list_pollable_issues():
         yielded.add(int(issue.number))
         try:
             with semaphore_cm:
-                _dispatch._process_polled_issue(gh, spec, issue)
+                _dispatch._process_polled_issue(gh, spec, issue, read_at=read_at)
         except Exception:
             log.exception(
                 _scheduled_dispatch._PROCESSING_FAILED_LOG,
@@ -111,7 +121,8 @@ def _swept_unyielded(
     sweep does not query at all -- makes the owner unreachable, and the
     reading would be lost with it. So it is swept by number instead, on the
     strength of the observation alone, and the pass holds it exactly as every
-    other cleanup does.
+    other cleanup does -- under the issue's writer claim, which a contender is
+    refused with the observation still owed.
     """
     for owed in sorted(
         _observations.observed_closes(spec.slug) - yielded,

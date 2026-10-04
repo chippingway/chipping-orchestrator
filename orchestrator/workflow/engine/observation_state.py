@@ -6,10 +6,8 @@ Every registry is protected by the same lock. Settlement advances the owner
 generation and clears its observation, the cycle that observation was scoped
 to, the moment it was read at, and its receipt memo together; callers hold the
 lock so those changes remain atomic with their own gate decisions. Whether a
-latched close ends a given cycle is answered here too, under that lock
-(`_ends`), for the claim-aware callers that ask it -- none in production yet,
-so no scope or moment is recorded there and every barrier reads the latch
-alone."""
+latched close ends a given cycle is answered here too, under that lock, for
+every cancellation barrier and for the retirement window alike."""
 from __future__ import annotations
 
 import threading
@@ -18,21 +16,21 @@ from orchestrator.scheduler import claim_notes as _claim_notes
 
 # Closes observed and not yet settled; the cycle a read of the record said each
 # one ends; a moment no later than the read that found each, where its reader
-# knew one; the ones whose durable receipt is on the thread, against the
-# generation it was posted for; the owners a receipt is being posted for right
-# now; how many readings of each owner a pass has actually settled; and the
-# owners whose thread has been asked about an inherited receipt; and the cycle
-# a worker is retiring off each record right now. Module-level and
-# lock-guarded, like the running-process registry the agent runner keeps: the
-# writer is the polling thread and the readers are workers, so the record has
-# to outlive both.
+# knew one; the cycle whose durable receipt each reading has put on the thread;
+# the owners a receipt is being posted for right now; how many readings of each
+# owner a pass has actually settled; and the owners whose thread has been asked
+# about an inherited receipt, with the cycle it was asked for and the moment it
+# was asked at; and the cycle a worker is retiring off each record right now.
+# Module-level and lock-guarded, like the running-process registry the agent
+# runner keeps: the writer is the polling thread and the readers are workers,
+# so the record has to outlive both.
 _observed: set[tuple[str, int]] = set()
 _scopes: dict[tuple[str, int], int] = {}
 _since: dict[tuple[str, int], int] = {}
 _receipted: dict[tuple[str, int], int] = {}
 _posting: set[tuple[str, int]] = set()
 _settlements: dict[tuple[str, int], int] = {}
-_scanned: set[tuple[str, int]] = set()
+_scanned: dict[tuple[str, int], tuple[int, int]] = {}
 _retiring: dict[tuple[str, int], int] = {}
 _publishing: dict[tuple[str, int], int] = {}
 _deferred: set[tuple[str, int]] = set()

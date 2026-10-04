@@ -36,6 +36,9 @@ from tests.workflow.observation_support import ObservedCloseCase
 _SLUG = "acme/widget"
 _ISSUE = 7710
 
+# The late cycle the poll's receipt names.
+_CYCLE = 4
+
 # The registry name the instrumented lock is installed over.
 _LOCK = "_lock"
 
@@ -92,7 +95,8 @@ class DeferredSettlementRaceTest(ObservedCloseCase, unittest.TestCase):
         # receipt onto a thread that already carries one.
         self._released_while(self._polls)
 
-        self.assertIsNone(_observation_receipts.claim_receipt_post(_SLUG, _ISSUE))
+        claim = _observation_receipts.claim_receipt_post(_SLUG, _ISSUE)
+        self.assertEqual(claim.landed, _CYCLE)
 
     def test_nothing_arriving_still_settles(self) -> None:
         # The other side, so the critical section is about the gap rather
@@ -106,7 +110,7 @@ class DeferredSettlementRaceTest(ObservedCloseCase, unittest.TestCase):
         """One poll observing a close of its own, receipt and all."""
         observations.observe_close(_SLUG, _ISSUE)
         _observation_receipts.receipt_written(
-            _observation_receipts.claim_receipt_post(_SLUG, _ISSUE),
+            _observation_receipts.claim_receipt_post(_SLUG, _ISSUE), _CYCLE,
         )
 
     def _released_while(self, races) -> None:

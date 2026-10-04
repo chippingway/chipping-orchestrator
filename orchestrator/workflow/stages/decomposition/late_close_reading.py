@@ -158,7 +158,7 @@ def _ending_cycle(
     issue_number: int,
     state: _pinned_state.PinnedState,
 ) -> int | None:
-    """Which cycle a close observed now would end on this issue's record, if any.
+    """Which cycle a close observed now would end on this issue, if any.
 
     The record's own answer, and -- for the one window where the record has
     none -- the cycle a worker on this very issue is retiring RIGHT NOW. That
@@ -175,10 +175,9 @@ def _ending_cycle(
     A close this process already holds scoped to the very cycle the record
     says a retirement dropped answers the same way. It was read inside a
     retirement window another poller on this host held and noted on the
-    claim, whose barrier never saw it (`contended_closes`), and it is what the
-    cleanup pass under the claim adopts that cycle back from -- so it is owed,
-    and written down, rather than dropped as ending nothing. Only a contender
-    scopes a close that way, and none runs in production yet.
+    claim, whose barrier never saw it, and it is what the cleanup pass under
+    the claim adopts that cycle back from -- so it is owed, and written down,
+    rather than dropped as ending nothing.
 
     None for a cycle already marked over as well as for no cycle at all:
     the ending is already on the record and the sweep its label names is
@@ -231,10 +230,9 @@ def _owns_a_live_cycle(
     a read this orchestrator can afford.
 
     Taken only where the receipt above is not being written from a read of
-    its own, which is the repeat case -- a poll whose thread already carries
-    the receipt, or one another poll is posting right now. The first pass
-    answers this from the read it wrote the receipt with, so the two never
-    disagree about the same record.
+    its own, which is the one case another poll is posting it right now. The
+    poll posting it answers this from the read it wrote the receipt with, so
+    the two never disagree about the same record.
 
     Three answers rather than two, and the third is what keeps the reading
     safe. False is the record positively saying there is nothing to end -- no

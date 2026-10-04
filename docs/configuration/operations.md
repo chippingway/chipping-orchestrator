@@ -427,54 +427,78 @@ seconds. On a repo it drove before the labels were namespaced, each pre-namespac
 
 ## Running more than one poller
 
-Polling processes on one host coordinate over the host's artifacts, through the presence described under
-[Run modes](#run-modes), and over nothing else. The host-local issue writer claim that keeps a second process off one
-issue's pinned comment and labels is in place but **dormant**: no dispatch path, family handler, close recovery, or
-base refresh takes it yet, so two pollers dispatching one repository on a host still each act on what they read. What
-the claim assumes of the host holds whenever it is taken:
+The supported topology is **one host**. More than one polling process may run there against the same repositories —
+a second daemon, or a `--once` run beside one — provided every one of them resolves the same `WORKTREES_DIR`, and
+the in-process scheduler guards (a duplicate active issue, the caps, the family slot) still apply first inside each.
 
-- **The namespace.** One exclusive `flock` per issue key, on a file in `WORKTREES_DIR/.issue-writer-claims/` named
-  `repo-<id>-issue-<n>.lock` for the repository's numeric GitHub id — which no rename or transfer changes, unlike the
-  configured slug or the `owner/name` a poller fetched at startup — and the issue number. Different issues, and one
-  issue number in two repositories, never contend. Only processes that resolve the same `WORKTREES_DIR` on the same
-  host meet there, and each has to be able to read every repository's numeric id from GitHub, which is what makes two
-  configured spellings of one repository, or a poller started before a rename and one started after it, meet on one
-  key.
-- **Access.** Every participating process runs as a user that can create and open files in that directory, and sees
-  it on a local filesystem whose `flock` is honored between them — a network filesystem that emulates `flock` per
-  client coordinates nothing. They read one monotonic clock, as every process on a host does unless it runs in a time
-  namespace of its own. Anything else that can write the directory can hold a claim, so keep it writable by the
-  orchestrator's user alone.
-- **Refusals.** A claim is never waited for. One another process holds is refused at once, logged on
-  `orchestrator.scheduler` as `writer claim skip repo=<owner/name> repo_id=<id> issue=#<n> reason=held_elsewhere`,
-  where the name is only a label and the id is the key. Inside one process it is exclusive between threads too
-  (`reason=held_here`), save for a holder that asks to be let in alongside that process's own writer. A claim that
-  cannot be worked — the namespace cannot be created or opened, or `flock` fails for any reason other than another
-  holder — is refused as well, with a `reason=unusable` warning, rather than granted uncoordinated. Repair the
-  directory and the next attempt proceeds.
-- **Lifetime.** A claim ends when the body holding it ends, however it ends, and the kernel drops it when its
-  process dies, so a crashed poller leaves nothing held; its descriptor is closed with it and is not inherited by an
-  agent the holder spawns. The files stay: never delete the directory or a file in it while any poller runs, since a
-  recreated file is a new inode another process can lock beside a holder of the old one. They are small, one per issue
-  key ever claimed, and safe to remove once every poller has stopped.
-- **What a claim file holds.** The lock, and a few lines from the last hold on it: a token the holding process draws
-  at startup, which tells another poller's holds from its own; while a hold retires a late cycle and says so, that
-  cycle's id, which a refused process can read; and the moment the hold let go, on the host's monotonic clock. Every
-  acquisition empties the file before signing it, a moment after it takes the lock, and a refused process reads a note
-  only off a file its hold signed and has not stamped as released, so no note outlives a hold that stamped its
-  release. A hold whose process was killed holding it — `SIGKILL`, an OOM kill, the forced exit past
+- **One writer per issue.** Each dispatched issue is taken under a host-local writer claim: an exclusive `flock` on a
+  file in `WORKTREES_DIR/.issue-writer-claims/`, named `repo-<id>-issue-<n>.lock` for the repository's numeric GitHub
+  id — which no rename or transfer changes, unlike the configured slug or the `owner/name` a poller fetched at startup —
+  and the issue number. A poller that finds the issue held by another skips it for that tick — no refetch, guard,
+  recovery pass, close receipt, or handler, so no label, comment, or pinned write, no agent run, and no usage or
+  evaluation record — and takes the issue up on a later tick once the holder is done. A close it read for the issue
+  costs a pinned read and an issue read behind it, and is kept in its own memory and nowhere else: a reopen before
+  then cannot take the reading away, and a later tick sweeps it under the claim. It is tied to the late cycle the
+  record names only where the issue still reads closed behind that read — or, where a retirement has just taken the
+  cycle off the record, to the cycle the holder noted on the claim it is retiring — so a cycle the holder settled and
+  an operator restarted in the meantime is left alone. One the poller cannot tie to a cycle ends one later only if the
+  issue is closed again then. A close the record says ends no cycle is not kept. A poller granted the claim reads the
+  issue again behind it before routing it, so it never resumes a stage another poller advanced the issue past since
+  its poll, and a close its own poll read ends the cycle the record names only where it still reads closed, or where
+  no other poller has held the issue since the poll began (see what a claim file holds, below). Different issues, and
+  one issue number in two repositories, never contend. Inside one process the claim is exclusive between threads too,
+  logged as `reason=held_here`, with one exception: the receipt a poll posts for a close it observed, and the notice
+  a parent posts telling a consumer its snapshot is gone, are comments built to land beside that process's own worker,
+  so they are let in alongside one. The skip is logged on `orchestrator.scheduler` as
+  `writer claim skip repo=<owner/name> repo_id=<id> issue=#<n> reason=held_elsewhere`, where the name is only a label
+  and the id is the key.
+- **A parent writes a child under the child's claim.** A decomposed parent's handler writes its children too — the walk
+  that relabels a `workflow:blocked` child `workflow:ready`, the seeds that give a child its parent link and ancestry,
+  the finalize of a child whose pull request merged, and the notice that a reclaimed snapshot is gone — and each of
+  those is made under that child's own claim, off what it reads behind it: the release walk and a merged child's
+  finalize read each child again once claimed, and a seed adds to whatever record the child carries by then. A child
+  another poller holds is left for a later pass, which parks nothing, and one that poller moved since the walk's scan is
+  judged as it reads now: the release walk starts none of them, and the finalize counts it as it stands. An ordinary
+  split creates the rest and leaves the held child's seed and its own finalize to the next tick's recovery. Only a late
+  split's placement of a held child parks the parent, exactly as a seed that could not be written does.
+- **What the namespace assumes.** Every participating poller can read each repository's numeric id from GitHub, which is
+  what makes two configured spellings of one repository, or a poller started before a rename and one started after it,
+  meet on one key. They run as a user that can create and open files in that directory, and see it on a local filesystem
+  whose `flock` is honored between them — a network filesystem that emulates `flock` per client coordinates nothing.
+  They read one monotonic clock, as every process on a host does unless it runs in a time namespace of its own.
+  Anything else that can write the directory can hold a claim, so keep it writable by the orchestrator's user alone.
+- **Failures withhold.** A claim that cannot be worked — the namespace cannot be created or opened, or `flock` fails
+  for any reason other than another holder — skips the issue as a held one is skipped, with a `reason=unusable`
+  warning, rather than letting it be written uncoordinated. Repair the directory and the next tick proceeds.
+- **What a claim file holds.** The lock, and a few lines from the last hold on it: a token the poller draws at startup,
+  which is how a poller tells another's holds from its own; while a hold retires a late cycle, that cycle's id, which a
+  refused poller reads; and the moment the hold let go, on the host's monotonic clock. Every acquisition empties the
+  file before signing it, a moment after it takes the lock, and a refused poller reads a note only off a file its hold
+  signed and has not stamped as released, so no note outlives a hold that stamped its release. A close a poller's poll
+  read is tied to the record it holds next only where every other poller's hold it has found had let go before the
+  poll began, so a poller restarted over the namespace its predecessor used is not held up by the tokens that
+  predecessor stamped. A hold whose process was killed holding it — `SIGKILL`, an OOM kill, the forced exit past
   `SHUTDOWN_GRACE_SECONDS` — stamps nothing and counts as ending when the next holder finds it; its note, if it left
   one, is read until that holder empties the file, since it was the last hold to write the issue until then. The same
   holds for a hold whose release stamp could not be written. Each line is written whole or not at all: one a file-size
   limit or a full disk lets land only in part is taken back and logged as not written, and a line with no end, or a
-  file nobody signed, is never read as a release time or a retiring cycle — only as a hold that ended when it is
-  found. That includes an empty file, even the one an issue's first claim on the host creates, since another poller
-  can have held and emptied it before that claim locked it; what it costs is that a reading taken before the issue's
-  first claim on the host is never trusted as undisturbed.
-- **Not covered.** Processes on different hosts, or on one host with different `WORKTREES_DIR` values, are not
-  coordinated by it at all. It is also separate from the artifact presence on
-  `WORKTREES_DIR/.artifact-maintenance.lock`: a maintenance pass neither takes nor reads a writer claim, and holding
-  one says nothing about the host's artifacts.
+  file nobody signed, is never read as a release time or a retiring cycle — only as a hold that ended when it is found.
+  That includes an empty file, even the one an issue's first claim on the host creates, since another poller can have
+  held and emptied it before that claim locked it. So a close a poll reads on an issue no poller on the host has
+  claimed since its predecessor was killed holding it, or ever, and that is reopened before the poller claims it, ends
+  no cycle by that reading. Pollers must all run a build that signs and stamps its claims: one that does not is a hold
+  nobody sees, and a close read beside it can end a cycle that poller restarted.
+- **Release.** A claim ends when its dispatch ends, however it ends, and the kernel drops it when a process dies, so
+  a crashed poller leaves nothing held; its descriptor is closed with it and is not inherited by an agent the holder
+  spawns. The files stay: never delete the directory or a file in it while any poller runs, since a recreated file is
+  a new inode another process can lock beside a holder of the old one. They are small, one per issue key ever claimed,
+  and safe to remove once every poller has stopped.
+- **Not covered.** Pollers on different hosts, or on one host with different `WORKTREES_DIR` values, are not
+  coordinated at all and are not supported against the same repository. The pre-tick base refresh does not take the
+  claim either; it leaves alone only the issues its own process's scheduler reports active, so a second poller's
+  refresh can still sync a worktree and write the record of an issue the first is dispatching. And the claim is
+  separate from the artifact presence on `WORKTREES_DIR/.artifact-maintenance.lock`: a maintenance pass neither takes
+  nor reads a writer claim, and holding one says nothing about the host's artifacts.
 
 ## Running under systemd (user service)
 

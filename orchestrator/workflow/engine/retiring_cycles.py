@@ -5,11 +5,9 @@
 The held cycle id and the close noticed during retirement share the process
 observation lock. Leaving the window always drops its cycle marker and hands
 the retiring caller the close that its own remote write could not reread.
-Another poller on this host cannot read this process's registry, so a window
-opened with the repository's id is also noted on the issue's writer claim,
-which is what that poller asks when the claim refuses it. No production
-retirement passes one yet: until the dispatch takes the claim, there is no
-claim to note it on."""
+Another poller on this host cannot read this process's registry, so the window
+is also noted on the issue's writer claim, which is what that poller asks when
+the claim refuses it."""
 from __future__ import annotations
 
 import contextlib
@@ -65,12 +63,10 @@ class RetiringCycle:
         Deciding it at the exit leaves no such interval: every observation
         made while the cycle was advertised is reported, and one made after it
         finds a record with no cycle and no window to correlate against, so it
-        is dropped rather than written down. A window opened with the
-        repository's id reports one only where it ends THIS cycle, as a
-        claim-aware barrier asks (`observations.close_ends`): a close scoped
-        to a cycle another poller on this host settled and restarted from is
-        not this retirement's to put back. One opened without it -- every
-        production retirement -- reports any close latched in it.
+        is dropped rather than written down. Reported, that is, where it ends
+        THIS cycle, as every cancellation barrier asks: a close scoped to a
+        cycle another poller on this host settled and restarted from is not
+        this retirement's to put back.
 
         A cycle id of zero is no cycle at all -- an umbrella the initial
         decomposer made retires nothing -- and advertising one would have a
@@ -80,15 +76,14 @@ class RetiringCycle:
         A worker holds one for one issue at a time, because the scheduler
         admits no second worker for an issue one is already running.
 
-        A poller in another process on this host reads none of that, so a
-        window opened with the repository's id notes the cycle on the writer
-        claim this worker holds as well, where a poller the claim refuses
-        asks for it. That note outlives the window: it stands for the rest of
-        the hold, because what the other poller cannot tell from outside is
-        whether the close it read landed before this write or inside it, and
-        a close kept over a cycle this hold went on to retire is reconciled
-        under the claim afterwards, where one dropped is lost. Nothing is
-        noted where the repository id is not known.
+        A poller in another process on this host reads none of that, so the
+        cycle is noted on the writer claim this worker holds as well, where a
+        poller the claim refuses asks for it. That note outlives the window:
+        it stands for the rest of the hold, because what the other poller
+        cannot tell from outside is whether the close it read landed before
+        this write or inside it, and a close kept over a cycle this hold went
+        on to retire is reconciled under the claim afterwards, where one
+        dropped is lost. Nothing is noted where the repository id is not known.
         """
         if not self.cycle_id:
             yield
@@ -102,10 +97,7 @@ class RetiringCycle:
         finally:
             with _observation_state._lock:
                 _observation_state._retiring.pop(self.key, None)
-                self.observed = (
-                    self.key in _observation_state._observed if self.repo_id is None
-                    else _observation_state._ends(self.key, self.cycle_id, self.repo_id)
-                )
+                self.observed = _observation_state._ends(self.key, self.cycle_id, self.repo_id)
 
 
 def retiring(
@@ -114,9 +106,7 @@ def retiring(
     """The window one retirement is made inside, before it is held.
 
     `repo_id` is the client's numeric repository id, which keys the writer
-    claim the window is noted on; a retirement made under that claim passes
-    it, and one made without it -- every production caller until the
-    dispatch takes the claim -- leaves it out.
+    claim the window is noted on.
     """
     return RetiringCycle(
         key=_observation_state._owner_key(repo_slug, issue_number),

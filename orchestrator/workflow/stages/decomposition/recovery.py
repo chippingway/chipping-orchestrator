@@ -18,7 +18,10 @@ having changed nothing, which is what leaves the transaction free to resume
 from its own durable facts.
 
 Equal counts mean the loop finished and only the label flip was lost, so the
-parent finalizes to whatever the manifest asked for. Fewer mean the loop
+parent finalizes to whatever the manifest asked for. A split that met a child
+another poller on this host was writing when it went to seed it leaves exactly
+this behind on purpose: every child created and recorded, that one unseeded,
+and the finalize to this recovery. Fewer mean the loop
 stopped short: the one child a crash can leave created and unrecorded is
 adopted by its receipt (`split_receipts`), and anything short of that parks,
 since the manifest that declared the rest is not kept to create them from.
@@ -30,14 +33,9 @@ by its size gate as a fresh root at depth 0 -- a lost consumer slot is
 restored ahead of the seed, and the seeding write lifts the park the missing
 seed earned. A lineage no longer proved, or a child this split cannot
 recognize as its own (see `_seed_orphan_child_state`), parks instead of
-finalizing, which keeps every child of that split unstarted.
-
-Inside `child_claims.claiming()` each child is repaired under its own writer
-claim or not at all: one another poller on this host is writing stops the
-recovery there without a park, and the next tick resumes it. That is also how
-a claimed split that met such a child at its seed is finished -- every child
-created and recorded, that one unseeded, and the finalize left to this
-recovery. No production recovery claims a child yet.
+finalizing, which keeps every child of that split unstarted. A child another
+poller on this host is writing is repaired under its own writer claim or not
+at all: the recovery stops there without a park, and the next tick resumes it.
 """
 from __future__ import annotations
 
@@ -134,15 +132,14 @@ def _repair_recovered_child(
     child_number,
     lineage: _replacement_lineage.ReplacementLineage,
 ) -> bool:
-    """Repair one recorded child, or stop the recovery.
+    """Repair one recorded child under its own writer claim, or stop the recovery.
 
-    Inside `child_claims.claiming()` the child's own writer claim is taken in
-    front of the read the repair decides on and held through its write,
-    because both are the child's record. A child another poller on this host
-    is writing is not one this tick may repair, and not one it may finalize
-    past either -- so the recovery stops where it stands, parking nothing,
-    and the next tick's recovery asks again. The children repaired before it
-    carry exactly what they were owed.
+    The claim is taken in front of the read the repair decides on and held
+    through its write, because both are the child's record. A child another
+    poller on this host is writing is not one this tick may repair, and not
+    one it may finalize past either -- so the recovery stops where it stands,
+    parking nothing, and the next tick's recovery asks again. The children
+    repaired before it carry exactly what they were owed.
     """
     try:
         with _child_claims.held_child(gh, issue.number, child_number) as held:
@@ -257,9 +254,9 @@ def _recover_stale_manifest(
             return True
         children_recorded = adoption.children
     # Before finalizing to `blocked`, repair any child whose pinned
-    # state was never seeded -- one a claimed split left to this recovery
-    # because another poller held it, or one a crash left. A SIGKILL between
-    # the parent's incremental `children` write and the child-state write at
+    # state was never seeded -- one a split left to this recovery because
+    # another poller held it, or one a crash left. A SIGKILL between the
+    # parent's incremental `children` write and the child-state write at
     # the LAST child satisfies `len(children) == expected_children_count`
     # but leaves that child orphaned: no `parent_number`, no late
     # ancestry, and likely already parked with `awaiting_human=True` by a

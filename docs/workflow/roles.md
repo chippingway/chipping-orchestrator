@@ -1393,8 +1393,20 @@ the ending while the mark still goes down.
 A latch is memory, so the poll that takes one also leaves a cycle-scoped receipt on the issue thread — a comment,
 because the pinned comment is written whole and the worker holding the issue owns it. A post GitHub refuses is
 retried by the next poll, since an observation with no durable half is one a restart takes away entirely. After a
-restart the dispatcher's cancelled-cycle guard scans for that receipt once per owner per process, adopts it, and runs
-the ending from the mark ([state-machine/delivery-stages.md](../state-machine/delivery-stages.md)).
+restart the dispatcher's cancelled-cycle guard scans for that receipt once per owner and cycle, and again once another
+poller on the host has held the issue since, adopts it, and runs the ending from the mark
+([state-machine/delivery-stages.md](../state-machine/delivery-stages.md)).
+
+The latch is scoped to a cycle as well, the one the record named while the issue still read closed behind it — by that
+receipt's read, by a poller refused the issue's writer claim, or by the sweep of the closed owner. Another poller on the
+host can settle that cycle and start the fresh one an operator authorizes before this process holds the issue again, so
+a latch that remembered only the issue would end the fresh cycle for a close older than it, and a record read after the
+issue was found closed proves nothing about which cycle that close ended. A close no read scoped to the cycle a later
+pass finds ends it only where no other poller has held the issue since the latest moment it was read closed, which the
+claim's signed holds tell: a close read again after a restart is a close of the fresh cycle. A reopened owner whose
+record names a cycle its close cannot be tied to is swept with nothing marked and its latch let go, and no receipt is
+posted for a cycle a held close did not end — nor remembered as posted, so the next poll that reads a fresh close still
+posts one.
 
 The latch is also held past a cleanup pass that RETURNED without finishing the ending — a ref a live consumer keeps,
 a delete the remote refused, a terminal GitHub declined — but only where nothing else would come back: an owner
@@ -2026,7 +2038,8 @@ finalized, or released. A child carrying no receipt — every child of an older 
 
 A child that carries a receipt and no `parent_number` naming that receipt's parent is one whose seed never landed — one
 a crash left created and never recorded, the child a short register leaves recorded and unseeded behind its parent's
-park, or one a crash left between its record and its seed — and nothing has proved its lineage. A seed that did land can
+park, one a crash left between its record and its seed, or one another poller on the host dispatched before its split
+could seed it — and nothing has proved its lineage. A seed that did land can
 lose its late ancestry, or part of it, or come to name another place in the lineage, by hand. An edit can still route
 any of them into its own `workflow:decomposing`, and a human can relabel it to `workflow:ready` or any other stage;
 every one of them would read the record as an issue no split made, or as one at another depth, run an agent with no ref
@@ -2040,8 +2053,9 @@ one part it may lack, because the reuse guard drops the ref and its commit toget
 carries has to be that pair whole, naming the snapshot that split preserved. It is read off the last whole receipt in
 the body and the record the dispatcher already holds, so it costs no request, and only a receipt on an issue this
 orchestrator opened counts — a body is a field anyone can paste into. A held child parks `replacement_lineage_unproved`
-once — a park already standing holds it silently, and a reply is no seed — until its parent's recovery seeds it, which
-clears `awaiting_human` in the same write, or a human writes that seed and clears the park by hand. A restart an
+once — a park already standing holds it silently, and a reply is no seed — until its split or its parent's recovery
+seeds it, adding to that record and clearing `awaiting_human` in the same write, or a human writes that seed and
+clears the park by hand. A restart an
 operator authorizes on the child's own cancelled cycle keeps the seed — the parent link and the ancestry, pointer
 included, and nothing of the cycle's candidate — so the restarted child is not held for a seed its split did write. A
 child whose pinned comment will not parse is held too, with nothing written over that comment and nothing said but the

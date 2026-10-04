@@ -8,10 +8,6 @@ the latch is scoped to a cycle only where the record is read first and the
 issue, read behind it, is still closed; a close that cannot be confirmed is
 held unresolved and ends no cycle on its own. A retirement the holder noted on
 the claim stands in for the cycle the record has stopped naming.
-
-Dormant: a poll is refused an issue's writer claim only once the dispatch
-takes one, and no dispatch path does yet, so nothing in production calls this
-owner. It is complete for the activation that routes a refused issue here.
 """
 from __future__ import annotations
 

@@ -2,12 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which process on this host may take its artifacts, and which one is live.
 
-Every other coordination in this tree is between threads: the scheduler's caps
-and claims, the maintenance barrier over them, the per-target-root git locks
-that are process-local by construction. A second orchestrator process on the
-same host is outside all of it -- its workers are in its own scheduler, its
-claims in its own sets -- and the artifacts are not: one host's checkouts and
-one remote's refs are shared by every process pointed at them.
+Every other coordination in this tree but one is between threads: the
+scheduler's caps and claims, the maintenance barrier over them, the
+per-target-root git locks that are process-local by construction. A second
+orchestrator process on the same host is outside all of it -- its workers are
+in its own scheduler, its claims in its own sets -- and the artifacts are not:
+one host's checkouts and one remote's refs are shared by every process pointed
+at them. The one exception, the issue writer claim in
+`scheduler/writer_claims.py`, keeps a second process off one issue's record
+while it is dispatched there, and says nothing about the host's artifacts in
+either direction: a pass never asks it, and holding it is not a presence.
 
 So there is one file, and one rule over it. A polling run holds it SHARED for
 its whole life, which says a process that may be running work for any issue is
