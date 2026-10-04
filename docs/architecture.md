@@ -258,7 +258,9 @@ self-exit and be restarted with new code.
   close recovery, or base refresh takes it yet, so pollers sharing a checkout root do not coordinate their issue
   writes through it. The operations that are to take it are complete beside it and equally dormant: a parent's
   writes to its children under each child's claim (`stages/decomposition/child_claims.py`, reached only inside its
-  `claiming()` entry point, which no production path enters), the close evidence a contender keeps
+  `claiming()` entry point, which no production path enters; an ordinary split there that meets a child another
+  poller holds leaves it unseeded and the parent `workflow:decomposing`, for `stages/decomposition/recovery.py` to
+  seed it, post the summary, and finalize), the close evidence a contender keeps
   (`engine/contended_closes.py`), the scope and read moment of a latched close (`engine/observations.py`), and a
   retirement window noted on the claim (`engine/retiring_cycles.py`). The
   [workflow module map](architecture/workflow-modules.md) says what each does once called. It never waits: a key

@@ -17,17 +17,22 @@ resume under it, `retry_cap` owns the park a spent spawn budget leaves an
 INITIAL decomposition -- held ahead of every road that would walk past one, and
 lifted only by the command that renews the budget -- `run` owns the order one
 tick asks the others in and `outcomes` the three dispositions its reply earns,
-`recovery` owns what a tick that died mid-split left behind, `split` owns the
-crash-safe order children are created in, `split_receipts` the receipt each one
-carries so a child created and never recorded can be found again, `split_seeds`
-the dispatch hold on a child whose seed is not what that receipt says it was
-owed, `replacement_lineage` owns the late lineage and snapshot pointer those
-children are seeded with when the issue sits inside one -- and the park when
-either cannot be proved, and the repair a recovery makes of each recorded
-child -- and `parents`, `activation`, `blocked`, and `umbrella` own the
-parent-side polling that drives the tree to completion. `child_claims` holds
+`recovery` owns what a tick that died mid-split left behind -- with
+`split_repair` the seed it writes onto a recorded child -- `split` owns the
+crash-safe order children are created in, `split_summary` the summary a split
+or its recovery finalizes the parent with, once per split attempt,
+`split_receipts` the receipt each child carries so one created and never
+recorded can be found again, `split_seeds` the dispatch hold on a child whose
+seed is not what that receipt says it was owed, `replacement_lineage` owns
+the late lineage and snapshot pointer those children are seeded with when the
+issue sits inside one -- and the park when either cannot be proved, and the
+repair a recovery makes of each recorded child -- and `parents`,
+`activation`, `blocked`, and `umbrella` own the parent-side polling that drives
+the tree to completion. `child_claims` holds
 the writer claim of each child a parent writes, taken only inside its
-`claiming()` entry point, which no production path enters yet.
+`claiming()` entry point, which no production path enters yet; a split there
+that meets a child another poller holds leaves it unseeded and its own
+finalize to `recovery`.
 
 The `late_*` owners are an additive second mode under the same `decomposing`
 label, for the issue whose implementation is already committed and turns out to

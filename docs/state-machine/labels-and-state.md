@@ -615,7 +615,13 @@ The keys that matter for the state machine fall into a few groups:
   `replacement_lineage_unproved`) once, then silently, until its parent's recovery writes that seed and lifts the park
   in the same write, or a human does both by hand; one whose pinned comment will not parse is held with nothing
   written. A restart an operator authorizes on such a child keeps the seed. A pointer is the one part a seed may lack,
-  since the child's own reuse guard drops the ref and its commit together once its ref is gone.
+  since the child's own reuse guard drops the ref and its commit together once its ref is gone. The split's summary
+  ends on `<!--orchestrator-split-summary:issue=<parent>:attempt=<split_attempt>-->`, and a recovery that finalizes
+  the split posts one only where no comment of ours carries that receipt — so a summary GitHub refused is posted
+  again, one that landed ahead of a label write that failed is not, and a split recorded with no `split_attempt` gets
+  none. Inside the dormant `child_claims.claiming()` a split that meets a child another poller holds records it,
+  creates the rest, and leaves it unseeded with the parent on `workflow:decomposing`, withholding its summary, its
+  label, and its first release until that recovery has seeded the child.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records

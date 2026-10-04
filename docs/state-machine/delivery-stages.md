@@ -503,7 +503,8 @@ because there it is the claim that this stage has already rerouted rather than a
      made on a read that established nothing spends an attempt no human asked for.
   2. **User-content drift check** (inline) — see drift section above.
   3. **Half-finished decomposition recovery.** If `expected_children_count` is set OR `children` is non-empty (a prior
-     tick crashed mid-split), the handler cannot safely respawn the decomposer. When `expected_children_count` is set
+     tick crashed mid-split, or a claimed split left a child another poller held unseeded), the handler cannot safely
+     respawn the decomposer. When `expected_children_count` is set
      and `len(children) < expected_children_count`, look for the one child a crash between a create and the write
      recording it can leave behind: an issue this orchestrator opened whose body carries the receipt naming this
      parent, its `split_attempt`, and the next slice, every issue walked to find it. The only one carrying it, found
@@ -524,8 +525,13 @@ because there it is the claim that this stage has already rerouted rather than a
      so one `late_consumers` no longer names is recorded there again (a parent write ahead of the seed and the finalize)
      and one carrying none of the `late_ancestry_*` group, or a pointer at anything else, is seeded with it; once the
      snapshot has passed to a reclamation the lineage alone is owed and a pointer still on a child is dropped with its
-     `late_ancestry_mirror_first` stamp; one carrying exactly what it was owed is left — then finalize to
-     `workflow:umbrella` (when the flag is true) or `workflow:blocked`. A parent whose record no longer proves that
+     `late_ancestry_mirror_first` stamp; one carrying exactly what it was owed is left — then post the split's summary
+     unless a comment of ours carries that `split_attempt`'s summary receipt (a split recorded with no `split_attempt`
+     gets none), and finalize to `workflow:umbrella` (when the flag is true) or `workflow:blocked`. A summary GitHub
+     refused is posted by the next recovery, and one that landed ahead of a label write that failed is not posted
+     again. Inside `child_claims.claiming()`, which no production recovery enters yet, each child is repaired under its
+     own writer claim, and one another poller on the host holds stops the recovery there — nothing parked, summarized,
+     or finalized — for the next tick to resume. A parent whose record no longer proves that
      lineage, or a child it cannot recognize as its own — an unparsed comment, a `parent_number` that is not exactly
      this issue's number (only a missing one is backfilled), text naming a snapshot ref the split cannot keep, any
      other group (any at all on an ordinary split's child), a register naming it twice, or a receipt other than the one
@@ -588,7 +594,14 @@ because there it is the claim that this stage has already rerouted rather than a
        parent's measurement, exemption, or authorization. A child owed that snapshot is created with the reuse
        instructions a late split's own children carry appended after its receipt — the ref, its local mirror, the
        commit, the base it was cut against, and how to read and reuse it — since the body is what its implementer
-       reads; activate no-dep children through the dependency walk `_handle_blocked` / `_handle_umbrella` run — over
+       reads. Inside `child_claims.claiming()`, which no production split enters yet, each seed is made under the
+       child's writer claim and added to the record the child carries by then, lifting the hold another poller on the
+       host may have parked there first; a child that poller still holds is left unseeded while the rest are created,
+       and the split then posts no summary, writes no label, and releases nothing, leaving step 3 to seed it, post the
+       summary, and finalize on a later tick. Otherwise post the split's summary, ending on the hidden receipt
+       `<!--orchestrator-split-summary:issue=<parent>:attempt=<split_attempt>-->`, flip the parent to
+       `workflow:umbrella` (when the flag is true) or `workflow:blocked`, and activate no-dep children through the
+       dependency walk `_handle_blocked` / `_handle_umbrella` run — over
        the same fresh scan of each child's label, so a child a human rejected or closed short of a terminal while its
        siblings were still being created parks the parent and none is relabelled, and with the same lineage recheck
        and per-child recognition as any later release — flipping `workflow:blocked` → `workflow:ready` (best-effort,

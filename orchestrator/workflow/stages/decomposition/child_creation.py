@@ -16,9 +16,9 @@ A child is dispatchable the moment it exists, so a seed made inside
 the record the child carries by then: another poller on this host may have
 reached it first and held it for the seed it lacked. A child that poller is
 still writing is left unseeded on the plan (`_SplitPlan.unseeded`) and the loop
-goes on, for the split's recovery to seed under the claim on a later tick. No
-production split seeds there yet: until the dispatch takes the claim, each
-seed is written fresh and the split finalizes as it always has.
+goes on, for the split's recovery to seed under the claim and finalize on a
+later tick. No production split seeds there yet: until the dispatch takes the
+claim, each seed is written fresh and the split finalizes as it always has.
 """
 from __future__ import annotations
 

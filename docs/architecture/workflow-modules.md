@@ -1594,24 +1594,35 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             which takes a park off only a record that carries one. Inside `child_claims.claiming()` the
                             seed is written under the child's claim onto the record it already carries, and a child
                             another poller holds is handed back unseeded on the split plan for the recovery to seed
+                            and finalize
       split.py              decide the children's lineage and park an unprovable one before any marker -- or a slice
                             naming a snapshot ref its child would not be kept -- stamp each child's receipt and
                             append the snapshot's reuse instructions to the body of each child owed it, then persist
                             the expected count, the umbrella flag, the attempt, and the whole dependency graph in one
-                            write, create the planned children, and publish the summary and parent label before
-                            activating children without dependencies through `activation.py`'s walk
-      recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the adoption of a
-                            child created and never recorded through `split_receipts.py`, the orphan-child repair -- the
-                            parent link and the owed lineage, asked of the parent's record again, a lost consumer slot
-                            restored ahead of its seed, the park the missing seed earned lifted in the write that
-                            seeds it, and parked rather than finalized where it no longer proves one or a child is not
-                            one the split can recognize as its own -- any child whose text names a snapshot the split
-                            cannot keep, or whose receipt is not the one stamped for its slot, included -- the
-                            incomplete park, and the two owners that hold
-                            those markers instead -- a human the issue is parked awaiting, and the late transaction
-                            while its generation is live. Inside `child_claims.claiming()` each child is repaired under
-                            its own claim, and one another poller holds stops the recovery with no park, short of the
-                            finalize, for the next tick to resume
+                            write, create the planned children, and publish the summary (`split_summary.py`) and
+                            parent label before activating children without dependencies through `activation.py`'s
+                            walk. Inside `child_claims.claiming()` a split that left a child unseeded because another
+                            poller held it publishes none of them, leaving the parent `decomposing` with every child
+                            recorded for `recovery.py` to seed that child and finalize
+      split_summary.py      the summary an ordinary split finalizes its parent with, ending on a receipt naming the
+                            parent and `split_attempt`, which a recovery posts only where no comment of ours carries it
+                            -- so a refused post is retried and a landed one is not posted again behind a failed label
+                            write -- and not at all for a split recorded with no attempt; the `blocked` or `umbrella`
+                            label the manifest asked the parent to wait under
+      recovery.py           what a tick that died mid-split -- or a claimed split that met a held child -- left behind:
+                            the stale-manifest markers, the adoption of a child created and never recorded through
+                            `split_receipts.py`, the orphan-child repair -- the parent link and the owed lineage, asked
+                            of the parent's record again, a lost consumer slot restored ahead of its seed, the park the
+                            missing seed earned lifted in the write that seeds it, and parked rather than finalized
+                            where it no longer proves one or a child is not one the split can recognize as its own --
+                            any child whose text names a snapshot the split cannot keep, or whose receipt is not the one
+                            stamped for its slot, included -- the summary `split_summary.py` still owes ahead of the
+                            finalize, the incomplete park, and the two owners that hold those markers instead -- a human
+                            the issue is parked awaiting, and the late transaction while its generation is live. Inside
+                            `child_claims.claiming()` each child is repaired under its own claim, and one another poller
+                            holds stops the recovery with no park, short of the summary and the finalize, for the next
+                            tick to resume
+      split_repair.py       the seed write of that repair onto one recorded child, inside the hold `recovery.py` takes
       child_claims.py       a child's own writer claim around a parent's write to it, keyed on the client's
                             `repo_id`, and the all-or-nothing hold over several a release walk takes; a refusal is the
                             caller's to answer as a child it may not act on yet. Dormant: a claim is taken, and the
@@ -2102,7 +2113,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_models.py        mutable tick context, tri-state owner readings, held pull requests, and staged park values
       models.py             the run plan and its worktree policy, the locked session, the split plan -- with the
                             lineage it seeds, the attempt its receipts name, the whole declared dependency graph, and
-                            the recorded children a claimed seed left unseeded -- and the child scan, with the readings
+                            the recorded children a claimed seed left unseeded for the recovery to seed and finalize --
+                            and the child scan, with the readings
                             a release walk and a merge finalize ask of it and the later reading it adopts
       state.py              the pinned-state field names the owners share, `split_attempt` among them, the
                             held-child alias, the strict parent-link check, and the issue-reference renderer

@@ -276,7 +276,8 @@ labeled `workflow:blocked` and leaves the parent on `workflow:blocked` or `workf
 inside a late lineage seeds each child one level below it under the same root, pointed only at a snapshot the
 parent's own split still holds and records it on, and parks before creating anything where that lineage cannot be
 proved. Half-finished splits recover rather than re-spawn — adopting a child created and never recorded by the
-receipt in its body — a `DECOMPOSE` kill switch falls through to `workflow:implementing`, and commits or a dirty tree
+receipt in its body, and posting the split's summary only where its own receipt is not already on the thread — a
+`DECOMPOSE` kill switch falls through to `workflow:implementing`, and commits or a dirty tree
 park with the worktree kept. An issue standing on a `retry_cap` park is held ahead of all of that — the
 drift reset, the kill switch, and the human-reply resume each answer a park that is not this one — so it keeps
 everything it carries until a trusted `/orchestrator continue` buys it one more attempt. The late coordinator holds
