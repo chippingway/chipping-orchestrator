@@ -256,8 +256,14 @@ self-exit and be restarted with new code.
   name: neither the configured slug nor the `owner/name` a poller fetched before a rename) and the issue number, for
   keeping a second poller on the host off one issue's pinned comment and labels. No dispatch path, family handler,
   close recovery, or base refresh takes it yet, so pollers sharing a checkout root do not coordinate their issue
-  writes through it. It never waits: a key another process holds is refused at once, and different issues never
-  contend. A claim that cannot be worked at all — an unopenable namespace, a filesystem without `flock` — is refused
+  writes through it. The operations that are to take it are complete beside it and equally dormant: a parent's
+  writes to its children under each child's claim (`stages/decomposition/child_claims.py`, reached only inside its
+  `claiming()` entry point, which no production path enters), the close evidence a contender keeps
+  (`engine/contended_closes.py`), the scope and read moment of a latched close (`engine/observations.py`), and a
+  retirement window noted on the claim (`engine/retiring_cycles.py`). The
+  [workflow module map](architecture/workflow-modules.md) says what each does once called. It never waits: a key
+  another process holds is refused at once, and different issues never contend. A claim that cannot be worked at
+  all — an unopenable namespace, a filesystem without `flock` — is refused
   too, where the presence above lets a poller go on unclaimed: a tidying job can be given up, an issue's record cannot
   be written uncoordinated. Inside one process it is exclusive between threads as well, except for a holder that asks
   to be let in alongside this process's own writer, and the lock is kept until the last holder here leaves. Released

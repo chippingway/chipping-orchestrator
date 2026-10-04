@@ -8,6 +8,10 @@ It can be a fresh read because the dispatcher serializes `decomposing`,
 child's own label flip cannot land between this read and the writes that follow
 it. A read that raises abandons the whole tick for this parent rather than
 acting on a partial picture -- the parent's next dependency poll retries.
+Another poller on this host is outside that bucket, so a write made inside
+`child_claims.claiming()` is decided on the child read again under the child's
+own writer claim, never on the scan alone; no production write is made there
+yet.
 
 Two child states end the parent's tick instead of advancing it, and both park
 idempotently so they do not re-comment on every walk. A `rejected` child is a
@@ -15,7 +19,13 @@ human decision the parent cannot interpret. A child closed without a terminal
 label is invisible to the closed-issue sweep, so its label is frozen wherever
 it was at close and the parent would otherwise wait on it forever -- except
 when the close was an external merge, which is why each candidate is retried
-against the PR-merge finalize before it counts as manually closed.
+against the PR-merge finalize before it counts as manually closed. Inside
+`child_claims.claiming()` that finalize is made under the child's own writer
+claim, off the child read again behind it: a closed child on a swept label is
+dispatched on its own as well, so another poller may have finalized,
+relabelled, or reopened it since the scan, and it counts as it reads now and is
+never finalized twice. A child that poller is still writing counts as neither
+until a later walk.
 
 A parent also re-checks the human's requirements here. Its own body may have
 been edited while children were running, and unlike an implementing issue there
@@ -36,7 +46,11 @@ from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import drift as _drift, guards as _guards, terminals as _terminals
-from orchestrator.workflow.stages.decomposition import drift as _decomposition_drift, state as _state
+from orchestrator.workflow.stages.decomposition import (
+    child_claims as _child_claims,
+    drift as _decomposition_drift,
+    state as _state,
+)
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
 
 log = logging.getLogger("orchestrator.workflow")
@@ -137,17 +151,38 @@ def _park_rejected_children(
 def _remaining_manually_closed(
     gh: GitHubClient,
     spec: _config_models.RepoSpec,
+    owner: Issue,
     scan: _ChildScan,
     candidates: list[int],
 ) -> list[int]:
+    """The closed candidates no merge explains, finalizing those a merge does.
+
+    Inside `child_claims.claiming()` each is asked under the child's own
+    writer claim, since a finalize writes the child's label, thread, and
+    record, and asked of a reading taken behind that claim: the scan was read
+    before any claim was, and another poller on this host may have finalized,
+    relabelled, or reopened the child in between, so a finalize decided on
+    the scan's reading would end a child a second time. The scan takes the
+    fresh reading, and only a child it still reads closed on a label no
+    ending explains is finalized or counted. One another poller holds, or one
+    the read cannot reach, is left as the scan read it -- neither finalized
+    nor counted as closed by hand -- so the parent waits on it rather than
+    parking over it, and the next walk asks again. Anywhere else each is
+    asked of the scan, as it has always been.
+    """
     remaining: list[int] = []
     for number in candidates:
-        child_issue = scan.issues[number]
-        child_state = gh.read_pinned_state(child_issue)
-        if _terminals._finalize_if_pr_merged(gh, spec, child_issue, child_state):
-            scan.labels[number] = _state._DONE
-        else:
-            remaining.append(number)
+        with _child_claims.held_child(gh, owner.number, number) as held:
+            reread = held and (
+                not _child_claims.claims_children() or scan.adopt(_read_child_labels(gh, owner, [number]))
+            )
+            if not reread or not scan.closed_unended(number, _ENDED_LABELS):
+                continue
+            child_issue = scan.issues[number]
+            if _terminals._finalize_if_pr_merged(gh, spec, child_issue, gh.read_pinned_state(child_issue)):
+                scan.labels[number] = _state._DONE
+            else:
+                remaining.append(number)
     return remaining
 
 
@@ -175,10 +210,8 @@ def _park_manually_closed_children(
     that the closed-in_review sweep finalizes on the next tick, NOT a manual
     override.
     """
-    manually_closed = _remaining_manually_closed(gh, spec, scan, [
-        number for number, child_issue in scan.issues.items()
-        if getattr(child_issue, "state", "open") == "closed"
-        and scan.labels.get(number) not in _ENDED_LABELS
+    manually_closed = _remaining_manually_closed(gh, spec, issue, scan, [
+        number for number in scan.issues if scan.closed_unended(number, _ENDED_LABELS)
     ])
     if not manually_closed:
         return False
