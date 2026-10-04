@@ -54,6 +54,7 @@ _OWNERS = (
     "late_hold_release",
 
     "replacement_lineage",
+    "child_claims",
     "child_creation",
     "split_receipts",
     "split_seeds",

@@ -3,21 +3,32 @@
 """Shared process-local state behind close observations and publication holds.
 
 Every registry is protected by the same lock. Settlement advances the owner
-generation and clears its observation and receipt memo together; callers hold
-the lock so those changes remain atomic with their own gate decisions."""
+generation and clears its observation, the cycle that observation was scoped
+to, the moment it was read at, and its receipt memo together; callers hold the
+lock so those changes remain atomic with their own gate decisions. Whether a
+latched close ends a given cycle is answered here too, under that lock
+(`_ends`), for the claim-aware callers that ask it -- none in production yet,
+so no scope or moment is recorded there and every barrier reads the latch
+alone."""
 from __future__ import annotations
 
 import threading
 
-# Closes observed and not yet settled; the ones whose durable receipt is on the
-# thread, against the generation it was posted for; the owners a receipt is
-# being posted for right now; how many readings of each owner a pass has
-# actually settled; and the owners whose thread has been asked about an
-# inherited receipt; and the cycle a worker is retiring off each record right
-# now. Module-level and lock-guarded, like the running-process registry the
-# agent runner keeps: the writer is the polling thread and the readers are
-# workers, so the record has to outlive both.
+from orchestrator.scheduler import claim_notes as _claim_notes
+
+# Closes observed and not yet settled; the cycle a read of the record said each
+# one ends; a moment no later than the read that found each, where its reader
+# knew one; the ones whose durable receipt is on the thread, against the
+# generation it was posted for; the owners a receipt is being posted for right
+# now; how many readings of each owner a pass has actually settled; and the
+# owners whose thread has been asked about an inherited receipt; and the cycle
+# a worker is retiring off each record right now. Module-level and
+# lock-guarded, like the running-process registry the agent runner keeps: the
+# writer is the polling thread and the readers are workers, so the record has
+# to outlive both.
 _observed: set[tuple[str, int]] = set()
+_scopes: dict[tuple[str, int], int] = {}
+_since: dict[tuple[str, int], int] = {}
 _receipted: dict[tuple[str, int], int] = {}
 _posting: set[tuple[str, int]] = set()
 _settlements: dict[tuple[str, int], int] = {}
@@ -34,9 +45,9 @@ def _owner_key(repo_slug: str, issue_number: int) -> tuple[str, int]:
 
 
 def _settled(key: tuple[str, int]) -> None:
-    """Drop one latched reading, its memo and the generation it was counted at.
+    """Drop one latched reading with its scope, moment, and memo, and count the drop.
 
-    The three go together or the record contradicts itself, so this is the one
+    They go together or the record contradicts itself, so this is the one
     spelling of a settlement and every caller holds the lock across it. The
     caller that postpones one holds it across the release that discharges it
     too: released and settled apart, a poll latching in between would have its
@@ -45,5 +56,32 @@ def _settled(key: tuple[str, int]) -> None:
     how a receipt already on the thread stops suppressing the next post.
     """
     _observed.discard(key)
+    _scopes.pop(key, None)
+    _since.pop(key, None)
     _receipted.pop(key, None)
     _settlements[key] = _settlements.get(key, 0) + 1
+
+
+def _ends(key: tuple[str, int], cycle_id: int, repo_id: int | None) -> bool:
+    """Whether the close held under `key` ends this cycle; the caller holds the lock.
+
+    A close scoped to this cycle ends it. Any other -- one no read has scoped,
+    or one scoped to a cycle the record has since moved off -- ends it only
+    where, with the repository's id, the claim notes say no other poller has
+    held the issue since the latest moment the latch was read closed at, and
+    is scoped to it from then on. A cycle another poller settled and restarted
+    is therefore ended only by a close read after that poller let go, never by
+    the reading it settled. Spelled once, so a barrier that has to decide
+    under this lock answers exactly as one that takes it.
+    """
+    if key not in _observed:
+        return False
+    if _scopes.get(key) == int(cycle_id):
+        return True
+    read_at = _since.get(key)
+    if None in {repo_id, read_at}:
+        return False
+    if not _claim_notes.undisturbed_since(repo_id, key[1], read_at):
+        return False
+    _scopes[key] = int(cycle_id)
+    return True

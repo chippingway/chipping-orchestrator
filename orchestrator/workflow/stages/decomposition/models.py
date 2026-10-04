@@ -6,11 +6,14 @@ Each of these exists because the value it carries has to survive a boundary
 the call stack alone would lose it across: the worktree policy a run decides
 before it can raise, the agent identity a resume is locked to, the children a
 split has already created when the next one fails -- with the lineage it
-seeds each of them with and the attempt their receipts name -- and the child
-labels a parent scan read once and several branches then ask about.
+seeds each of them with, the attempt their receipts name, and the ones a
+claimed seed had to leave for the split's recovery -- and the child labels a
+parent scan read once, and takes again for a child a claimed write reads anew
+under that child's claim, that several branches then ask about.
 """
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass, field
 
 from github.Issue import Issue
@@ -18,7 +21,9 @@ from github.Issue import Issue
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import decomposition as _worktree_decomposition
+from orchestrator.github.issues import issue_is_closed
 from orchestrator.workflow.stages.decomposition.replacement_lineage import ReplacementLineage
+from orchestrator.workflow.state import WorkflowLabel
 
 
 @dataclass
@@ -58,6 +63,9 @@ class _SplitPlan:
     dep_graph: dict[str, list[int]]
     lineage: ReplacementLineage = field(default_factory=ReplacementLineage)
     attempt: str = ""
+    # Created and recorded, but held by another poller on this host when a
+    # claimed seed went to write them: the split's recovery seeds them.
+    unseeded: list[int] = field(default_factory=list)
 
     @classmethod
     def start(
@@ -85,3 +93,25 @@ class _ChildScan:
     children: list
     issues: dict[int, Issue]
     labels: dict[int, str | None]
+
+    def waiting(self, number: int) -> bool:
+        """Whether this scan read the child open and `blocked`, the one reading a release walk starts a child from."""
+        child = self.issues.get(number)
+        if child is None or issue_is_closed(child):
+            return False
+        return self.labels.get(number) == WorkflowLabel.BLOCKED
+
+    def adopt(self, current: _ChildScan | None) -> bool:
+        """Take a later reading of some of these children over this one, and say whether there was one."""
+        if current is None:
+            return False
+        self.issues.update(current.issues)
+        self.labels.update(current.labels)
+        return True
+
+    def closed_unended(self, number: int, ended: Collection[str | None]) -> bool:
+        """Whether this scan read the child closed on a label none of `ended` explains."""
+        child = self.issues.get(number)
+        if child is None or not issue_is_closed(child):
+            return False
+        return self.labels.get(number) not in ended

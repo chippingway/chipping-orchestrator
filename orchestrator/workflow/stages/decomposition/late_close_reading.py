@@ -19,10 +19,11 @@ from orchestrator.github import (
     pinned_state as _pinned_state,
 )
 from orchestrator.workflow.engine import (
+    observations as _observations,
     retiring_cycles as _retiring_cycles,
 )
 from orchestrator.workflow.late_split import (
-    models as _late_models,
+    endings as _endings,
     state as _late_state,
 )
 from orchestrator.workflow.stages.decomposition import (
@@ -155,9 +156,9 @@ def _ending_is_over(
 def _ending_cycle(
     spec: _config_models.RepoSpec,
     issue_number: int,
-    generation: _late_models.LateGeneration,
+    state: _pinned_state.PinnedState,
 ) -> int | None:
-    """Which cycle a close observed now would end on this issue, if any.
+    """Which cycle a close observed now would end on this issue's record, if any.
 
     The record's own answer, and -- for the one window where the record has
     none -- the cycle a worker on this very issue is retiring RIGHT NOW. That
@@ -171,15 +172,30 @@ def _ending_cycle(
     observation made in the window would be latched in memory and written
     down nowhere -- exactly the shape a restart takes away entirely.
 
+    A close this process already holds scoped to the very cycle the record
+    says a retirement dropped answers the same way. It was read inside a
+    retirement window another poller on this host held and noted on the
+    claim, whose barrier never saw it (`contended_closes`), and it is what the
+    cleanup pass under the claim adopts that cycle back from -- so it is owed,
+    and written down, rather than dropped as ending nothing. Only a contender
+    scopes a close that way, and none runs in production yet.
+
     None for a cycle already marked over as well as for no cycle at all:
     the ending is already on the record and the sweep its label names is
     what runs it, so the reading buys nothing a later pass has not got.
     """
+    generation = _late_state.read_late_generation(state)
     if generation.cancelled:
         return None
     if generation.is_present:
         return generation.cycle_id
-    return _retiring_cycles.cycle_being_retired(spec.slug, issue_number)
+    retiring = _retiring_cycles.cycle_being_retired(spec.slug, issue_number)
+    if retiring is not None:
+        return retiring
+    retired = _endings.read_retired_cycle(state)
+    if retired is not None and _observations.close_scope(spec.slug, issue_number) == retired:
+        return retired
+    return None
 
 
 def _observed_close_marker(issue_number: int, cycle_id: int) -> str:
@@ -237,6 +253,4 @@ def _owns_a_live_cycle(
             spec.slug, issue_number,
         )
         return None
-    return _ending_cycle(
-        spec, issue_number, _late_state.read_late_generation(state),
-    ) is not None
+    return _ending_cycle(spec, issue_number, state) is not None

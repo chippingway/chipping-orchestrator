@@ -30,6 +30,7 @@ _ENGINE_OWNERS = (
     "dispatch_closure",
     "cleanup_observation",
     "dispatch_partition",
+    "contended_closes",
     "issue_processing",
     "dispatch_workers",
     "scheduled_dispatch",

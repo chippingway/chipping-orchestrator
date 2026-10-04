@@ -259,16 +259,29 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     dispatch.py            drive the sequential poll's closure classification or submit its partition to the scheduler;
                             refetched owners and still-owed closes keep the processing scope their reading earned
     observation_state.py    the process-local close, receipt, scan, retirement, publication, and deferred-settlement
-                            registries behind one lock; settlement advances the owner generation and clears its latch
-                            and receipt memo atomically
+                            registries behind one lock -- with the cycle each latched close was scoped to and the
+                            moment it was read at; settlement advances the owner generation and clears its latch,
+                            scope, moment, and receipt memo atomically, and whether a latched close ends a given cycle
+                            is answered under the same lock for the claim-aware callers that ask it
     observations.py         latch, read, enumerate, and settle observed closes; settlement is deferred while a
                             publication holds the owner, so a record read cannot erase a close a running worker still
-                            owes
+                            owes. Dormant beside them, for passes under the issue's writer claim: a latch's read moment,
+                            its scope to the cycle a read tied it to, and whether it ends a cycle -- the one it is
+                            scoped to, or one asked under the claim where no other poller held the issue since it was
+                            read. Production latches carry neither, and every barrier asks the latch alone
+    contended_closes.py     dormant: what a poll refused an issue's writer claim keeps of the close it read -- its
+                            own latch and nothing on GitHub, scoped only where the record is read first and the issue
+                            still reads closed behind it, or to the retired cycle the holder noted on the claim; a
+                            close reopened, restarted past, or unreadable is held unresolved, and a record naming no
+                            cycle leaves an older latch as it was. No dispatch path routes a refused issue here yet
     observation_receipts.py generation-scoped exclusive receipt-post claims and landed memos; bounded thread scans
                             release on failure and reopen when a receipt lands, so a failed or stale attempt suppresses
                             no later receipt
     retiring_cycles.py      the held cycle id across a retirement write and its final barrier; exit removes the marker
-                            and reports the close observed inside the window under the same lock
+                            and reports the close observed inside the window under the same lock. A window opened
+                            with the repository id also notes its cycle on the issue's writer claim for a refused
+                            poller, and reports only a close that ends its own cycle; no production retirement
+                            passes the id yet
     publication_holds.py    counted holds taken when a worker is admitted and nested around handler execution; only the
                             final release settles a deferred close, preserving the reading through queueing and refetch
     content_hash.py         the user-content hash and filters for pinned records, orchestrator output, bots, untrusted
@@ -1577,7 +1590,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
                             a pointer -- in one write before it is seeded with its parent link, creation stamp, and
                             that lineage, never with the parent's measurement, exemption, or authorization, and either
-                            failure parks the parent for repair
+                            failure parks the parent for repair; the seed completion the recovery's repair shares,
+                            which takes a park off only a record that carries one. Inside `child_claims.claiming()` the
+                            seed is written under the child's claim onto the record it already carries, and a child
+                            another poller holds is handed back unseeded on the split plan for the recovery to seed
       split.py              decide the children's lineage and park an unprovable one before any marker -- or a slice
                             naming a snapshot ref its child would not be kept -- stamp each child's receipt and
                             append the snapshot's reuse instructions to the body of each child owed it, then persist
@@ -1593,10 +1609,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             cannot keep, or whose receipt is not the one stamped for its slot, included -- the
                             incomplete park, and the two owners that hold
                             those markers instead -- a human the issue is parked awaiting, and the late transaction
-                            while its generation is live
+                            while its generation is live. Inside `child_claims.claiming()` each child is repaired under
+                            its own claim, and one another poller holds stops the recovery with no park, short of the
+                            finalize, for the next tick to resume
+      child_claims.py       a child's own writer claim around a parent's write to it, keyed on the client's
+                            `repo_id`, and the all-or-nothing hold over several a release walk takes; a refusal is the
+                            caller's to answer as a child it may not act on yet. Dormant: a claim is taken, and the
+                            child read again behind it, only inside its `claiming()` entry point, which no production
+                            path enters; outside it nothing is taken and every family write runs as it always has
       parents.py            the fresh child scan, the rejected and manually-closed parks it earns -- published
                             apart from the scan, since one caller settles its ledger on the way out of them -- and
-                            the parent's own drift reroute, which first writes the children it drops onto the ledger
+                            the parent's own drift reroute, which first writes the children it drops onto the ledger.
+                            Inside `child_claims.claiming()` a closed child's merge finalize is decided on the child
+                            read again under its claim, so one another poller holds is neither finalized nor counted
+                            closed by hand, and one finalized since the scan is not finalized twice
       activation.py         the dep-graph walk that releases the next children, the child it passes over because GitHub
                             reports it closed or the scan holds no issue for it, the latch asked before EVERY relabel --
                             a relabel is a request, so a close observed after the first child was released may not
@@ -1611,7 +1637,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             for its slot -- parking the parent, once, rather
                             than releasing any child under a record that changed; the same walk, over the same fresh
                             child scan and behind the same rejected and manually-closed parks, the split's own
-                            same-tick release runs; and the held-dependency line it logs
+                            same-tick release runs; and the held-dependency line it logs. Inside
+                            `child_claims.claiming()` the walk claims every child it would release and reads each
+                            again before vouching for any, and a refused claim, a failed read, or a child no longer open
+                            and `blocked` releases none and parks nothing
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
                             consumed-comment ratchet; a parent whose children all resolved settles what a late split
                             still owes the remote before it goes back to its own work, and waits on `blocked` while a
@@ -1755,7 +1784,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             mirror kept whole with the repository segment it was fetched for -- and exact slice
                             receipts; reserved markers in proposed scope are refused before publication
       late_child_records.py retain the child walk, write each child on every parent ledger before seeding its ancestry,
-                            and seal a cancelled consumer ledger only once possible unrecorded children are accounted for
+                            and seal a cancelled consumer ledger only once possible unrecorded children are accounted
+                            for; inside `child_claims.claiming()` a seed is written under the child's claim, and one
+                            refused parks as a seed that could not be made, for the next attempt to resume
       late_child_adoption.py
                             recover the exact issue for a resumed slice or create it after the close latch; ambiguous,
                             closed, or already-started receipt holders are refused without creating another child
@@ -1802,7 +1833,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             either remote or local refusal leaves the obligation failed
       late_consumer_release.py
                             deliver cycle-bound snapshot reclamation receipts once per child, checking closure around
-                            every thread read and post; an unreachable child keeps delivery outstanding
+                            every thread read and post; an unreachable child keeps delivery outstanding, as does,
+                            inside `child_claims.claiming()`, one another process holds -- the receipt is posted
+                            under the child's claim alongside this process's own writer
       late_snapshot_reclamation.py
                             persist reclamation intent, refresh the consumer proof, and delete the exact snapshot;
                             recover missing refs and interrupted receipts without recreating or repointing the ref
@@ -1842,7 +1875,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             persist cancellation before telemetry and reconstruct a retired cycle from retained
                             obligations and this issue's ancestry; already-cancelled generations remain unchanged
       late_close_reading.py fresh owner and cycle readings, close-receipt markers, and the proof that cleanup ended;
-                            a retirement in flight can still supply the cycle a concurrent close must name
+                            a retirement in flight can still supply the cycle a concurrent close must name, and --
+                            read off the whole record -- so can the cycle a retirement dropped, where a contender
+                            scoped the held close to it (`engine/contended_closes.py`, dormant)
       late_close_observation.py
                             claim and post observed-close receipts, adopt them after a process restart, and turn fresh
                             or latched closure into durable cancellation without letting a later reopen erase it
@@ -2066,8 +2101,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading
       late_models.py        mutable tick context, tri-state owner readings, held pull requests, and staged park values
       models.py             the run plan and its worktree policy, the locked session, the split plan -- with the
-                            lineage it seeds, the attempt its receipts name, and the whole declared dependency graph
-                            -- and the child scan
+                            lineage it seeds, the attempt its receipts name, the whole declared dependency graph, and
+                            the recorded children a claimed seed left unseeded -- and the child scan, with the readings
+                            a release walk and a merge finalize ask of it and the later reading it adopts
       state.py              the pinned-state field names the owners share, `split_attempt` among them, the
                             held-child alias, the strict parent-link check, and the issue-reference renderer
     discussion/             `discussion`

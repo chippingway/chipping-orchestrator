@@ -140,9 +140,7 @@ def _observed_close_posted(
     """
     issue = gh.get_issue(issue_number) if polled is None else polled
     state = gh.read_pinned_state(issue)
-    cycle = _late_close_reading._ending_cycle(
-        spec, issue_number, _late_state.read_late_generation(state),
-    )
+    cycle = _late_close_reading._ending_cycle(spec, issue_number, state)
     if cycle is None:
         return None
     marker = _late_close_reading._observed_close_marker(issue_number, cycle)
