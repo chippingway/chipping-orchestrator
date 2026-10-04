@@ -3,16 +3,19 @@
 """A close held across this process's own restart of the cycle, which no claim note records.
 
 Settled under a publication hold, it is retried by the next poll without
-ending or receipting the fresh cycle; a close read after the restart is the
-fresh cycle's own.
+ending or receipting the fresh cycle, and so is one fetched closed before the
+restart; a close read after the restart is the fresh cycle's own.
 """
 from __future__ import annotations
 
+import copy
 import unittest
+from unittest.mock import patch
 
 from orchestrator.workflow.engine import (
     dispatch_closure as _dispatch_closure,
     observations,
+    poll_models as _poll_models,
     publication_holds as _publication_holds,
 )
 from tests.workflow.fixtures import _TEST_SPEC
@@ -54,10 +57,39 @@ class RestartedHereTest(_fix.RestartCase, ObservedCloseCase, unittest.TestCase):
 
         self.assertTrue(self._receipted())
 
+    def test_a_stale_closed_fetch_ties_nothing(self) -> None:
+        # A refused cleanup submit reads beside this process's writer, so the
+        # issue it fetched closed before the restart is no close of the fresh
+        # cycle the record names behind it: only a read after the record is.
+        fetched = _FetchedBeforeTheRestart(self.github)
+
+        with patch.object(self.github, "get_issue", fetched):
+            _dispatch_closure._refused_submit(
+                self.github, _TEST_SPEC, LATE_ISSUE_NUMBER, _poll_models._PollReading(cleanup_only=True, closed=True),
+            )
+
+        self.assertFalse(self._receipted(), "no receipt names the fresh cycle")
+        self.assertIsNone(observations.close_scope(_SLUG, LATE_ISSUE_NUMBER), "nor is the old close tied to it")
+
     def _receipted(self) -> bool:
         """Whether the thread carries a close receipt for the fresh cycle."""
         receipt = receipt_for(LATE_ISSUE_NUMBER, _fix.RESTART_CYCLE_ID)
         return any(receipt in body for _, body in self.github.posted_comments)
+
+
+class _FetchedBeforeTheRestart:
+    """Independent issue snapshots, the first one taken before the restart reopened the issue."""
+
+    def __init__(self, github) -> None:
+        self._read = github.get_issue
+        self._stale = True
+
+    def __call__(self, number: int):
+        """Answer a copy of the issue, closed the first time."""
+        snapshot = copy.copy(self._read(number))
+        snapshot.closed = snapshot.closed or self._stale
+        self._stale = False
+        return snapshot
 
 
 if __name__ == "__main__":

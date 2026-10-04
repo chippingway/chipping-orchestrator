@@ -150,11 +150,10 @@ def _observed_close_posted(
     the caller drops the reading on. A close that is not this cycle's to post
     for is answered for and NOT discharged, since a later close may yet be.
 
-    The scope is taken only off a close standing AFTER the record was read.
-    Every caller holds the issue's writer claim, but a `polled` issue is older
-    than it -- another poller may have settled the cycle its close ended and
-    started a fresh one meanwhile -- so the issue is read again behind the
-    record, and only a close still standing there is scoped to its cycle.
+    The scope is taken only off a close standing AFTER the record was read,
+    so the issue is always read again behind the record: a `polled` issue is
+    older than the claim, and a caller `alongside` this process's own writer
+    can have that writer reopen and restart the issue between its two reads.
 
     Anything else -- a close latched earlier, or one reopened before it could
     be confirmed -- is posted for only where the latch already ends that cycle
@@ -169,9 +168,7 @@ def _observed_close_posted(
         return None, True
     if cycle == landed:
         return cycle, True
-    standing = _issues.issue_is_closed(issue) and (
-        polled is None or _issues.issue_is_closed(gh.get_issue(issue_number))
-    )
+    standing = _issues.issue_is_closed(issue) and _issues.issue_is_closed(gh.get_issue(issue_number))
     if standing:
         _observations.scope_close(spec.slug, issue_number, cycle)
     if not _observations.close_ends(spec.slug, issue_number, cycle, repo_id=gh.repo_id):

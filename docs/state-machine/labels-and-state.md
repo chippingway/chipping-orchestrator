@@ -350,9 +350,10 @@ the route the partition gives an issue it finds owed. And every barrier that mar
 retirement window included, ends a cycle only with a close that ends that cycle, by the same scope and the same claim
 notes: a close held for a cycle another poller settled and restarted from ends none, and no receipt is posted or
 remembered for it, so the next poll that reads the issue closed ties that fresh close to the fresh cycle and posts for
-it. A restart this process writes is noted for the same reason, since no claim note records it, and a settlement a
-publication hold postponed keeps its close's scope but drops its moment; a poll retrying an owed close withdraws
-nothing.
+it. Every receipt confirms the close with an issue read behind the record, since a reader alongside this process's
+own writer can see that writer restart the cycle between its reads. A restart this process writes is noted for the
+same reason, since no claim note records it, and a settlement a publication hold postponed keeps its close's scope
+but drops its moment; a poll retrying an owed close withdraws nothing.
 
 A family-aware handler writes issues other than its own, so those writes take the target's claim as well, and decide on
 what they read behind it. The walk that relabels a `workflow:blocked` child `workflow:ready` claims every child it would
