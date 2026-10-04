@@ -67,7 +67,10 @@ it aside, keeping each check not shown passing as the diagnostic a developer
 acts on (`VerdictInHand.returned_by`). Findings the formatting leaves nothing
 of read as a sentence saying so, never as the raw message their declaration
 sits in. Formatting decides nothing: the claim, its refusal, and the
-approval's proof read the declaration, never the findings.
+approval's proof read the declaration, never the findings. A record persisted
+before that formatting still carries the declaration raw: a later tick's
+handoff formats only the words it posts and hands on (`review_handoffs`), and
+the record is held, compared, and dropped as written.
 
 Neither verdict is ready until the evidence it relies on has settled: a change
 request handed to a developer moves the head and an approval squashes it, and

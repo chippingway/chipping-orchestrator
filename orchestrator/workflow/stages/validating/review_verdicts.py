@@ -46,7 +46,10 @@ launch it owes is held rather than made (`review_handoffs`). An approval is
 never handed and hands nobody words, so a record saying it was, or carrying
 feedback, does not read. A change request's feedback is the reviewer's
 findings with its verification declaration set aside, as `review_disposition`
-formats them, which its post and its developer are handed alike.
+formats them, which its post and its developer are handed alike. A record
+persisted before that formatting carries the raw slice, declaration and all,
+and reads all the same: a later tick's handoff formats only the words it posts
+and hands on (`review_handoffs`), and the record's feedback stays as written.
 
 The record is additive and fail-closed: an issue without it has no verdict
 waiting, and one in any shape this reader refuses is no verdict anybody may

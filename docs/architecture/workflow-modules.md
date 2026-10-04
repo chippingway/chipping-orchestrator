@@ -186,7 +186,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             itself, and findings with nothing left read as a sentence saying so rather than as the raw
                             message. `stages/validating/review_disposition.py` formats the feedback of every verdict a
                             live reviewer round returns here, once the declaration is read, and that is the feedback a
-                            change request is persisted with, posted as, and handed to its developer as
+                            change request is persisted with, posted as, and handed to its developer as;
+                            `stages/validating/review_handoffs.py` formats a persisted request's feedback here again
+                            where a later tick posts it and resumes its developer on it, so a record persisted before
+                            that formatting, its declaration raw, goes out concise, and one already concise goes out as
+                            persisted; `stages/validating/feedback_posts.py` formats here the findings an anchored
+                            feedback post quotes where a `/orchestrator continue` replays it
     review_findings_fences.py
                             where the code of a reviewer's findings -- fences and indented code -- opens and ends as
                             Markdown renders it, for `review_findings`: a fence opens on a run at most three spaces
@@ -2421,7 +2426,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             would refuse the operator's retry as "nothing new"
       continue_command.py   `/orchestrator continue` on a parked fix: the replay and what it may hand the dev --
                             guidance, never the command itself -- plus the two refusals and the guidance passthrough
-                            for retryable session failures (`agent_silent`, `agent_timeout`, `agent_execution_failed`)
+                            for retryable session failures (`agent_silent`, `agent_timeout`, `agent_execution_failed`).
+                            The validating route's anchor joins the replay as `validating/feedback_posts.py` shows it:
+                            the findings it quotes formatted, its id and every other attribute the posted comment's,
+                            so a post made before findings were formatted reaches the fresh developer concise while
+                            the comment stays as posted and the batch settles exactly as over it
       drift.py              the `workflow:resolving_conflict` reroute a stuck validating-route park earns when its
                             worktree has fallen behind base. Only a condition that has not resolved reaches it: a
                             park the branch READING withheld the clear from answers in a word of its own, since the
@@ -3454,7 +3463,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the id it landed as, or nothing where it had no pull request to go on, failed, or named no
                             positive whole comment id, and leaves that anchor to its caller: the persisted request's
                             handoff (`review_handoffs.py`), the one road posting it, goes on only behind one and stages
-                            it with the handed write
+                            it with the handed write. The post is in the words `feedback_posts.py` writes
+      feedback_posts.py     a change request's reviewer-feedback post: the words it is posted in (`posted`) -- a line
+                            naming the review and its round, then the feedback -- and the post as a `/orchestrator
+                            continue` replay quotes it (`ShownPost`, asked by `fixing/continue_command.py`): the same
+                            comment, its id, author, and every other attribute its own, whose body has the findings
+                            formatted through `engine/review_findings.py` between that line and the hidden marker, both
+                            kept as posted. A post made before findings were formatted, its declaration raw, is
+                            replayed concise -- a declaration alone as the sentence saying there are no findings -- one
+                            made since as posted, and a body of no post's shape reads as findings whole
       dev_fix.py            what a finished dev fix leaves behind: the publishable reading and the proved remote
                             head it carries on as the lease, taken for a run that committed as well as for one
                             that did not -- a tick committing over work an earlier one stranded begins at a
@@ -3888,7 +3905,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             A later tick's handoff builds its launch over the issue's checkout where it stands and
                             restores that checkout only behind the relabel, once the launch is held to its subject, so a
                             moved subject drops the verdict with no checkout restored and one that will not restore
-                            keeps no stale verdict pinned
+                            keeps no stale verdict pinned. What a later tick posts and resumes the developer on is the
+                            record's feedback formatted through `engine/review_findings.py` (`HandedLaunch.of`): a
+                            record persisted before findings were formatted, its declaration raw, goes out concise --
+                            each check not shown passing kept as its diagnostic -- while the record itself, its claim,
+                            receipt, and anchor, is what every comparison is made against as read, its feedback never
+                            rewritten on the pinned comment, and a post already made stays as it was posted, the
+                            `/orchestrator continue` replaying it quoting its findings formatted (`feedback_posts.py`)
       review_launch_hold.py the hold a handed change request's developer launch is made behind at the run circuit
                             (`owed_launch`): the launch owed once at the count the request was handed at, the whole
                             subject resolved again right behind its charge, and every reading its charge and start are
@@ -3933,7 +3956,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and a verdict another road put in place of the handed one on that write's reading ends the
                             tick with nothing written or handed over. Either road resolves the subject before it
                             restores the checkout the verdict is finished or launched in, so a checkout that will not
-                            restore never keeps a stale verdict pinned
+                            restore never keeps a stale verdict pinned. A change request is finished from its record as
+                            written -- round, subject, claim, receipt, and anchor -- with only the words it posts and
+                            resumes its developer on formatted (`review_handoffs.HandedLaunch.of`), so one persisted
+                            before findings were formatted -- waiting on its evidence's publication or its feedback
+                            post, or handed and stopped on its relabel or launch -- goes out concise with no second
+                            reviewer, its recorded feedback never rewritten, and no second post
       review_parks.py       the two parks a verdict takes instead of being acted on, which the disposition asks for:
                             `reviewer_unverified` for an approval relying on no valid evidence (`parks_unverified`,
                             measured against the state it began over) and `reviewer_unrecorded` for a verdict that could

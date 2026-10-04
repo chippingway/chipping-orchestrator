@@ -3619,7 +3619,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      the cap and the spawn (`review_resume.resumes_a_returned_verdict`), running no reviewer, folding no usage, and
      spending no round: one not yet handed through a run rebuilt of its round over the subject resolved again, in a
      checkout restored only behind that reading, one handed whose relabel never landed by that relabel and the launch of
-     its one owed developer, its checkout restored only behind the relabel. A subject that moved and a handed verdict
+     its one owed developer, its checkout restored only behind the relabel. A change request is finished from its
+     record as persisted -- round, subject, evidence claim and its receipt, and anchor -- and only the words it posts
+     and resumes its developer on are formatted (`engine/review_findings.py`): one persisted before findings were
+     formatted, its verification declaration still raw, posts the concise findings where its feedback was never
+     posted and hands them to its developer, each check not shown passing kept as its diagnostic, with the record's own
+     feedback left as persisted and no post made again. A subject that moved and a handed verdict
      whose developer may have run, its subject resolved again, drop the verdict, restoring no checkout, so one that will
      not restore holds nothing up, in a write of the comment read afresh -- only while it still carries that verdict --
      and end the tick, for the next tick's round; a verdict another road put in place of a handed one while its cleared
@@ -4389,7 +4394,11 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      (`validating/review_handoffs.HandedLaunch.owed`), with no relabel: the issue is on this label already, and writing
      it again would emit a `stage_enter` nothing made, and its checkout is restored only once the launch is held to its
      subject, so a moved subject drops the verdict with no checkout restored; one that may have started -- a run ledger
-     whose record of that launch no reader takes included -- is never made again. It is held to the subject resolved
+     whose record of that launch no reader takes included -- is never made again. The owed launch resumes its developer
+     on the record's feedback as `engine/review_findings.py` shows it, so a request handed before findings were
+     formatted is answered on the concise findings, while the post it was handed over with stays as it was posted --
+     the `/orchestrator continue` replaying it quotes its findings formatted too (`validating/feedback_posts.py`). One
+     that may have started is held to the subject resolved
      again, the evidence its request claims, and the branch: a move, a commit the pull request has not got, loose work
      in the checkout, or a remote that moved past it drops the verdict in a write of the comment read afresh -- only
      while it still carries that verdict -- and the next tick's bounce publishes that work, or holds over it, and hands
@@ -4438,7 +4447,10 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      actions: **replay** — an eligible session-failure park **with a reconstructable batch** (the in_review route's
      `pending_fix_*` bookmarks, or the validating route's `pending_fix_reviewer_comment_id` anchor): drop the poisoned
      dev session (`_drop_poisoned_dev_session` — so the retry re-grounds a fresh session on the committed branch), clear
-     the park, and **replay the preserved feedback batch** (`_reconstruct_pending_fix_batch`) carrying the fresh
+     the park, and **replay the preserved feedback batch** (`_reconstruct_pending_fix_batch`) — the validating route's
+     anchor quoted as `validating/feedback_posts.ShownPost` shows it, its findings formatted and everything else, its
+     id included, the posted comment's, so a post made before findings were formatted reaches the fresh developer
+     concise while it stays on the pull request as posted, and the batch settles exactly as over it — carrying the fresh
      feedback that says something (`_carried_fresh_feedback`) — any guidance posted with or beside the command,
      verbatim — but NEVER the bare command itself: a replay renders what it is handed as PR feedback to implement, so
      the command line would read as work to do. The rebuilt issue-thread half is cut from the SCAN's own read of that

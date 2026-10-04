@@ -14,7 +14,10 @@ the launch's very identity charged behind the handoff's checks launches
 nobody. A subject that moved drops the verdict -- only while the comment still
 carries it, so a verdict another road put in its place stands -- for a fresh
 reviewer on the next tick, and a subject, issue, or thread nobody could read
-holds it, a handed one whose developer may have run included. A reply that
+holds it, a handed one whose developer may have run included. A request
+persisted before findings were formatted, its declaration raw, is posted where
+it never was and its developer resumed on the concise findings, a post already
+made left as it was posted. A reply that
 bought a fresh round where a verdict waits, or the report hold stops that
 round, settles the tick in one write over the comment read afresh -- keeping
 the cleared park and what another road wrote meanwhile, a park of its own
@@ -44,6 +47,7 @@ from tests.workflow.fixtures import (
 from tests.workflow.published_reports import DELIVERED_REPORT
 from tests.workflow.stages.validating import (
     disposed_verdict_test_support as _disposed,
+    raw_feedback_test_support as _raw,
     resumed_verdict_test_support as _resumed,
     review_handoff_test_support as _handoff,
     review_verdict_readings as _read,
@@ -148,6 +152,33 @@ _LOST_SESSION = _agent(
 # The verdict a handed request left waiting, as `waiting` reads it.
 _HANDED_REQUEST = "changes_requested"
 
+# What a recovered request's feedback posts quote, oldest first, beside the
+# findings its developer is resumed on: the reviewer's words, persisted as
+# they are posted; a failed run's findings persisted raw and posted only by
+# the recovery, concise, the failed check kept as their diagnostic; or that
+# raw feedback posted ahead of the recovery, left as it was, while the
+# developer is resumed on the concise findings all the same.
+_AS_PERSISTED = ((_world.REQUESTED,), _world.REQUESTED)
+
+_POSTED_CONCISE = ((_world.CONCISE_FAILURE,), _world.CONCISE_FAILURE)
+
+_POSTED_RAW = ((_raw.RAW_FAILURE,), _world.CONCISE_FAILURE)
+
+# Where a tick that persisted a failed run's request raw stopped: on its
+# evidence's publication, its feedback post, or its relabel behind a raw post.
+_OWES_ITS_EVIDENCE_RAW = partial(_raw.leaves_raw, leaves=_raw.owes_its_evidence)
+
+_REFUSES_THE_POST_RAW = partial(_raw.leaves_raw, leaves=_resumed.refuses_the_post)
+
+_REFUSES_THE_RELABEL_RAW = partial(_raw.leaves_raw, leaves=_resumed.refuses_the_relabel)
+
+# The tick handing over a request beside a passing run, persisted raw and
+# posted so, whose developer's start is refused: its findings concise are the
+# reviewer's words alone, as an undeclared request's are.
+_HANDS_OVER_RAW = partial(
+    _raw.leaves_raw, leaves=_resumed.ResumedVerdictWorld.hands_over_unstarted, reply=_world.PASSED_REQUEST,
+)
+
 
 
 
@@ -205,13 +236,19 @@ class ValidatingResumeTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
         )
 
     def test_a_waiting_request_reaches_one_developer(self) -> None:
-        # Its feedback post refused, or its relabel after the handed write:
-        # the handler posts the feedback only where none was anchored, and
-        # launches and charges the one developer -- never a reviewer -- with
-        # the reviewer's usage still folded once.
-        for name, stops, relabels in (
-            ("its feedback post refused", _resumed.refuses_the_post, [FIXING, VALIDATING]),
-            ("its relabel refused", _resumed.refuses_the_relabel, [FIXING, VALIDATING]),
+        # Its feedback post refused, or its relabel after the handed write --
+        # or, a failed run's request persisted before findings were formatted,
+        # either of those or its evidence's publication: the handler posts the
+        # feedback only where none was anchored, concise where the record is
+        # raw, and launches and charges the one developer -- never a reviewer
+        # -- on the concise findings, with the reviewer's usage still folded
+        # once and a raw post already made left as it was posted.
+        for name, stops, handed in (
+            ("its feedback post refused", _resumed.refuses_the_post, _AS_PERSISTED),
+            ("its relabel refused", _resumed.refuses_the_relabel, _AS_PERSISTED),
+            ("raw, its evidence owed", _OWES_ITS_EVIDENCE_RAW, _POSTED_CONCISE),
+            ("raw, its feedback post refused", _REFUSES_THE_POST_RAW, _POSTED_CONCISE),
+            ("raw, its relabel refused", _REFUSES_THE_RELABEL_RAW, _POSTED_RAW),
         ):
             with self.subTest(name):
                 self.setUp()
@@ -226,11 +263,19 @@ class ValidatingResumeTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
                         ran.call_args.kwargs.get("resume_session_id"),
                         self.pinned()[_world.AGENT_RUNS_USED] - charged,
                         self.pinned()[TOKENS],
-                        len(self.feedback_posts()),
+                        _raw.handed(self, ran.call_args.args[1], handed[1]),
                         self.github.label_history,
                         self.waiting(),
                     ),
-                    (1, _world.DEV_SESSION, 1, _world.REVIEWER_TOKENS, 1, relabels, None),
+                    (
+                        1,
+                        _world.DEV_SESSION,
+                        1,
+                        _world.REVIEWER_TOKENS,
+                        (handed[0], True),
+                        [FIXING, VALIDATING],
+                        None,
+                    ),
                 )
 
     def test_a_stale_verdict_goes_to_a_fresh_reviewer(self) -> None:
@@ -348,17 +393,25 @@ class FixingResumeTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
         # ahead of the launch rather than holding the request for good. The
         # issue is on `workflow:fixing` already, so no label is written ahead
         # of the launch: the one label written, and the one stage entered, is
-        # the hand-back to review.
-        for name, meanwhile in (("its charge reserved", None), ("its anchor cleared", _resumed.clears_the_anchor)):
+        # the hand-back to review. A request persisted before findings were
+        # formatted, handed over behind its raw post, posts nothing again and
+        # leaves that post as it was, its developer resumed on the reviewer's
+        # words alone, the declaration set aside.
+        for name, hands_over, meanwhile in (
+            ("its charge reserved", _resumed.ResumedVerdictWorld.hands_over_unstarted, None),
+            ("its anchor cleared", _resumed.ResumedVerdictWorld.hands_over_unstarted, _resumed.clears_the_anchor),
+            ("its findings persisted raw", _HANDS_OVER_RAW, None),
+        ):
             with self.subTest(name):
                 self.setUp()
-                self.hands_over_unstarted()
+                hands_over(self)
                 if meanwhile is not None:
                     meanwhile(self)
                 before = (
                     self.pinned()[_world.RETURNED_VERDICT][_disposed.HANDED],
                     len(self.github.label_history),
                     len(self.github.recorded_events),
+                    _raw.posted(self),
                 )
 
                 ran = self.fixes(**_disposed.fixing())
@@ -367,7 +420,7 @@ class FixingResumeTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
                     (
                         ran.call_count,
                         self.pinned()[_world.AGENT_RUNS_USED] - before[0],
-                        len(self.feedback_posts()),
+                        _raw.handed(self, ran.call_args.args[1], _world.REQUESTED),
                         self.github.label_history[before[1]:],
                         [
                             event[_STAGE]
@@ -376,7 +429,7 @@ class FixingResumeTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
                         ],
                         self.waiting(),
                     ),
-                    (1, 1, 1, [VALIDATING], [STAGE_VALIDATING], None),
+                    (1, 1, (before[3], True), [VALIDATING], [STAGE_VALIDATING], None),
                 )
 
     def test_a_refused_launch_waits_out_its_park(self) -> None:

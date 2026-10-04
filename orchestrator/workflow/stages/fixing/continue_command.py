@@ -48,6 +48,7 @@ from orchestrator.workflow.stages.fixing import (
     state as _state,
 )
 from orchestrator.workflow.stages.implementing import session as _dev_session
+from orchestrator.workflow.stages.validating import feedback_posts as _feedback_posts
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -77,7 +78,8 @@ def _reconstruct_pending_fix_batch(
     `pending_fix_reviewer_comment_id`. `_reviewer_anchor_comment` re-fetches it
     and it joins the PR CONVERSATION -- the surface it was posted on -- OUTSIDE
     `filter_trusted` (it is the orchestrator's own trusted reviewer output,
-    which the author allowlist would otherwise drop). Consulted ONLY on the
+    which the author allowlist would otherwise drop), quoted with its findings
+    formatted (`_anchored`). Consulted ONLY on the
     validating route (`pending_fix_at` unset): a stale anchor left behind by an
     earlier validating park must not be added to an in_review-route batch. The
     two routes are mutually exclusive in practice, so the anchor is
@@ -120,6 +122,12 @@ def _anchored(gh, pr, state, rebuilt: list) -> list:
     The anchor is a PR-conversation comment, so it belongs on that surface
     rather than at the head of a merged list -- which is also what keeps the
     settlement behind the replay from recording it against the issue thread.
+    It joins as the developer is shown it (`feedback_posts.ShownPost`): a
+    post made before findings were formatted quotes the reviewer's
+    verification declaration raw, and stays on the pull request so, while the
+    prompt quotes its findings formatted. Everything but those words is the
+    comment's own, its id above all, so it is deduplicated, sorted, and
+    settled exactly as the posted comment.
     """
     if state.get(_state._PENDING_FIX_AT) is not None:
         return rebuilt
@@ -128,7 +136,7 @@ def _anchored(gh, pr, state, rebuilt: list) -> list:
         feedback_item.id == anchor.id for feedback_item in rebuilt
     ):
         return rebuilt
-    return [anchor] + rebuilt
+    return [_feedback_posts.ShownPost(anchor)] + rebuilt
 
 
 def _carried_fresh_feedback(

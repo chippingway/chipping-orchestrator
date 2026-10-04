@@ -14,6 +14,18 @@ the request was persisted from, in the tick its reviewer returned
 tick, which holds no decision (`hands_the_waiting_request_over`) -- either way
 on the pull request its subject names.
 
+Either way the words posted and handed on are the reviewer's findings as a
+human is shown them (`review_findings`): the decision's, formatted as the
+request was persisted, or the record's, formatted again on a later tick
+(`HandedLaunch.of`). A request persisted before its findings were formatted
+still carries its verification declaration raw, so recovering it posts --
+where its feedback was never posted -- and resumes its developer on the
+concise findings, each check not shown passing kept as its diagnostic. The
+record's feedback stays exactly as persisted, and the record is what every
+comparison here is made against; a post an earlier handoff made stays as it
+was posted, and the `/orchestrator continue` replaying it quotes its findings
+formatted (`feedback_posts`).
+
 It starts with the feedback post. The one durable copy of that feedback is the
 id it lands as -- the anchor a failed run's `/orchestrator continue` replays --
 so a post that failed, left no id, or had no pull request to go on relabels
@@ -147,6 +159,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_record_state as _report_record_state,
     report_record_values as _record_values,
+    review_findings as _findings,
     review_subjects as _review_subjects,
     run_ledger_models as _run_ledger_models,
     run_ledger_values as _run_ledger_values,
@@ -242,6 +255,10 @@ def hands_the_waiting_request_over(
     pull request its subject names -- in the checkout the issue's developer
     resumes in: a verdict whose feedback post failed is posted again, and one
     already handed resumes where that handoff stopped, without posting again.
+    What is posted and handed on is the record's findings as shown
+    (`HandedLaunch.of`), so one persisted with its declaration raw reaches
+    the pull request and its developer concise, its recorded feedback left as
+    it reads.
     That checkout is restored only once the handoff has held the request to
     what stands (`_hands_it_off`): a request whose subject moved is dropped
     over GitHub's readings alone, so a checkout that will not restore never
@@ -389,13 +406,25 @@ class HandedLaunch:
         state: PinnedState,
         handed: _verdicts.ReturnedVerdict,
     ) -> HandedLaunch:
-        """The launch `handed` owes, on the pull request its subject names."""
+        """The launch `handed` owes, on the pull request its subject names, handing on its findings as shown.
+
+        The feedback posted and the words its developer is resumed on are the
+        record's feedback as a human is shown it (`review_findings`): a record
+        persisted before its findings were formatted still carries the raw
+        slice, verification declaration and all, while formatting findings
+        already concise changes nothing. `handed` itself is kept exactly as
+        read -- the handoff, the launch hold, and every drop compare the
+        pinned record against it -- so its feedback is never rewritten on the
+        comment, and the claim, its receipt, and the anchor stay the ones that
+        record was persisted and handed with, never read again off the
+        formatted words.
+        """
         return cls(_models._RequestedChanges(
             gh, spec, issue, state,
             wt=_worktree_paths._worktree_path(spec, issue.number),
             round_n=handed.round_n,
             pr_number=_review_subjects.ReviewSubject.identity_recorded_in(handed.subject)[0],
-            feedback=handed.feedback,
+            feedback=_findings._concise_findings(handed.feedback),
         ), handed)
 
     def stands(self) -> bool:

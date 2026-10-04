@@ -15,7 +15,9 @@ unread -- holds the verdict for a later tick. Anything else parks under
 anchor the request was handed over with, put back where something cleared it,
 and only where nothing moved behind the park's notice, the comment read behind
 the branch so a verdict another road put in place there is kept -- and
-`/orchestrator continue` replays that feedback to one fresh developer.
+`/orchestrator continue` replays that feedback to one fresh developer: a post
+made before findings were formatted, its declaration raw, is replayed with its
+findings concise and left on the pull request as it was posted.
 """
 from __future__ import annotations
 
@@ -30,6 +32,7 @@ from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
 from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING, MEASURED_CANDIDATE_SHA
 from tests.workflow.stages.validating import (
     disposed_verdict_test_support as _disposed,
+    raw_feedback_test_support as _raw,
     resumed_verdict_test_support as _resumed,
     review_handoff_test_support as _handoff,
     review_verdict_readings as _read,
@@ -130,6 +133,15 @@ _UNACCOUNTED = (
     ("under its identity, in a phase no reader takes", _resumed.UNREAD_PHASE, None),
     ("its run count unread and the other meter behind", _resumed.UNREAD_COUNT, None),
     ("reserved under a fingerprint no reader takes", _resumed.RESERVED_UNREAD, None),
+)
+
+# Each request a tick persisted and posted before findings were formatted,
+# and the findings a continue of its launch's park quotes of that post: a
+# passing run's, the reviewer's words alone, or a failed run's, the failed
+# check kept as their diagnostic.
+_POSTED_RAW = (
+    ("a passing run", _world.PASSED_REQUEST, _world.REQUESTED),
+    ("a failed run", _world.FAILED_REQUEST, _world.CONCISE_FAILURE),
 )
 
 # Where another write moves a handed request's pinned anchor ahead of the tick
@@ -454,6 +466,45 @@ class BehindTheNoticeTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
             self.fixes(**{**_disposed.fixing(), **_IN_SYNC})
         return anchor
 
+
+class RawReplayTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
+    """A launch handed over behind a post made before findings were formatted parks; a continue replays it concise."""
+
+    def test_a_continue_replays_a_raw_post_concise(self) -> None:
+        # A request persisted and posted with its declaration raw, its
+        # developer's launch started: the launch parks, and `/orchestrator
+        # continue` hands one fresh developer the anchored post's findings
+        # formatted -- the declaration set aside, a failed check kept as its
+        # diagnostic -- while the post stays on the pull request as posted.
+        for name, reply, concise in _POSTED_RAW:
+            with self.subTest(name):
+                self.setUp()
+                parked = self._parks_raw(reply)
+                self.asks_to_continue()
+
+                replayed = self.fixes(**_disposed.fixing())
+
+                self.assertEqual(
+                    (
+                        parked,
+                        replayed.call_count,
+                        _raw.posted(self),
+                        _raw.quotes(replayed.call_args.args[1], concise),
+                        self.github.label_history[-1],
+                    ),
+                    ((0, _PARKED), 1, (_raw.as_persisted(reply),), (True, False), VALIDATING),
+                )
+
+    def _parks_raw(self, reply: str) -> tuple:
+        """Hand over the request `reply` asks for as a tick before formatting did, start its launch, and park it.
+
+        What the fixing tick that parks it left: the developers it ran, and
+        the park as `parked` reads it.
+        """
+        _raw.leaves_raw(self, _resumed.ResumedVerdictWorld.hands_over_unstarted, reply)
+        _resumed.starts(self, how=_resumed.STARTED)
+        ran = self.fixes(**{**_disposed.fixing(), **_IN_SYNC})
+        return ran.call_count, self.parked()
 
 if __name__ == "__main__":
     unittest.main()

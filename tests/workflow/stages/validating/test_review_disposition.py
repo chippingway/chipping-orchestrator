@@ -80,9 +80,6 @@ REUSING = "Covered.\n\nVERIFICATION: REUSED sha256:{digest}\n\nVERDICT: APPROVED
 
 UNDECLARED_REQUEST = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
 
-# A change request reusing the evidence revision `digest` names.
-REQUEST_REUSING = f"{_world.REQUESTED}\n\nVERIFICATION: REUSED sha256:{{digest}}\n\nVERDICT: CHANGES_REQUESTED"
-
 # A passing command the configuration does not require.
 UNRELATED = "true"
 
@@ -161,7 +158,7 @@ _CONCISE = (
     ),
     (
         "a reuse",
-        lambda case: REQUEST_REUSING.format(digest=_read.settles_evidence(case).content_revision),
+        lambda case: _world.REQUEST_REUSING.format(digest=_read.settles_evidence(case).content_revision),
         (
             _world.REQUESTED,
             ((REUSED, True, True), ""),
