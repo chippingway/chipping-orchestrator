@@ -8,6 +8,7 @@ from itertools import count
 
 from tests.support.github import (
     issues as issue_service,
+    pinned_edits as pinned_service,
     pr_service as pull_service,
     pr_views as pull_views,
     verification_service as pull_evidence,
@@ -17,6 +18,7 @@ from tests.support.github.models import DEFAULT_BOT_LOGIN, FakeIssue
 from tests.support.github.state import (
     _FakeEventHistory,
     _FakeIssueHistory,
+    _FakePinnedFailures,
     _FakePullHistory,
     _FakePullState,
 )
@@ -37,7 +39,7 @@ class _IssueServices(
     """Combine issue operations behind one inheritance branch."""
 
 
-class _IssueClient(_IssueViews, _IssueServices):
+class _IssueClient(_IssueViews, _IssueServices, pinned_service._PinnedEditService):
     """Compose the complete issue-side fake surface."""
 
 
@@ -77,6 +79,7 @@ class FakeGitHubClient(_IssueClient, _PullClient, _CommentIdAllocator):
         self._pollable_calls = 0
         self._issues = {issue.number: issue for issue in issues}
         self._pinned = {}
+        self._pinned_failures = _FakePinnedFailures()
         # The highest comment id this client has minted, on any thread. A
         # plain counter rather than an iterator because the thread's own
         # comments move it too: ids ascend across a whole thread on GitHub,

@@ -73,6 +73,8 @@ _ENGINE_OWNERS = (
     "messages",
     "parallel",
     "pickup",
+    "pinned_commit_models",
+    "pinned_commit",
     "prompts",
     "report_binding",
     "report_checkout_evidence",

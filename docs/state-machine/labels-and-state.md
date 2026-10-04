@@ -552,6 +552,31 @@ rather than handed on: the state reads back empty and flagged unparsed, so a rea
 recorded branch or pull request can tell it from an issue that pinned nothing (both carry `{}`), and the comment id is
 kept, so the next write replaces the corruption in place instead of leaving a second pinned comment beside it.
 
+Most writers rewrite the whole record from the state they read (`write_pinned_state`), which lands wherever it can — in
+place, or as a new comment where none is named or the named one is gone. A **guarded commit**
+(`workflow/engine/pinned_commit.py`, which no road commits through yet) is never written from its caller's state. It is
+captured from the reading the caller decided on — the comment's id, every field as the comment's JSON spells it, the
+prerequisite fields the decision rests on, an absent one included, and the fields the caller owns — and derived over a
+fresh reading: each field the caller's staged state changed, every one of which it has to own, is laid over that
+reading; a transformation the caller's domain supplies decides its own owned field over the fresh value, so a total, a
+ledger, or a watermark both roads moved keeps both moves; and every other field, unknown ones included, is kept as the
+fresh reading carries it. Fields are compared as the JSON spells them, keys sorted, so `null` is not an absent field,
+`true` is not `1`, and `1.0` is not `1`, at any depth.
+
+It refuses — writing nothing, and touching nothing the caller holds — where the comment will not read, will not parse,
+or is not the one captured (replaced, deleted, or never pinned: the strict edit never creates one); where a prerequisite
+moved; where another writer moved an owned field to something other than what the caller staged; where the caller staged
+or transforms a field it did not declare; and where the complete candidate, rendered through `pinned_state_body`, is
+longer than `MAX_PINNED_BODY`. That measurement can be taken alone (`prepare`) ahead of an external effect that depends
+on the record. The commit takes every check again over a reading taken behind whatever requests came between, sends
+nothing for a candidate the comment already reads as, and otherwise lands in place through the strict edit
+(`GitHubStateMixin.edit_pinned_state`), which walks to the comment once more and rewrites it only while it still reads
+as that fresh reading did — a comment that moved in between is refused as moved. An edit that went out and was never
+confirmed — a lost response, a refused request, or an answer carrying another body — is reported as unconfirmed, neither
+committed nor refused: whatever receipt the caller's domain keeps remains what settles it on a later reading. None of
+this serializes two pollers writing one issue. GitHub's comment edit takes no condition, so the guard narrows the window
+between a reading and the write laid over it without closing it.
+
 The keys that matter for the state machine fall into a few groups:
 
 - **Agent identity.** `dev_agent` + `dev_session_id` (locked dev session — see
