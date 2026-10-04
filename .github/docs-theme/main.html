@@ -2,6 +2,12 @@
 {#- SPDX-License-Identifier: Apache-2.0 -#}
 {% extends "base.html" %}
 
+{% block extrahead %}
+{{ super() }}
+<meta name="google-site-verification" content="HVQJ87USLsE2-lQqSdE-bQLI2n_moGVl_D4QFyc-Y30" />
+<meta name="msvalidate.01" content="315D232BAAC7F85AE24926BB4B72B62E" />
+{% endblock %}
+
 {#-
 The bundled theme's `site_meta` block, line for line, except for the description: a page's own `description` front
 matter wins, the homepage falls back to `site_description`, and every other page emits none. The block is replaced

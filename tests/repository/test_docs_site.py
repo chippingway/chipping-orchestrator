@@ -23,9 +23,9 @@ receives.
 The site renders through the templates in `.github/docs-theme`, which write a
 page's `description` front matter into its one description meta tag, escaped,
 ahead of the homepage's `site_description` fallback. Sample sites built through
-them hold the templates to that, and to leaving every undescribed page's head
-and search entry as the bundled theme renders them. The body is theirs to
-change -- `test_docs_navigation.py` holds what they put there.
+them hold the templates to that, and to the bundled theme's head, body scripts,
+modals, and search entries apart from the Google Search Console and Bing Webmaster
+Tools verification tags. `test_docs_navigation.py` holds the navigation to its own rules.
 """
 from __future__ import annotations
 
@@ -106,6 +106,14 @@ _INTERIOR = "next/index.html"
 _NESTED = "nested/page/index.html"
 _SEARCH_INDEX = "search/search_index.json"
 _CANONICAL = MappingProxyType({"rel": "canonical", "href": f"{_site_support.SITE_URL}next/"})
+_GOOGLE_SITE_VERIFICATION = MappingProxyType({
+    "name": "google-site-verification",
+    "content": "HVQJ87USLsE2-lQqSdE-bQLI2n_moGVl_D4QFyc-Y30",
+})
+_BING_SITE_VERIFICATION = MappingProxyType({
+    "name": "msvalidate.01",
+    "content": "315D232BAAC7F85AE24926BB4B72B62E",
+})
 
 
 def _blocks(text: str, indent: int) -> dict[str, str]:
@@ -209,14 +217,20 @@ class DocumentationWebsiteTest(unittest.TestCase):
                 self.assertEqual(_site_support.SitePage(site / page).descriptions, descriptions)
 
     def test_undescribed_pages_match_bundled_theme(self) -> None:
-        """Without front matter the homepage keeps `site_description`, and no page's head or search entry moves."""
+        """Undescribed pages retain bundled metadata, scripts, modals, and search, plus the site's verification tags."""
         bundled = self._sample_site(_SAMPLE, theme=None)
         site = self._sample_site(_SAMPLE)
         self.assertEqual(_site_support.SitePage(site / _HOMEPAGE).descriptions, [_site_support.SAMPLE_DESCRIPTION])
         self.assertIn(("link", _CANONICAL), _site_support.SitePage(site / _INTERIOR).tags)
         rendering = self._rendering(site)
         self.assertIn(_NESTED, rendering)
-        self.assertEqual(rendering, self._rendering(bundled))
+        expected = self._rendering(bundled)
+        for page in expected.keys() - {_SEARCH_INDEX}:
+            expected[page]["head"].extend((
+                ("meta", _GOOGLE_SITE_VERIFICATION),
+                ("meta", _BING_SITE_VERIFICATION),
+            ))
+        self.assertEqual(rendering, expected)
 
     def test_unique_heading_anchors_match_github(self) -> None:
         anchors = _site_support.SitePage(self._sample_site(_HEADING_SAMPLE) / _HOMEPAGE).anchors
@@ -256,11 +270,23 @@ class DocumentationWebsiteTest(unittest.TestCase):
         return site
 
     def _rendering(self, site: Path) -> dict[str, object]:
-        """Every page's head tags and the search index, keyed by their path in the site."""
-        rendering: dict[str, object] = {
-            path.relative_to(site).as_posix(): _site_support.SitePage(path).head
-            for path in site.rglob("*.html")
-        }
+        """Every page's head, body script sources, and modal ids, plus the search index, keyed by their site path."""
+        rendering: dict[str, object] = {}
+        for path in site.rglob("*.html"):
+            page = _site_support.SitePage(path)
+            rendering[path.relative_to(site).as_posix()] = {
+                "head": page.head,
+                "scripts": [
+                    attributes["src"]
+                    for tag, attributes in page.tags[len(page.head):]
+                    if tag == "script" and "src" in attributes
+                ],
+                "modals": [
+                    attributes.get("id")
+                    for _, attributes in page.tags[len(page.head):]
+                    if "modal" in (attributes.get("class") or "").split()
+                ],
+            }
         rendering[_SEARCH_INDEX] = json.loads((site / _SEARCH_INDEX).read_text(encoding=_ENCODING))
         return rendering
 
