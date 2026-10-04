@@ -161,7 +161,8 @@ def _fanout_task(
     is the poll's own CLOSED reading: the worker refetches, so a human who
     reopens the issue in that window would otherwise have the fresh reading
     say open and a live late cycle resume against it. The reading is the
-    poll's, so it is bound rather than re-derived.
+    poll's, so it is bound rather than re-derived -- and so is the lane the
+    submit was admitted to, which the label the refetch reads may not widen.
 
     A cleanup carries an OBSERVATION as well as a turn, so it is wrapped in
     the settlement that observation is owed -- which is a thing only the
@@ -179,7 +180,7 @@ def _fanout_task(
         )
     return functools.partial(
         _refetch_and_process, gh, spec, issue_number,
-        semaphore_cm=semaphore_cm,
+        semaphore_cm=semaphore_cm, reading=reading,
     )
 
 

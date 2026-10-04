@@ -58,12 +58,9 @@ def _kept_contended_close(
     may be the fresh one. That pass ends a cycle with it only where the issue
     is closed again under the claim.
 
-    The retirement the holder noted on the claim is asked FIRST, before
-    either read, because it is evidence only while the hold that wrote it
-    stands: a holder that lets go during those reads stamps its release, and
-    a note asked after that answers nothing. It is asked again behind the
-    reads as well, for a holder that entered its retirement window while
-    this process read the record.
+    The holder's retirement note is asked before either read, since a holder
+    that lets go during them stamps its release over it, and again behind
+    them, for one that entered its retirement window meanwhile.
     """
     issue_number = int(issue.number)
     noted = _claim_notes.noted_retirement(gh.repo_id, issue_number)
@@ -129,9 +126,7 @@ def _ended_cycle(
     record's correlation alone is not that: it stands long after its window
     closed, so a close of an issue that has since gone back to its own work
     would otherwise be read as ending a split that already finished.
-
-    `noted` is the note the refusal found before the record was read; the
-    note standing now is asked beside it.
+    `noted` is the note the refusal found before the record was read.
     """
     late_close_reading = importlib.import_module(_stage_targets._LATE_CLOSE_READING_OWNER)
     cycle = late_close_reading._ending_cycle(spec, issue_number, state)

@@ -306,12 +306,13 @@ always does, as it does the partition's; the scheduler's fan-out task, its famil
 one of them then reads the issue again under it, the sequential loop included: the poll is older than the claim, and a
 poller that advanced the issue and let go in between would otherwise have its stage resumed from the label the poll
 read. The handler is the one the fresh label names; what the poll read is carried over that read only where it is a
-close, and binds there: a pass carrying one that reads the issue open again applies the close to any late cycle the
-record carries and runs no stage, leaving the reopened issue to the next poll's ordinary, cap-counted admission. The
-enumeration takes it too, for the one thing it writes: the pinned read and close receipt behind a closed fan-out
-issue, and the same pair a refused submit's observation hold spends. Those two ask for it *alongside* — granted beside a
-worker of this same process that holds the issue, since the receipt is an added comment built to land beside one, and
-an ordinary exclusive attempt against every other process.
+close, and binds there: a pass reading the issue open again applies the close to any late cycle and runs no stage, nor
+does one reading a stage outside its admitted lane (family work on a fan-out pass, anything but a dependency walk in a
+capacity-exempt bucket); the next poll admits either afresh, under the caps and the family bucket. The enumeration takes
+it too, for the one thing it writes: the pinned read and close receipt behind a closed fan-out issue, and the same pair
+a refused submit's observation hold spends. Those two ask for it *alongside* — granted beside a worker of this same
+process that holds the issue, since the receipt is an added comment built to land beside one, and an ordinary exclusive
+attempt against every other process.
 
 An issue another poller on the host holds is skipped whole on every path: nothing is refetched, published, relabelled,
 written, run, or accounted for, and the submit's publication hold and any latched close are left as they were. A close
@@ -321,9 +322,8 @@ and the holder may settle the cycle that close ended and start the fresh one an 
 contender reads the record first and the issue behind it: only a close still standing there is scoped to the late cycle
 the record names. A record a retirement has just emptied names none, and there the close is scoped to the cycle the
 holder noted on the claim it is retiring (`scheduler/claim_notes.py`), which a poller inside a retirement window notes
-for the rest of its hold. The note is read as the claim is refused, ahead of both reads, and again behind them, since a
-holder letting go in between stamps its release over it; the record's own correlation is not enough, since it outlives
-every retirement. A close the
+for the rest of its hold, read as the claim is refused and again behind the reads; the record's own correlation is
+not enough, since it outlives every retirement. A close the
 record says ends nothing — no cycle, or one already marked — adds nothing, and leaves an older latch as it was. One
 reopened between the two reads, or whose reads failed, is kept *unresolved*. The next tick routes the latch to a cleanup
 pass under the claim. A scoped close marks the cancellation if its cycle is still the record's — and puts a retired one
@@ -683,12 +683,10 @@ The keys that matter for the state machine fall into a few groups:
   `<owed>` is the late lineage the split seeds that child with, `<root>-<depth>-<cycle>-<generation>`, or `none`. Only
   a whole receipt counts, and the last one in a body governs, since a slice may quote another child's body ahead of
   its own stamp. Any other `split_attempt` — another split's, a value no binary mints, or none — finds no receipt, so
-  a split an older binary made leaves nothing to adopt. The summary the split posts on the parent as it finalizes ends
-  on `<!--orchestrator-split-summary:issue=<parent>:attempt=<split_attempt>-->`, so a recovery that finalizes the
-  split instead posts that summary only where no comment of ours carries it. A drift reset clears `split_attempt`
-  with the rest of the manifest, after writing that split's children — any unrecorded one found by its receipt —
-  onto `late_consumers`, and a `blocked` parent whose children all resolved drops it in a write ahead of its flip
-  back to `workflow:ready`. A child this orchestrator opened whose seed is not the one its receipt owes it — no
+  a split an older binary made leaves nothing to adopt. A drift reset clears `split_attempt` with the rest of the
+  manifest, after writing that split's children — any unrecorded one found by its receipt — onto `late_consumers`,
+  and a `blocked` parent whose children all resolved drops it in a write ahead of its flip back to
+  `workflow:ready`. A child this orchestrator opened whose seed is not the one its receipt owes it — no
   `parent_number` naming that parent, none of an owed `late_ancestry_*` group, a group partial, rewritten, or naming
   another place in the lineage, any group on a child owed none, or a pointer at a snapshot other than the one that
   split preserved, or half of one — is held by the dispatcher ahead of every handler but `done`'s and `rejected`'s,
@@ -697,7 +695,9 @@ The keys that matter for the state machine fall into a few groups:
   that record and lifts the park in the same write, or a human does both by hand; one whose pinned comment will not
   parse is held with nothing
   written. A restart an operator authorizes on such a child keeps the seed. A pointer is the one part a seed may lack,
-  since the child's own reuse guard drops the ref and its commit together once its ref is gone.
+  since the child's own reuse guard drops the ref and its commit together once its ref is gone. The split's summary
+  ends on `<!--orchestrator-split-summary:issue=<parent>:attempt=<split_attempt>-->`; a recovery posts one only
+  where no comment of ours carries it.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records

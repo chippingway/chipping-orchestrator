@@ -66,9 +66,7 @@ def _drain_family_bucket(
     itself never raises, so the caller's `fut.result()` only ever surfaces a
     programming-level failure. Each issue is taken under its own writer claim
     by the pass `_fanout_task` builds for its reading, so one held by another
-    poller on this host is skipped and the drain goes on -- and one the poll
-    read closed, which lands here only when its label could not be read,
-    carries that reading into the pass as a fan-out issue does.
+    poller on this host is skipped and the drain goes on.
     """
     for issue_number in partition.family_numbers:
         try:

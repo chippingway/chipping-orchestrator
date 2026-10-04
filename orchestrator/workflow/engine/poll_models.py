@@ -49,15 +49,25 @@ class _PollReading:
     where none has does a close nothing else ties to a cycle end the one the
     record names: another poller holding the issue in between may have
     settled the cycle that close ended and started a fresh one.
+
+    `lane` is the admission the pass was given, which its refetch may not
+    widen; `None` is a pass nothing else runs beside.
     """
 
     cleanup_only: bool = False
     closed: bool = False
     read_at: int | None = None
+    lane: str | None = None
 
 
 # What an ordinary open issue carries, which is nothing at all.
 _POLLED_OPEN = _PollReading()
+
+# The two admissions a refetch may not leave: a fan-out pass may not reach a
+# family-aware stage, and a capacity-exempt family bucket's may reach only the
+# dependency walks it was exempted for.
+_FANOUT_LANE = "fanout"
+_WALK_LANE = "walk"
 
 
 @dataclass(frozen=True)
@@ -69,11 +79,10 @@ class _PollablePartition:
     family-aware issue's workflow label. ``fanout_closed`` is the subset of
     ``fanout_numbers`` whose issue is already closed -- a cheap terminal
     finalize, or a cleanup pass over a closed owner's ledger, and neither
-    spawns, so both are submitted cap-exempt. ``family_closed`` is the subset
-    of ``family_numbers`` the poll read closed, which is only ever one whose
-    label it could not read: every closed issue the enumeration yields wears a
-    label that routes it to fan-out. ``read_at`` is the moment the poll took
-    before it listed any of them, which every worker's reading carries.
+    spawns, so both are submitted cap-exempt. ``family_closed`` is the same
+    for ``family_numbers``, there only when a label could not be read.
+    ``read_at`` is the moment the poll took before it listed any of them,
+    which every worker's reading carries.
     """
     family_numbers: list[int]
     family_labels: list[str | None]
@@ -83,12 +92,16 @@ class _PollablePartition:
     read_at: int | None = None
     family_closed: set[int] = field(default_factory=set)
 
-    def reading(self, issue_number: int) -> _PollReading:
-        """What the poll established about one issue, for the worker or the drain that runs it."""
+    def reading(self, issue_number: int, *, exempt: bool = False) -> _PollReading:
+        """What the poll established about one issue; `exempt` is a family bucket admitted with no slot."""
+        lane = _FANOUT_LANE
+        if issue_number in self.family_numbers:
+            lane = _WALK_LANE if exempt else None
         return _PollReading(
             cleanup_only=issue_number in self.cleanup_numbers,
             closed=issue_number in self.fanout_closed or issue_number in self.family_closed,
             read_at=self.read_at,
+            lane=lane,
         )
 
 

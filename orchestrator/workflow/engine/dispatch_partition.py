@@ -106,14 +106,9 @@ def _sorted_pollable(
     record says there is nothing to end has its latch dropped again here, so
     the machinery is carried only by the owners that actually need it.
 
-    Wherever a reading travels with the route, which is every closed reading
-    and every owed one. A closed issue reaches the family bucket only where
-    its label could not be read -- the fallback that leaves a sustained
-    failure to the drain's per-issue isolation -- and its reading is carried
-    there as a fan-out issue's is: latched and written down here, and bound
-    to the drain's pass. A family submission the scheduler refuses, or an
-    iteration it skips, runs nothing, so what this kept is what the next poll
-    finds owed.
+    Wherever a reading travels with the route: every closed reading and every
+    owed one, a closed issue whose label could not be read included, which the
+    family bucket drains -- so a refused bucket leaves its close owed.
 
     The read and the receipt are taken under the issue's writer claim, since
     both are the record's: the read decides whether a reading is owed, and the

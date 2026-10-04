@@ -17,16 +17,13 @@ snapshotting, superseding, or recording what the remote is owed. The tick ends
 having changed nothing, which is what leaves the transaction free to resume
 from its own durable facts.
 
-Equal counts mean the loop finished and only the finalize was lost, so the
-parent finalizes to whatever the manifest asked for, posting the split's
-summary first unless the thread already carries it (`split_summary`). A split
-that met a child another poller on this host was writing when it went to seed
-it leaves exactly this behind on purpose: every child created and recorded,
-that one unseeded, and the summary and the finalize to this recovery. Fewer
-mean the loop stopped short: the one child a crash can leave created and
-unrecorded is adopted by its receipt (`split_receipts`), and anything short of
-that parks, since the manifest that declared the rest is not kept to create
-them from.
+Equal counts mean the loop finished and only the label flip was lost, so the
+parent finalizes to whatever the manifest asked for, posting the summary the
+split owes first (`split_summary`). A split that met a child another poller on
+this host held leaves this behind on purpose, that child unseeded. Fewer mean the loop
+stopped short: the one child a crash can leave created and unrecorded is
+adopted by its receipt (`split_receipts`), and anything short of that parks,
+since the manifest that declared the rest is not kept to create them from.
 
 Finalizing repairs every recorded child first, against the lineage the
 parent's record proves (`ReplacementLineage.repair`): a missing parent link
@@ -34,10 +31,10 @@ or ancestry is seeded -- a child started without its ancestry would be read
 by its size gate as a fresh root at depth 0 -- a lost consumer slot is
 restored ahead of the seed, and the seeding write lifts the park the missing
 seed earned. A lineage no longer proved, or a child this split cannot
-recognize as its own (see `split_repair`), parks instead of finalizing, which
-keeps every child of that split unstarted. A child another poller on this host
-is writing is repaired under its own writer claim or not at all: the recovery
-stops there without a park, and the next tick resumes it.
+recognize as its own (see `split_repair`), parks instead of
+finalizing, which keeps every child of that split unstarted. A child another
+poller on this host is writing is repaired under its own writer claim or not
+at all: the recovery stops there without a park, and the next tick resumes it.
 """
 from __future__ import annotations
 

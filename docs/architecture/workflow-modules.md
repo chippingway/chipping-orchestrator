@@ -219,7 +219,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption; a closed
                             reading -- a family-bucket issue's included, there only when its label could not be read
-                            -- carries the moment its poll took before listing anything
+                            -- carries the moment its poll took before listing anything, and the lane it was admitted to
     run_limit_dispatch.py   hold exhausted work, replay its owed notice, and admit grants or terminal cleanup;
                             an implementing plan PR does not prove that implementation work ended
     dispatch_guards.py      pinned-state admission, restart before cancellation, publication reconciliation, and
@@ -246,8 +246,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     poll_reading.py         classify labels and hard-skip controls while admitting observed-close cleanup; drop open
                             blocked/umbrella dependency walks on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` skips;
                             a failed label read reaches per-issue exception isolation through the family bucket,
-                            with any closed reading carried there; and whether a pass's refetch finds a closed
-                            reading's issue open again
+                            with any closed reading carried there; and whether a pass's refetch leaves its admission
     dispatch_closure.py     persist poll and refetch closes, retain them across ordinary processing, and preserve
                             receipts and deferred cleanup when a worker submission is refused -- under the issue's
                             writer claim alongside this process's worker, leaving the enumeration's latch as it was
@@ -263,8 +262,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and handler, keyed on the client's rename-proof `repo_id`, with a contender skipping the
                             issue whole, leaving its latch and holds as found, and keeping a closed reading its caller
                             hands in through `contended_closes`; apply controls, select cleanup or guarded stage
-                            dispatch -- a closed reading on an issue its pass reads open again reaching no stage, so a
-                            closed admission does no ordinary work -- hold publication through the handler, and record
+                            dispatch -- a closed reading on an issue its pass reads open again, or a label outside the
+                            pass's admitted lane, reaching no stage -- hold publication through the handler, and record
                             timed evaluation analytics on success and failure
     dispatch_workers.py    take the writer claim at each worker entry, outside the observation scope it wraps, then
                             refetch through each worker's GitHub client and optional semaphore, and refetch the
@@ -1634,10 +1633,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             parent label before activating children without dependencies through `activation.py`'s
                             walk -- or, where a child was left unseeded because another poller held it, publish
                             neither and leave the parent `decomposing` for `recovery.py` to seed it and finalize
-      split_summary.py      the summary an ordinary split posts on its parent as it finalizes, ending on a hidden
-                            receipt naming the parent and `split_attempt`; a recovery finalizing the split posts it,
-                            each child named by its own title, only where no comment of ours carries that receipt --
-                            never for an older binary's split, which names no attempt
+      split_summary.py      the summary an ordinary split finalizes its parent with, ending on a receipt naming the
+                            parent and `split_attempt`, which a recovery posts only where no comment of ours carries it
       recovery.py           what a tick that died mid-split -- or a split that met a held child -- left behind: the
                             stale-manifest markers, the adoption of a child created and never recorded through
                             `split_receipts.py`, the orphan-child repair -- the

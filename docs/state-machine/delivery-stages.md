@@ -526,10 +526,8 @@ because there it is the claim that this stage has already rerouted rather than a
      and one carrying none of the `late_ancestry_*` group, or a pointer at anything else, is seeded with it; once the
      snapshot has passed to a reclamation the lineage alone is owed and a pointer still on a child is dropped with its
      `late_ancestry_mirror_first` stamp; one carrying exactly what it was owed is left — then post the split's summary
-     of every recorded child, unless a comment of ours already carries that `split_attempt`'s summary receipt (or no
-     `split_attempt` names the split, an older binary's), and finalize to `workflow:umbrella` (when the flag is true)
-     or `workflow:blocked`. A recovery that fails between the two is run again by the next tick, which posts a summary
-     that never landed and does not post one that did. A parent whose record no longer proves that
+     unless a comment of ours carries that `split_attempt`'s summary receipt, and finalize to `workflow:umbrella` (when
+     the flag is true) or `workflow:blocked`. A parent whose record no longer proves that
      lineage, or a child it cannot recognize as its own — an unparsed comment, a `parent_number` that is not exactly
      this issue's number (only a missing one is backfilled), text naming a snapshot ref the split cannot keep, any
      other group (any at all on an ordinary split's child), a register naming it twice, or a receipt other than the one
@@ -1373,9 +1371,8 @@ because there it is the claim that this stage has already rerouted rather than a
   therefore reads *closed* before it reads the label and routes to `late_sweep._handle_closed_owner_cleanup`
   instead, ahead of even the live-adjudication relabel guard. That classification then **binds**: the submit carries
   a `cleanup_only` route the worker cannot re-derive, so a human who reopens the issue between the poll and the
-  refetch cannot turn a cap-exempt submit into an agent-spawning stage handler. A closed reading on any other label
-  binds too: its pass, finding the issue open again, applies the close to a live cycle and runs no stage, and the
-  reopened issue waits for the next poll's ordinary, cap-counted admission.
+  refetch cannot turn a cap-exempt submit into an agent-spawning stage handler; a closed reading on any other label
+  that finds the issue open again runs no stage either, and waits for the next poll's admission.
 - **Reaching this route at all is what says a close was observed**, and an observed close cancels the generation
   irreversibly. So the handler's own re-read decides how far the pass goes, never whether the cycle ends: an issue
   that is open again is marked cancelled all the same and stopped there — nothing external is done to an issue
@@ -1492,11 +1489,9 @@ because there it is the claim that this stage has already rerouted rather than a
   repository) and the submit decision itself, and a worker already holding the issue asks the latch before every
   irreversible step it takes for the whole of that window: a reading installed only once the scheduler had refused
   would leave that worker free to spawn, create a child, or activate one against an issue the poll had already seen
-  ended. It is taken for every closed issue the enumeration yields and every owed one, since each route carries its
-  reading. A closed issue reaches the family bucket only where its label could not be read — every closed label the
-  enumeration queries routes to fan-out — and its reading is latched and written down there, under the claim, and
-  bound to the drain's pass as a fan-out issue's is; a family submission the scheduler refuses, or an iteration it
-  skips, runs nothing, so the next poll finds the reading owed.
+  ended. It is taken for every closed issue the enumeration yields and every owed one, a closed issue whose label
+  could not be read included: that one falls back to the family bucket, its reading bound to the drain's pass, so a
+  refused bucket leaves the reading owed.
 - **A close the enumeration never saw is taken at the REFETCH.** An issue open when it was listed carries no
   reading at all — nothing was latched, because there was nothing to latch — and the refetch every route takes on
   its way to a handler can be where that stops being true. From there the reading exists in one place only, and
