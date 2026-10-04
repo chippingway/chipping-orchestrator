@@ -2,15 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a tick does with an issue another poller on this host is writing.
 
-Nothing it would need the claim for: no refetch, no recovery, no receipt, no
-handler, no write, and no evaluation record, on every dispatch mode a tick can
-take -- while every other issue in the same tick is dispatched as ever. What it
-does keep is a close it read, in this process's latch and nowhere else, scoped
-to the cycle one read of the record says that close ends, so a human reopening
-the issue before the claim comes back cannot take the reading away. The claim
-is the repository's numeric id and the issue number, so a spec
-configured under another name, and a poller that fetched the repository before
-it was renamed, meet the same holder.
+Nothing it would need the claim for -- no refetch, recovery, receipt, handler,
+write, or evaluation record -- on every dispatch mode, while every other issue
+is dispatched as ever. It keeps a close it read in its own latch alone. The
+claim is keyed on the repository's numeric id, so a spec under another name,
+or a poller that fetched the repository before a rename, meets the same holder.
 """
 from __future__ import annotations
 
@@ -84,13 +80,7 @@ class ContendedDispatchTest(HeldIssuesCase):
 
 
 class RenamedRepositoryTest(RenamedRepositoryCase):
-    """A claim held under the name a repository had is held under the name it has.
-
-    Each poller names the repository as GitHub answered when it fetched it, so
-    a poller started before a rename and one started after it name it two ways
-    for as long as both run -- and this one's spec a third. The id each keys
-    its claims on is one.
-    """
+    """A claim held under the name a repository had is held under the name it has: the id is one."""
 
     def test_a_held_issue_is_skipped_then_retried(self) -> None:
         for mode, limit, scheduled in DISPATCH_MODES:
@@ -130,14 +120,7 @@ class ContendedFamilyWriteTest(WriterClaimDispatchCase):
 
 
 class ContendedCleanupTest(_deferral.DeferralCase, unittest.TestCase):
-    """A close owed to a held owner stays owed, and is swept once it is free.
-
-    The owner is a closed umbrella still holding a snapshot ref, whose close an
-    earlier tick observed and wrote down while a worker held it. What a later
-    tick owes it is a cleanup pass -- the recovery route, not a stage -- and
-    that pass reads the record and writes on the strength of it, so it is a
-    writer like any other.
-    """
+    """A close owed to a held owner stays owed, and its cleanup -- a writer like any other -- waits for the claim."""
 
     def setUp(self) -> None:
         super().setUp()
@@ -173,13 +156,8 @@ class ContendedCleanupTest(_deferral.DeferralCase, unittest.TestCase):
 class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
     """A close first read while the owner's claim is refused is latched, and nothing more.
 
-    The owner is a closed umbrella still holding a snapshot ref, and no earlier
-    tick has seen it closed. Whatever refuses the claim -- another poller
-    holding it, or a namespace nothing can be locked in -- the poll may not
-    post the receipt that would make the close durable, since that is the
-    holder's. It reads the record once, for the cycle the close ends, and the
-    latch scoped to that cycle is what is left, and what outlives a human
-    reopening the issue.
+    The receipt is the holder's to post; the poll reads the record once, for
+    the cycle the close ends, and the scoped latch outlives a human reopening.
     """
 
     def setUp(self) -> None:
@@ -204,10 +182,8 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
                 self.assertEqual(self._observed(_deferral.REPO_SLUG), frozenset())
 
     def test_a_refused_submit_writes_nothing(self) -> None:
-        # A worker of this process is running the owner, so the scheduler
-        # refuses the submit, and another poller holds the claim besides: the
-        # refusal's own recovery reads and writes nothing, past the one read
-        # the enumeration took for the cycle it keeps.
+        # Refused by the scheduler and the claim both: one read, the
+        # enumeration's, and nothing written.
         reads = Mock(wraps=self.github.read_pinned_state)
         with (
             held_elsewhere(self.github.repo_id, _deferral.OWNER_NUMBER),
@@ -220,10 +196,8 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
         self.assertEqual(self._observed(_deferral.REPO_SLUG), self.owed)
 
     def test_a_refused_family_submit_keeps_the_close(self) -> None:
-        # The poll could not read the owner's label, and the family bucket it
-        # falls back to is refused: the last one is still in flight. No pass
-        # runs, so what the partition wrote down under the claim is what the
-        # next poll sweeps, however the owner reads by then.
+        # The label read fails, and the family bucket it falls back to is
+        # refused: what the partition wrote down is what the next poll sweeps.
         scheduler = self._scheduler()
         bucket = scheduler.track_active(_deferral.REPO_SLUG, _scheduled_dispatch._FAMILY_BUCKET_ISSUE)
         with _label_read(self.github, labelled=False), bucket:
@@ -240,9 +214,7 @@ class ContendedFreshCloseTest(_deferral.DeferralCase, unittest.TestCase):
         self.stage.assert_not_called()
 
     def test_a_receipt_lands_beside_our_own_writer(self) -> None:
-        # The worker running the owner holds its claim in THIS process, and the
-        # receipt is a comment built to land beside that worker, so the poll
-        # writes it as it always has.
+        # The receipt is built to land beside this process's own worker.
         with writer_claims.issue_writer(self.github.repo_id, _deferral.OWNER_NUMBER) as held:
             self.assertTrue(held)
             self._tick_a_worker_held(self._scheduler())

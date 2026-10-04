@@ -100,11 +100,12 @@ def _sorted_pollable(
     good. The receipt is the only thing that survives that, so it goes on the
     thread while the record can still name the cycle it belongs to.
 
-    It costs one pinned read per closed fan-out issue, and no more: the
-    receipt is written from the object this enumeration already listed, and
-    the same read answers whether the reading is owed at all -- an issue whose
-    record says there is nothing to end has its latch dropped again here, so
-    the machinery is carried only by the owners that actually need it.
+    It costs one pinned read per closed fan-out issue, read off the object
+    this enumeration listed, and an issue read behind it where the record
+    names a cycle the close would end; the same pinned read answers whether
+    the reading is owed at all -- an issue whose record says there is nothing
+    to end has its latch dropped again here, so the machinery is carried only
+    by the owners that actually need it.
 
     Wherever a reading travels with the route: every closed reading and every
     owed one, a closed issue whose label could not be read included, which the

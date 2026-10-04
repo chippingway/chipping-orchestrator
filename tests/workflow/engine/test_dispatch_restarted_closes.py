@@ -2,14 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """A close of a restarted cycle, read beside this process's own worker.
 
-A poll read the owner closed while its record named cycle 4. Another poller on
-this host then settled that cycle and an operator restarted it, and this
-process's worker took the owner up on the fresh cycle. Whatever this process
-still holds of the old close -- a reading no read can tie to the fresh cycle,
-or the memo of the receipt it already posted for cycle 4 -- may not stand in
-the way of the next close: the owner is closed again, which is a close of the
-fresh cycle, and reopened, and the worker's barriers have to end that cycle
-with it, and so does the process after a restart, from the thread.
+Whatever this process still holds of a cycle-4 close -- a reading no read ties
+to the fresh cycle, or the memo of cycle 4's receipt -- may not stand in the way
+of the fresh cycle's own close: the worker's barriers end that cycle with it,
+and so does the process after a restart, from the thread.
 """
 from __future__ import annotations
 
@@ -70,11 +66,7 @@ class FreshCloseBesideAWorkerTest(ClosedOwnerCase, unittest.TestCase):
         return self._generation().cycle_id
 
     def _closed_again_beside_the_worker(self, *, reopened_early: bool) -> bool:
-        """Close and reopen the owner while this process's worker holds it.
-
-        Answers whether that worker's cancellation barrier, asked once the
-        owner is open again, ends the fresh cycle.
-        """
+        """Close and reopen the owner beside this process's worker, and say if its barrier ends the cycle."""
         with _worker_holding(self) as scheduler:
             self._closed_again(scheduler, reopened_early=reopened_early)
             return self._barrier_ends()
@@ -98,15 +90,7 @@ class FreshCloseBesideAWorkerTest(ClosedOwnerCase, unittest.TestCase):
 
 
 class ReceiptedThenRestartedTest(ClosedOwnerCase, unittest.TestCase):
-    """A fresh cycle's close, read while this process remembers the old cycle's receipt.
-
-    The poll read the owner closed beside this process's worker and put cycle
-    4's receipt on the thread, and the cleanup that reading owed was still
-    pending when another poller on this host settled that cycle and an
-    operator restarted it. The owner is closed again beside this process's
-    worker -- a close of the fresh cycle -- then reopened, and this process is
-    restarted before any pass reaches it: the thread is all the next one has.
-    """
+    """A fresh cycle's close, read while this process remembers cycle 4's receipt, then restarted past."""
 
     def test_the_fresh_close_outlives_the_restart(self) -> None:
         fresh = self._closed_again_after_a_receipt()

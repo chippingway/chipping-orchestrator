@@ -231,28 +231,32 @@ class FailedReceiptScanTest(
 
     def test_the_failed_tick_dispatches_nothing(self) -> None:
         with self.assertRaises(ConnectionError):
-            self._routed(outage=True)
+            self._routed(failing="comments_after")
 
         self.assertFalse(_record(self.seeded).get(KEYS.cancelled))
 
     def test_the_next_tick_takes_the_scan_again(self) -> None:
-        with self.assertRaises(ConnectionError):
-            self._routed(outage=True)
+        # Whether the walk itself raised, or the mark it found was refused.
+        for failing in ("comments_after", "write_pinned_state"):
+            with self.subTest(failing=failing):
+                self.setUp()
+                with self.assertRaises(ConnectionError):
+                    self._routed(failing=failing)
 
-        with self.assertLogs(_WORKFLOW_LOG):
-            dispatched = self._routed()
+                with self.assertLogs(_WORKFLOW_LOG):
+                    dispatched = self._routed()
 
-        dispatched.assert_not_called()
-        self.assertTrue(_record(self.seeded)[KEYS.cancelled])
+                dispatched.assert_not_called()
+                self.assertTrue(_record(self.seeded)[KEYS.cancelled])
 
-    def _routed(self, *, outage: bool = False) -> Mock:
-        """Route this owner, the thread walk answering or refusing."""
-        if not outage:
+    def _routed(self, *, failing: str | None = None) -> Mock:
+        """Route this owner, the client call `failing` names refusing as an outage does."""
+        if failing is None:
             return routed_owner(
                 self, self.seeded, WorkflowLabel.DECOMPOSING,
             )
         with patch.object(
-            self.seeded.github, "comments_after", side_effect=_OUTAGE,
+            self.seeded.github, failing, side_effect=_OUTAGE,
         ):
             return routed_owner(
                 self, self.seeded, WorkflowLabel.DECOMPOSING,

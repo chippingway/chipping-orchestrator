@@ -2,18 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """A close no read could tie to a cycle ends none until a pass under the claim can.
 
-The poll reads an issue closed before this process holds it, and what any read
-after that says about the record is what the record says NOW: another poller
-on this host may have settled the cycle the close ended and started the fresh
-one an operator authorized in between. So a close is tied to a cycle only by a
-record read with the issue still closed behind it, or by a record no other
-poller has held the issue since the close was read. A close tied to neither is
-kept -- the contention cannot take it away -- and a pass under the claim ends a
-cycle with it only where it finds the issue closed; a cycle restarted
-meanwhile is spared, on every dispatch mode a tick can take, however early this
-process finds the restart's hold. A hold that ended before the poll -- the one
-a restarted poller's predecessor left on the claim file -- costs the reading
-nothing.
+Another poller on this host may settle the cycle a polled close ended and start
+a fresh one before this process holds the issue, so a close ties to a cycle
+only by a record read with the issue still closed behind it, or one no other
+poller held the issue since. A close tied to neither is kept, and a cycle
+restarted meanwhile is spared on every dispatch mode; a hold that ended before
+the poll -- a restarted poller's predecessor's -- costs the reading nothing.
 """
 from __future__ import annotations
 
@@ -45,14 +39,11 @@ from tests.workflow.fixtures import LABEL_IMPLEMENTING
 
 _OWED = frozenset((_deferral.OWNER_NUMBER,))
 
-# The handler the owner reaches on an ordinary label, and must not while the
-# reading it carries is unsettled.
+# The handler the owner reaches on an ordinary label, and must not here.
 _IMPLEMENTING_TARGET = _stage_targets._STAGE_HANDLER_TARGETS[LABEL_IMPLEMENTING]
 
-# Where the poll's own reading can go stale: once the poll has classified the
-# issue, before any claim, on every mode; and once the partition has written
-# the reading down under the claim, before the worker holds it, on the two
-# modes that partition.
+# Where the poll's reading can go stale: after classification, on every mode;
+# and after the partition wrote it down, on the two modes that partition.
 _CLASSIFIED = (_poll_reading, "_classify_pollable_issue")
 _PARTITIONED = (_dispatch_partition, "_partition_pollable_issues")
 _STALE_READINGS = tuple(
@@ -60,16 +51,14 @@ _STALE_READINGS = tuple(
     if step is _CLASSIFIED or mode[2] or mode[1] > 1
 )
 
-# Each of those, with the restart's hold found first by the worker's own claim,
-# and by a claim another thread of this process took and let go in between.
+# Each, with the restart's hold found first by the worker's claim or another thread's.
 _FOUND_BETWEEN = (False, True)
 _RESTARTS = tuple((*reading, found) for reading in _STALE_READINGS for found in _FOUND_BETWEEN)
 
 # Each mode, with the contender's record read refused and taken behind a restart.
 _CONTENDED_READS = tuple((mode, unread) for mode in DISPATCH_MODES for unread in (True, False))
 
-# The poller a restarted one comes up after: it takes the issue's claim the way
-# every pass does, says so, and exits, leaving its token on the claim file.
+# The poller a restarted one comes up after: it holds the issue's claim and exits.
 _PREDECESSOR = """
 import sys
 
@@ -84,10 +73,8 @@ class ContendedUnconfirmedTest(ClosedOwnerCase, unittest.TestCase):
     """A close read while another poller holds the closed umbrella owner."""
 
     def test_an_unconfirmed_close_spares_a_restart(self) -> None:
-        # The contender's reads tie its close to no cycle when the record
-        # cannot be read at all, and when the holder restarted the cycle
-        # before it was read -- the issue then reads open again behind the
-        # fresh cycle. The close is kept either way, and the retry lets it go.
+        # The record unreadable, or restarted before it was read: the close is
+        # kept tied to no cycle, and the retry lets it go.
         for mode, unread in _CONTENDED_READS:
             with self.subTest(mode=mode[0], unread=unread):
                 self._held_while_read(mode, unread=unread)
@@ -101,8 +88,7 @@ class ContendedUnconfirmedTest(ClosedOwnerCase, unittest.TestCase):
                 self._assert_restarted_cycle_spared(before)
 
     def test_an_unread_close_ends_a_closed_cycle(self) -> None:
-        # What keeping it buys: the pass under the claim finds the owner still
-        # closed, a close standing beside the record it reads, and ends that.
+        # What keeping it buys: a pass under the claim finding it closed ends it.
         for mode in DISPATCH_MODES:
             with self.subTest(mode=mode[0]):
                 self._held_while_read(mode, unread=True)
@@ -132,11 +118,8 @@ class PolledUnconfirmedTest(ClosedOwnerCase, unittest.TestCase):
 
     def test_a_polled_close_spares_a_later_restart(self) -> None:
         # Another poller restarts the cycle before this process's worker holds
-        # the issue. Neither the reading the partition scoped to the cycle it
-        # ended nor one the issue was open again behind marks the fresh cycle,
-        # and the pass that settles the reading next marks nothing either --
-        # even where another claim of this process found the restart's hold
-        # first, before the worker's own claim could.
+        # the issue: no reading marks the fresh cycle, whichever claim of this
+        # process found the restart's hold first.
         for mode, step, found in _RESTARTS:
             with self.subTest(mode=mode[0], restarted_after=step[1], found_between=found):
                 restarted, stand_in = self._ticked_past_a_restart(mode, step, found=found)
@@ -148,10 +131,8 @@ class PolledUnconfirmedTest(ClosedOwnerCase, unittest.TestCase):
                 stand_in.assert_not_called()
 
     def test_a_reopen_alone_still_ends_the_cycle(self) -> None:
-        # The same reopen with no other poller in it, on an issue this host
-        # has written before: the record the worker holds is the one the poll
-        # read the close against, so the cycle the close ended is ended, and
-        # the handler is not reached.
+        # The same reopen with no other poller in it, on an issue this host has
+        # written before: the cycle the close ended is ended, and no handler run.
         for mode, step in _STALE_READINGS:
             with self.subTest(mode=mode[0], reopened_after=step[1]):
                 self._seeded_owner()
@@ -187,14 +168,7 @@ class PolledUnconfirmedTest(ClosedOwnerCase, unittest.TestCase):
 
 
 class QueuedFamilyRestartTest(ClosedOwnerCase, unittest.TestCase):
-    """A family drain queued before a close was latched, reaching an owner restarted since.
-
-    This process read the umbrella owner closed while another poller held it,
-    and kept that close scoped to the cycle it ended. That poller then settled
-    the cycle and an operator restarted it, so the owner is open on a fresh
-    one. A drain this process submitted before any of it reaches the owner
-    only now, as ordinary family work carrying no reading of its own.
-    """
+    """A family drain queued before a contended close was kept, reaching the owner only after its restart."""
 
     def test_the_old_close_spares_the_restarted_cycle(self) -> None:
         self._seeded_owner()
@@ -215,21 +189,15 @@ class QueuedFamilyRestartTest(ClosedOwnerCase, unittest.TestCase):
 
 
 class RestartedPollerTest(ClosedOwnerCase, unittest.TestCase):
-    """A poller restarted over the claim namespace the one before it used.
-
-    The predecessor is a real process that held the owner and exited, and the
-    claim file it signed stays -- every claim file outlives its holders -- so
-    this process's first claim of the owner finds another poller's token.
-    """
+    """A poller restarted over the namespace its predecessor -- a real process -- signed and left."""
 
     def setUp(self) -> None:
         super().setUp()
         self.root = shared_namespace(self)
 
     def test_a_predecessors_hold_spares_the_reading(self) -> None:
-        # The same reopen as a lone poller's: the predecessor's hold ended
-        # before this poll read the close, so the record the worker holds is
-        # still the one the close was read against, and the cycle is ended.
+        # The predecessor's hold ended before this poll read the close, so the
+        # reopen ends the cycle as a lone poller's does.
         for mode, step in _STALE_READINGS:
             with self.subTest(mode=mode[0], reopened_after=step[1]):
                 self._seeded_owner()

@@ -235,6 +235,23 @@ class DiedInsideTheRetirementTest(_TerminalCase, unittest.TestCase):
         self.assertTrue(self._record()[KEYS.cancelled])
         self.assertEqual(self._label(), WorkflowLabel.REJECTED)
 
+    def test_a_refused_adoption_is_retried(self) -> None:
+        # The walk found the receipt, but the write putting the cycle back did
+        # not land: the next sweep walks the thread again rather than finish
+        # the terminal over a close the thread still says was observed.
+        self._died_inside_the_retirement()
+        self.seeded.parent.closed = True
+        self._fresh_process()
+        sweep = self.seeded.swept
+        with patch.object(self.seeded.github, "write_pinned_state", side_effect=_DIED), self.assertRaises(RuntimeError):
+            sweep(self)
+
+        with self.assertLogs(_WORKFLOW_LOG):
+            sweep(self)
+
+        self.assertTrue(self._record()[KEYS.cancelled])
+        self.assertEqual(self._label(), WorkflowLabel.REJECTED)
+
     def _died_inside_the_retirement(self) -> None:
         """Retire the cycle, poll behind the write, and end the process."""
         github = self.seeded.github

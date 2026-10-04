@@ -92,12 +92,11 @@ def written(github: FakeGitHubClient) -> tuple:
 
 
 class RestartedAfter:
-    """One step of the poll that, once it returns, finds the owner restarted elsewhere.
+    """One step of the poll that, once it returns, finds the owner restarted (`restarted_elsewhere`).
 
-    `found` has another thread of this process take the owner's claim and let
-    go right behind the restart, as a worker or a partition of this process
-    can: that claim finds the restart's hold before the pass carrying the
-    poll's reading does. `found_by` keeps whether each such claim was granted.
+    `found` has another thread of this process take the owner's claim right
+    behind the restart, finding its hold before the pass carrying the poll's
+    reading does; `found_by` keeps whether each such claim was granted.
     """
 
     def __init__(self, github: FakeGitHubClient, step, *, found: bool = False, signed: bool = True) -> None:
@@ -121,12 +120,7 @@ class RestartedAfter:
 
 
 class RestartedBeforeTheRead:
-    """A record read the holder restarts the closed owner's cycle ahead of.
-
-    What the contender's read finds when the other poller settles the cycle
-    the close ended, and an operator restarts it, between the poll and that
-    read: the fresh cycle, on an issue open again.
-    """
+    """A record read the holder restarts the closed owner's cycle ahead of, reopening it."""
 
     def __init__(self, github: FakeGitHubClient) -> None:
         self._github = github

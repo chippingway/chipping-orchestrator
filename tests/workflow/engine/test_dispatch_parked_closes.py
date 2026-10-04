@@ -2,14 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """A close read on an issue an operator parked is kept on every dispatch mode.
 
-`backlog` and `paused` park an issue outside the state machine, with one
-exception: an issue read CLOSED. Its close ends a live late cycle, and the pass
-the park would discard is the only one that records it -- an owner reopened
-and unparked later would come back with that cycle live and reach the handler
-its label names. So every mode lets a closed reading past the filter and takes
-the issue's writer claim for it: a holder marks the cycle and leaves everything
-after the mark to the park, and a contender keeps the close in its own latch
-for the pass that holds the claim next.
+The park would discard the one pass that records the close, so a closed
+reading passes the filter under the issue's writer claim: a holder marks the
+cycle and leaves the rest to the park, and a contender keeps the close latched.
 """
 from __future__ import annotations
 

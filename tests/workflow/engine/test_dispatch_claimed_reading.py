@@ -1,12 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a tick reads once an issue's writer claim is granted.
+"""What a tick reads once an issue's writer claim is granted, after the poll read it.
 
-The claim is granted after the poll read the issue, and another poller on this
-host may have advanced, closed, or reopened it and let go in between. So every
-dispatch path reads the issue again behind the claim: the handler is the one
-the current label names, and a close the poll read is carried over that read
-rather than lost to it.
+Every dispatch path reads the issue again behind the claim: the handler is the
+one the current label names, within the admission the poll gave it, and a close
+the poll read is carried over that read rather than lost to it.
 """
 from __future__ import annotations
 
@@ -65,13 +63,7 @@ _OUTGROWN = tuple(
 
 
 class AcquisitionGapTest(WriterClaimDispatchCase):
-    """An issue another poller advanced before this tick's claim is routed as it reads now.
-
-    The claim is granted, because that poller has let go -- but the
-    enumeration read the issue before it did, and its `ready` would hand an
-    issue already past implementation to the stage that relabels it
-    `implementing` and starts a developer on it again.
-    """
+    """An issue another poller advanced before this tick's claim is routed as it reads now, not as polled."""
 
     def test_routed_by_the_label_it_reads_now(self) -> None:
         for mode, limit, scheduled in DISPATCH_MODES:
@@ -153,13 +145,7 @@ class StaleAdmissionTest(WriterClaimDispatchCase):
 
 
 class ClosedAcrossTheGapTest(ObservedCloseCase, unittest.TestCase):
-    """A close the sequential poll read outlives the read it takes under the claim.
-
-    The owner is a closed `implementing` issue whose late cycle is still live,
-    and the poll read it closed. What the loop reads once the claim is its own
-    can say less than that -- a human reopened the issue in between, or the
-    read fails -- and the poll's reading is still the one the pass keeps.
-    """
+    """A close the sequential poll read outlives a reopen or a failed read under the claim."""
 
     def setUp(self) -> None:
         self._fresh_process()
@@ -171,11 +157,9 @@ class ClosedAcrossTheGapTest(ObservedCloseCase, unittest.TestCase):
         self.addCleanup(stage.stop)
 
     def test_a_first_claim_unties_an_older_reading(self) -> None:
-        # The issue's first claim on this host finds a file that cannot say
-        # whether another poller held the key just before it, so a reading
-        # older than that claim proves nothing about the record behind it.
-        # The cycle stays live, the handler stays off it, and the reading is
-        # left for the cleanup pass that settles it with nothing marked.
+        # A first claim on this host cannot say who held the key before it, so
+        # an older reading ties to nothing: the cycle stays live, no handler
+        # runs, and the cleanup pass settles the reading.
         read_at = read_now()
         self.github.get_issue(_closed.OWNER_NUMBER).closed = False
 

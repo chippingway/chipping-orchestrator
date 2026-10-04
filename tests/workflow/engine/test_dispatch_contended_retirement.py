@@ -2,15 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """A close read while another poller on this host is retiring the owner's cycle.
 
-A retirement takes the cycle identity off the record a write before the
-barrier that answers a close observed inside it, and that barrier reads only
-its own process's observations. A contender reading the record then finds no
-cycle on it -- so the poller holding the claim notes on it the cycle it is
-retiring, and a close the contender reads while that note stands is kept
-against that cycle and adopted under the claim once the holder lets go: the
-owner reopened in between reaches the ending, not its stage handler. The
-record's own correlation is not that note; it outlives every retirement, and a
-close of an owner whose holder noted nothing is not read as ending one.
+The record names no cycle then, so the holder notes the cycle it is retiring on
+the claim; a close read while that note stands is kept against that cycle and
+adopted under the claim once the holder lets go. The record's own correlation
+outlives every retirement, and is no such note.
 """
 from __future__ import annotations
 

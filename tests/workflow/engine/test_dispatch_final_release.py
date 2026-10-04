@@ -2,13 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """A close latched between a scheduled worker letting go of its claim and of its hold.
 
-The submit that admits a worker takes a publication hold, and a close the
-worker's pass settles under it is dropped only when that hold is given back --
-which is after the pass has let go of the issue's writer claim. In between,
-another poller on this host can take the claim, settle the cycle that close
-ended, and start the fresh one an operator authorized, and this process can be
-refused the claim while it reads a close of that fresh cycle. The drop decided
-for the old cycle may not take the fresh close with it.
+Another poller can restart the cycle in that window, and the drop decided for
+the old cycle may not take a fresh close of the new one with it.
 """
 from __future__ import annotations
 

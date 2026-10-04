@@ -2,11 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Issues another poller on this host is writing, driven through whole ticks.
 
-The other poller holds its claims through `tests/support/writer_claims.py`,
-under the repository id the client answers rather than any name, or as the
-real second process `renamed_poller_support.py` starts. Everything below the
-tick is real except the stage handler, which stands in for one that runs,
-publishes, and records.
+Everything below the tick is real except the stage handler, which stands in
+for one that runs, publishes, and records.
 """
 from __future__ import annotations
 

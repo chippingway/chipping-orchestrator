@@ -2,13 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """A close this process holds ends the cycle it was read against, and no later one.
 
-Another poller on this host can hold a closed owner while this one keeps the
-close it read, settle the cycle that close ended, and start the fresh one an
-operator authorizes -- all before this process holds the owner again. The
-close it kept is scoped to the cycle it ended, so the retry, on every dispatch
-mode a tick can take, lets it go without marking, posting, or relabelling
-anything on the fresh cycle. A close no read tied to a cycle is the subject of
-`test_dispatch_unconfirmed_closes.py`.
+Kept scoped to the cycle it ended while another poller settled that cycle and
+an operator restarted it, it is let go on every dispatch mode without touching
+the fresh cycle. Unscoped closes are `test_dispatch_unconfirmed_closes.py`'s.
 """
 from __future__ import annotations
 

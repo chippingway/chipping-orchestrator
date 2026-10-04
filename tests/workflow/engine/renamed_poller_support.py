@@ -2,12 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """A poller that fetched the repository before it was renamed, beside one after.
 
-Each poller names a repository as GitHub answered when it fetched it, so two
-started on either side of a rename name it two ways for as long as both run.
-The one started before is a real second process here, running its own
-dispatch seam over a client GitHub described under the old name, and claiming
-in the namespace `tests/support/writer_claim_processes.py` shares with this
-test. Nothing it holds is known to this interpreter except through the lock.
+The one started before is a real second process running its own dispatch seam
+over a client described under the old name, in the namespace
+`tests/support/writer_claim_processes.py` shares with the test.
 """
 from __future__ import annotations
 
