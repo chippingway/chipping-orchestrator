@@ -12,6 +12,8 @@ subsection holding the page, and marks the page with `aria-current`, which the
 theme's scrollspy leaves alone. Its card scrolls on its own, no taller than the
 window under the top bar, so a long contents list keeps its end in reach, and
 breaks a long heading rather than scrolling sideways to it.
+Its heading links follow the page's headings in order, through the configured
+navigation depth, outside the section's navigation landmark.
 Previous and next sit under the page, inside a `.navbar`, where the theme's
 keyboard shortcuts look for them.
 
@@ -56,6 +58,17 @@ _HERE = "./"
 _CURRENT_PAGE = "page"
 _TO_NESTED = "../nested/page/"
 _SIDEBAR_CARD = "toc-collapse"
+_SIDEBAR_HEADING_TAGS = frozenset(("h1", "h2", "h3"))
+_HEADING_SAMPLE = """# Local page
+
+## Details
+
+### Example
+
+#### Deeper heading
+
+## Summary
+"""
 _SIDEBAR_CARD_STYLE = frozenset((
     "max-height: calc(100vh - 3.5rem - 40px)",
     "overflow-y: auto",
@@ -92,7 +105,11 @@ class SiteNavigationTest(unittest.TestCase):
     def setUp(self) -> None:
         root = Path(self.enterContext(TemporaryDirectory())).resolve()
         config = _site_support.write_sample_repository(root, "# Sample\n")
-        config.write_text(config.read_text(encoding=_ENCODING) + _NAV, encoding=_ENCODING)
+        configured = config.read_text(encoding=_ENCODING).replace(
+            "  name: mkdocs\n", "  name: mkdocs\n  navigation_depth: 3\n",
+        )
+        config.write_text(configured + _NAV, encoding=_ENCODING)
+        (root / "docs" / "next.md").write_text(_HEADING_SAMPLE, encoding=_ENCODING)
         (root / "docs" / "last.md").write_text("# Last page\n", encoding=_ENCODING)
         self.site = root / _site_support.SITE_DIRECTORY
         built = _site_support.build_site(config, self.site)
@@ -103,7 +120,7 @@ class SiteNavigationTest(unittest.TestCase):
         checks = (
             self._top_bar_links_each_section_once,
             self._sidebar_opens_the_current_subsection,
-            self._sidebar_scrolls_inside_the_window,
+            self._sidebar_lists_headings_within_the_window,
             self._previous_and_next_sit_under_the_page,
         )
         for check in checks:
@@ -139,8 +156,18 @@ class SiteNavigationTest(unittest.TestCase):
         landmarks = set(self._page(_LAST).landmarks)
         self.assertEqual(landmarks, {_SITE, _PAGES}, "a top-level page belongs to no section")
 
-    def _sidebar_scrolls_inside_the_window(self) -> None:
-        """The sidebar card scrolls down inside the window under the top bar, and wraps rather than scrolls across."""
+    def _sidebar_lists_headings_within_the_window(self) -> None:
+        """The card lists headings in page order through level three, scrolls within the window, and wraps text."""
+        for name in (_HOMEPAGE, _NEXT, _NESTED, _LAST):
+            page = self._page(name)
+            expected = [
+                f"#{attributes['id']}"
+                for tag, attributes in page.tags
+                if tag in _SIDEBAR_HEADING_TAGS
+            ]
+            with self.subTest(page=name):
+                self.assertTrue(expected, "sample pages exercise heading navigation")
+                self.assertEqual([link.get("href") for link in page.sidebar_headings], expected)
         self.assertEqual(_style(self._page(_NESTED), _SIDEBAR_CARD), _SIDEBAR_CARD_STYLE)
 
     def _previous_and_next_sit_under_the_page(self) -> None:
