@@ -298,18 +298,19 @@ active issue's worktree.
 That gate answers for this process alone, so every dispatch path also takes the issue's host-local **writer claim**
 (`scheduler/writer_claims.py`) — an exclusive, non-blocking `flock` keyed by the repository's numeric GitHub id (the
 client's `repo_id`, never a name, so a rename leaves the key alone) and the issue number — before anything it does for
-the issue: the refetch, the pinned-state guards, the close recovery wrapped around the pass (the closed reading
-an ordinary pass keeps, the close a refetch establishes, the cleanup observation a sweep is held under), and the
-handler. The sequential loop takes it once an issue survives the hard-skip classification; the scheduler's fan-out
-task, its family-bucket iteration (inside `track_active`), and the in-tick pool's tasks take it as their worker starts,
-so a queued submit holds no claim. Every one of them then reads the issue again under it, the sequential loop
-included: the poll is older than the claim, and a poller that advanced the issue and let go in between would otherwise
-have its stage resumed from the label the poll read. The handler is the one the fresh label names; what the poll read
-is carried over that read only where it is a close, and binds there, so a reopen in between cannot send the issue to
-an agent-spawning stage. The enumeration takes it too, for the one thing it writes: the pinned read and close
-receipt behind a closed fan-out issue, and the same pair a refused submit's observation hold spends. Those two ask
-for it *alongside* — granted beside a worker of this same process that holds the issue, since the receipt is an added
-comment built to land beside one, and an ordinary exclusive attempt against every other process.
+the issue: the refetch, the pinned-state guards, the close recovery wrapped around the pass (the closed reading an
+ordinary pass keeps, the close a refetch establishes, the cleanup observation a sweep is held under), and the handler.
+The sequential loop takes it once an issue survives the hard-skip classification, which a closed or latched reading
+always does, as it does the partition's; the scheduler's fan-out task, its family-bucket iteration (inside
+`track_active`), and the in-tick pool's tasks take it as their worker starts, so a queued submit holds no claim. Every
+one of them then reads the issue again under it, the sequential loop included: the poll is older than the claim, and a
+poller that advanced the issue and let go in between would otherwise have its stage resumed from the label the poll
+read. The handler is the one the fresh label names; what the poll read is carried over that read only where it is a
+close, and binds there, so a reopen in between cannot send the issue to an agent-spawning stage. The enumeration takes
+it too, for the one thing it writes: the pinned read and close receipt behind a closed fan-out issue, and the same pair
+a refused submit's observation hold spends. Those two ask for it *alongside* — granted beside a worker of this same
+process that holds the issue, since the receipt is an added comment built to land beside one, and an ordinary exclusive
+attempt against every other process.
 
 An issue another poller on the host holds is skipped whole on every path: nothing is refetched, published,
 relabelled, written, run, or accounted for, and the submit's publication hold and any latched close are left as they

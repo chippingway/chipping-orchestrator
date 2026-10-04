@@ -52,9 +52,10 @@ def _process_polled_issue(
     for the next poll. A CLOSED reading it found is latched too, tied to a
     cycle only where a read proves it, and nothing more, because no other
     path of this process would ever hold it -- this loop is the enumeration
-    and the worker both. A parked issue never asks for the claim, because it
-    has nothing to write. The closed reading is taken off the enumeration's
-    object BEFORE the classification, as the partition takes its own.
+    and the worker both. An open parked issue never asks for the claim,
+    because it has nothing to write. The closed reading is taken off the
+    enumeration's object BEFORE the classification, as the partition takes
+    its own.
 
     Once the claim is held, the issue is read again before anything routes it,
     on every route. The object in hand is the enumeration's, and it is older
@@ -78,14 +79,18 @@ def _process_polled_issue(
     off the remote, so nothing this path could read would find it. It
     overrides the hard-skip filter with it -- an operator's park defers the
     external half of the ending, which is what the sweep does with a parked
-    issue anyway, and never the mark. And the cleanup it routes to is wrapped
-    in the same observation hold the worker paths use, because a pass that
-    raises here marked nothing either.
+    issue anyway, and never the mark. A closed reading passes the filter too,
+    on any label, as it does in the partition: this pass is the only one that
+    records the close, under the claim or in a contender's latch, and an owner
+    dropped here would come back from a reopen and an unpark with its cycle
+    live. The park is applied again behind the mark. And the cleanup a latch
+    routes to is wrapped in the same observation hold the worker paths use,
+    because a pass that raises here marked nothing either.
     """
     latched = observations.close_observed(spec.slug, int(issue.number))
     closed = issue_is_closed(issue)
     skip, label = _poll_reading._classify_pollable_issue(gh, spec, issue)
-    if skip and not latched:
+    if skip and not (latched or closed):
         return
     _claimed_poll(
         gh, spec, issue,
