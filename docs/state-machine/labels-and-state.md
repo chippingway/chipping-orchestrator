@@ -1944,7 +1944,9 @@ The keys that matter for the state machine fall into a few groups:
 - **Returned reviewer verdict.** `review_returned_verdict` is the verdict a returned reviewer left and nothing has
   disposed of yet (`stages/validating/review_verdicts.py`): `round` (the round it ran as), `verdict` (`approved` or
   `changes_requested`), `subject` (exactly as `review_subject` spells it), `feedback` (the words a change request hands
-  the developer; `""` for an approval, and neither an approval carrying any nor words UTF-8 cannot carry read),
+  the developer and posts on the pull request: a live round's findings with their verification declaration set aside
+  (`workflow/engine/review_findings.py`); `""` for an approval, and neither an approval carrying any nor words UTF-8
+  cannot carry read),
   `evidence`, and `handed`. `evidence` is `null` where the reviewer's declaration earned none, and otherwise the one
   claim the verdict relies on (`review_claims.py`): its `use` -- `published` for a reviewer-reported transaction
   minted from the commands the reviewer ran, bound to the subject, head, and tree it was handed and the configured

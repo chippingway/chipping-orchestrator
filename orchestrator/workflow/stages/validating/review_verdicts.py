@@ -44,7 +44,9 @@ record without one is the shape a handoff wrote before it anchored its post,
 and still reads -- handed, beside no post anything can vouch for, so the
 launch it owes is held rather than made (`review_handoffs`). An approval is
 never handed and hands nobody words, so a record saying it was, or carrying
-feedback, does not read.
+feedback, does not read. A change request's feedback is the reviewer's
+findings with its verification declaration set aside, as `review_disposition`
+formats them, which its post and its developer are handed alike.
 
 The record is additive and fail-closed: an issue without it has no verdict
 waiting, and one in any shape this reader refuses is no verdict anybody may

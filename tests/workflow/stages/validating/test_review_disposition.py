@@ -6,6 +6,9 @@ The verdict and the transaction its declared commands are minted as go down in
 one write before the evidence is published, and the verdict is ready to be
 acted on only once that evidence has settled, or where it relies on none. A
 comment with no room for either, or a write GitHub refuses, publishes nothing.
+A verdict's feedback is the reviewer's findings without their declaration,
+which still earns exactly what it would unformatted, every command, status,
+and output kept in the transaction.
 Evidence still owed holds the verdict while its subject stands, for a later
 tick to finish with no second reviewer, no second fold of its usage, and no
 round spent; a subject that moved, or evidence that can never be relied on,
@@ -77,6 +80,17 @@ REUSING = "Covered.\n\nVERIFICATION: REUSED sha256:{digest}\n\nVERDICT: APPROVED
 
 UNDECLARED_REQUEST = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
 
+# A change request reusing the evidence revision `digest` names.
+REQUEST_REUSING = f"{_world.REQUESTED}\n\nVERIFICATION: REUSED sha256:{{digest}}\n\nVERDICT: CHANGES_REQUESTED"
+
+# A passing command the configuration does not require.
+UNRELATED = "true"
+
+# How a claim relies on its evidence, as the record spells it.
+PUBLISHED = "published"
+
+REUSED = "reused"
+
 # Whether a pinned-comment write carries a returned verdict, or settled
 # verification evidence.
 _CARRIES_THE_VERDICT = operator.methodcaller("get", _world.RETURNED_VERDICT)
@@ -117,6 +131,57 @@ _READY = (
         ("reused", "", 1),
     ),
     ("a change request declaring nothing", lambda _case: UNDECLARED_REQUEST, (None, _claims.NO_DECLARATION, 0)),
+)
+
+# What the artifact of the world's failed run of the suite carries.
+FAILED_RUN = ((_world.SUITE, 1, _world.FAILURE_OUTPUT),)
+
+# The reply each change request was returned with, and what the tick leaves:
+# the feedback it is persisted with; the use, pass, and coverage of the claim
+# its declaration earned, or the refusal it earned none with; and every
+# command, exit status, and output the pull request's artifacts carry.
+_CONCISE = (
+    (
+        "a failed run",
+        lambda _case: _world.FAILED_REQUEST,
+        (
+            _world.CONCISE_FAILURE,
+            ((PUBLISHED, False, False), ""),
+            FAILED_RUN,
+        ),
+    ),
+    (
+        "the configured command left out",
+        lambda _case: _world.declared_run(verdict="CHANGES_REQUESTED", command=UNRELATED),
+        (
+            _world.REQUESTED,
+            ((PUBLISHED, True, False), ""),
+            ((UNRELATED, 0, _world.SUITE_OUTPUT),),
+        ),
+    ),
+    (
+        "a reuse",
+        lambda case: REQUEST_REUSING.format(digest=_read.settles_evidence(case).content_revision),
+        (
+            _world.REQUESTED,
+            ((REUSED, True, True), ""),
+            ((_world.SUITE, 0, _world.SUITE_OUTPUT),),
+        ),
+    ),
+    (
+        "nothing declared",
+        lambda _case: UNDECLARED_REQUEST,
+        (_world.REQUESTED, (None, _claims.NO_DECLARATION), ()),
+    ),
+    (
+        "a run declared alone",
+        lambda _case: _world.DECLARED_ALONE,
+        (
+            _world.NO_FINDINGS,
+            ((PUBLISHED, True, True), ""),
+            ((_world.SUITE, 0, _world.SUITE_OUTPUT),),
+        ),
+    ),
 )
 
 # Another road pointing the issue at another pull request, leaving the one
@@ -273,7 +338,10 @@ _OWED = (
 
 
 class PersistedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
-    """The verdict goes down with its transaction before anything is published, or nothing does."""
+    """The verdict goes down with its transaction before anything is published, or nothing does.
+
+    Its feedback is the reviewer's findings, concise, beside exactly the evidence its declaration earned.
+    """
 
     def test_the_verdict_is_written_before_publishing(self) -> None:
         # What the pinned comment carries as the artifact is posted, which the
@@ -350,6 +418,49 @@ class PersistedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
             ),
             (None, None, []),
         )
+
+    def test_concise_findings_beside_exact_evidence(self) -> None:
+        # The declaration is read off the message as the reviewer wrote it,
+        # so a run, a reuse, a failed check, a configured command left out,
+        # and nothing declared each earn what they would unformatted, and the
+        # artifact keeps every command, status, and output. The feedback sets
+        # the declaration aside, save a failed check kept as its diagnostic,
+        # and a run declared alone reads as no findings rather than as the
+        # raw message it sits in.
+        for name, reply, expected in _CONCISE:
+            with self.subTest(name):
+                self.setUp()
+
+                self.returns(reply(self))
+
+                self.assertEqual(self._persisted(), expected)
+
+    def test_a_lost_post_keeps_the_concise_findings(self) -> None:
+        # The artifact lands and its response is lost: the request waits with
+        # its findings concise and its transaction owed, and the later tick
+        # that finds the artifact by its receipt readies it exactly as
+        # persisted, the output the findings left out kept whole there.
+        self.github.report_failures.lost.add(_world.PR)
+        self.returns(_world.FAILED_REQUEST)
+        self.github.report_failures.lost.discard(_world.PR)
+        waiting = self._persisted()[0]
+        owed = self.pinned()[_world.PENDING_EVIDENCE] is not None
+
+        self.finishes()
+
+        self.assertEqual((self.prepared, waiting, owed), (NOTHING, _world.CONCISE_FAILURE, True))
+        self.assertEqual(self.ready.feedback, _world.CONCISE_FAILURE)
+        self.assertEqual(_disposed.carried(self), FAILED_RUN)
+
+    def _persisted(self) -> tuple:
+        """The waiting verdict's feedback, what its declaration earned, and what the artifacts carry, as `_CONCISE`."""
+        verdict = _verdicts.read_returned_verdict(self.github.read_pinned_state(self.issue))
+        claim = verdict.evidence
+        earned = None
+        if claim is not None:
+            earned = (claim.use.value, claim.passed, claim.covers)
+        refusal = "" if self.prepared.ready is None else self.prepared.ready.refusal
+        return (verdict.feedback, (earned, refusal), _disposed.carried(self))
 
 
 class EvidenceStandingTest(_world.ReviewVerdictWorld, unittest.TestCase):

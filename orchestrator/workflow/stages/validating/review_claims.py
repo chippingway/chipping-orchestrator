@@ -46,10 +46,12 @@ Nothing is written here: the transaction is minted, not recorded, because its
 record has to be measured beside the verdict it is persisted with
 (`review_verdicts.records_the_verdict`). The disposition service asks for a
 claim where it persists the verdict a live reviewer round returned
-(`review_disposition`). Where a claim's evidence stands is asked by that
-service as it finishes a waiting verdict, by the change-request handoff behind
-it (`review_handoffs`), and by the recovery of a verdict an earlier tick left
-waiting (`review_resume`).
+(`review_disposition`), out of the run's message as the reviewer wrote it and
+before the feedback beside the declaration is formatted, so what a human is
+shown of the findings never decides what they earn. Where a claim's evidence
+stands is asked by that service as it finishes a waiting verdict, by the
+change-request handoff behind it (`review_handoffs`), and by the recovery of a
+verdict an earlier tick left waiting (`review_resume`).
 """
 from __future__ import annotations
 

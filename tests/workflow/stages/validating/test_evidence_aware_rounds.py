@@ -29,6 +29,7 @@ from orchestrator.github.verification_evidence import EvidenceSource
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.fixtures import LABEL_DOCUMENTING, LABEL_FIXING, LABEL_VALIDATING
 from tests.workflow.stages.validating import (
+    disposed_verdict_test_support as _disposed,
     evidence_round_test_support as _support,
     review_handoff_test_support as _handoff,
     review_verdict_readings as _read,
@@ -100,7 +101,7 @@ UNDECLARED = "LGTM\n\nVERDICT: APPROVED"
 
 APPROVING = _world.declared_run()
 
-REQUESTING = _world.declared_run(exit_status=1, verdict="CHANGES_REQUESTED")
+REQUESTING = _world.FAILED_REQUEST
 
 # Each verdict as the pinned comment spells it, beside the reviewer's message
 # returning it.
@@ -112,6 +113,10 @@ CHANGES_REQUESTED = ("changes_requested", REQUESTING)
 SUITE_PASSED = (((_world.SUITE, 0),),)
 
 SUITE_FAILED = (((_world.SUITE, 1),),)
+
+# What REQUESTING's feedback post and its developer's fix prompt both quote:
+# the reviewer's words, and the failed check as their diagnostic.
+HANDS_ON_THE_FAILURE = ((_world.CONCISE_FAILURE,), True)
 
 # The labels a change request's one developer moves the issue through, once
 # its fix is pushed.
@@ -231,18 +236,33 @@ class ChangeRequestTest(_support.LiveRoundWorld, unittest.TestCase):
         # The failed run is published before the feedback naming it, the
         # issue moves to `fixing` for one developer handed that feedback, and
         # its pushed fix spends the round and hands the pull request back.
+        # The feedback posted and the words that developer is resumed on are
+        # the same findings: the declaration set aside, save the failed check,
+        # kept as the diagnostic the fix needs.
         ran = self.tick(_support.reviewer(REQUESTING), _handoff.developer(), **FIXING)
 
         pinned = self.pinned()
+        handed = _disposed.handed_on(self, _support.prompt(ran, 1))
         self.assertEqual(
             (
-                (ran[RUN_AGENT].call_count, _world.REQUESTED in _support.prompt(ran, 1)),
+                (ran[RUN_AGENT].call_count, handed),
                 (self.published(), self.posted_before(_support.ARTIFACT_HEADING, _handoff.FEEDBACK_NOTICE)),
                 self.labels(),
                 (pinned[REVIEW_ROUND], pinned[_world.RETURNED_VERDICT]),
             ),
-            ((2, True), (SUITE_FAILED, True), FIXED, (1, None)),
+            ((2, HANDS_ON_THE_FAILURE), (SUITE_FAILED, True), FIXED, (1, None)),
         )
+
+    def test_a_bare_declaration_hands_on_no_findings(self) -> None:
+        # Findings that are a passing run's declaration and nothing else are
+        # posted, and handed to the developer, as a sentence saying there are
+        # none -- never as the raw message the declaration sits in.
+        reviewing = _support.reviewer(_world.DECLARED_ALONE)
+        ran = self.tick(reviewing, _handoff.developer(), **FIXING)
+
+        handed = _disposed.handed_on(self, _support.prompt(ran, 1))
+        self.assertEqual(handed, ((_world.NO_FINDINGS,), True))
+        self.assertEqual(self.labels(), FIXED)
 
     def test_a_spent_cap_spawns_no_reviewer(self) -> None:
         # The cap is asked before the reviewer, and before any evidence is
@@ -271,8 +291,12 @@ class PublicationRetryTest(_support.LiveRoundWorld, unittest.TestCase):
 
     def test_a_change_request_waits_for_its_evidence(self) -> None:
         # The retry launches the request's one developer, whose run is
-        # charged and folded beside the reviewer's and reports no usage.
-        self._waits_then_acts(CHANGES_REQUESTED, (_handoff.developer(),), FIXED)
+        # charged and folded beside the reviewer's and reports no usage. It
+        # posts, and hands that developer, the findings the request was
+        # persisted with: concise, the failed check kept as their diagnostic.
+        retried = self._waits_then_acts(CHANGES_REQUESTED, (_handoff.developer(),), FIXED)
+
+        self.assertEqual(_disposed.handed_on(self, _support.prompt(retried)), HANDS_ON_THE_FAILURE)
 
     def waiting(self) -> tuple:
         """Which verdict the pinned comment has waiting, and whether its transaction is still owed."""
@@ -280,7 +304,8 @@ class PublicationRetryTest(_support.LiveRoundWorld, unittest.TestCase):
         verdict = pinned.get(_world.RETURNED_VERDICT) or {}
         return (verdict.get("verdict"), pinned.get(_world.PENDING_EVIDENCE) is not None)
 
-    def _waits_then_acts(self, returned: tuple, later: tuple, labels: tuple) -> None:
+    def _waits_then_acts(self, returned: tuple, later: tuple, labels: tuple) -> dict:
+        """Hold `returned` on its owed evidence, then retry it; the tick that retried it."""
         before = self.spent()
 
         held = self.tick(_support.reviewer(returned[1]), issue_checkout=GONE_CHECKOUT)
@@ -289,14 +314,17 @@ class PublicationRetryTest(_support.LiveRoundWorld, unittest.TestCase):
             (self.waiting(), held[VERIFY].call_count, self.published(), self.labels()),
             ((returned[0], True), 0, (), ()),
         )
-        launched = self.tick(*later, **FIXING)[RUN_AGENT].call_count
+        self.assertEqual(_disposed.handed_on(self, ""), ((), False))
+        retried = self.tick(*later, **FIXING)
 
+        launched = retried[RUN_AGENT].call_count
         self.assertEqual(
             (launched, len(self.published()), self.labels(), self.waiting()),
             (len(later), 1, labels, (None, False)),
         )
         runs = 1 + len(later)
         self.assertEqual(self.spent_since(before), (runs, runs, _world.REVIEWER_TOKENS))
+        return retried
 
 
 class MovedSubjectTest(_support.LiveRoundWorld, unittest.TestCase):

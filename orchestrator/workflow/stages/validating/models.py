@@ -12,8 +12,12 @@ and the verification evidence its prompt handed as current for that subject,
 which is the only evidence a reviewer's reuse may name.
 `_ReviewerDecision`
 folds the parsed verdict together with the run, and its `feedback` falls back
-to the agent's last message so a reviewer that put its reasoning above the
-VERDICT line still reaches the dev. `_DevFixRun` carries `before_sha` -- the
+to the agent's whole last message where nothing stands above the VERDICT line,
+so a reviewer that put its reasoning below it still reaches the dev. The
+disposition of a live round's verdict (`review_disposition`) replaces the body
+with the findings formatted from that feedback, which are never empty, so the
+fallback is asked of the reviewer's own words and never of findings the
+formatting left nothing of. `_DevFixRun` carries `before_sha` -- the
 pre-agent HEAD is the only thing that tells a commit this run produced from
 one already on the branch -- an optional `after_sha` for the caller that
 has already read it, and, for a requirements-drift resume, what that resume

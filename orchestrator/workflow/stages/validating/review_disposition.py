@@ -56,6 +56,19 @@ for room would leave what the reviewer reported, a failed check included, off
 the pull request. The disposition parks it under `reviewer_unrecorded` over the
 run's records staged here (`review_parks.parks_unrecorded`), acting on nothing.
 
+The feedback that record carries -- the words a change request posts on the
+pull request and hands its developer, in that tick or from the record on a
+later one -- is the reviewer's findings as a human is shown them
+(`review_findings`), formatted only once the declaration has been read off the
+run's own message (`review_claims`), which nothing here rewrites. So the
+evidence is the declaration exactly as written, every command, status, and
+output carried whole by the transaction's artifact, while the feedback sets
+it aside, keeping each check not shown passing as the diagnostic a developer
+acts on (`VerdictInHand.returned_by`). Findings the formatting leaves nothing
+of read as a sentence saying so, never as the raw message their declaration
+sits in. Formatting decides nothing: the claim, its refusal, and the
+approval's proof read the declaration, never the findings.
+
 Neither verdict is ready until the evidence it relies on has settled: a change
 request handed to a developer moves the head and an approval squashes it, and
 either leaves a transaction about the old head that can never settle. A
@@ -123,6 +136,7 @@ from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    review_findings as _findings,
     verification_records as _records,
     verification_transaction as _transaction,
 )
@@ -157,6 +171,26 @@ class VerdictInHand:
     claim: _verdicts.EvidenceClaim | None = None
     refusal: str = ""
     pending: _records.PendingEvidence | None = None
+
+    @classmethod
+    def returned_by(cls, decision: _ReviewerDecision, claimed: _claims.ClaimedEvidence) -> VerdictInHand:
+        """The verdict a live round returned as `decision`, its findings concise, beside what `claimed` earned.
+
+        `claimed` was read off the run's own message, which nothing here
+        rewrites, so the evidence is the declaration exactly as the reviewer
+        wrote it -- every command, status, and output the transaction carries
+        whole. The feedback is formatted only behind that reading
+        (`review_findings`): the reviewer's words with the declaration set
+        aside, save each check not shown passing, kept as the diagnostic a
+        developer acts on. The raw feedback is chosen first -- the body above
+        the VERDICT line, or the whole message where nothing stands there --
+        and formatting never answers empty, so findings it left nothing of
+        read as a sentence saying so and never fall back to the raw message
+        their declaration sits in. The claim, its refusal, and its
+        transaction are `claimed`'s as they stand: formatting decides nothing.
+        """
+        concise = replace(decision, body=_findings._concise_findings(decision.feedback))
+        return cls(concise, claimed.claim, claimed.refusal, claimed.pending)
 
     @classmethod
     def replayed(cls, run: _ReviewerRun, returned: _verdicts.ReturnedVerdict) -> VerdictInHand | None:
@@ -321,19 +355,21 @@ def prepares_the_verdict(
 
     `state` carries whatever the round staged ahead of the run and nothing of
     its return, which is staged here. The evidence is minted first, since
-    reading the reviewed tree is a request of its own. Then the subject is
-    held to what stands, which is requests of its own too, long enough for
-    another road to settle a later report the state in hand does not carry, so
-    the comment is read again against what the run was resolved over,
-    carrying whatever moved -- the last requests before the write that
+    reading the reviewed tree is a request of its own, out of the run's
+    message as the reviewer wrote it; the feedback the verdict is persisted
+    with is formatted only behind that (`VerdictInHand.returned_by`). Then the
+    subject is held to what stands, which is requests of its own too, long
+    enough for another road to settle a later report the state in hand does
+    not carry, so the comment is read again against what the run was resolved
+    over, carrying whatever moved -- the last requests before the write that
     persists the verdict: a write composed over the older records would put
     them back over the newer, and the verdict it persists would be handed on
     as though nothing had. A comment or a subject that will not read writes
-    nothing: no verdict is persisted over a reading nobody took. Nor does a run
-    that does not name, as a whole number, the pull request its subject names
-    (`ReviewSubject.is_on_pull_request`): its feedback, its fix, or
-    its approval would go to another pull request than the one reviewed, so
-    it is refused before anything is minted, written, or published.
+    nothing: no verdict is persisted over a reading nobody took. Nor does a
+    run that does not name, as a whole number, the pull request its subject
+    names (`ReviewSubject.is_on_pull_request`): its feedback, its fix, or its
+    approval would go to another pull request than the one reviewed, so it is
+    refused before anything is minted, written, or published.
     """
     run = decision.run
     if not run.subject.is_on_pull_request(run.pr_number):
@@ -354,8 +390,7 @@ def prepares_the_verdict(
     if run.subject_moved or not stands or evidence_moved:
         gh.write_pinned_state(issue, state)
         return Prepared()
-    in_hand = VerdictInHand(decision, claimed.claim, claimed.refusal, claimed.pending)
-    return in_hand._persists(gh, spec, issue, state)
+    return VerdictInHand.returned_by(decision, claimed)._persists(gh, spec, issue, state)
 
 
 def waiting_verdict_ready(

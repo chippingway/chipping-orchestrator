@@ -591,6 +591,16 @@ never settle — retired, superseded, or bound to a verification context that ha
 fresh reviewer, and so does a subject that moves while it waits. One the pinned comment has no room to persist, with
 the transaction its commands were minted as, is acted on not at all and parks under `reviewer_unrecorded`.
 
+The feedback a change request is persisted with, posted as on the pull request, and handed to its developer's fix prompt
+is one text: the reviewer's findings as `workflow/engine/review_findings.py` shows them, formatted only once the
+declaration has been read off the run's own message, which nothing rewrites. Every `VERIFICATION:` marker, `COMMAND:`
+and `EXIT:` line, and the output of each check shown to pass is set aside; a check not shown passing stays as a sentence
+naming its command and how it ended, over the output the reviewer quoted, which is the diagnostic the developer acts on.
+Findings that are a declaration and nothing else read as a sentence saying the reviewer stated none, never as the raw
+message they sit in. The transaction keeps every command, exit status, and output exactly, and the formatting decides
+nothing: a missing, malformed, stale, failing, or incomplete declaration is disposed of exactly as it would be
+unformatted, and no approval rests on what the findings show.
+
 A change request stands without evidence: its failed run is published before its feedback, and it is handed to the one
 developer it owes behind that feedback posted and anchored (`stages/validating/review_handoffs.py`), keeping its
 record through the relabel to `workflow:fixing` so a tick that stops between the relabel and the launch launches

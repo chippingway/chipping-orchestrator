@@ -184,7 +184,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             declaration, a RUN line through the closing line or a lone marker line: its fence lines go
                             while what it held stays with its check. What is shown declares nothing and formats to
                             itself, and findings with nothing left read as a sentence saying so rather than as the raw
-                            message
+                            message. `stages/validating/review_disposition.py` formats the feedback of every verdict a
+                            live reviewer round returns here, once the declaration is read, and that is the feedback a
+                            change request is persisted with, posted as, and handed to its developer as
     review_findings_fences.py
                             where the code of a reviewer's findings -- fences and indented code -- opens and ends as
                             Markdown renders it, for `review_findings`: a fence opens on a run at most three spaces
@@ -3794,7 +3796,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             parks it under `reviewer_unverified` only once the approval is held to its subject and claim
                             again, measured from the comment its readiness was proved over, a move there dropping it for
                             a fresh reviewer instead. Every write is composed over the comment as read just before it,
-                            keeping what another road wrote there, and drops only ever the verdict it holds
+                            keeping what another road wrote there, and drops only ever the verdict it holds. The
+                            feedback a verdict is persisted with -- what a change request posts and hands its developer,
+                            in that tick or from the record on a later one -- is the reviewer's findings formatted
+                            through `engine/review_findings.py` only once the declaration has been read off the run's
+                            own message, which nothing rewrites (`VerdictInHand.returned_by`): the declaration set
+                            aside, save each check not shown passing, kept as the diagnostic a developer acts on, while
+                            the transaction carries every command, exit status, and output exactly. The raw feedback is
+                            chosen before it is formatted, and the formatting never answers empty, so findings it left
+                            nothing of read as a sentence saying so rather than falling back to the raw message; it
+                            decides no claim, refusal, or approval
       review_handoffs.py    a persisted change request handed to the one developer it owes: the disposition calls it,
                             right behind proving it ready, and the recovery of a request an earlier tick left waiting
                             (`review_resume.py`), where its launch is still owed: only a change
