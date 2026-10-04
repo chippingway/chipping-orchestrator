@@ -3896,8 +3896,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        carries would pay a developer to answer a review of work that is not there; it is not acted on, and the run is
        recorded, wherever the subject moved while the reviewer ran or while it was resolved again. Otherwise it is
        persisted, the evidence its declaration earned -- a failed run included -- is published, and its handoff
-       (`validating/review_handoffs.py`) posts the feedback to the PR, then flips the label to `workflow:fixing` BEFORE
-       spawning
+       (`validating/review_handoffs.py`) posts the feedback to the PR -- the reviewer's findings with its verification
+       declaration set aside once that is read, each check not shown passing kept as its diagnostic, and the very words
+       the fix prompt quotes (`engine/review_findings.py`) -- then flips the label to `workflow:fixing` BEFORE spawning
        the dev so the active job is observably "fixing reviewer-requested changes". Resume the dev with the fix
        prompt (routed through `implementing/execution.py`'s bounded coordinator to recover premature AGY command exits
        before disposition), and read what it hands back through `validating/fix_reports.py`, which holds the round to
