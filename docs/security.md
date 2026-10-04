@@ -607,6 +607,11 @@ worker-thread clients), **and** its entire body is the state marker — exactly 
   state-only, so it is never mistaken for state — only a comment that is *nothing but* the marker qualifies.
 - **Legacy-safe, no migration.** Existing pinned comments were written by this same account and are state-only by
   construction, so both checks keep honoring them; state writes keep targeting the trusted comment id once found.
+- **The strict edit authenticates its target again.** The in-place edit a guarded commit lands through
+  (`edit_pinned_state`) rewrites the comment it names only while that comment still passes both checks above and still
+  reads as the record the write was derived over. It never posts: a pinned comment that was deleted, or edited into
+  anything that is no longer state, is refused rather than recreated beside whatever replaced it. The legacy write keeps
+  recreating a vanished record for the callers that rely on it.
 - **Independent of the comment boundary.** This authenticates *which comment is state*; `ALLOWED_ISSUE_AUTHORS`
   authenticates *which comments are input*. Both are enforced independently, and the state boundary applies even when
   the allowlist is unset.

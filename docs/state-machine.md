@@ -198,8 +198,11 @@ once a published report of it, still intact where it settled and written against
 push left, and the base refresh one for each clean auto rebase whose push lands, its crash recovery included, before
 the attempt is cleared or the issue routed to `workflow:validating`
 ([rewritten-head report debt](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)).
-Every key, what writes it, what spends it, and the legacy `codex_session_id` still honored on read are in
-[`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
+Most owners write the record whole from the state they read. A guarded commit -- defined, and adopted by no road yet --
+lays only the fields its caller owns over a fresh reading instead, refusing with nothing written where the comment, a
+record the decision rests on, or a field the caller is changing moved, or where the whole candidate would not fit one
+comment. Every key, what writes it, what spends it, the guarded commit, and the legacy `codex_session_id` still honored
+on read are in [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
 
 ## Stage handlers
 
