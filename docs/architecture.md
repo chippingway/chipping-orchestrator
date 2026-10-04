@@ -108,8 +108,11 @@ orchestrator/
                         verdict read off that output, the process registry and
                         the group operations every teardown spends, and one
                         module per backend
-  scheduler/            the `IssueScheduler` every tick shares and the typed
-                        submissions it takes
+  scheduler/            the `IssueScheduler` every tick shares, the typed
+                        submissions it takes, and the dormant host-local
+                        writer claim one issue's writes are meant to run
+                        under, with what a hold of it tells the pollers
+                        sharing it
   workflow/             the state machine: the label vocabularies and the
                         transition guard, the `engine/` owners one tick is
                         composed of, the `late_split/` domain a late generation
@@ -248,6 +251,24 @@ self-exit and be restarted with new code.
   one host scan in front of the candidates spends too) plus the candidate in hand. The barrier's own ≤30s wait is
   outside the hold entirely: a run that cannot go quiet never takes the host at all. A pass whose process dies
   holds nothing, since the kernel drops the lock with the file description.
+- **Issue writer claims** (`scheduler.writer_claims`, dormant): one exclusive `flock` per repository issue under
+  `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's numeric GitHub id (the client's `repo_id`, never a
+  name: neither the configured slug nor the `owner/name` a poller fetched before a rename) and the issue number, for
+  keeping a second poller on the host off one issue's pinned comment and labels. No dispatch path, family handler,
+  close recovery, or base refresh takes it yet, so pollers sharing a checkout root do not coordinate their issue
+  writes through it. It never waits: a key another process holds is refused at once, and different issues never
+  contend. A claim that cannot be worked at all — an unopenable namespace, a filesystem without `flock` — is refused
+  too, where the presence above lets a poller go on unclaimed: a tidying job can be given up, an issue's record cannot
+  be written uncoordinated. Inside one process it is exclusive between threads as well, except for a holder that asks
+  to be let in alongside this process's own writer, and the lock is kept until the last holder here leaves. Released
+  however the body ends and by the kernel when the process dies; the files are never unlinked. Every acquisition reads
+  what the last hold left, empties the file, and signs it with a per-process token, and a hold its own process lets go
+  of stamps the moment it did on the host's monotonic clock (a killed one stamps nothing, and counts as ending when
+  found, as does one whose last line was cut short), so a holder can ask (`scheduler.claim_notes`) whether another
+  poller held the issue after a given moment, and a contender can read the late cycle a hold that has not let go noted
+  it is retiring. It is host-local and separate from the presence: neither says anything about the other, and nothing
+  coordinates pollers on different hosts or checkout roots. The namespace's access and lifetime assumptions are in the
+  [operations runbook](configuration/operations.md#running-more-than-one-poller).
 - **Tick cadence**: every `POLL_INTERVAL` seconds (default 60).
 - **Artifact maintenance cadence** (`runtime.artifacts`, scheduled by `runtime.artifact_schedule`): at the end of the
   wait between two polling passes — never inside a tick, since a tick is what makes the host busy — and at most

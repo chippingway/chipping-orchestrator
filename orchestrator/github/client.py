@@ -5,8 +5,9 @@
 The concrete client resolves credentials, opens the PyGithub connection,
 creates independent worker clients whose repository is fetched on its first
 metadata read, and pairs stage-entry records across the audit and analytics
-sinks. Repository identity comes from the API object, with the configured slug
-as fallback and case-insensitive ownership checks.
+sinks. Repository identity comes from the API object: the name with the
+configured slug as fallback and case-insensitive ownership checks, and the
+numeric id, which survives a rename, with none.
 """
 from __future__ import annotations
 
@@ -116,6 +117,23 @@ class GitHubClient(
         if isinstance(repo, Repository):
             repo.complete()
         return getattr(repo, "full_name", None) or self._repo_slug
+
+    @property
+    def repo_id(self) -> int:
+        """The numeric id GitHub assigns this client's repository.
+
+        What a key that has to name one repository across processes is built
+        on, because no rename or transfer changes it. `repo_slug` is the name
+        GitHub answered when this client fetched the repository, so a poller
+        started before a rename and one started after it name one repository
+        two ways for as long as both run.
+
+        Read off the repository object, which a worker client fetches here on
+        its first metadata read, as `repo_slug` does. There is no fallback: a
+        repository that cannot be described has no id to stand in for, and
+        the read raises.
+        """
+        return int(self.repo.id)
 
     def is_own_repository(self, full_name: str | None) -> bool:
         """Whether `full_name` names the repository this client is for.

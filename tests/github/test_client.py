@@ -32,10 +32,12 @@ _CANONICAL_OWNER = "Owner"
 _CANONICAL_SLUG = f"{_CANONICAL_OWNER}/Repo"
 _CANONICAL_URL = f"https://api.github.com/repos/{_CANONICAL_SLUG}"
 _CANONICAL_PULLS_URL = f"{_CANONICAL_URL}/pulls"
+_REPO_ID = 42
 _REPO_PATH = f"/repos/{_REPO_SLUG}"
 _MISSING_LABEL_PATH = f"{_REPO_PATH}/labels/{_LEGACY_LABEL}"
 _WIRE_BODIES = MappingProxyType({
     _REPO_PATH: {
+        "id": _REPO_ID,
         "url": _CANONICAL_URL,
         "full_name": _CANONICAL_SLUG,
         "owner": {"login": _CANONICAL_OWNER},
@@ -115,6 +117,7 @@ class _RecordingWire:
 
     def __init__(self) -> None:
         self.requests: list[tuple[Requester, str, dict | None]] = []
+        self.bodies = _WIRE_BODIES
 
     def answer(self, requester: Requester, verb: str, url: str, **options):
         self.requests.append((requester, url, options.get("parameters")))
@@ -126,7 +129,7 @@ class _RecordingWire:
             )
         if url == _CANONICAL_PULLS_URL:
             return {}, []
-        return {}, _WIRE_BODIES.get(url, {"url": url, "number": _NUMBER})
+        return {}, self.bodies.get(url, {"url": url, "number": _NUMBER})
 
     def sent_by(self, client: GitHubClient) -> list[str]:
         """The URLs one client's own requester asked for, in order."""
@@ -253,17 +256,29 @@ class WorkerClientTest(unittest.TestCase):
         self.assertIs(worker.repo.requester, worker._gh.requester)
         self.assertFalse(worker.repo.completed)
 
-    def test_identity_completes_the_repository_once(self) -> None:
+    def test_identity_completes_once_without_fallback(self) -> None:
         # Built from the configured slug, an unfetched repository already
-        # spells a `full_name`; the canonical one is only on the fetched body.
+        # spells a `full_name`; the canonical one is only on the fetched body,
+        # and so is the id a writer claim is keyed on.
         worker = self.parent._for_worker_thread()
 
         for _ in range(2):
+            self.assertEqual(worker.repo_id, _REPO_ID)
             self.assertEqual(worker.repo_slug, _CANONICAL_SLUG)
             self.assertTrue(worker.is_own_repository(_CANONICAL_SLUG))
         self.assertEqual(worker.repo.owner.login, _CANONICAL_OWNER)
+        self.assertEqual(self.parent.repo_id, _REPO_ID)
 
         self.assertEqual(self.wire.sent_by(worker), [_REPO_PATH])
+
+        # The name has a fallback and the id has none: a description that
+        # carries no id raises rather than keying on any spelling of the name.
+        described = dict(_WIRE_BODIES[_REPO_PATH])
+        described.pop("id")
+        self.wire.bodies = {**_WIRE_BODIES, _REPO_PATH: described}
+        undescribed = self.parent._for_worker_thread()
+        self.assertRaises(TypeError, getattr, undescribed, "repo_id")
+        self.assertEqual(undescribed.repo_slug, _CANONICAL_SLUG)
 
     def test_branch_lookup_completes_the_owner_once(self) -> None:
         worker = self.parent._for_worker_thread()

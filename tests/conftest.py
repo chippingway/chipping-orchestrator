@@ -2,7 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Pytest fixtures shared by the whole test suite.
 
-The only fixture here disables the analytics sinks for every test.
+Two autouse fixtures keep the suite off the operator's own files: one
+disables the analytics sinks, and one gives every test its own issue
+writer-claim namespace.
+
+The first disables the analytics sinks for every test.
 `_run_agent_tracked` on `workflow/engine/usage.py` appends a record per
 tracked agent run, and the append reads `ANALYTICS_LOG_PATH` off the
 analytics `settings` holder at call time; that knob defaults to
@@ -29,9 +33,19 @@ The fixture also puts all six knobs back when the test ends. A test that
 re-parses the holder against its own environment reloads it in place, so
 the values it lands would otherwise outlive it and decide what the next
 test reads.
+
+The second exists because the host-local issue writer claim's namespace
+sits under `WORKTREES_DIR` -- which, unset as it is here, is the operator's
+own checkout root beside this repository. A test claiming `#7` there would
+contend with whatever else on the host holds it, and would leave its files
+behind. So each test claims in a directory of its own under one
+session root, made only if the test takes a claim at all, and a claim a
+test leaves held cannot reach the next one. A test that needs the real
+namespace patches `_namespace` back for itself.
 """
 from __future__ import annotations
 
+import itertools
 from importlib import import_module
 from unittest.mock import patch
 
@@ -44,6 +58,10 @@ normalize_test_environment()
 analytics_settings = import_module(
     "orchestrator.observability.analytics.settings",
 )
+
+writer_claims = import_module("orchestrator.scheduler.writer_claims")
+
+_claim_namespaces = itertools.count()
 
 _KNOBS = (
     "ANALYTICS_DB_URL",
@@ -65,3 +83,15 @@ def _disable_analytics_sink():
     finally:
         for name, knob in entering.items():
             setattr(analytics_settings, name, knob)
+
+
+@pytest.fixture(scope="session")
+def _writer_claim_root(tmp_path_factory):
+    return tmp_path_factory.mktemp("writer-claims")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_writer_claims(_writer_claim_root):
+    namespace = _writer_claim_root / str(next(_claim_namespaces))
+    with patch.object(writer_claims, "_namespace", lambda: namespace):
+        yield
