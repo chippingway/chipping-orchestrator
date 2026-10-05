@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.config import models as _config_models
@@ -19,6 +20,7 @@ from tests.git.worktrees.path_test_support import (
     _migration_spec,
     _spec,
 )
+from tests.support.repos_host import repos_only_host
 
 SHARED_CLONE_ROOT = Path("/tmp/shared-clone")
 
@@ -55,6 +57,21 @@ class WorktreePathSlugNamespaceTest(unittest.TestCase):
         self.assertEqual(path_b.name, "issue-7")
         self.assertEqual(path_a.parent.parent, config.WORKTREES_DIR)
         self.assertEqual(path_b.parent.parent, config.WORKTREES_DIR)
+
+    def test_repos_only_host_shares_one_derived_root(self) -> None:
+        # With nothing but `REPOS`, every repository's checkout lands in its
+        # own namespace under the one root beside the first target.
+        tokens = {ALICE_REPO_SLUG: "alice-token", BOB_REPO_SLUG: "bob-token"}
+        with repos_only_host(tokens) as host:
+            resolved = host.resolve()
+            with patch.object(config, "WORKTREES_DIR", resolved["WORKTREES_DIR"]):
+                checkouts = [
+                    paths._worktree_path(spec, 7) for spec in resolved["REPO_SPECS"]
+                ]
+            self.assertEqual(checkouts, [
+                host.clones / "wt-orchestrator" / namespace / "issue-7"
+                for namespace in ("alice__repo", "bob__repo")
+            ])
 
 
 class SanitizeSlugTest(unittest.TestCase):

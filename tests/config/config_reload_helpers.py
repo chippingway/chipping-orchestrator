@@ -13,11 +13,12 @@ from types import MappingProxyType, ModuleType
 from unittest.mock import patch
 
 _CONFIG_MODULE = "orchestrator.config"
+_TOKEN_FILE_ENV = "ORCHESTRATOR_TOKEN_FILE"
 _MISSING = object()
 _BASE_ENV = MappingProxyType(
     {
         "ORCHESTRATOR_SKIP_DOTENV": "1",
-        "ORCHESTRATOR_TOKEN_FILE": "/tmp/chipping-orchestrator-token-missing",
+        _TOKEN_FILE_ENV: "/tmp/chipping-orchestrator-token-missing",
     }
 )
 
@@ -41,14 +42,25 @@ def _restore_config(package: ModuleType, snapshot: _ConfigSnapshot) -> None:
         package.__dict__["config"] = snapshot.package_attribute
 
 
-def load_config(environment: dict[str, str] | None = None) -> ModuleType:
-    """Import configuration against an isolated environment and import cache."""
+def load_config(
+    environment: dict[str, str] | None = None,
+    *,
+    token_file_override: bool = True,
+) -> ModuleType:
+    """Import configuration against an isolated environment and import cache.
+
+    The hermetic missing `ORCHESTRATOR_TOKEN_FILE` keeps every repository
+    token empty; `token_file_override=False` leaves it out, so each
+    repository's own `~/.config/<owner>/<name>/token` answers instead.
+    """
     package = importlib.import_module("orchestrator")
     snapshot = _ConfigSnapshot(
         sys.modules.get(_CONFIG_MODULE),
         package.__dict__.get("config", _MISSING),
     )
     full_environment = dict(_BASE_ENV)
+    if not token_file_override:
+        full_environment.pop(_TOKEN_FILE_ENV)
     if environment:
         full_environment.update(environment)
     with ExitStack() as cleanup:

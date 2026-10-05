@@ -23,8 +23,8 @@ from pathlib import Path
 from typing import Any, NoReturn
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from orchestrator.config import credentials, layout
 from orchestrator.config._dotenv import _TRUE_VALUES, load_dotenv
-from orchestrator.config.credentials import resolve_github_token
 from orchestrator.config.models import RepoSpec
 from orchestrator.config.repositories import build_repo_specs
 
@@ -314,7 +314,6 @@ class _SettingsResolver:
         event_log_raw = env.get("EVENT_LOG_PATH", "").strip()
         return {
             "REPO": repo,
-            "GITHUB_TOKEN": resolve_github_token(repo),
             "POLL_INTERVAL": int(env.get("POLL_INTERVAL", "60")),
             "AGENT_TIMEOUT": agent_timeout,
             "REVIEW_TIMEOUT": int(env.get("REVIEW_TIMEOUT", str(agent_timeout))),
@@ -418,10 +417,9 @@ class _SettingsResolver:
     def _repos(self, resolved: dict[str, Any]) -> dict[str, Any]:
         env = self._environ
         positive_int = PositiveIntParser(self._config_error)
-        target_root = Path(env.get("TARGET_REPO_ROOT", str(self._repo_root)))
         default_spec = RepoSpec(
             slug=resolved["REPO"],
-            target_root=target_root,
+            target_root=Path(env.get("TARGET_REPO_ROOT", str(self._repo_root))),
             base_branch=env.get("BASE_BRANCH", "main"),
             remote_name=env.get("REMOTE_NAME", "origin"),
             parallel_limit=positive_int(
@@ -430,11 +428,8 @@ class _SettingsResolver:
                 1,
             ),
         )
-        return {
-            "TARGET_REPO_ROOT": target_root,
-            "WORKTREES_DIR": Path(
-                env.get("WORKTREES_DIR", str(target_root.parent / "wt-orchestrator")),
-            ),
+        repo_settings: dict[str, Any] = {
+            "TARGET_REPO_ROOT": default_spec.target_root,
             "BASE_BRANCH": default_spec.base_branch,
             "REMOTE_NAME": default_spec.remote_name,
             "MAX_PARALLEL_ISSUES_PER_REPO": default_spec.parallel_limit,
@@ -450,6 +445,16 @@ class _SettingsResolver:
                 config_warning=self._config_warning,
             ),
         }
+        specs = repo_settings["REPO_SPECS"]
+        repo_settings["WORKTREES_DIR"] = Path(env.get("WORKTREES_DIR", str(
+            layout.default_worktrees_dir(
+                specs[0].target_root, from_repos=bool(env.get("REPOS", "").strip()),
+            ),
+        )))
+        repo_settings["GITHUB_TOKENS"] = credentials.resolve_github_tokens(
+            spec.slug for spec in specs
+        )
+        return repo_settings
 
     def _one_agent(self, setting_name: str, default: str) -> dict[str, Any]:
         spec = self._environ.get(setting_name, default)

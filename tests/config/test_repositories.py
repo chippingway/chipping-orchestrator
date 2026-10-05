@@ -12,6 +12,50 @@ from tests.config import (
     config_test_values as _config_cases,
 )
 
+_WORKTREES_DIR_ENV = "WORKTREES_DIR"
+_TARGET_ROOT_ENV = "TARGET_REPO_ROOT"
+_WORKTREES_DIR_NAME = "wt-orchestrator"
+_RootCase = tuple[str, dict[str, str], Path]
+_TARGET_PARENTS = ("first", "second", "developer")
+
+
+def _worktree_root_cases(scratch: Path) -> tuple[_RootCase, ...]:
+    """Name, environment, and expected root for each worktree-root default.
+
+    Every target is a git checkout under `real/`, named through the `links`
+    symlink to that directory, so a root taken from the resolved target would
+    land under `real/` rather than beside the path as it was written.
+    """
+    for parent in _TARGET_PARENTS:
+        _support.make_checkout(scratch / "real" / parent / "checkout")
+    (scratch / "links").symlink_to(scratch / "real", target_is_directory=True)
+    first, second, developer = (
+        scratch / "links" / name / "checkout" for name in _TARGET_PARENTS
+    )
+    repos = f"{_config_cases._ALPHA_REPO}|{first}|main;{_config_cases._BETA_REPO}|{second}|main"
+    return (
+        (
+            "repos through a symlink",
+            {_config_cases._REPOS_ENV: repos, _TARGET_ROOT_ENV: str(developer)},
+            first.parent / _WORKTREES_DIR_NAME,
+        ),
+        (
+            "relative repos target",
+            {_config_cases._REPOS_ENV: f"{_config_cases._ALPHA_REPO}|.|main"},
+            Path.cwd().parent / _WORKTREES_DIR_NAME,
+        ),
+        (
+            "developer target through a symlink",
+            {_TARGET_ROOT_ENV: str(developer)},
+            developer.parent / _WORKTREES_DIR_NAME,
+        ),
+        (
+            "explicit override",
+            {_config_cases._REPOS_ENV: repos, _WORKTREES_DIR_ENV: str(scratch / "explicit")},
+            scratch / "explicit",
+        ),
+    )
+
 
 class RepositoryConfigParsingTest(unittest.TestCase):
     """`REPOS` parses N entries; when unset the legacy single-repo trio
@@ -29,7 +73,7 @@ class RepositoryConfigParsingTest(unittest.TestCase):
         config = _reload.load_config(
             {
                 "REPO": _config_cases._LEGACY_REPO,
-                "TARGET_REPO_ROOT": _config_cases._LEGACY_ROOT,
+                _TARGET_ROOT_ENV: _config_cases._LEGACY_ROOT,
                 "BASE_BRANCH": _config_cases._LEGACY_BRANCH,
             }
         )
@@ -50,7 +94,7 @@ class RepositoryConfigParsingTest(unittest.TestCase):
         config = _reload.load_config(
             {
                 "REPO": _config_cases._LEGACY_REPO,
-                "TARGET_REPO_ROOT": _config_cases._LEGACY_ROOT,
+                _TARGET_ROOT_ENV: _config_cases._LEGACY_ROOT,
                 "BASE_BRANCH": "main",
                 "REMOTE_NAME": _config_cases._PRIVATE_REMOTE,
             }
@@ -115,7 +159,7 @@ class RepositoryConfigParsingTest(unittest.TestCase):
             config = _reload.load_config(
                 {
                     "REPO": "ignored/legacy",
-                    "TARGET_REPO_ROOT": "/nonexistent",
+                    _TARGET_ROOT_ENV: "/nonexistent",
                     "BASE_BRANCH": "ignored",
                     _config_cases._REPOS_ENV: f"{_config_cases._ALPHA_REPO}|{td}|main",
                 }
@@ -145,6 +189,35 @@ class RepositoryConfigParsingTest(unittest.TestCase):
         self.assertIn("does not exist", captured_stderr.getvalue())
         self.assertIn(_config_cases._ALPHA_REPO, captured_stderr.getvalue())
         self.assertEqual(captured_stdout.getvalue(), "")
+
+
+class WorktreeRootDefaultTest(unittest.TestCase):
+    """One worktree root per process, `wt-orchestrator` beside the first target.
+
+    With `REPOS` set, the first entry's checkout decides it and a leftover
+    `TARGET_REPO_ROOT` does not; without it, the developer checkout's default
+    beside `TARGET_REPO_ROOT` (the orchestrator checkout itself unless
+    overridden) stands exactly as that setting is spelled. Either way a target
+    named through a symlink keeps its root beside that spelling, a relative
+    `REPOS` target is placed beside the directory it names rather than inside
+    it, and an explicit `WORKTREES_DIR` always wins.
+    """
+
+    def test_root_follows_the_first_configured_target(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            for case, environment, expected in _worktree_root_cases(Path(td).resolve()):
+                with self.subTest(case=case):
+                    self.assertEqual(
+                        _reload.load_config(environment).WORKTREES_DIR, expected,
+                    )
+
+    def test_developer_default_sits_beside_checkout(self) -> None:
+        config = _reload.load_config()
+
+        self.assertEqual(
+            config.WORKTREES_DIR,
+            config.REPO_ROOT.parent / _WORKTREES_DIR_NAME,
+        )
 
 
 class RepositoryConfigValidationTest(unittest.TestCase):

@@ -10,17 +10,20 @@ module-level attribute so callers and tests keep patching them on
 `orchestrator.config` itself. The resolution lives in the leaves: `_dotenv`
 owns the `.env` loader, `environment` the env-value parsers and the resolver,
 `credentials` the token resolver and the secret redactor every stderr /
-verify-output / trajectory consumer masks with, `models` the repository-config data types
-(`RepoSpec`, `RepoEnvEntry`), and `repositories` the `REPOS` parsing and spec
-construction. `default_repo_specs` here returns a copy of the resolved list.
+verify-output / trajectory consumer masks with, `layout` the source-checkout
+versus installed distinction and the worktree root's default, `models` the
+repository-config data types (`RepoSpec`, `RepoEnvEntry`), and `repositories`
+the `REPOS` parsing and spec construction. `default_repo_specs` here returns a
+copy of the resolved list.
 
-Secrets are deliberately NOT loaded from REPO_ROOT/.env. The implementer agent
-runs in a sibling worktree with sandbox bypass, so anything readable inside
+Secrets are deliberately NOT loaded from any .env. The implementer agent runs
+in a sibling worktree with sandbox bypass, so anything readable inside
 REPO_ROOT (including .env) is recoverable by a prompt-injected agent via a
 relative-path read like `cat ../chipping-orchestrator/.env`. GITHUB_TOKEN is
-only read from the process environment or from a token file outside REPO_ROOT
-(default `~/.config/<owner>/<repo>/token` derived from REPO, override with
-ORCHESTRATOR_TOKEN_FILE).
+only read from the process environment or from a token file outside REPO_ROOT:
+one per configured repository, at `~/.config/<owner>/<repo>/token` derived
+from that repository's slug, unless ORCHESTRATOR_TOKEN_FILE names a single
+file for all of them.
 """
 from __future__ import annotations
 
@@ -68,7 +71,7 @@ __all__ = [
     "DEV_SESSION_MAX_RESUMES",
     "EVENT_LOG_PATH",
     "EXPOSE_TRACKED_REPOS",
-    "GITHUB_TOKEN",
+    "GITHUB_TOKENS",
     "HITL_HANDLE",
     "HITL_HANDLES",
     "HITL_MENTIONS",
@@ -162,7 +165,15 @@ _RESOLVED = environment._SettingsResolver(
 
 
 REPO: str = _RESOLVED["REPO"]
-GITHUB_TOKEN: str = _RESOLVED["GITHUB_TOKEN"]
+
+# The distinct tokens the configured repositories resolve to, in
+# `default_repo_specs()` order -- each spec's slug through
+# `_resolve_github_token`, so a process `GITHUB_TOKEN` or an
+# `ORCHESTRATOR_TOKEN_FILE` collapses them to one. Held for the redactor
+# alone, which masks a file-backed token the environment scan cannot see:
+# the GitHub client and the git transport resolve their spec's token when
+# they need it rather than reading it here.
+GITHUB_TOKENS: tuple[str, ...] = _RESOLVED["GITHUB_TOKENS"]
 POLL_INTERVAL: int = _RESOLVED["POLL_INTERVAL"]
 AGENT_TIMEOUT: int = _RESOLVED["AGENT_TIMEOUT"]
 
@@ -347,6 +358,17 @@ AGENT_GIT_EMAIL: str = _RESOLVED["AGENT_GIT_EMAIL"]
 # git history -- not the orchestrator's own.
 TARGET_REPO_ROOT: Path = _RESOLVED["TARGET_REPO_ROOT"]
 
+# The one root every configured repository's worktrees live under, each in its
+# own `<owner>__<name>` namespace, beside the host lock and the writer claims
+# that make it the process-wide meeting point. Unset, it is `wt-orchestrator`
+# beside the first configured target: the first `REPOS` entry's `target_root`,
+# or `TARGET_REPO_ROOT` exactly as spelled when `REPOS` is unset (see
+# `layout.default_worktrees_dir`). Derived from a target rather than from this
+# package, so an installed run never lands it inside the environment it was
+# installed into; and from the first target alone, so it is one deterministic
+# directory however far apart the targets lie. Reordering `REPOS` therefore
+# moves it -- pin it explicitly on a host with work in flight, or one where
+# pollers list their repositories differently.
 WORKTREES_DIR: Path = _RESOLVED["WORKTREES_DIR"]
 
 # Base branch in the *target* repo: where worktrees branch from and where PRs

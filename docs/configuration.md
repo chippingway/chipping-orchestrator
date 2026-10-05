@@ -5,11 +5,11 @@ description: >-
 ---
 # Configuration reference
 
-All settings load from `.env` (or the process environment). [`../.env.example`](../.env.example) holds the basic
-parameters needed for a first run; [`../.env.example.advanced`](../.env.example.advanced) carries common advanced
-overrides and illustrative examples for opt-in settings. This page and the two beside it are the source of truth —
-every setting and every default lives on one of them, and both `.env.example*` files keep their inline comments terse
-and link back for the full rationale.
+All settings load from a `.env` file ([which one](#where-env-is-read)) or the process environment.
+[`../.env.example`](../.env.example) holds the basic parameters needed for a first run;
+[`../.env.example.advanced`](../.env.example.advanced) carries common advanced overrides and illustrative examples for
+opt-in settings. This page and the two beside it are the source of truth — every setting and every default lives on
+one of them, and both `.env.example*` files keep their inline comments terse and link back for the full rationale.
 
 The orchestrator is deliberately stateless: every setting here selects backends and budgets at startup, or names
 files/paths outside the repo. Per-issue state lives in the issue's pinned JSON comment on GitHub.
@@ -27,12 +27,30 @@ Two companion pages carry what is read on its own rather than scanned for a valu
 Each of their sections keeps a one-paragraph pointer at its place below, so a link written against this reference
 still lands on the answer.
 
+## Where `.env` is read
+
+One `.env` file is read at startup, chosen by where the running package sits, and a value already in the process
+environment wins over the file:
+
+- **Source checkout** — `.env` at the checkout's root, the file `run.sh` reads `ORCHESTRATOR_BASE_BRANCH` from, and no
+  other. A checkout without one reads none. The package counts as running from a source checkout when its root —
+  the directory holding the `orchestrator/` package, which an editable install leaves inside the checkout — carries
+  git metadata of its own (a `.git` directory, or the `.git` file of a linked worktree whose git directory exists)
+  and a `pyproject.toml` naming `chipping-orchestrator`. Neither a repository enclosing that root nor the launch
+  directory counts.
+- **Installed package** — every other layout reads `~/.config/chipping-orchestrator/.env`, and never a `.env` beside
+  the package in its environment's `site-packages`.
+
+The file's directory is only where settings come from: it is never a target repository, and the worktree root is
+derived from the targets rather than from it. Both locations refuse the token keys
+([GitHub Personal Access Token](#github-personal-access-token)).
+
 ## Required
 
 - `GITHUB_TOKEN` — default _(required, env-only — not read from `.env`)_. fine-grained personal access token.
   A token written into `.env` is ignored with a warning at startup.
-- `ORCHESTRATOR_TOKEN_FILE` — default `~/.config/<owner>/<repo>/token` (from `REPO`). path to the personal access
-  token file (used when `GITHUB_TOKEN` is not in env)
+- `ORCHESTRATOR_TOKEN_FILE` — default `~/.config/<owner>/<repo>/token` for each configured repository. path to one
+  personal access token file that answers for every repository (used when `GITHUB_TOKEN` is not in env)
 - `HITL_HANDLE` — default `geserdugarov`. comma-separated GitHub logins to @-mention when a human is needed
 - `ALLOWED_ISSUE_AUTHORS` — default _(required)_. comma-separated GitHub logins the orchestrator takes work and
   comments from; what it gates is under [agent roles](#agent-roles). While it names nobody — unset, empty, or left
@@ -56,13 +74,20 @@ Create the personal access token at <https://github.com/settings/personal-access
 The token is deliberately NOT loaded from `.env`. The implementer agent runs in a sibling worktree with sandbox bypass,
 so anything readable inside `REPO_ROOT` (including `.env`) is recoverable by a prompt-injected agent via a relative-path
 read like `cat ../chipping-orchestrator/.env`. `GITHUB_TOKEN` (and the aliases `GH_TOKEN`, `GITHUB_PAT`,
-`GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `GIT_TOKEN`) found in `.env` is logged-and-skipped at startup.
+`GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `GIT_TOKEN`) found in either [`.env` location](#where-env-is-read)
+is logged-and-skipped at startup.
 
-Token resolution order:
+Token resolution order, for each configured repository — every `REPOS` entry, or `REPO` when `REPOS` is unset:
 
-1. `GITHUB_TOKEN` exported in the orchestrator's launch environment.
-2. The file at `~/.config/<owner>/<repo>/token` — path derived from `REPO`, override with `ORCHESTRATOR_TOKEN_FILE`.
-   Pick a path the agent worktree cannot reach via known relatives, and `chmod 600` it.
+1. `GITHUB_TOKEN` exported in the orchestrator's launch environment, for every repository alike.
+2. `ORCHESTRATOR_TOKEN_FILE`, when set: one file for every repository alike.
+3. The file at `~/.config/<owner>/<repo>/token`, path derived from that repository's own `owner/name`. A `REPOS`-only
+   setup therefore needs one file per entry and no `REPO`. Pick a path the agent worktree cannot reach via known
+   relatives, and `chmod 600` it.
+
+The GitHub client and the git fetch and push each resolve their repository's token when they need it. Startup also
+resolves every configured repository's token once, so the stderr and command output the orchestrator surfaces mask
+each of them, file-backed ones included.
 
 ## Target repository
 
@@ -93,8 +118,9 @@ Validation happens at import — a malformed entry, empty owner/name, empty base
 non-integer or non-positive `parallel_limit`, or a duplicate slug aborts startup with a clear error. A `target_root`
 that does not exist on disk warns to stderr but does not block startup.
 
-Each repo can have its own personal access token at `~/.config/<owner>/<repo>/token`, or a single `GITHUB_TOKEN`
-covering every listed repo. Worktrees are namespaced `WORKTREES_DIR/<owner>__<name>/issue-N` and PR branches are
+Each repo can have its own personal access token at `~/.config/<owner>/<repo>/token`, or a single `GITHUB_TOKEN` or
+`ORCHESTRATOR_TOKEN_FILE` covering every listed repo. Worktrees are namespaced `WORKTREES_DIR/<owner>__<name>/issue-N`
+under the [one shared root](#workspace-and-agent-identity) and PR branches are
 namespaced `orchestrator/<owner>__<name>/issue-N`, so two repos with the same issue number cannot collide on disk or on
 the branch ref — important when several `REPOS` entries share a `target_root` (e.g. one local clone with multiple
 remotes), where git would otherwise refuse to check the same `orchestrator/issue-N` ref out in two worktrees. In-flight
@@ -681,8 +707,16 @@ error.
 
 ## Workspace and agent identity
 
-- `WORKTREES_DIR` — default `../wt-orchestrator`. where per-issue git worktrees are created; layout is
-  `WORKTREES_DIR/<owner>__<name>/issue-N`
+- `WORKTREES_DIR` — default `wt-orchestrator` beside the first configured target, in the parent directory of the first
+  `REPOS` entry's `target_root`, or of `TARGET_REPO_ROOT` when `REPOS` is unset (`../wt-orchestrator` beside the
+  orchestrator checkout). where per-issue git worktrees are created, one root for every configured repository; layout
+  is `WORKTREES_DIR/<owner>__<name>/issue-N`. Symlinks stay as spelled: a target named through one keeps its root
+  beside that spelling. `TARGET_REPO_ROOT` is taken exactly as written, while a `REPOS` target is first made absolute
+  against the launch directory, so a relative `.` entry still puts the root beside that checkout rather than inside it.
+  The default never depends on where the package is installed or where `.env` was read from, but it does follow the
+  order of `REPOS`: set it explicitly before reordering entries on a host with issues in flight, and on a host whose
+  pollers list their repositories differently, since every poller on one host has to resolve the same root — see
+  [`configuration/operations.md#running-more-than-one-poller`](configuration/operations.md#running-more-than-one-poller)
 - `LOG_DIR` — default `<REPO_ROOT>/logs`. directory `runtime/logs.py` attaches its `FileHandler` under
   (`orchestrator.log`, rotated ~10 MiB × 5). Also the default parent for `ANALYTICS_LOG_PATH`
   (`LOG_DIR/analytics.jsonl`). Already covered by the `*.log` `.gitignore` rule.
