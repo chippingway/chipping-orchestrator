@@ -293,9 +293,9 @@ orchestrator/
                         A state read from the comment or written over it remembers what the comment carried then
                         (`PinnedState.synced`), spelled as its JSON is and outside the record itself, so what a
                         tick staged on it since can be told from what it read; a state a guarded commit did not
-                        land over -- refused, or sent and never confirmed -- is marked `withheld`, and the legacy
-                        write writes nothing for it, since written whole it would put back what another road
-                        wrote past it
+                        land over -- refused over a comment that moved, or sent and never confirmed -- is marked
+                        `withheld`, and the legacy write writes nothing for it, since written whole it would put
+                        back what another road wrote past it
     pull_request_reads.py
                         PR status, open and commit-pinned lookup, branch enumeration, and unreadable-publication
                         evidence; a caller choosing its publication thread can narrow to a base, while a caller
