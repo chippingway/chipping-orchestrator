@@ -52,7 +52,7 @@ log = logging.getLogger("orchestrator.workflow")
 def _drain_family_bucket(
     gh: GitHubClient,
     spec: _config_models.RepoSpec,
-    family_numbers: list[int],
+    partition: _poll_models._PollablePartition,
     *,
     semaphore_cm: contextlib.AbstractContextManager,
 ) -> None:
@@ -64,13 +64,16 @@ def _drain_family_bucket(
     exception isolation lives INSIDE this loop (one try/except per issue) so
     the bucket keeps draining if any single family handler raises; the function
     itself never raises, so the caller's `fut.result()` only ever surfaces a
-    programming-level failure.
+    programming-level failure. Each issue is taken under its own writer claim
+    by the pass `_fanout_task` builds for its reading, so one held by another
+    poller on this host is skipped and the drain goes on.
     """
-    for issue_number in family_numbers:
+    for issue_number in partition.family_numbers:
         try:
-            _dispatch_workers._refetch_and_process(
-                gh, spec, issue_number, semaphore_cm=semaphore_cm,
-            )
+            _dispatch_workers._fanout_task(
+                gh, spec, issue_number,
+                reading=partition.reading(issue_number), semaphore_cm=semaphore_cm,
+            )()
         except Exception:
             log.exception(
                 _scheduled_dispatch._PROCESSING_FAILED_LOG,
@@ -99,7 +102,7 @@ class _ParallelTickPlan:
                     _drain_family_bucket,
                     self.gh,
                     self.spec,
-                    self.partition.family_numbers,
+                    self.partition,
                     semaphore_cm=self.semaphore_cm,
                 )
             ] = family_sentinel
@@ -117,15 +120,7 @@ class _ParallelTickPlan:
                         self.gh,
                         self.spec,
                         issue_number,
-                        reading=_poll_models._PollReading(
-                            cleanup_only=(
-                                issue_number
-                                in self.partition.cleanup_numbers
-                            ),
-                            closed=(
-                                issue_number in self.partition.fanout_closed
-                            ),
-                        ),
+                        reading=self.partition.reading(issue_number),
                         semaphore_cm=self.semaphore_cm,
                     ),
                 )

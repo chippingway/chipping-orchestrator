@@ -12,10 +12,6 @@ only where that close ends the cycle being retired. A restart this process
 writes, which no claim note records, holds every close read before it ended
 off the fresh cycle; and a receipt scan asked under the claim is owed again
 once another poller has held the issue since it walked.
-
-Asked directly: no production pass carries a read moment, scopes a close,
-opens a retirement window with the repository's id, fences a restart, or
-scans under the claim yet.
 """
 from __future__ import annotations
 
@@ -138,13 +134,13 @@ class ClaimedRetirementTest(ObservedCloseCase, unittest.TestCase):
                 self._fresh_process()
                 window = _retiring_cycles.retiring(_SLUG, _ISSUE, _CYCLE, _REPO_ID)
                 with _held_here(), window.held():
-                    self._latch_close(_SLUG, _ISSUE)
+                    _observations.observe_close(_SLUG, _ISSUE)
                     _observations.scope_close(_SLUG, _ISSUE, scope)
                 self.assertIs(window.observed, reported)
 
     def test_a_window_without_the_id_notes_none(self) -> None:
-        # Every production retirement leaves the id out: nothing is noted on
-        # the claim, and any close latched inside the window is reported.
+        # Nothing is noted on a claim the window cannot name, and a close
+        # scoped to another cycle is still not this retirement's to report.
         window = _retiring_cycles.retiring(_SLUG, _ISSUE, _CYCLE)
         with _held_here(), window.held():
             self._latch_close(_SLUG, _ISSUE)
@@ -152,7 +148,7 @@ class ClaimedRetirementTest(ObservedCloseCase, unittest.TestCase):
             noted = _claim_notes.noted_retirement(_REPO_ID, _ISSUE)
 
         self.assertIsNone(noted)
-        self.assertTrue(window.observed)
+        self.assertFalse(window.observed)
 
 
 class RestartFenceTest(ObservedCloseCase, unittest.TestCase):

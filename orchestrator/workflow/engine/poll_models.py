@@ -42,14 +42,29 @@ class _PollReading:
     classified into and may not be re-derived out of; `closed` is the same
     reading for an issue whose label names an ordinary terminal instead, where
     the guard that ends a live cycle is what reads it.
+
+    `read_at` is the moment the poll took before it listed the issue
+    (`claim_notes.moment`), or `None`: an unscoped close ends the record's
+    cycle only where no other poller has held the issue since.
+
+    `lane` is the admission the pass was given, which its refetch may not
+    widen; `None` is a pass nothing else runs beside.
     """
 
     cleanup_only: bool = False
     closed: bool = False
+    read_at: int | None = None
+    lane: str | None = None
 
 
 # What an ordinary open issue carries, which is nothing at all.
 _POLLED_OPEN = _PollReading()
+
+# The two admissions a refetch may not leave: a fan-out pass may not reach a
+# family-aware stage, and a capacity-exempt family bucket's may reach only the
+# dependency walks it was exempted for.
+_FANOUT_LANE = "fanout"
+_WALK_LANE = "walk"
 
 
 @dataclass(frozen=True)
@@ -61,13 +76,30 @@ class _PollablePartition:
     family-aware issue's workflow label. ``fanout_closed`` is the subset of
     ``fanout_numbers`` whose issue is already closed -- a cheap terminal
     finalize, or a cleanup pass over a closed owner's ledger, and neither
-    spawns, so both are submitted cap-exempt.
+    spawns, so both are submitted cap-exempt. ``family_closed`` is the same
+    for ``family_numbers``, there only when a label could not be read.
+    ``read_at`` is the moment the poll took before it listed any of them,
+    which every worker's reading carries.
     """
     family_numbers: list[int]
     family_labels: list[str | None]
     fanout_numbers: list[int]
     fanout_closed: set[int]
     cleanup_numbers: set[int] = field(default_factory=set)
+    read_at: int | None = None
+    family_closed: set[int] = field(default_factory=set)
+
+    def reading(self, issue_number: int, *, exempt: bool = False) -> _PollReading:
+        """What the poll established about one issue; `exempt` is a family bucket admitted with no slot."""
+        lane = _FANOUT_LANE
+        if issue_number in self.family_numbers:
+            lane = _WALK_LANE if exempt else None
+        return _PollReading(
+            cleanup_only=issue_number in self.cleanup_numbers,
+            closed=issue_number in self.fanout_closed or issue_number in self.family_closed,
+            read_at=self.read_at,
+            lane=lane,
+        )
 
 
 @dataclass
@@ -90,7 +122,9 @@ class _PollablePartitionBuilder:
     fanout_numbers: list[int] = field(default_factory=list)
     fanout_closed: set[int] = field(default_factory=set)
     cleanup_numbers: set[int] = field(default_factory=set)
+    read_at: int | None = None
     deferred: frozenset[int] = frozenset()
+    family_closed: set[int] = field(default_factory=set)
 
     yielded: set[int] = field(default_factory=set)
 
@@ -104,6 +138,8 @@ class _PollablePartitionBuilder:
         if not owed and _drains_in_family_bucket(label, closed):
             self.family_numbers.append(issue_number)
             self.family_labels.append(label)
+            if closed:
+                self.family_closed.add(issue_number)
             return
         self.fanout_numbers.append(issue_number)
         if closed or owed:
@@ -131,6 +167,8 @@ class _PollablePartitionBuilder:
             self.fanout_numbers,
             self.fanout_closed,
             self.cleanup_numbers,
+            self.read_at,
+            self.family_closed,
         )
 
 

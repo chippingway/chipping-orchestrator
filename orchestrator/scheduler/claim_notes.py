@@ -3,20 +3,18 @@
 """What the holds on an issue's writer claim tell the pollers that share it.
 
 Two questions a claim's `True` or `False` cannot answer, both about a close a
-poll read before it asked for the claim. Like the claim itself, they are asked
-by no poll, pass, or retirement yet; they are here for the callers that adopt
-the claim.
+poll read before it asked for the claim.
 
 The first is the holder's. A poll's closed reading is older than the claim a
 pass takes, and the record that pass reads names the cycle it names now: if
 another poller held the issue in between, it may have settled the cycle the
-close ended and started a fresh one. So a poll is to read `moment` before it
-reads anything off GitHub, and its closed reading to carry that moment to the
-pass; `writer_claims` learns, at every acquisition, when another poller's hold
-it finds on the key ended. A pass under the claim for which every such hold
-had ended before the poll's moment (`undisturbed_since`) knows no other poller
-has held the issue since the close was read, and that the record it holds is
-the one the close was read against. A hold that ended before the poll -- a
+close ended and started a fresh one. So a poll reads `moment` before it reads
+anything off GitHub, and its closed reading carries that moment to the pass;
+`writer_claims` learns, at every acquisition, when another poller's hold it
+finds on the key ended. A pass under the claim for which every such hold had
+ended before the poll's moment (`undisturbed_since`) knows no other poller has
+held the issue since the close was read, and that the record it holds is the
+one the close was read against. A hold that ended before the poll -- a
 restarted poller's own predecessor's included -- is no reason to doubt it.
 
 The second is the contender's. A refusal says only that somebody holds the
@@ -105,10 +103,9 @@ def noted_retirement(repo_id: int, issue_number: int) -> int | None:
 def moment() -> int:
     """Now, on the clock every hold on this host stamps its release with.
 
-    For a poll to read BEFORE it lists anything, so the moment a closed
-    reading carries is no later than the read it describes: a hold another
-    poller made while the poll was reading counts as one made after it, never
-    before.
+    Read by a poll BEFORE it lists anything, so the moment a closed reading
+    carries is no later than the read it describes: a hold another poller
+    made while the poll was reading counts as one made after it, never before.
     """
     return writer_claims._holdings.moment()
 

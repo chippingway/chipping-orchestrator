@@ -56,7 +56,7 @@ from tests.workflow.fixtures import (
     _PatchedWorkflowMixin,
 )
 from tests.workflow.interleaving import _RacesPastTheStep
-from tests.workflow.observation_support import ObservedCloseCase
+from tests.workflow.observation_support import ObservedCloseCase, read_now
 from tests.workflow.report_values import _named_description, _reported
 
 _ISSUE = 6310
@@ -122,13 +122,17 @@ class _PublishingCase(ObservedCloseCase, _PatchedWorkflowMixin):
         is nothing to end -- which is what this issue's record says.
         """
         self.issue.closed = True
-        _dispatch_closure._recorded_at_poll(self.github, _TEST_SPEC, self.issue)
+        _dispatch_closure._recorded_at_poll(
+            self.github, _TEST_SPEC, self.issue, read_now(),
+        )
 
     def _refused_submit(self) -> None:
-        """What the poll does when the scheduler turns its submit away."""
-        self.issue.closed = True
+        """What the poll does when the scheduler turns its submit away, having read the issue closed."""
+        self._polled_closed()
         _dispatch_closure._refused_submit(
-            self.github, _TEST_SPEC, _ISSUE, cleanup_only=False, closed=True,
+            self.github, _TEST_SPEC, _ISSUE, _poll_models._PollReading(
+                closed=True, read_at=read_now(),
+            ),
         )
 
 

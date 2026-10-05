@@ -10,9 +10,8 @@ that, naming the same cycle; a close that cannot be confirmed is held
 unresolved and ends no cycle on its own. A retirement the holder noted on the
 claim stands in for the cycle the record has stopped naming.
 
-Dormant: a poll is refused an issue's writer claim only once the dispatch
-takes one, and no dispatch path does yet, so nothing in production calls this
-owner. It is complete for the activation that routes a refused issue here.
+Reached from every dispatch seam the claim refuses with a closed reading in
+hand (`issue_processing._writer_claim`), and from nowhere else.
 """
 from __future__ import annotations
 

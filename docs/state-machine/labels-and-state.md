@@ -268,7 +268,9 @@ The dispatch loop classifies each pollable issue by workflow label before submit
 
 - **Family-aware labels** (`workflow:decomposing`, `workflow:blocked`, `workflow:umbrella`, unlabeled pickup) read and
   write cross-issue state (parent ↔ child). They are folded into one bucket per repo that drains sequentially on a
-  single worker thread, so parent / child handlers cannot race. A bucket whose every label is in
+  single worker thread, so parent / child handlers in one process cannot race; another poller on the host is kept off
+  them only by the writer claims below, which is why a parent's write to a child reads the child again under the
+  child's claim rather than trusting its scan. A bucket whose every label is in
   `_CAP_EXEMPT_FAMILY_LABELS` (`workflow:blocked` or `workflow:umbrella` — pure label / dep-graph walks) runs on a
   dedicated executor and does not consume a `MAX_PARALLEL_ISSUES_*` slot, so a blocked parent waiting on children
   cannot deadlock those children. A **closed** issue on a cleanup-swept label is not in this bucket at all: its
@@ -293,17 +295,89 @@ The duplicate-active gate keys on `(repo_slug, issue_number)`: an in-flight hand
 reported active to the next poll's submit, which is rejected as `duplicate_active`. The pre-tick base-refresh skips any
 active issue's worktree.
 
-That gate answers for this process alone. The host-local issue **writer claim** that is to answer for every poller on
-the host (`scheduler/writer_claims.py`) is complete and dormant: no dispatch path takes it yet, and the close handling
-that is to run under it is reached only directly. A poll refused the claim is to keep the close it read in its own
-latch, posting nothing, and scope it to a cycle only where the record, the issue behind it, and the record again behind
-that agree — a record that keeps moving or stops naming the cycle, or an issue open again, leaves it unresolved
-(`engine/contended_closes.py`). Inside `observation_state.claiming_closes()`, which no production path enters, a
-latched close ends a cycle only where a read scoped it there or no other poller has held the issue since it was read —
-nor this process's own restart, which no claim note records (`retiring_cycles.restarting()`) — so the dependency-walk
-barrier, the poll's close guard, and the closed-owner sweep leave a restarted cycle unmarked, a receipt is posted and
-remembered only for the cycle a confirmed close ends, and the receipt scan is owed per cycle and again behind another
-poller's hold. Production latches carry no scope or read moment, and every production barrier reads the latch alone.
+That gate answers for this process alone, so every dispatch path also takes the issue's host-local **writer claim**
+(`scheduler/writer_claims.py`) — an exclusive, non-blocking `flock` keyed by the repository's numeric GitHub id (the
+client's `repo_id`, never a name, so a rename leaves the key alone) and the issue number — before anything it does for
+the issue: the refetch, the pinned-state guards, the close recovery wrapped around the pass (the closed reading an
+ordinary pass keeps, the close a refetch establishes, the cleanup observation a sweep is held under), and the handler.
+The sequential loop takes it once an issue survives the hard-skip classification, which a closed or latched reading
+always does, as it does the partition's; the scheduler's fan-out task, its family-bucket iteration (inside
+`track_active`), and the in-tick pool's tasks take it as their worker starts, so a queued submit holds no claim. Every
+one of them then reads the issue again under it, the sequential loop included: the poll is older than the claim, and a
+poller that advanced the issue and let go in between would otherwise have its stage resumed from the label the poll
+read. The handler is the one the fresh label names; what the poll read is carried over that read only where it is a
+close, and binds there: a pass reading the issue open again applies the close to any late cycle and runs no stage, nor
+does one reading a stage outside its admitted lane (family work on a fan-out pass, anything but a dependency walk in a
+capacity-exempt bucket); the next poll admits either afresh, under the caps and the family bucket. The enumeration takes
+it too, for the one thing it writes: the pinned read and close receipt behind a closed fan-out issue, and the same pair
+a refused cleanup submit spends on a reading still held. Those two ask for it *alongside* — granted beside a worker of
+this same process that holds the issue, since the receipt is an added comment built to land beside one, and an
+ordinary exclusive attempt against every other process.
+
+An issue another poller on the host holds is skipped whole on every path: nothing is refetched, published, relabelled,
+written, run, or accounted for, and the submit's publication hold and any latched close are left as they were. A close
+the poll read for it is the one thing kept, in this process's latch alone — no receipt is posted — so a human reopening
+the issue before the claim comes back cannot take the reading away. The poll's reading is older than any read after it,
+and the holder may settle the cycle that close ended and start the fresh one an operator authorized in between, so the
+contender reads the record first, the issue behind it, and the record again behind the issue: only a close still
+standing there, with both record reads naming the same late cycle, is scoped to that cycle. A record that moved between
+them — the holder restarting the cycle in that window, and the close perhaps the fresh cycle's — is read again behind
+another issue read, a few times at most, and the close is scoped to the cycle the record settles on. A record a
+retirement has just emptied names none, and there the close is scoped to the cycle the holder noted on the claim it is
+retiring (`scheduler/claim_notes.py`), which a poller inside a retirement window notes for the rest of its hold, read as
+the claim is refused and again behind the reads; the record's own correlation is not enough, since it outlives every
+retirement. A close the record says ends nothing — no cycle, or one already marked — adds nothing, and leaves an older
+latch as it was. One reopened between the reads, whose reads failed, whose record never held still across them, or whose
+record named a cycle and then none is kept *unresolved*. The next tick routes the latch to a cleanup pass under the
+claim. A scoped close marks the cancellation if its cycle is still the record's — and puts a retired one back and
+cancels it — and is settled with nothing marked if the holder has since started a fresh cycle, unless the issue is read
+closed again after the holder let go, which is a close of the fresh cycle; an unresolved one marks only a cycle the
+issue reads closed over under the claim, and is settled with nothing marked on an issue open again.
+
+The same proof binds a close this process's own poll read. Every acquisition signs the claim file with a per-process
+token, every hold stamps the moment it let go on the host's monotonic clock, and an acquisition that finds another
+process's token notes when that hold ended — when it is found, for a hold killed before it could say, and for the empty
+file an issue's first claim on the host finds, which cannot say who held it last. A poll reads that clock before it
+lists anything; a closed reading carries the moment, and a latch keeps the moment of the latest closed reading merged
+into it, so the pass under the claim asks whether every hold of another poller found on the key had ended before it. If
+so, no other poller has written the record since the close was read, and a close nothing else ties to the record's cycle
+— none, or a scope the record has moved off — ends that cycle and is scoped to it. A lone poller is in that case,
+restarted or not — its predecessor's stamped hold ended before its poll began — except on an issue its predecessor was
+killed holding, or one no poller on the host has claimed before, until a claim finds that file. Otherwise the worker's
+guard marks nothing on a reopened issue and stops the tick, and the cleanup pass the latch routes it to next settles the
+reading. A claim that cannot be worked withholds the issue the same way rather than dispatching it uncoordinated. The
+scheduler's own gates still run first and are unchanged: duplicate-active, the caps, the family slot, and the
+refused-submit observation hold. An ordinary pass that finds a close latched once it holds the claim — a family drain or
+fan-out queued before a poll took it — runs as that close's cleanup rather than as the handler its label names, which is
+the route the partition gives an issue it finds owed. And every barrier that marks a cancellation inside a pass, the
+retirement window included, ends a cycle only with a close that ends that cycle, by the same scope and the same claim
+notes: a close held for a cycle another poller settled and restarted from ends none, and no receipt is posted or
+remembered for it, so the next poll that reads the issue closed ties that fresh close to the fresh cycle and posts for
+it. Every receipt confirms the close with an issue read behind the record, since a reader alongside this process's
+own writer can see that writer restart the cycle between its reads. A restart this process writes holds every older
+close off the fresh cycle for the same reason, from before its write lands, since no claim note records it, and a
+settlement a publication hold postponed keeps its close's scope but drops its moment; a poll retrying an owed close
+withdraws nothing.
+
+A family-aware handler writes issues other than its own, so those writes take the target's claim as well, and decide on
+what they read behind it. The walk that relabels a `workflow:blocked` child `workflow:ready` claims every child it would
+release, then reads each again — its scan was taken before any claim, and another poller may have relabelled, finished,
+or closed one in between — and releases none if one is held, cannot be read, or no longer reads open and
+`workflow:blocked`, parking nothing; the next walk scans again. Recovery's orphan repair stops short of a held child
+without parking; a merged child's finalize reads each claimed child again and counts it by that reading, so one another
+poller finalized, relabelled, or reopened since the scan is never finalized twice, and leaves a held child as scanned,
+counted neither done nor closed by hand; and the snapshot-reclaimed notice leaves a held consumer's obligation owed. An
+ordinary split's seed is read and added to under the child's claim, never written as a fresh record: a poller that
+reached the child first may have held it for the seed it lacks, parked on the one pinned comment every reader takes, and
+the seed lifts that park in the same write. A child that poller still holds is left unseeded while the split creates the
+rest, and the split stops short of its summary and finalize, leaving the parent `workflow:decomposing` with every child
+recorded — exactly what the [half-finished recovery](delivery-stages.md#_handle_decomposing-label-workflowdecomposing)
+seeds under the claim and finalizes on a later tick, with no human. Only a seed write that fails parks
+(`child_seed_failed`), and only a late split's placement parks on a held child, as its failed seed does
+(`late_children_failed`), for the next attempt to supersede. The pre-tick base refresh takes no claim: it skips only the
+worktrees of issues its own process's scheduler reports active. The supported topology and the namespace's access
+assumptions are in
+[`../configuration/operations.md#running-more-than-one-poller`](../configuration/operations.md#running-more-than-one-poller).
 
 Only issue numbers cross the thread boundary — each scheduler worker mints a fresh `GitHubClient` via
 `gh._for_worker_thread()` and re-fetches its Issue against that client. The mint itself sends no request: the clone
@@ -489,30 +563,30 @@ a close that was latched and receipted while the owner was still `workflow:decom
 under one of these — with the ending unmarked, the ref its children were cut from still held, and the latch that
 would route it living only in the process that took it. A restart before any cleanup pass would lose that ending for
 good, so the query is what makes it discoverable without one. Only their CLOSED issues are asked about: an open
-`workflow:ready` issue is polled and dispatched exactly as ever, and is not refetched the way an open owner on one of
-the two adjudication labels is. What it costs is one pinned read per closed issue on either, on the sweep cadence.
+`workflow:ready` issue is polled and dispatched exactly as ever. What it costs is one pinned read per closed issue on
+either, on the sweep cadence, and an issue read behind it where the record still names a cycle to end.
 
-`workflow:decomposing` and `workflow:umbrella` are swept closed for the same pass, and all four are the one case
-where the label does not choose the handler -- and the one case the `backlog` / `paused` filter does not get to drop,
-since discarding a closed owner there would discard the close itself and leave a live generation to spawn against
-after a reopen and an unpause. The control label defers what the pass would DO; the mark still lands. A split records
-what it owes the remote on the closing issue's own generation ledger — the branch its superseded candidate was
-committed on, and the immutable snapshot ref its children were cut from — and an issue a human closes mid-cycle is one
-nothing else would ever bring a tick back to. So the dispatcher reads *closed* first and routes both to the cleanup
-sweep ([`delivery-stages.md`](delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own)) rather than to
+`workflow:decomposing` and `workflow:umbrella` are swept closed for the same pass, and all four are the one case where
+the label does not choose the handler -- and the one case the `backlog` / `paused` filter does not get to drop, since
+discarding a closed owner there would discard the close itself and leave a live generation to spawn against after a
+reopen and an unpause. The control label defers what the pass would DO; the mark still lands. A split records what it
+owes the remote on the closing issue's own generation ledger — the branch its superseded candidate was committed on, and
+the immutable snapshot ref its children were cut from — and an issue a human closes mid-cycle is one nothing else would
+ever bring a tick back to. So the dispatcher reads *closed* first and routes both to the cleanup sweep
+([`delivery-stages.md`](delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own)) rather than to
 `_handle_decomposing` or `_handle_umbrella`, which would spawn the decomposer or activate children on an issue whose
-close was a decision to stop. The pass ends the cycle: it marks the cancellation, closes any pull request that
-cycle was holding, re-reads every recorded snapshot consumer, settles what can be settled, and moves the issue to
-`rejected` once nothing is owed. Being routed there at all is what says a close was *observed*, so an issue the pass
-finds open again — reopened between the poll and the worker's refetch — is marked cancelled and stopped there, with
-the ending left to the dispatcher's own guard from the next tick (under the dormant claim-aware reconciliation above,
-unless its record has moved on to a cycle restarted after the close). It does nothing else — no agent, no activation,
-and no child of the split touched. `rejected` is the only label it ever writes, and it is what takes the issue out of
-this sweep for good. It rides the same sweep walk, the same cadence, the same label cache, and the same absent-label
-throttle as the recovery labels above. It is partitioned as **fan-out** rather than into the family bucket, and
-submitted `cap_exempt=True` on its own: the bucket's exemption is all-or-nothing, so one open `workflow:decomposing`
-issue sharing the tick would make a closed owner cap-counted and, under a saturated cap, skipped — which would stop the
-repository reclaiming refs for as long as its decomposer stayed busy.
+close was a decision to stop. The pass ends the cycle: it marks the cancellation, closes any pull request that cycle was
+holding, re-reads every recorded snapshot consumer, settles what can be settled, and moves the issue to `rejected` once
+nothing is owed. Being routed there at all is what says a close was *observed*, so an issue the pass finds open again —
+reopened between the poll and the worker's refetch — is marked cancelled and stopped there, with the ending left to the
+dispatcher's own guard from the next tick (unless its record has moved on to a cycle restarted after the close, as
+above). It does nothing else — no agent, no activation, and no child of the split touched. `rejected` is the only label
+it ever writes, and it is what takes the issue out of this sweep for good. It rides the same sweep walk, the same
+cadence, the same label cache, and the same absent-label throttle as the recovery labels above. It is partitioned as
+**fan-out** rather than into the family bucket, and submitted `cap_exempt=True` on its own: the bucket's exemption is
+all-or-nothing, so one open `workflow:decomposing` issue sharing the tick would make a closed owner cap-counted and,
+under a saturated cap, skipped — which would stop the repository reclaiming refs for as long as its decomposer stayed
+busy.
 
 - Closed `workflow:decomposing` / `workflow:umbrella` / `workflow:ready` / `workflow:blocked` — a snapshot owner a
   human closed mid-cycle, or one whose own decomposition outcome landed after that close. Its generation
@@ -608,33 +682,33 @@ The keys that matter for the state machine fall into a few groups:
   fresh conversation against the frozen candidate — see [the late run](#the-late-run) for the two conditions a resume
   takes.
 - **Decomposition.** `children`, `dep_graph` (`{child_idx_str: [child_idx, ...]}` — GitHub has no first-class blocks
-  relation), `decomposed_at`, `pickup_comment_id`. An ordinary split writes `expected_children_count`, `umbrella`,
-  the whole declared `dep_graph`, and `split_attempt` in one write before its first child exists. `split_attempt` is
-  sixteen lowercase hex digits minted for that split alone, and every child it creates carries it in a hidden body
-  receipt stamped after its slice,
+  relation), `decomposed_at`, `pickup_comment_id`. An ordinary split writes `expected_children_count`, `umbrella`, the
+  whole declared `dep_graph`, and `split_attempt` in one write before its first child exists. `split_attempt` is sixteen
+  lowercase hex digits minted for that split alone, and every child it creates carries it in a hidden body receipt
+  stamped after its slice,
   `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>:lineage=<owed>-->`, so a recovery
-  can find the child a crash left created and never recorded — and never mistake another split's child for it.
-  `<owed>` is the late lineage the split seeds that child with, `<root>-<depth>-<cycle>-<generation>`, or `none`. Only
-  a whole receipt counts, and the last one in a body governs, since a slice may quote another child's body ahead of
-  its own stamp. Any other `split_attempt` — another split's, a value no binary mints, or none — finds no receipt, so
-  a split an older binary made leaves nothing to adopt. A drift reset clears `split_attempt` with the rest of the
-  manifest, after writing that split's children — any unrecorded one found by its receipt — onto `late_consumers`,
-  and a `blocked` parent whose children all resolved drops it in a write ahead of its flip back to
-  `workflow:ready`. A child this orchestrator opened whose seed is not the one its receipt owes it — no
-  `parent_number` naming that parent, none of an owed `late_ancestry_*` group, a group partial, rewritten, or naming
-  another place in the lineage, any group on a child owed none, or a pointer at a snapshot other than the one that
-  split preserved, or half of one — is held by the dispatcher ahead of every handler but `done`'s and `rejected`'s,
-  and ahead of the step aside a live adjudication of its own takes, parked (the `park_awaiting_human` record's reason
-  `replacement_lineage_unproved`) once, then silently, until its parent's recovery writes that seed and lifts the park
-  in the same write, or a human does both by hand; one whose pinned comment will not parse is held with nothing
-  written. A restart an operator authorizes on such a child keeps the seed. A pointer is the one part a seed may lack,
-  since the child's own reuse guard drops the ref and its commit together once its ref is gone. The split's summary
-  ends on `<!--orchestrator-split-summary:issue=<parent>:attempt=<split_attempt>-->`, and a recovery that finalizes
-  the split posts one only where no comment of ours carries that receipt — so a summary GitHub refused is posted
-  again, one that landed ahead of a label write that failed is not, and a split recorded with no `split_attempt` gets
-  none. Inside the dormant `child_claims.claiming()` a split that meets a child another poller holds records it,
-  creates the rest, and leaves it unseeded with the parent on `workflow:decomposing`, withholding its summary, its
-  label, and its first release until that recovery has seeded the child.
+  can find the child a crash left created and never recorded — and never mistake another split's child for it. `<owed>`
+  is the late lineage the split seeds that child with, `<root>-<depth>-<cycle>-<generation>`, or `none`. Only a whole
+  receipt counts, and the last one in a body governs, since a slice may quote another child's body ahead of its own
+  stamp. Any other `split_attempt` — another split's, a value no binary mints, or none — finds no receipt, so a split an
+  older binary made leaves nothing to adopt. A drift reset clears `split_attempt` with the rest of the manifest, after
+  writing that split's children — any unrecorded one found by its receipt — onto `late_consumers`, and a `blocked`
+  parent whose children all resolved drops it in a write ahead of its flip back to `workflow:ready`. A child this
+  orchestrator opened whose seed is not the one its receipt owes it — no `parent_number` naming that parent, none of an
+  owed `late_ancestry_*` group, a group partial, rewritten, or naming another place in the lineage, any group on a child
+  owed none, or a pointer at a snapshot other than the one that split preserved, or half of one — is held by the
+  dispatcher ahead of every handler but `done`'s and `rejected`'s, and ahead of the step aside a live adjudication of
+  its own takes, parked (the `park_awaiting_human` record's reason `replacement_lineage_unproved`) once, then silently,
+  until its split or its parent's recovery writes that seed onto that record and lifts the park in the same write, or a
+  human does both by hand; one whose pinned comment will not parse is held with nothing written. A restart an operator
+  authorizes on such a child keeps the seed. A pointer is the one part a seed may lack, since the child's own reuse
+  guard drops the ref and its commit together once its ref is gone. The split's summary ends on
+  `<!--orchestrator-split-summary:issue=<parent>:attempt=<split_attempt>-->`, and a recovery that finalizes the split
+  posts one only where no comment of ours carries that receipt — so a summary GitHub refused is posted again, one that
+  landed ahead of a label write that failed is not, and a split recorded with no `split_attempt` gets none. A split that
+  meets a child another poller holds records it, creates the rest, and leaves it unseeded with the parent on
+  `workflow:decomposing`, withholding its summary, its label, and its first release until that recovery has seeded the
+  child.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records
@@ -3478,8 +3552,8 @@ rather than preserving.
   `late_ancestry_mirror_first` only while this split still holds the ref and records the child on `late_consumers`,
   dropped together once the ref has passed to a reclamation, a stamp standing alone left as it is — and refuses one
   carrying any other group, with nothing written over it. And a child whose seed no longer matches the receipt in its
-  body is held at dispatch, parked `replacement_lineage_unproved` once, until a recovery or a human writes the seed;
-  the recovery lifts that park in the same write, and a restart keeps the seed whole.
+  body is held at dispatch, parked `replacement_lineage_unproved` once, until the split, a recovery, or a human writes
+  the seed; the split and the recovery lift that park in the same write, and a restart keeps the seed whole.
 - **Pending owner check.** `late_owner_check_pending` says a completed run's outcome has not yet been cleared by a
   fresh read of the issue it belongs to. It is written *before* that read is taken and dropped when one succeeds or
   the cycle is cancelled, and while it is set no later tick may treat the generation as settled, however small,
@@ -4194,8 +4268,10 @@ rather than preserving.
   the close *inside* that write leaves a cycle-scoped receipt on the thread, and the record it would be adopted
   against has just stopped naming a cycle, so a process that dies before its own post-write barrier would strand the
   observation with nothing left to correlate it to. A record carrying the stamp and no generation is asked once per
-  owner per process whether the thread has that cycle's receipt; one that does gets the cycle put back, cancelled,
-  with the ledgers the retirement carried across, and the ordinary ending runs from there. Every retirement that drops
+  owner and cycle — and again once another poller on the host has held the issue since — whether the thread has that
+  cycle's receipt, unless this process already holds a close scoped to that cycle; one that does gets the cycle put
+  back, cancelled, with the ledgers the retirement carried across, and the ordinary ending runs from there. Every
+  retirement that drops
   a cycle records it — an authorized settlement's publication, the umbrella terminal's, a settled `blocked` parent's
   hand-back to its own work, and the size gate's own drop of a candidate it measured at or below the ceiling, which
   needs it for the same reason: the barrier behind each write belongs to the process that made it. All four take the

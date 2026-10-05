@@ -19,6 +19,7 @@ handler reads and writes.
 | know what a label means, or when it moves | [`state-machine.md`](state-machine.md) |
 | know which agent a stage spawns, under what prompt | [`workflow.md`](workflow.md) |
 | find a setting, or apply an edited `.env` | [`configuration.md`](configuration.md) |
+| run a second poller beside the first on one host | [running more than one poller][pollers] |
 | see what the orchestrator did, and what it cost | [`observability.md`](observability.md) |
 | trace functionality across published releases | [`release-timeline.md`](release-timeline.md) |
 | harden the deployment | [`security.md`](security.md) |
@@ -49,4 +50,5 @@ Grouped the way the site's navigation groups them.
   [analytics dashboard](observability/analytics-dashboard.md), [usage parser](observability/usage.md)
 - **Releases** — [release timeline](release-timeline.md)
 
+[pollers]: configuration/operations.md#running-more-than-one-poller
 [publishing]: configuration/operations.md#publishing-the-documentation

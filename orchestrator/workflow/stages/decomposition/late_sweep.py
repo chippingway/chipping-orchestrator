@@ -36,13 +36,10 @@ observed close cancels the generation irreversibly. So an issue that is open
 again is marked all the same and stopped there -- nothing external is done to
 an issue somebody just reopened, and the ending it now owes is the
 dispatcher's own guard's from the next tick, which is the one pass that owns a
-reopened cancelled owner.
-
-Inside `observation_state.claiming_closes()` -- which no production path enters
-yet -- it is marked only while its record is still on the cycle the close
-ended: the close is scoped to that cycle, and a record another poller, or this
-process, has since moved to a fresh one is not this close's to end -- nor is
-any cycle a close no read could tie to one.
+reopened cancelled owner. Marked, that is, while its record is still on the
+cycle the close ended: the close is scoped to that cycle, and a record another
+poller, or this process, has since moved to a fresh one is not this close's to
+end -- nor is any cycle a close no read could tie to one.
 
 An issue with no recorded generation is every issue the initial decomposer
 ever made, and it leaves without a write of its own.
@@ -71,7 +68,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import observation_state as _observation_state, observations as _observations
+from orchestrator.workflow.engine import observations as _observations
 from orchestrator.workflow.late_split import models as _late_models, state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation as _late_cancellation,
@@ -104,9 +101,8 @@ def _handle_closed_owner_cleanup(
     cycle irreversibly, and nothing else is done to it here: acting externally
     on an issue somebody has just reopened is not this pass's to do, and the
     mark is what hands it to the dispatcher's own guard, which owns a reopened
-    cancelled owner from the next tick and settles it there. Under the claim,
-    the one cycle it is not marked on is one the close never ended -- see
-    `_settled_elsewhere`.
+    cancelled owner from the next tick and settles it there. The one cycle it
+    is not marked on is one the close never ended -- see `_settled_elsewhere`.
 
     An owner with no cycle left is asked one question before it is stepped
     over, and then finished rather than stepped over. The question is the
@@ -253,17 +249,15 @@ def _settled_elsewhere(
 ) -> bool:
     """Whether the close this visit was routed for cannot be tied to this cycle.
 
-    Asked only under the claim, and only an issue open again can answer yes:
-    the cycle the record names may be a fresh one started after the close,
-    which the mark below would end for a close that predates it. The held
+    Only an issue open again can answer yes: the cycle the record names may
+    be a fresh one started after the close, which the mark below would end
+    for a close that predates it. The held
     close reaches only the cycle it is scoped to, or one `close_ends` ties it
     to; anything else is settled out of the sweep with nothing marked, by the
     cleanup observation that finds the issue open. A closed issue is a close
     standing now, which ends whatever cycle the record names, so the visit
     scopes what it holds to that cycle and goes on.
     """
-    if not _observation_state.claims_closes():
-        return False
     if issue_is_closed(issue):
         _observations.scope_close(spec.slug, issue.number, generation.cycle_id)
         return False

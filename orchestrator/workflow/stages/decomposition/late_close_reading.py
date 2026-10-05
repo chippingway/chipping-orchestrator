@@ -177,8 +177,7 @@ def _ending_cycle(
     retirement window another poller on this host held and noted on the
     claim, whose barrier never saw it (`contended_closes`), and it is what the
     cleanup pass under the claim adopts that cycle back from -- so it is owed,
-    and written down, rather than dropped as ending nothing. Only a contender
-    scopes a close that way, and none runs in production yet.
+    and written down, rather than dropped as ending nothing.
 
     None for a cycle already marked over as well as for no cycle at all:
     the ending is already on the record and the sweep its label names is
@@ -231,12 +230,10 @@ def _owns_a_live_cycle(
     a read this orchestrator can afford.
 
     Taken only where the receipt above is not being written from a read of
-    its own, which is the repeat case -- a poll whose thread already carries
-    the receipt, or one another poll is posting right now; under the issue's
-    writer claim only the second, since a memo there answers for one cycle
-    and the record is read to see which. The first pass answers this from the
-    read it wrote the receipt with, so the two never disagree about the same
-    record.
+    its own, which is the one case another poll is posting it right now: a
+    memo answers for one cycle, and the record is read to see which. The poll
+    posting it answers this from the read it wrote the receipt with, so the
+    two never disagree about the same record.
 
     Three answers rather than two, and the third is what keeps the reading
     safe. False is the record positively saying there is nothing to end -- no

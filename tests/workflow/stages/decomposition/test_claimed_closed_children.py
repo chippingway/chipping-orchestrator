@@ -4,14 +4,11 @@
 
 The finalize of a child an external merge closed writes its label, thread,
 and record; the notice that a consumer's snapshot is gone writes its thread.
-Another poller on this host may be dispatching either child, so inside
-`child_claims.claiming()` each write takes that child's claim first. A
-finalize is decided on the child read again behind the claim, so a child that
-poller finalized since the parent's scan is never finalized twice; a notice
-is a comment built to land beside this process's own handler, so only another
-process's hold keeps it owed.
-
-No production pass makes these writes inside `claiming()` yet.
+Another poller on this host may be dispatching either child, so each write
+takes that child's claim first. A finalize is decided on the child read again
+behind the claim, so a child that poller finalized since the parent's scan is
+never finalized twice; a notice is a comment built to land beside this
+process's own handler, so only another process's hold keeps it owed.
 """
 from __future__ import annotations
 
@@ -21,7 +18,6 @@ from orchestrator.scheduler import writer_claims as _writer_claims
 from orchestrator.workflow.engine import terminals as _terminals
 from orchestrator.workflow.late_split import obligations as _obligations, phases as _late_phases
 from orchestrator.workflow.stages.decomposition import (
-    child_claims as _child_claims,
     late_cleanup_state as _late_cleanup_state,
     late_consumer_release as _late_consumer_release,
     parents as _parents,
@@ -87,17 +83,16 @@ class ClaimedMergeFinalizeTest(unittest.TestCase, _PatchedWorkflowMixin):
         _terminals._finalize_if_pr_merged(self.github, _TEST_SPEC, child, self.github.read_pinned_state(child))
 
     def _parked_on_children(self, scan=None) -> tuple:
-        """Whether the parent parks on its children inside `claiming()`, and the scan it asked of."""
+        """Whether the parent parks on its children, and the scan it asked of."""
         scan = scan or _parents._read_child_labels(self.github, self.parent, [_support.MERGED_CHILD])
         answered = []
         state = self.github.read_pinned_state(self.parent)
-        with _child_claims.claiming():
-            self._run(
-                lambda: answered.append(
-                    _parents._parked_on_children(self.github, _TEST_SPEC, self.parent, state, scan),
-                ),
-                run_agent=_agent(),
-            )
+        self._run(
+            lambda: answered.append(
+                _parents._parked_on_children(self.github, _TEST_SPEC, self.parent, state, scan),
+            ),
+            run_agent=_agent(),
+        )
         return answered[0], scan
 
 
@@ -131,7 +126,7 @@ class ClaimedConsumerNoticeTest(unittest.TestCase):
         self.assertEqual(self._told(), list(_CONSUMERS))
 
     def _released(self) -> bool:
-        """Deliver the ref's notices inside `claiming()`, and say whether every consumer was told."""
+        """Deliver the ref's notices, and say whether every consumer was told."""
         scan = _parents._read_child_labels(self.github, self.owner, list(_CONSUMERS))
         walk = _late_cleanup_state._Pass(
             gh=self.github,
@@ -146,8 +141,7 @@ class ClaimedConsumerNoticeTest(unittest.TestCase):
             phase=_late_phases.LatePhase.CLEANING_UP,
             obligations=_obligations.LateObligations().with_consumers(_CONSUMERS),
         )
-        with _child_claims.claiming():
-            _, told = _late_consumer_release._release_consumers(walk, generation, SNAPSHOT_REF, scan)
+        _, told = _late_consumer_release._release_consumers(walk, generation, SNAPSHOT_REF, scan)
         return told
 
     def _told(self) -> list[int]:

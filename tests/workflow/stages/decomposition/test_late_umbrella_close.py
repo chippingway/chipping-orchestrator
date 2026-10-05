@@ -17,9 +17,12 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.scheduler import writer_claims
+from orchestrator.workflow.engine import observations as _observations
 from orchestrator.workflow.state import WorkflowLabel
+from tests.support.writer_claims import signed_by_another_poller
 from tests.workflow.fixtures import _TEST_SPEC, _PatchedWorkflowMixin
-from tests.workflow.observation_support import ObservedCloseCase
+from tests.workflow.observation_support import ObservedCloseCase, read_now
 from tests.workflow.stages.decomposition.late_cancel_support import (
     settled_umbrella as _settled_umbrella,
 )
@@ -37,7 +40,7 @@ from tests.workflow.stages.decomposition.late_observation_seams import (
     latches_on_call,
     latches_on_child_scan,
 )
-from tests.workflow.stages.decomposition.late_test_support import KEYS
+from tests.workflow.stages.decomposition.late_test_support import CYCLE_ID, KEYS
 
 _WORKFLOW_LOG = "orchestrator.workflow"
 
@@ -50,6 +53,10 @@ _TRANSITION_GUARD = "WORKFLOW_TRANSITION_GUARD"
 _ENFORCE = "enforce"
 
 _TEST_SLUG = _TEST_SPEC.slug
+
+# The cycle before this umbrella's own: the one another poller on this host
+# settled and restarted from.
+_RESTARTED_FROM = CYCLE_ID - 1
 
 
 class LatchedCloseStopsTheUmbrellaTest(
@@ -110,6 +117,35 @@ class LatchedCloseStopsTheUmbrellaTest(
 
     def _record(self) -> dict:
         return self.seeded.github.pinned_data(PARENT_NUMBER)
+
+
+class AnotherCyclesCloseTest(
+    ObservedCloseCase, _PatchedWorkflowMixin, unittest.TestCase,
+):
+    """An umbrella holding a close scoped to the cycle a restart replaced.
+
+    Another poller on this host settled the cycle that close ended and an
+    operator restarted it, and let go after the close was read. The close is
+    no reading of the cycle this walk holds, so neither the walk's barriers
+    nor the window its terminal retires the cycle through may end that cycle
+    with it.
+    """
+
+    def setUp(self) -> None:
+        self._fresh_process()
+
+    def test_the_walk_completes_as_ever(self) -> None:
+        seeded = _settled_umbrella()
+        _observations.observe_close(_TEST_SLUG, PARENT_NUMBER, read_now())
+        _observations.scope_close(_TEST_SLUG, PARENT_NUMBER, _RESTARTED_FROM)
+        signed_by_another_poller(seeded.github.repo_id, PARENT_NUMBER)
+
+        with writer_claims.issue_writer(seeded.github.repo_id, PARENT_NUMBER) as held:
+            self.assertTrue(held)
+            walk_owner(self, seeded)
+
+        self.assertFalse(seeded.github.pinned_data(PARENT_NUMBER).get(KEYS.cancelled))
+        self.assertEqual(seeded.github.label_history, [(PARENT_NUMBER, WorkflowLabel.DONE)])
 
 
 class LatchedDuringTerminalCleanupTest(

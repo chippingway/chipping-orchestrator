@@ -4,7 +4,7 @@
 
 Its caller, `recovery`, holds the child across the read this decides on and
 the write it makes, since both are that child's record: under the child's
-writer claim inside `child_claims.claiming()`, with nothing taken outside it.
+writer claim, with nothing taken outside it.
 """
 from __future__ import annotations
 

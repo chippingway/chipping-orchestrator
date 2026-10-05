@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Durable late-child walk records, cancellation seals, and ancestry seeding.
 
-The parent records every created issue before the child is seeded -- inside
-`child_claims.claiming()`, seeded only under the child's own writer claim,
-which no production walk takes yet. A close seen inside the child read
-prevents its write, and a resumed walk seals only after every possible
-unrecorded child has been accounted for.
+The parent records every created issue before seeding it, and seeds it only
+under the child's own writer claim. A close seen inside the child read prevents
+its write, and a resumed walk seals only after every possible unrecorded child
+has been accounted for.
 """
 from __future__ import annotations
 
@@ -249,13 +248,12 @@ def _seeded(
     would leave the barriers behind it marking a cancellation that is already
     marked.
 
-    Inside `child_claims.claiming()` the read and the write, both the child's
-    record, are made under the child's own writer claim. A child another
-    poller on this host is writing -- or any claim this transaction cannot
-    take -- is one it cannot seed, and that is answered as the seed that
-    could not be made: the same park, which the next attempt supersedes and
-    resumes from the same recorded verdict, adopting the children already
-    recorded.
+    The read and the write are both the child's record, so they are made
+    under the child's own writer claim. A child another poller on this host
+    is writing -- or any claim this transaction cannot take -- is one it
+    cannot seed, and that is answered as the seed that could not be made:
+    the same park, which the next attempt supersedes and resumes from the
+    same recorded verdict, adopting the children already recorded.
     """
     described = f"child #{child_issue.number} ({child.get('title')!r})"
     try:

@@ -7,73 +7,37 @@ generation and clears its observation, the cycle that observation was scoped
 to, the moment it was read at, and its receipt memo together; callers hold the
 lock so those changes remain atomic with their own gate decisions. Whether a
 latched close ends a given cycle is answered here too, under that lock
-(`_ends`), for the claim-aware callers that ask it.
-
-Dormant: those callers are the stage reconciliations made inside
-`claiming_closes()`, which no production path enters, and the contender and
-restart owners nothing in production calls -- so no production latch carries
-a scope or a moment, and every production barrier reads the latch alone.
+(`_ends`), for every cancellation barrier and for the retirement window alike.
 """
 from __future__ import annotations
 
-import contextlib
-import contextvars
 import threading
-from collections.abc import Iterator
 
 from orchestrator.scheduler import claim_notes as _claim_notes
 
 # Closes observed and not yet settled; the cycle a read of the record said each
 # one ends; a moment no later than the read that found each, where its reader
-# knew one; the cycle whose durable receipt each reading has put on the thread
-# (none, for a production memo, which answers for the reading whole); the
-# owners a receipt is being posted for right now; how many readings of each
+# knew one; the cycle whose durable receipt each reading has put on the thread;
+# the owners a receipt is being posted for right now; how many readings of each
 # owner a pass has actually settled; the owners whose thread has been asked
-# about an inherited receipt, with the cycle it was asked for and the moment
-# it was asked at (neither, for a production walk); the cycle a worker is
-# retiring off each record right now; and the moment this process last wrote a
-# restarted cycle onto each. Module-level and lock-guarded, like the
-# running-process registry the agent runner keeps: the writer is the polling
-# thread and the readers are workers, so the record has to outlive both.
+# about an inherited receipt, with the cycle it was asked for and the moment it
+# was asked at; the cycle a worker is retiring off each record right now; and
+# the moment this process last wrote a restarted cycle onto each. Module-level
+# and lock-guarded, like the running-process registry the agent runner keeps:
+# the writer is the polling thread and the readers are workers, so the record
+# has to outlive both.
 _observed: set[tuple[str, int]] = set()
 _scopes: dict[tuple[str, int], int] = {}
 _since: dict[tuple[str, int], int] = {}
-_receipted: dict[tuple[str, int], int | None] = {}
+_receipted: dict[tuple[str, int], int] = {}
 _posting: set[tuple[str, int]] = set()
 _settlements: dict[tuple[str, int], int] = {}
-_scanned: dict[tuple[str, int], tuple[int | None, int | None]] = {}
+_scanned: dict[tuple[str, int], tuple[int, int]] = {}
 _retiring: dict[tuple[str, int], int] = {}
 _publishing: dict[tuple[str, int], int] = {}
 _deferred: set[tuple[str, int]] = set()
 _restarted: dict[tuple[str, int], float] = {}
 _lock = threading.Lock()
-
-# Whether the stage reconciliations made in this context answer as passes
-# under the issue's writer claim. A context variable rather than a registry,
-# so a worker thread -- which starts on a fresh context -- never inherits it
-# from whoever entered it.
-_claimed: contextvars.ContextVar[bool] = contextvars.ContextVar("claimed_closes", default=False)
-
-
-@contextlib.contextmanager
-def claiming_closes() -> Iterator[None]:
-    """Have every close reconciliation made inside the body answer under the issue's writer claim.
-
-    The internal entry point the claim-aware receipts, adoptions, barriers,
-    and sweep visits are reached through until the dispatch takes the issue's
-    writer claim, when entering it is the activation's to make. Outside it
-    each of them answers exactly as production always has.
-    """
-    token = _claimed.set(True)
-    try:
-        yield
-    finally:
-        _claimed.reset(token)
-
-
-def claims_closes() -> bool:
-    """Whether a close reconciliation made here answers under the issue's writer claim."""
-    return _claimed.get()
 
 
 def _owner_key(repo_slug: str, issue_number: int) -> tuple[str, int]:

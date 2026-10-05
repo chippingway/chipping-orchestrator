@@ -82,22 +82,21 @@ class ObservedCloseCase:
 
     @contextlib.contextmanager
     def _under_the_claim(self, repo_id: int, issue_number: int, *, alongside: bool = False):
-        """Hold the issue's writer claim, every close reconciliation inside answering as a pass under it.
+        """Hold the issue's writer claim, as the dispatch seam a reconciliation runs under does.
 
-        Both explicitly, since no production pass takes the claim or enters
-        `claiming_closes()` yet; `alongside` is the poll's receipt beside
-        this process's own writer.
+        `alongside` is the poll's receipt beside this process's own writer.
         """
-        with (
-            _writer_claims.issue_writer(repo_id, issue_number, alongside=alongside) as held,
-            _observation_state.claiming_closes(),
-        ):
+        with _writer_claims.issue_writer(repo_id, issue_number, alongside=alongside) as held:
             self.assertTrue(held)
             yield
 
     def _latch_close(self, repo_slug: str, issue_number: int) -> None:
-        """What the polling thread does with a close it can hand nowhere."""
-        _observations.observe_close(repo_slug, issue_number)
+        """What the polling thread does with a close it can hand nowhere.
+
+        Read now, so a hold of another poller the case makes afterwards is
+        one the reading predates.
+        """
+        _observations.observe_close(repo_slug, issue_number, read_now())
 
     def _observed(self, repo_slug: str) -> frozenset:
         """Which of this repo's closes no pass has settled."""

@@ -2,17 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """The families the claimed child-write cases drive, and a write that fails under a claim.
 
-Every family write here is made inside `child_claims.claiming()`, the entry
-point no production path enters yet, so each case reaches the claim-aware
-operation directly rather than through a tick.
+Each case reaches the family write directly rather than through a tick, so it
+can hand the write a scan read before another poller moved a child, or fail
+one write under its claim.
 """
 from __future__ import annotations
 
-from orchestrator.workflow.stages.decomposition import (
-    activation as _activation,
-    child_claims as _child_claims,
-    parents as _parents,
-)
+from orchestrator.workflow.stages.decomposition import activation as _activation, parents as _parents
 from tests.support.fakes import FakeGitHubClient, FakeIssue, FakePR, FakePRRef, make_issue
 from tests.support.writer_claims import claimable
 from tests.workflow.fixtures import _TEST_SPEC, LABEL_BLOCKED, LABEL_READY, LABEL_VALIDATING
@@ -44,10 +40,9 @@ def blocked_family(gh: FakeGitHubClient | None = None) -> tuple[FakeGitHubClient
 
 
 def walked(gh: FakeGitHubClient, parent: FakeIssue, scan=None) -> list:
-    """One claimed release walk, off `scan` or a scan read now, answering what it held."""
+    """One release walk, off `scan` or a scan read now, answering what it held."""
     scan = scan or _parents._read_child_labels(gh, parent, list(CHILDREN))
-    with _child_claims.claiming():
-        return _activation._activate_ready_children(gh, _TEST_SPEC, parent, gh.read_pinned_state(parent), scan)
+    return _activation._activate_ready_children(gh, _TEST_SPEC, parent, gh.read_pinned_state(parent), scan)
 
 
 def blocked_on_a_merged_child() -> tuple[FakeGitHubClient, FakeIssue]:

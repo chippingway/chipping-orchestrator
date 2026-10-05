@@ -28,7 +28,7 @@ from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     _authorized_exemption,
 )
-from tests.workflow.observation_support import ObservedCloseCase
+from tests.workflow.observation_support import ObservedCloseCase, read_now
 from tests.workflow.stages.implementing import late_gate_test_support as support
 
 _WORKFLOW_LOG = "orchestrator.workflow"
@@ -200,7 +200,7 @@ class _ClosingRetirement:
         answered = self._writing(issue, state, **written)
         if retiring:
             _observations.observe_close(
-                _REPO_SLUG, support.GATE_ISSUE_NUMBER,
+                _REPO_SLUG, support.GATE_ISSUE_NUMBER, read_now(),
             )
         return answered
 

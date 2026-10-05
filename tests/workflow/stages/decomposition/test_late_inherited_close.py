@@ -15,9 +15,8 @@ record still saying the cycle is live, nothing in memory -- and a thread that
 remembers. Adopting that receipt is the whole of this module, along with the
 two things that keep the adoption from costing more than it is worth: it is
 scoped to the cycle it was written for, and the thread is walked once per
-owner per process -- under the issue's writer claim, which no production pass
-takes yet, once per owner and cycle, and again only once another poller on
-this host has held the issue since.
+owner and cycle -- again only once another poller on this host has held the
+issue since.
 """
 from __future__ import annotations
 
@@ -52,14 +51,9 @@ _RETIRED = ((PARENT_NUMBER, WorkflowLabel.REJECTED),)
 # What the fake answers with when the request behind a listing fails outright.
 _OUTAGE = ConnectionError("github unreachable")
 
-# Each way an adoption can fail -- the thread walk raising, or the mark it
-# found refused -- taken as production takes it and under the issue's writer
-# claim, where the walk is per cycle and the claim-aware scan is the one owed.
-_FAILED_ADOPTIONS = tuple(
-    (claimed, failing)
-    for claimed in (False, True)
-    for failing in ("comments_after", "write_pinned_state")
-)
+# Each way an adoption can fail: the thread walk raising, or the mark it found
+# refused.
+_FAILED_ADOPTIONS = ("comments_after", "write_pinned_state")
 
 
 class InheritedCloseTest(
@@ -196,7 +190,7 @@ class AnotherPollersReceiptTest(
         self.assertTrue(_record(seeded)[KEYS.cancelled])
 
     def _routed_under_the_claim(self, seeded: SeededUmbrella) -> Mock:
-        """Route this owner holding its writer claim, as the claim-aware dispatch is to."""
+        """Route this owner holding its writer claim, as every dispatch path does."""
         with self._under_the_claim(seeded.github.repo_id, PARENT_NUMBER):
             return routed_owner(self, seeded, WorkflowLabel.DECOMPOSING)
 
@@ -240,26 +234,25 @@ class FailedReceiptScanTest(
         )
 
     def test_the_next_tick_takes_the_scan_again(self) -> None:
-        for claimed, failing in _FAILED_ADOPTIONS:
-            with self.subTest(claimed=claimed, failing=failing):
+        for failing in _FAILED_ADOPTIONS:
+            with self.subTest(failing=failing):
                 self.setUp()
                 with self.assertRaises(ConnectionError):
-                    self._routed(claimed, failing=failing)
+                    self._routed(failing=failing)
                 self.assertFalse(_record(self.seeded).get(KEYS.cancelled), "the failed tick marks nothing")
 
                 walked = _CountedComments(self.seeded.github)
                 with walked.counting(), self.assertLogs(_WORKFLOW_LOG):
-                    dispatched = self._routed(claimed)
+                    dispatched = self._routed()
 
                 self.assertTrue(walked.calls, "the next tick walks the thread again")
                 self.assertTrue(_record(self.seeded)[KEYS.cancelled])
                 dispatched.assert_not_called()
 
-    def _routed(self, claimed: bool, *, failing: str | None = None) -> Mock:
-        """Route this owner, under its writer claim if `claimed`, the client call `failing` names refusing."""
+    def _routed(self, *, failing: str | None = None) -> Mock:
+        """Route this owner under its writer claim, the client call `failing` names refusing."""
         with contextlib.ExitStack() as routing:
-            if claimed:
-                routing.enter_context(self._under_the_claim(self.seeded.github.repo_id, PARENT_NUMBER))
+            routing.enter_context(self._under_the_claim(self.seeded.github.repo_id, PARENT_NUMBER))
             if failing is not None:
                 routing.enter_context(patch.object(self.seeded.github, failing, side_effect=_OUTAGE))
             return routed_owner(self, self.seeded, WorkflowLabel.DECOMPOSING)

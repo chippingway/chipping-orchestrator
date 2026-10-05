@@ -1391,20 +1391,24 @@ state, which is the restart handshake itself, and never past a `backlog` / `paus
 the ending while the mark still goes down.
 
 A latch is memory, so the poll that takes one also leaves a cycle-scoped receipt on the issue thread — a comment,
-because the pinned comment is written whole and the worker holding the issue owns it. A post GitHub refuses is
-retried by the next poll, since an observation with no durable half is one a restart takes away entirely. After a
-restart the dispatcher's cancelled-cycle guard scans for that receipt once per owner per process, adopts it, and runs
-the ending from the mark ([state-machine/delivery-stages.md](../state-machine/delivery-stages.md)); a walk that could
-not answer, or whose mark GitHub refused, is taken again.
+because the pinned comment is written whole and the worker holding the issue owns it. A post GitHub refuses is retried
+by the next poll, since an observation with no durable half is one a restart takes away entirely. After a restart the
+dispatcher's cancelled-cycle guard scans for that receipt once per owner and cycle, and again once another poller on the
+host has held the issue since, adopts it, and runs the ending from the mark
+([state-machine/delivery-stages.md](../state-machine/delivery-stages.md)); a walk that could not answer, or whose mark
+GitHub refused, is taken again.
 
-Under the issue's writer claim, which no dispatch takes yet, the same reading is scoped to a cycle as well — the one
-the record named while the issue still read closed behind it — because another poller on the host can settle that
-cycle and start the fresh one an operator authorizes before this process holds the issue again. Those claim-aware
-reconciliations are complete and dormant, reached only inside `observation_state.claiming_closes()`: a close no read
-scoped ends the cycle a later pass finds only where no other poller has held the issue since it was read, nor this
-process restarted the cycle after it; a reopened owner on a cycle its close cannot be tied to is swept with nothing
-marked; no receipt is posted or remembered for a cycle a held close did not end, so the next poll that reads a fresh
-close still posts one; and the scan is owed per cycle and again behind another poller's hold.
+The latch is scoped to a cycle as well, the one the record named while the issue still read closed behind it — by that
+receipt's read, by a poller refused the issue's writer claim, which reads the record once more behind the issue and
+scopes nothing to a cycle the record moved off meanwhile, or by the sweep of the closed owner. Another poller on the
+host can settle that cycle and start the fresh one an operator authorizes before this process holds the issue again, so
+a latch that remembered only the issue would end the fresh cycle for a close older than it, and a record read after the
+issue was found closed proves nothing about which cycle that close ended. A close no read scoped to the cycle a later
+pass finds ends it only where no other poller has held the issue since the latest moment it was read closed, which the
+claim's signed holds tell, nor this process restarted the cycle after it: a close read again after a restart is a close
+of the fresh cycle. A reopened owner whose record names a cycle its close cannot be tied to is swept with nothing marked
+and its latch let go, and no receipt is posted for a cycle a held close did not end — nor remembered as posted, so the
+next poll that reads a fresh close still posts one.
 
 The latch is also held past a cleanup pass that RETURNED without finishing the ending — a ref a live consumer keeps,
 a delete the remote refused, a terminal GitHub declined — but only where nothing else would come back: an owner
@@ -2036,27 +2040,27 @@ finalized, or released. A child carrying no receipt — every child of an older 
 
 A child that carries a receipt and no `parent_number` naming that receipt's parent is one whose seed never landed — one
 a crash left created and never recorded, the child a short register leaves recorded and unseeded behind its parent's
-park, one a crash left between its record and its seed, or one another poller on the host held when a split inside
-the dormant `child_claims.claiming()` went to seed it — and nothing has proved its lineage. A seed that did land can
-lose its late ancestry, or part of it, or come to name another place in the lineage, by hand. An edit can still route
-any of them into its own `workflow:decomposing`, and a human can relabel it to `workflow:ready` or any other stage;
-every one of them would read the record as an issue no split made, or as one at another depth, run an agent with no ref
-kept for it, and start whatever it creates there — a replacement owed the lineage's last level splitting again past the
-bound. So the dispatcher holds the child against what its receipt says it was owed, ahead of every handler but a
-terminal's, ahead of the step aside a live adjudication of the child's own candidate takes, and ahead of the reuse
-guard that holds a late split's child whose ref is gone: a `parent_number` that is
-exactly the receipt's parent, and the `late_ancestry_*` group exactly as the receipt owes it — none of it on a child
-owed none, the whole group at that root, depth, parent, cycle, and generation on one owed a lineage. A pointer is the
-one part it may lack, because the reuse guard drops the ref and its commit together once the ref is gone; one it
-carries has to be that pair whole, naming the snapshot that split preserved. It is read off the last whole receipt in
-the body and the record the dispatcher already holds, so it costs no request, and only a receipt on an issue this
-orchestrator opened counts — a body is a field anyone can paste into. A held child parks `replacement_lineage_unproved`
-once — a park already standing holds it silently, and a reply is no seed — until its parent's recovery seeds it, which
-clears `awaiting_human` in the same write, or a human writes that seed and clears the park by hand. A restart an
-operator authorizes on the child's own cancelled cycle keeps the seed — the parent link and the ancestry, pointer
-included, and nothing of the cycle's candidate — so the restarted child is not held for a seed its split did write. A
-child whose pinned comment will not parse is held too, with nothing written over that comment and nothing said but the
-log on every tick, since the park's own write would replace whatever it carries.
+park, one a crash left between its record and its seed, or one another poller on the host held when its split went to
+seed it — and nothing has proved its lineage. A seed that did land can lose its late ancestry, or part of it, or come to
+name another place in the lineage, by hand. An edit can still route any of them into its own `workflow:decomposing`, and
+a human can relabel it to `workflow:ready` or any other stage; every one of them would read the record as an issue no
+split made, or as one at another depth, run an agent with no ref kept for it, and start whatever it creates there — a
+replacement owed the lineage's last level splitting again past the bound. So the dispatcher holds the child against what
+its receipt says it was owed, ahead of every handler but a terminal's, ahead of the step aside a live adjudication of
+the child's own candidate takes, and ahead of the reuse guard that holds a late split's child whose ref is gone: a
+`parent_number` that is exactly the receipt's parent, and the `late_ancestry_*` group exactly as the receipt owes it —
+none of it on a child owed none, the whole group at that root, depth, parent, cycle, and generation on one owed a
+lineage. A pointer is the one part it may lack, because the reuse guard drops the ref and its commit together once the
+ref is gone; one it carries has to be that pair whole, naming the snapshot that split preserved. It is read off the last
+whole receipt in the body and the record the dispatcher already holds, so it costs no request, and only a receipt on an
+issue this orchestrator opened counts — a body is a field anyone can paste into. A held child parks
+`replacement_lineage_unproved` once — a park already standing holds it silently, and a reply is no seed — until its
+split or its parent's recovery seeds it, adding to that record and clearing `awaiting_human` in the same write, or a
+human writes that seed and clears the park by hand. A restart an operator authorizes on the child's own cancelled cycle
+keeps the seed — the parent link and the ancestry, pointer included, and nothing of the cycle's candidate — so the
+restarted child is not held for a seed its split did write. A child whose pinned comment will not parse is held too,
+with nothing written over that comment and nothing said but the log on every tick, since the park's own write would
+replace whatever it carries.
 
 ### What a close mid-cycle ends, and what it still settles
 
@@ -2150,10 +2154,10 @@ which is where a receipt would only ever have been read.
 human who reopens the issue does not get that cycle back, and both labels an adjudication can be wearing name a
 handler that would act on the issue rather than settle it. Reopening fast enough does not undo it either: reaching
 the closed-owner route at all is what says a close was *observed*, so an issue that pass finds open again — a human
-who reopened it between the poll and the worker's refetch — is marked cancelled all the same, and stopped there (under
-the dormant writer-claim reconciliation, unless its record has moved on to a cycle restarted after the close).
-Nothing external is done to an issue somebody has just reopened and no terminal is written; the mark is what hands
-it to the guard below from the next tick. The dispatcher's own pinned-state guard catches that
+who reopened it between the poll and the worker's refetch — is marked cancelled all the same, and stopped there,
+unless its record has moved on to a cycle restarted after the close, which that close does not end and the pass
+leaves alone. Nothing external is done to an issue somebody has just reopened and no terminal is written; the mark is
+what hands it to the guard below from the next tick. The dispatcher's own pinned-state guard catches that
 window: it runs exactly the reconciliation above, reaches no handler, and writes the same terminal below. It *runs*
 the cleanup rather than merely refusing because the closed-owner sweep visits closed issues only, so a refusal with
 nothing behind it would freeze the issue until somebody closed it again. What it does not do is close the issue: a

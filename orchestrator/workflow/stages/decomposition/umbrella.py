@@ -116,7 +116,7 @@ def _complete_umbrella(
     if _publication_holds_the_terminal(gh, issue, state):
         return
     live = _umbrella_terminal._retired_cycle(state)
-    retiring = _retiring_cycles.retiring(spec.slug, issue.number, live.cycle_id)
+    retiring = _retiring_cycles.retiring(spec.slug, issue.number, live.cycle_id, gh.repo_id)
     with retiring.held():
         gh.write_pinned_state(issue, state)
     if _reinstated(gh, issue, state, live, retiring):

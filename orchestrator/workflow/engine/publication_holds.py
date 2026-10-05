@@ -48,6 +48,13 @@ def release_publication(repo_slug: str, issue_number: int) -> None:
     for one settlement. So a settle arriving as the last hold goes is either
     under this lock -- deferred, and taken here -- or past it and taken for
     itself, and there is no third moment for it to arrive in.
+
+    What is taken here is only the drop that is still postponed. The
+    scheduler's own hold is given back after the worker has let go of the
+    issue's writer claim, so a poll can latch a close in between -- another
+    poller on this host may have restarted the cycle by then -- and a close
+    latched after the drop was decided withdraws it (`observations`): that
+    reading is the next pass's to reconcile, not this one's to erase.
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:
