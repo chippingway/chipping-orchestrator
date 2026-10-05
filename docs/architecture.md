@@ -837,6 +837,10 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
 
 - **`cli.main` polling loop** — long-lived Python process. Trigger: manual start (or wrapper). Cadence: every
   `POLL_INTERVAL`s.
+- **target checks (`config.checkouts`)** — read-only `git rev-parse` subprocesses. Trigger: the configuration import
+  every launch makes once its options are read, before any GitHub client. Cadence: once per start — up to two per
+  selected target, and the same for the package root when proving a source checkout
+  ([`configuration.md#developer-fallback-and-target-checks`](configuration.md#developer-fallback-and-target-checks)).
 - **`workflow.engine.tick.tick(gh, spec)`** — function call. Trigger: each loop iteration. Cadence: once per tick per
   configured `RepoSpec`; multi-repo fans out across a `ThreadPoolExecutor`, single-repo stays in-thread.
 - **`_refresh_base_and_worktrees(gh, spec)`** — function call. Trigger: start of each `workflow.engine.tick.tick`.

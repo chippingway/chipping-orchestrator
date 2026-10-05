@@ -392,9 +392,12 @@ configuration examples lead back to the repository; the site does not publish th
   skip-and-warn contract.
 
   The wrapper relaunches after every exit that is not a signal stop, a refused start included: a launch whose
-  `ALLOWED_ISSUE_AUTHORS` names nobody, or whose settings fail validation, exits with status 1 and is started again a
-  second later. Such a deployment polls nothing and repeats the error on stderr each second until the `.env` is fixed
-  ([`../configuration.md#required`](../configuration.md#required)).
+  `ALLOWED_ISSUE_AUTHORS` names nobody, whose settings fail validation, or one of whose targets is not a checkout git
+  opens exits with status 1 and is started again a second later. Such a deployment polls nothing and repeats the
+  error on stderr each second until the cause is fixed — the `.env`
+  ([`../configuration.md#required`](../configuration.md#required)), or the target itself: a missing clone, broken git
+  metadata, or a checkout another user owns that `safe.directory` does not trust
+  ([`../configuration.md#developer-fallback-and-target-checks`](../configuration.md#developer-fallback-and-target-checks)).
 
   Ctrl+C (or `SIGTERM`) stops the wrapper: the orchestrator exits with `128 + signum` and `run.sh` skips the restart
   loop. A second Ctrl+C terminates immediately.
