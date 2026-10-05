@@ -426,8 +426,9 @@ Operator drill checklist (run at least once after setup, then on a recurring cad
 3. Verify that re-cloning the repo and re-running `./run.sh` against a fresh `WORKTREES_DIR` recovers in-flight Issues
    from their labels + pinned comments — the documented restart contract
    ([`configuration.md#what-survives-a-restart`](configuration.md#what-survives-a-restart)).
-4. Confirm `~/.config/<owner>/<repo>/token` (or whatever `ORCHESTRATOR_TOKEN_FILE` points at) is backed up out-of-band;
-   the personal access token is not stored in the repo and not recoverable from a code restore alone.
+4. Confirm each configured repository's `~/.config/<owner>/<repo>/token` (or whatever `ORCHESTRATOR_TOKEN_FILE` points
+   at) is backed up out-of-band; the personal access token is not stored in the repo and not recoverable from a code
+   restore alone.
 
 Worktrees under `WORKTREES_DIR` are cache, not state — losing them only forces the next tick to re-create the worktree
 from `origin/<base>`.

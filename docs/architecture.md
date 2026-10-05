@@ -93,6 +93,7 @@ orchestrator/
                         self-restart probes, and shutdown
   config/               the bottom layer: the non-secret `.env` loader, the
                         env parsers and resolver behind the settings surface,
+                        the source-checkout versus installed layout check,
                         credential resolution and secret redaction, and the
                         repository-config types
   github/               the composed `GitHubClient` and the pinned durable-

@@ -103,9 +103,10 @@ last is held by the loader itself rather than by a check.
   owner plants neither the CLI nor an app — `tests/runtime/test_imports.py` and `tests/apps/test_imports.py`.
 - **Direction inside `skills/`.** Neither owner may reach the workflow engine, a stage, or an application entry
   point: a catalog is observation the tick drives, not state a handler consults — `tests/skills/test_imports.py`.
-- **Secrets.** `GITHUB_TOKEN` is read from the process environment or a token file outside `REPO_ROOT`, never from
-  the `.env` an agent with sandbox bypass could read out of a sibling worktree: `config/_dotenv.py` skips every
-  secret key it finds there and warns instead of loading it — see
+- **Secrets.** `GITHUB_TOKEN` is read from the process environment or a token file outside `REPO_ROOT` — one per
+  configured repository unless `ORCHESTRATOR_TOKEN_FILE` names one for all — never from a `.env` an agent with
+  sandbox bypass could read: `config/_dotenv.py` skips every secret key it finds in either location and warns instead
+  of loading it — see
   [`../configuration.md#github-personal-access-token`](../configuration.md#github-personal-access-token).
 
 ## The map
