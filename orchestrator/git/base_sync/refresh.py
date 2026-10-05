@@ -5,13 +5,16 @@
 One authenticated fetch of `origin/<base>` per spec feeds every issue
 worktree that survived the previous tick, and what runs here is the sequence
 that fetch starts: an in-flight scheduler claim keeps a worktree out from
-under the worker still holding it, the `refresh_selection` owner beside this
-one answers whether the issue behind a discovered directory lets its branch be
-touched at all, a dirty pre-PR tree is left alone, and the lag against base
-says whether there is anything to carry over.
+under the worker still holding it, the issue's host-local writer claim keeps
+it out from under every other poller on the host and every other holder in
+this process, the `refresh_selection` owner beside this one answers whether
+the issue behind a discovered directory lets its branch be touched at all, a
+dirty pre-PR tree is left alone, and the lag against base says whether there
+is anything to carry over.
 What survives is routed by whether pinned state already carries a PR --
 `pre_pr` rebases the local branch nobody has pushed yet, while the PR-aware
-coordinator has to keep the pushed head and the reviewer's SHA in step.
+coordinator has to keep the pushed head and the reviewer's SHA in step. The
+writer claim is held across whichever of those routes is taken, to its end.
 """
 from __future__ import annotations
 
@@ -29,6 +32,7 @@ from orchestrator.git.base_sync.models import _AutoRebaseRequest
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import paths as _paths
 from orchestrator.github import client as _client
+from orchestrator.scheduler import writer_claims as _writer_claims
 from orchestrator.scheduler.service import IssueScheduler
 
 log = _state.log
@@ -58,7 +62,46 @@ def _worktree_behind_base(
 def _sync_worktree_with_base(
     gh: _client.GitHubClient, spec: _config_models.RepoSpec, worktree: Path, issue_number: int,
 ) -> None:
-    """Bring one per-issue worktree up to date with the configured base.
+    """Bring one per-issue worktree up to date with the configured base, as the issue's one writer.
+
+    The issue's writer claim is taken first, ahead of the issue read, and held
+    until the route the sync selects has ended. It is the claim every dispatch
+    path takes, on the same key -- the client's `repo_id` and the issue
+    number -- in the same namespace, because everything below reads and
+    rewrites what a dispatched handler, or another poller's refresh, reads and
+    rewrites: the pinned comment and labels, the checkout, and the pull
+    request's branch. That covers every route this can take -- the pre-PR
+    rebase, the PR rebase with its push, notice, debt, and relabel, the reset
+    and park over a checkout whose lag cannot be read, and an interrupted
+    attempt's recovery and settlement.
+
+    A refusal -- another poller dispatching or refreshing the issue, a writer
+    of this process's own holding it, a namespace nothing can be locked in --
+    reads nothing and writes nothing: no rebase, push, publication, label or
+    pinned write, event, or report debt. Only this issue is skipped, and the
+    next tick's refresh asks again.
+
+    Nothing under it asks for the claim again, since a second writer would be
+    refused by this hold. The one road below that the dispatcher reaches too
+    -- the answer a standing anchor is owed -- is reached there under the
+    dispatch claim the worker already holds, and takes none of its own either.
+    """
+    with _writer_claims.issue_writer(
+        gh.repo_id, issue_number, repo_name=spec.slug,
+    ) as held:
+        if not held:
+            log.debug(
+                "issue=#%d skipping base sync: its writer claim was refused",
+                issue_number,
+            )
+            return
+        _sync_claimed_worktree(gh, spec, worktree, issue_number)
+
+
+def _sync_claimed_worktree(
+    gh: _client.GitHubClient, spec: _config_models.RepoSpec, worktree: Path, issue_number: int,
+) -> None:
+    """Route one worktree whose issue's writer claim this refresh holds.
 
     Pre-PR worktrees are rebased locally when clean. PR worktrees always
     reach the PR-aware coordinator so a pinned crash-recovery anchor is
@@ -113,7 +156,12 @@ def _sync_discovered_worktree(
     issue_number: int,
     scheduler: IssueScheduler | None,
 ) -> None:
-    """Sync one discovered worktree unless its handler is still active."""
+    """Sync one discovered worktree unless its handler is still active.
+
+    The scheduler is asked ahead of the writer claim, since an issue its
+    worker is still running is one this process already knows to leave alone,
+    with no lock to take or skip line to log for it.
+    """
     if scheduler is not None and scheduler.is_active(
         spec.slug, issue_number,
     ):
@@ -203,6 +251,13 @@ def _refresh_base_and_worktrees(
     matching that "active issues are skipped until completion"
     guarantee. `None` preserves the legacy behavior so direct test
     invocations that supply no scheduler still refresh every worktree.
+
+    What a scheduler cannot see is another poller on this host, whose own
+    dispatch or refresh writes the same issue. So each worktree that clears
+    the scheduler is synced under the issue's writer claim, taken without
+    waiting before the issue is read and held through the route it takes; an
+    issue somebody else holds is skipped this tick with nothing read or
+    written, and every other worktree is synced all the same.
     """
     fetch_r = _branch_transport._authed_target_fetch(spec, spec.base_branch)
     if fetch_r.returncode != 0:

@@ -259,7 +259,13 @@ self-exit and be restarted with new code.
   writes to a child take the child's claim the same way, and the walk that releases children reads each again behind it
   rather than trusting its scan; an ordinary split that meets a child another poller holds leaves it unseeded and the
   parent `workflow:decomposing`, for `stages/decomposition/recovery.py` to seed it, post the summary, and finalize. The
-  pre-tick base refresh takes none. It is never waited for: a contender skips the issue with no effect but a close it
+  pre-tick base refresh takes the same claim on the same key for each worktree it syncs, behind the scheduler's
+  active-issue skip and before it reads the issue, and holds it through the whole route — the pre-PR rebase, the PR
+  rebase and its push, the unreadable-checkout park, and an interrupted attempt's recovery and settlement — so a refresh
+  contends with a dispatch, and with another poller's refresh, as two dispatches do. Nothing under it takes the claim
+  again: the anchor answer the dispatcher reaches too runs there under the dispatch claim. A refresh refused the claim
+  reads and writes nothing for the issue, and syncs it on a later tick. The claim is never waited for: a contender
+  skips the issue with no effect but a close it
   read, which it keeps in its own latch and retries on a later tick; different issues never contend. That latch is tied
   to a late cycle only where the record is read first, the issue still reads closed behind it, and the record read again
   behind the issue names the same cycle, or where the holder noted on the claim that it is retiring the cycle the record
@@ -819,7 +825,8 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
 - **`_refresh_base_and_worktrees(gh, spec)`** — function call. Trigger: start of each `workflow.engine.tick.tick`.
   Cadence: once
   per tick per repo: one `git fetch <spec.remote_name> <spec.base_branch>`, then per-worktree dispatch — a pre-PR
-  worktree rebases locally, and a PR-having one behind base is rebased and pushed in the refresh itself.
+  worktree rebases locally, and a PR-having one behind base is rebased and pushed in the refresh itself, each under the
+  issue's writer claim.
 - **`_handle_*` per issue** — function call. Trigger: the issue's workflow label. Cadence: once per tick per pollable
   issue, except an open `workflow:blocked` / `workflow:umbrella` issue, which is dispatched only on the ticks
   `DEPENDENCY_POLL_EVERY_N_TICKS` makes due (default every fifth, the first included); concurrent up to
@@ -883,7 +890,9 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
    │                    ▼                                                 │
    │   engine_tick.tick(gh, spec, scheduler) →                            │
    │     _refresh_base_and_worktrees(gh, spec, scheduler): skip           │
-   │       worktrees whose handler is still in flight in scheduler        │
+   │       worktrees whose handler is still in flight in scheduler,       │
+   │       then sync each other one under its issue's writer claim        │
+   │       (held by another poller → skipped, retried next tick)          │
    │     classify each pollable issue and submit to scheduler:            │
    │       open `workflow:blocked` / `workflow:umbrella` on a tick        │
    │         DEPENDENCY_POLL_EVERY_N_TICKS skips → dropped first          │

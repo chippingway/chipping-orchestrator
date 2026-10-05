@@ -204,6 +204,11 @@ def _answers_a_held_anchor(gh, spec, issue, state, label) -> None:
     road parks on too. The park is taken once, with every record kept: a
     human who puts the label back and replies sends the issue down the
     recovery, and one who reconciles the record by hand ends the hold with it.
+
+    Reached under the writer claim the dispatching worker holds, which is the
+    claim the refresh syncs a worktree under, so it never runs beside a
+    refresh of the same issue on this host -- and it asks for no claim of its
+    own, which that hold would refuse.
     """
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if label in _PR_REFRESH_DETOUR_LABELS:

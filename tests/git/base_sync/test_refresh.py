@@ -6,12 +6,13 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import refresh
 from tests.git.base_sync.sync_test_support import _git_result, _patch_base_sync
 from tests.support.fakes import FakeGitHubClient, make_issue
+from tests.support.writer_claims import held_elsewhere
 
 ISSUE = 7
 SLUG = "acme/widget"
@@ -24,9 +25,13 @@ PRIVATE_BASE_BRANCH = "cache-main"
 PRIVATE_REMOTE = "private"
 
 UP_TO_DATE_STDOUT = "0\n"
+TWO_BEHIND_STDOUT = "2\n"
 GIT_FAILURE_EXIT_CODE = 128
 MISSING_ISSUE_NUMBER = 9999
 FETCH_COMMAND = "fetch"
+
+# An issue whose worktree sits beside a held one's, which nothing holds.
+FREE_ISSUE = 8
 
 
 class RefreshBaseAndWorktreesTest(unittest.TestCase):
@@ -102,6 +107,30 @@ class RefreshBaseAndWorktreesTest(unittest.TestCase):
             refresh._refresh_base_and_worktrees(self.gh, self.spec)
         # Both worktrees attempted despite the first raising.
         self.assertEqual(sync.call_count, 2)
+
+    def test_a_held_issue_is_passed_over(self) -> None:
+        # Another poller holds #7, so the walk neither reads it nor rebases
+        # its checkout, and goes on to rebase #8's.
+        wt_root = self.tmpdir / "worktrees"
+        for number in (ISSUE, FREE_ISSUE):
+            (wt_root / f"issue-{number}").mkdir(parents=True)
+            self.gh.add_issue(make_issue(number, label=LABEL_IMPLEMENTING))
+        spied = patch.object(self.gh, "get_issue", wraps=self.gh.get_issue)
+        reads = self.enterContext(spied)
+        rebase = MagicMock(return_value=(True, []))
+
+        with held_elsewhere(self.gh.repo_id, ISSUE), _patch_base_sync(
+            target_fetch=MagicMock(return_value=_git_result()),
+            worktrees_root=MagicMock(return_value=wt_root),
+            dirty=MagicMock(return_value=[]),
+            git=MagicMock(return_value=_git_result(stdout=TWO_BEHIND_STDOUT)),
+            rebase=rebase,
+        ):
+            refresh._refresh_base_and_worktrees(self.gh, self.spec)
+
+        self.assertEqual(reads.call_args_list, [call(FREE_ISSUE)])
+        rebase.assert_called_once()
+        self.assertEqual(rebase.call_args.args[1], wt_root / f"issue-{FREE_ISSUE}")
 
     def test_base_fetch_uses_per_spec_authed_helper(self) -> None:
         # The base refresh must go through `_authed_target_fetch` (which

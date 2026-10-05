@@ -625,7 +625,9 @@ split, so a bucket that would have held nothing else is not submitted and mints 
 
 The pre-tick base refresh (`_refresh_base_and_worktrees`) is scheduler-aware: per-issue worktrees whose handler is
 currently in flight are skipped this tick, so a base advance cannot rebase a pre-PR worktree under a still-running
-agent. The skip is conditional on active state.
+agent. The skip is conditional on active state. Every other worktree is synced under its issue's writer claim, so one
+another poller on the host is dispatching or refreshing is skipped too, with nothing read or written, and synced on a
+later tick.
 
 `shutdown(wait=True)` runs on process exit (normal `--once` return, `SIGINT` / `SIGTERM`, or self-modifying-merge
 restart) so any in-flight workers complete cleanly. The signal handler also calls `scheduler.shutdown(wait=False)`

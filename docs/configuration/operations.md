@@ -436,7 +436,11 @@ the in-process scheduler guards (a duplicate active issue, the caps, the family 
   id — which no rename or transfer changes, unlike the configured slug or the `owner/name` a poller fetched at startup —
   and the issue number. A poller that finds the issue held by another skips it for that tick — no refetch, guard,
   recovery pass, close receipt, or handler, so no label, comment, or pinned write, no agent run, and no usage or
-  evaluation record — and takes the issue up on a later tick once the holder is done. A close it read for the issue
+  evaluation record — and takes the issue up on a later tick once the holder is done. The pre-tick base refresh takes
+  the same claim for each worktree it syncs, before it reads the issue, and holds it until that worktree's rebase,
+  push, park, or crash recovery is done, so a refresh and a dispatch — or two pollers' refreshes — never write one
+  issue at once; a refresh that finds the issue held skips that worktree for the tick with no read, rebase, push, or
+  write, and syncs the rest. A close a refused poll read for the issue
   costs a pinned read, an issue read behind it, and a pinned read behind that, and is kept in its own memory and
   nowhere else: a reopen before then cannot take the reading away, and a later tick sweeps it under the claim. It is
   tied to the late cycle the record names only where the issue still reads closed behind that read and the record read
@@ -497,11 +501,9 @@ the in-process scheduler guards (a duplicate active issue, the caps, the family 
   a new inode another process can lock beside a holder of the old one. They are small, one per issue key ever claimed,
   and safe to remove once every poller has stopped.
 - **Not covered.** Pollers on different hosts, or on one host with different `WORKTREES_DIR` values, are not
-  coordinated at all and are not supported against the same repository. The pre-tick base refresh does not take the
-  claim either; it leaves alone only the issues its own process's scheduler reports active, so a second poller's
-  refresh can still sync a worktree and write the record of an issue the first is dispatching. And the claim is
-  separate from the artifact presence on `WORKTREES_DIR/.artifact-maintenance.lock`: a maintenance pass neither takes
-  nor reads a writer claim, and holding one says nothing about the host's artifacts.
+  coordinated at all and are not supported against the same repository. And the claim is separate from the artifact
+  presence on `WORKTREES_DIR/.artifact-maintenance.lock`: a maintenance pass neither takes nor reads a writer claim, and
+  holding one says nothing about the host's artifacts.
 
 ## Running under systemd (user service)
 

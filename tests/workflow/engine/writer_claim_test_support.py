@@ -148,22 +148,30 @@ class WriterClaimDispatchCase(ObservedCloseCase, _SchedulerWorkflowTest):
         limit: int,
         scheduled: bool,
         labels: tuple[str, ...] = _HANDLED_LABELS,
+        refresh: contextlib.AbstractContextManager | None = None,
     ) -> None:
         """One whole tick, through the dispatch mode the arguments name.
 
         `stand_in` answers for the handler of every label in `labels`. A
         scheduled tick is drained before this returns, so what it read back is
-        everything the tick's workers did.
+        everything the tick's workers did. The base refresh is stood in for
+        whole unless `refresh` is given: then the real one runs, over what
+        that block stands in for beneath it.
         """
         scheduler = self._scheduler() if scheduled else None
-        with self._patched(stand_in, labels):
+        with self._patched(stand_in, labels, refresh):
             _tick.tick(self.github, self._spec(parallel_limit=limit), scheduler=scheduler)
             if scheduler is not None:
                 self._wait_idle(scheduler)
                 scheduler.shutdown(wait=True)
 
     @contextlib.contextmanager
-    def _patched(self, stand_in: StandInHandler, labels: tuple[str, ...]):
+    def _patched(
+        self,
+        stand_in: StandInHandler,
+        labels: tuple[str, ...],
+        refresh: contextlib.AbstractContextManager | None = None,
+    ):
         """Every collaborator a tick reaches that this case stands in for.
 
         The closed sweep and the dependency walk run on every tick here, so
@@ -171,7 +179,7 @@ class WriterClaimDispatchCase(ObservedCloseCase, _SchedulerWorkflowTest):
         did.
         """
         with contextlib.ExitStack() as patched:
-            patched.enter_context(patch_base_refresh())
+            patched.enter_context(refresh or patch_base_refresh())
             patched.enter_context(patch.object(config, "CLOSED_ISSUE_SWEEP_EVERY_N_TICKS", 1))
             patched.enter_context(patch.object(config, "DEPENDENCY_POLL_EVERY_N_TICKS", 1))
             patched.enter_context(patch.object(catalog, "_emit_repo_skill_catalog", Mock()))

@@ -5,7 +5,10 @@
 What the recovery does once it is reached is pinned beside this. What these
 pin is how a tick gets there, or holds until it does: a checkout whose branch
 names a commit this store cannot read, a base fetch that failed before any
-walk, and an issue relabelled off the refreshed stages mid-attempt.
+walk, an issue relabelled off the refreshed stages mid-attempt, and an issue
+another poller on the host is writing -- through its own dispatch or its own
+refresh, each a real second process -- which no road reaches until it is let
+go, and which the road that reaches it keeps every other poller off of.
 """
 from __future__ import annotations
 
@@ -19,6 +22,8 @@ from tests.git.base_sync import recovery_git_support as fixtures
 from tests.git.base_sync.vouched_replay_git_support import (
     VouchedReplayGitFixtureMixin,
 )
+from tests.support import writer_claim_processes as _processes
+from tests.support.writer_claims import claimable
 
 # A stage the refresh does not drive, which an operator can relabel onto.
 RESOLVING = "workflow:resolving_conflict"
@@ -34,6 +39,10 @@ _FAILED_BASE_FETCH = subprocess.CompletedProcess(
     args=["git"], returncode=GIT_FAILURE_EXIT_CODE, stdout="",
     stderr="could not resolve host",
 )
+
+# The name another poller polls the repository under. The claim is keyed on
+# the repository's id, so the name is only what its skip line would say.
+OTHER_POLLER_SLUG = "acme/widget"
 
 
 class RefreshRecoveryRealGitTest(VouchedReplayGitFixtureMixin, unittest.TestCase):
@@ -132,6 +141,109 @@ class RefreshRecoveryRealGitTest(VouchedReplayGitFixtureMixin, unittest.TestCase
             published.get(fixtures.KEY_PARK_REASON), fixtures.PARK_PUSH_FAILED,
         )
         self.assertIsNone(published.get(fixtures.KEY_PENDING_PUSH_SHA))
+
+
+
+class ContendedRecoveryRealGitTest(VouchedReplayGitFixtureMixin, unittest.TestCase):
+    """An interrupted rebase on an issue another poller is writing, finished once and by one writer."""
+
+    def setUp(self) -> None:
+        self.root = _processes.shared_namespace(self)
+        super().setUp()
+
+    def test_another_dispatch_holds_the_recovery_back(self) -> None:
+        self._waits_for(_processes.DISPATCHING_POLLER, _processes.HELD)
+
+    def test_another_refresh_holds_the_recovery_back(self) -> None:
+        # Stopped mid-route, on the issue read its own refresh begins with.
+        self._waits_for(_processes.REFRESHING_POLLER, _processes.READ)
+
+    def test_a_recovery_keeps_the_issue_to_its_end(self) -> None:
+        # Mid-push, another poller's refresh reads nothing and its dispatch
+        # seam is refused; the recovery publishes and routes the replay once,
+        # and gives the claim back with the route.
+        contended = _ContendedPush(self)
+
+        with patch.object(branch_transport, fixtures.PUSH_BRANCH, contended):
+            self._syncs()
+
+        self.assertEqual(contended.met, [_processes.UNTOUCHED, _processes.REFUSED])
+        self._assert_finished_once()
+        self.assertTrue(claimable(self.gh.repo_id, fixtures.ISSUE))
+
+    def _waits_for(self, program: str, holding: str) -> None:
+        """Sync while another poller's `program` holds the issue, then twice once it lets go.
+
+        The held sync touches nothing. The first one after finishes the
+        attempt, which the second does not finish again.
+        """
+        record = self.gh.pinned_data(fixtures.ISSUE)
+        other = _elsewhere(self, program)
+        self.assertEqual(other.said(), holding)
+
+        self._syncs()
+
+        _assert_untouched(self, record)
+        self.assertEqual(other.let_go(), 0)
+        self._syncs()
+        self._syncs()
+        self._assert_finished_once()
+
+    def _syncs(self) -> None:
+        """One refresh pass over this checkout."""
+        refresh._sync_worktree_with_base(
+            self.gh, self.spec, self.work, fixtures.ISSUE,
+        )
+
+    def _assert_finished_once(self) -> None:
+        """The replay pushed, announced, and routed once, its anchor gone."""
+        self.assertEqual(self.push.leases, [self.anchor])
+        published = fixtures.head_sha(self.remote, fixtures.BRANCH_REF)
+        self.assertEqual(published, self.recovered)
+        self.assertEqual(self.gh.label_history, [(fixtures.ISSUE, fixtures.VALIDATING)])
+        self.assertEqual(len(self.gh.posted_pr_comments), 1)
+        self.assertEqual(len(self.rebase_events()), 1)
+        self.assertIsNone(self.gh.pinned_data(fixtures.ISSUE).get(fixtures.KEY_PENDING_PUSH_SHA))
+
+
+class _ContendedPush:
+    """The recovery's push, with another poller's refresh and dispatch asking for the issue first.
+
+    What each said is kept, and the push then goes out as the fixture's own.
+    """
+
+    def __init__(self, case: ContendedRecoveryRealGitTest) -> None:
+        self._case = case
+        self.met: list[str] = []
+
+    def __call__(self, *args, **kwargs) -> bool:
+        refreshing = _elsewhere(self._case, _processes.REFRESHING_POLLER)
+        dispatching = _elsewhere(self._case, _processes.DISPATCHING_POLLER)
+        self.met.extend((refreshing.said(), dispatching.said()))
+        self._case.assertEqual(refreshing.exited(), 0)
+        self._case.assertEqual(dispatching.let_go(), 0)
+        return self._case.push(*args, **kwargs)
+
+
+def _elsewhere(case: ContendedRecoveryRealGitTest, program: str) -> _processes.OtherProcess:
+    """Run another poller's `program` over the case's issue, in a process of its own."""
+    other = _processes.OtherProcess(
+        case.root, program, case.gh.repo_id, OTHER_POLLER_SLUG, fixtures.ISSUE,
+    )
+    case.addCleanup(other.close)
+    return other
+
+
+def _assert_untouched(case: ContendedRecoveryRealGitTest, record: dict) -> None:
+    """No push, neither head moved -- the replay unpublished on the checkout -- and nothing written on GitHub."""
+    case.assertEqual(case.push.leases, [])
+    case.assertEqual(fixtures.head_sha(case.work), case.recovered)
+    published = fixtures.head_sha(case.remote, fixtures.BRANCH_REF)
+    case.assertEqual(published, case.anchor)
+    case.assertEqual(case.gh.pinned_data(fixtures.ISSUE), record)
+    written = (case.gh.label_history, case.gh.posted_comments, case.gh.posted_pr_comments)
+    case.assertEqual(written, ([], [], []))
+    case.assertEqual(case.gh.recorded_events, [])
 
 
 if __name__ == "__main__":
