@@ -134,6 +134,13 @@ class PinnedCommit:
             owned=frozenset(owned),
         )
 
+    def moved(self, fresh: Mapping[str, Any]) -> tuple[str, ...]:
+        """The prerequisites `fresh` spells otherwise than this capture read them, sorted; empty where none moved."""
+        return tuple(sorted(
+            field for field in self.prerequisites
+            if spelled(fresh, field) != self.read.get(field)
+        ))
+
 
 def spelling(field_value: Any) -> str | None:
     """How the comment's JSON spells one value, or None for ABSENT.

@@ -7,7 +7,9 @@ fields and the transformations a domain supplies, with every other field taken
 from a fresh reading. What it refuses, and that a refusal leaves the record, the
 pinned writes sent, and the caller's state exactly as they were. That the whole
 candidate is measured as it would be written before anything goes out, and that
-an edit nobody confirmed is reported as neither answer.
+an edit nobody confirmed is reported as neither answer. And that the fresh
+reading taken alone is refused as a commit's would be, and names the
+prerequisites that moved rather than refusing over them.
 """
 from __future__ import annotations
 
@@ -336,7 +338,7 @@ class CommitBoundaryTest(unittest.TestCase):
 
 
 class CommitCaptureTest(unittest.TestCase):
-    """What a capture holds the commit to is fixed when it is taken."""
+    """What a capture holds a commit, or a reading taken alone, to is fixed when it is taken."""
 
     def test_a_capture_is_not_moved_by_its_caller(self) -> None:
         # The caller's state is mutable and mutated in place; what the
@@ -349,3 +351,43 @@ class CommitCaptureTest(unittest.TestCase):
         self.assertEqual(guard.read[support.PR], '{"ids": [1]}')
         with self.assertRaises(TypeError):
             guard.read[support.PR] = "{}"
+
+    def test_a_reread_refuses_a_spoiled_comment(self) -> None:
+        # The comment read afresh alone, with nothing staged: refused as a
+        # commit refuses that reading, with nothing written and nothing the
+        # caller holds moved.
+        for case, spoiled in _SPOILED.items():
+            with self.subTest(case=case):
+                world = support.seeded()
+                spoiled[0](world)
+                before = world.snapshot()
+
+                outcome = _commit.reread(world.github, world.issue, world.guard)
+
+                self.assertEqual(
+                    (outcome.status, outcome.refusal, world.snapshot()),
+                    (_STATUS.REFUSED, spoiled[1], before),
+                )
+
+    def test_a_reread_names_what_moved(self) -> None:
+        # A prerequisite spelled otherwise on the comment read afresh -- null
+        # for absent, true for 1, at any depth -- is named by the capture
+        # rather than refused over, and the reading handed back, since the
+        # caller may still lay a write of its own over it; nothing is written.
+        for case, spellings in {**_PREREQUISITE_MOVES, "nothing moved": (1, 1)}.items():
+            with self.subTest(case=case):
+                world = self.moved_under(*spellings)
+                before = world.snapshot()
+
+                fresh = _commit.reread(world.github, world.issue, world.guard)
+
+                self.assertEqual(
+                    (fresh.data, world.guard.moved(fresh.data), world.snapshot()),
+                    (world.record(), () if case == "nothing moved" else (support.PR,), before),
+                )
+
+    def moved_under(self, read: Any, moved: Any) -> support.CommitWorld:
+        """A caller's reading of `pr_number` spelled `read`, and the comment since rewritten to spell it `moved`."""
+        world = support.seeded(support.recorded(**{support.PR: read}))
+        world.another_road(**{support.PR: moved})
+        return world

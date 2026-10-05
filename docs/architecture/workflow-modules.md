@@ -95,7 +95,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             marker in the artifact's own rendering says the comment is ours once its id ages out
                             of the ledger, and the id says so once somebody edits the marker away -- without
                             which a feedback scan reads this orchestrator's own evidence as a human's request.
-                            The evidence transaction publishes through it (`verification_publishing.py`)
+                            The evidence transaction publishes through it (`verification_publishing.py`). A guarded
+                            commit of the evidence domain merges its ledger entries into the ledger the comment
+                            carries when it lands (`MERGED_LEDGER`) rather than staging the ledger whole, so an id
+                            another road recorded meanwhile is kept, and the publication's measurement reserves the
+                            artifact's entry against that same merged ledger (`RESERVED_LEDGER`), never against an
+                            older reading whose free slot the comment may now hold; `records_the_artifact` commits
+                            the artifact's entry alone, over the comment as it stands, for a settlement that did not
+                            land, and answers whether the tick holds -- a comment unreadable, replaced, or no longer
+                            parsing, or a write nobody confirmed
     prompt_context.py       trusted-author thread reads, retained orchestrator comment ids, quoted comment lines, and
                             bounded tracked-repository awareness for agent prompts; marker text alone cannot admit a
                             comment, and a delivery snapshot over a read taken by the pinned comment's id is handed
@@ -382,10 +390,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             spells it (keys sorted, so `null` is not an absent field and `true` is not `1` at any
                             depth), the prerequisites the decision rests on, absent ones included, and the fields
                             the caller owns -- held as strings in a read-only mapping, so nothing the caller does to
-                            its own state afterwards moves it; the refusals, the four statuses (PREPARED, COMMITTED,
+                            its own state afterwards moves it, and which of those prerequisites a fresh reading
+                            spells otherwise (`moved`); the refusals, the four statuses (PREPARED, COMMITTED,
                             UNCONFIRMED, REFUSED), and the outcome carrying the candidate reading, the fields that
                             earned a refusal, and the rendered length an overflow measured
-    pinned_commit.py        the guarded commit itself, dormant until a domain adopts it: a candidate derived over a
+    pinned_commit.py        the guarded commit itself, through which the verification-evidence publication and
+                            settlement commit so far: a candidate derived over a
                             fresh reading of the captured comment rather than written from the caller's state. A
                             write the caller did not declare refuses before anything is read; an unreadable,
                             unparsed, or replaced comment, a prerequisite spelled otherwise, and an owned field
@@ -397,7 +407,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             make first, and `commit` derives everything again over a newer reading and lands it
                             through the strict edit, sending nothing for a candidate the comment already reads as.
                             A refusal writes nothing and moves nothing the caller holds, and an edit that went out
-                            unconfirmed is reported as neither answer, for the domain's own receipts to settle
+                            unconfirmed is reported as neither answer, for the domain's own receipts to settle.
+                            `reread` is that fresh reading alone -- the captured comment, still parsing -- for a
+                            caller with requests of its own to make over it before it stages anything
     report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
                             `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
                             report ready for publication, and a report asserted to be on the pull request at a URL
@@ -1130,8 +1142,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             review alone (`approved`): a review recorded about the new head since refuses it
     verification_publishing.py
                             posting a proved transaction's artifact through `verification_comments.py`, scoped by
-                            its receipt: the room re-proved before the post, UNCONFIRMED held, any other reading
-                            short of PRESENT stood down -- a carry abandoned with its approval
+                            its receipt: the settlement's own guarded commit staged at its widest
+                            (`verification_record_state.settled_payload`) and PREPARED over the pinned comment read
+                            afresh before the post (`pinned_commit.prepare`), the artifact's ledger entry reserved
+                            against the ledger as it stands, with the invalidation of what it
+                            installs measured again over that candidate -- a comment that will not read holds, and
+                            one with no room or whose bound records moved posts nothing -- UNCONFIRMED held, any
+                            other reading short of PRESENT stood down -- a carry abandoned with its approval
                             (`verification_carries.py`) -- and a landed post handed to the settlement
     verification_settling.py
                             the settlement of a landed post: the issue read afresh and still live work -- where it
@@ -1140,20 +1157,33 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             at the comment it landed as and held to exactly this transaction's -- and a carry's copied
                             source to what it copied (`verification_current.py`) -- the comment read once
                             more behind those requests and held to every bound record as the proof read it, and ONE
-                            write composed over that last reading, stamped with the label the issue carries then. Every
-                            write is measured against the comment limit first: a settlement a comment filled during
-                            the post no longer fits stands down with the transaction owed, and any refusal writes
-                            only the artifact's ledger entry onto the fresh comment, where that fits
+                            guarded commit (`pinned_commit.commit`) composed over that last reading and guarded by
+                            it, stamped with the label the issue carries then: current evidence, the superseded
+                            history entry, the handoff, the pending record dropped, the revision floor as the
+                            transaction's record raised it, and the artifact's ledger entry merged into the ledger
+                            it finds (`SETTLES`), every other field kept as the fresh reading carries it. A bound
+                            record that moved, a comment that moved under the edit, or a commit with no room leaves
+                            the transaction owed; a comment that will not read or was replaced, and a commit nobody
+                            confirmed, hold, and the receipt settles it on a later tick. Wherever it does not land
+                            over a comment that still reads, the artifact's ledger entry is committed alone
+                            (`verification_comments.records_the_artifact`), holding the tick where that finds the
+                            comment unreadable, replaced, or no longer parsing; a carry whose binding is refused is
+                            abandoned with its approval and that entry in one write instead
     verification_live_work.py
                             whether an issue is live work evidence may settle for -- not closed, not `done` or
                             `rejected`, not held by a hard-skip control label, and wearing a workflow label --
                             asked by the reconciliation of the issue it routed and by the settlement of the issue
                             read afresh after the post
-    verification_durable.py the pinned comment read afresh before a settlement or a retirement: the comment this tick
-                            read, parsed, and carrying `pr_number`, the developer report's records, the three review
-                            subjects -- the approved one, which a carry across an approval's squash answers through,
-                            included -- and the evidence records and revision floor exactly as the state in hand
-                            spells them, or the field that moved
+    verification_durable.py the evidence domain's adapter over the guarded commit: the pinned comment read afresh
+                            before a settlement or a retirement through the commit's own reading
+                            (`pinned_commit.reread`) -- the comment this tick read, parsed, and carrying `pr_number`,
+                            the developer report's records, the three review subjects -- the approved one, which a
+                            carry across an approval's squash answers through, included -- and the evidence records
+                            and revision floor exactly as the state in hand spells them, or the field that moved;
+                            the capture every guarded evidence write is taken under, those bound records its
+                            prerequisites (`guarded`); and what a guarded write's outcome refuses in this domain's
+                            words (`refusal_of`): an unread or replaced comment and an unconfirmed write HOLD, and
+                            every other refusal -- a moved record, a comment moved under the edit, no room -- DEFERS
     verification_transaction.py
                             the evidence reconciliation the dispatcher runs directly behind the report
                             transaction: stands aside on work that is not live (closed, `done`/`rejected`, a

@@ -5,8 +5,9 @@
 A settlement is ONE composed write, as a developer report's is: the evidence
 that was current goes into history as superseded, the settled transaction
 becomes current, the handoff names its receipt, and the pending record is
-dropped -- all on a copy of the comment, installed by the caller only once
-every member reads back. Split across writes, a crash between two of them
+dropped -- all on a copy of the comment, which the settlement commits, guarded,
+over the comment as it stands only once every member reads back
+(`verification_settling`). Split across writes, a crash between two of them
 leaves an artifact on the pull request and a transaction still claiming it is
 owed, or current evidence that nothing records as ever having been published.
 

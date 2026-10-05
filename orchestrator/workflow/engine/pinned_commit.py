@@ -30,13 +30,17 @@ if the record behind it will fit; `commit` asks everything again over a reading
 taken behind whatever requests came between, and lands the candidate through
 the strict edit (`GitHubStateMixin.edit_pinned_state`), which rewrites the
 comment in place only while it still reads as the fresh reading did, and never
-recreates one that is gone.
+recreates one that is gone. `reread` is the same fresh reading taken alone, for
+a caller that has requests of its own to make over the comment it captured
+before it stages anything.
 
 A refusal writes nothing and touches nothing the caller holds: the staged state
 is only read, and a transformation is handed copies. An edit that went out and
 was never confirmed is reported as UNCONFIRMED rather than as either answer --
 whatever receipt the caller's own domain keeps is what a later reading settles
-it by. No workflow road commits through this yet.
+it by. The verification-evidence publication and settlement commit through this
+(`verification_durable`, `verification_publishing`, `verification_settling`);
+every other road still rewrites the whole record.
 """
 from __future__ import annotations
 
@@ -124,6 +128,23 @@ def commit(
     return replace(prepared, status=_LANDED[edit])
 
 
+def reread(
+    gh: GitHubClient, issue: Issue, guard: _models.PinnedCommit,
+) -> PinnedState | _models.CommitOutcome:
+    """The comment `guard` was captured from, read afresh, or why it cannot be; nothing staged or written.
+
+    For a caller with requests of its own to make over the record before it
+    stages anything -- a proof, a publication -- that has to stand on the
+    comment it captured. Refused as `commit` refuses a reading: unreadable,
+    not parsing, or not the comment captured. The prerequisites are left to
+    the caller to hold the reading to (`PinnedCommit.moved`), since a domain
+    may still have a write of its own to lay over a reading on which one
+    moved; `commit` holds the comment to every one of them again whatever
+    this answered.
+    """
+    return _fresh(gh, issue, _Change(guard, guard.read, _NO_TRANSFORMS))
+
+
 @dataclass(frozen=True)
 class _Change:
     """What one commit asks of the comment: its guard, the state staged, and the fields derived."""
@@ -175,12 +196,9 @@ class _Change:
 
     def over(self, issue: Issue, fresh: PinnedState) -> _models.CommitOutcome:
         """This change laid over `fresh` and measured, or the refusal it earns there."""
-        moved = sorted(
-            field for field in self.guard.prerequisites
-            if _models.spelled(fresh.data, field) != self.guard.read.get(field)
-        )
+        moved = self.guard.moved(fresh.data)
         if moved:
-            return _refused(issue, _models.CommitRefusal.PREREQUISITE_CHANGED, tuple(moved))
+            return _refused(issue, _models.CommitRefusal.PREREQUISITE_CHANGED, moved)
         conflicts = [
             field for field in self.assigned()
             if _models.spelled(fresh.data, field) not in {

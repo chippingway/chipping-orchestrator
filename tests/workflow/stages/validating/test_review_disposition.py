@@ -9,11 +9,11 @@ comment with no room for either, or a write GitHub refuses, publishes nothing.
 A verdict's feedback is the reviewer's findings without their declaration,
 which still earns exactly what it would unformatted, every command, status,
 and output kept in the transaction.
-Evidence still owed holds the verdict while its subject stands, for a later
-tick to finish with no second reviewer, no second fold of its usage, and no
-round spent; a subject that moved, or evidence that can never be relied on,
-drops it -- over the comment as it stands, and never in place of a verdict
-another road put there.
+Evidence still owed, or settled by a commit nobody confirmed, holds the
+verdict while its subject stands, for a later tick to finish with no second
+reviewer, no second fold of its usage, and no round spent; a subject that
+moved, or evidence that can never be relied on, drops it -- over the comment
+as it stands, and never in place of a verdict another road put there.
 
 What a ready verdict is disposed of through -- the approval arc, the
 change-request handoff, the parks -- is in `test_review_verdict_approvals.py`,
@@ -44,6 +44,9 @@ from tests.workflow.stages.validating import (
 REREAD = "reread_report_location"
 
 PINNED_WRITE = "write_pinned_state"
+
+# The strict edit the evidence settlement's guarded commit lands through.
+PINNED_EDIT = "edit_pinned_state"
 
 POST = "_post_verification_artifact"
 
@@ -93,6 +96,8 @@ REUSED = "reused"
 _CARRIES_THE_VERDICT = operator.methodcaller("get", _world.RETURNED_VERDICT)
 
 _SETTLED = operator.methodcaller("get", "verification_evidence_current")
+
+_HISTORY = "verification_evidence_history"
 
 # What preparing a verdict answers where the tick has nothing to act on.
 NOTHING = _disposition.Prepared()
@@ -229,7 +234,7 @@ _ONCE_WRITTEN = (
     (
         "a push behind the settlement",
         lambda _case: _world.declared_run(),
-        (PINNED_WRITE, _SETTLED, _world.pushes),
+        (PINNED_EDIT, _SETTLED, _world.pushes),
         (None, False, 1, 1, 0),
     ),
     (
@@ -277,8 +282,11 @@ _WHILE_IT_WAITED = (
 )
 
 # The writes behind which another road clears the verdict or puts its own in
-# its place: the one persisting it, and the one settling its evidence.
-_REPLACED_BEHIND = (("the verdict's write", _CARRIES_THE_VERDICT), ("the settlement", _SETTLED))
+# its place: the one persisting it, and the commit settling its evidence.
+_REPLACED_BEHIND = (
+    ("the verdict's write", PINNED_WRITE, _CARRIES_THE_VERDICT),
+    ("the settlement", PINNED_EDIT, _SETTLED),
+)
 
 
 class _RefusesTheVerdict:
@@ -485,40 +493,48 @@ class EvidenceStandingTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 self.assertEqual(persisted, ready.returned())
 
     def test_owed_evidence_needs_no_reviewer(self) -> None:
-        # The post lands and its response is lost: the tick holds with the
-        # verdict and its transaction owed. The next tick's reconciliation
-        # finds the artifact by its receipt, and the verdict is ready from the
-        # record the first tick wrote, read off the comment alone.
-        self._held()
-        waiting = self.pinned()
-        spent = _read.spent(self)
-        self.assertEqual(
-            (
-                self.prepared,
-                waiting[_world.RETURNED_VERDICT][VERDICT],
-                waiting[_world.PENDING_EVIDENCE] is None,
-            ),
-            (NOTHING, APPROVED, False),
-        )
+        # The post lands and its response is lost, or the commit settling it
+        # does: the tick holds with the verdict persisted beside its
+        # transaction, owed or settled with nobody told. The next tick's
+        # reconciliation finds the artifact by its receipt and settles it, or
+        # finds nothing owed, and the verdict is ready from the record the
+        # first tick wrote, read off the comment alone -- with no second
+        # reviewer, charge, artifact, or settlement.
+        for settlement in (False, True):
+            with self.subTest(settlement=settlement):
+                self.setUp()
+                self._held(settlement=settlement)
+                waiting = self.pinned()
+                spent = _read.spent(self)
+                self.assertEqual(
+                    (
+                        self.prepared,
+                        waiting[_world.RETURNED_VERDICT][VERDICT],
+                        waiting[_world.PENDING_EVIDENCE] is None,
+                    ),
+                    (NOTHING, APPROVED, settlement),
+                )
 
-        finished = self.finishes()
+                finished = self.finishes()
 
-        self.assertEqual(
-            (
-                self.ready,
-                finished[_world.RUN_AGENT].call_count,
-                _read.spent(self),
-                len(_read.artifacts(self)),
-                _read.current_evidence_revision(self),
-            ),
-            (
-                _verdicts.ReturnedVerdict.read(waiting[_world.RETURNED_VERDICT]),
-                0,
-                spent,
-                1,
-                1,
-            ),
-        )
+                self.assertEqual(
+                    (
+                        self.ready,
+                        finished[_world.RUN_AGENT].call_count,
+                        _read.spent(self),
+                        len(_read.artifacts(self)),
+                        _read.current_evidence_revision(self),
+                        self.pinned().get(_HISTORY),
+                    ),
+                    (
+                        _verdicts.ReturnedVerdict.read(waiting[_world.RETURNED_VERDICT]),
+                        0,
+                        spent,
+                        1,
+                        1,
+                        None,
+                    ),
+                )
 
     def test_owed_evidence_holds_it_while_it_stands(self) -> None:
         for name, meanwhile, expected in _OWED:
@@ -619,11 +635,15 @@ class EvidenceStandingTest(_world.ReviewVerdictWorld, unittest.TestCase):
                     (False, None, before),
                 )
 
-    def _held(self) -> None:
-        """Return an approval over its own run, on a pull request that lands the artifact and loses the response."""
-        self.github.report_failures.lost.add(_world.PR)
+    def _held(self, *, settlement: bool = False) -> None:
+        """Return an approval over its own run, losing the response to its artifact's post or settling commit."""
+        lost, number = (
+            (self.github.pinned_failures.lost, _world.ISSUE) if settlement
+            else (self.github.report_failures.lost, _world.PR)
+        )
+        lost.add(number)
         self.returns(_world.declared_run())
-        self.github.report_failures.lost.discard(_world.PR)
+        lost.discard(number)
 
 
 class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
@@ -749,12 +769,12 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # request in its place, right behind a write this tick made: nothing
         # is ready, and whatever that road left is still what the comment
         # carries -- this tick drops only its own verdict.
-        for (name, when), replaces in itertools.product(_REPLACED_BEHIND, (False, True)):
+        for (name, *behind), replaces in itertools.product(_REPLACED_BEHIND, (False, True)):
             with self.subTest(name, replaces=replaces):
                 self.setUp()
 
                 _world.AnotherRoadBehind(
-                    self, PINNED_WRITE, when, partial(_leaves, replaces=replaces),
+                    self, *behind, partial(_leaves, replaces=replaces),
                 ).returning(_world.declared_run())
 
                 self.assertEqual(

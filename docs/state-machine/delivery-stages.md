@@ -1127,30 +1127,41 @@ because there it is the claim that this stage has already rerouted rather than a
     again over them, and the artifact re-read at the comment it landed as has to be exactly this transaction's (edited
     or deleted meanwhile, it stands down); the comment is read once more behind those requests and has to still carry
     every bound record -- `review_approved_subject` among them -- as the proof read it (a subject removed or replaced
-    meanwhile stands it down, the move kept); then one write, composed over that last reading, makes it current, moves
-    the earlier current evidence into history as superseded, and records the handoff.
+    meanwhile stands it down, the move kept); then one guarded commit (`workflow/engine/pinned_commit.py`), composed
+    over that last reading, makes it current, moves the earlier current evidence into history as superseded, records
+    the handoff, drops the pending record, and merges the artifact's id into the ledger -- laid over the comment read
+    once more, which has to still carry every bound record as that last reading did, with every field the settlement
+    does not own (a usage total, a watermark, another road's verdict or comment ids) kept as it reads then. The room
+    for it was proved before the post: the settlement, staged at its widest with the artifact's ledger entry reserved
+    against the ledger as it stands, is prepared over the comment read afresh, and a comment another road filled, or
+    whose bound records moved, since the tick read it posts nothing.
   - **Held** → a reading nobody could take: the pull request, the fetch, the divergence, the report's location, the
     requirements, an unconfirmed post, or the issue, the pinned comment, or the artifact re-read before a settling or
-    retiring write. The next tick asks again.
+    retiring write -- a pinned comment replaced or no longer parsing included, over which nothing is written -- or a
+    settling commit that went out and was never confirmed. The next tick asks again, and finds either nothing owed or
+    the same transaction to settle over the same artifact, with no second history entry.
   - **Stood down** → a moved head or branch, an absent checkout, an id that is not a commit itself, an unreadable or
     different tree, a moved configuration, a pinned `pr_number` naming another pull request, a report still owed (a
     delivery, a transaction, or an undeliverable park), a review subject absent, replaced, about another head than the
     target, or carrying requirements its round was not due, a report settled after the review, stale against the
     subject, or deleted, edited, or out of step with its handoff, an issue that stopped being live work during the post,
-    edited requirements, an edited artifact, a bound record that moved on the pinned comment while the artifact was
-    posted, or a settlement the comment no longer has room for. The transaction stays owed for the route that answers
-    it -- save a carry onto a head it did not run on, which only an approval's squash records and nothing later makes
-    answer again once refused: refused on anything but a reading nobody could take -- its proof ahead of the post, the
-    source it copied edited, deleted, or no longer current (a publication retried over a lost response included), its
-    own artifact found edited under its receipt, or the proof, the records, or either artifact re-read ahead of its
-    settlement -- it is abandoned into history and the approval it was recorded for retired in the same write
+    edited requirements, an edited artifact, a bound record that moved on the pinned comment before or while the
+    artifact was posted or under the settling commit, a pinned comment that moved under that commit's edit, or a
+    settlement the comment no longer has room for, before the post or behind it. The transaction stays owed for the
+    route that answers it, with the artifact's ledger entry committed alone where the comment still reads (a comment
+    that entry finds unreadable, replaced, or no longer parsing holds the tick instead) -- save a
+    carry onto a head it did not run on, which only an approval's squash records and nothing later makes answer again
+    once refused: refused on anything but a reading nobody could take -- its proof ahead of the post, the source it
+    copied edited, deleted, or no longer current (a publication retried over a lost response included), its own
+    artifact found edited under its receipt, or the proof, the records read behind it, or either artifact re-read ahead
+    of its settlement -- it is abandoned into history and the approval it was recorded for retired in the same write
     (`review_approved_subject` written `null`, `verification_carries`), so a context, a head, or an artifact put back
     afterwards moves no label over it. Only the approval the carry was recorded for goes -- one another road recorded
     in its place stands -- and it goes even where the comment has no room for the carry's entry, since that write only
     shrinks the comment: the carry then stays owed, under an approval nothing acts on, for a later tick to abandon.
-    A carry left owed for its standing approval -- the settlement had no room, before the post or behind it -- holds
-    the squash handoff rather than letting it drop (`squash_evidence.carried_onto`), so the next tick with room
-    settles it and moves the label, with no second report or reviewer.
+    A carry left owed for its standing approval -- the settlement had no room, before the post or behind it, or its
+    commit did not land -- holds the squash handoff rather than letting it drop (`squash_evidence.carried_onto`), so
+    the next tick with room settles it and moves the label, with no second report or reviewer.
   - **Retired** → a record whose revision a settled or retired record already carries (a replay its own handoff
     names, or one a restored comment brought back) is dropped without a second post or history entry; an unreadable
     record is dropped; a record whose pull request ended, past which a revision was spent, or beside a revision floor

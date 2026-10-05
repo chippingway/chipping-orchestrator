@@ -4,13 +4,14 @@
 
 The crash windows are the point of the transaction, so each is written as the
 place a process can die: after GitHub accepted an artifact whose response never
-came back, after the artifact landed and before the settling write, and after
-the settlement landed with the record somehow still standing. Each is replayed
-by running the reconciliation again over the comment the first run persisted,
-and each has to end with one artifact on the thread, one current record, and
-the transaction's receipt as the handoff. The artifact a replay finds is the
-one that reads back as the transaction's, whatever body the writer would give
-it now.
+came back, after the artifact landed and before its settling commit was
+confirmed -- accepted with the response lost, or refused -- and after the
+settlement landed with the record somehow still standing. Each is replayed by
+running the reconciliation again over the comment the first run persisted, and
+each has to end with one artifact on the thread, one current record, the
+transaction's receipt as the handoff, and no second history entry. The
+artifact a replay finds is the one that reads back as the transaction's,
+whatever body the writer would give it now.
 """
 from __future__ import annotations
 
@@ -241,19 +242,42 @@ class ReplayedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
                 self.assertIs(self.pull_request.issue_comments[-1], landed)
                 self.assertEqual(self.artifacts(), [self.pending.artifact])
 
-    def test_a_settling_write_that_never_landed(self) -> None:
-        with patch.object(
-            self.gh, "write_pinned_state", side_effect=RuntimeError("write lost"),
-        ), self.assertRaises(RuntimeError):
-            self.reconcile()
+    def test_a_settling_commit_nobody_confirmed(self) -> None:
+        # Settled evidence is superseded by a later transaction, whose
+        # settling commit GitHub accepted and lost the response to, or
+        # refused: the tick holds, since the comment may read either way. The
+        # next tick finds the transaction settled and writes nothing, or
+        # settles it over the artifact the first posted -- one artifact per
+        # transaction, and one history entry for the evidence it superseded.
+        for failure in ("lost", "refused"):
+            with self.subTest(failure):
+                self.setUp()
+                self.reconcile()
+                later = self.record()
+                failures = getattr(self.gh.pinned_failures, failure)
+                failures.add(support.ISSUE_NUMBER)
+                with self.assertLogs(support.WORKFLOW_LOG, "ERROR") as logged:
+                    self.assertTrue(self.reconcile())
+                    self.assertIn("never confirmed", support.logged_refusal(logged))
+                failures.clear()
+                writes = self.gh.write_state_calls
 
-        self.assertFalse(self.reconcile())
+                self.assertFalse(self.reconcile())
 
-        self.assertEqual(len(self.artifacts()), 1)
-        self.assertEqual(
-            _settlement.read_evidence_handoff(self.state).receipt,
-            self.pending.receipt,
-        )
+                self.assertEqual(
+                    (
+                        self.gh.write_state_calls - writes,
+                        self.artifacts(),
+                        _settlement.read_evidence_handoff(self.state).receipt,
+                        _history(self),
+                    ),
+                    (
+                        int(failure == "refused"),
+                        [self.pending.artifact, later.artifact],
+                        later.receipt,
+                        [(self.pending.receipt, _records.Retirement.SUPERSEDED)],
+                    ),
+                )
 
     def test_a_record_its_own_handoff_settled(self) -> None:
         # The settlement landed; a record standing beside its own handoff is
@@ -268,30 +292,44 @@ class ReplayedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
         self.assertIsNone(self.state.get(_records.PENDING_EVIDENCE))
         self.assertEqual(_history(self), [])
 
-    def test_a_comment_filled_during_the_post(self) -> None:
+    def test_a_comment_filled_around_the_post(self) -> None:
         # Another road fills the pinned comment with a field this settlement
-        # does not own while the artifact is posted: nothing past the limit is
-        # written, the transaction stays owed, and once the room is back the
-        # replay finds the artifact by its receipt and settles it.
-        self.meanwhile = _fills_the_comment
-        with patch.object(
-            self.gh, "_post_verification_artifact", self.posts_then,
-        ), self.assertLogs(support.WORKFLOW_LOG, "ERROR"):
-            self.assertFalse(self.reconcile())
+        # does not own: after this tick read it, so the settlement prepared
+        # over the comment as it stands posts nothing; or while the artifact
+        # is posted, so its commit writes nothing. Nothing past the limit is
+        # written either way, the transaction stays owed, and once the room is
+        # back the replay posts the artifact or finds it by its receipt, and
+        # settles it once.
+        for posted in (False, True):
+            with self.subTest(posted=posted):
+                self.setUp()
+                self.meanwhile = _fills_the_comment
+                if not posted:
+                    _fills_the_comment(self, None)
+                with patch.object(
+                    self.gh, "_post_verification_artifact", self.posts_then if posted else self.posts,
+                ), self.assertLogs(support.WORKFLOW_LOG, _WARNING):
+                    self.assertFalse(self.reconcile(self.state))
 
-        filled = self.gh.read_pinned_state(self.issue)
-        self.assertLessEqual(len(pinned_state_body(filled.data)), MAX_PINNED_BODY)
-        self.assertEqual(_record_state.read_pending_evidence(filled), self.pending)
-        self.assertIsNone(_settlement.read_current_evidence(filled))
+                filled = self.gh.read_pinned_state(self.issue)
+                self.assertEqual(
+                    (
+                        len(pinned_state_body(filled.data)) <= MAX_PINNED_BODY,
+                        _record_state.read_pending_evidence(filled),
+                        _settlement.read_current_evidence(filled),
+                        len(self.artifacts()),
+                    ),
+                    (True, self.pending, None, int(posted)),
+                )
 
-        filled.data.pop(_FILLER)
-        self.gh.write_pinned_state(self.issue, filled)
-        self.assertFalse(self.reconcile())
+                filled.data.pop(_FILLER)
+                self.gh.write_pinned_state(self.issue, filled)
+                self.assertFalse(self.reconcile())
 
-        self.assertEqual(len(self.artifacts()), 1)
-        self.assertEqual(
-            _settlement.read_current_evidence(self.state).receipt, self.pending.receipt,
-        )
+                self.assertEqual(
+                    (len(self.artifacts()), _settlement.read_evidence_handoff(self.state).receipt),
+                    (1, self.pending.receipt),
+                )
 
     def test_an_artifact_changed_during_the_post(self) -> None:
         # Edited or deleted by a human after the post landed and before the

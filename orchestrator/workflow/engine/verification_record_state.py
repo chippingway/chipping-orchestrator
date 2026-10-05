@@ -40,9 +40,10 @@ a transaction is never accepted into a comment its own settlement would push
 past what GitHub accepts. That settlement happens after the artifact is posted,
 where a refused write would leave the evidence on the thread and the
 transaction claiming it forever. The measurement is public (`settled_payload`)
-so the publication takes it again on the tick it would settle
-(`verification_publishing`), since writes
-landing between the two ticks can spend the room a record was accepted with.
+so the publication takes it again on the tick it would settle, staged in the
+settlement's own guarded commit and prepared over the comment as it stands
+(`verification_publishing`), since writes landing between the two ticks can
+spend the room a record was accepted with.
 
 Two live roads mint and record a transaction. A returned reviewer's: its
 claim reader mints one from the commands it declared, and its verdict record

@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Post a proved transaction's artifact, and settle it in the one write that makes it current.
+"""Post a proved transaction's artifact, and settle it in the one commit that makes it current.
 
 The post is idempotent by construction: it is scoped by the transaction's
 receipt, so a retry finds whatever an earlier attempt landed -- including the
@@ -19,10 +19,12 @@ which is abandoned with the approval it was recorded for
 
 The settlement that follows a landed post is `verification_settling`'s.
 
-The room for that write is proved ahead of the post, where nothing has happened
-yet: a comment already too full to settle into posts nothing. The settlement
-measures it again over the comment as it stands, since the post is long enough
-for another road to fill it.
+The room for that commit is proved ahead of the post, where nothing has
+happened yet: the settlement's own guarded commit, staged at its widest and
+PREPARED over the pinned comment read afresh (`pinned_commit.prepare`), so a
+comment another road filled since this tick read it, or one whose bound records
+moved, posts nothing. The settlement measures it again over the comment as it
+stands, since the post is long enough for another road to fill it.
 """
 from __future__ import annotations
 
@@ -30,17 +32,26 @@ import logging
 from typing import Any
 
 from orchestrator.github import pull_request_reports as _pr_reports, verification_evidence as _evidence
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    report_record_state as _report_record_state,
-    verification_carries as _carries,
+    pinned_commit as _commit,
     verification_comments as _verification_comments,
+    verification_durable as _durable,
     verification_proof as _proof,
     verification_record_state as _record_state,
     verification_records as _records,
+    verification_settlement_state as _settlement,
     verification_settling as _settling,
 )
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
+from orchestrator.workflow.engine.verification_carries import abandons_afresh, is_carry
 
 log = logging.getLogger("orchestrator.workflow")
+
+_NO_ROOM = ReportEvidence(
+    ReportEvidenceVerdict.DEFER,
+    "the pinned comment has no room to settle the evidence and later invalidate it",
+)
 
 
 def publishes(
@@ -53,19 +64,18 @@ def publishes(
     True holds the tick; False lets it carry on, over a transaction either
     settled or still owed.
     """
-    issue, state = reading.issue, reading.state
-    settled = _record_state.settled_payload(state, pending)
-    if settled is None or not _report_record_state.fits_the_comment(settled):
-        log.error(
-            "issue=#%d cannot settle verification evidence revision %d without "
-            "writing a pinned comment past what GitHub accepts; standing down "
-            "with the artifact unpublished and still owed",
-            issue.number, pending.revision,
+    issue = reading.issue
+    unsettled = _settlement_room(reading, pending)
+    if unsettled is not None:
+        log.warning(
+            "issue=#%d cannot settle verification evidence revision %d over its "
+            "pinned comment as it stands (%s); leaving the artifact unpublished "
+            "and still owed", issue.number, pending.revision, unsettled.refusal,
         )
-        return False
+        return unsettled.holds
     try:
         lookup = _verification_comments._publish_verification_artifact(
-            reading.gh, pull_request, state, pending.artifact,
+            reading.gh, pull_request, reading.state, pending.artifact,
         )
     except _evidence.ArtifactRefusedError:
         log.exception(
@@ -83,6 +93,39 @@ def publishes(
         )
         return True
     return _settling.settles(reading, pending, lookup.landed_id)
+
+
+def _settlement_room(
+    reading: _proof.ProofReading, pending: _records.PendingEvidence,
+) -> ReportEvidence | None:
+    """Refuse a post whose settlement the pinned comment as it stands could not record, or None.
+
+    The settlement is staged at its widest -- the widest comment id and label,
+    and refused where the evidence it installs could not later be invalidated
+    within the comment (`verification_record_state.settled_payload`) -- and
+    prepared under the guard the settlement's own commit is taken under
+    (`verification_settling`): the comment this tick read, every bound record
+    as the state in hand spells it, and every other field as the comment
+    carries it now. The artifact's ledger entry is reserved against the ledger
+    as it stands (`verification_comments.RESERVED_LEDGER`), since a slot
+    reserved against the tick's reading may be one another road has recorded
+    since, which would reserve nothing. That invalidation is measured again
+    over the prepared candidate, since the comment it is laid over may have
+    grown. A comment that will not read holds; a bound record that moved, and
+    a comment with no room, stand down with nothing posted.
+    """
+    widest = _record_state.settled_payload(reading.state, pending)
+    if widest is None:
+        return _NO_ROOM
+    prepared = _commit.prepare(
+        reading.gh, reading.issue, _durable.guarded(reading.state, _settling.SETTLES), widest,
+        _verification_comments.RESERVED_LEDGER,
+    )
+    refused = _durable.refusal_of(prepared)
+    if refused is not None:
+        return refused
+    invalidated = PinnedState(state_data=prepared.reading.data)
+    return None if _settlement.retire_current_evidence(invalidated) else _NO_ROOM
 
 
 def _refuses_the_reading(
@@ -107,6 +150,6 @@ def _refuses_the_reading(
         "issue=#%d cannot settle verification evidence revision %d (%s); "
         "standing down", issue.number, pending.revision, presence.value,
     )
-    if _carries.is_carry(pending):
-        return _carries.abandons_afresh(reading.gh, issue, reading.state, pending)
+    if is_carry(pending):
+        return abandons_afresh(reading.gh, issue, reading.state, pending)
     return False
