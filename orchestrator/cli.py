@@ -9,6 +9,13 @@ one run carries, and hands that state to each owner under
 `orchestrator/runtime/` in turn; the order below is the startup contract and
 lives nowhere else.
 
+The options owner is the only one this module imports with itself. Every other
+owner resolves and validates the configuration as it is imported, so each is
+named inside the function that composes it, once the command line has been
+read: `--help`, and a command line the parser refuses, answer on a host with
+no configuration or a malformed one, while a launch that goes on to run meets
+that validation before anything it composes.
+
 The signal handler is installed before the first GitHub call, so a stop that
 arrives during a slow connect is honoured rather than swallowed, and the
 scheduler is published on the state as soon as it exists so the same handler
@@ -34,30 +41,32 @@ turn a presence into exclusive ownership before it may act.
 """
 from __future__ import annotations
 
-from orchestrator.runtime import (
-    artifacts,
-    exclusion,
-    logs,
-    loop,
-    shutdown,
-    startup,
-)
-from orchestrator.runtime.state import RuntimeState
+from typing import TYPE_CHECKING
+
+from orchestrator.runtime import options as _options
+
+if TYPE_CHECKING:
+    from orchestrator.runtime.state import RuntimeState
 
 
 def main(argv: list[str] | None = None) -> int:
     """Run the launch mode the options name and return its exit code."""
-    options = startup.parse_options(argv)
+    launch_options = _options.parse_options(argv)
+    from orchestrator.runtime import logs, shutdown, startup, state as _runtime_state
+
     startup.require_issue_authors()
-    logs.configure_logging(options.log_level)
-    state = RuntimeState()
+    logs.configure_logging(launch_options.log_level)
+    state = _runtime_state.RuntimeState()
     shutdown.install_signal_handlers(state)
-    if options.cleanup_terminal_artifacts:
+    if launch_options.cleanup_terminal_artifacts:
         return _maintenance_run(state)
-    return _polling_run(state, options)
+    return _polling_run(state, launch_options)
 
 
-def _polling_run(state: RuntimeState, options: startup.PollingOptions) -> int:
+def _polling_run(
+    state: RuntimeState,
+    launch_options: _options.PollingOptions,
+) -> int:
     """Drive the polling loop and answer with the code it ended on.
 
     The host claim wraps the connect as well as the loop, because a tick can
@@ -65,6 +74,8 @@ def _polling_run(state: RuntimeState, options: startup.PollingOptions) -> int:
     through this host's checkouts while this run is building the clients that
     are about to be handed them.
     """
+    from orchestrator.runtime import exclusion, loop, startup
+
     with exclusion.polling_presence() as host_claim:
         state.host_claim = host_claim
         clients = startup.connect_clients()
@@ -73,7 +84,7 @@ def _polling_run(state: RuntimeState, options: startup.PollingOptions) -> int:
         with loop.scheduler_drained(state, scheduler):
             restart_exit_code = loop.drive_polling(
                 state,
-                options,
+                launch_options,
                 clients,
                 scheduler,
             )
@@ -117,6 +128,8 @@ def _maintenance_run(state: RuntimeState) -> int:
     host, a polling run's pass has to take it, and the pass is written against
     whichever of the two it was handed.
     """
+    from orchestrator.runtime import artifacts, exclusion, loop, startup
+
     clients = startup.connect_read_only_clients()
     with exclusion.artifact_exclusivity() as host_claim:
         if not host_claim.taken:

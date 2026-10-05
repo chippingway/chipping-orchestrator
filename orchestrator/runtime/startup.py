@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """What one polling run is built from before its first tick.
 
-The options an operator started it with, the author allowlist it may not start
-without, one authenticated client per configured repository, and the single
-scheduler every tick hands work to. Each of them reads the configuration inside
-its own call, so a run reflects the environment it was started in rather than
-the one this module was imported in.
+The author allowlist it may not start without, one authenticated client per
+configured repository, and the single scheduler every tick hands work to. Each
+of them reads the configuration inside its own call, so a run reflects the
+environment it was started in rather than the one this module was imported in.
+The options it was started with are read by `options` before this module is
+imported at all, since importing it resolves the configuration.
 
 `RepoClients` is what both connects hand back and what every pass over the
 repositories is typed by: the spec stays paired with the client built for it,
@@ -20,10 +21,8 @@ state on GitHub.
 """
 from __future__ import annotations
 
-import argparse
 import logging
 import sys
-from dataclasses import dataclass
 
 from orchestrator import config
 from orchestrator.config import models as _config_models
@@ -43,50 +42,6 @@ _MISSING_ISSUE_AUTHORS = (
 )
 
 
-@dataclass(frozen=True)
-class PollingOptions:
-    """Parsed command-line options: which mode a run is, and how loud."""
-
-    once: bool
-    cleanup_terminal_artifacts: bool
-    log_level: str
-
-
-def parse_options(argv: list[str] | None) -> PollingOptions:
-    """Parse the launch mode and log level a run was started with."""
-    parser = argparse.ArgumentParser(
-        description="chipping-orchestrator polling loop.",
-    )
-    # Exclusive rather than ordered: each flag names a whole run that ends on
-    # its own, so a command line asking for both is a mistake worth reporting
-    # instead of one whose meaning an operator has to look up.
-    modes = parser.add_mutually_exclusive_group()
-    modes.add_argument(
-        "--once",
-        action="store_true",
-        help="Run a single tick and exit.",
-    )
-    modes.add_argument(
-        "--cleanup-terminal-artifacts",
-        action="store_true",
-        help=(
-            "Reclaim the worktrees and branches of finished issues, then "
-            "exit. Polls no issue and writes no workflow state: no label, no "
-            "pinned state, no comment. It does delete the orchestrator-owned "
-            "branches it proved reclaimable, in the local clone and on the "
-            "remote. Defers entirely while another orchestrator process is "
-            "live on this host."
-        ),
-    )
-    parser.add_argument("--log-level", default="INFO")
-    parsed_options = parser.parse_args(argv)
-    return PollingOptions(
-        once=parsed_options.once,
-        cleanup_terminal_artifacts=parsed_options.cleanup_terminal_artifacts,
-        log_level=parsed_options.log_level,
-    )
-
-
 def require_issue_authors() -> None:
     """Stop the launch unless `ALLOWED_ISSUE_AUTHORS` names somebody.
 
@@ -95,9 +50,10 @@ def require_issue_authors() -> None:
     public repository could file work an agent is paid to do and steer it
     through comments. So no launch mode starts without one, and the stop comes
     before anything connects, claims the host, or builds a scheduler. The
-    options are read first so `--help` still answers on a host nobody has
-    configured yet. `sys.exit` with the message is the stop an invalid setting
-    makes at import: the text on stderr and exit status 1.
+    options are read before this module is even imported, so `--help` still
+    answers on a host nobody has configured yet. `sys.exit` with the message is
+    the stop an invalid setting makes at import: the text on stderr and exit
+    status 1.
     """
     if not config.ALLOWED_ISSUE_AUTHORS:
         sys.exit(_MISSING_ISSUE_AUTHORS)

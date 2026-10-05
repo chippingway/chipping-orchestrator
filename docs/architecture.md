@@ -85,7 +85,8 @@ orchestrator/
   __main__.py           `python -m orchestrator` launch form over `cli.main`;
                         the target `run.sh` launches
   runtime/              the polling process's own owners: the state one run
-                        carries, the log destinations, startup, one pass over
+                        carries, the command line, the log destinations,
+                        startup, one pass over
                         the configured repos, the polling loop, when the
                         finished issues' artifacts may be reclaimed, which
                         process on the host may reclaim them and the one
@@ -222,9 +223,11 @@ self-exit and be restarted with new code.
   on the remote, which is what it is for. The form a nightly service timer runs.
 - **Startup refusal** (`runtime.startup.require_issue_authors`): every launch mode reads its options and then stops
   with exit status 1 while `ALLOWED_ISSUE_AUTHORS` names nobody, before logging, the signal handler, the host claim,
-  any GitHub client, or the scheduler exists, because an empty allowlist would trust every author. Reading the options
-  first keeps `--help` answering on an unconfigured host. The setting is under
-  [`configuration.md#required`](configuration.md#required).
+  any GitHub client, or the scheduler exists, because an empty allowlist would trust every author. The options are
+  read by `runtime.options`, which loads no configuration, and `cli.py` imports every other runtime owner -- each of
+  which resolves and validates the settings as it is imported -- only after that, so `--help` answers on a host with
+  no configuration or a malformed `REPOS`, while a launch that goes on to run still meets that validation first. The
+  setting is under [`configuration.md#required`](configuration.md#required).
 - **Host exclusivity** (`runtime.exclusion`): one `flock`-based claim on `WORKTREES_DIR/.artifact-maintenance.lock`
   decides which process may touch this host's artifacts. Every polling run holds it **shared** for its whole life (a
   presence: "a process that may be running work is live here"), and **every** maintenance pass holds it

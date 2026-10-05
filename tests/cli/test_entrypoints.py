@@ -10,6 +10,7 @@ import sys
 import tomllib
 import unittest
 from importlib import import_module
+from itertools import product
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -34,6 +35,14 @@ _MISSING_ALLOWLIST = (
 # Unset, then empty, whitespace-only, comma-only, and emptied by the `@`
 # normalization: every value that names nobody once it is parsed.
 _EMPTY_ALLOWLISTS = (None, "", "   ", " , ,", " @ , @@ ")
+_REPOS_ENV = "REPOS"
+_TRUSTED_AUTHOR = "operator"
+# One entry that is not `owner/name|target_root|base_branch`, which the
+# configuration refuses while it is resolved.
+_MALFORMED_REPOS = "not-a-repository-entry"
+_MALFORMED_REPOS_ERROR = "orchestrator: REPOS entry #1 is malformed"
+# A host that configures nothing, and one whose `REPOS` a run aborts on.
+_HELP_SETTINGS = ({}, {_REPOS_ENV: _MALFORMED_REPOS})
 
 
 def _console_script() -> str | None:
@@ -51,9 +60,18 @@ def _launch_forms() -> tuple[_LaunchForm, ...]:
     )
 
 
-def _run_help(command: list[str]) -> subprocess.CompletedProcess:
-    # `orchestrator.config` resolves `.env` at import, so pin the documented
-    # opt-out to keep the subprocess independent of the operator's file.
+def _run_help(
+    command: list[str],
+    settings: dict[str, str],
+    home: Path,
+) -> subprocess.CompletedProcess:
+    """Ask one launch form for `--help` on a host configured with `settings`.
+
+    The environment is the search path, a home of the run's own, and those
+    settings alone, so no repository, token, allowlist, or user-location `.env`
+    of the operator's configures it; the documented dotenv opt-out keeps the
+    checkout's own `.env` out as well.
+    """
     return subprocess.run(
         [*command, _HELP_FLAG],
         cwd=_REPO_ROOT,
@@ -61,16 +79,26 @@ def _run_help(command: list[str]) -> subprocess.CompletedProcess:
         text=True,
         check=False,
         timeout=_HELP_TIMEOUT_SECONDS,
-        env={**os.environ, "ORCHESTRATOR_SKIP_DOTENV": "1"},
+        env={
+            "PATH": os.environ.get("PATH", ""),
+            "HOME": str(home),
+            "ORCHESTRATOR_SKIP_DOTENV": "1",
+            **settings,
+        },
     )
 
 
-def _run_once(allowed_authors: str | None, scratch: Path) -> subprocess.CompletedProcess:
+def _run_once(
+    allowed_authors: str | None,
+    scratch: Path,
+    repos: str | None = None,
+) -> subprocess.CompletedProcess:
     """Launch one `--once` run through the module form, allowlist as given.
 
     No token and a checkout root of the run's own, so that a launch which ever
     got past the allowlist would still fail before reaching GitHub or the
-    operator's host rather than tick against either.
+    operator's host rather than tick against either. `repos`, where given,
+    is the run's `REPOS`; otherwise it inherits whatever the caller's has.
     """
     environment = {
         name: env_value
@@ -85,6 +113,8 @@ def _run_once(allowed_authors: str | None, scratch: Path) -> subprocess.Complete
     })
     if allowed_authors is not None:
         environment[_ALLOWLIST_ENV] = allowed_authors
+    if repos is not None:
+        environment[_REPOS_ENV] = repos
     return subprocess.run(
         [sys.executable, "-m", _PACKAGE, _ONCE_FLAG],
         cwd=_REPO_ROOT,
@@ -125,16 +155,38 @@ class EntryPointTargetTest(unittest.TestCase):
 
 
 class LaunchFormHelpTest(unittest.TestCase):
-    """Every supported launch form reaches the same argument parser."""
+    """Every supported launch form reaches the same argument parser, and
+    answers `--help` before any configuration is read: on a host that
+    configures no repository, and on one whose `REPOS` a run aborts on.
 
-    def test_launch_forms_print_usage(self) -> None:
-        for form_name, command in _launch_forms():
-            with self.subTest(form=form_name):
+    Only the help path is spared that validation. A launch that goes on to run
+    is stopped by the same `REPOS` with status 1 on the error naming the
+    entry, printing nothing to stdout.
+    """
+
+    def test_help_answers_without_configuration(self) -> None:
+        for (form_name, command), settings in product(_launch_forms(), _HELP_SETTINGS):
+            with (
+                self.subTest(form=form_name, settings=settings),
+                TemporaryDirectory() as home,
+            ):
                 if command is None:
                     self.skipTest(_MISSING_SCRIPT_REASON)
-                completed = _run_help(command)
+                completed = _run_help(command, settings, Path(home))
+
                 self.assertEqual(completed.returncode, 0, completed.stderr)
                 self.assertIn(_ONCE_FLAG, completed.stdout)
+                self.assertEqual(completed.stderr, "")
+
+    def test_malformed_repos_stops_a_run(self) -> None:
+        with TemporaryDirectory() as scratch:
+            completed = _run_once(_TRUSTED_AUTHOR, Path(scratch), repos=_MALFORMED_REPOS)
+
+        self.assertEqual(completed.returncode, 1, completed.stderr)
+        self.assertTrue(
+            completed.stderr.startswith(_MALFORMED_REPOS_ERROR), completed.stderr,
+        )
+        self.assertEqual(completed.stdout, "")
 
 
 class EmptyAllowlistLaunchTest(unittest.TestCase):
