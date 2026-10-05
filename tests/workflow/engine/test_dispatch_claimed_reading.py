@@ -135,11 +135,15 @@ class StaleAdmissionTest(WriterClaimDispatchCase):
         return occupied
 
     def _ticked_on(self, scheduler, stand_in: StandInHandler, label: str) -> None:
-        """One scheduled tick at a `parallel_limit` of 1, waited out on the issue and the family bucket."""
+        """One scheduled tick at a `parallel_limit` of 1, waited out on the family bucket and then the issue.
+
+        The bucket is active from its submission, but an issue it drains only
+        once the drain reaches it, so the issue reads idle before then.
+        """
         with self._patched(stand_in, (label,)):
             _tick.tick(self.github, self._spec(parallel_limit=1), scheduler=scheduler)
-            self._wait_issue_idle(scheduler, _STALE)
             self._wait_issue_idle(scheduler, _scheduled_dispatch._FAMILY_BUCKET_ISSUE)
+            self._wait_issue_idle(scheduler, _STALE)
 
 
 class ClosedAcrossTheGapTest(ObservedCloseCase, unittest.TestCase):
