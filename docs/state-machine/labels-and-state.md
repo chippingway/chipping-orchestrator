@@ -564,7 +564,8 @@ under one of these — with the ending unmarked, the ref its children were cut f
 would route it living only in the process that took it. A restart before any cleanup pass would lose that ending for
 good, so the query is what makes it discoverable without one. Only their CLOSED issues are asked about: an open
 `workflow:ready` issue is polled and dispatched exactly as ever. What it costs is one pinned read per closed issue on
-either, on the sweep cadence, and an issue read behind it where the record still names a cycle to end.
+either, on the sweep cadence, and an issue read and a second pinned read behind it where the record still names a
+cycle to end.
 
 `workflow:decomposing` and `workflow:umbrella` are swept closed for the same pass, and all four are the one case where
 the label does not choose the handler -- and the one case the `backlog` / `paused` filter does not get to drop, since

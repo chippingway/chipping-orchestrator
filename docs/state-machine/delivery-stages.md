@@ -1514,11 +1514,11 @@ because there it is the claim that this stage has already rerouted rather than a
   scheduler shutdown, a process that dies before the worker takes it — would otherwise leave the observation with
   nothing on the remote saying it happened, and a human who reopens the issue before the next process polls it takes
   the reading away for good. So the receipt goes on the thread while the record can still name the cycle it belongs
-  to: one pinned read per closed fan-out issue, off the object the enumeration listed, and an issue read behind it
-  confirming the close where the record names a cycle it would end. The pinned read answers whether the reading is
-  owed at all — an issue whose record says there is nothing to end has its latch dropped again right there, so the
-  machinery is carried only by the owners that need it (and the admitted pass skips its own end-of-pass probe, since
-  the poll already asked that record).
+  to: one pinned read per closed fan-out issue, off the object the enumeration listed, and an issue read and a second
+  pinned read behind it confirming the close where the record names a cycle it would end. The first pinned read
+  answers whether the reading is owed at all — an issue whose record says there is nothing to end has its latch
+  dropped again right there, so the machinery is carried only by the owners that need it (and the admitted pass skips
+  its own end-of-pass probe, since the poll already asked that record).
 - **That drop is POSTPONED while a worker holds the issue.** "Nothing to end" is read off the late cycle, which is the
   right answer for the protocol this record was built for and the wrong one for the barriers standing immediately before
   a push: those ask the same latch, and every publication they guard carries no cycle — a first push has none yet, and
