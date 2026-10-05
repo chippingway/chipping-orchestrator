@@ -8,6 +8,10 @@ named one is gone -- which every caller writing the whole record relies on.
 `edit_pinned_state` is the strict one a guarded commit lands through: in
 place or not at all, over the reading it was derived from, with an answer
 that says whether GitHub confirmed it.
+
+A state read from the comment, or written over it, also remembers what the
+comment carried at that moment (`PinnedState.synced`), so what a tick staged on
+it since can be told from what it read.
 """
 from __future__ import annotations
 
@@ -108,6 +112,20 @@ class PinnedState:
     rewriting the comment wants that -- an empty payload is what it is about
     to replace -- but a caller DECIDING on the absence of a recorded branch or
     pull request would be deciding on a record it never read.
+
+    ``synced`` is what the comment carried the last time this state was read
+    from it or written over it, spelled as its JSON spells it so nothing
+    staged on ``state_data`` moves it, and None for a state built in memory. It is not a field of the record and
+    takes no part in comparing two states: it is what a guarded commit is
+    captured over, so the changes a tick staged between two writes ride the
+    next one while every field another writer moved meanwhile is kept as that
+    writer left it.
+
+    ``withheld`` is set on a state a guarded commit did not land over -- one
+    refused over a comment that moved, or one sent and never confirmed: the
+    comment is not, or may not be, what the state was decided on, so the
+    whole-state writer writes nothing for it rather than put back everything
+    another road wrote since. A guarded commit that lands clears it.
     """
 
     comment_id: int | None = None
@@ -137,6 +155,8 @@ class PinnedState:
         self.comment_id = comment_id
         self.state_data = selected_state
         self.parsed = parsed
+        self.synced = None
+        self.withheld = False
 
     def __getattr__(self, attribute_name: str) -> Any:
         if attribute_name == "data":
@@ -267,10 +287,12 @@ def pinned_state_from_comment(
     payload = _state_payload(state_match.group(1), issue_number)
     if payload is None:
         return PinnedState(comment_id=issue_comment.id, parsed=False)
-    return PinnedState(
+    reading = PinnedState(
         comment_id=issue_comment.id,
         state_data=payload,
     )
+    reading.synced = json.dumps(payload, sort_keys=True)
+    return reading
 
 
 def _state_payload(payload: str, issue_number: int) -> dict | None:
@@ -319,18 +341,30 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         issue: Issue,
         state: PinnedState,
     ) -> PinnedState:
-        """Create or replace the issue's authoritative state-only comment."""
+        """Create or replace the issue's authoritative state-only comment.
+
+        A `withheld` state is not written at all, and is answered unchanged.
+        """
+        if state.withheld:
+            log.warning(
+                "issue=#%s holds a state a guarded commit did not land over; "
+                "writing nothing over the pinned comment", issue.number,
+            )
+            return state
         body = pinned_state_body(state.data)
         if state.comment_id is None:
             created_comment = issue.create_comment(body)
             state.comment_id = created_comment.id
+            state.synced = json.dumps(state.data, sort_keys=True)
             return state
         for issue_comment in issue.get_comments():
             if issue_comment.id == state.comment_id:
                 issue_comment.edit(body)
+                state.synced = json.dumps(state.data, sort_keys=True)
                 return state
         created_comment = issue.create_comment(body)
         state.comment_id = created_comment.id
+        state.synced = json.dumps(state.data, sort_keys=True)
         return state
 
     def edit_pinned_state(

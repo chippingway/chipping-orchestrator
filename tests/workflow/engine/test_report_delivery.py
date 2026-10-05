@@ -34,6 +34,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow import report_refusals as _refusals
 from tests.workflow.engine import (
+    report_commit_test_support as commit_support,
     report_delivery_test_support as delivery_support,
     report_record_test_support as support,
 )
@@ -44,6 +45,9 @@ from tests.workflow.fixtures import (
 
 # Why a delivered report's own reading refuses it.
 _REFUSAL = _record_values.RecordRefusal
+
+# A finished run's message ending on the report the ordinary delivery records.
+_READY = delivery_support.ready(delivery_support.DELIVERED.report)
 
 # A notice offered to a park that is still standing, which nobody may be sent.
 _SECOND_NOTICE = "The report this issue owes still cannot be delivered."
@@ -454,7 +458,6 @@ class ReportedRunTest(unittest.TestCase):
         # re-read on somebody else's thread. Each holds the tick and parks,
         # and the park is what remembers the debt, since there is no report to
         # record.
-        seeded = delivery_support.seeded_issue()
         messages = (
             ("no marker at all", "implemented"),
             ("a question", "which database should this use?"),
@@ -468,10 +471,7 @@ class ReportedRunTest(unittest.TestCase):
             with self.subTest(message=described):
                 state = PinnedState(state_data={delivery_support.BASELINE: support.REQUIREMENTS})
 
-                self.assertTrue(_delivery.recording_stops_the_tick(
-                    *seeded, state, _agent(last_message=message),
-                    WorkflowLabel.IMPLEMENTING,
-                ))
+                self.assertTrue(commit_support.records(state, _agent(last_message=message))[0])
 
                 self.assertFalse(
                     _delivery_state.carries_delivered_report(state),
@@ -485,12 +485,8 @@ class ReportedRunTest(unittest.TestCase):
         # The flags are single, so a later park -- a resumed run that timed out
         # -- replaces the reason. The debt is kept beside it, so the issue
         # still owes its report, until a run that reports retires both.
-        seeded = delivery_support.seeded_issue()
         state = PinnedState(state_data={delivery_support.BASELINE: support.REQUIREMENTS})
-        _delivery.recording_stops_the_tick(
-            *seeded, state, _agent(last_message="implemented"),
-            WorkflowLabel.IMPLEMENTING,
-        )
+        _stopped, *seeded = commit_support.records(state, _agent(last_message="implemented"))
         state.set(delivery_support.PARK_REASON, "agent_timeout")
         self.assertEqual(
             (state.get(_delivery.OWED_REPORT), _delivery.owes_a_report(state)),
@@ -539,7 +535,6 @@ class ReportedRunTest(unittest.TestCase):
         # rest carry a well-formed report, so the judgement is visibly about
         # the RUN rather than about its message: none of these is a developer
         # declining to report, so nothing is recorded and nothing is held.
-        seeded = delivery_support.seeded_issue()
         runs = (
             ("nothing invoked", {"invoked": False}),
             ("a shutdown kill", {"interrupted": True}),
@@ -554,11 +549,9 @@ class ReportedRunTest(unittest.TestCase):
             with self.subTest(run=described):
                 state = PinnedState(state_data={delivery_support.BASELINE: support.REQUIREMENTS})
 
-                self.assertFalse(_delivery.recording_stops_the_tick(
-                    *seeded, state,
-                    _agent(**{"last_message": delivery_support.ready(delivery_support.DELIVERED.report), **run}),
-                    WorkflowLabel.IMPLEMENTING,
-                ))
+                finished = _agent(**{"last_message": _READY, **run})
+
+                self.assertFalse(commit_support.records(state, finished)[0])
 
                 self.assertFalse(_delivery.owes_a_report(state))
 
@@ -566,17 +559,9 @@ class ReportedRunTest(unittest.TestCase):
         # A run that says the report is already on this repository's thread
         # records the exact place and the digest it read there. Nothing of it
         # is believed here: what settles is a fresh read of that location.
-        github, issue = delivery_support.seeded_issue()
         state = PinnedState(state_data={delivery_support.BASELINE: support.REQUIREMENTS})
 
-        self.assertFalse(_delivery.recording_stops_the_tick(
-            github, issue, state, _agent(last_message=(
-                f"done\n\nREPORT: VERIFIED https://github.com/{support.SLUG}"
-                f"/pull/{support.PR_NUMBER}#issuecomment-{support.COMMENT_ID}"
-                f" sha256:{support.CONTENT_DIGEST}"
-            )),
-            WorkflowLabel.IMPLEMENTING,
-        ))
+        self.assertFalse(commit_support.records(state, _agent(last_message=_ASSERTING))[0])
 
         self.assertEqual(
             _delivery_state.read_delivered_report(state), delivery_support.ASSERTED,
@@ -589,11 +574,11 @@ class ReportedRunTest(unittest.TestCase):
         # said and leave the commit in a worktree nothing had said anything
         # about -- so it is held for a human exactly as a location on somebody
         # else's repository is.
-        github, issue = delivery_support.seeded_issue()
-        delivery_support.unreachable_repository(github)
         state = PinnedState(
             state_data={delivery_support.BASELINE: support.REQUIREMENTS},
         )
+        github, issue = commit_support.pinned(delivery_support.seeded_issue(), state)
+        delivery_support.unreachable_repository(github)
 
         self.assertTrue(_delivery.recording_stops_the_tick(
             github, issue, state, _agent(last_message=(
@@ -618,13 +603,9 @@ class ReportedRunTest(unittest.TestCase):
         # prove again -- so the report cannot be recorded, and a report this
         # build cannot record holds the tick rather than letting the code go
         # out without one.
-        github, issue = delivery_support.seeded_issue()
         state = PinnedState()
 
-        self.assertTrue(_delivery.recording_stops_the_tick(
-            github, issue, state, _agent(last_message=delivery_support.ready(delivery_support.DELIVERED.report)),
-            WorkflowLabel.IMPLEMENTING,
-        ))
+        self.assertTrue(commit_support.records(state, _agent(last_message=_READY))[0])
 
         self.assertFalse(_delivery_state.carries_delivered_report(state))
         self.assertEqual(
@@ -732,7 +713,7 @@ _ASSERTING = (
 _ROOM_REFUSALS = (
     (
         _room.MeasuredWrite.RECORD,
-        (0, False),
+        (delivery_support.CROWDED_FOR_PARK, False),
         ("a written-out report", delivery_support.DELIVERED, delivery_support.ready(delivery_support.DELIVERED.report)),
         _refusals.Said(
             notice=("the record of it would leave the pinned comment", _REWRITE),
@@ -742,7 +723,7 @@ _ROOM_REFUSALS = (
     ),
     (
         _room.MeasuredWrite.RECORD,
-        (0, False),
+        (delivery_support.CROWDED_FOR_PARK, False),
         ("an escaped report", _ESCAPED, delivery_support.ready(_ESCAPED.report)),
         _refusals.Said(
             notice=(
@@ -895,14 +876,13 @@ class ParkNoticeTest(unittest.TestCase):
 
     def _assert_notice(self, message: str, route, open_pr: bool) -> None:
         """One park, taken on one road, says what that road withheld."""
-        seeded = delivery_support.seeded_issue()
+        stopped, _github, issue = commit_support.records(
+            PinnedState(), _agent(last_message=message), route,
+        )
 
-        self.assertTrue(_delivery.recording_stops_the_tick(
-            *seeded, PinnedState(), _agent(last_message=message), route,
-        ))
-
+        self.assertTrue(stopped)
         notice = next(
-            posted.body for posted in seeded[-1].comments
+            posted.body for posted in issue.comments
             if "developer run finished" in (posted.body or "")
         )
         self.assertEqual(
@@ -943,16 +923,14 @@ class ParkNoticeTest(unittest.TestCase):
         and with the notice the one comment posted: no pull request opened,
         no report published.
         """
-        seeded = delivery_support.seeded_issue()
         found = {key: state.get(key) for key in _REPORT_RECORDS}
 
         with self.assertLogs("orchestrator.workflow", "ERROR") as captured:
-            self.assertTrue(_delivery.recording_stops_the_tick(
-                *seeded, state, _agent(last_message=message), WorkflowLabel.IMPLEMENTING,
-            ))
+            recorded = commit_support.records(state, _agent(last_message=message))
             logged = "\n".join(captured.output)
 
-        github = seeded[0]
+        self.assertTrue(recorded[0])
+        github = recorded[1]
         self.assertEqual(
             (
                 {key: state.get(key) for key in _REPORT_RECORDS},
@@ -982,12 +960,7 @@ class DeliveredRevisionTest(unittest.TestCase):
         state = PinnedState(state_data={delivery_support.BASELINE: support.REQUIREMENTS})
         _settlement.record_current_report(state, support.CURRENT)
         _record_state.record_pending_report(state, support.PUBLISHED)
-        github, issue = delivery_support.seeded_issue()
-
-        _delivery.recording_stops_the_tick(
-            github, issue, state, _agent(last_message=delivery_support.ready(delivery_support.DELIVERED.report)),
-            WorkflowLabel.IMPLEMENTING,
-        )
+        commit_support.records(state, _agent(last_message=_READY))
 
         recorded = _delivery_state.read_delivered_report(state)
         self.assertEqual(recorded.report_revision, support.REVISION + 1)
@@ -1000,15 +973,11 @@ class DeliveredRevisionTest(unittest.TestCase):
         # revision, the replacement would carry the receipt the record it
         # replaces already carries -- which is what a retry finds its own
         # comment by.
-        github, issue = delivery_support.seeded_issue()
         state = PinnedState(state_data={delivery_support.BASELINE: support.REQUIREMENTS})
         _delivery_state.record_delivered_report(state, delivery_support.DELIVERED)
-
-        _delivery.recording_stops_the_tick(
-            github, issue, state,
-            _agent(last_message=delivery_support.ready("the report the park asked for")),
-            WorkflowLabel.IMPLEMENTING,
-        )
+        commit_support.records(state, _agent(
+            last_message=delivery_support.ready("the report the park asked for"),
+        ))
 
         recorded = _delivery_state.read_delivered_report(state)
         self.assertEqual(
@@ -1024,9 +993,8 @@ class DeliveredRevisionTest(unittest.TestCase):
         state.set(delivery_support.BASELINE, support.REQUIREMENTS)
         handed = "b" * len(support.REQUIREMENTS)
 
-        _delivery.recording_stops_the_tick(
-            *delivery_support.seeded_issue(), state,
-            _agent(last_message=delivery_support.ready("the resume's report")),
+        commit_support.records(
+            state, _agent(last_message=delivery_support.ready("the resume's report")),
             _records.HandedRun(WorkflowLabel.VALIDATING, handed),
         )
 
@@ -1041,12 +1009,12 @@ class DeliveredRevisionTest(unittest.TestCase):
         # recoverable is that it is on GitHub before the size gate reads the
         # candidate and before the push sends it.
         github, issue = delivery_support.seeded_issue()
+        github.seed_state(issue)
         state = github.read_pinned_state(issue)
         state.set(delivery_support.BASELINE, support.REQUIREMENTS)
 
         _delivery.recording_stops_the_tick(
-            github, issue, state, _agent(last_message=delivery_support.ready(delivery_support.DELIVERED.report)),
-            WorkflowLabel.IMPLEMENTING,
+            github, issue, state, _agent(last_message=_READY), WorkflowLabel.IMPLEMENTING,
         )
 
         self.assertEqual(

@@ -22,11 +22,13 @@ what that asks of the developer is `test_report_refresh.py`'s.
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 
 from orchestrator import config
 from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow import drift_reports as world
+from tests.workflow.engine import report_commit_test_support as commit_support
 from tests.workflow.fixtures import LABEL_VALIDATING, _agent
 
 ISSUE = 1_794
@@ -58,6 +60,14 @@ OWES_A_ROUND = "validating_reviewer_owes_a_round"
 MOVED_HEAD = "e" * len(world.FIXED_HEAD)
 
 CURRENT = "current"
+
+# Verification evidence another road settles while the hold's binding is out,
+# and the loose work a checkout has picked up by then.
+EVIDENCE_FIELD = "verification_evidence_current"
+
+EVIDENCE = MappingProxyType({EVIDENCE_FIELD: {"revision": 3}})
+
+LOOSE_WORK = ("scratch.txt",)
 
 # What a human leaves in place of the report when they edit the comment it
 # landed as, and take back out of it when they put the report back.
@@ -330,6 +340,84 @@ class EditedReportTest(unittest.TestCase, _HeldReview):
         self.drift(world.reported())
         self.github.report_failures.lost.clear()
         _rewritten_by_hand(self, world.REPORT_TEXT, REWRITTEN)
+
+
+class UnlandedBindingTest(unittest.TestCase, _HeldReview):
+    """A hold whose binding did not land over the comment the tick read.
+
+    The checkout has picked up loose work by then, which would park the report
+    for a human -- but a binding refused over a moved comment, or sent and
+    never confirmed, leaves nothing this tick may write, so the hold says
+    nothing at all and a later tick finishes the report off the same record.
+    """
+
+    def test_an_unconfirmed_binding_holds_silently(self) -> None:
+        # GitHub took the binding and its answer never came back, and evidence
+        # lands right behind it. The next tick's reconciliation publishes the
+        # transaction that binding left, and the reviewer runs over it.
+        self._bound_behind_a_recovered_push()
+        self.github.pinned_failures.lost.add(ISSUE)
+        with commit_support.behind(self.github, self.issue, commit_support.EDIT, **EVIDENCE):
+            held = self.drift(REVIEW_REPLY, committed=False, dirty_files=LOOSE_WORK)
+        self.github.pinned_failures.lost.discard(ISSUE)
+
+        self._assert_held_silently(held)
+        self.assertIsNotNone(self.records()["pending"])
+        self.reconcile()
+        self._assert_reviewed_over_the_report()
+
+    def test_a_stale_binding_holds_silently(self) -> None:
+        # Another road writes over the comment once the binding has read it, so
+        # its edit is refused. The next tick binds the same delivery afresh,
+        # publishes it, and the reviewer runs over it.
+        self._bound_behind_a_recovered_push()
+        with commit_support.under_the_edit(self.github, self.issue, **EVIDENCE):
+            held = self.drift(REVIEW_REPLY, committed=False, dirty_files=LOOSE_WORK)
+
+        self._assert_held_silently(held)
+        self.assertIsNotNone(self.records()["delivered"])
+        self._assert_reviewed_over_the_report()
+
+    def _bound_behind_a_recovered_push(self) -> None:
+        """A report recorded ahead of a push that failed, and the push a later tick recovered.
+
+        What the next tick binds is that delivery. The comments said so far
+        are kept as `said`, and the revision the report was recorded at as
+        `revision`, which any later tick has to publish it at.
+        """
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.drift(world.reported(), push_branch=False)
+        self.drift(REVIEW_REPLY, committed=False)
+        self.said = len(self.issue.comments)
+        self.revision = self.records()["delivered"].report_revision
+
+    def _assert_held_silently(self, held) -> None:
+        """Nobody run, nothing said, parked or published, and the other road's evidence kept."""
+        held[RUN_AGENT].assert_not_called()
+        self.assertEqual(
+            (
+                len(self.issue.comments),
+                bool(self.pinned().get(AWAITING_HUMAN)),
+                self.pinned().get(PARK_REASON),
+                self.published_reports(),
+                self.pinned().get(EVIDENCE_FIELD),
+            ),
+            (self.said, False, None, [], EVIDENCE[EVIDENCE_FIELD]),
+        )
+
+    def _assert_reviewed_over_the_report(self) -> None:
+        """The next tick runs the reviewer over the one report, at its own revision, evidence kept."""
+        reviewed = self.drift(REVIEW_REPLY, committed=False)
+
+        self.assert_reviewed(reviewed)
+        self.assertEqual(
+            (
+                len(self.published_reports()),
+                self.records()["current"].report_revision,
+                self.pinned().get(EVIDENCE_FIELD),
+            ),
+            (1, self.revision, EVIDENCE[EVIDENCE_FIELD]),
+        )
 
 
 def _restate(case: ReportHoldTest, **changed) -> None:

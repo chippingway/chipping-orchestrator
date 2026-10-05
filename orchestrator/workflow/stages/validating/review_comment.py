@@ -103,6 +103,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
+    pinned_commit as _pinned_commit,
     report_records as _records,
     review_evidence_prompts as _evidence_prompts,
     review_subjects as _review_subjects,
@@ -267,6 +268,12 @@ class _Reread:
         fields = _moved(
             self.read, since, {*since, *self.read} - {_comments._ORCH_COMMENT_IDS},
         )
+        # What the comment says of each of them is the comment's from here on,
+        # however this tick's own move of one is kept beside it: a guarded
+        # commit behind this reading counts from it rather than as the tick's.
+        _pinned_commit.takes_in(
+            state, self.read, {*fields, _comments._ORCH_COMMENT_IDS},
+        )
         # ...save one this tick changed too.
         for field in _moved(state.data, since, fields):
             if _state._keeps_both_moves(state, field, self.read, since) or self.stood:
@@ -339,6 +346,7 @@ class _Reread:
 
     def keeps_the_park(self, state: PinnedState) -> None:
         """Put the park on `state` as this reading spells it, a flag it does not carry dropped."""
+        _pinned_commit.takes_in(state, self.read, _PARK)
         for field in _PARK:
             state.data.pop(field, None)
             spelled = self.read.get(field, _ABSENT)

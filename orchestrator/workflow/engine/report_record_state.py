@@ -199,9 +199,11 @@ def stage_pending_report(
     overflow names the first that does not: the record's own write or its
     settlement, over the comment with or without that receipt.
 
-    The caller still owns `gh.write_pinned_state`, as every stage-facing writer
-    here does, so the record rides whatever else that caller staged rather than
-    landing in a write of its own ahead of it.
+    The caller owns the write, as every stage-facing writer here does. The
+    binding a delivered report becomes lands it through the report domain's
+    guarded commit (`report_commits`), and asks this again of the candidate
+    that commit sends, so the room it measures is the room of the comment it
+    lands on; the record rides whatever else the tick staged there.
     """
     recorded = _fields.pending_object(pending)
     read = _INVALID if recorded is None else _reading.pending_or_refusal(recorded)

@@ -46,11 +46,14 @@ PUSH_BRANCH = "_push_branch"
 
 RUN_AGENT = "run_agent"
 
+# The strict edit a report's record lands through, and why it never returns.
+EDIT_PINNED_STATE = "edit_pinned_state"
+
+_DIED = "the process ended on the report's write"
+
 AWAITING_HUMAN = "awaiting_human"
 
 PARK_REASON = "park_reason"
-
-WRITE_PINNED_STATE = "write_pinned_state"
 
 DEV_BACKEND = "claude"
 
@@ -236,7 +239,11 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
         )
 
     def _lost_the_report_write(self):
-        """One tick whose run reported, and whose pinned write never landed."""
+        """One tick whose run reported, and whose pinned write never landed.
+
+        The process ends on the edit that would have recorded the report, so
+        nothing after it runs and the comment carries no record of the run.
+        """
         github, issue = self.seeded()
         github.seed_state(
             support.REPORT_ISSUE,
@@ -244,10 +251,10 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
             dev_agent=DEV_BACKEND,
             dev_session_id=support.DEV_SESSION,
         )
-        losing = patch.object(
-            github, WRITE_PINNED_STATE, _LosesTheReportWrite(github),
+        dying = patch.object(
+            github, EDIT_PINNED_STATE, side_effect=RuntimeError(_DIED),
         )
-        with losing, self.assertRaises(RuntimeError):
+        with dying, self.assertRaises(RuntimeError):
             self.deliver(github, issue, support.ready_message())
         self.assertNotIn(
             support.DELIVERY_RECORD, github.pinned_data(support.REPORT_ISSUE),
@@ -347,19 +354,6 @@ def _settled_state(
         _state._PUBLISHED_PR: pushed_to,
         _state._PUBLISHED_LEASE: None,
     }
-
-
-class _LosesTheReportWrite:
-    """A pinned write that fails exactly where the report record goes down."""
-
-    def __init__(self, github) -> None:
-        self._wrote = github.write_pinned_state
-
-    def __call__(self, issue, state):
-        """Write, unless this is the write that carries the report."""
-        if state.get(support.DELIVERY_RECORD) is not None:
-            raise RuntimeError("the pinned write never landed")
-        return self._wrote(issue, state)
 
 
 if __name__ == "__main__":

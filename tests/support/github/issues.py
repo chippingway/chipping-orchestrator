@@ -3,12 +3,12 @@
 """Issue, pinned-state, and event services for the fake GitHub client."""
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from typing import Any
 
 from orchestrator import config
-from orchestrator.github import events as _events
-from orchestrator.github.comments import carries_own_marker
+from orchestrator.github import comments as _github_comments, events as _events
 from orchestrator.github.pinned_state import PINNED_STATE_MARKER, PinnedState
 from orchestrator.observability.analytics.recording import events as _recording_events
 from orchestrator.workflow import (
@@ -163,7 +163,7 @@ class _IssueService:
         """Every issue this client created carrying `marker`, in any state, in the order they were added."""
         return [
             candidate for candidate in self._issues.values()
-            if carries_own_marker([candidate], marker, bot_login=self._bot_login)
+            if _github_comments.carries_own_marker([candidate], marker, bot_login=self._bot_login)
         ]
 
 
@@ -280,17 +280,23 @@ class _WorkflowStateService:
         existing = self._pinned.get(issue.number)
         if existing is None:
             return PinnedState()
-        return PinnedState(
+        reading = PinnedState(
             comment_id=existing.comment_id,
             data=dict(existing.data),
             parsed=existing.parsed,
         )
+        if reading.parsed:
+            reading.synced = json.dumps(reading.data, sort_keys=True)
+        return reading
 
     def write_pinned_state(
         self,
         issue: FakeIssue,
         state: PinnedState,
     ) -> PinnedState:
+        """Pin `state`, as the real writer does; a `withheld` one is not written or counted."""
+        if state.withheld:
+            return state
         self._issue_history._write_state_calls += 1
         if state.comment_id is None:
             state.comment_id = self._next_comment_id(issue)
@@ -302,6 +308,7 @@ class _WorkflowStateService:
             comment_id=state.comment_id,
             data=dict(state.data),
         )
+        state.synced = json.dumps(state.data, sort_keys=True)
         return state
 
     def pinned_data(self, issue_number: int) -> dict[str, Any]:

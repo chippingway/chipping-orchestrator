@@ -8,14 +8,28 @@ quick and not certain: the size gate can freeze it for a human to adjudicate,
 the push can fail, the process can die -- and on every one of those roads the
 report exists nowhere but in the memory of a call that is about to return. So it
 is recorded HERE, ahead of the gate and ahead of the push, where the only cost
-of being wrong is a pinned write nothing reads.
+of being wrong is a pinned write nothing reads. What is recorded -- the run's
+own half, its revision and its receipt -- is minted by `report_minting`.
 
-What is recorded is the run's own half and no more. Which pull request the
-report goes onto, on which branch, standing on which commit, is settled by the
-publication that follows and is bound onto the record there. The requirements
-revision is the exception and belongs to the run: it is the issue content this
-session was actually handed, so a report held back by a failed push is still
-stamped with the requirements it answers rather than with an edit it never saw.
+The record lands through this domain's guarded commit (`report_commits`),
+decided on the report records the tick read and on the requirements baseline a
+record may be stamped with. The revision was minted past those records, so a
+record another road wrote since refuses the write; so does a park or a debt
+flag another road moved where this write moves it too. Every field the write
+does not own is the fresh comment's. The record's own reading is asked of the
+record alone, and so is whether any comment could carry it; the room the record,
+the push, the stale-approval hand-back, the binding and the settlement will each
+need is asked of the very candidate the commit sends, never of the comment the
+tick read, so room another road gave back since is room. Only a record that lands lets the tick on to the
+gate and the push. A write refused for any reason but the record itself ends
+the tick with nothing parked, nothing published, and nothing written: the
+refusal withholds the tick's state from every whole-state write behind it, so
+the stage that called in cannot put back the records the refusal kept. The
+commit stays in the worktree, and the next tick finds whatever the comment then
+says. A write that went out unconfirmed ends the tick too, its state withheld
+the same way since nobody can say what the comment now carries, and the record,
+if it landed, is the one the next tick binds -- no developer runs again, and no
+revision is minted past it.
 
 A run that produced no report outcome records nothing at all where it did not
 COMPLETE: a result no process produced -- what a caller synthesizes to publish
@@ -43,7 +57,11 @@ untouched, and a reply resumes the session that can write the report again.
 The notice says which refusal held it -- a quoted receipt marker, a report past
 its own ceiling, a pinned comment with no room for it, or a record this build's
 reader refuses for anything else -- because each is answered differently, and
-`report_refusal_notices` is what words it.
+`report_refusal_notices` is what words it. A comment the fresh reading finds
+too full for the record is the room refusal too, measured there. The park is a
+guarded commit of its own, prepared before its notice is posted with the
+notice's own writes reserved, so a park the comment cannot carry posts nothing;
+one refused only after its notice went out leaves that notice unrecorded.
 
 What that resumed session comes back with is a report rather than a commit, and
 `report_redelivery` beside this owner is what keeps it from being read as a
@@ -54,14 +72,6 @@ The route is the caller's, because a stage knows which road produced the run
 and this owner cannot: it is recorded on the transaction so that whatever
 finishes one -- here, or a poll later through the reconciliation -- closes the
 bookkeeping of the road it came from.
-
-The revision moves past every report this issue has already recorded -- the
-settled one, any transaction still outstanding, and any delivery still waiting
-to be bound -- and the receipt is spelled from it. That is what keeps a second
-report on the same commit a transaction of its own: a retry finds its own
-comment by its receipt, so two reports sharing one would leave the later one
-reading the earlier one's comment as its own publication, edited beyond
-recognition.
 
 The implementing stage's publication seam is what calls in, between proving a
 clean tree and the size gate, and so do the two dispositions an open pull
@@ -80,19 +90,26 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.agents.models import AgentResult
 from orchestrator.github import client as _client, pinned_state as _pinned_state
-from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     guards as _guards,
-    prompt_delivery as _prompt_delivery,
+    report_commits as _commits,
     report_delivery_state as _delivery_state,
+    report_minting as _minting,
     report_outcome_models as _outcome_models,
     report_outcomes as _outcomes,
     report_record_state as _record_state,
     report_records as _records,
-    report_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.pinned_commit_models import CommitOutcome, CommitRefusal, CommitStatus
 from orchestrator.workflow.engine.report_consumed_values import (
+    CONSUMABLE_FIELDS as _CONSUMABLE_FIELDS,
     advance_consumed as _advance_consumed,
+)
+from orchestrator.workflow.engine.report_record_room import (
+    CommentOverflow,
+    LaterWrites,
+    MeasuredWrite,
+    RecordingRefusal,
 )
 from orchestrator.workflow.engine.report_refusal_notices import (
     explains_the_refusal as _explains_the_refusal,
@@ -139,9 +156,27 @@ UNREPORTED_WORK = "developer_report_unreported_work"
 # by the settlement that ends it.
 OWED_ROUND_RESET = "developer_report_owed_round_reset"
 
-# How a transaction minted here is named. The revision is what makes it
-# unique per issue, and the spelling is one the report header carries verbatim.
-_RECEIPT = "issue-{issue}-report-{revision}"
+# What recording a report writes: the delivery, and the park and the two debt
+# flags a recorded report retires. Decided on everything the record was minted
+# from.
+_RECORDING = _commits.ReportWrite(
+    owned=frozenset((
+        _records.DELIVERED_REPORT, _PARK_REASON, OWED_REPORT, UNREPORTED_WORK,
+    )),
+    decided_on=_minting.MINTED_FROM,
+)
+
+# What this owner's park writes: its two flags, the debt, the work no report
+# describes, and whatever a run's consumed input advances -- the watermarks
+# among them keeping another road's moves beside these, as the ledger the
+# notice enters does. Decided on what the refusal behind it was decided on.
+_PARKING = _commits.ReportWrite(
+    owned=frozenset((
+        _AWAITING_HUMAN, _PARK_REASON, OWED_REPORT, UNREPORTED_WORK,
+        *_CONSUMABLE_FIELDS,
+    )),
+    decided_on=_minting.MINTED_FROM,
+)
 
 # What "nothing was published" leaves standing, on each road that records a
 # report. The implementing seam is the first publication of all, so there is no
@@ -235,17 +270,29 @@ def recording_stops_the_tick(
 ) -> bool:
     """Record what a finished run wrote, or hold the tick over what it wrote.
 
-    True is a tick this owner ended, and there are two ways to end one: a run
-    that finished on a report this build cannot record, and a run that
-    finished and handed over no usable report at all. Both park and record
-    nothing. False is the ordinary run whose report is now on the pinned
-    comment, and every result no developer run produced.
+    True is a tick this owner ended, and there are three ways to end one: a
+    run that finished on a report this build cannot record, and a run that
+    finished and handed over no usable report at all, both of which park and
+    record nothing -- and a record whose write did not land as asked, which
+    parks nothing and publishes nothing. False is the ordinary run whose
+    report is now on the pinned comment, and every result no developer run
+    produced.
 
     The write is this owner's rather than the caller's, and that is the whole
     point of the step: what makes the report recoverable is that it is DURABLE
     before the size gate reads the candidate and before the push sends it, so
     a tick that dies anywhere past the call comes back to an issue that can
-    still say what its developer reported.
+    still say what its developer reported. It is a guarded commit
+    (`report_commits`), and the record is durable only where it lands: the
+    gate and the push are let through on nothing less. A comment that would
+    not read, was replaced, or moved under the report records this one was
+    minted from or under the flags it retires ends the tick, and the next one
+    decides afresh over whatever the comment carries. A write sent and never
+    confirmed ends it too, the caller's state left as it was and withheld
+    from every whole-state write behind it, since whether the record landed,
+    and what another road wrote past it, only a later reading can say: where
+    it landed, the next tick binds it, with no second run and no second
+    revision.
 
     A record this build will not store HOLDS rather than waving the code
     through. The record is what every later tick would publish from, so a
@@ -287,38 +334,86 @@ def recording_stops_the_tick(
     awaiting one over feedback that still reads as unanswered.
     """
     handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
-    withheld = (
-        _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED
-    )
-    delivered = _delivered_report(gh, issue, state, agent_result, handed)
+    commit = _commits.ReportCommit(gh, issue, state)
+    delivered = _minting.delivered_report(gh, issue, state, agent_result, handed)
     if delivered is None:
-        return _unreported_run_holds(gh, issue, state, agent_result, handed)
-    refusal = _delivery_state.stage_delivered_report(state, delivered)
+        return _unreported_run_holds(commit, agent_result, handed)
+    refusal = _records_the_report(commit, delivered)
+    if refusal is None:
+        return False
+    if isinstance(refusal, RecordingRefusal):
+        staged = commit.staging()
+        staged.set(UNREPORTED_WORK, True)
+        parks_the_debt(commit, staged, _explains_the_refusal(
+            issue.number, delivered, refusal,
+            _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED,
+        ), handed.watermarks)
+    return True
+
+
+def _records_the_report(
+    commit: _commits.ReportCommit, delivered: _records.DeliveredReport,
+) -> RecordingRefusal | CommitOutcome | None:
+    """Land one run's record over the fresh comment: None where it landed, or what stopped it.
+
+    A `RecordingRefusal` is the record's own -- refused by its reading, or by
+    the room it and every write after it would need, measured over the
+    candidate the commit would send, or over the comment the tick holds where
+    no comment at all could carry the record -- and is what the park explains.
+    A comment that will not carry the candidate at all is that room refusal
+    too, measured for the record's own write. Any
+    other answer is the commit's: a comment that would not read, was replaced,
+    or moved under the records this report was minted from or the fields it
+    writes, which no rewrite of the report answers and the next tick reads
+    afresh -- and a write sent and never confirmed, which may have landed.
+    """
+    # What no comment's room changes is asked here, of the record alone: its
+    # own reading, and whether any comment could carry it. The room of THIS
+    # comment is asked of the candidate the commit sends, over the reading it
+    # lands on -- space another road gave back since the tick read the comment
+    # is room, and space it took is not.
+    alone = _pinned_state.PinnedState()
+    refusal = _delivery_state.stage_delivered_report(alone, delivered)
+    if isinstance(refusal, CommentOverflow):
+        refusal = _delivery_state.stage_delivered_report(commit.staging(), delivered) or refusal
     if refusal is not None:
-        state.set(UNREPORTED_WORK, True)
-        parks_an_undeliverable_report(
-            gh, issue, state,
-            _explains_the_refusal(issue.number, delivered, refusal, withheld),
-            consumed=handed.watermarks,
-        )
-        return True
-    log.info(
-        "issue=#%d recorded developer report revision %d before publishing "
-        "the code it is about", issue.number, delivered.report_revision,
-    )
-    if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT:
-        state.set(_PARK_REASON, None)
+        return refusal
+    staged = commit.staging()
+    staged.set(_records.DELIVERED_REPORT, alone.get(_records.DELIVERED_REPORT))
+    if staged.get(_PARK_REASON) == UNDELIVERABLE_REPORT:
+        staged.set(_PARK_REASON, None)
     for owing in (OWED_REPORT, UNREPORTED_WORK):
-        if state.get(owing):
-            state.set(owing, None)
-    gh.write_pinned_state(issue, state)
-    return False
+        if staged.get(owing):
+            staged.set(owing, None)
+    landed = commit.lands(staged, _RECORDING.admitting(
+        lambda fresh: _delivery_state.stage_delivered_report(fresh, delivered),
+    ))
+    if not isinstance(landed, CommitOutcome):
+        return landed
+    if landed.refusal is CommitRefusal.OVERFLOW:
+        return CommentOverflow(
+            write=MeasuredWrite.RECORD, later=LaterWrites(),
+            size=landed.length, limit=_pinned_state.MAX_PINNED_BODY,
+        )
+    if landed.status is CommitStatus.COMMITTED:
+        log.info(
+            "issue=#%d recorded developer report revision %d before "
+            "publishing the code it is about",
+            commit.issue.number, delivered.report_revision,
+        )
+        return None
+    log.error(
+        "issue=#%d did not land developer report revision %d on its pinned "
+        "comment (%s); publishing nothing, for a later tick to settle from "
+        "what the comment carries", commit.issue.number,
+        delivered.report_revision,
+        (landed.refusal or landed.status).value,
+    )
+    return landed
 
 
 def _unreported_run_holds(
-    gh: _client.GitHubClient,
-    issue: Issue,
-    state: _pinned_state.PinnedState,
+    commit: _commits.ReportCommit,
     agent_result: AgentResult,
     handed: _records.HandedRun,
 ) -> bool:
@@ -360,20 +455,17 @@ def _unreported_run_holds(
     log.error(
         "issue=#%d finished a developer run with committed work and no "
         "report this workflow can publish; publishing nothing and holding "
-        "for a human", issue.number,
+        "for a human", commit.issue.number,
     )
-    state.set(UNREPORTED_WORK, True)
-    parks_an_undeliverable_report(
-        gh, issue, state,
-        _UNREPORTED_PARK.format(
-            mentions=config.HITL_MENTIONS,
-            withheld=(
-                _NOTHING_ADDED if handed.route in _UNDER_REVIEW
-                else _NOTHING_OPENED
-            ),
+    staged = commit.staging()
+    staged.set(UNREPORTED_WORK, True)
+    parks_the_debt(commit, staged, _UNREPORTED_PARK.format(
+        mentions=config.HITL_MENTIONS,
+        withheld=(
+            _NOTHING_ADDED if handed.route in _UNDER_REVIEW
+            else _NOTHING_OPENED
         ),
-        consumed=handed.watermarks,
-    )
+    ), handed.watermarks)
     return True
 
 
@@ -403,7 +495,9 @@ def parks_an_undeliverable_report(
 
     Public because every road that cannot deliver a report takes it, each with
     its own notice; what they share is the flag, the reason, the debt, and the
-    silence.
+    silence. This is the stages' park, written over the whole state the
+    caller holds; a refused recording or binding takes the same park through
+    the guarded commit instead (`parks_the_debt`).
 
     A park still standing gets no second notice, but everything else this owner
     owes happens anyway, the WRITE included. What a caller staged is the reason
@@ -437,12 +531,7 @@ def parks_an_undeliverable_report(
     the notice would be handed to the next prompt as somebody's guidance.
     """
     _advance_consumed(state, consumed)
-    if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT and state.get(_AWAITING_HUMAN):
-        log.warning(
-            "issue=#%d still owes a developer report this workflow cannot "
-            "deliver; holding the tick without a second notice", issue.number,
-        )
-    else:
+    if not _park_stands(issue, state):
         _guards._park_awaiting_human(
             gh, issue, state, notice, reason=UNDELIVERABLE_REPORT, bounded=True,
         )
@@ -451,172 +540,76 @@ def parks_an_undeliverable_report(
     gh.write_pinned_state(issue, state)
 
 
-def _delivered_report(
-    gh: _client.GitHubClient,
-    issue: Issue,
-    state: _pinned_state.PinnedState,
-    agent_result: AgentResult,
-    route: WorkflowLabel | _records.HandedRun,
-) -> _records.DeliveredReport | None:
-    """The record one run's report outcome earns, or None where it earns none.
+def parks_the_debt(
+    commit: _commits.ReportCommit,
+    staged: _pinned_state.PinnedState,
+    notice: str,
+    consumed: tuple = (),
+    *,
+    publication: bool = False,
+) -> None:
+    """Take `parks_an_undeliverable_report`'s park through this domain's guarded commit.
 
-    None is every run that did not finish on a report: one that timed out, was
-    interrupted, failed in its provider, exited nonzero, came back with a
-    question, or reached for the contract and missed. None of those is a report
-    anybody wrote, and recording one would publish a transcript under a header
-    saying it is this issue's completion report.
+    The park a refused recording or binding takes, written over the fresh
+    comment rather than over the tick's whole state: `staged` is the tick's
+    state as the road behind the refusal left it, and what the park writes --
+    its flags, the debt, the work no report describes, the consumed input --
+    lands beside every field another road moved meanwhile. Everything else is
+    exactly that park's: once per attempt, bounded, the consumed input applied
+    forward-only before the notice, and the debt set whether or not a notice is
+    posted.
 
-    The bookkeeping and the consumed input the caller froze travel with it
-    unread: what this owner knows about them is that the write which settles
-    the report is the one that has to apply them, because on a road with no
-    size gate behind it nothing else closes the round, and feedback a round
-    answered may not be recorded as read until the report answering it lands.
+    The notice is the one effect the park makes before its record, so the
+    record is prepared first, with the ledger entry and the watermark posting
+    that notice adds reserved at their widest: a comment that will not read,
+    was replaced, moved under the report records the refusal was decided on,
+    or has no room for the park and its notice both posts nothing. Preparing
+    is not landing, though. A comment another road moves between the two, or
+    an edit GitHub refuses or never confirms, leaves the notice on the thread
+    and no park recorded behind it; the tick still ends, with nothing it holds
+    written (`report_commits`), and the road that took the park meets the
+    same refusal again on a later tick and parks then.
 
-    They travel with what this record SUPERSEDES as well, and that is why the
-    merge is here rather than at a caller. A record still outstanding is a
-    handover nothing confirmed, so none of what it owes has been written
-    anywhere -- and this record replaces it: the delivery is dropped by the
-    write that records this one, and the transaction by the binding behind it.
-    Minted on the caller's pairs alone, a report that supersedes an unsettled
-    one publishes and closes only its own road's bookkeeping, leaving a round
-    nobody spent, bookmarks nobody cleared, and feedback a developer already
-    answered reading as fresh. Carried, the one write that settles this report
-    closes both handovers, which is the same exactly-once the frozen pair buys
-    a replay.
-
-    The settled report is not superseded by any of this: it is what the pull
-    request already carries, and what it owed was written by the settlement
-    that put it there.
-
-    The requirements revision is the one the RUN was handed, never one
-    computed here: a human editing the issue while the agent worked leaves the
-    current content one revision further on than anything this session ever
-    saw. A caller that snapshotted it names it on the `HandedRun` it passes;
-    otherwise it is read off the pinned baseline the drift check ahead of the
-    spawn put there.
-
-    The revision moves past every report this issue has already recorded: the
-    settled one, any transaction still outstanding, and any delivery still
-    waiting to be bound. A settlement replaces the current report, so a
-    revision that did not move forward would put an older report on the pull
-    request's own record of what it carries -- and a transaction still
-    outstanding may already have posted its comment and lost the response, so
-    a report minted at its revision would carry its receipt too and read that
-    comment as its own, edited beyond recognition. The delivery is the third
-    for the road that overwrites one: the reply a park earns brings a report
-    rather than a commit, and minted at the revision the record it replaces
-    already used it would take that record's receipt with it. A record nobody
-    can read counts as nothing here, which is the same answer every reader in
-    this domain gives it.
+    `publication` is a park decided on the publication a binding was made
+    against as well as on the report records: one another road has since
+    pointed at another pull request or receipt is a refusal of a publication
+    that is no longer the issue's, so it posts and parks nothing, and the next
+    tick decides over the publication the comment then names.
     """
-    carried = _carried_by_outcome(
-        gh, _outcomes._report_outcome_of_run(agent_result),
-    )
-    if carried is None:
-        return None
-    # The records this one replaces, oldest first: a transaction is bound
-    # before any delivery standing beside it, since the binding drops the
-    # delivery it came from in the write that records it.
-    superseded = tuple(outstanding for outstanding in (
-        _record_state.read_pending_report(state),
-        _delivery_state.read_delivered_report(state),
-    ) if outstanding is not None)
-    revision = 1 + max(
-        (report.report_revision for report in (
-            _settlement.read_current_report(state), *superseded,
-        ) if report is not None),
-        default=0,
-    )
-    handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
-    requirements = handed.requirements_revision or state.get(
-        _prompt_delivery.PINNED_USER_CONTENT_HASH,
-    )
-    return _records.DeliveredReport(
-        receipt=_RECEIPT.format(issue=issue.number, revision=revision),
-        report_revision=revision,
-        route=handed.route,
-        requirements_revision=requirements if isinstance(requirements, str) else "",
-        spends=_carried_on(
-            [record.spends for record in superseded], handed.spends,
-        ),
-        watermarks=_carried_on(
-            [record.watermarks for record in superseded], handed.watermarks,
-        ),
-        **carried,
-    )
-
-
-def _carried_on(superseded: list, handed: tuple) -> tuple:
-    """One value per field, over every record a new one supersedes.
-
-    The pairs are ``((field, value), ...)`` and each field is written once, so
-    the merge is a mapping filled in the order it is handed: a field an
-    outstanding record names and this run names again keeps THIS run's reading
-    of it. Every one of these pairs was computed against a comment the
-    superseded record wrote nothing to, so the later value already accounts for
-    whatever the earlier one would have closed.
-
-    The watermarks need no such care -- they are applied as a forward-only
-    ratchet -- but they are merged through the same rule, because one rule over
-    one shape is what keeps the two halves from drifting apart.
-    """
-    carried: dict = {}
-    for pairs in (*superseded, handed):
-        carried.update(pairs)
-    return tuple(carried.items())
-
-
-def _carried_by_outcome(
-    gh: _client.GitHubClient, outcome: _outcome_models._ReportOutcome,
-) -> dict | None:
-    """What one report outcome contributes to a record, or None for no report.
-
-    A READY report is a publication and carries its text. A VERIFIED one is an
-    assertion about a report that is already somewhere, and carries the exact
-    place and the digest read there -- nothing about it is believed here, and
-    the transaction it becomes re-reads that location before anything settles.
-
-    A verification this owner cannot hold against THIS repository is refused
-    where it is read. The location is exact in both halves and still names a
-    place anywhere on GitHub, and the publication it would be bound to is on
-    this repository -- so a record made from it would re-read somebody else's
-    thread and settle on what it found there. Which pull request it names is
-    bound and refused where the publication is known, since no pull request
-    exists to compare it against yet.
-
-    That comparison is the one reading on this road that leaves the process:
-    it completes a repository PyGithub may hold only a URL for, so it can fail
-    the way any request can. Raised, it would leave a finished run's report
-    neither recorded nor parked -- the tick would die carrying the only copy
-    of what the developer said, with the commit in a worktree nothing has said
-    anything about. So a reading nobody could take answers the same as one that
-    named another repository: no record, and the run held for a human, which is
-    the one road from here that loses nothing.
-    """
-    if isinstance(outcome, _outcome_models._ReadyReport):
-        return {"mode": _records.ReportMode.PUBLISH, "report": outcome.report}
-    if not isinstance(outcome, _outcome_models._VerifiedReport):
-        return None
-    try:
-        own_repository = gh.is_own_repository(outcome.location.slug)
-    except Exception:
-        log.exception(
-            "could not hold a verified report's repository (%s) against this "
-            "one; recording no report for it", outcome.location.slug,
+    parking = _PARKING.on_the_publication() if publication else _PARKING
+    _advance_consumed(staged, consumed)
+    staged.set(OWED_REPORT, True)
+    if not _park_stands(commit.issue, staged):
+        staged.set(_AWAITING_HUMAN, True)
+        staged.set(_PARK_REASON, UNDELIVERABLE_REPORT)
+        if commit.prepares_a_notice(staged, parking).reading is None:
+            log.error(
+                "issue=#%d could not prepare the park over the developer "
+                "report it owes; posting nothing", commit.issue.number,
+            )
+            return
+        _guards._park_awaiting_human(
+            commit.gh, commit.issue, staged, notice,
+            reason=UNDELIVERABLE_REPORT, bounded=True,
         )
-        return None
-    if not own_repository:
+        staged.set(_PARK_REASON, UNDELIVERABLE_REPORT)
+    landed = commit.lands(staged, parking)
+    if landed.status is not CommitStatus.COMMITTED:
         log.error(
-            "a developer verified a report this orchestrator cannot hold "
-            "against its own repository (%s); recording no report for it",
-            outcome.location.slug,
+            "issue=#%d did not land the park over the developer report it "
+            "owes (%s); holding the tick", commit.issue.number,
+            (landed.refusal or landed.status).value,
         )
-        return None
-    return {
-        "mode": _records.ReportMode.VERIFY,
-        "location": ReportLocation(
-            pr_number=outcome.location.pull_number,
-            comment_id=outcome.location.comment_id,
-        ),
-        "content_revision": outcome.revision,
-    }
+
+
+def _park_stands(issue: Issue, state: _pinned_state.PinnedState) -> bool:
+    """Whether this owner's park is still standing, which a second notice says nothing new about."""
+    standing = bool(
+        state.get(_PARK_REASON) == UNDELIVERABLE_REPORT and state.get(_AWAITING_HUMAN),
+    )
+    if standing:
+        log.warning(
+            "issue=#%d still owes a developer report this workflow cannot "
+            "deliver; holding the tick without a second notice", issue.number,
+        )
+    return standing

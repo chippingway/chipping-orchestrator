@@ -53,6 +53,11 @@ CROWDED_FOR_RESERVATION = 1000
 
 CROWDED_FOR_BINDING = 400
 
+# The room left where the record's OWN write is what the comment cannot carry:
+# short of the record, and enough for the park that refusal takes, which is a
+# write measured whole like any other.
+CROWDED_FOR_PARK = 250
+
 # The same room, for the two comments whose reservation is about the exchange
 # rather than about the transaction's own size. At the first, a comment that
 # has never carried a delivery has no room for the `null` the binding's drop

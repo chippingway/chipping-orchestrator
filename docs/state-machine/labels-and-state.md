@@ -654,30 +654,50 @@ kept, so the next write replaces the corruption in place instead of leaving a se
 
 Most writers rewrite the whole record from the state they read (`write_pinned_state`), which lands wherever it can — in
 place, or as a new comment where none is named or the named one is gone. A **guarded commit**
-(`workflow/engine/pinned_commit.py`, which the verification-evidence publication and settlement commit through) is never
-written from its caller's state. It is captured from the reading the caller decided on — the comment's id, every field
-as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent one included, and the fields
-the caller owns — and derived over a fresh reading: each field the caller's staged state changed, every one of which it
-has to own, is laid over that reading; a transformation the caller's domain supplies decides its own owned field over
-the fresh value, so a total, a ledger, or a watermark both roads moved keeps both moves; and every other field, unknown
-ones included, is kept as the fresh reading carries it. Fields are compared as the JSON spells them, keys sorted, so
-`null` is not an absent field, `true` is not `1`, and `1.0` is not `1`, at any depth. The fresh reading can be taken
-alone too (`reread`), for a caller with requests of its own to make over the comment it captured before it stages
-anything.
+(`workflow/engine/pinned_commit.py`, which the verification-evidence publication and settlement and the developer
+report's writes commit through) is never written from its caller's state. It is captured from the reading the caller
+decided on — the comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests
+on, an absent one included, and the fields the caller owns — and derived over a fresh reading: each field the caller's
+staged state changed, every one of which it has to own, is laid over that reading; a transformation the caller's domain
+supplies decides its own owned field over the fresh value, so a total, a ledger, or a watermark both roads moved keeps
+both moves — or answers that the two will not join, which is refused as an owned conflict; and every other field,
+unknown ones included, is kept as the fresh reading carries it. Fields are compared as the JSON spells them, keys
+sorted, so `null` is not an absent field, `true` is not `1`, and `1.0` is not `1`, at any depth. The fresh reading can
+be taken alone too (`reread`), for a caller with requests of its own to make over the comment it captured before it
+stages anything.
 
 It refuses — writing nothing, and touching nothing the caller holds — where the comment will not read, will not parse,
 or is not the one captured (replaced, deleted, or never pinned: the strict edit never creates one); where a prerequisite
 moved; where another writer moved an owned field to something other than what the caller staged; where the caller staged
 or transforms a field it did not declare; and where the complete candidate, rendered through `pinned_state_body`, is
-longer than `MAX_PINNED_BODY`. That measurement can be taken alone (`prepare`) ahead of an external effect that depends
-on the record. The commit takes every check again over a reading taken behind whatever requests came between, sends
-nothing for a candidate the comment already reads as, and otherwise lands in place through the strict edit
+longer than `MAX_PINNED_BODY` or than the caller's own domain check admits — a check the guard carries, asked of that
+very candidate. That measurement can be taken alone (`prepare`) ahead of an external effect that depends on the record.
+The commit takes every check again over a reading taken behind whatever requests came between, sends nothing for a
+candidate the comment already reads as, and otherwise lands in place through the strict edit
 (`GitHubStateMixin.edit_pinned_state`), which walks to the comment once more and rewrites it only while it still reads
 as that fresh reading did — a comment that moved in between is refused as moved. An edit that went out and was never
 confirmed — a lost response, a refused request, or an answer carrying another body — is reported as unconfirmed, neither
 committed nor refused: whatever receipt the caller's domain keeps remains what settles it on a later reading. None of
 this serializes two pollers writing one issue. GitHub's comment edit takes no condition, so the guard narrows the window
 between a reading and the write laid over it without closing it.
+
+The developer report's writes commit this way too (`workflow/engine/report_commits.py`): recording a finished run's
+delivery, binding it into a transaction, and the `report_undeliverable` park a refusal of either takes. Each is captured
+over the reading its tick last synced with the comment — what a state remembers it was read from or written as
+(`PinnedState.synced`) — rather than over the state the tick holds, because a tick stages changes between two writes (a
+run's usage and session, the park a reply answered) that have always ridden the next one. A field the tick changed since
+that reading is its own and lands as the tick spells it; the write declares its own fields beside those, and the report
+records it was decided on. A usage total, the cost tags, a comment-id watermark, and the comment-id ledger keep both
+roads' moves rather than conflicting. A road that lays another road's moves over a tick's state without writing — the
+validating reread, the run circuit's merge — advances that reading for the fields it laid, and one that replaces the
+state with what its own commit landed — the verification settlement — advances it to that reading whole
+(`pinned_commit.takes_in`), so none of it counts as the tick's own move. A refused report write leaves the tick's state
+as it was and marks it withheld (`PinnedState.withheld`): the state was decided on a comment that has since moved, and
+written whole it would put back every record the refusal kept, so the whole-state writer writes nothing for it for the
+rest of the tick, until a guarded commit lands. A write sent and never confirmed is withheld the same way; a refusal for
+room alone is not, where the comment read again is still the one the tick synced with, since that comment is simply too
+full and the roads behind a report still owed are what give its room back. Every road but these and the verification
+evidence's still writes its whole state.
 
 The keys that matter for the state machine fall into a few groups:
 
@@ -906,6 +926,35 @@ The keys that matter for the state machine fall into a few groups:
   road a park answers: the reply it earns writes a fresh report over the delivery standing there, and minted at its
   revision the replacement would carry the receipt that record already carries.
 
+  Both writes — the record, and the binding that exchanges it — are guarded commits
+  (`workflow/engine/report_commits.py`, over the [guarded commit](#pinned-state) above). Recording is decided on every
+  report record its revision was minted past and its superseded bookkeeping carried from, and on the requirements
+  baseline it may be stamped with; it owns the delivery and the park and debt flags a recorded report retires. Binding
+  is decided on the three report records and on the fields the publication it is bound to was resolved from —
+  `pr_number`, `branch`, and the code-publication receipt — and owns the two records it swaps, so a pull request or
+  receipt another road repointed since binds nothing and publishes nothing. Each is captured over the reading its tick
+  last synced with, so what the tick staged since — a run's usage and session, a park a reply answered — rides the
+  write, and a usage total or ledger the tick moved that another road left in no shape the two moves join is refused as
+  an owned conflict rather than written over. The room either write needs is decided by its own validator, carried on
+  the guard and asked of the very candidate the commit sends over the reading its edit lands on — never of the comment
+  the tick read, which only refuses a record whose own reading fails or which no comment could carry — so room another
+  road spent since refuses there, before the push or the post, and room it gave back is room: as a `CommentOverflow` the
+  park explains for a record, and as the crowded comment the next tick retries for a binding. A comment that will not
+  read, was replaced, or moved under the decision — another report record written, the baseline or the publication
+  moved, a flag the write retires or a field the tick staged moved another way, before the commit read it or between
+  that reading and the edit — refuses the write with nothing written, nothing published and nothing parked, and the
+  tick's state is withheld from every whole-state write the stage takes behind the refusal; the tick ends and the next
+  one decides afresh. A write GitHub took and never confirmed ends the tick the same way, its state left as it was and
+  withheld, since nobody can say whether it landed or what another road wrote past it: where it landed, the next tick
+  binds that record, or publishes that transaction without binding it again — no second developer run, and no second
+  revision. The `report_undeliverable` park a refused record or binding takes is a guarded commit as well, prepared
+  before its notice is posted with the ledger entry and the watermark that notice writes reserved at their widest — the
+  entry reserved on the ledger as merged with the fresh comment's, under an id neither side already holds — so a park
+  the comment cannot carry posts nothing; a binding's park is decided on the publication too, so one judged against
+  a pull request or receipt another road has since repointed posts and parks nothing. One
+  prepared and then refused — the comment moved before its edit, or the edit refused — leaves its notice on the thread
+  with nothing recorded, and the road that took it parks again on a later tick.
+
   Accepting that record also RESERVES what the transaction bound from it will cost this comment, at the width every
   member of a subject is recorded at. The binding happens after the push, so a record accepted against its own
   write alone could be refused once the code is out — which is the one moment nothing can be done about it, since
@@ -945,7 +994,8 @@ The keys that matter for the state machine fall into a few groups:
   that would not resolve, a pull request this poll could not fetch — and buys nothing: nothing published, nothing
   released, no notice, and the poll behind it asks again. A binding REFUSES rather than parks — it
   stages nothing and says which refusal it was — and `report_binding.py` is what answers the refusal: a comment too
-  full for the transaction is retried silently on the next call, since the routes a report still owed lets run are
+  full for the transaction, measured on the tick's reading or on the fresh one, is retried silently on the next call,
+  as is a binding whose comment moved under it, since the routes a report still owed lets run are
   what give that room back, while a record no comment would ever hold, a delivery nothing can read, and a
   verification on the very description the publication needs for its closing reference park under the same reason.
   On `workflow:validating` the report hold that keeps the reviewer off an owed report parks under it too, for what no
@@ -1303,9 +1353,10 @@ The keys that matter for the state machine fall into a few groups:
   `stages/implementing/pr_description.py` take the same park after a push, for a report that cannot be bound and a
   description that does not close the issue and name the session — which no owner rewrites, so the notice quotes the
   two lines for a human to put there — and `stages/implementing/report_handoff.py` takes it for a debt no retry can
-  pay and a settled report that no longer stands. It is announced once while it stands, retired the moment a report
-  IS recorded or a settlement carries one onto the pull request, and spent by the publication handoff beside the agent
-  timeout's, since reaching that line means the report the park was about has reached the pull request. The late
+  pay and a settled report that no longer stands, though never behind a binding that did not land, whose withheld
+  state could record no park. It is announced once while it stands, retired the moment a report IS recorded or a
+  settlement carries one onto the pull request, and spent by the publication handoff beside the agent timeout's,
+  since reaching that line means the report the park was about has reached the pull request. The late
   size gate re-sets its own reasons for the same kind of reason: `late_measurement_failed`,
   `late_candidate_moved`, `late_unauthorized_exemption`, `late_evidence_missing`, `late_plan_pr_hold_failed`,
   `late_generation_incomplete`, `late_worktree_missing`, `late_worktree_mutated`, `late_adjudicator_timeout`,

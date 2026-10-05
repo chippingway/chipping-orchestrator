@@ -89,6 +89,8 @@ PARK_REASON = "park_reason"
 
 WRITE_PINNED_STATE = "write_pinned_state"
 
+EDIT_PINNED_STATE = "edit_pinned_state"
+
 # The pull request the first tick opens: this client numbers them from 1.
 OPENED_PR = 1
 
@@ -402,7 +404,9 @@ class LateDescriptionTest(unittest.TestCase, support._ReportDeliveryMixin):
                 self._reused_over(OWN_DESCRIPTION)
                 edits = _EditsWhereItStands(self.github, *editing)
 
-                with patch.object(self.github, WRITE_PINNED_STATE, edits):
+                with patch.object(self.github, WRITE_PINNED_STATE, edits.writes), patch.object(
+                    self.github, EDIT_PINNED_STATE, edits.edits,
+                ):
                     self.deliver(self.github, self.issue, message)
 
                 self.assertTrue(edits.edited)
@@ -513,25 +517,37 @@ class _LosesTheAnnouncement:
 class _EditsWhereItStands:
     """A pinned write after which a human edits the reused pull request.
 
-    Once, after the first write carrying `record`: the description is replaced
-    with `rewritten` where one is given, and otherwise the settled report is
-    appended to where it stands.
+    Once, after the first write carrying `record`, whichever way it lands: the
+    whole-state write, or the guarded commit's strict edit a report's binding
+    goes through. The description is replaced with `rewritten` where one is
+    given, and otherwise the settled report is appended to where it stands.
     """
 
     def __init__(self, github, record: str, rewritten: str | None) -> None:
         self._github = github
         self._wrote = github.write_pinned_state
+        self._edited = github.edit_pinned_state
         self._record = record
         self._rewritten = rewritten
         self.edited = False
 
-    def __call__(self, issue, state):
-        """Write, then make the edit once the record is first written."""
+    def writes(self, issue, state):
+        """Write the whole state, then make the edit once the record is first written."""
         written = self._wrote(issue, state)
+        self._after(state)
+        return written
+
+    def edits(self, issue, state, **options):
+        """Land a guarded commit's edit, then make the edit once the record is first written."""
+        answered = self._edited(issue, state, **options)
+        self._after(state)
+        return answered
+
+    def _after(self, state) -> None:
+        """Make the edit, once, behind the first write carrying the record."""
         if state.get(self._record) and not self.edited:
             self.edited = True
             self._edits(state)
-        return written
 
     def _edits(self, state) -> None:
         """Replace the description, or append to the settled report."""

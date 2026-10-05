@@ -117,7 +117,10 @@ report already on the pull request. The report may not contain this orchestrator
 a code span, a fence, or a quotation, since receipts are found by raw text — so a receipt is described in prose. A
 report the orchestrator refuses to record publishes nothing and parks with a notice naming which refusal it was — a
 quoted receipt, the report's own length, the pinned comment's room, or another invalid record — and the reply's resume
-brings the corrected report with no new commit ([the report contract][report-contract]). A fresh respawn's preamble
+brings the corrected report with no new commit ([the report contract][report-contract]). A record or binding the pinned
+comment refuses instead — a comment that will not read, was replaced, or moved under what the write was decided on, or
+an edit never confirmed — stops the tick with nothing published, parked, or written and no notice, and the next tick
+decides afresh over the comment as it then stands. A fresh respawn's preamble
 restates the ownership, the report's scope, and that restriction and defers the outcome to the task below it.
 `workflow/engine/report_outcomes.py` reads an outcome only out of a run that completed, and the
 initial implementation delivery is the road that acts on one: `workflow/engine/report_delivery.py` records what the

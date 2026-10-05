@@ -31,10 +31,7 @@ import contextlib
 from pathlib import Path
 
 from orchestrator.git.verification.status import _WorktreeStatus
-from orchestrator.github import (
-    developer_reports as _dev_reports,
-    pinned_state as _pinned_state,
-)
+from orchestrator.github import developer_reports as _dev_reports
 from orchestrator.workflow.engine import (
     content_hash as _content_hash,
     prompt_delivery as _prompt_delivery,
@@ -202,15 +199,21 @@ class FixingReportCase:
         self.gh = FakeGitHubClient([self.issue])
         self.gh.add_pr(self.pull_request)
         self.spec = _TEST_SPEC
-        self.state = _pinned_state.PinnedState(comment_id=1, state_data={
-            PR_NUMBER_FIELD: PR_NUMBER,
-            BRANCH_FIELD: BRANCH,
-            _prompt_delivery.PINNED_USER_CONTENT_HASH: self.requirements(),
-            PR_WATERMARK: UNREAD_ID,
-            REVIEW_ROUND: 1,
-            PENDING_FIX_AT: OPENED_AT,
-            PENDING_FIX_ISSUE_MAX_ID: CONSUMED_ID,
-        })
+        # Pinned on the issue and read back, as a tick holds it: the report's
+        # guarded commits land over that comment, and only over it.
+        self.gh.seed_state(
+            self.issue,
+            **{
+                PR_NUMBER_FIELD: PR_NUMBER,
+                BRANCH_FIELD: BRANCH,
+                _prompt_delivery.PINNED_USER_CONTENT_HASH: self.requirements(),
+                PR_WATERMARK: UNREAD_ID,
+                REVIEW_ROUND: 1,
+                PENDING_FIX_AT: OPENED_AT,
+                PENDING_FIX_ISSUE_MAX_ID: CONSUMED_ID,
+            },
+        )
+        self.state = self.gh.read_pinned_state(self.issue)
 
     def requirements(self) -> str:
         """The revision the issue's content currently hashes to."""
