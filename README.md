@@ -55,7 +55,7 @@ Agents run with their approval and sandbox checks disabled, so the host account 
 
 ## Quick start
 
-Clone and install from the lockfile:
+Clone and install from the lockfile, then copy the basic template to the checkout's `.env`:
 
 ```sh
 git clone https://github.com/chippingway/chipping-orchestrator.git
@@ -66,26 +66,48 @@ cp .env.example .env
 
 Edit `.env` and set at least:
 
+- `REPOS` — the repository to manage, written `owner/name|target_root|base_branch`: its GitHub `owner/name`, the
+  absolute path to an existing local clone of it, and the branch its pull requests target. For example:
+
+  ```dotenv
+  REPOS=acme/api|/home/alice/src/acme-api|main
+  ```
+
+  The template explains the two optional trailing fields; [several repositories](#managing-multiple-repositories) are
+  more entries in the same setting.
 - `HITL_HANDLE` — GitHub users to notify when human input is needed.
-- `REPO` — the `owner/name` to manage.
-- `TARGET_REPO_ROOT` — that repository's local clone when it is not this checkout.
 - `ALLOWED_ISSUE_AUTHORS` — required: the GitHub logins whose issues and comments the orchestrator acts on; it
   refuses to start while this names nobody.
 - `DEV_AGENT`, `REVIEW_AGENT`, and `DECOMPOSE_AGENT` — only when changing the default agent routing.
 
-Store the GitHub token outside the checkout at `~/.config/<owner>/<repo>/token`, or export `GITHUB_TOKEN` in the
-launch environment. Tokens in `.env` are deliberately ignored. Ensure each configured agent is logged in, then run:
+Nothing from `.env.example.advanced` is needed: it holds optional operational settings and, in a section of their own,
+the developer settings for working on the orchestrator itself.
+
+Store each repository's GitHub token outside the checkout at `~/.config/<owner>/<name>/token`, or export one
+`GITHUB_TOKEN` covering every repository in the launch environment. Tokens in `.env` are deliberately ignored. Ensure
+each configured agent is logged in, then run:
 
 ```sh
 ./run.sh
 ```
 
-On first start, the orchestrator creates its labels and begins polling open issues. File a small issue to exercise the
-workflow; a completed change stops at `in_review` for a human to merge.
+On first start, the orchestrator creates its labels and begins polling open issues. Each issue gets its own worktree
+under `wt-orchestrator`, beside the first repository's clone. File a small issue to exercise the workflow; a completed
+change stops at `in_review` for a human to merge.
 
-The [configuration reference](docs/configuration.md) covers credentials, agent routing, every setting, and advanced
-examples. The [operations guide](docs/configuration/operations.md) covers other run modes, running more than one
-poller on one host, and systemd deployment.
+An installed `chipping-orchestrator` command — a package installed outside a source checkout — reads its settings from
+`~/.config/chipping-orchestrator/.env` instead, never from a `.env` in the launch directory. Apply the same template
+there, edit it the same way, and start the command:
+
+```sh
+mkdir -p ~/.config/chipping-orchestrator
+cp .env.example ~/.config/chipping-orchestrator/.env
+chipping-orchestrator
+```
+
+The [configuration reference](docs/configuration.md) covers both setups, credentials, agent routing, every setting,
+and advanced examples. The [operations guide](docs/configuration/operations.md) covers other run modes, running more
+than one poller on one host, and systemd deployment.
 
 ## Asking the orchestrator a question
 
@@ -135,10 +157,20 @@ See the [observability overview](docs/observability.md) for every surface and th
 
 ## Managing multiple repositories
 
-Set `REPOS` to manage several repositories from one process. Worktrees and branches are namespaced by repository, and
-per-repository plus global concurrency limits keep issues from colliding or overwhelming the host.
+One process manages several repositories when `REPOS` carries one entry for each. Separate the entries with `;`,
+since `.env` holds each value on a single line:
 
-See the [`REPOS` syntax](docs/configuration.md#multi-repo-repos-syntax) and
+```dotenv
+REPOS=acme/api|/home/alice/src/acme-api|main;acme/web|/home/alice/src/acme-web|master|upstream|2
+```
+
+Every entry names its own local clone and reads its own token file, `~/.config/<owner>/<name>/token`, unless one
+`GITHUB_TOKEN` covers them all. The optional fourth and fifth fields set the git remote that points at the repository
+(`origin` by default) and how many of its issues run at once; they are positional, so setting the limit means writing
+the remote too. Worktrees and branches are namespaced by repository, and per-repository plus global concurrency limits
+keep issues from colliding or overwhelming the host.
+
+See the [`REPOS` syntax](docs/configuration.md#repos-syntax) and
 [parallel-processing settings](docs/configuration.md#parallel-processing).
 
 ## Reference documentation
