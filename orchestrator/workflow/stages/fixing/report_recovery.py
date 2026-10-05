@@ -308,9 +308,18 @@ def _binds_the_recovered_report(
     putting it there again is a request spent saying nothing that can only
     lose a race with whoever wrote in between. Every other refusal was a
     reading the attempt TOOK, and the tick carries on to whatever answers it.
+
+    A binding whose write did not land over the comment the tick read ends the
+    tick the same silent way: refused over a comment another road has moved
+    since, or sent and never confirmed. Either leaves the tick's state
+    WITHHELD (`report_commits`) -- nothing this tick holds can be written over
+    the comment -- so a road carrying on past it would post a notice no write
+    could record, and post it again on every tick behind. The next tick binds
+    the delivery afresh, or, where the binding landed after all, finds the
+    transaction rather than the delivery and the reconciliation publishes it.
     """
     hold = _reporting._holds_an_unpublished_report(ctx, published)
-    if hold.unread:
+    if hold.unread or ctx.state.withheld:
         return True
     if _delivery_state.carries_delivered_report(ctx.state):
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)

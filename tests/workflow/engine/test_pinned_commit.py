@@ -13,7 +13,9 @@ prerequisites that moved rather than refusing over them.
 """
 from __future__ import annotations
 
+import json
 import unittest
+from dataclasses import replace
 from types import MappingProxyType
 from typing import Any
 
@@ -28,6 +30,11 @@ _COUNTER = "rounds_seen"
 _ANOTHER_TOTAL = 2000
 _OWN_TOTAL = 1500
 _IDS = "ids"
+
+# A domain check's cap on the total, a total past it, and the check's answer.
+_CAP = 3000
+_PAST_THE_CAP = 5000
+_OVER_THE_CAP = "the total is past the cap"
 
 # The settled record every case reads.
 _SETTLED_READ = support.RECORD[support.SETTLED]
@@ -189,6 +196,23 @@ class CommitLandingTest(unittest.TestCase):
         self.assertIs(committed.status, _STATUS.COMMITTED)
         self.assertEqual(world.record(), support.recorded(settled=True, **_MOVED_TOTAL))
 
+    def test_a_transformation_may_refuse_to_join(self) -> None:
+        # A transformation that cannot keep both moves of its field answers
+        # CONFLICT, and the commit refuses as it refuses a field that has none:
+        # the field named, nothing written, and nothing the caller holds moved.
+        world = support.seeded(owned=(support.SETTLED, support.TOTAL))
+        world.settle()
+        world.state.set(support.TOTAL, _OWN_TOTAL)
+        world.another_road(**_MOVED_TOTAL)
+        found = world.snapshot()
+
+        outcome = world.commit({support.TOTAL: lambda *_moves: _models.CONFLICT})
+
+        self.assertEqual(
+            (outcome.status, outcome.refusal, outcome.fields, world.snapshot()),
+            (_STATUS.REFUSED, _REFUSAL.OWNED_CONFLICT, (support.TOTAL,), found),
+        )
+
     def test_reordered_keys_spell_the_same(self) -> None:
         # A prerequisite rewritten with its keys in another order is the same
         # record, spelled the same.
@@ -319,6 +343,28 @@ class CommitBoundaryTest(unittest.TestCase):
                 )
                 self.assertLessEqual(len(pinned_state_body(world.record())), MAX_PINNED_BODY)
 
+    def test_the_check_judges_the_candidate_sent(self) -> None:
+        # The guard's own domain check is asked of the very candidate a commit
+        # sends, over the reading it would land on: another road's total past
+        # the cap, written after the caller read the record, is refused with
+        # the check's answer and nothing sent; one inside the cap lands.
+        for total, landed in (
+            (_PAST_THE_CAP, (_STATUS.REFUSED, _OVER_THE_CAP, _SETTLED_READ)),
+            (_ANOTHER_TOTAL, (_STATUS.COMMITTED, None, dict(support.SETTLED_ANEW))),
+        ):
+            with self.subTest(total=total):
+                world = support.seeded()
+                world.guard = replace(world.guard, admits=self._caps_the_total)
+                world.settle()
+                world.another_road(**{support.TOTAL: total})
+
+                outcome = world.commit()
+
+                self.assertEqual(
+                    (outcome.status, outcome.inadmissible, world.record()[support.SETTLED]),
+                    landed,
+                )
+
     def test_unanswered_edits_are_unconfirmed(self) -> None:
         # A lost response and a refused edit are one answer to the caller,
         # who cannot tell which it got; only the first changed the record,
@@ -337,6 +383,11 @@ class CommitBoundaryTest(unittest.TestCase):
                 self.assertEqual(world.github.write_state_calls, 1)
 
 
+    def _caps_the_total(self, candidate: PinnedState) -> str | None:
+        """A domain check refusing a candidate whose total is past the cap."""
+        return _OVER_THE_CAP if candidate.get(support.TOTAL) > _CAP else None
+
+
 class CommitCaptureTest(unittest.TestCase):
     """What a capture holds a commit, or a reading taken alone, to is fixed when it is taken."""
 
@@ -351,6 +402,26 @@ class CommitCaptureTest(unittest.TestCase):
         self.assertEqual(guard.read[support.PR], '{"ids": [1]}')
         with self.assertRaises(TypeError):
             guard.read[support.PR] = "{}"
+
+    def test_a_reading_taken_in_moves_the_sync(self) -> None:
+        # A state remembers the reading it last synced with. A road laying
+        # some fields of a fresh reading over it advances that memory for those
+        # fields alone; one replacing the state with what a commit landed
+        # advances it to that reading whole. A state that read nothing is left
+        # without one unless it now holds a whole reading.
+        world = support.seeded()
+        fresh = support.recorded(**{support.TOTAL: _ANOTHER_TOTAL, support.WATERMARK: 60})
+
+        _commit.takes_in(world.state, fresh, (support.TOTAL,))
+        partly = json.loads(world.state.synced)
+        _commit.takes_in(world.state, fresh)
+        unread = PinnedState(data=dict(fresh))
+        _commit.takes_in(unread, fresh, (support.TOTAL,))
+
+        self.assertEqual(
+            (partly, json.loads(world.state.synced), unread.synced),
+            (support.recorded(**{support.TOTAL: _ANOTHER_TOTAL}), fresh, None),
+        )
 
     def test_a_reread_refuses_a_spoiled_comment(self) -> None:
         # The comment read afresh alone, with nothing staged: refused as a

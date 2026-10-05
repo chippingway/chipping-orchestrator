@@ -390,26 +390,58 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             spells it (keys sorted, so `null` is not an absent field and `true` is not `1` at any
                             depth), the prerequisites the decision rests on, absent ones included, and the fields
                             the caller owns -- held as strings in a read-only mapping, so nothing the caller does to
-                            its own state afterwards moves it, and which of those prerequisites a fresh reading
-                            spells otherwise (`moved`); the refusals, the four statuses (PREPARED, COMMITTED,
-                            UNCONFIRMED, REFUSED), and the outcome carrying the candidate reading, the fields that
-                            earned a refusal, and the rendered length an overflow measured
+                            its own state afterwards moves it, which of those prerequisites a fresh reading spells
+                            otherwise (`moved`), and the caller's own domain check of the complete candidate, where it
+                            has one; the refusals, the four statuses (PREPARED, COMMITTED, UNCONFIRMED, REFUSED), and
+                            the outcome carrying the candidate reading, the fields that earned a refusal, the rendered
+                            length an overflow measured, and what the domain check answered where it refused the
+                            candidate (INADMISSIBLE); and `CONFLICT`, what a domain transformation answers where it
+                            cannot keep both roads' moves of its field, refused as an owned conflict
     pinned_commit.py        the guarded commit itself, through which the verification-evidence publication and
-                            settlement commit so far: a candidate derived over a
+                            settlement and the developer report's recording, binding, and the park a refusal of either
+                            takes (`report_commits.py`) commit so far, while every other road still writes its whole
+                            state: a candidate derived over a
                             fresh reading of the captured comment rather than written from the caller's state. A
                             write the caller did not declare refuses before anything is read; an unreadable,
                             unparsed, or replaced comment, a prerequisite spelled otherwise, and an owned field
                             another writer moved to something other than what the caller staged each refuse after;
                             a domain-supplied transformation decides its owned field over the fresh value instead,
                             and every other field, unknown ones included, is the fresh reading's. The whole
-                            candidate is measured through `pinned_state_body` against `MAX_PINNED_BODY` before
-                            anything goes out -- `prepare` stops there, for a caller with an external effect to
-                            make first, and `commit` derives everything again over a newer reading and lands it
-                            through the strict edit, sending nothing for a candidate the comment already reads as.
-                            A refusal writes nothing and moves nothing the caller holds, and an edit that went out
-                            unconfirmed is reported as neither answer, for the domain's own receipts to settle.
-                            `reread` is that fresh reading alone -- the captured comment, still parsing -- for a
-                            caller with requests of its own to make over it before it stages anything
+                            candidate is measured through `pinned_state_body` against `MAX_PINNED_BODY`, and held to the
+                            guard's own domain check where it carries one, before anything goes out -- that very
+                            candidate, over the reading the edit lands on -- and `prepare` stops there, for a caller
+                            with an external effect to make first, and `commit` derives everything again over a newer
+                            reading and lands it through the strict edit, sending nothing for a candidate the comment
+                            already reads as. A refusal writes nothing and moves nothing the caller holds, and an edit
+                            that went out unconfirmed is reported as neither answer, for the domain's own receipts to
+                            settle. `reread` is that fresh reading alone -- the captured comment, still parsing -- for a
+                            caller with requests of its own to make over it before it stages anything. `takes_in` is for
+                            a road that lays another road's moves over a tick's state without writing -- the validating
+                            reread and the run circuit's merge -- or replaces that state with what a commit landed, as
+                            the verification settlement does, so the reading that state last synced with
+                            (`PinnedState.synced`) counts those fields as the comment's
+    report_commits.py       the developer report's guarded commits: a `ReportWrite` declares the fields one write
+                            owns, the report records it was decided on, and the check the fresh comment has to pass
+                            first; a `ReportCommit` lands it over the issue's comment guarded by the reading the
+                            tick last synced with, not by the state it holds now, so every field the tick changed
+                            since rides the write as the tick spells it while every field another road moved is the
+                            fresh reading's. A report record moved under the decision, or a field the write changes
+                            moved another way, refuses it; a usage total, the cost tags, a comment-id watermark,
+                            and the ledger of this orchestrator's comments keep both roads' moves instead, by the
+                            validating stage's own rule (`stages/validating/state.py`) and the ledger's own writer,
+                            and a move that rule cannot join -- another road left the field as no such value at all --
+                            is refused as an owned conflict rather than written over. `on_the_publication` decides a
+                            write on the pull request, branch and code-publication receipt as well, the implementing
+                            stage's own fields resolved when asked.
+                            The check -- a record's reading and every later write it reserves -- rides the guard, so
+                            it is asked of the very candidate the commit sends, over the reading the strict edit
+                            lands on or nowhere; a park is prepared before its notice with the ledger entry and the
+                            watermark that notice writes reserved at their widest, the entry under an id the merged
+                            ledger the candidate carries does not already hold. Only what lands is laid over the
+                            tick's state; a refusal, or an edit sent and never confirmed, WITHHOLDS that state
+                            (`PinnedState.withheld`), so no whole-state write later in the tick puts back what the
+                            comment has since come to carry -- save a refusal for room over a comment that, read
+                            again, is still the one the tick synced with, which is simply too full
     report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
                             `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
                             report ready for publication, and a report asserted to be on the pull request at a URL
@@ -664,23 +696,32 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             own refusal carried through as the BINDING it is from here, its settlement still a
                             settlement, under the hand-back the delivery's road reserved; `record_delivered_report` is
                             that answer reduced to whether, for every caller that acts on nothing more
-    report_delivery.py      the report one finished run earns, recorded before its code is published: the outcome
-                            read off the run, the revision minted one past every report this issue has already
-                            recorded -- the settled one, any transaction still outstanding, and any delivery still
-                            waiting to be bound, since a receipt is spelled from the revision and a retry finds its
-                            own comment by it -- the requirements
-                            revision the run was handed rather than one computed now, which is the snapshot a caller
-                            names on its `HandedRun` or else the pinned baseline the drift check left before the
-                            spawn, and the route its caller names. The write is this owner's, because being durable
-                            before the size gate and the push is the whole of what makes the report recoverable.
-                            The round, the bookmarks and the readers the record carries are the caller's frozen pair
-                            JOINED with those of every record this one SUPERSEDES -- the outstanding transaction and
-                            the unbound delivery, oldest first, so a field two of them name keeps the newest reading
-                            of it. Nothing an outstanding record owes has been written anywhere, and this record
-                            replaces it, so a report minted on its own caller's pair alone settles leaving a round
-                            nobody spent, bookmarks nobody cleared, and feedback a developer already answered reading
-                            as fresh -- which is what a requirements-drift resume superseding an unsettled fix
-                            report would otherwise do.
+    report_minting.py       the record one finished run's report outcome earns: the outcome read off the run, the
+                            revision minted one past every report this issue has already recorded -- the settled
+                            one, any transaction still outstanding, and any delivery still waiting to be bound,
+                            since a receipt is spelled from the revision and a retry finds its own comment by it --
+                            the requirements revision the run was handed rather than one computed now, which is the
+                            snapshot a caller names on its `HandedRun` or else the pinned baseline the drift check
+                            left before the spawn, and the route its caller names. The round, the bookmarks and the
+                            readers the record carries are the caller's frozen pair JOINED with those of every
+                            record this one SUPERSEDES -- the outstanding transaction and the unbound delivery,
+                            oldest first, so a field two of them name keeps the newest reading of it. Nothing an
+                            outstanding record owes has been written anywhere, and this record replaces it, so a
+                            report minted on its own caller's pair alone settles leaving a round nobody spent,
+                            bookmarks nobody cleared, and feedback a developer already answered reading as fresh.
+                            `MINTED_FROM` names the records all of that is read from, which recording it is decided on
+    report_delivery.py      the report one finished run earns, recorded before its code is published, as minted by
+                            `report_minting.py`. The write is this owner's, because being durable before the size
+                            gate and the push is the whole of what makes the report recoverable, and it is a
+                            guarded commit (`report_commits.py`) decided on everything the record was minted from
+                            and owning the delivery and the park and debt flags it retires: the tick's own reading only
+                            refuses a record whose reading fails or which no comment could carry, its room is asked of
+                            the very candidate the commit sends, and only a record that lands lets the
+                            gate and the push run. A comment that would not read, was replaced, or moved under the
+                            decision ends the tick with nothing parked, published, or written, every whole-state
+                            write behind it withheld; so does a write sent and never confirmed, withheld the same
+                            way, whose record, where it landed, is what the next tick binds -- with no second run and
+                            no second revision.
                             TWO ways a run holds the tick instead, both parked under `report_undeliverable` and
                             both before the size gate and the push, so nothing is published and the commit stays
                             in the worktree. A report this build cannot RECORD is one no later tick could publish
@@ -703,7 +744,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             refusal, a nonzero exit -- `INCOMPLETE_RUNS`, public for the stage that remembers which
                             commit such a run left. The park is announced once per attempt -- while it still STANDS -- with
                             the notice worded by whichever road took it, and it is retired the moment a report IS
-                            recorded. It also carries the input the caller said the run's prompt delivered into its
+                            recorded. A refused recording or binding takes it through the guarded commit,
+                            `parks_the_debt`, prepared with its notice's own writes reserved before the notice is
+                            posted, so a park the comment cannot carry posts nothing -- one refused only after its
+                            notice went out leaves that notice unrecorded; the stages' own parks take
+                            `parks_an_undeliverable_report`, written over
+                            the whole state they hold. A comment the fresh reading finds too full for the record is
+                            the room refusal too, measured there. It also carries the input the caller said the run's
+                            prompt delivered into its
                             OWN write: a park durable over feedback still marked unread is one the next tick reads
                             as fresh and resumes the developer over again, with nobody having replied. It is bounded like every park ending a run, so a reply written while the
                             agent was out stays unread under its notice. `owes_a_report` beside it is what the implementing publication asks before
@@ -908,8 +956,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             nobody can read, a verification on another pull request, and one on the DESCRIPTION this
                             publication needs park once under `report_undeliverable` with the record intact -- that
                             last the collision, held for a human to name the description, since nothing here
-                            rewrites one. A transaction the settled pair beside it refuses is left owed, for the
-                            reconciliation to park. The implementing publication calls it, through
+                            rewrites one. The exchange is a guarded commit (`report_commits.py`) decided on the
+                            report records the tick read and on the pull request, branch and code-publication receipt
+                            the publication was resolved from, owning only the two it swaps, its room asked of the very
+                            candidate the commit sends; a comment that would not read, was replaced, or moved
+                            under it is left for the next tick, parking and writing nothing -- the tick's state is
+                            withheld from every whole-state write behind it -- and so is a binding sent and never
+                            confirmed, which the next tick, finding the transaction rather than the delivery,
+                            publishes without binding again. Only the delivery itself is judged on the tick's state;
+                            whether this comment has room is asked of the candidate sent, and the parks it takes are
+                            decided on the publication too, so a repointed one parks nothing. Nothing is posted on a
+                            binding that did not land, and
+                            `binds_the_delivery` answers whether it did. A transaction the settled pair beside it
+                            refuses is left owed, for the reconciliation to park. The implementing publication calls it,
+                            through
                             `stages/implementing/report_handoff.py`, once its push has reached a pull request; the
                             review stages' `stages/validating/report_settlement.py` calls the binding step alone,
                             `binds_the_delivery`, and leaves the post to the reconciliation's full evidence
@@ -2489,7 +2549,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             this stage's. A record a crash left unbound is answered off its own pairs, and whether the
                             code went out is RE-PROVED against the checkout rather than remembered off the persistent
                             receipt -- a tree provably clean and a head it could name, with where that head stands left
-                            to the binding, which reads the pull request afresh. A record nobody can READ parks with the
+                            to the binding, which reads the pull request afresh -- and a binding whose guarded write
+                            did not land over the comment the tick read, refused over a moved comment or sent and never
+                            confirmed, ends the tick silently, its state withheld. A record nobody can READ parks with the
                             record untouched, since the debt is claimed by the key alone and reading it as an absence
                             would let the scan behind it through. The two refusals no later poll takes back, a worktree
                             that is GONE and a tree this host proved DIRTY, announce once and RELEASE the record as they
@@ -3143,7 +3205,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             there to the relabel is handed to `report_handoff.py`, the handoff left owed wherever
                             that refuses it, so the next tick republishes the same commit onto the same pull request
       report_handoff.py     a landed push to the handoff: the description judged on a fresh read, the report the
-                            run delivered bound and published through `engine/report_binding.py` with that verdict,
+                            run delivered bound and published through `engine/report_binding.py` with that verdict
+                            -- a binding whose guarded write did not land over the comment the tick read, refused
+                            over a moved comment or never confirmed, withholds the handoff right there and says
+                            nothing, since the tick's state is withheld and no park behind it could be recorded --
                             and the relabel reached last -- held until no report is still owed (a debt no retry
                             can pay -- no record left, or a report a human edited, removed or wrote untrusted, per
                             `engine/report_evidence.py` -- parking for a report-only reply), the issue's
@@ -3734,7 +3799,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             edited, removed, or written untrusted, asked with the reading the implementing handoff
                             takes -- and a debt no record describes at all. Every one of those is something the
                             reconciliation stands down on rather than holding, so a silent hold there would
-                            suppress every later reviewer with nobody told.
+                            suppress every later reviewer with nobody told. A settlement whose binding did not land
+                            over the comment the tick read -- refused over a moved comment or never confirmed -- is
+                            the one silent hold among them: the tick's state is withheld, so no park could be recorded.
                             Once nothing is owed it asks `report_refresh.py` about the rewritten-head report debt
       report_refresh.py     the rewritten-head report debt (`workflow/engine/report_rewrite_debt.py`) the report hold
                             asks once nothing else is owed, against the pull request's head as the reviewer's subject

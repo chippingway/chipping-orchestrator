@@ -2229,10 +2229,20 @@ because there it is the claim that this stage has already rerouted rather than a
        `branch` and resets `review_round=0` and `retry_count=0` via `handoff._reset_implementing_counters`.
      - **the report the run wrote** is what the publication owes beside the code (records under [pinned
        state](labels-and-state.md#pinned-state)). It is recorded between the tree reading and the size gate, and BOUND
-       to the publication and posted once the pull request is known (`implementing/report_handoff.py`). The
-       requirements are proved afresh before the post and again before the settlement, so an edit landing during the
-       run or either request leaves it owed for the drift resume. A run that did not COMPLETE — a timeout, a provider
-       refusal, a nonzero exit, or a recovery's `invoked=False` synthesis — records nothing.
+       to the publication and posted once the pull request is known (`implementing/report_handoff.py`). The requirements
+       are proved afresh before the post and again before the settlement, so an edit landing during the run or either
+       request leaves it owed for the drift resume. A run that did not COMPLETE — a timeout, a provider refusal, a
+       nonzero exit, or a recovery's `invoked=False` synthesis — records nothing. Both the record and the binding are
+       guarded commits over the comment as it stands (`engine/report_commits.py`): a comment that will not read, was
+       replaced, or moved under the report records the decision was taken on ends the tick with nothing pushed or posted
+       and nothing parked -- and nothing written, since every whole-state write the handler takes behind the refusal is
+       withheld -- and room is measured on the very candidate sent, so room another road spent since the tick read the
+       comment is refused as the record's or the binding's own room, and room it gave back is used. A record or binding
+       GitHub took and never confirmed ends the tick before the push or the post with nothing written behind it; the
+       next tick republishes with no developer run, binding that very record or publishing that very transaction at the
+       run's own revision. A binding that did not land either way withholds the handoff before any of the last readings
+       below, saying nothing: a park one of them took behind it -- over an older transaction the delivery supersedes,
+       say -- would be a notice no write could record, posted again on every tick.
      - **a report still owed refuses the handoff**, exactly as a moved checkout does. A bind with no room, a thread read
        or post GitHub refused, a lost response, and a failed requirements re-read leave the branch pushed, the pull
        request open, the receipt and `late_approved_sha` recorded, and the debt standing, with nothing parked; the next
@@ -3606,9 +3616,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      `report_settlement`'s, over the pull request, its description, and the issue read again. A reply resumes the
      session through the drift route, whose report supersedes the undelivered one. Anything else still owed — a
      reading nobody could take, or a pull request somebody moved under the report — holds silently, since the next
-     tick is as likely to settle it. A park the awaiting-human branch cleared into this round is written when the hold
-     stops it, in the one write step 4 composes over the comment read afresh (`review_resume.settles_a_bought_round`),
-     so its reply is not answered twice.
+     tick is as likely to settle it. So does a binding this tick's settlement sent that did not land over the comment it
+     read — refused over a comment another road moved since, or never confirmed: the tick's state is withheld, so a park
+     behind it would be a notice no write could record, and the hold says nothing at all until a later tick binds afresh
+     or the reconciliation publishes what landed. A park the awaiting-human branch cleared into this round is written
+     when the hold stops it, in the one write step 4 composes over the comment read afresh
+     (`review_resume.settles_a_bought_round`), so its reply is not answered twice.
      Once no report is owed -- on arrival, or once this tick settled it -- a claimed `developer_report_rewrite_debt` is
      asked last (`report_refresh._rewrite_holds_the_review`), against the pull request's head read the way the
      reviewer's subject reads it; a head nobody could read holds for the next tick. A claim that is to be paid or
@@ -4419,18 +4432,21 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      the mark of a round that is over regardless and only the relabel is withheld.
 
      A record a crash left **UNBOUND** is answered next. Whether the code went out is RE-PROVED against the checkout
-     rather than remembered off the persistent receipt -- a tree provably clean and a head it could name -- while
-     where that head stands is the binding's to ask, over a pull request it reads AFRESH (`report_publication.py`),
-     because the only one this tick holds was fetched before it began. A binding that settles ends the tick through
-     the hand-back above; one whose post did not land relabels nothing, since the transaction is the
+     rather than remembered off the persistent receipt -- a tree provably clean and a head it could name -- while where
+     that head stands is the binding's to ask, over a pull request it reads AFRESH (`report_publication.py`), because
+     the only one this tick holds was fetched before it began. A binding that settles ends the tick through the
+     hand-back above; one whose post did not land relabels nothing, since the transaction is the
      [reconciliation](#the-developer-report-transaction-every-dispatch)'s to finish and the bookmarks it replays from
-     have to outlive this tick. A record nobody can READ parks under `report_undeliverable` with the record
-     untouched, since the debt is claimed by the key alone and reading it as an absence lets the scan through. The
-     two refusals no later poll takes back -- a worktree GONE, and a tree this host proved DIRTY -- announce once and
-     RELEASE the record as they park, with the pairs it froze applied in that same write: left there, restoring or
-     cleaning the checkout would publish the report and send the issue to review, which is the decision the notice
-     exists to put in front of a human. A reading nobody could TAKE is neither, and buys nothing at all: nothing
-     published, nothing released, no notice, and the poll behind it asks again.
+     have to outlive this tick. A binding whose guarded write did not land over the comment this tick read -- refused
+     over a comment another road moved since, or sent and never confirmed -- ends the tick saying and writing nothing,
+     since the tick's state is withheld and a notice behind it could never be recorded; the next tick binds afresh, or
+     the reconciliation publishes the transaction where the binding landed after all. A record nobody can READ parks
+     under `report_undeliverable` with the record untouched, since the debt is claimed by the key alone and reading it
+     as an absence lets the scan through. The two refusals no later poll takes back -- a worktree GONE, and a tree this
+     host proved DIRTY -- announce once and RELEASE the record as they park, with the pairs it froze applied in that
+     same write: left there, restoring or cleaning the checkout would publish the report and send the issue to review,
+     which is the decision the notice exists to put in front of a human. A reading nobody could TAKE is neither, and
+     buys nothing at all: nothing published, nothing released, no notice, and the poll behind it asks again.
 
      A reviewer's change request handed over to this label (`review_returned_verdict` with `handed`) is answered right
      behind that, still ahead of the scan (`validating/review_resume.finishes_a_handed_request`): its feedback is a

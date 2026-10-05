@@ -15,7 +15,8 @@ same comment. Each is replayed through the owner that performs
 it rather than respelled here, so a member added there moves every reservation
 taken against it. The owner that re-reads the settled report a reviewer is
 handed is named here too, for the verification-evidence proof that holds its
-review subject to that same reading.
+review subject to that same reading, and so is the owner of which pinned fields
+keep both of two roads' moves, for the developer report's guarded commits.
 """
 from __future__ import annotations
 
@@ -68,6 +69,15 @@ _LATE_PUBLICATION_STATE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_publication_state
 # reader above it.
 _LATE_RECEIPT_DAMAGE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_receipt_damage"
 
+# The owner of the implementing stage's pinned fields, the pull request and
+# branch a publication is resolved from and the code-publication receipt among
+# them. Named here and resolved when called because a report's binding is
+# decided on them -- a pull request or a receipt another road repointed since
+# the tick read them is a publication the binding may not be made against --
+# and asking the stage directly would make the engine's own import pull the
+# handlers that import it back.
+_IMPLEMENTING_STATE_OWNER = f"{_IMPLEMENTING_PACKAGE}.state"
+
 # The owner that tells the `discussion` stage's plan from a delivery, read
 # through rather than re-derived so what counts as a plan is decided once.
 _IMPLEMENTING_HANDLER_OWNER = f"{_IMPLEMENTING_PACKAGE}.handler"
@@ -97,6 +107,15 @@ _VALIDATING_REVIEW_RECORDS_OWNER = f"{_VALIDATING_PACKAGE}.review_records"
 # exact reading, and asking the stage directly would make the engine's own
 # import pull the handlers that import it back.
 _VALIDATING_REVIEW_REPORT_OWNER = f"{_VALIDATING_PACKAGE}.review_report"
+
+# The owner of which pinned fields keep both of two roads' moves rather than
+# one -- a usage total that adds up, cost tags that join, a comment-id
+# watermark that keeps the further reading -- and of how. Named here and
+# resolved when called for the same reason: a developer report's guarded
+# commit keeps a field the tick moved beside another road's move by that very
+# rule, and asking the stage directly would make the engine's own import pull
+# the handlers that import it back.
+_VALIDATING_STATE_OWNER = f"{_VALIDATING_PACKAGE}.state"
 
 # The one handler a label does not choose. It is reached by being closed on a
 # cleanup-swept label instead, and it is deliberately not in the table below:

@@ -11,6 +11,7 @@ found again by walking the thread.
 """
 from __future__ import annotations
 
+import json
 import unittest
 from types import MappingProxyType
 
@@ -162,6 +163,25 @@ class WritePinnedStateTest(unittest.TestCase):
         self.assertEqual(edited.data, _REWRITTEN)
         self.assertTrue(edited.parsed)
 
+    def test_what_was_read_or_written_is_remembered(self) -> None:
+        # A state remembers what the comment carried the last time it was
+        # written over it or read from it, and nothing staged on it afterwards
+        # moves that: a guarded commit tells the tick's own changes from the
+        # comment's by it. A state built in memory has read nothing.
+        issue = _issue(_human_reply())
+        state = PinnedState(data=dict(_RECORD))
+        built = state.synced
+
+        self.client.write_pinned_state(issue, state)
+        state.set(_ROUND_KEY, 2)
+        read = self.client.read_pinned_state(issue)
+        read.set(_BRANCH_KEY, _ATTACKER_BRANCH)
+
+        self.assertEqual(
+            (built, json.loads(state.synced), json.loads(read.synced)),
+            (None, _RECORD, _RECORD),
+        )
+
     def test_a_forged_record_is_not_the_one_written(self) -> None:
         # A third party got the marker onto the thread before the orchestrator
         # ever recorded anything, which is the window a manually labelled issue
@@ -181,6 +201,27 @@ class WritePinnedStateTest(unittest.TestCase):
 
         self.assertEqual(read.comment_id, state.comment_id)
         self.assertEqual(read.get(_BRANCH_KEY), _BRANCH)
+
+
+class WithheldStateTest(unittest.TestCase):
+    """A state a guarded commit was refused over is never written whole."""
+
+    def test_a_withheld_state_writes_nothing(self) -> None:
+        # The comment moved under the decision the state was taken on, so
+        # writing it whole would put back what another road wrote: the writer
+        # sends nothing, the record stands as it was, and the state is handed
+        # back untouched.
+        record = bot_comment(_RECORDED_ID, _RECORD_BODY)
+        issue = _issue(_human_reply(), record)
+        state = PinnedState(comment_id=_RECORDED_ID, data=dict(_REWRITTEN))
+        state.withheld = True
+
+        written = state_client().write_pinned_state(issue, state)
+
+        self.assertEqual(
+            (written, record.body, len(issue.comments), state.synced),
+            (state, _RECORD_BODY, 2, None),
+        )
 
 
 class LatestCommentIdTest(unittest.TestCase):

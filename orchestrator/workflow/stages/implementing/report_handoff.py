@@ -8,7 +8,9 @@ about. The description is judged first, read afresh by number, because the
 binding has to be told whether it names this implementation: a report verified
 on a description that does not is the one report this stage can neither keep
 nor route around. Then the report is bound and posted, or verified, by the
-engine.
+engine. A binding whose guarded write did not land over the comment the tick
+read withholds the handoff right there and says nothing: the tick's state is
+withheld, so no park any reading below took could be recorded.
 
 What follows is asked last, immediately before the relabel, because every one
 of it is a human's to change at any moment: the issue's requirements first --
@@ -96,6 +98,15 @@ def _hands_on(
     after the push -- read after the report's requests, so one that moved
     during them is seen; or a description that does not close this issue and
     name this session, or one nobody could read.
+
+    A binding whose guarded write did not land over the comment the tick read
+    -- refused over a comment another road moved since, or sent and never
+    confirmed -- withholds the handoff here, before any of those readings: the
+    tick's state is WITHHELD (`report_commits`), so a park the report reading
+    took behind it -- over an older transaction the delivery supersedes, say
+    -- is a notice no write could record, posted again on every tick. The next
+    tick binds the delivery afresh, or, where the binding landed after all,
+    finds the transaction and publishes it without binding again.
     """
     pr = reached.pull_request
     described = _pr_description._names_the_implementation(gh, issue, state, pr)
@@ -103,6 +114,8 @@ def _hands_on(
         _report_binding.binds_and_publishes(
             gh, issue, state, replace(reached, describes_the_issue=described),
         )
+    if state.withheld:
+        return False
     if (
         _remote_readings_hold(gh, issue, state, reached)
         or _checkout._moved_after_the_push(gh, issue, state, reached.commit, wt)

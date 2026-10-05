@@ -16,7 +16,7 @@ from github.Issue import Issue
 
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values
+from orchestrator.workflow.engine import pinned_commit as _pinned_commit, run_ledger_values as _run_ledger_values
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -169,17 +169,24 @@ def _merge_circuit_fields(
     charge back the way its read found it -- the issue would have paid for the
     run and be handed the count of an issue that never launched one.
 
+    The comment carries them once this owner's write has landed, so the caller's
+    state remembers them as read (`pinned_commit.takes_in`): a guarded commit
+    behind this one counts them as the comment's rather than as its own.
+
     The pinned comment's identity travels with them where the caller has none.
     An issue whose state was created by this write is one the caller would
     otherwise pin a second comment for.
     """
-    for key in set(recorded) | set(durable.data):
+    laid = [
+        key for key in set(recorded) | set(durable.data)
+        if durable.data.get(key, _UNSET) != recorded.get(key, _UNSET)
+    ]
+    for key in laid:
         written = durable.data.get(key, _UNSET)
-        if written == recorded.get(key, _UNSET):
-            continue
         if written is _UNSET:
             state.data.pop(key, None)
         else:
             state.set(key, written)
+    _pinned_commit.takes_in(state, durable.data, laid)
     if state.comment_id is None:
         state.comment_id = durable.comment_id

@@ -239,7 +239,9 @@ def _commits(
     """Make `pending` current in one guarded commit composed over `latest`; True where the tick holds.
 
     Where it lands, the reading it landed as becomes the state in hand, for
-    the stage behind the reconciliation to read. Where it does not, the
+    the stage behind the reconciliation to read, and the reading that state is
+    synced with (`pinned_commit.takes_in`), so a guarded commit behind it counts
+    none of it as the tick's own move. Where it does not, the
     transaction stays owed and the artifact's ledger entry is committed
     alone; a carry is never abandoned for a commit that did not land, since
     nothing refused its binding. One that went out and was never confirmed
@@ -262,6 +264,7 @@ def _commits(
     refused = _durable.refusal_of(outcome)
     if refused is None:
         reading.state.data = outcome.reading.data
+        _commit.takes_in(reading.state, outcome.reading.data)
         log.info(
             "issue=#%d settled verification evidence revision %d on PR #%d",
             reading.issue.number, pending.revision,

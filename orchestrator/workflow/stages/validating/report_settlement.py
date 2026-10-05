@@ -128,8 +128,7 @@ def _binds_the_delivery(
     if reading is None:
         return None
     published, fresh = reading
-    _report_binding.binds_the_delivery(gh, issue, state, published)
-    return None if _delivery_state.carries_delivered_report(state) else fresh
+    return fresh if _report_binding.binds_the_delivery(gh, issue, state, published) else None
 
 
 def _receipt_commit(state: _pinned_state.PinnedState) -> str:

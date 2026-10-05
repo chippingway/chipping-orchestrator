@@ -20,12 +20,16 @@ meanwhile is a conflict, not a field to take the older value back for -- save
 where both writers left it spelled alike -- while an owned field the caller
 left alone keeps whatever the fresh reading carries. A domain whose field has
 to keep both moves -- a total, a ledger, a watermark -- supplies its own
-transformation, which is applied over the fresh value instead. Every other
+transformation, which is applied over the fresh value instead, and which
+answers CONFLICT where the two moves will not join -- refused as an owned
+conflict, as a field with no transformation would be. Every other
 field, unknown ones included, is the fresh reading's.
 
 The candidate that makes is measured as it would be written, through
-`pinned_state_body` against `MAX_PINNED_BODY`, before anything goes out.
-`prepare` stops there, for a caller that has an external effect to make only
+`pinned_state_body` against `MAX_PINNED_BODY`, before anything goes out, and
+held to the caller's own domain check where its guard carries one -- that very
+candidate, not one derived over an earlier reading, so a comment that grew in
+between is judged as it now stands. `prepare` stops there, for a caller that has an external effect to make only
 if the record behind it will fit; `commit` asks everything again over a reading
 taken behind whatever requests came between, and lands the candidate through
 the strict edit (`GitHubStateMixin.edit_pinned_state`), which rewrites the
@@ -39,14 +43,22 @@ is only read, and a transformation is handed copies. An edit that went out and
 was never confirmed is reported as UNCONFIRMED rather than as either answer --
 whatever receipt the caller's own domain keeps is what a later reading settles
 it by. The verification-evidence publication and settlement commit through this
-(`verification_durable`, `verification_publishing`, `verification_settling`);
-every other road still rewrites the whole record.
+(`verification_durable`, `verification_publishing`, `verification_settling`),
+and so do the developer report's recording, binding, and the park a refusal of
+either takes (`report_commits`); every other road still rewrites the whole
+record.
+
+The report's commits are captured over the reading a tick last synced with the
+comment (`PinnedState.synced`), so what the tick staged since is told from what
+it read. A road that lays another road's moves over a tick's state without
+writing tells that reading so (`takes_in`): what it laid is the comment's, not
+the tick's own.
 """
 from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import Any
@@ -145,6 +157,37 @@ def reread(
     return _fresh(gh, issue, _Change(guard, guard.read, _NO_TRANSFORMS))
 
 
+def takes_in(
+    state: PinnedState,
+    reading: Mapping[str, Any],
+    fields: Iterable[str] | None = None,
+) -> None:
+    """Remember `state`'s comment as carrying each of `fields` as `reading` spells it.
+
+    For a road that has just laid those fields of a fresh reading over a
+    tick's state, without writing it. Counted from the reading the tick last
+    synced with instead, each would read as a move the tick made itself: a
+    commit would carry it as the tick's own, add a total another road folded
+    to that road's fold a second time, and refuse a record the tick decided on
+    as one that moved under it. A state nothing was read into has no such
+    reading to advance. `fields` None is the whole reading, for a road that
+    has just replaced the state with what a commit landed: the state now holds
+    the comment exactly as `reading` spells it.
+    """
+    if fields is None:
+        state.synced = json.dumps(reading, sort_keys=True)
+        return
+    if state.synced is None:
+        return
+    synced = json.loads(state.synced)
+    for field in fields:
+        synced.pop(field, None)
+        held = reading.get(field, _models.ABSENT)
+        if held is not _models.ABSENT:
+            synced[field] = held
+    state.synced = json.dumps(synced, sort_keys=True)
+
+
 @dataclass(frozen=True)
 class _Change:
     """What one commit asks of the comment: its guard, the state staged, and the fields derived."""
@@ -199,32 +242,48 @@ class _Change:
         moved = self.guard.moved(fresh.data)
         if moved:
             return _refused(issue, _models.CommitRefusal.PREREQUISITE_CHANGED, moved)
-        conflicts = [
-            field for field in self.assigned()
-            if _models.spelled(fresh.data, field) not in {
-                self.guard.read.get(field),
-                self.staged.get(field),
-            }
-        ]
+        derived = self._derived(fresh.data)
+        conflicts = sorted({
+            *(
+                field for field in self.assigned()
+                if _models.spelled(fresh.data, field) not in {
+                    self.guard.read.get(field),
+                    self.staged.get(field),
+                }
+            ),
+            *(field for field, kept in derived.items() if kept is _models.CONFLICT),
+        })
         if conflicts:
             return _refused(issue, _models.CommitRefusal.OWNED_CONFLICT, tuple(conflicts))
-        candidate = self._candidate(fresh.data)
+        return self._admitted(issue, fresh, self._candidate(fresh.data, derived))
+
+    def _admitted(
+        self, issue: Issue, fresh: PinnedState, candidate: dict,
+    ) -> _models.CommitOutcome:
+        """`candidate` measured whole and held to the domain's own check, or the refusal it earns."""
         length = len(pinned_state_body(candidate))
         if length > MAX_PINNED_BODY:
             return _refused(issue, _models.CommitRefusal.OVERFLOW, length=length)
+        # The domain's own check is asked of this very candidate, a copy of it:
+        # it is the one a commit sends, over the reading the edit lands on.
+        refused = None if self.guard.admits is None else self.guard.admits(
+            PinnedState(state_data=json.loads(json.dumps(candidate))),
+        )
+        if refused is not None:
+            return _refused(issue, _models.CommitRefusal.INADMISSIBLE, inadmissible=refused)
         return _models.CommitOutcome(
             _models.CommitStatus.PREPARED,
             reading=PinnedState(comment_id=fresh.comment_id, state_data=candidate),
         )
 
-    def _candidate(self, fresh: dict) -> dict:
+    def _candidate(self, fresh: dict, derived: dict) -> dict:
         """`fresh` with this change laid over it, as a reader would parse it back."""
         spellings = {field: _models.spelled(fresh, field) for field in fresh}
         spellings.update({
             field: self.staged.get(field) for field in self.assigned()
         })
         spellings.update({
-            field: self._derived_spelling(fresh, field) for field in self.derived
+            field: _models.spelling(kept) for field, kept in derived.items()
         })
         return {
             field: json.loads(spelling)
@@ -232,15 +291,16 @@ class _Change:
             if spelling is not None
         }
 
-    def _derived_spelling(self, fresh: dict, field: str) -> str | None:
-        """What the domain's transformation makes of one field, over its fresh value."""
-        transform = self.derived[field]
-        return _models.spelling(transform(
-            _models.loaded(_models.spelled(fresh, field)),
-            _models.loaded(self.guard.read.get(field)),
-            _models.loaded(self.staged.get(field)),
-        ))
-
+    def _derived(self, fresh: dict) -> dict:
+        """What each of the domain's transformations makes of its field, over the fresh value."""
+        return {
+            field: transform(
+                _models.loaded(_models.spelled(fresh, field)),
+                _models.loaded(self.guard.read.get(field)),
+                _models.loaded(self.staged.get(field)),
+            )
+            for field, transform in self.derived.items()
+        }
 
 def _fresh(
     gh: GitHubClient, issue: Issue, change: _Change,
@@ -268,6 +328,7 @@ def _refused(
     refusal: _models.CommitRefusal,
     fields: tuple[str, ...] = (),
     length: int | None = None,
+    inadmissible: Any = None,
 ) -> _models.CommitOutcome:
     """One refusal, logged; nothing was written for it."""
     log.warning(
@@ -276,4 +337,5 @@ def _refused(
     )
     return _models.CommitOutcome(
         _models.CommitStatus.REFUSED, refusal=refusal, fields=fields, length=length,
+        inadmissible=inadmissible,
     )

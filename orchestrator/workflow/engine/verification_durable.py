@@ -100,6 +100,9 @@ _REFUSALS = MappingProxyType({
     _commit_models.CommitRefusal.OVERFLOW: ReportEvidence(
         ReportEvidenceVerdict.DEFER, "the pinned comment has no room for the write",
     ),
+    _commit_models.CommitRefusal.INADMISSIBLE: ReportEvidence(
+        ReportEvidenceVerdict.DEFER, "the write's own check refused the record it would leave",
+    ),
 })
 
 _UNCONFIRMED = ReportEvidence(

@@ -90,7 +90,8 @@ def records_the_artifact(
     same, and the tick that next proves the world may defer before it ever
     reads the thread again. Guarded by nothing but the comment `state` was
     read from, since recording our own comment is right whatever else moved.
-    Where it lands, the reading it landed as becomes the state in hand. A
+    Where it lands, the reading it landed as becomes the state in hand, and
+    the reading that state is synced with (`pinned_commit.takes_in`). A
     comment with no room for the entry is left as it stands, for the retry to
     read the id back off the thread. One that will not read, no longer parses,
     or is not the comment `state` was read from holds the tick, and so does a
@@ -104,6 +105,7 @@ def records_the_artifact(
     outcome = _commit.commit(gh, issue, guard, staged.data, MERGED_LEDGER)
     if outcome.status is _commit_models.CommitStatus.COMMITTED:
         state.data = outcome.reading.data
+        _commit.takes_in(state, outcome.reading.data)
         return False
     return _durable.refusal_of(outcome).holds
 

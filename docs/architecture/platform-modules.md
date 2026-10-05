@@ -289,7 +289,13 @@ orchestrator/
                         gone or no longer the authenticated state-only one, and answers EDITED only where GitHub's
                         response carries the body sent -- a lost response, a refused request, and an answer carrying
                         another body are all UNCONFIRMED, since the record may read either way. Its two requests
-                        are primitives the in-memory double overrides, so the double answers through this policy
+                        are primitives the in-memory double overrides, so the double answers through this policy.
+                        A state read from the comment or written over it remembers what the comment carried then
+                        (`PinnedState.synced`), spelled as its JSON is and outside the record itself, so what a
+                        tick staged on it since can be told from what it read; a state a guarded commit did not
+                        land over -- refused, or sent and never confirmed -- is marked `withheld`, and the legacy
+                        write writes nothing for it, since written whole it would put back what another road
+                        wrote past it
     pull_request_reads.py
                         PR status, open and commit-pinned lookup, branch enumeration, and unreadable-publication
                         evidence; a caller choosing its publication thread can narrow to a base, while a caller

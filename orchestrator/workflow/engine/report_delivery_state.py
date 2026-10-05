@@ -177,8 +177,10 @@ def stage_delivered_report(
     one that is simply long. Whatever the reserved transaction's own writer
     refuses is passed on as that writer said it.
 
-    The caller still owns `gh.write_pinned_state`, as every stage-facing writer
-    here does, so the record rides whatever else that caller staged.
+    The caller still owns the write, as every stage-facing writer here does:
+    `report_delivery` lands it through the report domain's guarded commit
+    (`report_commits`), and asks this again of the candidate the fresh comment
+    makes, so the room it reserves is measured on the comment it lands on.
     """
     # Every group but the subject, spelled by the owner the transaction shares
     # them with, so a field added to one record is a field on both. A

@@ -40,11 +40,22 @@ from orchestrator.github.pinned_state import PinnedState
 # to have the field dropped.
 ABSENT = object()
 
+# What a transformation returns where it cannot keep both moves of its field --
+# another road left it spelled as neither the capture nor the caller had it, and
+# in no shape the domain's rule can join -- so the commit refuses it as an owned
+# conflict, exactly as it refuses a field that has no transformation.
+CONFLICT = object()
+
 # A domain's own rule for one owned field, applied over the fresh reading:
 # called with the field's fresh value, its value as the commit was captured,
 # and its value as the caller staged it -- each ABSENT where missing, and each
 # a copy nothing else holds -- and returning what the field is committed as.
 Transform = Callable[[Any, Any, Any], Any]
+
+# A domain's own check of the complete candidate, asked of exactly the one a
+# commit would land: handed a copy of it as a state, and answering None to let
+# it land, or that domain's refusal of it otherwise.
+Admits = Callable[[PinnedState], Any]
 
 
 class CommitRefusal(enum.Enum):
@@ -67,6 +78,8 @@ class CommitRefusal(enum.Enum):
     UNDECLARED_WRITE = "undeclared_write"
     # The complete candidate renders past what one comment holds.
     OVERFLOW = "overflow"
+    # The caller's own domain refused the complete candidate.
+    INADMISSIBLE = "inadmissible"
 
 
 class CommitStatus(enum.Enum):
@@ -85,8 +98,9 @@ class CommitOutcome:
     `reading` is the record the candidate makes of the comment: measured for
     PREPARED, landed for COMMITTED, sent for UNCONFIRMED, and None for REFUSED.
     It is a copy the caller may keep or lay over its own state; the commit
-    never touches that state itself. `fields` names what earned a refusal, and
-    `length` is the rendered body an OVERFLOW measured.
+    never touches that state itself. `fields` names what earned a refusal,
+    `length` is the rendered body an OVERFLOW measured, and `inadmissible` is
+    what the guard's own domain check answered where it refused the candidate.
     """
 
     status: CommitStatus
@@ -94,6 +108,7 @@ class CommitOutcome:
     refusal: CommitRefusal | None = None
     fields: tuple[str, ...] = ()
     length: int | None = None
+    inadmissible: Any = None
 
 
 @dataclass(frozen=True)
@@ -110,6 +125,8 @@ class PinnedCommit:
     # The fields the caller may write; every other field is the fresh
     # reading's, unknown ones included.
     owned: frozenset[str]
+    # The caller's domain check of the complete candidate, where it has one.
+    admits: Admits | None = None
 
     @classmethod
     def capture(
@@ -118,13 +135,15 @@ class PinnedCommit:
         *,
         prerequisites: Iterable[str] = (),
         owned: Iterable[str] = (),
+        admits: Admits | None = None,
     ) -> PinnedCommit:
         """The commit guarded by `state` as it was read.
 
         Taken before anything is staged on `state`, since what the caller
         changes is told by its difference from this. A field may be both a
         prerequisite and owned: a record the decision rests on and the commit
-        replaces.
+        replaces. `admits` is asked of every candidate derived under this
+        guard, the one a commit sends included.
         """
         return cls(
             comment_id=state.comment_id,
@@ -132,6 +151,7 @@ class PinnedCommit:
             read=MappingProxyType({field: spelled(state.data, field) for field in state.data}),
             prerequisites=frozenset(prerequisites),
             owned=frozenset(owned),
+            admits=admits,
         )
 
     def moved(self, fresh: Mapping[str, Any]) -> tuple[str, ...]:
