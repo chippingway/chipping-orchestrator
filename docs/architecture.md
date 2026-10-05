@@ -283,7 +283,8 @@ self-exit and be restarted with new code.
   that a close receipt or a consumer notice is let in alongside this process's own worker, which it was built to land
   beside. A claim that cannot be worked at all — an unopenable namespace, a filesystem without `flock` — withholds the
   issue too, where the presence above lets a poller go on unclaimed: a tidying job can be given up, an issue's record
-  cannot be written uncoordinated. Released however the dispatch ends and by the kernel when the process dies; the files
+  cannot be written uncoordinated. Released however the dispatch or refresh route ends and by the kernel when the
+  process dies; the files
   are never unlinked. It is host-local and separate from the presence: neither says anything about the other, and
   nothing coordinates pollers on different hosts or checkout roots. The supported topology and the namespace's access
   assumptions are in the [operations runbook](configuration/operations.md#running-more-than-one-poller).
