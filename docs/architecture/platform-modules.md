@@ -184,12 +184,17 @@ orchestrator/
     __init__.py         reloadable settings bindings, their diagnostic funnel, and the default repo-spec accessor
     environment.py      the env-value parsers and the `_SettingsResolver` that reads and validates every knob
     _dotenv.py          the non-secret `.env` loader, reading a source checkout's own file or else the user location
+    checkouts.py        whether a directory is the top of a git checkout, answered by git itself: a read-only
+                        `git rev-parse` about its own `.git`, never a discovered one, then one discovering it from
+                        inside for git's ownership check; it starts git as a program and imports nothing from `git/`
     layout.py           whether the package runs from this project's own source checkout or an installed
                         distribution, and the worktree root's default beside the first configured target
     credentials.py      process / token-file credential resolution per repository and the secret redactor the verify
                         output, the agent stderr diagnostics, and the trajectory writer mask with
     models.py           the `RepoSpec` / `RepoEnvEntry` repository-config types
-    repositories.py     `REPOS` entry parsing, validation, and default-spec construction
+    repositories.py     `REPOS` entry parsing and validation, the choice between `REPOS` and the developer fallback
+                        only a source checkout is offered, and the refusal of every selected target that is not a
+                        checkout
   github/               publishes `GitHubClient` and `PinnedState` from their defining owners
     client.py           authenticated PyGithub setup, worker-thread clones, paired stage-entry records, and canonical
                         repository identity; a clone reuses the parent's token and bot login on a requester of its

@@ -10,11 +10,13 @@ module-level attribute so callers and tests keep patching them on
 `orchestrator.config` itself. The resolution lives in the leaves: `_dotenv`
 owns the `.env` loader, `environment` the env-value parsers and the resolver,
 `credentials` the token resolver and the secret redactor every stderr /
-verify-output / trajectory consumer masks with, `layout` the source-checkout
-versus installed distinction and the worktree root's default, `models` the
-repository-config data types (`RepoSpec`, `RepoEnvEntry`), and `repositories`
-the `REPOS` parsing and spec construction. `default_repo_specs` here returns a
-copy of the resolved list.
+verify-output / trajectory consumer masks with, `checkouts` whether a
+directory is the top of a git checkout, as git itself answers, `layout` the
+source-checkout versus installed distinction and the worktree root's default,
+`models` the repository-config data types (`RepoSpec`, `RepoEnvEntry`), and
+`repositories` the `REPOS` parsing, the choice of targets, and the refusal of
+any target that is not a checkout. `default_repo_specs` here returns a copy of
+the resolved list.
 
 Secrets are deliberately NOT loaded from any .env. The implementer agent runs
 in a sibling worktree with sandbox bypass, so anything readable inside
@@ -128,9 +130,9 @@ def _config_error(message: str) -> NoReturn:
 def _config_warning(message: str) -> None:
     """Emit a non-fatal configuration diagnostic to stderr.
 
-    Warnings (an ignored .env secret, an unreadable token file, a missing
-    REPOS target_root) surface the problem but let the process continue,
-    so they go to stderr rather than aborting like `_config_error`.
+    Warnings (an ignored .env secret, an unreadable token file) surface the
+    problem but let the process continue, so they go to stderr rather than
+    aborting like `_config_error`.
     """
     sys.stderr.write(f"{message}\n")
 
@@ -351,11 +353,14 @@ DECOMPOSE_AGENT_ARGS: tuple[str, ...] = _RESOLVED["DECOMPOSE_AGENT_ARGS"]
 AGENT_GIT_NAME: str = _RESOLVED["AGENT_GIT_NAME"]
 AGENT_GIT_EMAIL: str = _RESOLVED["AGENT_GIT_EMAIL"]
 
-# The repository whose issues / PRs this orchestrator manages. Defaults to
-# REPO_ROOT (self-bootstrap: orchestrator manages its own repo). Override when
-# the orchestrator code is installed in one clone but drives PRs into another.
-# Worktrees are `git worktree add`-ed from this path, so commits land on its
-# git history -- not the orchestrator's own.
+# The developer fallback's local clone of `REPO`: the checkout whose issues /
+# PRs this orchestrator manages when it runs from its own source checkout and
+# `REPOS` is unset. Defaults to REPO_ROOT (self-bootstrap: orchestrator manages
+# its own repo); override it to develop against another clone. Worktrees are
+# `git worktree add`-ed from this path, so commits land on its git history --
+# not the orchestrator's own. An installed package never reads it, nor `REPO`,
+# as a target: `REPOS` is the only way to name one there (see
+# `repositories.build_repo_specs`).
 TARGET_REPO_ROOT: Path = _RESOLVED["TARGET_REPO_ROOT"]
 
 # The one root every configured repository's worktrees live under, each in its
@@ -406,10 +411,11 @@ _REPO_SPECS: list[RepoSpec] = _RESOLVED["REPO_SPECS"]
 def default_repo_specs() -> list[RepoSpec]:
     """The configured RepoSpecs (validated at import).
 
-    A single element built from `REPO` / `TARGET_REPO_ROOT` / `BASE_BRANCH`
-    when `REPOS` is unset (so existing single-repo deployments keep working
-    unchanged); otherwise one element per `REPOS` entry. Returns a fresh
-    list copy so callers cannot mutate the cached result.
+    One element per `REPOS` entry; or, when `REPOS` is unset and the package
+    runs from its own source checkout, a single element built from `REPO` /
+    `TARGET_REPO_ROOT` / `BASE_BRANCH` / `REMOTE_NAME`. Every target in it was
+    a git checkout at import. Returns a fresh list copy so callers cannot
+    mutate the cached result.
     """
     return list(_REPO_SPECS)
 

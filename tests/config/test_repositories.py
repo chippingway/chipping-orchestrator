@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Focused configuration behavior tests."""
 
+import contextlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,6 +18,7 @@ _TARGET_ROOT_ENV = "TARGET_REPO_ROOT"
 _WORKTREES_DIR_NAME = "wt-orchestrator"
 _RootCase = tuple[str, dict[str, str], Path]
 _TARGET_PARENTS = ("first", "second", "developer")
+_FIRST_CHECKOUT = Path("real", _TARGET_PARENTS[0], "checkout")
 
 
 def _worktree_root_cases(scratch: Path) -> tuple[_RootCase, ...]:
@@ -24,7 +26,9 @@ def _worktree_root_cases(scratch: Path) -> tuple[_RootCase, ...]:
 
     Every target is a git checkout under `real/`, named through the `links`
     symlink to that directory, so a root taken from the resolved target would
-    land under `real/` rather than beside the path as it was written.
+    land under `real/` rather than beside the path as it was written. The
+    relative `.` target is read from inside the first checkout, so it names
+    one.
     """
     for parent in _TARGET_PARENTS:
         _support.make_checkout(scratch / "real" / parent / "checkout")
@@ -42,7 +46,7 @@ def _worktree_root_cases(scratch: Path) -> tuple[_RootCase, ...]:
         (
             "relative repos target",
             {_config_cases._REPOS_ENV: f"{_config_cases._ALPHA_REPO}|.|main"},
-            Path.cwd().parent / _WORKTREES_DIR_NAME,
+            (scratch / _FIRST_CHECKOUT).parent / _WORKTREES_DIR_NAME,
         ),
         (
             "developer target through a symlink",
@@ -70,44 +74,45 @@ class RepositoryConfigParsingTest(unittest.TestCase):
         self.assertEqual(spec.target_root, config.REPO_ROOT)
 
     def test_legacy_single_repo_fallback(self) -> None:
-        config = _reload.load_config(
-            {
-                "REPO": _config_cases._LEGACY_REPO,
-                _TARGET_ROOT_ENV: _config_cases._LEGACY_ROOT,
-                "BASE_BRANCH": _config_cases._LEGACY_BRANCH,
-            }
-        )
+        with _support.target_checkout() as td:
+            config = _reload.load_config(
+                {
+                    "REPO": _config_cases._LEGACY_REPO,
+                    _TARGET_ROOT_ENV: td,
+                    "BASE_BRANCH": _config_cases._LEGACY_BRANCH,
+                }
+            )
 
-        specs = config.default_repo_specs()
-        self.assertEqual(len(specs), 1)
-        spec = _support.only_repo_spec(specs)
-        self.assertEqual(spec.slug, _config_cases._LEGACY_REPO)
-        self.assertEqual(spec.target_root, Path(_config_cases._LEGACY_ROOT))
-        self.assertEqual(spec.base_branch, _config_cases._LEGACY_BRANCH)
-        # No REMOTE_NAME set -> defaults to 'origin' so existing deployments
-        # keep working unchanged.
-        self.assertEqual(spec.remote_name, _config_cases._ORIGIN_REMOTE)
+            specs = config.default_repo_specs()
+            self.assertEqual(len(specs), 1)
+            spec = _support.only_repo_spec(specs)
+            self.assertEqual(spec.slug, _config_cases._LEGACY_REPO)
+            self.assertEqual(spec.target_root, Path(td))
+            self.assertEqual(spec.base_branch, _config_cases._LEGACY_BRANCH)
+            # No REMOTE_NAME set -> defaults to 'origin' so existing
+            # deployments keep working unchanged.
+            self.assertEqual(spec.remote_name, _config_cases._ORIGIN_REMOTE)
 
     def test_remote_name_env_override_for_single_repo(self) -> None:
         # Multi-remote local clones (e.g. public `origin` + private fork
         # `private`) need to drive the non-default remote.
-        config = _reload.load_config(
-            {
-                "REPO": _config_cases._LEGACY_REPO,
-                _TARGET_ROOT_ENV: _config_cases._LEGACY_ROOT,
-                "BASE_BRANCH": "main",
-                "REMOTE_NAME": _config_cases._PRIVATE_REMOTE,
-            }
-        )
+        with _support.target_checkout() as td:
+            config = _reload.load_config(
+                {
+                    "REPO": _config_cases._LEGACY_REPO,
+                    _TARGET_ROOT_ENV: td,
+                    "BASE_BRANCH": "main",
+                    "REMOTE_NAME": _config_cases._PRIVATE_REMOTE,
+                }
+            )
         spec = _support.only_repo_spec(config.default_repo_specs())
         self.assertEqual(spec.remote_name, _config_cases._PRIVATE_REMOTE)
 
     def test_entries_accept_newline_and_semicolon(self) -> None:
         # Mix newlines, ';', blank lines, and a comment to verify the parser
         # accepts both separators and ignores noise.
-        with tempfile.TemporaryDirectory() as td:
-            other = Path(td) / "other"
-            other.mkdir()
+        with _support.target_checkout() as td:
+            other = _support.make_checkout(Path(td) / "other")
             config = _reload.load_config(
                 {
                     _config_cases._REPOS_ENV: (
@@ -136,7 +141,7 @@ class RepositoryConfigParsingTest(unittest.TestCase):
     def test_optional_fourth_field_sets_remote_name(self) -> None:
         # Multi-remote target clones (e.g. public `origin` + private fork
         # `private`) need to drive the non-default remote.
-        with tempfile.TemporaryDirectory() as td:
+        with _support.target_checkout() as td:
             config = _reload.load_config(
                 {
                     _config_cases._REPOS_ENV: (
@@ -155,7 +160,9 @@ class RepositoryConfigParsingTest(unittest.TestCase):
             )
 
     def test_repos_overrides_legacy_trio(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
+        # The developer target is ignored outright, so one that is not a
+        # checkout -- here, not even a path -- does not stop the start.
+        with _support.target_checkout() as td:
             config = _reload.load_config(
                 {
                     "REPO": "ignored/legacy",
@@ -172,24 +179,6 @@ class RepositoryConfigParsingTest(unittest.TestCase):
             self.assertEqual(spec.target_root, Path(td))
             self.assertEqual(spec.base_branch, "main")
 
-    def test_missing_target_warns_but_loads(self) -> None:
-        # Confirms "warn loudly" semantics: the diagnostic lands on stderr,
-        # never stdout, and does not abort the load.
-        import io
-        from contextlib import redirect_stderr, redirect_stdout
-
-        captured_stderr = io.StringIO()
-        captured_stdout = io.StringIO()
-        with redirect_stdout(captured_stdout), redirect_stderr(captured_stderr):
-            config = _reload.load_config(
-                {_config_cases._REPOS_ENV: f"{_config_cases._ALPHA_REPO}|/this/path/does/not/exist|main"}
-            )
-        specs = config.default_repo_specs()
-        self.assertEqual(len(specs), 1)
-        self.assertIn("does not exist", captured_stderr.getvalue())
-        self.assertIn(_config_cases._ALPHA_REPO, captured_stderr.getvalue())
-        self.assertEqual(captured_stdout.getvalue(), "")
-
 
 class WorktreeRootDefaultTest(unittest.TestCase):
     """One worktree root per process, `wt-orchestrator` beside the first target.
@@ -204,12 +193,14 @@ class WorktreeRootDefaultTest(unittest.TestCase):
     """
 
     def test_root_follows_the_first_configured_target(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            for case, environment, expected in _worktree_root_cases(Path(td).resolve()):
-                with self.subTest(case=case):
-                    self.assertEqual(
-                        _reload.load_config(environment).WORKTREES_DIR, expected,
-                    )
+        scratch = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        cases = _worktree_root_cases(scratch)
+        self.enterContext(contextlib.chdir(scratch / _FIRST_CHECKOUT))
+        for case, environment, expected in cases:
+            with self.subTest(case=case):
+                self.assertEqual(
+                    _reload.load_config(environment).WORKTREES_DIR, expected,
+                )
 
     def test_developer_default_sits_beside_checkout(self) -> None:
         config = _reload.load_config()

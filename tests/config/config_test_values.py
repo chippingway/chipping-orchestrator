@@ -26,7 +26,6 @@ _OFF = "off"
 _MODEL_FLAG = "-m"
 _REPOS_ENV = "REPOS"
 _LEGACY_REPO = "owner/legacy"
-_LEGACY_ROOT = "/tmp"
 _LEGACY_BRANCH = "trunk"
 _ALPHA_REPO = "alpha/one"
 _BETA_REPO = "beta/two"
@@ -56,6 +55,9 @@ _OVERRIDE_DEPENDENCY_POLL_CADENCE = 3
 _EVERY_TICK_CADENCE = 1
 _DEFAULT_DEBOUNCE_SECONDS = 600
 _OVERRIDE_DEBOUNCE_SECONDS = 120
+# Directory names holding characters `str.splitlines` ends a line at, all of
+# which a path may carry: a carriage return, a line feed, and NEXT LINE.
+_LINE_BREAKING_NAMES = ("carriage\rreturn", "line\nfeed", "next\x85line")
 _DOTENV_OWNED_KEYS = (
     _DEV_AGENT_ENV,
     _REVIEW_AGENT_ENV,

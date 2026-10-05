@@ -7,6 +7,8 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
 from unittest.mock import patch
@@ -27,6 +29,14 @@ def make_checkout(root: Path, project_name: str = "chipping-orchestrator") -> Pa
     (root / "pyproject.toml").write_text(f'[project]\nname = "{project_name}"\n')
     _run_git("init", "-q", "-b", "main", cwd=root)
     return root
+
+
+@contextmanager
+def target_checkout() -> Iterator[str]:
+    """A temporary git checkout, the kind of directory a target has to be."""
+    with tempfile.TemporaryDirectory() as td:
+        make_checkout(Path(td))
+        yield td
 
 
 def only_repo_spec(specs):
@@ -64,7 +74,9 @@ def load_config_from_dotenv(
     extra_environment: dict[str, str] | None = None,
 ) -> ModuleType:
     """Load a detached config module against one temporary dotenv file."""
+    # `PATH` is kept so the source-checkout proof can find git.
     environment = {
+        "PATH": os.environ.get("PATH", os.defpath),
         _config_cases._SKIP_DOTENV_ENV: _config_cases._ENABLED_ENV,
         _config_cases._TOKEN_FILE_ENV: _config_cases._MISSING_TOKEN_PATH,
     }

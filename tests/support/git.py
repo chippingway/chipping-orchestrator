@@ -6,8 +6,20 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
+from types import MappingProxyType
 
 from orchestrator.config import models as _config_models
+
+_INIT = "init"
+
+# Git's own test switch for reading every repository as another user's, with
+# global and system config detached so no `safe.directory` exception the host
+# carries can admit one anyway.
+_FOREIGN_OWNER_ENV = MappingProxyType({
+    "GIT_TEST_ASSUME_DIFFERENT_OWNER": "1",
+    "GIT_CONFIG_GLOBAL": os.devnull,
+    "GIT_CONFIG_SYSTEM": os.devnull,
+})
 
 
 def _git_env() -> dict:
@@ -47,7 +59,7 @@ def _seed_target_root(td: Path) -> tuple[Path, str]:
     """
     target = td / "target"
     target.mkdir()
-    _run_git("init", "-q", "-b", "main", cwd=target)
+    _run_git(_INIT, "-q", "-b", "main", cwd=target)
     _run_git(
         "commit",
         "--allow-empty",
@@ -77,3 +89,42 @@ def _spec_for(target_root: Path) -> _config_models.RepoSpec:
         base_branch="main",
         remote_name="origin",
     )
+
+
+def _append_git_config(checkout: Path, config_text: str) -> Path:
+    """Append `config_text` to the config of the clone at `checkout`."""
+    with (checkout / ".git" / "config").open("a", encoding="utf-8") as config:
+        config.write(config_text)
+    return checkout
+
+
+def _claim_work_tree(enclosing: Path, name: str) -> Path:
+    """`enclosing/name`, named as its work tree by a repository at `enclosing`.
+
+    Discovery from that directory reaches `enclosing` and reads it as the
+    directory's own repository, so the layout tells a check that asks the
+    directory's own `.git` from one that lets git look around it. The
+    directory itself is left for the caller to create.
+    """
+    _run_git(_INIT, str(enclosing), cwd=enclosing.parent)
+    _run_git("config", "core.worktree", str(enclosing / name), cwd=enclosing)
+    return enclosing / name
+
+
+def _foreign_owner_settings(scratch: Path) -> dict[str, str] | None:
+    """Settings under which git refuses every checkout as another user's.
+
+    `None` when the git on this host does not honour the switch: a repository
+    made in `scratch` is asked about under the settings, and opening it means
+    nothing a test could prove with them.
+    """
+    probe_repository = scratch / "foreign-owner-probe"
+    _run_git(_INIT, str(probe_repository), cwd=scratch)
+    opened = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=str(probe_repository),
+        capture_output=True,
+        check=False,
+        env={**_git_env(), **_FOREIGN_OWNER_ENV},
+    )
+    return None if opened.returncode == 0 else dict(_FOREIGN_OWNER_ENV)

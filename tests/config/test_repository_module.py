@@ -32,25 +32,24 @@ class RepositoryConfigModuleTest(unittest.TestCase):
         )
 
     def test_parse_repos_env_is_a_leaf(self) -> None:
-        # The parser takes its default and diagnostics as injected callables
+        # The parser takes its default and diagnostic as injected arguments
         # rather than reading config module state, so it parses without
-        # importing config back.
+        # importing config back. It reads only the value: a target that is
+        # not a checkout is the builder's to refuse, not the parser's.
         from orchestrator.config import repositories
 
         errors: list[str] = []
-        warnings: list[str] = []
 
         with tempfile.TemporaryDirectory() as td:
             specs = repositories.parse_repos_env(
                 f"{_config_cases._ALPHA_REPO}|{td}|main|{_config_cases._ORIGIN_REMOTE}|4",
                 default_parallel_limit=2,
                 config_error=_support.ConfigErrorRecorder(errors),
-                config_warning=warnings.append,
             )
         spec = _support.only_repo_spec(specs)
         self.assertEqual(spec.slug, _config_cases._ALPHA_REPO)
         self.assertEqual(spec.parallel_limit, 4)
-        self.assertEqual((errors, warnings), ([], []))
+        self.assertEqual(errors, [])
 
     def test_parser_uses_injected_default_limit(self) -> None:
         # An entry that omits parallel_limit adopts the injected default,
@@ -62,27 +61,27 @@ class RepositoryConfigModuleTest(unittest.TestCase):
                 f"{_config_cases._ALPHA_REPO}|{td}|main",
                 default_parallel_limit=7,
                 config_error=_support.exit_with_config_error,
-                config_warning=lambda _message: None,
             )
         spec = _support.only_repo_spec(specs)
         self.assertEqual(spec.parallel_limit, 7)
 
     def test_builder_uses_default_spec(self) -> None:
-        # A blank REPOS value yields exactly the injected legacy single-repo
-        # spec, without touching the parser or the diagnostics.
+        # A blank REPOS value yields exactly the injected developer spec,
+        # without touching the parser or the diagnostic.
         from orchestrator.config import models, repositories
 
-        default_spec = models.RepoSpec(
-            slug=_config_cases._LEGACY_REPO,
-            target_root=Path(_config_cases._LEGACY_ROOT),
-            base_branch=_config_cases._LEGACY_BRANCH,
-            remote_name=_config_cases._PRIVATE_REMOTE,
-            parallel_limit=5,
-        )
-        specs = repositories.build_repo_specs(
-            "   ",
-            default_spec=default_spec,
-            config_error=_support.exit_with_config_error,
-            config_warning=lambda _message: None,
-        )
+        with _support.target_checkout() as td:
+            default_spec = models.RepoSpec(
+                slug=_config_cases._LEGACY_REPO,
+                target_root=Path(td),
+                base_branch=_config_cases._LEGACY_BRANCH,
+                remote_name=_config_cases._PRIVATE_REMOTE,
+                parallel_limit=5,
+            )
+            specs = repositories.build_repo_specs(
+                "   ",
+                default_spec=default_spec,
+                default_parallel_limit=1,
+                config_error=_support.exit_with_config_error,
+            )
         self.assertEqual(specs, [default_spec])
