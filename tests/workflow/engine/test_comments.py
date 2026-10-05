@@ -203,8 +203,8 @@ class RecentCommentsTrustFilterTest(unittest.TestCase):
         self.assertIn(trust.ALLOWED_MARKER, text)
 
     def test_empty_allowlist_keeps_the_full_thread(self) -> None:
-        # The filter is opt-in: with no allowlist configured the outsider's
-        # comment still reaches the prompt (legacy single-user behavior).
+        # An empty allowlist trusts everyone, so the outsider's comment
+        # still reaches the prompt.
         with patch.object(config, trust.ALLOWLIST_CONFIG, ()):
             text = _prompt_context._recent_comments_text(trust.issue_with_comments())
 

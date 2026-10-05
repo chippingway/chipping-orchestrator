@@ -17,8 +17,7 @@ one unread above the reply its park interrupted.
 
 The trusted-author filter sits above all four surfaces rather than inside the
 route, so an outsider commenting on a public PR cannot bookmark a pending fix
-or steer the stage. An empty allowlist trusts everyone, so the default
-deployment is unchanged.
+or steer the stage.
 
 `_stay_parked` is the one case where fresh comments are deliberately ignored.
 A park filed by the base-sync retry loop owns the comment that answers it: the
@@ -93,8 +92,7 @@ def _scan_fresh_pr_feedback(ctx: _models._InReviewContext):
     streams share one id namespace and are merged into `issue_space_new`.
     Untrusted authors are dropped from every surface (see `filter_trusted`) so
     outsider feedback cannot bookmark a pending fix or route to `fixing`; the
-    orchestrator marker/id filtering is layered underneath it. An empty
-    allowlist trusts everyone, so the default deployment is unchanged.
+    orchestrator marker/id filtering is layered underneath it.
     """
     orchestrator_ids = _comments._orchestrator_ids(ctx.state)
     issue_space_new = _fresh_issue_space(ctx, orchestrator_ids)

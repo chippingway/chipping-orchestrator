@@ -463,17 +463,19 @@ Every PR opened by the orchestrator is AI-generated, so the policy is the workfl
 
 The orchestrator feeds issue- and PR-thread comments to coding agents as workflow-driving instructions. On a public
 repo that is a prompt-injection surface: any account can post a comment that steers an agent, resumes a parked session,
-or re-triggers work. `ALLOWED_ISSUE_AUTHORS` is the operator's control. It defaults unset; setting it to the maintainer
-logins turns the pickup allowlist into a comment trust boundary enforced by the shared `github/comments.py` helpers
+or re-triggers work. `ALLOWED_ISSUE_AUTHORS` is the operator's control, and it is required: the maintainer logins it
+lists are both the pickup allowlist and a comment trust boundary enforced by the shared `github/comments.py` helpers
 (`is_trusted_author` / `filter_trusted`). The env-var reference is in
 [`configuration.md#agent-roles`](configuration.md#agent-roles); the full per-surface filter list is in
 [`state-machine/delivery-stages.md#user-content-drift-detection`](state-machine/delivery-stages.md#user-content-drift-detection).
 
 The security posture:
 
-- **Opt-in, legacy-safe by default.** Unset (the default) trusts every author, preserving the single-user behavior a
-  private-repo deployment expects. The boundary exists only once an operator lists the trusted logins, so enabling it is
-  a deliberate act, not a silent behavior change.
+- **Required, so never open by omission.** An allowlist that names nobody would trust every author, so no launch mode
+  starts on one: while the setting is unset, empty, or left empty once blanks, commas, and leading `@` are stripped,
+  every run — `--once` and `--cleanup-terminal-artifacts` included — exits with status 1 and an error naming the
+  setting, before it makes a GitHub call, claims the host, or launches an agent. A deployment that forgets it fails
+  loudly at startup rather than running with the boundary down.
 - **Visible, not deleted.** An untrusted comment stays on the GitHub thread for humans to read; the orchestrator never
   hides, edits, or deletes it. What changes is only its *use as workflow input* — it is omitted from agent prompts,
   the `user_content_hash` drift signal, every awaiting-human resume signal (including the base-sync auto-rebase
@@ -529,9 +531,8 @@ The security posture:
   the late size gate's local content fingerprints beside it, and the community-contribution PR sweep exclude Bot /
   GitHub-App accounts (Dependabot, Renovate, CI bots) structurally via GitHub's `user.type == "Bot"` flag, independent
   of the allowlist. The comment trust boundary itself does not: on the
-  prompt / resume / PR-feedback surfaces a bot is gated like any other author — trusted while the allowlist is empty
-  (legacy behavior), and under a populated allowlist trusted only when its own login is explicitly listed. So an
-  intentionally allowlisted automation account still works; an unlisted one does not.
+  prompt / resume / PR-feedback surfaces a bot is gated like any other author — trusted only when its own login is
+  explicitly listed. So an intentionally allowlisted automation account still works; an unlisted one does not.
 - **The pickup half has exactly one bypass, and it is a repository permission.** The allowlist's other job is gating
   *automatic pickup* of an unlabeled issue — the one route a stranger reaches by filing one. The restart of a late
   split whose cancellation completed does not ask it. That path is reachable only by an operator **removing** the
@@ -618,8 +619,8 @@ worker-thread clients), **and** its entire body is the state marker — exactly 
   anything that is no longer state, is refused rather than recreated beside whatever replaced it. The legacy write keeps
   recreating a vanished record for the callers that rely on it.
 - **Independent of the comment boundary.** This authenticates *which comment is state*; `ALLOWED_ISSUE_AUTHORS`
-  authenticates *which comments are input*. Both are enforced independently, and the state boundary applies even when
-  the allowlist is unset.
+  authenticates *which comments are input*. Both are enforced independently, and the state boundary does not depend on
+  which logins the allowlist names.
 
 ## What a trusted pinned record still cannot license
 

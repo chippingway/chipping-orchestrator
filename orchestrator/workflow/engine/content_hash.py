@@ -120,11 +120,10 @@ def _compute_user_content_hash(
       filtered by the id-list or marker because we never post them, and
       they post structurally (e.g. weekly Dependabot bumps) which would
       otherwise re-trigger drift detection every time they post.
-    * untrusted authors by `is_trusted_author` when `ALLOWED_ISSUE_AUTHORS`
-      is set. This keeps an outsider's comment from shifting the hash and
-      re-triggering drift (and the re-decompose / dev-resume it drives) on
-      a public repo. With no allowlist configured everyone is trusted, so
-      the default deployment's hash is unchanged.
+    * untrusted authors by `is_trusted_author` against
+      `ALLOWED_ISSUE_AUTHORS`. This keeps an outsider's comment from
+      shifting the hash and re-triggering drift (and the re-decompose /
+      dev-resume it drives) on a public repo.
     * a bare `/orchestrator continue` operator command by
       `_is_bare_orchestrator_continue`. The command is an operator control,
       not requirements content: counting it would shift the hash and route

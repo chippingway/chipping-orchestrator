@@ -289,16 +289,17 @@ HITL_HANDLES: tuple[str, ...] = _RESOLVED["HITL_HANDLES"]
 HITL_HANDLE: str = _RESOLVED["HITL_HANDLE"]
 HITL_MENTIONS: str = _RESOLVED["HITL_MENTIONS"]
 # Comma-separated GitHub logins whose unlabeled issues the orchestrator is
-# willing to auto-pick-up. Empty (the default) disables the allowlist and
-# preserves the legacy "anyone can trigger" behavior. Set this on a public
-# repo to keep random users from spending the orchestrator's compute budget
-# on useless tasks. When set this list is also the comment trust boundary
-# (see `github.comments`): comments from authors outside it stay visible on
-# GitHub but are dropped from agent prompts, the `user_content_hash` drift
-# signal, awaiting-human resume signals, and PR / `fixing` feedback, so an
-# outsider on a public repo cannot inject workflow-driving instructions.
+# willing to auto-pick-up, so random users on a public repo cannot spend its
+# compute budget on useless tasks. Required: an unset or blank value resolves
+# to `()` here, and `runtime.startup.require_issue_authors` refuses to start
+# any run on it, because an empty list would trust every author. This list is
+# also the comment trust boundary (see `github.comments`): comments from
+# authors outside it stay visible on GitHub but are dropped from agent
+# prompts, the `user_content_hash` drift signal, awaiting-human resume
+# signals, and PR / `fixing` feedback, so an outsider on a public repo cannot
+# inject workflow-driving instructions.
 # On these surfaces a Bot/App login is gated like any other author, kept
-# out only once the allowlist is populated; a separate `user.type ==
+# out unless it is listed; a separate `user.type ==
 # "Bot"` structural check covers the drift hash and community-PR sweep.
 # Pickup itself still fires only on unlabeled issues: a maintainer who
 # manually labels an outsider's issue (e.g. `workflow:implementing`) drives it

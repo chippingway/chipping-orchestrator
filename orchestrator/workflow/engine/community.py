@@ -8,8 +8,8 @@ the sweep itself instead -- once, ahead of the scheduler / in-tick split, so a
 newly opened outsider PR is answered on either dispatch path.
 
 `ALLOWED_ISSUE_AUTHORS` is what decides there is anything to sweep at all. An
-empty list is the default, and it leaves a single-user deployment the legacy
-"anyone is trusted" behavior: the sweep returns before it costs a request.
+empty list -- which startup refuses to run on -- trusts every author, so the
+sweep returns before it costs a request.
 
 The label is the sweep's own dedup marker rather than an operator control,
 which is why the ping is posted BEFORE it. A label write that fails repeats a

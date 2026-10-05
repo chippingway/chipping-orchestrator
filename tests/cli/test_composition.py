@@ -10,14 +10,21 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.agents import processes as _agent_processes
-from orchestrator.runtime import loop, shutdown
+from orchestrator.runtime import artifacts, loop, shutdown
 from tests.cli.composition_test_support import composed_run
 from tests.runtime import polling_test_support as _support
 
 _TERMINATE_ATTR = "terminate_all_running"
 _WORKTREES_ATTR = "WORKTREES_DIR"
 _DRIVE_POLLING_ATTR = "drive_polling"
+_MAINTENANCE_PASS_ATTR = "run_maintenance_pass"
 _DEBUG_ARGS = ("--once", "--log-level", "DEBUG")
+_MISSING_ALLOWLIST = (
+    "ALLOWED_ISSUE_AUTHORS must contain at least one GitHub login. "
+    "Configure it before starting the orchestrator, for example: "
+    "ALLOWED_ISSUE_AUTHORS=alice,bob"
+)
+_LAUNCH_ARGS = ((), _support.ONCE_ARGS, ("--cleanup-terminal-artifacts",))
 
 
 def _restart_after_signal(state, _options, _clients, _scheduler) -> int:
@@ -69,6 +76,48 @@ class ComposedStartupTest(unittest.TestCase):
 
             run.seams.configured_logging.assert_called_once_with("DEBUG")
             run.seams.installed_handlers.assert_called_once_with(run.state)
+
+
+class AuthorAllowlistStartupTest(unittest.TestCase):
+    """A run starts only on an author allowlist that names somebody.
+
+    An empty one would trust every author, so each launch mode stops on it
+    with the error an operator can act on and before any GitHub client,
+    scheduler, poll, or maintenance pass exists. The loop and the pass are
+    stood in for so that a launch which ever got past the stop would end
+    here instead of polling forever or reading the operator's own clones.
+    """
+
+    def test_an_empty_allowlist_stops_each_launch(self) -> None:
+        for argv in _LAUNCH_ARGS:
+            with self.subTest(argv=argv), composed_run(
+                [_support.ALPHA_REPO], allowed_authors=(),
+            ) as run, patch.object(
+                loop, _DRIVE_POLLING_ATTR,
+            ) as polled, patch.object(
+                artifacts, _MAINTENANCE_PASS_ATTR,
+            ) as reclaimed:
+                stopped = self.assertRaises(SystemExit)
+                with stopped:
+                    run.main(argv)
+
+                # A string code is what exits the process with status 1 and
+                # the message on stderr.
+                self.assertEqual(stopped.exception.code, _MISSING_ALLOWLIST)
+                self.assertEqual(run.clients.by_slug, {})
+                self.assertEqual(run.schedulers.built, [])
+                polled.assert_not_called()
+                reclaimed.assert_not_called()
+
+    def test_a_populated_allowlist_starts_the_run(self) -> None:
+        with composed_run(
+            [_support.ALPHA_REPO], allowed_authors=("alice", "bob"),
+        ) as run:
+            exit_code = run.main()
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(set(run.clients.by_slug), {_support.ALPHA_REPO})
+            self.assertEqual(run.recorder.slugs, [_support.ALPHA_REPO])
 
 
 class HermeticHostTest(unittest.TestCase):

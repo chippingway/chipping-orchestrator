@@ -15,6 +15,10 @@ a composed run claims this host for its whole life, on a real `flock` under
 create a lock file in it and -- worse than the litter -- a real maintenance
 pass holding that host would have every one of them waiting on it, which is
 exactly what that claim is built to make a process do.
+
+The author allowlist is set for the same reason the specs are: a run refuses
+to start on one that names nobody, so every composed run is handed a populated
+list unless the test is asking what that refusal does.
 """
 
 from __future__ import annotations
@@ -43,6 +47,9 @@ _STATE_ATTR = "RuntimeState"
 _CONFIGURE_LOGGING_ATTR = "configure_logging"
 _INSTALL_HANDLERS_ATTR = "install_signal_handlers"
 _WORKTREES_ATTR = "WORKTREES_DIR"
+_ALLOWLIST_ATTR = "ALLOWED_ISSUE_AUTHORS"
+
+TRUSTED_AUTHORS = ("operator",)
 
 
 class StateFactory:
@@ -112,6 +119,20 @@ def _own_worktrees_root():
         yield
 
 
+def _configured(
+    intercepted: ExitStack,
+    slugs: list[str],
+    allowed_authors: tuple[str, ...],
+) -> None:
+    """Configure the repositories a run connects and the authors it trusts."""
+    intercepted.enter_context(patch.object(
+        config, _DEFAULT_SPECS_ATTR, return_value=_support.repo_specs(slugs),
+    ))
+    intercepted.enter_context(patch.object(
+        config, _ALLOWLIST_ATTR, allowed_authors,
+    ))
+
+
 def _recorded_startup(intercepted: ExitStack, run: ComposedRun) -> None:
     """Record the two collaborators `startup` builds rather than building them.
 
@@ -128,14 +149,16 @@ def _recorded_startup(intercepted: ExitStack, run: ComposedRun) -> None:
 
 
 @contextmanager
-def composed_run(slugs: list[str]):
+def composed_run(
+    slugs: list[str],
+    *,
+    allowed_authors: tuple[str, ...] = TRUSTED_AUTHORS,
+):
     """Compose one run over `slugs` and hand back its recorders."""
     run = ComposedRun()
     with ExitStack() as intercepted:
         intercepted.enter_context(_own_worktrees_root())
-        intercepted.enter_context(patch.object(
-            config, _DEFAULT_SPECS_ATTR, return_value=_support.repo_specs(slugs),
-        ))
+        _configured(intercepted, slugs, allowed_authors)
         _recorded_startup(intercepted, run)
         intercepted.enter_context(patch.object(cli, _STATE_ATTR, run.states))
         intercepted.enter_context(patch.object(

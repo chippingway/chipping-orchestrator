@@ -160,11 +160,9 @@ def _recent_comments_text(issue: Issue, max_chars: int = _EXCERPT_CHARS) -> str:
     quoted there is what the issue goes on to mark answered.
 
     An untrusted author's comment is dropped whole -- its body and any URLs
-    it contains never reach the prompt -- so once `ALLOWED_ISSUE_AUTHORS`
-    is set an outsider on a public repo cannot smuggle workflow-driving
-    instructions into a coding agent through the issue thread. With no
-    allowlist configured `is_trusted_author` trusts every author, so the
-    default single-user deployment sees the full thread unchanged.
+    it contains never reach the prompt -- so an outsider to
+    `ALLOWED_ISSUE_AUTHORS` on a public repo cannot smuggle workflow-driving
+    instructions into a coding agent through the issue thread.
 
     Nothing is retained past that filter here: this convenience reads the
     thread itself, so a caller holding recorded orchestrator ids passes them

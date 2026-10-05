@@ -15,8 +15,9 @@ neither should have to reach up into the workflow layer to ask.
 
 Policy (keyed on `config.ALLOWED_ISSUE_AUTHORS`):
 
-* Empty (the default) -- no allowlist configured. Preserve the legacy
-  single-user behavior: every author is trusted.
+* Empty -- every author is trusted. A running orchestrator never holds
+  this as its configured setting, because startup refuses an allowlist
+  that names nobody; it stays the answer to an explicit empty `allowed`.
 * Populated -- only accounts whose login is in the allowlist are trusted,
   compared case-insensitively (GitHub logins are case-insensitive). This
   gates Bot / GitHub-App accounts too: a bot is trusted only when its own
@@ -81,7 +82,7 @@ def is_trusted_author(
     failed to load. `allowed` defaults to `config.ALLOWED_ISSUE_AUTHORS`;
     pass an explicit iterable to exercise the policy without patching config.
 
-    An empty allowlist trusts everyone (legacy behavior). A populated
+    An empty allowlist trusts everyone. A populated
     allowlist trusts only logins it contains, compared case-insensitively;
     a missing user or empty login is untrusted. Bot / App accounts follow
     the same rule -- trusted only when their login is explicitly allowlisted.
@@ -99,9 +100,7 @@ def filter_trusted[CommentT](
     """Keep only comments whose author is trusted (see `is_trusted_author`).
 
     Each item is any object exposing a `.user` attribute. Input order is
-    preserved. With no allowlist configured every item is kept, so this is
-    a safe drop-in over a raw `comments_after` / PR-reader result that
-    changes behavior only once an operator opts into the allowlist.
+    preserved. An empty allowlist keeps every item.
     """
     allowed_lower = _allowed_logins(allowed)
     if not allowed_lower:

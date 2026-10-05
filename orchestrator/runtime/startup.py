@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """What one polling run is built from before its first tick.
 
-The options an operator started it with, one authenticated client per
-configured repository, and the single scheduler every tick hands work to. Each
-of them reads the configuration inside its own call, so a run reflects the
-environment it was started in rather than the one this module was imported in.
+The options an operator started it with, the author allowlist it may not start
+without, one authenticated client per configured repository, and the single
+scheduler every tick hands work to. Each of them reads the configuration inside
+its own call, so a run reflects the environment it was started in rather than
+the one this module was imported in.
 
 `RepoClients` is what both connects hand back and what every pass over the
 repositories is typed by: the spec stays paired with the client built for it,
@@ -21,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from dataclasses import dataclass
 
 from orchestrator import config
@@ -33,6 +35,12 @@ log = logging.getLogger("orchestrator")
 RepoClients = list[tuple[_config_models.RepoSpec, GitHubClient]]
 
 _ISSUE_THREAD_PREFIX = "orch-issue"
+
+_MISSING_ISSUE_AUTHORS = (
+    "ALLOWED_ISSUE_AUTHORS must contain at least one GitHub login. "
+    "Configure it before starting the orchestrator, for example: "
+    "ALLOWED_ISSUE_AUTHORS=alice,bob"
+)
 
 
 @dataclass(frozen=True)
@@ -77,6 +85,22 @@ def parse_options(argv: list[str] | None) -> PollingOptions:
         cleanup_terminal_artifacts=parsed_options.cleanup_terminal_artifacts,
         log_level=parsed_options.log_level,
     )
+
+
+def require_issue_authors() -> None:
+    """Stop the launch unless `ALLOWED_ISSUE_AUTHORS` names somebody.
+
+    An allowlist that names nobody -- unset, or left empty once blanks,
+    commas, and leading `@` are stripped -- trusts every author: anyone on a
+    public repository could file work an agent is paid to do and steer it
+    through comments. So no launch mode starts without one, and the stop comes
+    before anything connects, claims the host, or builds a scheduler. The
+    options are read first so `--help` still answers on a host nobody has
+    configured yet. `sys.exit` with the message is the stop an invalid setting
+    makes at import: the text on stderr and exit status 1.
+    """
+    if not config.ALLOWED_ISSUE_AUTHORS:
+        sys.exit(_MISSING_ISSUE_AUTHORS)
 
 
 def connect_clients() -> RepoClients:

@@ -34,6 +34,12 @@ still lands on the answer.
 - `ORCHESTRATOR_TOKEN_FILE` — default `~/.config/<owner>/<repo>/token` (from `REPO`). path to the personal access
   token file (used when `GITHUB_TOKEN` is not in env)
 - `HITL_HANDLE` — default `geserdugarov`. comma-separated GitHub logins to @-mention when a human is needed
+- `ALLOWED_ISSUE_AUTHORS` — default _(required)_. comma-separated GitHub logins the orchestrator takes work and
+  comments from; what it gates is under [agent roles](#agent-roles). While it names nobody — unset, empty, or left
+  empty once blanks, commas, and leading `@` are stripped, such as `,,` or `@` — every launch mode, `--once`
+  included, exits with status 1 before any GitHub call or agent launch, printing `ALLOWED_ISSUE_AUTHORS must contain
+  at least one GitHub login. Configure it before starting the orchestrator, for example:
+  ALLOWED_ISSUE_AUTHORS=alice,bob`
 
 ### GitHub Personal Access Token
 
@@ -132,14 +138,15 @@ examples.
 - `CLAUDE_BIN` — default `claude`. executable launched when a role's first token is `claude`; override only if
   `claude` is not on `$PATH`
 - `AGY_BIN` — default `agy`. executable launched for the Antigravity backend; override if it is not on `$PATH`
-- `ALLOWED_ISSUE_AUTHORS` — default _(unset)_. comma-separated GitHub logins; when set, only auto-pick-up unlabeled
-  issues from those authors — the one path that runs an outsider's issue anyway is the restart of a cancelled late
-  split, authorized by an operator removing `rejected`, a write only a repository's own people may make
+- `ALLOWED_ISSUE_AUTHORS` — default _(required; see [above](#required))_. comma-separated GitHub logins; only
+  auto-pick-up unlabeled issues from those authors — the one path that runs an outsider's issue anyway is the restart
+  of a cancelled late split, authorized by an operator removing `rejected`, a write only a repository's own people may
+  make
   ([`configuration/operations.md`](configuration/operations.md#restarting-an-issue-whose-cycle-was-cancelled)) — and
   the per-tick sweep labels open PRs from anyone outside the list with
   `workflow:community_contribution` and @-mentions `HITL_HANDLE` once per PR (bot-authored PRs such as Dependabot are
-  excluded via `user.type == "Bot"`). When set it additionally becomes a comment trust boundary: comments from authors
-  outside the list stay visible on GitHub but are dropped from the conversation text fed to every agent prompt
+  excluded via `user.type == "Bot"`). It is also a comment trust boundary: comments from authors outside the list
+  stay visible on GitHub but are dropped from the conversation text fed to every agent prompt
   (implement / review / documentation / decompose / question / discussion / conflict, the awaiting-human resumes, and
   the `in_review` / `fixing` PR-feedback loop), from the base-sync auto-rebase retry-unpark signal, and from the
   `user_content_hash` drift signal, so an outsider on a public repo cannot inject workflow-driving instructions into
@@ -147,15 +154,15 @@ examples.
   `/orchestrator add-review-rounds`, widen a spent lifetime agent-run allowance via `/orchestrator add-agent-runs N`,
   publish an oversized committed candidate unsplit via `/orchestrator authorize-oversized <commit>`,
   route `in_review` to `workflow:fixing` (or set its pending-fix bookmark), or
-  shift the hash to re-trigger drift. Login comparison is case-insensitive; an empty allowlist trusts every author
-  (legacy single-user behavior), so on these prompt / resume / PR-feedback surfaces a Bot/App login is gated like any
-  other author — excluded once the allowlist is populated and its login is not on it. A separate `user.type == "Bot"`
-  structural check, independent of the allowlist, covers the `user_content_hash` drift hash and the
-  community-contribution PR sweep. One prompt keeps something the allowlist would drop: the `discussion` stage
-  rebuilds the whole conversation for a round with no session to resume, and retains the orchestrator's *own* posted
-  comments there — by the ids it recorded when it posted them — so a deployment that lists its humans and not the
-  token's account still hands that agent both halves of the thread. No third-party comment is ever retained.
-  See [`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#user-content-drift-detection) for the
+  shift the hash to re-trigger drift. Login comparison is case-insensitive, and on these prompt / resume /
+  PR-feedback surfaces a Bot/App login is gated like any other author — excluded unless its login is on the list.
+  A separate `user.type == "Bot"` structural check, independent of the allowlist, covers the `user_content_hash`
+  drift hash and the community-contribution PR sweep. One prompt keeps something the allowlist would drop: the
+  `discussion` stage rebuilds the whole conversation for a round with no session to resume, and retains the
+  orchestrator's *own* posted comments there — by the ids it recorded when it posted them — so a deployment that lists
+  its humans and not the token's account still hands that agent both halves of the thread. No third-party comment is
+  ever retained. See
+  [`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#user-content-drift-detection) for the
   full drift-hash filter list and
   [`security.md`](security.md#comment-trust-boundary-allowed_issue_authors) for the trust-boundary rationale
 
@@ -800,12 +807,11 @@ and the agent spec pinned into an in-flight session — are in
   usage counters, or written to pinned state. A discussion round that had just committed the confirmed plan keeps that
   commit on its branch and has it published by the tick after the label comes off, classified against the round anchor
   the stage wrote before the spawn.
-- `workflow:community_contribution` — Applied automatically (not by an operator) by the per-tick open-PR sweep when
-  `ALLOWED_ISSUE_AUTHORS` is set: any open PR whose author is outside the allowlist is labeled and `HITL_HANDLE` is
-  @-mentioned once per PR so a human reviews the community-submitted work. Bot authors (Dependabot, Renovate, CI bots)
-  are skipped. With the allowlist empty (the default), the sweep is a no-op. It carries the `workflow:` prefix — unlike
-  the two controls above — because the orchestrator writes it itself; a PR still carrying the pre-namespace spelling
-  counts as already labeled, so the migration cannot cost it a second HITL ping.
+- `workflow:community_contribution` — Applied automatically (not by an operator) by the per-tick open-PR sweep: any
+  open PR whose author is outside `ALLOWED_ISSUE_AUTHORS` is labeled and `HITL_HANDLE` is @-mentioned once per PR so a
+  human reviews the community-submitted work. Bot authors (Dependabot, Renovate, CI bots) are skipped. It carries the
+  `workflow:` prefix — unlike the two controls above — because the orchestrator writes it itself; a PR still carrying
+  the pre-namespace spelling counts as already labeled, so the migration cannot cost it a second HITL ping.
 
 [pollable-issues]: state-machine/labels-and-state.md#pollable-issues-and-finalization
 [transition-guard]: state-machine/labels-and-state.md#typed-states-and-the-transition-guard

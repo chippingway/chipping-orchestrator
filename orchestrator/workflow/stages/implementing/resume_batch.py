@@ -18,12 +18,13 @@ handed to both; the non-agent routes there consume exactly this batch too.
 Three filters decide what is in the batch, and none may be dropped. Untrusted
 authors come out first, so nothing an outsider posts reaches the prompt or the
 watermark. The orchestrator's own comments come out by the ledger of ids it
-recorded posting -- the default empty allowlist trusts every author, so a park
-notice read back as guidance is a developer paid to answer the orchestrator
-talking to itself. And a body carrying the orchestrator's marker that the
-ledger cannot vouch for is refused as forged: the marker is an HTML comment
-anybody may paste, and the login may be a token shared with a human whose real
-replies must not be swallowed, so the id is the whole of the evidence.
+recorded posting -- an allowlist listing the token's own account trusts every
+comment it posts, so a park notice read back as guidance is a developer paid to
+answer the orchestrator talking to itself. And a body carrying the
+orchestrator's marker that the ledger cannot vouch for is refused as forged:
+the marker is an HTML comment anybody may paste, and the login may be a token
+shared with a human whose real replies must not be swallowed, so the id is the
+whole of the evidence.
 
 Who OWNS the batch is decided off that same filtered list, and so are the
 conversations a fresh spawn is re-grounded with: one snapshot each, over the

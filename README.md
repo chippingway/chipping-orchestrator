@@ -69,7 +69,8 @@ Edit `.env` and set at least:
 - `HITL_HANDLE` — GitHub users to notify when human input is needed.
 - `REPO` — the `owner/name` to manage.
 - `TARGET_REPO_ROOT` — that repository's local clone when it is not this checkout.
-- `ALLOWED_ISSUE_AUTHORS` — trusted users on a public repository.
+- `ALLOWED_ISSUE_AUTHORS` — required: the GitHub logins whose issues and comments the orchestrator acts on; it
+  refuses to start while this names nobody.
 - `DEV_AGENT`, `REVIEW_AGENT`, and `DECOMPOSE_AGENT` — only when changing the default agent routing.
 
 Store the GitHub token outside the checkout at `~/.config/<owner>/<repo>/token`, or export `GITHUB_TOKEN` in the

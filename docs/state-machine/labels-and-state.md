@@ -68,11 +68,10 @@ Three non-workflow **control labels** modify behavior without occupying the work
   but not exempt from it — the hard skip fires in `_process_issue` before any handler, so a continue comment posted
   on a paused issue is deferred with everything else until the label is removed.
 - `workflow:community_contribution` is applied by the per-tick open-PR sweep (on the `workflow/engine/community.py`
-  owner, which the tick drives before per-issue dispatch) when `ALLOWED_ISSUE_AUTHORS` is configured: any open PR
-  whose author is not in the allowlist is labeled and `HITL_HANDLE` is @-mentioned once per PR. Bot-authored PRs
-  (Dependabot, Renovate, CI bots) are skipped via GitHub's `user.type == "Bot"` flag — they open PRs structurally and
-  are not community contributions. The orchestrator does not otherwise drive these PRs. With `ALLOWED_ISSUE_AUTHORS`
-  empty (the default), the sweep is a no-op. The label is the sweep's own dedup marker rather than an operator
+  owner, which the tick drives before per-issue dispatch): any open PR whose author is not in `ALLOWED_ISSUE_AUTHORS`
+  is labeled and `HITL_HANDLE` is @-mentioned once per PR. Bot-authored PRs (Dependabot, Renovate, CI bots) are
+  skipped via GitHub's `user.type == "Bot"` flag — they open PRs structurally and are not community contributions. The
+  orchestrator does not otherwise drive these PRs. The label is the sweep's own dedup marker rather than an operator
   control, which is why it is namespaced where `backlog` / `paused` are not, and why the sweep asks for both its
   spellings: a PR the bootstrap rename could not reach is already labeled, and re-labeling it would repeat the ping.
 
@@ -1702,9 +1701,9 @@ The keys that matter for the state machine fall into a few groups:
   only for the question it was built for — whether a sentence has to be said — which fails toward saying it twice.
 
   Dropping our own comments is not this park's alone. The generic developer resume drops them too, by the same
-  recorded ledger: every park in the implementing stage posts before the write that records posting it, and the
-  default empty `ALLOWED_ISSUE_AUTHORS` trusts every author there is, so a notice whose write was lost would
-  otherwise reach an agent as somebody asking for a change — and be paid for.
+  recorded ledger: every park in the implementing stage posts before the write that records posting it, and an
+  `ALLOWED_ISSUE_AUTHORS` listing the token's own account trusts every comment it posts, so a notice whose write was
+  lost would otherwise reach an agent as somebody asking for a change — and be paid for.
 
   That resume also **defers its whole tick** where the batch's last fresh reply is the command ending this park
   and the park is standing — an answered `/orchestrator add-agent-runs` read past on both sides, since this park's
