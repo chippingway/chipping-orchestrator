@@ -12,7 +12,8 @@ comparison is built from -- the authenticated branch fetch, the local and
 remote head SHAs, and the divergence counts -- live in ``snapshot``, and the
 order those reads and answers are asked in lives in ``recovery``. ``refresh``
 drives one tick's base fetch, the scheduler and dirty-tree refusals, the
-base-lag probe, and the per-worktree routing; ``refresh_selection`` is what it
+issue writer claim each worktree's sync is held under, the base-lag probe, and
+the per-worktree routing; ``refresh_selection`` is what it
 asks before any of that reaches a checkout -- which discovered directories
 name an issue, whether that issue reads at all, and the order the refusals
 that hold a branch still are put in -- and ``frozen`` is where those refusals

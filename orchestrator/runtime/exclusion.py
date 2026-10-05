@@ -10,8 +10,9 @@ in its own scheduler, its claims in its own sets -- and the artifacts are not:
 one host's checkouts and one remote's refs are shared by every process pointed
 at them. The one exception, the issue writer claim in
 `scheduler/writer_claims.py`, keeps a second process off one issue's record
-while it is dispatched there, and says nothing about the host's artifacts in
-either direction: a pass never asks it, and holding it is not a presence.
+while it is dispatched or base-refreshed there, and says nothing about the
+host's artifacts in either direction: a pass never asks it, and holding it is
+not a presence.
 
 So there is one file, and one rule over it. A polling run holds it SHARED for
 its whole life, which says a process that may be running work for any issue is

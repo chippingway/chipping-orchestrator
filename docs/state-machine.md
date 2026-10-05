@@ -91,7 +91,8 @@ of up to N ticks before a child is activated, a parent completes, or drift on ei
 every tick. Only issue numbers cross the thread boundary — each
 worker mints its own `GitHubClient` and re-fetches the issue, under the issue's host-local writer claim, which a
 second poller on the host holding the issue answers by skipping it that tick, keeping only a close it read; a family
-handler writes a child only under that child's claim. The cap exemptions, the
+handler writes a child only under that child's claim, and the base refresh syncs a worktree only under its issue's. The
+cap exemptions, the
 `duplicate_active` gate, the writer claim, and what each step reads and writes are in
 [`state-machine/labels-and-state.md`][per-tick]; the multi-repo dispatch and
 scheduler lifecycle around them are in
@@ -128,7 +129,10 @@ down instead, and takes its own park on the tick after that one clears
 ### Base refresh
 
 Before any issue is dispatched the tick fetches `<remote>/<base>` once and rebases each existing per-issue worktree
-onto it, so a long-lived worktree does not stay anchored to whatever base looked like when it was added. A pre-PR
+onto it, so a long-lived worktree does not stay anchored to whatever base looked like when it was added. Each worktree
+is synced under its issue's writer claim — the one every dispatch path takes, on the same key — held from before the
+issue is read until its route ends, recovery and settlement included, so an issue another poller on the host is
+dispatching or refreshing is left untouched for the tick and synced on a later one. A pre-PR
 worktree rebases locally; a PR-having one in `workflow:validating` / `workflow:documenting` / `in_review` /
 `workflow:fixing` pushes the clean rebase with a pinned `--force-with-lease`, resets `review_round`, records the report
 the landed head is owed (`developer_report_rewrite_debt`) ahead of the write that clears its attempt, and relabels to

@@ -177,7 +177,9 @@ def tick(
         # PR-having worktree while its handler is mid-write. The
         # refresh helper consults `scheduler.is_active` per worktree
         # so an in-flight issue's worktree and pinned state are left
-        # alone until the worker exits.
+        # alone until the worker exits; the issue's writer claim, which
+        # it takes behind that, does the same against every other
+        # poller on the host.
         _base_refresh._refresh_base_and_worktrees(gh, spec, scheduler=scheduler)
     except Exception:
         log.exception(

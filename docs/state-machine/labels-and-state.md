@@ -374,9 +374,10 @@ rest, and the split stops short of its summary and finalize, leaving the parent 
 recorded — exactly what the [half-finished recovery](delivery-stages.md#_handle_decomposing-label-workflowdecomposing)
 seeds under the claim and finalizes on a later tick, with no human. Only a seed write that fails parks
 (`child_seed_failed`), and only a late split's placement parks on a held child, as its failed seed does
-(`late_children_failed`), for the next attempt to supersede. The pre-tick base refresh takes no claim: it skips only the
-worktrees of issues its own process's scheduler reports active. The supported topology and the namespace's access
-assumptions are in
+(`late_children_failed`), for the next attempt to supersede. The pre-tick base refresh takes the same claim for each
+worktree it syncs, after skipping the issues its own process's scheduler reports active, so another poller's refresh
+or dispatch holding the issue keeps it out of this one's refresh as well ([Base refresh](#base-refresh)). The
+supported topology and the namespace's access assumptions are in
 [`../configuration/operations.md#running-more-than-one-poller`](../configuration/operations.md#running-more-than-one-poller).
 
 Only issue numbers cross the thread boundary — each scheduler worker mints a fresh `GitHubClient` via
@@ -394,6 +395,18 @@ Before any issue is dispatched the tick runs `_refresh_base_and_worktrees(gh, sp
 worktree under `<WORKTREES_DIR>/<owner>__<name>/issue-*`. The remote name defaults to `origin` and is overridable per
 `REPOS` row. Per-stage `_ensure_*_worktree` helpers only fetch on (re)creation, so without this refresh long-lived
 worktrees would stay anchored to whatever `<remote>/<base>` looked like when first added.
+
+Each worktree is synced as its issue's one writer on the host. An issue its own process's scheduler reports active is
+skipped first; every other one is synced under the issue's writer claim (see
+[Per-tick flow](#per-tick-flow-workflowengineticktick)) — the claim every dispatch path takes, on the same key (the
+repository's numeric id and the issue number) in the same namespace — taken without waiting before the issue or its
+pinned comment is read, and held until the route below has ended, whichever it is: the pre-PR rebase, the PR rebase
+with its push, notice, report debt, and relabel, the reset and park over a checkout whose lag cannot be read, and an
+interrupted attempt's recovery and settlement. A refresh refused the claim — another poller dispatching the issue or
+refreshing it, a writer of this process's own, or a namespace nothing can be locked in — skips that issue alone with
+nothing read, rebased, pushed, published, labeled, written, or recorded, and the next tick's refresh asks again, while
+every other worktree is synced. Nothing under the claim asks for it a second time: the one road the dispatcher reaches
+too, the answer a standing anchor is owed, runs there under the dispatch claim the worker already holds.
 
 Two paths depending on whether a PR exists:
 

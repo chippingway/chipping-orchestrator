@@ -451,8 +451,9 @@ orchestrator/
                         workflow keeps that reading where its own stage handlers can reach it; a submission refused
                         by a held barrier costs the caller its next polling pass, which is why it is reported apart
                         from a closed scheduler
-    writer_claims.py    the host-local writer claim every dispatch path takes for one repository issue, and a family
-                        handler takes for each child it writes; the base refresh takes none. An exclusive `flock` per
+    writer_claims.py    the host-local writer claim every dispatch path takes for one repository issue, a family
+                        handler takes for each child it writes, and the base refresh takes for each worktree it syncs,
+                        all on the one key in the one namespace. An exclusive `flock` per
                         issue in `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's numeric id as the
                         client answers it -- never a name, which a rename changes under a running poller -- and the
                         issue number, and taken without waiting. A contender is refused rather than kept waiting, and a
@@ -523,11 +524,15 @@ orchestrator/
     base_sync/          the per-tick base fetch and the auto-rebase of every worktree behind it
       refresh.py        the authenticated base fetch, the walk of the repository's worktrees root that hands
                         each entry to the selection owner below, the scheduler-active guard that keeps a
-                        worktree out from under a live worker, the dirty-tree refusal a pre-PR rebase owes,
+                        worktree out from under a live worker, the issue's writer claim that keeps it out from
+                        under every other writer on the host -- taken behind that guard and before the issue is
+                        read, on the key every dispatch path takes, and held through whichever route follows, so a
+                        refused issue is skipped with nothing read or written and synced on a later tick -- the
+                        dirty-tree refusal a pre-PR rebase owes,
                         the base-lag probe, and the pre-PR versus PR-aware route -- including the one road a lag
                         that cannot be counted does not end: over a pinned auto-rebase anchor it is itself the
                         answer, and the checkout is reset and parked rather than left for a handler the
-                        dispatcher holds back
+                        dispatcher holds back. Nothing below it takes the claim again
       refresh_selection.py
                         which discovered directories name an issue, whether that issue reads at all, and the
                         order the refusals that end a sync before any rewrite are asked in: the hard-skip, the
