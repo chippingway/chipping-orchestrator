@@ -654,14 +654,16 @@ kept, so the next write replaces the corruption in place instead of leaving a se
 
 Most writers rewrite the whole record from the state they read (`write_pinned_state`), which lands wherever it can — in
 place, or as a new comment where none is named or the named one is gone. A **guarded commit**
-(`workflow/engine/pinned_commit.py`, which no road commits through yet) is never written from its caller's state. It is
-captured from the reading the caller decided on — the comment's id, every field as the comment's JSON spells it, the
-prerequisite fields the decision rests on, an absent one included, and the fields the caller owns — and derived over a
-fresh reading: each field the caller's staged state changed, every one of which it has to own, is laid over that
-reading; a transformation the caller's domain supplies decides its own owned field over the fresh value, so a total, a
-ledger, or a watermark both roads moved keeps both moves; and every other field, unknown ones included, is kept as the
-fresh reading carries it. Fields are compared as the JSON spells them, keys sorted, so `null` is not an absent field,
-`true` is not `1`, and `1.0` is not `1`, at any depth.
+(`workflow/engine/pinned_commit.py`, which the verification-evidence publication and settlement commit through) is never
+written from its caller's state. It is captured from the reading the caller decided on — the comment's id, every field
+as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent one included, and the fields
+the caller owns — and derived over a fresh reading: each field the caller's staged state changed, every one of which it
+has to own, is laid over that reading; a transformation the caller's domain supplies decides its own owned field over
+the fresh value, so a total, a ledger, or a watermark both roads moved keeps both moves; and every other field, unknown
+ones included, is kept as the fresh reading carries it. Fields are compared as the JSON spells them, keys sorted, so
+`null` is not an absent field, `true` is not `1`, and `1.0` is not `1`, at any depth. The fresh reading can be taken
+alone too (`reread`), for a caller with requests of its own to make over the comment it captured before it stages
+anything.
 
 It refuses — writing nothing, and touching nothing the caller holds — where the comment will not read, will not parse,
 or is not the one captured (replaced, deleted, or never pinned: the strict edit never creates one); where a prerequisite
@@ -2379,21 +2381,34 @@ The keys that matter for the state machine fall into a few groups:
   (requirements the round was due, and a report about the subject's head written against `user_content_hash`, or older
   than a `user_content_hash` that is the subject's own requirements, which only the settlement of the reply that bought
   the round leaves), and the issue's requirements the bound revision. The post is scoped by the receipt, so an
-  accepted write whose response was
-  lost is found rather than repeated. Before the settlement the issue and the pinned comment are read afresh: the issue
-  has to be live work still, by the same rule as above, or nothing at all is written; the comment has to carry every
-  bound record -- `pr_number`, the `developer_report_*` group, `review_subject`, `review_returned_subject`,
-  `review_approved_subject`, the four evidence records, and `verification_evidence_revision` -- exactly as the tick
-  held them, the whole proof above is taken again over it, and the artifact re-read at the comment it landed as has to
-  be exactly this transaction's, not edited or deleted since (`workflow/engine/verification_settling.py`) -- and a
-  carry's `copied_from` source still current and as copied (`verification_current.copied_source_verdict`). Those are
-  requests of their own, so the comment is read once more behind them and has to still carry every bound record as
-  the proof read it -- a subject removed or replaced meanwhile refuses the settlement and is kept. Only then is the
-  settlement written, composed over that last reading and measured against what the comment can carry; a refusal
-  there -- a settlement that no longer fits included -- writes nothing but the artifact's ledger entry onto it, where
-  that fits. A reading nobody
-  could take holds the tick; anything a push, a drift resume, a fresh reviewer, or fresher evidence answers stands down
-  with the transaction owed. Nothing here parks: a record whose revision a settled or retired record already carries --
+  accepted write whose response was lost is found rather than repeated, and it is made only once the settlement it owes
+  is proved to fit: staged at its widest -- the widest comment id and label, the artifact's ledger entry reserved
+  against the ledger the comment carries now rather than the one the tick read, and room left to invalidate what it
+  installs -- and prepared as the settlement's own guarded commit over the pinned
+  comment read afresh (`workflow/engine/verification_publishing.py`), so a comment another road filled since the tick
+  read it, or one whose bound records moved, posts nothing. Before the settlement the issue and the pinned comment are
+  read afresh: the issue has to be live work still, by the same rule as above, or nothing at all is written; the
+  comment has to carry every bound record -- `pr_number`, the `developer_report_*` group, `review_subject`,
+  `review_returned_subject`, `review_approved_subject`, the four evidence records, and `verification_evidence_revision`
+  -- exactly as the tick held them, the whole proof above is taken again over it, and the artifact re-read at the
+  comment it landed as has to be exactly this transaction's, not edited or deleted since
+  (`workflow/engine/verification_settling.py`) -- and a carry's `copied_from` source still current and as copied
+  (`verification_current.copied_source_verdict`). Those are requests of their own, so the comment is read once more
+  behind them and has to still carry every bound record as the proof read it -- a subject removed or replaced meanwhile
+  refuses the settlement and is kept. Only then is the settlement committed, composed over that last reading as one
+  guarded commit whose prerequisites are those bound records and which owns the four evidence records, the revision
+  floor -- left as the transaction's record raised it -- and the artifact's entry in `orchestrator_comment_ids`, merged
+  into whatever ledger the comment carries: read once more, the comment has to still carry every bound record as that
+  reading did, every field the settlement does not own -- a usage total, a watermark, another road's verdict or
+  comment ids -- is kept as it reads then, and the whole rendered comment has to fit. A record that moved there, a
+  comment that moved under the edit, or a settlement that no longer fits leaves the transaction owed; a comment that
+  will not read or was replaced holds the tick with nothing written; and a commit that went out unconfirmed holds it
+  too, for the next tick to find either nothing owed or the same transaction to settle over the same artifact, with no
+  second history entry. Wherever the settlement does not land over a comment that still reads, the artifact's ledger
+  entry is committed alone, where that fits; where that entry finds the comment unreadable, replaced, or no longer
+  parsing, or goes out unconfirmed, the tick holds. A reading nobody could take holds the tick; anything a push, a drift
+  resume, a fresh reviewer, or fresher evidence answers stands down with the transaction owed. Nothing here parks: a
+  record whose revision a settled or retired record already carries --
   a replay its own handoff names, or one a restored comment brought back -- is dropped without a second post or history
   entry, an unreadable record is dropped, and one whose pull request ended, past which a revision was spent, or beside a
   floor nobody can read is abandoned into history. Every retirement is composed over the pinned comment read afresh and
