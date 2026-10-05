@@ -48,7 +48,7 @@ from orchestrator.observability.dashboard import (
 
 NO_DATA_MESSAGE = (
     "No analytics events have been recorded yet. Run "
-    "`uv run python -m orchestrator.observability.analytics.sync.cli` after some "
+    "`python -m orchestrator.observability.analytics.sync.cli` in the installed environment after some "
     "workflow activity to populate the dashboard."
 )
 EMPTY_WINDOW_MESSAGE = (

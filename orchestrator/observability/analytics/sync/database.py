@@ -33,7 +33,10 @@ def default_connect(db_url: str) -> Any:
     try:
         import psycopg
     except ImportError as error:
-        raise RuntimeError("psycopg is required for analytics_sync; run `uv sync --locked` to install it") from error
+        raise RuntimeError(
+            "psycopg is required for analytics_sync; reinstall chipping-orchestrator "
+            "or run `uv sync --locked` in a source checkout"
+        ) from error
     return psycopg.connect(db_url)
 
 

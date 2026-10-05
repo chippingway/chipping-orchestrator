@@ -213,8 +213,8 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
-    { name = "pygithub", specifier = ">=2.1" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4,<4" },
+    { name = "pygithub", specifier = ">=2.10,<3" },
 ]
 
 [package.metadata.requires-dev]

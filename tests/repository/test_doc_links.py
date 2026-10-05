@@ -16,7 +16,11 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from tests.repository import doc_link_test_support as _link_support, docs_nav_test_support as _nav_support
+from tests.repository import (
+    doc_link_target_support as _target_support,
+    doc_link_test_support as _link_support,
+    docs_nav_test_support as _nav_support,
+)
 
 _ENCODING = "utf-8"
 _CONFIG_NAME = "mkdocs.yml"
@@ -27,6 +31,14 @@ _PATH_CASES = (
     ("external link", "[ci](https://example.com/nowhere.md)", ()),
     ("same-page anchor", "[here](#top)", ()),
     ("page that exists", "[docs](docs/README.md)", ()),
+    ("absolute repository page", "[docs](https://github.com/chippingway/chipping-orchestrator/blob/main/docs/README.md)",
+     ()),
+    ("missing absolute page", "[x](https://github.com/chippingway/chipping-orchestrator/blob/main/docs/gone.md)",
+     ("docs/gone.md",)),
+    ("absolute image", "![x](https://raw.githubusercontent.com/chippingway/chipping-orchestrator/main/pics/analytics_page.png)",
+     ()),
+    ("missing absolute image", "![x](https://raw.githubusercontent.com/chippingway/chipping-orchestrator/main/pics/gone.png)",
+     ("pics/gone.png",)),
 )
 _NAV_SAMPLE = """site_name: Sample
 validation:
@@ -122,6 +134,13 @@ class DocumentPathTest(unittest.TestCase):
 
     def test_every_relative_link_resolves(self) -> None:
         self.assertEqual(_link_support.unresolved_targets(_link_support.tracked_markdown()), [])
+
+    def test_readme_links_are_absolute(self) -> None:
+        targets = _target_support.document_targets(_link_support.REPO_ROOT / "README.md")
+        self.assertTrue(targets)
+        for target in targets:
+            with self.subTest(target=target):
+                self.assertTrue(target.startswith(("https://", "http://", "mailto:")))
 
     def test_only_a_missing_in_repo_path_is_reported(self) -> None:
         with TemporaryDirectory() as directory:

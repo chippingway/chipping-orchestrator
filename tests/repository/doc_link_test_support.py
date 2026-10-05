@@ -14,9 +14,10 @@ asked to keep current.
 """
 from __future__ import annotations
 
-import posixpath
 import re
 from pathlib import Path
+
+from tests.repository import doc_link_target_support as _targets
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 # The documentation landing page, and the two pages that route readers into it.
@@ -35,11 +36,8 @@ HEADING_ANCHOR_CASES = (
 # the scan reads one side of each pair and covers both.
 _PAGE_ROOTS = ("docs", ".agents/skills")
 _DOCS_PREFIX = "docs/"
-_MARKDOWN_LINK = re.compile(r"\]\(([^)\s]+)\)")
-_MARKDOWN_REFERENCE = re.compile(r"^\[[^\]]+\]:\s*(\S+)\s*$", re.MULTILINE)
 _MARKDOWN_HEADING = re.compile(r"^#{1,6}\s+(.*)$", re.MULTILINE)
 _PUNCTUATION = re.compile(r"[^\w\s-]")
-_EXTERNAL_SCHEMES = ("http://", "https://", "mailto:")
 _ENCODING = "utf-8"
 
 
@@ -81,12 +79,7 @@ def document_links(name: str, path: Path) -> list[tuple[str, str]]:
     count, since a reference definition at the foot of a page is how the
     longest anchors here are written.
     """
-    text = path.read_text(encoding=_ENCODING)
-    targets = (
-        *_MARKDOWN_LINK.findall(text),
-        *_MARKDOWN_REFERENCE.findall(text),
-    )
-    resolved = (_resolved_target(name, target) for target in targets)
+    resolved = (_targets.resolved_target(name, target) for target in _targets.document_targets(path))
     return [link for link in resolved if link is not None]
 
 
@@ -147,14 +140,3 @@ def unindexed_pages(pages: dict[str, Path]) -> list[str]:
         and name != INDEX_PAGE
         and name not in linked
     )
-
-
-def _resolved_target(name: str, target: str) -> tuple[str, str] | None:
-    """Split one written link into the document it names and its anchor."""
-    location, _, anchor = target.partition("#")
-    if location.startswith(_EXTERNAL_SCHEMES):
-        return None
-    if not location:
-        return name, anchor
-    directory = posixpath.dirname(name)
-    return posixpath.normpath(posixpath.join(directory, location)), anchor

@@ -36,8 +36,8 @@ the verification its verdict relies on, which the orchestrator publishes on the 
 approval without passing evidence covering every configured `VERIFY_COMMANDS` command waits for a human. Oversized
 changes, conflicts, retries, and human decisions take explicit side paths; pull requests are never merged automatically.
 
-See the [state-machine overview](docs/state-machine.md) for labels and transitions, and the
-[workflow guide](docs/workflow.md) for agent roles and session behavior.
+See the [state-machine overview][states] for labels and transitions, and the
+[workflow guide][workflow] for agent roles and session behavior.
 
 ## Requirements
 
@@ -51,7 +51,7 @@ See the [state-machine overview](docs/state-machine.md) for labels and transitio
   requests, plus read-only access to Metadata.
 
 Agents run with their approval and sandbox checks disabled, so the host account is the security boundary. Read the
-[security checklist](docs/security.md) before using the orchestrator on a public or untrusted repository.
+[security checklist][security] before using the orchestrator on a public or untrusted repository.
 
 ## Quick start
 
@@ -73,7 +73,7 @@ Edit `.env` and set at least:
   REPOS=acme/api|/home/alice/src/acme-api|main
   ```
 
-  The template explains the two optional trailing fields; [several repositories](#managing-multiple-repositories) are
+  The template explains the two optional trailing fields; [several repositories][multiple-repos] are
   more entries in the same setting.
 - `HITL_HANDLE` — GitHub users to notify when human input is needed.
 - `ALLOWED_ISSUE_AUTHORS` — required: the GitHub logins whose issues and comments the orchestrator acts on; it
@@ -105,8 +105,8 @@ cp .env.example ~/.config/chipping-orchestrator/.env
 chipping-orchestrator
 ```
 
-The [configuration reference](docs/configuration.md) covers both setups, credentials, agent routing, every setting,
-and advanced examples. The [operations guide](docs/configuration/operations.md) covers other run modes, running more
+The [configuration reference][configuration] covers both setups, credentials, agent routing, every setting,
+and advanced examples. The [operations guide][operations] covers other run modes, running more
 than one poller on one host, and systemd deployment.
 
 ## Asking the orchestrator a question
@@ -114,8 +114,8 @@ than one poller on one host, and systemd deployment.
 Apply the `question` label to an open issue for a read-only answer. The configured `DECOMPOSE_AGENT` replies on the
 issue, keeps the same session for follow-up questions, and stops when the issue is closed.
 
-See the [question-stage contract](docs/workflow/conversations.md#question-stage) and
-[handler behavior](docs/state-machine/conversation-stages.md#_handle_question-label-question).
+See the [question-stage contract][question-contract] and
+[handler behavior][question-handler].
 
 ## Discussing an issue's architecture
 
@@ -123,8 +123,8 @@ Apply the `discussion` label to work through design choices before implementatio
 continues the conversation from your replies, and writes only `plans/issue-<number>.md` after you confirm the design.
 The orchestrator then opens a plan pull request for a human to merge, reject, or route into implementation.
 
-See the [discussion-stage contract](docs/workflow/conversations.md#discussion-stage) and
-[handler behavior](docs/state-machine/conversation-stages.md#_handle_discussion-label-discussion).
+See the [discussion-stage contract][discussion-contract] and
+[handler behavior][discussion-handler].
 
 ## Holding and unsticking an issue
 
@@ -140,8 +140,8 @@ Use the control named by the orchestrator's park comment:
 | `/orchestrator add-agent-runs N` | Raise the lifetime agent-run allowance for that issue. |
 
 Commands are accepted only in the contexts and formats described by the park comment; ordinary guidance and control
-commands are intentionally not interchangeable. See the [control-label reference](docs/configuration.md#control-labels)
-and [delivery-stage behavior](docs/state-machine/delivery-stages.md) for trust checks, limits, recovery, and exact
+commands are intentionally not interchangeable. See the [control-label reference][controls]
+and [delivery-stage behavior][delivery] for trust checks, limits, recovery, and exact
 effects.
 
 ## Observability
@@ -150,10 +150,10 @@ effects.
 agent outcomes, usage, and cost estimates. Optional surfaces add an audit log, a Postgres-backed analytics dashboard,
 and a file-backed trajectory viewer without becoming part of workflow state.
 
-![Analytics page with spend and token usage over time categorized by different dimensions](./pics/analytics_page.png)
+![Analytics page with spend and token usage over time categorized by different dimensions][analytics-image]
 
-See the [observability overview](docs/observability.md) for every surface and the
-[dashboard quickstart](docs/configuration.md#analytics-dashboard-quickstart) for setup commands.
+See the [observability overview][observability] for every surface and the
+[dashboard quickstart][dashboard-setup] for setup commands.
 
 ## Managing multiple repositories
 
@@ -170,35 +170,35 @@ Every entry names its own local clone and reads its own token file, `~/.config/<
 the remote too. Worktrees and branches are namespaced by repository, and per-repository plus global concurrency limits
 keep issues from colliding or overwhelming the host.
 
-See the [`REPOS` syntax](docs/configuration.md#repos-syntax) and
-[parallel-processing settings](docs/configuration.md#parallel-processing).
+See the [`REPOS` syntax][repos] and
+[parallel-processing settings][parallel].
 
 ## Reference documentation
 
 Browse the [documentation website](https://chippingway.github.io/chipping-orchestrator/) or the
-[documentation index](docs/README.md) for the complete reference set:
+[documentation index][documentation] for the complete reference set:
 
 | Topic | Covers |
 |---|---|
-| [Architecture](docs/architecture.md) | Process model, agent model, push model, and module ownership |
-| [State machine](docs/state-machine.md) | Labels, state, stage handlers, and lifecycle |
-| [Agents](docs/workflow.md) | Agent roles, conversation contracts, and command specs |
-| [Configuration](docs/configuration.md) | Environment variables, defaults, and operator runbooks |
-| [Observability](docs/observability.md) | Logs, analytics, dashboards, trajectories, usage, and cost |
-| [Security](docs/security.md) | Deployment checklist and operator-owned controls |
-| [Release timeline](docs/release-timeline.md) | Dated milestones and functionality added in each published release |
+| [Architecture][architecture] | Process model, agent model, push model, and module ownership |
+| [State machine][states] | Labels, state, stage handlers, and lifecycle |
+| [Agents][workflow] | Agent roles, conversation contracts, and command specs |
+| [Configuration][configuration] | Environment variables, defaults, and operator runbooks |
+| [Observability][observability] | Logs, analytics, dashboards, trajectories, usage, and cost |
+| [Security][security] | Deployment checklist and operator-owned controls |
+| [Release timeline][releases] | Dated milestones and functionality added in each published release |
 
-Report suspected vulnerabilities through the private process in [SECURITY.md](SECURITY.md), never through a public
+Report suspected vulnerabilities through the private process in [SECURITY.md][reporting], never through a public
 issue.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for writing issues, setting up a development checkout, running checks, and
+See [CONTRIBUTING.md][contributing] for writing issues, setting up a development checkout, running checks, and
 submitting pull requests.
 
 ## License
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full text.
+Licensed under the Apache License, Version 2.0. See [LICENSE][license] for the full text.
 
 [ci-badge]: https://github.com/chippingway/chipping-orchestrator/actions/workflows/ci.yml/badge.svg
 [ci-link]: https://github.com/chippingway/chipping-orchestrator/actions/workflows/ci.yml
@@ -206,3 +206,33 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the f
 [scorecard-link]: https://scorecard.dev/viewer/?uri=github.com/chippingway/chipping-orchestrator
 [best-practices-badge]: https://www.bestpractices.dev/projects/14235/badge
 [best-practices-link]: https://www.bestpractices.dev/projects/14235
+
+[states]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/state-machine.md
+[workflow]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/workflow.md
+[security]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/security.md
+[configuration]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md
+[operations]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration/operations.md
+[question-contract]:
+  https://github.com/chippingway/chipping-orchestrator/blob/main/docs/workflow/conversations.md#question-stage
+[question-handler]:
+  https://github.com/chippingway/chipping-orchestrator/blob/main/docs/state-machine/conversation-stages.md#_handle_question-label-question
+[discussion-contract]:
+  https://github.com/chippingway/chipping-orchestrator/blob/main/docs/workflow/conversations.md#discussion-stage
+[discussion-handler]:
+  https://github.com/chippingway/chipping-orchestrator/blob/main/docs/state-machine/conversation-stages.md#_handle_discussion-label-discussion
+[controls]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#control-labels
+[delivery]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/state-machine/delivery-stages.md
+[observability]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/observability.md
+[dashboard-setup]:
+  https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#analytics-dashboard-quickstart
+[repos]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#repos-syntax
+[multiple-repos]:
+  https://github.com/chippingway/chipping-orchestrator/blob/main/README.md#managing-multiple-repositories
+[parallel]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#parallel-processing
+[documentation]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/README.md
+[architecture]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/architecture.md
+[releases]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/release-timeline.md
+[reporting]: https://github.com/chippingway/chipping-orchestrator/blob/main/SECURITY.md
+[contributing]: https://github.com/chippingway/chipping-orchestrator/blob/main/CONTRIBUTING.md
+[license]: https://github.com/chippingway/chipping-orchestrator/blob/main/LICENSE
+[analytics-image]: https://raw.githubusercontent.com/chippingway/chipping-orchestrator/main/pics/analytics_page.png
