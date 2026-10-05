@@ -23,10 +23,10 @@ forbids is in [`../workflow.md`](../workflow.md).
   back in is applying a workflow label by hand. The one unlabeled issue with a pinned comment that *is* answered is
   the [restart](labels-and-state.md#late-generation-state), which reaches the same two labels by projecting the
   pinned comment it already has rather than through this path's greeting, fresh state, and author allowlist.
-- **Input**: issue title/body/comments; `config.DECOMPOSE` (default on); `config.ALLOWED_ISSUE_AUTHORS` (default empty
-  → allow all).
-- **Action**: when `ALLOWED_ISSUE_AUTHORS` is set, an issue authored by anyone outside the list is silently skipped
-  (log only); otherwise post a "picking this up" comment, anchor `pickup_comment_id` and `last_action_comment_id` on
+- **Input**: issue title/body/comments; `config.DECOMPOSE` (default on); `config.ALLOWED_ISSUE_AUTHORS` (required —
+  startup refuses a list that names nobody).
+- **Action**: an issue authored by anyone outside `ALLOWED_ISSUE_AUTHORS` is silently skipped (log only); otherwise
+  post a "picking this up" comment, anchor `pickup_comment_id` and `last_action_comment_id` on
   it (the floor the bounded park ending the first agent run walks from), snapshot `user_content_hash`
   over title + body + non-orchestrator comments, then route to `workflow:decomposing` (`DECOMPOSE=on`) or
   `workflow:implementing` (`DECOMPOSE=off`) and run that stage's handler in the same tick, so an unlabeled issue's
@@ -146,8 +146,8 @@ Non-human content is filtered eight ways:
   so a hash counting it would meet that stage as a body edit nobody made — resuming a developer over the very commit
   an operator just authorized. Only the whole comment is the command, so a paragraph containing the line is
   requirements text, shifts the hash, and reaches the developer as the guidance it is;
-- untrusted authors via `github.comments.is_trusted_author` when `ALLOWED_ISSUE_AUTHORS` is set (opt-in; empty
-  allowlist trusts everyone), so an outsider's comment cannot shift the hash and re-trigger drift on a public repo.
+- untrusted authors via `github.comments.is_trusted_author` against `ALLOWED_ISSUE_AUTHORS`, so an outsider's
+  comment cannot shift the hash and re-trigger drift on a public repo.
   The same trust helpers filter agent-prompt text in `workflow/engine/prompt_context.py`: `_recent_comments_text`
   (documentation / decompose / question — the prompts whose stage settles
   nothing by what they quote), `_delivered_thread` beside it (the implementing fresh spawn, the validating reviewer
@@ -3546,8 +3546,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      nobody could take, or handed the issue to `workflow:decomposing`, and written its own state, so a follow-up would
      announce a recovery that did not happen and a relabel would move the issue off the state the gate just set.
      Exception: on a `review_cap` park the human reply does NOT wake the dev — the operator must post
-     `/orchestrator add-review-rounds N` on its own line (honored only from an allowlisted author when
-     `ALLOWED_ISSUE_AUTHORS` is set — an outsider's command is filtered out before the parse), which resets
+     `/orchestrator add-review-rounds N` on its own line (honored only from an author `ALLOWED_ISSUE_AUTHORS` lists
+     — an outsider's command is filtered out before the parse), which resets
      `review_round` to `max(0, MAX_REVIEW_ROUNDS - N)`, clears the park, and falls through to spawn the reviewer this
      same tick. Values at or above the configured maximum grant one full review budget rather than extending the
      budget past it. Nor does a reply to a reviewer-side park — a reviewer timeout or crash, or a returned verdict's

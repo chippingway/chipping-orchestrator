@@ -8,9 +8,10 @@ event the drain announces itself on. Every owner here is handed one rather than
 reading it back off a module, so two runs in one interpreter never share it and
 a test drives the state it created.
 
-``logs`` settles where the process writes, ``startup`` reads the arguments and
-builds the collaborators a run is composed from -- in the bootstrapping form a
-tick needs and the read-only form a run that will not tick may have -- ``ticks``
+``logs`` settles where the process writes, ``startup`` reads the arguments,
+stops a launch whose author allowlist names nobody, and builds the
+collaborators a run is composed from -- in the bootstrapping form a tick needs
+and the read-only form a run that will not tick may have -- ``ticks``
 drives one pass over the configured repositories, ``loop`` decides how many
 passes there are and guarantees the drain around them, ``artifacts`` decides
 whether the finished issues' worktrees and branches may be reclaimed now and

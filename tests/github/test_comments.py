@@ -29,9 +29,9 @@ _BOT_LOGIN = "orchestrator"
 
 class IsTrustedAuthorTest(unittest.TestCase):
     def test_empty_allowlist_trusts_everyone(self) -> None:
-        # Legacy single-user behavior: with no allowlist configured every
-        # author -- human, bot, or a comment whose user failed to load --
-        # is trusted, so opting out changes nothing.
+        # With no allowlist every author -- human, bot, or a comment whose
+        # user failed to load -- is trusted; startup is what refuses to run
+        # on such a list.
         for user in (
             FakeUser("stranger"),
             FakeUser("dependabot[bot]", type=_BOT_ACCOUNT_TYPE),

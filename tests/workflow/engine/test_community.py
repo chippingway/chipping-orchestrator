@@ -35,8 +35,8 @@ _pr = make_pr
 class SweepCommunityContributionPRsTest(unittest.TestCase):
     """`_sweep_community_contribution_prs` labels open PRs whose authors
     are not in `ALLOWED_ISSUE_AUTHORS` and posts a HITL ping comment once
-    per PR. With an empty allowlist the sweep is a no-op so the legacy
-    "anyone is trusted" deployment is unchanged.
+    per PR. An empty allowlist trusts everyone, so the sweep is a no-op
+    there.
     """
 
     def test_no_op_when_allowlist_is_empty(self) -> None:

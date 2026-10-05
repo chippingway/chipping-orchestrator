@@ -3,10 +3,11 @@
 """Composition point for the orchestrator polling loop.
 
 `main` is what the `chipping-orchestrator` console script and the
-`python -m orchestrator` launch form both call. It reads the options, settles
-logging, creates the state one run carries, and hands that state to each owner
-under `orchestrator/runtime/` in turn; the order below is the startup contract
-and lives nowhere else.
+`python -m orchestrator` launch form both call. It reads the options, refuses a
+launch whose author allowlist names nobody, settles logging, creates the state
+one run carries, and hands that state to each owner under
+`orchestrator/runtime/` in turn; the order below is the startup contract and
+lives nowhere else.
 
 The signal handler is installed before the first GitHub call, so a stop that
 arrives during a slow connect is honoured rather than swallowed, and the
@@ -47,6 +48,7 @@ from orchestrator.runtime.state import RuntimeState
 def main(argv: list[str] | None = None) -> int:
     """Run the launch mode the options name and return its exit code."""
     options = startup.parse_options(argv)
+    startup.require_issue_authors()
     logs.configure_logging(options.log_level)
     state = RuntimeState()
     shutdown.install_signal_handlers(state)

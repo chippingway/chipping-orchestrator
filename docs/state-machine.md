@@ -228,8 +228,8 @@ do is in [`workflow.md`](workflow.md).
 
 ### `_handle_pickup` (no label → `workflow:decomposing` or `workflow:implementing`)
 
-An open issue with no workflow label: when `ALLOWED_ISSUE_AUTHORS` is set an issue from outside the list is silently
-skipped; otherwise the handler posts the pickup comment, anchors `pickup_comment_id` and `last_action_comment_id` on
+An open issue with no workflow label: an issue from outside `ALLOWED_ISSUE_AUTHORS` is silently skipped; otherwise
+the handler posts the pickup comment, anchors `pickup_comment_id` and `last_action_comment_id` on
 it (the floor the park ending the first agent run walks from), snapshots `user_content_hash`, and routes to
 `workflow:decomposing` (`DECOMPOSE=on`) or `workflow:implementing` (off), running that stage's handler in the same
 tick. Full flow: [`state-machine/delivery-stages.md`][pickup].

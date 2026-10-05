@@ -131,9 +131,8 @@ class HandlePickupTest(unittest.TestCase, _PatchedWorkflowMixin):
         self.assertIn((1, _IMPLEMENTING_LABEL), gh.label_history)
 
     def test_empty_allowlist_lets_anyone_through(self) -> None:
-        # Default config: empty tuple disables the filter so existing
-        # single-user setups (and any deployment that hasn't opted in)
-        # keep their current "anyone can trigger" behavior.
+        # An empty tuple disables the filter; startup refuses to run on one,
+        # so this is the pickup rule on its own.
         gh = FakeGitHubClient()
         issue = make_issue(1, author="random-user")
         gh.add_issue(issue)

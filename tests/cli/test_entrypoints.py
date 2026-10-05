@@ -11,6 +11,7 @@ import tomllib
 import unittest
 from importlib import import_module
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from orchestrator import cli
 
@@ -24,6 +25,15 @@ _HELP_FLAG = "--help"
 _ONCE_FLAG = "--once"
 _HELP_TIMEOUT_SECONDS = 60
 _MISSING_SCRIPT_REASON = f"{_CONSOLE_SCRIPT} is not installed; run `uv sync`"
+_ALLOWLIST_ENV = "ALLOWED_ISSUE_AUTHORS"
+_MISSING_ALLOWLIST = (
+    "ALLOWED_ISSUE_AUTHORS must contain at least one GitHub login. "
+    "Configure it before starting the orchestrator, for example: "
+    "ALLOWED_ISSUE_AUTHORS=alice,bob"
+)
+# Unset, then empty, whitespace-only, comma-only, and emptied by the `@`
+# normalization: every value that names nobody once it is parsed.
+_EMPTY_ALLOWLISTS = (None, "", "   ", " , ,", " @ , @@ ")
 
 
 def _console_script() -> str | None:
@@ -52,6 +62,37 @@ def _run_help(command: list[str]) -> subprocess.CompletedProcess:
         check=False,
         timeout=_HELP_TIMEOUT_SECONDS,
         env={**os.environ, "ORCHESTRATOR_SKIP_DOTENV": "1"},
+    )
+
+
+def _run_once(allowed_authors: str | None, scratch: Path) -> subprocess.CompletedProcess:
+    """Launch one `--once` run through the module form, allowlist as given.
+
+    No token and a checkout root of the run's own, so that a launch which ever
+    got past the allowlist would still fail before reaching GitHub or the
+    operator's host rather than tick against either.
+    """
+    environment = {
+        name: env_value
+        for name, env_value in os.environ.items()
+        if name != _ALLOWLIST_ENV
+    }
+    environment.update({
+        "ORCHESTRATOR_SKIP_DOTENV": "1",
+        "GITHUB_TOKEN": "",
+        "ORCHESTRATOR_TOKEN_FILE": str(scratch / "token"),
+        "WORKTREES_DIR": str(scratch / "worktrees"),
+    })
+    if allowed_authors is not None:
+        environment[_ALLOWLIST_ENV] = allowed_authors
+    return subprocess.run(
+        [sys.executable, "-m", _PACKAGE, _ONCE_FLAG],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=_HELP_TIMEOUT_SECONDS,
+        env=environment,
     )
 
 
@@ -94,6 +135,21 @@ class LaunchFormHelpTest(unittest.TestCase):
                 completed = _run_help(command)
                 self.assertEqual(completed.returncode, 0, completed.stderr)
                 self.assertIn(_ONCE_FLAG, completed.stdout)
+
+
+class EmptyAllowlistLaunchTest(unittest.TestCase):
+    """A launch whose author allowlist names nobody exits with status 1 on
+    the error that says how to configure it, printing nothing to stdout.
+    """
+
+    def test_each_empty_spelling_stops_the_launch(self) -> None:
+        for allowed_authors in _EMPTY_ALLOWLISTS:
+            with self.subTest(allowed_authors=allowed_authors), TemporaryDirectory() as scratch:
+                completed = _run_once(allowed_authors, Path(scratch))
+
+                self.assertEqual(completed.returncode, 1, completed.stderr)
+                self.assertEqual(completed.stderr.splitlines()[-1:], [_MISSING_ALLOWLIST])
+                self.assertEqual(completed.stdout, "")
 
 
 if __name__ == "__main__":

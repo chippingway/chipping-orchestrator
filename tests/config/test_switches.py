@@ -81,9 +81,10 @@ class MaxRetriesPerDayConfigTest(unittest.TestCase):
 
 
 class AllowedIssueAuthorsConfigTest(unittest.TestCase):
-    """Author-allowlist for unlabeled-issue pickup. Empty (default) disables
-    the filter so existing single-user setups keep working; a populated list
-    guards against random users on public repos triggering agent runs."""
+    """Author allowlist for unlabeled-issue pickup and comment trust. An unset
+    value resolves to `()`, which startup refuses to run on; a populated list
+    keeps its logins in order with blanks, leading `@`, and repeats dropped, so
+    random users on a public repo cannot trigger agent runs."""
 
     def test_default_is_empty_tuple(self) -> None:
         config = _reload.load_config()
