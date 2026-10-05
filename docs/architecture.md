@@ -219,6 +219,11 @@ self-exit and be restarted with new code.
   polling. It writes no *workflow* state — no label, no
   pinned state, no comment — and does delete the orchestrator-owned branches it proved reclaimable, in the clone and
   on the remote, which is what it is for. The form a nightly service timer runs.
+- **Startup refusal** (`runtime.startup.require_issue_authors`): every launch mode reads its options and then stops
+  with exit status 1 while `ALLOWED_ISSUE_AUTHORS` names nobody, before logging, the signal handler, the host claim,
+  any GitHub client, or the scheduler exists, because an empty allowlist would trust every author. Reading the options
+  first keeps `--help` answering on an unconfigured host. The setting is under
+  [`configuration.md#required`](configuration.md#required).
 - **Host exclusivity** (`runtime.exclusion`): one `flock`-based claim on `WORKTREES_DIR/.artifact-maintenance.lock`
   decides which process may touch this host's artifacts. Every polling run holds it **shared** for its whole life (a
   presence: "a process that may be running work is live here"), and **every** maintenance pass holds it
@@ -871,7 +876,8 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
    │  orchestrator process  (python -m orchestrator)                      │
    │  ───────────────────────────────────────────────────                 │
    │   cli.main over orchestrator/runtime/                                │
-   │     startup: build per-spec [(spec, GitHubClient), ...] from         │
+   │     startup: refuse an ALLOWED_ISSUE_AUTHORS naming nobody (exit 1); │
+   │              then build per-spec [(spec, GitHubClient), ...] from    │
    │              config.default_repo_specs(); ensure_workflow_labels;    │
    │              build one shared IssueScheduler(global_cap, per_repo)   │
    │     loop every POLL_INTERVAL s:                                      │
