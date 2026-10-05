@@ -29,14 +29,12 @@ def _documentation_prompt() -> str:
 
 
 class BuildDocumentationPromptTest(unittest.TestCase):
-    """The documentation prompt is what teaches the agent the contract
-    the parser relies on. Verify the contract is actually communicated:
-    diff vs stable docs (README and `docs/` only -- the `plans/` tree
-    and roadmap entries are working notes owned by humans and the
-    prompt must steer the agent away from them), a repo-local (NOT
-    forced `docs:`) commit subject for the update branch, explicit
-    `DOCS: NO_CHANGE` marker for the no-update branch, and a refusal to
-    accept ambiguous phrasing.
+    """The documentation prompt teaches the contract the parser relies on.
+
+    Verify that it communicates the diff against stable docs (`README.md`
+    and `docs/`), the exclusion of human working notes in `plans/`, a
+    repo-local commit subject for updates, the `DOCS: NO_CHANGE` marker
+    when no update is needed, and the refusal to accept ambiguous prose.
     """
 
     def test_one_prompt_carries_the_whole_contract(self) -> None:
@@ -58,13 +56,13 @@ class BuildDocumentationPromptTest(unittest.TestCase):
         self.assertIn(f"git diff {base_ref}...HEAD", prompt)
 
     def _assert_it_steers_away_from_plans(self, prompt: str) -> None:
-        # `plans/` and roadmap entries are working notes owned by
-        # humans -- the final-docs pass must not target them. The prompt
-        # has to call that out explicitly so the agent does not infer
-        # `plans/` from convention.
-        self.assertIn("plans/", prompt)
-        self.assertIn("roadmap", prompt)
-        self.assertIn("out of scope", prompt)
+        # The human working notes must remain explicitly outside
+        # the final-docs pass, so the agent cannot treat them as stable docs.
+        self.assertIn(
+            "NOT inspect or modify the `plans/` tree: those are working notes "
+            "owned by humans and are out of scope for the final-docs pass.",
+            prompt,
+        )
 
     def _assert_it_leaves_the_subject_repo_local(self, prompt: str) -> None:
         # The docs pass must not force the `docs:` Conventional-Commit type:

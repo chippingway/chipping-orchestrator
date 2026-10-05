@@ -49,8 +49,9 @@ but nothing else. A polyglot host driving a Rust crate, a Python service,
 and a Go CLI has to settle on one global `VERIFY_COMMANDS` or run multiple
 orchestrator processes. `<target_root>/.agent-orchestrator/` is a
 natural home for a version-controlled, target-repo-owned policy file
-(distinct from the roadmap's orchestrator-owned `repo-memory.json`,
-which lives under the same prefix but is explicitly *not* PR content).
+(distinct from the orchestrator-owned `repo-memory.json` proposed in the
+[future-work notes](future-work-and-risks.md#future-work), which lives under
+the same prefix but is explicitly *not* PR content).
 
 ### Symphony parallel
 

@@ -234,11 +234,10 @@ builder installed.
 
 ## `plans/` is working notes, not spec
 
-Files under `plans/` (roadmap, design explorations, proposal write-ups) are human working notes, not
-authoritative implementation requirements. Implement what the **issue** asks for; do not treat a
-`plans/` document — or a numbered "Proposal N" inside one — as a spec to satisfy, and do not cite one
-in code, comments, docstrings, or commit messages (that reference outlives the note and goes stale the
-moment it is revised or deleted). Leave files under `plans/` untouched unless the current issue
+Files under `plans/` are human working notes, not authoritative implementation requirements.
+Implement what the **issue** asks for; do not treat a `plans/` document — or a numbered "Proposal N" inside one — as a
+spec to satisfy, and do not cite one in code, comments, docstrings, or commit messages (that reference outlives the note
+and goes stale the moment it is revised or deleted). Leave files under `plans/` untouched unless the current issue
 explicitly asks you to edit or remove one.
 
 ## Dependencies
