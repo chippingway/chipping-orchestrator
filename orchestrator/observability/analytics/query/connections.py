@@ -51,7 +51,8 @@ def _psycopg() -> Any:
         import psycopg
     except ImportError as error:
         raise AnalyticsReadError(
-            "psycopg is required for the analytics reads; run `uv sync --locked` to install it"
+            "psycopg is required for the analytics reads; reinstall chipping-orchestrator "
+            "or run `uv sync --locked` in a source checkout"
         ) from error
     return psycopg
 

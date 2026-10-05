@@ -4,10 +4,11 @@
 name = "chipping-orchestrator"
 version = "0.12.0"
 description = "GitHub-Issue-driven AI agent workflow."
+readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
-dependencies = ["PyGithub>=2.1", "psycopg[binary]>=3.3.4"]
+dependencies = ["PyGithub>=2.10,<3", "psycopg[binary]>=3.3.4,<4"]
 
 [project.scripts]
 chipping-orchestrator = "orchestrator.cli:main"
