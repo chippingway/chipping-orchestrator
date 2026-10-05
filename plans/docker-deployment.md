@@ -1,6 +1,8 @@
 # Docker deployment and external runtime storage
 
 Date: 2026-09-17. Status: implementation plan; all subtasks are pending.
+Updated 2026-10-05: subtask 2 installs Python dependencies through the tooling chosen in the
+[Poetry migration plan](poetry-migration.md), and subtask 4 sizes storage for its per-worktree environments.
 
 This is working material, not a specification. Saving this plan does not migrate data or change running services.
 Implementation must follow the repository's authoritative documentation and the
@@ -178,7 +180,24 @@ service and login bootstrap supplied by later subtasks.
 ### Changes
 
 - Add a Dockerfile with a supported Python 3.12+ base, Git, CA certificates, shell, `rg`, and the required project
-  build/test tools. Install Python dependencies from `uv.lock`. Justify any additional OS package needed by a CLI.
+  build/test tools. Justify any additional OS package needed by a CLI.
+- **Install the orchestrator from a wheel, not from the source tree.** Use a builder stage with pinned Poetry: the
+  version `requires-poetry` accepts, plus `poetry-plugin-export`. It runs `poetry build --format wheel` and
+  `poetry export --only main -f requirements.txt`; keep the hashes in the export. The runtime stage copies the export
+  first and installs it into a dedicated virtual environment with `--require-hashes`. It then copies the wheel and
+  installs it with `--no-deps`. Neither Poetry nor `poetry.lock` reaches the runtime stage, and the optional
+  `dashboard` and `docs` groups stay out because the export covers only the main group.
+- **Keep the dependency layer stable across releases.** Like uv, Poetry cannot install from its lock without
+  `pyproject.toml`, and that file changes with every version bump. The export leaves out the root project, so a
+  release that changes no dependency reuses the cached dependency layer and rebuilds only the wheel layer. Once PyPI
+  releases exist, the image may instead install the published wheel with the release's constraints asset, as the
+  PyPI release plan defines it.
+- **Agent tooling: Poetry.** When this repository is itself a target, agents run `poetry sync` and `poetry run` in
+  its worktrees, so the agent tooling includes Poetry. Pin it to the version `requires-poetry` accepts, install it
+  outside the agent home, and keep it separate from the orchestrator's runtime environment.
+- **Fallback if the migration hasn't landed.** If this subtask starts before the Poetry migration lands, use the uv
+  equivalents with the same layer structure: `uv build --wheel`, and
+  `uv export --no-dev --no-emit-project --format requirements-txt`.
 - Pin compatible CLI releases and record image provenance. Antigravity has a native Linux CLI; a desktop IDE is
   not required for its current headless backend. Verify supported architecture and runtime libraries for each binary.
 - Separate the common Python runtime build stage from the agent tooling so the sync service can reuse a smaller
@@ -197,8 +216,10 @@ Avoid an application change when packaging without Git metadata already satisfie
 
 **Acceptance and verification:** build without secrets, run all CLI help/version commands and orchestrator help,
 verify the effective user and build tools, and inspect an image built from a synthetic context for excluded sentinel
-files. Verify the installed orchestrator does not depend on a writable source checkout or start its source-update
-loop. These checks do not claim authenticated agent execution; that belongs to subtask 3.
+files. Compare the runtime environment's installed versions with the exported pins. Show that rebuilding after a
+version-only change reuses the dependency layer. Verify the installed orchestrator does not depend on a writable
+source checkout or start its source-update loop. These checks do not claim authenticated agent execution; that
+belongs to subtask 3.
 
 ## 3. Bootstrap and preserve subscription logins
 
@@ -248,7 +269,10 @@ host access, correct worktree paths, predictable shutdown, and controlled image 
 - Set a read-only root filesystem, `cap_drop: [ALL]`, `no-new-privileges`, and the default seccomp profile. Provide
   only the writable tmpfs/runtime paths actually needed by Python, build tools, D-Bus, and the credential store.
 - Set configurable CPU, memory, PID, tmpfs, and Docker-log rotation limits. Set a workspace/cache disk quota or use
-  bounded storage where needed; memory/PID limits do not bound writes to a host bind or named volume.
+  bounded storage where needed; memory/PID limits do not bound writes to a host bind or named volume. Size the
+  quota for per-worktree Poetry environments. Poetry copies packages into each worktree's `.venv` instead of
+  hardlinking them from its cache, about 89 MB per worktree for the default groups. Its package cache lives in the
+  agent home volume.
 - Keep host PID/IPC/network namespaces, Docker sockets, host devices, SSH agents, and host home out of the service.
   Projects whose tests require Docker need a separate future design; do not weaken the production profile for them.
 - Use an isolated bridge and an operator-owned outbound policy that blocks unintended access to host and LAN
