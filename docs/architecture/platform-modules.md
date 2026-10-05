@@ -180,9 +180,11 @@ orchestrator/
   config/               publishes resolved settings and `RepoSpec`, with parsing owned by its leaves
     __init__.py         reloadable settings bindings, their diagnostic funnel, and the default repo-spec accessor
     environment.py      the env-value parsers and the `_SettingsResolver` that reads and validates every knob
-    _dotenv.py          the non-secret `.env` loader
-    credentials.py      process / token-file credential resolution and the secret redactor the verify output, the
-                        agent stderr diagnostics, and the trajectory writer mask with
+    _dotenv.py          the non-secret `.env` loader, reading a source checkout's own file or else the user location
+    layout.py           whether the package runs from this project's own source checkout or an installed
+                        distribution, and the worktree root's default beside the first configured target
+    credentials.py      process / token-file credential resolution per repository and the secret redactor the verify
+                        output, the agent stderr diagnostics, and the trajectory writer mask with
     models.py           the `RepoSpec` / `RepoEnvEntry` repository-config types
     repositories.py     `REPOS` entry parsing, validation, and default-spec construction
   github/               publishes `GitHubClient` and `PinnedState` from their defining owners

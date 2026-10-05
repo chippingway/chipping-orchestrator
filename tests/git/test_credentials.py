@@ -19,6 +19,7 @@ from tests.git.token_transport_test_support import (
     TOKEN_RESOLVER,
     _spec,
 )
+from tests.support.repos_host import repos_only_host
 
 ASKPASS_KEY = "GIT_ASKPASS"
 ASKPASS_MODE = 0o700
@@ -60,6 +61,20 @@ class ResolvedTokenTest(unittest.TestCase):
 
         self.assertEqual(token, FAKE_TOKEN)
         resolver.assert_called_once_with(REPOSITORY_SLUG)
+
+    def test_each_repos_spec_reads_its_own_token_file(self) -> None:
+        # Nothing patched in front of the resolver: on a `REPOS`-only host
+        # every spec's fetch and push authenticate with its own file's token.
+        tokens = {"alpha/one": "ghp-alpha-file-token", "beta/two": "ghp-beta-file-token"}
+        with repos_only_host(tokens) as host:
+            specs = host.resolve()["REPO_SPECS"]
+            with host.patched_process():
+                resolved = {
+                    spec.slug: credentials._resolved_git_token(spec, FETCH_OPERATION)
+                    for spec in specs
+                }
+
+        self.assertEqual(resolved, tokens)
 
     def test_logs_slug_and_operation(self) -> None:
         # A multi-repo deployment missing one token file needs both the repo

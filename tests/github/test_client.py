@@ -14,6 +14,7 @@ from github.Requester import Requester
 from orchestrator import config
 from orchestrator.github import labels as _label_cache
 from orchestrator.github.client import GitHubClient
+from tests.support.repos_host import repos_only_host
 
 _BOT = "orchestrator-bot"
 _REPO_SLUG = "owner/repo"
@@ -25,6 +26,13 @@ _FORBIDDEN_STATUS = 403
 _NOT_FOUND_STATUS = 404
 _NUMBER = 7
 _BRANCH = "orchestrator/issue-7"
+_REPOS_TOKENS = (
+    MappingProxyType({"alpha/one": "ghp-alpha-file-token"}),
+    MappingProxyType({
+        "alpha/one": "ghp-alpha-file-token",
+        "beta/two": "ghp-beta-file-token",
+    }),
+)
 
 # The repository as GitHub describes it back: a spelling the configured slug
 # does not share, so a reading taken off the unfetched URL is told apart.
@@ -195,6 +203,21 @@ class ClientConstructionTest(unittest.TestCase):
             resolve.assert_called_once_with(_SPEC_SLUG)
 
         self.assertEqual(client._repo_slug, _SPEC_SLUG)
+
+    def test_repos_specs_open_with_own_token_files(self) -> None:
+        # The connect path with nothing patched in front of the resolver: a
+        # `REPOS`-only host, one entry or several, opens every repository with
+        # the token in that repository's own file.
+        for tokens in _REPOS_TOKENS:
+            with self.subTest(repositories=len(tokens)), repos_only_host(tokens) as host:
+                specs = host.resolve()["REPO_SPECS"]
+                with host.patched_process():
+                    clients = [GitHubClient(repo_spec=spec) for spec in specs]
+
+                self.assertEqual(
+                    {client._repo_slug: client._token for client in clients},
+                    dict(tokens),
+                )
 
     def test_unresolvable_token_is_refused(self) -> None:
         # The message names the token file for the slug being opened, so the

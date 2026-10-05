@@ -9,6 +9,7 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.config import environment
+from tests.support.repos_host import repos_only_host
 
 _CONFIG_MODULE = "orchestrator.config"
 _HERMETIC = MappingProxyType(
@@ -21,6 +22,13 @@ _POLL_INTERVAL_ENV = "POLL_INTERVAL"
 _OVERRIDE_POLL_INTERVAL = 137
 _INVALID_AGENT_ENV = "DEV_AGENT"
 _INVALID_AGENT = "gemini"
+_SUCCESSIVE_REPOS_TOKENS = (
+    MappingProxyType({"alpha/one": "ghp-alpha-file-token"}),
+    MappingProxyType({
+        "beta/two": "ghp-beta-file-token",
+        "gamma/three": "ghp-gamma-file-token",
+    }),
+)
 
 
 class ConfigReloadTest(unittest.TestCase):
@@ -67,6 +75,22 @@ class ConfigReloadTest(unittest.TestCase):
             reloaded = importlib.reload(self._config)
         self.assertEqual(reloaded.POLL_INTERVAL, resolved["POLL_INTERVAL"])
         self.assertEqual(reloaded.POLL_INTERVAL, _OVERRIDE_POLL_INTERVAL)
+
+    def test_reload_rederives_tokens_and_root(self) -> None:
+        # Both are derived from the `REPOS` in force at each reload, so the
+        # import that came first leaves neither a token nor a root behind.
+        for tokens in _SUCCESSIVE_REPOS_TOKENS:
+            with self.subTest(repositories=tuple(tokens)), repos_only_host(tokens) as host:
+                with patch.dict(
+                    os.environ,
+                    {"ORCHESTRATOR_SKIP_DOTENV": "1", **host.settings()},
+                    clear=True,
+                ):
+                    reloaded = importlib.reload(self._config)
+                self.assertEqual(reloaded.GITHUB_TOKENS, tuple(tokens.values()))
+                self.assertEqual(
+                    reloaded.WORKTREES_DIR, host.clones / "wt-orchestrator",
+                )
 
     def _reload_with(self, extra_environment: dict[str, str]):
         with patch.dict(os.environ, {**_HERMETIC, **extra_environment}, clear=True):

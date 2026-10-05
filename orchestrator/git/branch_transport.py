@@ -113,13 +113,12 @@ def _authed_fetch(
     outside the lock since it only reads the worktree's own
     `.git/config`.
     """
-    # Resolve the token from `spec.slug` rather than the cached
-    # `config.GITHUB_TOKEN` (which was looked up once for `config.REPO`),
-    # so a multi-repo deployment with one token file per slug under
-    # `~/.config/<owner>/<repo>/token` fetches with the right repo's token.
-    # Mirrors `_push_branch`'s per-spec token resolution; without this,
-    # `_handle_resolving_conflict` would fail conflict resolution for any
-    # repo other than the legacy `REPO` (or use the wrong token).
+    # Resolve the token from `spec.slug` rather than from any one
+    # repository's, so a multi-repo deployment with one token file per slug
+    # under `~/.config/<owner>/<repo>/token` fetches with the right repo's
+    # token. Mirrors `_push_branch`'s per-spec token resolution; without this,
+    # `_handle_resolving_conflict` would fail conflict resolution for every
+    # other repo (or use the wrong token).
     token = credentials._resolved_git_token(spec, _FETCH)
     if not token:
         return _failed_fetch(_NO_TOKEN)
@@ -173,9 +172,8 @@ def _authed_target_fetch(
     `spec.slug` selects which GitHub repo / token to authenticate with.
     Without this split, a `REPOS` row like
     `geserdugarov/lance-private|...|private-cache|private` would try to
-    use the cached single-repo `config.GITHUB_TOKEN` (looked up once for
-    `config.REPO`) and fail to fetch even with a correct per-spec token
-    file in place.
+    use some other repository's token and fail to fetch even with a
+    correct per-spec token file in place.
 
     An explicit refspec `+refs/heads/<branch>:refs/remotes/<remote_name>/<branch>`
     is used so single-branch / narrowed clones still update the
@@ -455,12 +453,11 @@ def _push_branch(
         verification. Env-var proxies (`https_proxy`) are operator-set and
         stay honored -- only agent-writable config-file transport is rejected.
     """
-    # Resolve the token from `spec.slug` rather than the cached
-    # `config.GITHUB_TOKEN` (which was looked up once for `config.REPO`),
-    # so a multi-repo deployment with one token file per slug under
-    # `~/.config/<owner>/<repo>/token` pushes with the right repo's token.
-    # Single-repo deployments see identical behavior because
-    # `_resolve_github_token(REPO)` returns the same value.
+    # Resolve the token from `spec.slug` rather than from any one
+    # repository's, so a multi-repo deployment with one token file per slug
+    # under `~/.config/<owner>/<repo>/token` pushes with the right repo's
+    # token. A process `GITHUB_TOKEN` or `ORCHESTRATOR_TOKEN_FILE` still
+    # answers for every slug alike.
     token = credentials._resolved_git_token(spec, _PUSH)
     if not token:
         return False

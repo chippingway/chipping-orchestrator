@@ -139,11 +139,10 @@ class AuthedFetchHardeningTest(unittest.TestCase):
     def test_uses_per_spec_token_for_git_fetch(self) -> None:
         # Multi-repo regression guard: `_authed_fetch` must resolve the token
         # from `spec.slug` (so a per-repo `~/.config/<owner>/<repo>/token`
-        # file is honored), not from the cached single-repo
-        # `config.GITHUB_TOKEN` looked up once for `config.REPO`. Without
+        # file is honored), not from any other repository's token. Without
         # this, `_handle_resolving_conflict` fetches origin/<branch> /
-        # origin/<base> with the wrong (or empty) token for any repo other
-        # than the legacy single-repo `REPO`.
+        # origin/<base> with the wrong (or empty) token for every repo but
+        # one.
         run_recorder = _GitRunRecorder(probe_result=_clean_probe())
         token_resolver = _TokenResolver()
 

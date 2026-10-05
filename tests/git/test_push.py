@@ -178,8 +178,7 @@ class PushBranchTokenTest(unittest.TestCase):
     def test_uses_per_spec_token_for_git_push(self) -> None:
         # Multi-repo regression guard: `_push_branch` must resolve the token
         # from `spec.slug` (so a per-repo `~/.config/<owner>/<repo>/token`
-        # file is honored), not from the cached single-repo
-        # `config.GITHUB_TOKEN` that was looked up once for `config.REPO`.
+        # file is honored), not from any other repository's token.
         run_mock = MagicMock(
             side_effect=[
                 _git_result(),

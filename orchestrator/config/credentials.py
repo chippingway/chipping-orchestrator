@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 _SECRET_KEY_SUFFIXES = ("_TOKEN", "_KEY", "_SECRET", "_PASSWORD", "_PAT", "_CREDENTIAL")
@@ -44,6 +45,19 @@ def resolve_github_token(repo_slug: str) -> str:
         return ""
 
 
+def resolve_github_tokens(repo_slugs: Iterable[str]) -> tuple[str, ...]:
+    """Every distinct token the given repositories resolve to, in their order.
+
+    Each slug goes through `resolve_github_token`, so a process token or an
+    `ORCHESTRATOR_TOKEN_FILE` still answers for all of them and otherwise each
+    repository's own token file answers for it. A repository with no token
+    adds nothing: its client and its git transport report that themselves.
+    """
+    return tuple(dict.fromkeys(
+        token for token in map(resolve_github_token, repo_slugs) if token
+    ))
+
+
 def is_secret_environment_value(key: str, env_value: str) -> bool:
     """Whether an environment entry is shaped like a usable secret."""
     if not env_value or len(env_value) < _REDACT_MIN_VALUE_LEN:
@@ -63,18 +77,19 @@ def redact_environment_secrets(text: str) -> str:
     return redacted
 
 
-def redact_configured_github_token(text: str) -> str:
-    """Redact the PAT even when it came from a token file, not the env."""
-    # The resolved token is read off `orchestrator.config` at call time, not
+def redact_configured_github_tokens(text: str) -> str:
+    """Redact every configured repository's PAT, file-backed ones included."""
+    # The resolved tokens are read off `orchestrator.config` at call time, not
     # bound at import: this leaf is imported while that module is still
     # building its namespace, and the setting stays an independently
     # patchable module attribute that a settings reload rebinds.
     from orchestrator import config
 
-    token = config.GITHUB_TOKEN
-    if token and len(token) >= _REDACT_MIN_VALUE_LEN:
-        return text.replace(token, "***")
-    return text
+    redacted = text
+    for token in config.GITHUB_TOKENS:
+        if len(token) >= _REDACT_MIN_VALUE_LEN:
+            redacted = redacted.replace(token, "***")
+    return redacted
 
 
 def redact_secrets(text: str) -> str:
@@ -89,8 +104,9 @@ def redact_secrets(text: str) -> str:
     """
     if not text:
         return text
-    # GITHUB_TOKEN may have been resolved from ORCHESTRATOR_TOKEN_FILE (or
-    # the default ~/.config/<repo>/token path) rather than the process env,
-    # in which case the environment scan never sees it. The explicit token
-    # pass also covers git/gh stderr that quotes a file-backed credential.
-    return redact_configured_github_token(redact_environment_secrets(text))
+    # A repository's token may have been resolved from ORCHESTRATOR_TOKEN_FILE
+    # (or its default ~/.config/<owner>/<repo>/token path) rather than the
+    # process env, in which case the environment scan never sees it. The
+    # explicit token pass also covers git/gh stderr that quotes a file-backed
+    # credential.
+    return redact_configured_github_tokens(redact_environment_secrets(text))

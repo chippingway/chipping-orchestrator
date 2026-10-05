@@ -9,7 +9,7 @@ from unittest.mock import patch
 from orchestrator.config import credentials
 
 _REDACTION_MARKER = "***"
-_CONFIGURED_TOKEN = "orchestrator.config.GITHUB_TOKEN"
+_CONFIGURED_TOKENS = "orchestrator.config.GITHUB_TOKENS"
 
 
 def _patched_env(**env_values: str):
@@ -39,23 +39,27 @@ class RedactSecretsTest(unittest.TestCase):
             out = credentials.redact_secrets("remote: bad credential ghp_thisisthetokenvalue")
         self.assertNotIn("ghp_thisisthetokenvalue", out)
 
-    def test_redacts_github_token_loaded_from_file(self) -> None:
-        # Token-file path (ORCHESTRATOR_TOKEN_FILE / default
-        # ~/.config/<repo>/token) populates config.GITHUB_TOKEN without
-        # touching os.environ. The env-loop alone would miss it, so the
-        # resolved setting is read straight off `orchestrator.config` at
-        # call time. Regression: without that pass, agent stderr that
-        # cat'd the token file would leak the credential into the park
-        # comment.
-        token = "ghp_filebackedtokenvalue9876"
-        # Ensure the env path wouldn't catch it on its own.
+    def test_redacts_every_file_backed_token(self) -> None:
+        # Token files (ORCHESTRATOR_TOKEN_FILE / each repository's default
+        # ~/.config/<owner>/<repo>/token) populate config.GITHUB_TOKENS
+        # without touching os.environ. The env-loop alone would miss them, so
+        # the resolved setting is read straight off `orchestrator.config` at
+        # call time, and every configured repository's token is masked, not
+        # only the first one's: agent stderr that cat'd a second repository's
+        # token file would otherwise leak it into the park comment.
+        first_token = "ghp_filebackedtokenvalue9876"
+        second_token = "ghp_secondrepositorytoken5432"
+        # Ensure the env path wouldn't catch either on its own.
         env_without_token = dict(os.environ)
         env_without_token.pop("GITHUB_TOKEN", None)
         with patch.dict(os.environ, env_without_token, clear=True), \
-                patch(_CONFIGURED_TOKEN, token):
-            out = credentials.redact_secrets(f"cat ran: {token} got captured")
-        self.assertNotIn(token, out)
-        self.assertIn(_REDACTION_MARKER, out)
+                patch(_CONFIGURED_TOKENS, (first_token, second_token)):
+            out = credentials.redact_secrets(
+                f"cat ran: {first_token} and {second_token} got captured",
+            )
+        self.assertNotIn(first_token, out)
+        self.assertNotIn(second_token, out)
+        self.assertEqual(out.count(_REDACTION_MARKER), 2)
 
     def test_redacts_arbitrary_provider_via_suffix(self) -> None:
         # The suffix list is what catches the long tail (HF_TOKEN,
