@@ -53,13 +53,19 @@ TRUSTED_AUTHORS = ("operator",)
 
 
 class StateFactory:
-    """`RuntimeState` stand-in that keeps the state a run created."""
+    """`RuntimeState` stand-in that keeps the state a run created.
+
+    It is installed on the owner in place of the class, which is where the
+    composition reads it, so it builds from the class it found there when it
+    was created rather than reading the owner back.
+    """
 
     def __init__(self) -> None:
         self.created: list[_runtime_state.RuntimeState] = []
+        self._state_class = _runtime_state.RuntimeState
 
     def __call__(self) -> _runtime_state.RuntimeState:
-        state = _runtime_state.RuntimeState()
+        state = self._state_class()
         self.created.append(state)
         return state
 
@@ -160,7 +166,7 @@ def composed_run(
         intercepted.enter_context(_own_worktrees_root())
         _configured(intercepted, slugs, allowed_authors)
         _recorded_startup(intercepted, run)
-        intercepted.enter_context(patch.object(cli, _STATE_ATTR, run.states))
+        intercepted.enter_context(patch.object(_runtime_state, _STATE_ATTR, run.states))
         intercepted.enter_context(patch.object(
             _engine_tick, _support.TICK_ATTR, side_effect=run.recorder,
         ))

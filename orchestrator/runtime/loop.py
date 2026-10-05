@@ -29,7 +29,8 @@ from collections.abc import Iterator
 from orchestrator import config
 from orchestrator.agents import processes as _agent_processes
 from orchestrator.runtime import artifact_schedule, artifacts, self_update, ticks
-from orchestrator.runtime.startup import PollingOptions, RepoClients
+from orchestrator.runtime.options import PollingOptions
+from orchestrator.runtime.startup import RepoClients
 from orchestrator.runtime.state import RuntimeState
 from orchestrator.scheduler.service import IssueScheduler
 

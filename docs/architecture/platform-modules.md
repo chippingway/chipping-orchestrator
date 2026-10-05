@@ -123,10 +123,12 @@ orchestrator/
                         close, the host claim a pass turns into exclusive ownership, and the drain's event -- plus
                         the shell-style code a signal stop exits with
     logs.py             the stderr and rotating-file destinations a run settles before its first client
-    startup.py          which launch mode a run is and how loud, the stop of every launch whose author allowlist
-                        names nobody, one client per configured repo -- in the bootstrapping form a tick needs and
-                        the read-only form a run that will not tick may have, which is the one write a connect
-                        makes -- and the scheduler every tick shares
+    options.py          which launch mode a run is and how loud, read without loading any configuration -- the one
+                        owner here `cli.py` imports before the command line is parsed, so `--help` answers on a
+                        host with no settings or a malformed `REPOS`
+    startup.py          the stop of every launch whose author allowlist names nobody, one client per configured
+                        repo -- in the bootstrapping form a tick needs and the read-only form a run that will not
+                        tick may have, which is the one write a connect makes -- and the scheduler every tick shares
     ticks.py            one pass over the configured repos: the per-repo tick, the fan-out, and the reap / prune
                         drains
     loop.py             one-shot vs recurring polling, the interruptible wait, the artifact-maintenance step the

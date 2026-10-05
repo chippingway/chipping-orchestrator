@@ -35,7 +35,9 @@ wheel does not carry, or a runtime dependency supplied by the lockfile but omitt
 passes every other step and fails for the first person to install the distribution. `--no-project` and `--isolated`
 are what keep the answer honest: neither the project environment nor the lockfile is on the path the script imports
 from. What answers `--help` is the wheel's own contents beside the dependencies it declares for itself, resolved fresh
-from PyPI, which is the reading an installer of this distribution gets rather than the one `uv.lock` settles.
+from PyPI, which is the reading an installer of this distribution gets rather than the one `uv.lock` settles. The step
+configures nothing, and needs nothing configured: the command line is read before any owner that resolves the
+settings is imported, so `--help` answers even where a `REPOS` value would abort a real launch.
 
 The job declares `timeout-minutes: 20`, generous next to the few minutes a green run takes and far under the six-hour
 default GitHub would otherwise cancel it at; the reasoning that ceiling serves is the same one the scans below are

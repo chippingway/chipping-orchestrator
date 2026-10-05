@@ -27,6 +27,7 @@ _MODULES = tuple(
         "host_lock",
         "logs",
         "loop",
+        "options",
         "self_update",
         "shutdown",
         "startup",
@@ -62,6 +63,10 @@ _RETIRED_MODULES = (
 # What `import orchestrator` alone plants, so the surface check can hold the
 # initializer to its own chain and nothing besides.
 _ROOT_MODULES = (_ORCHESTRATOR,)
+
+# The owner `--help` is answered from, read before any owner that resolves the
+# configuration is imported.
+_OPTIONS_MODULE = f"{_PACKAGE}.options"
 
 _PROBE = """
 import sys
@@ -136,6 +141,19 @@ class CleanProcessImportTest(unittest.TestCase):
                 if name.startswith(_ORCHESTRATOR)
             )),
             tuple(sorted((*_ROOT_MODULES, _PACKAGE))),
+        )
+
+    def test_the_options_owner_loads_no_configuration(self) -> None:
+        # Anything it planted beyond its own chain would be imported before
+        # the command line is read, and every other owner resolves and
+        # validates the settings as it is imported -- so `--help` would answer
+        # only on a host whose configuration already holds up.
+        self.assertEqual(
+            tuple(sorted(
+                name for name in _planted(_OPTIONS_MODULE)
+                if name.startswith(_ORCHESTRATOR)
+            )),
+            tuple(sorted((*_ROOT_MODULES, _PACKAGE, _OPTIONS_MODULE))),
         )
 
 
