@@ -14,7 +14,7 @@ handler reads and writes.
 
 | If you want to… | Read |
 |---|---|
-| install and run it | the [quick start](../README.md#quick-start), then [`configuration.md`](configuration.md) |
+| install and run it | the [quick start](../README.md#quick-start), then [basic setup](configuration.md#basic-setup) |
 | understand the design before changing it | [`architecture.md`](architecture.md) |
 | know what a label means, or when it moves | [`state-machine.md`](state-machine.md) |
 | know which agent a stage spawns, under what prompt | [`workflow.md`](workflow.md) |

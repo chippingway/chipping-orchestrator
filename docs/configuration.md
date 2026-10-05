@@ -9,9 +9,10 @@ All settings load from a `.env` file ([which one](#where-env-is-read)) or the pr
 [`../.env.example`](../.env.example) is the basic template: `REPOS` and the few other settings a first run needs, for
 one repository or several ([basic setup](#basic-setup)). [`../.env.example.advanced`](../.env.example.advanced) carries
 optional operational overrides and illustrative examples for opt-in settings, then the orchestrator-developer settings
-in a section of their own. This page and the two beside it are the source of truth — every setting and every default
-lives on one of them, and both `.env.example*` files keep their inline comments terse and link back for the full
-rationale.
+in a section of their own; [`../tests/repository/test_env_templates.py`](../tests/repository/test_env_templates.py)
+holds that split and parses every `REPOS` value the basic template writes. This page and the two beside it are the
+source of truth — every setting and every default lives on one of them, and both `.env.example*` files keep their
+inline comments terse and link back for the full rationale.
 
 The orchestrator is deliberately stateless: every setting here selects backends and budgets at startup, or names
 files/paths outside the repo. Per-issue state lives in the issue's pinned JSON comment on GitHub.
