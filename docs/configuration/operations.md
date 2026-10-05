@@ -435,6 +435,9 @@ seconds. On a repo it drove before the labels were namespaced, each pre-namespac
 The supported topology is **one host**. More than one polling process may run there against the same repositories —
 a second daemon, or a `--once` run beside one — provided every one of them resolves the same `WORKTREES_DIR`, and
 the in-process scheduler guards (a duplicate active issue, the caps, the family slot) still apply first inside each.
+Left unset, `WORKTREES_DIR` defaults beside the first configured target — the first `REPOS` entry, or
+`TARGET_REPO_ROOT` without `REPOS` ([default](../configuration.md#workspace-and-agent-identity)) — so pollers whose
+lists start with different repositories resolve different roots unless every one of them sets it explicitly.
 
 - **One writer per issue.** Each dispatched issue is taken under a host-local writer claim: an exclusive `flock` on a
   file in `WORKTREES_DIR/.issue-writer-claims/`, named `repo-<id>-issue-<n>.lock` for the repository's numeric GitHub
@@ -1080,8 +1083,10 @@ own at a candidate boundary, and never blocks workflow progress either way.
 
 ## Applying `.env` changes
 
-`.env` is read once, when `python -m orchestrator` starts. The orchestrator process never reloads it, so most edits
-take effect on the **next fresh Python start** — there is no signal to make a running process re-read configuration.
+`.env` — the source checkout's own, or `~/.config/chipping-orchestrator/.env` for an installed package
+([which one](../configuration.md#where-env-is-read)) — is read once, when `python -m orchestrator` starts. The
+orchestrator process never reloads it, so most edits take effect on the **next fresh Python start** — there is no
+signal to make a running process re-read configuration.
 `run.sh` is the usual restart mechanism: each loop iteration launches a new Python process (and `git pull --ff-only`s
 the orchestrator checkout to `ORCHESTRATOR_BASE_BRANCH` along the way).
 
@@ -1175,6 +1180,9 @@ When each setting's change takes effect:
   `ANALYTICS_LOG_PATH`, `ANALYTICS_RETENTION_DAYS`, `TRACK_SKILL_TRIGGERS`, `TRAJECTORY_LOG_PATH`,
   `TRAJECTORY_RETENTION_DAYS`, `REPO` / `REPOS` / `TARGET_REPO_ROOT` / `BASE_BRANCH` / `REMOTE_NAME`, `HITL_HANDLE`,
   `ALLOWED_ISSUE_AUTHORS` — next Python start
+- `WORKTREES_DIR` — next Python start. Left unset, it follows the first `REPOS` entry, or `TARGET_REPO_ROOT` without
+  `REPOS`, so an edit that changes either moves it too: set it explicitly before such an edit on a host with issues in
+  flight ([default](../configuration.md#workspace-and-agent-identity))
 - `ANALYTICS_DB_URL` — next `python -m orchestrator.observability.analytics.sync.cli` invocation, and next
   `uv run streamlit run orchestrator/apps/analytics_dashboard.py` start (the value is parsed once, when the analytics
   settings holder is first imported, so a browser reload is not enough — relaunch Streamlit). The polling loop does not
@@ -1188,7 +1196,8 @@ When each setting's change takes effect:
   `dev_agent` / `decomposer_agent` / `question_agent` / `discussion_agent` — those keep the pinned spec until the
   issue reaches `done` or `rejected`
 - `REVIEW_AGENT` — next reviewer spawn after the next Python start (not pinned per issue)
-- `GITHUB_TOKEN` — not loaded from `.env`. Update the process environment or rewrite the file at
-  `ORCHESTRATOR_TOKEN_FILE` (default `~/.config/<owner>/<repo>/token`) before the next start
+- `GITHUB_TOKEN` — not loaded from `.env`. Update the process environment or rewrite the token file before the next
+  start: the one `ORCHESTRATOR_TOKEN_FILE` names, or else each configured repository's own
+  `~/.config/<owner>/<repo>/token`
 - `ORCHESTRATOR_BASE_BRANCH` — `run.sh` captures this once before its restart loop, so editing it only takes effect
   after `run.sh` itself is restarted. The Python process picks it up on the same next start.
