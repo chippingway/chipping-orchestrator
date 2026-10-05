@@ -1633,16 +1633,17 @@ because there it is the claim that this stage has already rerouted rather than a
   The dispatcher covers the same window on both sides of the submit. An **admitted** task carries the poll's closed
   reading with it (`_PollReading`) and applies it on the worker thread before the guard reads the refetched object —
   a human who reopens between the poll and the refetch would otherwise leave the fresh reading saying open with a
-  live cycle under it — and it holds that reading across the pass, latching it again on the way out unless the pass
-  actually spent it. Spending it is not the same as finishing: the pinned read the guard is built on answers a
-  refusal of its own, so a tick that could not read the record refuses the issue and marks nothing. A **refused**
-  submit latches the reading **first**, then drops it again only where the record positively says there is nothing
-  to end. All three tick paths do this. The order is
-  the whole of it — the probe is a request, and a request can fail or can land after the very retirement it was
-  asking about, so a reading conditioned on it would be lost to either. A latch held over an issue with no cycle
-  costs the next tick one cleanup pass that settles it; a reading dropped costs the close itself. It is taken on the
-  refusal rather than ahead of admission, because an admitted submit runs the label's own handler and settles
-  nothing.
+  live cycle under it (inside the dormant `observation_state.claiming_closes()` the reading is tied to the record's
+  cycle first, and one it cannot be tied to on an issue open again marks nothing and stops the tick for the cleanup pass
+  its latch routes the issue to) — and it holds that reading across the pass, latching it again on the way out unless
+  the pass actually spent it. Spending it is not the same as finishing: the pinned read the guard is built on answers a
+  refusal of its own, so a tick that could not read the record refuses the issue and marks nothing. A **refused** submit
+  latches the reading **first**, then drops it again only where the record positively says there is nothing to end. All
+  three tick paths do this. The order is the whole of it — the probe is a request, and a request can fail or can land
+  after the very retirement it was asking about, so a reading conditioned on it would be lost to either. A latch held
+  over an issue with no cycle costs the next tick one cleanup pass that settles it; a reading dropped costs the close
+  itself. It is taken on the refusal rather than ahead of admission, because an admitted submit runs the label's own
+  handler and settles nothing.
 - **A cancelled cycle is refused under every label, and the terminal lands where the graph allows.** Every workflow
   label names a handler that ACTS on the issue rather than settling it, so a cancelled cycle wearing any of them is
   refused whatever it says — a human who relabels such an owner is asking for work on a cycle a close already ended.

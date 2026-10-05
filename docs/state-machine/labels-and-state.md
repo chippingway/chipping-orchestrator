@@ -505,13 +505,14 @@ close was a decision to stop. The pass ends the cycle: it marks the cancellation
 cycle was holding, re-reads every recorded snapshot consumer, settles what can be settled, and moves the issue to
 `rejected` once nothing is owed. Being routed there at all is what says a close was *observed*, so an issue the pass
 finds open again — reopened between the poll and the worker's refetch — is marked cancelled and stopped there, with
-the ending left to the dispatcher's own guard from the next tick. It does nothing else — no agent, no activation, and
-no child of the split touched. `rejected` is the only label it ever writes, and it is what takes the issue out of this
-sweep for good. It rides the same sweep walk, the same cadence, the same label cache, and the same absent-label
+the ending left to the dispatcher's own guard from the next tick (under the dormant claim-aware reconciliation above,
+unless its record has moved on to a cycle restarted after the close). It does nothing else — no agent, no activation,
+and no child of the split touched. `rejected` is the only label it ever writes, and it is what takes the issue out of
+this sweep for good. It rides the same sweep walk, the same cadence, the same label cache, and the same absent-label
 throttle as the recovery labels above. It is partitioned as **fan-out** rather than into the family bucket, and
 submitted `cap_exempt=True` on its own: the bucket's exemption is all-or-nothing, so one open `workflow:decomposing`
-issue sharing the tick would make a closed owner cap-counted and, under a saturated cap, skipped — which would stop
-the repository reclaiming refs for as long as its decomposer stayed busy.
+issue sharing the tick would make a closed owner cap-counted and, under a saturated cap, skipped — which would stop the
+repository reclaiming refs for as long as its decomposer stayed busy.
 
 - Closed `workflow:decomposing` / `workflow:umbrella` / `workflow:ready` / `workflow:blocked` — a snapshot owner a
   human closed mid-cycle, or one whose own decomposition outcome landed after that close. Its generation
