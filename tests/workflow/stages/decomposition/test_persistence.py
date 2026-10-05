@@ -154,7 +154,7 @@ class ClaimedSplitCompletionTest(
     unittest.TestCase,
     _DecomposingWorkflowMixin,
 ):
-    """A split inside `child_claims.claiming()`, which no production split enters yet.
+    """A split that seeds each child under the child's own writer claim.
 
     A child another poller holds when its seed is due is recorded and left
     unseeded, and the split publishes nothing past it: the next tick's
@@ -174,7 +174,7 @@ class ClaimedSplitCompletionTest(
         self.assertEqual(gh.label_history, [], "the parent is not finalized past them")
         self.assertEqual(_summaries(gh, SEED_CONTENTION_ISSUE_NUMBER), [], "nor summarized")
 
-        self._run_claimed_decomposing(gh, issue, run_agent=_agent())[RUN_AGENT].assert_not_called()
+        self._run_decomposing(gh, issue, run_agent=_agent())[RUN_AGENT].assert_not_called()
 
         self._assert_recovered(gh, SEED_CONTENTION_ISSUE_NUMBER, created)
 
@@ -188,11 +188,11 @@ class ClaimedSplitCompletionTest(
                 refused = patch.object(gh, step, side_effect=RuntimeError("github refused the write"))
 
                 with refused, self.assertRaises(RuntimeError):
-                    self._run_claimed_decomposing(gh, issue, run_agent=_agent())
+                    self._run_decomposing(gh, issue, run_agent=_agent())
 
                 self.assertEqual(gh.label_history, [], "the failed recovery finalizes nothing")
 
-                self._run_claimed_decomposing(gh, issue, run_agent=_agent())
+                self._run_decomposing(gh, issue, run_agent=_agent())
 
                 self._assert_recovered(gh, SEED_RETRY_ISSUE_NUMBER, created)
 
@@ -203,7 +203,7 @@ class ClaimedSplitCompletionTest(
         gh, issue = _decomposing_issue(SEED_RECORD_ISSUE_NUMBER)
         gh.create_child_issue = _ReachedFirstByAnotherPoller(gh)
 
-        self._run_claimed_decomposing(
+        self._run_decomposing(
             gh,
             issue,
             run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=SPLIT_MANIFEST),
@@ -219,14 +219,14 @@ class ClaimedSplitCompletionTest(
         self.assertIn((SEED_RECORD_ISSUE_NUMBER, LABEL_BLOCKED), gh.label_history)
 
     def _left_to_recovery(self, number: int) -> tuple[FakeGitHubClient, FakeIssue, list[int]]:
-        """A claimed split whose every child another poller held as it was created, and the children it recorded.
+        """A split whose every child another poller held as it was created, and the children it recorded.
 
         The attempt the split recorded is kept, for the summary its recovery
         posts to be held to.
         """
         gh, issue = _decomposing_issue(number)
         with claimed_on_creation(gh), self.assertLogs("orchestrator.workflow"):
-            self._run_claimed_decomposing(
+            self._run_decomposing(
                 gh,
                 issue,
                 run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=SPLIT_MANIFEST),

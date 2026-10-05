@@ -16,17 +16,10 @@ So each of those writes is made under the child's claim, taken without waiting
 in front of the read it decides on and held through the write. A refusal is not
 the child's: each caller answers it as it answers a child it may not act on
 yet, and a later pass asks again.
-
-Dormant. A child's claim keeps out only a poller that takes the same claim, and
-no dispatch path takes one yet, so every one of those writes takes its child's
-claim -- and makes the second read behind it -- only inside `claiming()`, which
-no production path enters. Outside it, `held_child` and `held_children` take
-nothing and answer granted, and each write runs exactly as it always has.
 """
 from __future__ import annotations
 
 import contextlib
-import contextvars
 import logging
 from collections.abc import Iterable, Iterator
 
@@ -34,31 +27,6 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.scheduler import writer_claims as _writer_claims
 
 log = logging.getLogger("orchestrator.workflow")
-
-# Whether the family writes made in this context claim their children. A
-# context variable rather than a module flag, so a worker thread -- which
-# starts on a fresh context -- never inherits it from whoever entered it.
-_claimed_writes: contextvars.ContextVar[bool] = contextvars.ContextVar("child_claims", default=False)
-
-
-@contextlib.contextmanager
-def claiming() -> Iterator[None]:
-    """Have every family write made inside the body take its child's writer claim.
-
-    The internal entry point the claim-aware family writes are reached
-    through until the dispatch takes the parent's own claim, when entering
-    it is the activation's to make.
-    """
-    token = _claimed_writes.set(True)
-    try:
-        yield
-    finally:
-        _claimed_writes.reset(token)
-
-
-def claims_children() -> bool:
-    """Whether a family write made here takes its child's claim and reads the child again behind it."""
-    return _claimed_writes.get()
 
 
 @contextlib.contextmanager
@@ -76,11 +44,7 @@ def held_child(
     each was configured with or fetched the repository under. `alongside` is
     for a write that is append-only and built to land beside the child's own
     handler in this process -- it still keeps every other process out.
-    Outside `claiming()` nothing is taken and the body runs as granted.
     """
-    if not claims_children():
-        yield True
-        return
     with _writer_claims.issue_writer(
         gh.repo_id, int(child_number), alongside=alongside, repo_name=gh.repo_slug,
     ) as held:

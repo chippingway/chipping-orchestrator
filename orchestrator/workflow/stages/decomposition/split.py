@@ -8,10 +8,10 @@ not be kept -- parks the split with no child created. Each child carries a
 receipt (`split_receipts`), and reuse instructions where it is owed the
 parent's snapshot. Children without dependencies are released after the
 summary (`split_summary`) and parent label land, through the walk a later poll
-runs. A split inside `child_claims.claiming()` that had to leave a child
-unseeded, because another poller on this host held it, publishes none of the
-three: its recovery seeds the child, posts the summary, and finalizes the
-parent, and the parent's dependency walk releases.
+runs. A split that had to leave a child unseeded, because another poller on
+this host held it, publishes none of the three: its recovery seeds the child,
+posts the summary, and finalizes the parent, and the parent's dependency walk
+releases.
 """
 from __future__ import annotations
 
@@ -125,13 +125,12 @@ def _create_child_issues(
          created by a decomposer respawn.
       3. Seed child pinned state: the parent link, and the lineage decided
          in step 0. Failure here parks but parent state already records
-         the child, so no respawn happens. Inside `child_claims.claiming()`
-         a child another poller on this host holds is left unseeded and the
-         loop creates the rest, since the manifest is not kept for anything
-         to create them from later; the split then stops short of its
-         finalize, which leaves the parent `decomposing` with every child
-         recorded -- the state the recovery seeds that child from, under its
-         claim, and finalizes.
+         the child, so no respawn happens. A child another poller on this
+         host holds is left unseeded and the loop creates the rest, since
+         the manifest is not kept for anything to create them from later;
+         the split then stops short of its finalize, which leaves the
+         parent `decomposing` with every child recorded -- the state the
+         recovery seeds that child from, under its claim, and finalizes.
     """
     lineage = _replacement_lineage.read_replacement_lineage(state, issue, spec)
     refusal = lineage.refusal or _unsupported_reuse(lineage, parsed)

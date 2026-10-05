@@ -67,6 +67,18 @@ def _cleanup_sweep_only(issue: Issue, label: str | None) -> bool:
     return label in _poll_models._CLEANUP_ROUTE_LABELS and issue_is_closed(issue)
 
 
+def _reopened_since_polled(issue: Issue, reading: _poll_models._PollReading) -> bool:
+    """Whether the poll admitted this pass as closed work and its refetch reads the issue open again."""
+    return reading.closed and not issue_is_closed(issue)
+
+
+def _outside_its_lane(issue: Issue, label: str | None, reading: _poll_models._PollReading) -> bool:
+    """Whether the stage a pass's refetch reads -- moved since the poll -- is outside its lane."""
+    if reading.lane == _poll_models._FANOUT_LANE:
+        return _poll_models._drains_in_family_bucket(label, issue_is_closed(issue))
+    return reading.lane == _poll_models._WALK_LANE and label not in _poll_models._CAP_EXEMPT_FAMILY_LABELS
+
+
 def _read_issue_routing(
     gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
 ) -> tuple[bool, str | None]:

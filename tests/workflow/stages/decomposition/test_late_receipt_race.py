@@ -43,6 +43,10 @@ _WORKFLOW_LOG = "orchestrator.workflow"
 
 _TEST_SLUG = _TEST_SPEC.slug
 
+# The repository id every retirement window is opened with, as its worker's
+# client answers it.
+_REPO_ID = FakeGitHubClient().repo_id
+
 # The client method a receipt is posted through, held so a case can decide
 # what else happens while one is in flight.
 _COMMENT = "comment"
@@ -215,7 +219,7 @@ class RetirementHandoffTest(ObservedCloseCase, unittest.TestCase):
 
     def test_a_close_before_the_exit_is_reported(self) -> None:
         window = _retiring_cycles.retiring(
-            _TEST_SLUG, LATE_ISSUE_NUMBER, CYCLE_ID,
+            _TEST_SLUG, LATE_ISSUE_NUMBER, CYCLE_ID, _REPO_ID,
         )
 
         with window.held():
@@ -228,7 +232,7 @@ class RetirementHandoffTest(ObservedCloseCase, unittest.TestCase):
         # cycle and no window, so the reading is one the poll drops rather
         # than one this worker owes anything.
         window = _retiring_cycles.retiring(
-            _TEST_SLUG, LATE_ISSUE_NUMBER, CYCLE_ID,
+            _TEST_SLUG, LATE_ISSUE_NUMBER, CYCLE_ID, _REPO_ID,
         )
 
         with window.held():
@@ -242,7 +246,7 @@ class RetirementHandoffTest(ObservedCloseCase, unittest.TestCase):
         # An umbrella the initial decomposer made retires nothing, and
         # advertising an identity that is not there would have a poll keep a
         # reading against a cycle nothing could correlate it to.
-        window = _retiring_cycles.retiring(_TEST_SLUG, LATE_ISSUE_NUMBER, 0)
+        window = _retiring_cycles.retiring(_TEST_SLUG, LATE_ISSUE_NUMBER, 0, _REPO_ID)
 
         with window.held():
             self._latch_close(_TEST_SLUG, LATE_ISSUE_NUMBER)
@@ -260,12 +264,10 @@ class RetirementHandoffTest(ObservedCloseCase, unittest.TestCase):
 class ReopenedScanClaimTest(_ReceiptCase, unittest.TestCase):
     """A receipt that lands after the one thread walk this process owed.
 
-    The walk is claimed once per owner per process because what it recovers
-    is an observation a DEAD process was holding -- but a claim taken when
-    there was nothing to find proved nothing about a receipt posted since,
-    and every later pass would read straight past it. Asked for a cycle, as a
-    pass under the issue's writer claim asks it, it proved nothing about a
-    receipt naming another cycle either.
+    The walk is claimed once per owner and cycle because what it recovers is
+    an observation a DEAD process was holding -- but a claim taken when there
+    was nothing to find proved nothing about a receipt posted since, or about
+    one naming another cycle, and every later pass would read straight past it.
     """
 
     def test_a_landed_receipt_owes_the_walk_again(self) -> None:
@@ -275,7 +277,7 @@ class ReopenedScanClaimTest(_ReceiptCase, unittest.TestCase):
             self._recorded()
 
         with _observation_receipts.scanning_receipt(
-            _TEST_SLUG, LATE_ISSUE_NUMBER,
+            _TEST_SLUG, LATE_ISSUE_NUMBER, CYCLE_ID,
         ) as claimed:
             self.assertTrue(claimed)
 
@@ -285,22 +287,22 @@ class ReopenedScanClaimTest(_ReceiptCase, unittest.TestCase):
         self._already_walked()
 
         with _observation_receipts.scanning_receipt(
-            _TEST_SLUG, LATE_ISSUE_NUMBER,
+            _TEST_SLUG, LATE_ISSUE_NUMBER, CYCLE_ID,
         ) as claimed:
             self.assertFalse(claimed)
 
     def test_another_cycle_is_owed_its_own_walk(self) -> None:
-        self._already_walked(CYCLE_ID)
+        self._already_walked()
 
         with _observation_receipts.scanning_receipt(
             _TEST_SLUG, LATE_ISSUE_NUMBER, _NEXT_CYCLE,
         ) as claimed:
             self.assertTrue(claimed)
 
-    def _already_walked(self, cycle_id: int | None = None) -> None:
+    def _already_walked(self) -> None:
         """Take the one walk this process owes, finding nothing on it."""
         with _observation_receipts.scanning_receipt(
-            _TEST_SLUG, LATE_ISSUE_NUMBER, cycle_id,
+            _TEST_SLUG, LATE_ISSUE_NUMBER, CYCLE_ID,
         ) as claimed:
             self.assertTrue(claimed)
 

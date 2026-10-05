@@ -83,7 +83,8 @@ On first start, the orchestrator creates its labels and begins polling open issu
 workflow; a completed change stops at `in_review` for a human to merge.
 
 The [configuration reference](docs/configuration.md) covers credentials, agent routing, every setting, and advanced
-examples. The [operations guide](docs/configuration/operations.md) covers other run modes and systemd deployment.
+examples. The [operations guide](docs/configuration/operations.md) covers other run modes, running more than one
+poller on one host, and systemd deployment.
 
 ## Asking the orchestrator a question
 

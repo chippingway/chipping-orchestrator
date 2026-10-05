@@ -38,7 +38,7 @@ def _drain_scheduler_family_bucket(
     gh: GitHubClient,
     spec: _config_models.RepoSpec,
     scheduler: IssueScheduler,
-    family_numbers: list[int],
+    partition: _poll_models._PollablePartition,
 ) -> None:
     """Drain this tick's family-aware issues sequentially under one bucket.
 
@@ -61,11 +61,16 @@ def _drain_scheduler_family_bucket(
     Per-issue exception isolation lives inside the loop so one raising family
     handler does not abort the rest of the bucket.
 
-    Each per-issue call mirrors the fanout path: ``_refetch_and_process``
-    mints a fresh ``GitHubClient`` via ``gh._for_worker_thread()`` and
-    refetches the Issue against it (PyGithub is not documented thread-safe).
+    Each per-issue call mirrors the fanout path (``_fanout_task``): it takes
+    the issue's writer claim, mints a fresh ``GitHubClient`` via
+    ``gh._for_worker_thread()``, and refetches the Issue against it (PyGithub
+    is not documented thread-safe). The claim is taken inside the tracked
+    iteration, so an issue another poller on this host holds costs that one
+    iteration and the drain moves on to the next. Each carries the poll's
+    reading, and a capacity-exempt bucket's admits it to a dependency walk alone.
     """
-    for issue_number in family_numbers:
+    exempt = _poll_models._family_bucket_cap_exempt(partition.family_labels)
+    for issue_number in partition.family_numbers:
         try:
             with scheduler.track_active(spec.slug, issue_number) as claimed:
                 if not claimed:
@@ -75,7 +80,9 @@ def _drain_scheduler_family_bucket(
                         spec.slug, issue_number,
                     )
                     continue
-                _dispatch_workers._refetch_and_process(gh, spec, issue_number)
+                _dispatch_workers._fanout_task(
+                    gh, spec, issue_number, reading=partition.reading(issue_number, exempt=exempt),
+                )()
         except Exception:
             log.exception(
                 _PROCESSING_FAILED_LOG,
@@ -102,7 +109,7 @@ def _submit_scheduler_family_bucket(
         spec.slug,
         _FAMILY_BUCKET_ISSUE,
         functools.partial(
-            _drain_scheduler_family_bucket, gh, spec, scheduler, family_numbers,
+            _drain_scheduler_family_bucket, gh, spec, scheduler, partition,
         ),
         family=True,
         cap_exempt=_poll_models._family_bucket_cap_exempt(partition.family_labels),
@@ -115,7 +122,8 @@ def _submit_scheduler_family_bucket(
     # cap, ...) inside `submit`; this line gives the dispatch-layer context
     # -- which issues were waiting on this bucket -- so an operator can
     # correlate "umbrella not advancing" with a previous tick's bucket
-    # still in flight.
+    # still in flight. A closed reading one of them carried is already
+    # latched by the partition, so the next polling pass finds it owed.
     log.info(
         "repo=%s family bucket (%d issues) not submitted this "
         "tick; next polling pass retries",
@@ -131,7 +139,6 @@ def _submit_scheduler_fanout_issues(
     per_repo_cap: int,
 ) -> None:
     for issue_number in partition.fanout_numbers:
-        cleanup_only = issue_number in partition.cleanup_numbers
         # Held from here rather than from wherever the worker first reads
         # something: the claim exists the moment this submit is admitted, and
         # a poll meeting the issue between that and the handler is refused
@@ -143,10 +150,7 @@ def _submit_scheduler_fanout_issues(
             spec.slug,
             issue_number,
             _released_after(spec, issue_number, _dispatch_workers._fanout_task(
-                gh, spec, issue_number, reading=_poll_models._PollReading(
-                    cleanup_only=cleanup_only,
-                    closed=issue_number in partition.fanout_closed,
-                ),
+                gh, spec, issue_number, reading=partition.reading(issue_number),
             )),
             family=False,
             # A closed issue's handler is a cheap terminal finalization with
@@ -161,11 +165,7 @@ def _submit_scheduler_fanout_issues(
         if submitted:
             continue
         _publication_holds.release_publication(spec.slug, issue_number)
-        _dispatch_closure._refused_submit(
-            gh, spec, issue_number,
-            cleanup_only=cleanup_only,
-            closed=issue_number in partition.fanout_closed,
-        )
+        _dispatch_closure._refused_submit(gh, spec, issue_number, partition.reading(issue_number))
 
 
 def _released_after(
@@ -176,7 +176,7 @@ def _released_after(
     The hold starts at the submit and has to outlive the queue, so the worker
     is what ends it -- and it ends whichever way the task goes, since a pass
     that raised is one that stopped holding the issue just as surely as one
-    that returned.
+    that returned, and a task refused the issue's writer claim never held it.
     """
     return functools.partial(_releases_the_claim, spec.slug, issue_number, task)
 

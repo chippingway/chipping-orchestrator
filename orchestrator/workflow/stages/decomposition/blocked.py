@@ -173,7 +173,7 @@ def _retired_for_implementation(
     if _late_close_observation._latched_close_ends(gh, spec, issue, state):
         return False
     live = _umbrella_terminal._retired_cycle(state)
-    retiring = _retiring_cycles.retiring(spec.slug, issue.number, live.cycle_id)
+    retiring = _retiring_cycles.retiring(spec.slug, issue.number, live.cycle_id, gh.repo_id)
     with retiring.held():
         gh.write_pinned_state(issue, state)
     return not _umbrella._reinstated(gh, issue, state, live, retiring)
@@ -187,13 +187,14 @@ def _handle_blocked(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issu
     `dispatch._FAMILY_AWARE_LABELS`) submits the whole family-aware
     bucket as a single drain task on one worker thread, so only one of
     `decomposing`, `blocked`, or `umbrella` runs at a time within a
-    tick -- even when other issues fan out across worker threads. A
-    child's `in_review -> done` label flip and this tick therefore
-    still cannot race the parent's child-state writes; we read each
-    child's current label fresh here. Issues outside the family-aware
-    bucket (`implementing`, `validating`, `in_review`,
-    `resolving_conflict`) may run concurrently alongside, but their
-    handlers do not write across parent/child boundaries.
+    process's tick -- even when other issues fan out across worker
+    threads. Issues outside the family-aware bucket (`implementing`,
+    `validating`, `in_review`, `resolving_conflict`) may run
+    concurrently alongside, but their handlers do not write across
+    parent/child boundaries. Neither holds across processes: another
+    poller on this host dispatches a child under the child's own writer
+    claim, so every write this tick makes to a child is made under that
+    claim too, and the release walk reads the child again behind it.
     """
     state = gh.read_pinned_state(issue)
     children = state.get(_state._CHILDREN) or []

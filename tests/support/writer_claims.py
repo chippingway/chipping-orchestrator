@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import contextlib
 import fcntl
+import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
@@ -100,6 +101,16 @@ class _ClaimingCreates:
         child = self._create(**fields)
         self._holding.enter_context(held_elsewhere(self._client.repo_id, child.number))
         return child
+
+
+@contextlib.contextmanager
+def unusable_namespace() -> Iterator[None]:
+    """A claim namespace nothing can be opened in: a file where the directory belongs."""
+    with tempfile.TemporaryDirectory() as root:
+        blocked = Path(root) / "namespace"
+        blocked.write_text("", encoding="utf-8")
+        with patch.object(writer_claims, "_namespace", return_value=blocked):
+            yield
 
 
 def claimable(repo_id: int, issue_number: int) -> bool:

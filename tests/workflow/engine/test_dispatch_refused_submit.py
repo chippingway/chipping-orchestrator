@@ -10,9 +10,9 @@ is about says so from nowhere at all.
 A `single` verdict hands its issue to `workflow:implementing` a moment before
 it retires the cycle, so a close landing there wears a label whose handler is
 an ordinary terminal. Nothing about the route says a late cycle is standing
-under it, so the reading is established from the RECORD instead -- a read this
-path can afford, since it runs only when a worker is already holding the
-issue.
+under it, so the reading is established from the RECORD instead, by the
+enumeration that read the issue closed, and the refusal keeps what that read
+decided.
 """
 from __future__ import annotations
 

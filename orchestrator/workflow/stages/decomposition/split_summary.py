@@ -3,12 +3,12 @@
 """The summary an ordinary split posts on its parent as it finalizes, once per split attempt.
 
 Posted by the split, or by its recovery where the split stopped short -- a
-crash, or a child another poller held inside `child_claims.claiming()`. It
-ends on a hidden receipt naming the parent and the attempt, which a recovery
-posts behind only where no comment of ours carries it: a post GitHub refused
-is posted again, and one that landed ahead of a label write that did not is
-not posted twice. A split recorded without `split_attempt` names no receipt
-to look for, and gets none.
+crash, or a child another poller on this host held. It ends on a hidden
+receipt naming the parent and the attempt, which a recovery posts behind only
+where no comment of ours carries it: a post GitHub refused is posted again,
+and one that landed ahead of a label write that did not is not posted twice.
+A split recorded without `split_attempt` names no receipt to look for, and
+gets none.
 """
 from __future__ import annotations
 

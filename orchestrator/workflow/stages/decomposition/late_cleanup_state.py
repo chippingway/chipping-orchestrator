@@ -101,10 +101,14 @@ def _observed_close(
 
     Cancellation state is persisted by its independent owner; reclamation
     keeps the same generation and outstanding obligations through that write.
+    Only a close that ends this cycle marks it: one scoped to a cycle another
+    poller on this host settled and restarted from is not this pass's to end.
     """
     if generation.cancelled:
         return generation
-    if not _observations.close_observed(walk.spec.slug, walk.issue.number):
+    if not _observations.close_ends(
+        walk.spec.slug, walk.issue.number, generation.cycle_id, repo_id=walk.gh.repo_id,
+    ):
         return generation
     return _late_cancellation_state._marked(
         walk.gh, walk.issue, walk.state, generation,

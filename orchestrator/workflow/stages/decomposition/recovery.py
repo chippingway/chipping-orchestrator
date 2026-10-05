@@ -33,14 +33,13 @@ seed earned. A lineage no longer proved, or a child this split cannot
 recognize as its own (see `split_repair`), parks instead of finalizing, which
 keeps every child of that split unstarted.
 
-Inside `child_claims.claiming()` each child is repaired under its own writer
-claim or not at all: one another poller on this host is writing stops the
-recovery there without a park, and the next tick resumes it. That is also how
-a claimed split that met such a child at its seed is completed: it creates and
-records every child, leaves that one unseeded, and stops short of its summary,
-its finalize, and its first release. This recovery seeds that child and makes
-the first two once that poller lets go, and the parent's next dependency walk
-the release. No production split or recovery claims a child yet.
+Each child is repaired under its own writer claim or not at all: one another
+poller on this host is writing stops the recovery there without a park, and
+the next tick resumes it. That is also how a split that met such a child at
+its seed is completed: it creates and records every child, leaves that one
+unseeded, and stops short of its summary, its finalize, and its first release.
+This recovery seeds that child and makes the first two once that poller lets
+go, and the parent's next dependency walk the release.
 """
 from __future__ import annotations
 
@@ -95,11 +94,10 @@ def _repair_recovered_child(
     child_number,
     lineage: _replacement_lineage.ReplacementLineage,
 ) -> bool:
-    """Repair one recorded child, or stop the recovery.
+    """Repair one recorded child under its own writer claim, or stop the recovery.
 
-    Inside `child_claims.claiming()` the child's own writer claim is taken in
-    front of the read the repair decides on and held through its write,
-    because both are the child's record. A child another poller on this host
+    The claim is taken in front of the read the repair decides on and held
+    through its write, because both are the child's record. A child another poller on this host
     is writing is not one this tick may repair, and not one it may finalize
     past either -- so the recovery stops where it stands, parking nothing,
     and the next tick's recovery asks again. The children repaired before it

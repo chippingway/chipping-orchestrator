@@ -28,11 +28,9 @@ the late lineage and snapshot pointer those children are seeded with when the
 issue sits inside one -- and the park when either cannot be proved, and the
 repair a recovery makes of each recorded child -- and `parents`,
 `activation`, `blocked`, and `umbrella` own the parent-side polling that drives
-the tree to completion. `child_claims` holds
-the writer claim of each child a parent writes, taken only inside its
-`claiming()` entry point, which no production path enters yet; a split there
-that meets a child another poller holds leaves it unseeded and its own
-finalize to `recovery`.
+the tree to completion. `child_claims` holds the writer claim of each child a
+parent writes; a split that meets a child another poller holds leaves it
+unseeded and its own finalize to `recovery`.
 
 The `late_*` owners are an additive second mode under the same `decomposing`
 label, for the issue whose implementation is already committed and turns out to

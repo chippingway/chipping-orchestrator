@@ -47,16 +47,14 @@ tick log can tell a waiting parent from a stuck one without opening GitHub, and
 it is emitted only when something is actually held so a healthy parent stays
 quiet.
 
-A walk made inside `child_claims.claiming()` holds a child another poller on
-this host is writing the same way, and for the same reason: nothing is wrong
-with it. Every child it would release is taken under its own writer claim
-before the first is vouched for, since vouching reads the child's record and
-the release writes its label, and each is read again under it, since the scan
-the walk chose them from was read before any claim was taken. One refused
-claim, or one child no longer open and `blocked` by then, releases none of
-them, as one lapse does -- without the park, because the next walk scans
-again. No production walk is made there yet: until the dispatch takes the
-parent's own claim, every walk releases off the scan it was handed.
+A child another poller on this host is writing is held the same way, and for
+the same reason: nothing is wrong with it. Every child a walk would release is
+taken under its own writer claim (`child_claims`) before the first is vouched
+for, since vouching reads the child's record and the release writes its label,
+and each is read again under it, since the scan the walk chose them from was
+read before any claim was taken. One refused claim, or one child no longer
+open and `blocked` by then, releases none of them, as one lapse does --
+without the park, because the next walk scans again.
 """
 from __future__ import annotations
 
@@ -248,24 +246,21 @@ class _ChildActivation:
         that lapsed. Each relabel is still licensed on its own, immediately in
         front of it -- see `may_release`.
 
-        Inside `child_claims.claiming()` every one of them is taken under its
-        own writer claim before that, and held until the walk ends: the
-        lineage is read off the child's own record and the relabel is a write
-        to it, and a child another poller on this host is writing is one this
-        walk can neither vouch for nor start. Each is then read again under
-        its claim, and vouched for and relabelled off that reading: the scan
-        this walk chose them from was read before any claim was taken, and in
-        between that poller may have relabelled, finished, or closed one of
-        them -- a window the claim closes only for a reading taken behind it.
-        So a refused claim, a read that fails, or a child no longer open and
-        `blocked` releases none of them, as a lapse does, and parks nothing,
-        since none is one -- the next walk scans again. Anywhere else the
-        scan is the reading, as it has always been.
+        Every one of them is taken under its own writer claim before that,
+        and held until the walk ends: the lineage is read off the child's own
+        record and the relabel is a write to it, and a child another poller
+        on this host is writing is one this walk can neither vouch for nor
+        start. Each is then read again under its claim, and vouched for and
+        relabelled off that reading: the scan this walk chose them from was
+        read before any claim was taken, and in between that poller may have
+        relabelled, finished, or closed one of them -- a window the claim
+        closes only for a reading taken behind it. So a refused claim, a read
+        that fails, or a child no longer open and `blocked` releases none of
+        them, as a lapse does, and parks nothing, since none is one -- the
+        next walk scans again.
         """
         with _child_claims.held_children(self.gh, self.owner.number, releasable) as claimed:
-            current = self.scan
-            if _child_claims.claims_children():
-                current = _parents._read_child_labels(self.gh, self.owner, releasable) if claimed else None
+            current = _parents._read_child_labels(self.gh, self.owner, releasable) if claimed else None
             if current is None or not all(map(current.waiting, releasable)):
                 self.held.extend((number, []) for number in releasable)
                 return
@@ -318,9 +313,8 @@ def _activate_ready_children(
     the first child was released may not release the second. A pull request a
     split superseded these children out from under is asked about in the same
     place and stops the walk the same way. Every child it would release is
-    held to its split's lineage first -- inside `child_claims.claiming()`,
-    claimed and read again before that -- and a lapse in any one releases
-    none of them.
+    claimed, read again, and held to its split's lineage first, and a lapse
+    in any one releases none of them.
     """
     activation = _ChildActivation.start(gh, spec, issue, state, scan)
     if activation.refusal is None:

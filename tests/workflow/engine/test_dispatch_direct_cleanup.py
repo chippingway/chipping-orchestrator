@@ -13,15 +13,14 @@ Neither direct path has the scheduler's wrapper to do it, and the failure they
 have to survive is the first thing a cleanup spends: the refetch it opens with.
 
 The sequential path classifies for itself rather than taking a hand-off, so it
-is also where the two questions about a cleanup label are told apart: a CLOSED
-issue is routed by any of the four, while only the two an adjudication runs
-under earn the refetch an OPEN one costs.
+is also where a CLOSED issue on any of the four cleanup labels is told apart
+from an open one, which goes to the handler its refetched label names.
 """
 from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import dispatch as _dispatch
+from tests.support.writer_claims import claimable
 from tests.workflow.engine.cleanup_deferral_support import (
     OWNER_NUMBER,
     REPO_SLUG,
@@ -32,15 +31,7 @@ from tests.workflow.engine.cleanup_deferral_support import (
 from tests.workflow.engine.unfinished_cleanup_support import (
     UnfinishedCleanupCase,
 )
-from tests.workflow.fixtures import (
-    LABEL_BLOCKED,
-    LABEL_DECOMPOSING,
-    LABEL_DONE,
-    LABEL_IN_REVIEW,
-    LABEL_READY,
-    LABEL_REJECTED,
-    LABEL_UMBRELLA,
-)
+from tests.workflow.fixtures import LABEL_READY, LABEL_REJECTED
 
 _OWED = frozenset((OWNER_NUMBER,))
 
@@ -76,10 +67,13 @@ class DirectCleanupFailureTest(DeferralCase, unittest.TestCase):
         # The whole of it: nothing ever reads this issue closed again, and
         # its label names the handler that walks a dependency graph and
         # activates children. Without the hold the reopened owner would reach
-        # exactly that handler over a cycle a close already ended.
+        # exactly that handler over a cycle a close already ended. The issue
+        # has been written on this host before, so the claim the failed pass
+        # took finds a hold that ended ahead of the poll's reading.
         for limit in _DIRECT_LIMITS:
             with self.subTest(limit=limit):
                 self.setUp()
+                self.assertTrue(claimable(self.github.repo_id, OWNER_NUMBER))
 
                 with self.assertLogs(WORKFLOW_LOG):
                     ticked_directly(self, limit, failing=True)
@@ -110,9 +104,8 @@ class DirectRecoveryLabelTest(UnfinishedCleanupCase, unittest.TestCase):
 
     It classifies for itself, so it decides alone whether a closed `ready`
     owner is a cleanup or the handler that hands an issue to a developer. Its
-    open counterpart is untouched: an ending is not something an open `ready`
-    issue is in the middle of, and refetching every one of them per tick
-    would spend a request on a question nobody is asking.
+    open counterpart is not a cleanup: an ending is not something an open
+    `ready` issue is in the middle of.
     """
 
     def setUp(self) -> None:
@@ -137,45 +130,6 @@ class DirectRecoveryLabelTest(UnfinishedCleanupCase, unittest.TestCase):
 
         self.assertFalse(self._cancelled())
         self.assertEqual(self._observed(REPO_SLUG), _OWED)
-
-
-class SequentialCleanupRouteTest(unittest.TestCase):
-    """Which labels the sequential path treats as a cleanup, and when.
-
-    Two questions, and they have different answers. A CLOSED issue reaches
-    the pass under any of the four cleanup labels. An OPEN one earns the
-    refetch that route opens with only on the two an adjudication RUNS under,
-    because there a close landing after the poll decides which handler this
-    tick calls -- an open `ready` issue is a developer's to pick up, and
-    refetching every one of them per tick would spend a request on a question
-    nobody is asking.
-    """
-
-    def test_an_adjudication_label_routes_either_way(self) -> None:
-        for label in (LABEL_DECOMPOSING, LABEL_UMBRELLA):
-            for closed in (True, False):
-                with self.subTest(label=label, closed=closed):
-                    self.assertTrue(
-                        _dispatch._cleanup_routed(label, closed=closed),
-                    )
-
-    def test_a_recovery_label_routes_only_when_closed(self) -> None:
-        for label in (LABEL_READY, LABEL_BLOCKED):
-            with self.subTest(label=label):
-                self.assertTrue(
-                    _dispatch._cleanup_routed(label, closed=True),
-                )
-                self.assertFalse(
-                    _dispatch._cleanup_routed(label, closed=False),
-                )
-
-    def test_anything_else_is_never_routed(self) -> None:
-        for label in (LABEL_IN_REVIEW, LABEL_DONE, None):
-            for closed in (True, False):
-                with self.subTest(label=label, closed=closed):
-                    self.assertFalse(
-                        _dispatch._cleanup_routed(label, closed=closed),
-                    )
 
 
 if __name__ == "__main__":

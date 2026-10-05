@@ -67,9 +67,11 @@ def _kept_cleanup_reading(
     The observation is re-latched before the question rather than after the
     answer, because the answer is a request and a request can fail. What that
     ordering leaves at worst is a latch over an owner with nothing left to
-    end, which the next tick's own cleanup pass settles.
+    end, which the next tick's own cleanup pass settles. It is re-latched
+    `fresh`, since the answer decides the reading anew, and a drop postponed
+    for it before may not outlive a decision to keep it.
     """
-    observations.observe_close(spec.slug, issue_number)
+    observations.observe_close(spec.slug, issue_number, fresh=True)
     late_close_reading = importlib.import_module(_stage_targets._LATE_CLOSE_READING_OWNER)
     if late_close_reading._cleanup_settled(gh, spec, issue_number):
         observations.settle_close(spec.slug, issue_number)

@@ -651,7 +651,8 @@ than a second source of truth: where the two disagree, the handler pages are aut
        child receipt               replacement_lineage_unproved once, under
                                    every runnable label and unlabeled pickup;
                                    an unparsed comment is held unwritten.
-                                   Recovery's seed lifts the park
+                                   The split's or recovery's seed lifts
+                                   the park
      no receipt, or an issue   ─► nothing, and no request
        a human opened
 

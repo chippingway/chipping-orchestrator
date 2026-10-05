@@ -2,28 +2,27 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a decomposed parent reads off its children before it acts on them.
 
-The scan is one fresh read of every recorded child's issue and workflow label.
-It can be a fresh read because the dispatcher serializes `decomposing`,
-`blocked`, and `umbrella` into a single bucket on one worker thread, so a
-child's own label flip cannot land between this read and the writes that follow
-it. A read that raises abandons the whole tick for this parent rather than
-acting on a partial picture -- the parent's next dependency poll retries.
-Another poller on this host is outside that bucket, so a write made inside
-`child_claims.claiming()` is decided on the child read again under the child's
-own writer claim, never on the scan alone; no production write is made there
-yet.
+The scan is one fresh read of every recorded child's issue and workflow label,
+and fresh is all it is. The dispatcher serializes `decomposing`, `blocked`, and
+`umbrella` into a single bucket on one worker thread, so nothing in this
+process moves a child between this read and the writes that follow it -- but
+another poller on this host can, so a write to a child is decided on a reading
+taken again under that child's writer claim, never on the scan alone. A read
+that raises abandons the whole tick for this parent rather than acting on a
+partial picture -- the parent's next dependency poll retries.
 
 Two child states end the parent's tick instead of advancing it, and both park
 idempotently so they do not re-comment on every walk. A `rejected` child is a
 human decision the parent cannot interpret. A child closed without a terminal
-label is invisible to the closed-issue sweep, so its label is frozen wherever
-it was at close and the parent would otherwise wait on it forever -- except
-when the close was an external merge, which is why each candidate is retried
-against the PR-merge finalize before it counts as manually closed. Inside
-`child_claims.claiming()` that finalize is made under the child's own writer
-claim, off the child read again behind it: a closed child on a swept label is
+label is one the parent cannot read an ending off: the closed-issue sweep
+finalizes only the stages with a terminal arc left to drain, so a child closed
+on any other label keeps it for good and the parent would otherwise wait on it
+forever. The exception is an external merge, which is why each candidate is
+retried against the PR-merge finalize before it counts as manually closed --
+under the child's own writer claim, since the finalize writes the child, and
+off the child read again behind it. A closed child on a swept label is
 dispatched on its own as well, so another poller may have finalized,
-relabelled, or reopened it since the scan, and it counts as it reads now and is
+relabelled, or reopened it since the scan: it counts as it reads now and is
 never finalized twice. A child that poller is still writing counts as neither
 until a later walk.
 
@@ -98,10 +97,13 @@ def _read_child_labels(
 
     Returns a child scan with issues and labels keyed by child number, or
     None if any child read raised (the caller returns and the walk retries
-    on its next dependency poll). Labels are read fresh here: the
-    family-aware bucket (see `dispatch._FAMILY_AWARE_LABELS`) serializes
-    decomposing / blocked / umbrella within a tick, so a child's own label
-    flip cannot race this read.
+    on its next dependency poll). Labels are read fresh here, and fresh is
+    all they are: the family-aware bucket (see
+    `dispatch._FAMILY_AWARE_LABELS`) serializes decomposing / blocked /
+    umbrella within one process's tick, but another poller on this host
+    can move a child the moment this read returns. So a write to a child is
+    never decided on this reading alone -- the release walk reads the child
+    again under the child's own writer claim before relabelling it.
     """
     child_labels: dict[int, str | None] = {}
     child_issues: dict[int, Issue] = {}
@@ -157,25 +159,21 @@ def _remaining_manually_closed(
 ) -> list[int]:
     """The closed candidates no merge explains, finalizing those a merge does.
 
-    Inside `child_claims.claiming()` each is asked under the child's own
-    writer claim, since a finalize writes the child's label, thread, and
-    record, and asked of a reading taken behind that claim: the scan was read
-    before any claim was, and another poller on this host may have finalized,
-    relabelled, or reopened the child in between, so a finalize decided on
-    the scan's reading would end a child a second time. The scan takes the
-    fresh reading, and only a child it still reads closed on a label no
-    ending explains is finalized or counted. One another poller holds, or one
-    the read cannot reach, is left as the scan read it -- neither finalized
-    nor counted as closed by hand -- so the parent waits on it rather than
-    parking over it, and the next walk asks again. Anywhere else each is
-    asked of the scan, as it has always been.
+    Each is asked under the child's own writer claim, since a finalize writes
+    the child's label, thread, and record, and asked of a reading taken behind
+    that claim: the scan was read before any claim was, and another poller on
+    this host may have finalized, relabelled, or reopened the child in
+    between, so a finalize decided on the scan's reading would end a child a
+    second time. The scan takes the fresh reading, and only a child it still
+    reads closed on a label no ending explains is finalized or counted. One
+    another poller holds, or one the read cannot reach, is left as the scan
+    read it -- neither finalized nor counted as closed by hand -- so the parent
+    waits on it rather than parking over it, and the next walk asks again.
     """
     remaining: list[int] = []
     for number in candidates:
         with _child_claims.held_child(gh, owner.number, number) as held:
-            reread = held and (
-                not _child_claims.claims_children() or scan.adopt(_read_child_labels(gh, owner, [number]))
-            )
+            reread = held and scan.adopt(_read_child_labels(gh, owner, [number]))
             if not reread or not scan.closed_unended(number, _ENDED_LABELS):
                 continue
             child_issue = scan.issues[number]
@@ -200,15 +198,16 @@ def _park_manually_closed_children(
     advanced past an in-flight stage no longer strands the aggregation.
 
     A child closed manually (e.g. via the GitHub UI) before reaching
-    `in_review` is invisible to `list_pollable_issues`, which only sweeps
-    closed issues for a small label set (the externally-merged path). Its
-    workflow label stays frozen at whatever it was at close, so without
-    this branch the parent would read the stale label, neither the rejected
-    nor the all-done branch would fire, and the parent would wait forever
-    for a child that is gone. `in_review` is intentionally allowed: a
-    state=closed/label=in_review child is the externally-merged transient
-    that the closed-in_review sweep finalizes on the next tick, NOT a manual
-    override.
+    `in_review` keeps the label it was closed on. Where the closed-issue
+    sweep queries that label for a terminal arc, the child's own dispatch --
+    in this process or another poller's -- may finalize it at any moment,
+    which is why each candidate is read again under its claim before it is
+    counted; anywhere else nothing ever will, so without this branch the
+    parent would read the stale label, neither the rejected nor the all-done
+    branch would fire, and the parent would wait forever for a child that is
+    gone. `in_review` is intentionally allowed: a state=closed/label=in_review
+    child is the externally-merged transient that the closed-in_review sweep
+    finalizes on the next tick, NOT a manual override.
     """
     manually_closed = _remaining_manually_closed(gh, spec, issue, scan, [
         number for number in scan.issues if scan.closed_unended(number, _ENDED_LABELS)

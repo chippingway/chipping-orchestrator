@@ -2,21 +2,30 @@
 # SPDX-License-Identifier: Apache-2.0
 """Route one issue through cleanup or guarded stage dispatch and record evaluation timing.
 
-The publication claim surrounds the handler, and evaluation analytics run
-on both success and failure. Hard-skip controls preserve their observed
-close exception before that processing begins.
+Every dispatch seam enters an issue under its host-local writer claim, keyed
+on the repository's numeric id and taken before the refetch and the close
+recovery wrapped around this processing, and a contender skips the issue
+whole, keeping only a closed reading in this process's latch, tied to the
+cycle it ends only where a read proves it. The publication claim surrounds
+the handler, and evaluation analytics run on both success and failure.
+Hard-skip controls preserve their observed close exception before that
+processing begins.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import time
+from collections.abc import Iterator
 
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.observability.analytics.recording import events as _recording_events
+from orchestrator.scheduler import writer_claims as _writer_claims
 from orchestrator.workflow.engine import (
+    contended_closes as _contended_closes,
     dispatch_guards as _dispatch_guards,
     poll_models as _poll_models,
     poll_reading as _poll_reading,
@@ -29,6 +38,45 @@ log = logging.getLogger("orchestrator.workflow")
 
 
 _TERMINAL_LABELS = (WorkflowLabel.DONE, WorkflowLabel.REJECTED)
+
+
+@contextlib.contextmanager
+def _writer_claim(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    *,
+    closed: Issue | None = None,
+    alongside: bool = False,
+) -> Iterator[bool]:
+    """Hold this issue's writer claim across one whole dispatch, or refuse it.
+
+    Taken where each dispatch seam starts rather than around `_process_issue`:
+    what the seam wraps around this processing -- the refetch, the close a
+    refetch establishes, a sweep's cleanup observation, an ordinary pass's
+    closed reading -- reads the record and writes receipts on the strength of
+    it, so it is as much a writer as the handler is. The poll's own receipt
+    is taken under it too, `alongside` whatever worker of this process holds
+    the issue.
+
+    Keyed on the client's `repo_id`, never a name: `spec.slug` is an
+    operator's spelling and `repo_slug` the name GitHub answered at fetch, so
+    pollers started either side of a rename would each hold "the" claim on a
+    file of its own.
+
+    A refusal writes nothing for the issue -- no refetch, guard, recovery,
+    handler, receipt, or evaluation record -- and leaves whatever this process
+    held for it as it was, so the next polling pass tries again. `closed` is
+    the issue as the poll read it, where that reading was CLOSED: a refusal
+    keeps it in this process's latch, the one place a contender may write,
+    scoped to a cycle only where a read proves it (`contended_closes`).
+    """
+    with _writer_claims.issue_writer(
+        gh.repo_id, issue_number, alongside=alongside, repo_name=spec.slug,
+    ) as held:
+        if not held and closed is not None:
+            _contended_closes._kept_contended_close(gh, spec, closed)
+        yield held
 
 
 def _route_issue_to_handler(
@@ -77,13 +125,32 @@ def _route_issue_to_handler(
     and a record with no late cycle to mark has nothing to record -- so the
     stage handler below it would be the one reaction an operator's `paused`
     exists to prevent.
+
+    A pass runs only the stage its admission covered: a label its refetch
+    reads outside the lane it was admitted to (`_PollReading.lane`) is left to
+    the next poll ahead of the guards, and so is a closed reading's issue that
+    reads open again, behind the guard that applies the close to a live cycle.
     """
     if reading.cleanup_only or _poll_reading._cleanup_sweep_only(issue, label):
         _stage_targets._call_handler(gh, spec, issue, _stage_targets._CLEANUP_SWEEP_TARGET)
         return
+    if _poll_reading._outside_its_lane(issue, label, reading):
+        log.info(
+            "repo=%s issue=#%s reads %s now, a stage its admission does not "
+            "cover; leaving it to the next poll's admission",
+            spec.slug, issue.number, label,
+        )
+        return
     if _dispatch_guards._pinned_state_refuses(
-        gh, spec, issue, label, observed_closed=reading.closed,
+        gh, spec, issue, label, reading=reading,
     ):
+        return
+    if _poll_reading._reopened_since_polled(issue, reading):
+        log.info(
+            "repo=%s issue=#%s was read closed by the poll and is open again; "
+            "leaving its %s stage to the next poll's ordinary admission",
+            spec.slug, issue.number, label,
+        )
         return
     if _dispatch_guards._parked_past_the_mark(spec, issue):
         return

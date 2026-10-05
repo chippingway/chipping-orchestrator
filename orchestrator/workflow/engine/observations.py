@@ -6,13 +6,12 @@ The shared state owner keeps every registry under one lock. Receipt claims,
 retiring cycles, and publication holds use that same state; a settlement
 requested while a publication holds the owner waits for its final release.
 
-A latch can also be scoped to the cycle it ends (`scope_close`), and carry the
-moment it was read at, so a close another poller on this host settled cannot
-end the cycle that poller started after it, and one no read could tie to a
-cycle ends none until a read does (`close_ends`); a `fresh` one withdraws a
-settlement still waiting for that release. Those are for the callers that hold
-the issue's writer claim, and none does yet: production latches carry none of
-them, and every production barrier asks `close_observed` alone."""
+A latch is scoped to the cycle it ends (`scope_close`), and carries the moment
+it was read at, so a close another poller on this host settled cannot end the
+cycle that poller started after it, and one no read could tie to a cycle ends
+none until a read does (`close_ends`), which is what every cancellation
+barrier asks; a `fresh` one withdraws a settlement still waiting for that
+release."""
 from __future__ import annotations
 
 from orchestrator.workflow.engine import observation_state as _observation_state
@@ -39,8 +38,10 @@ def observe_close(
     that fresh cycle. So it withdraws the postponed drop, and is left to the
     next pass under the claim, which settles it again once it has reconciled
     it -- one more pass over a reading that may owe nothing, where the drop
-    would have cost the close. Only a claim-aware caller says so: a production
-    latch is never fresh, and leaves the drop to land as the hold goes.
+    would have cost the close. A reading a pass latches again on its way
+    out, ahead of the read that decides whether to keep it, is fresh too:
+    that read decides it anew. An owed reading handed back unchanged is not,
+    and leaves the drop to land as the hold goes.
     """
     key = _observation_state._owner_key(repo_slug, issue_number)
     with _observation_state._lock:

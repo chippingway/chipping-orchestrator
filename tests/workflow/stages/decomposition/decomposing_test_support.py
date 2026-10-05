@@ -2,11 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
-from orchestrator.workflow.stages.decomposition import (
-    child_claims as _child_claims,
-    run as _decomposing,
-    split_seeds as _split_seeds,
-)
+from orchestrator.workflow.stages.decomposition import run as _decomposing, split_seeds as _split_seeds
 from tests.support.fakes import (
     FakeGitHubClient,
 )
@@ -93,11 +89,6 @@ class _DecomposingWorkflowMixin(_PatchedWorkflowMixin):
             lambda: _decomposing._handle_decomposing(gh, _TEST_SPEC, issue),
             **run_options,
         )
-
-    def _run_claimed_decomposing(self, gh, issue, **run_options):
-        """One tick inside `child_claims.claiming()`, the dormant entry point that claims each child it writes."""
-        with _child_claims.claiming():
-            return self._run_decomposing(gh, issue, **run_options)
 
     def _held_by_another_poller(self, gh, *issue_numbers: int):
         """These issues' writer claims, held by another poller on this host for the block."""

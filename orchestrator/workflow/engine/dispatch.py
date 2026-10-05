@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Drive a sequential poll or submit its partition through the issue scheduler.
 
-Poll-time closure evidence determines which processing scope to enter.
-Refetched issues preserve observed closes, and scheduled work includes
-cleanup that a prior pass left owed outside the current poll results.
+Poll-time closure evidence determines which processing scope to enter, and the
+sequential entry takes the issue's writer claim before any of them and reads
+the issue again under it. Refetched issues preserve observed closes, and
+scheduled work includes cleanup that a prior pass left owed outside the
+current poll results.
 """
 from __future__ import annotations
 
@@ -14,10 +16,7 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.issues import (
-    CLEANUP_SWEEP_LABELS,
-    issue_is_closed,
-)
+from orchestrator.github.issues import issue_is_closed
 from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.workflow.engine import (
     cleanup_observation as _cleanup_observation,
@@ -32,100 +31,88 @@ from orchestrator.workflow.engine import (
 
 log = logging.getLogger("orchestrator.workflow")
 
-# The narrower pair, and the one question that is about an OPEN issue: the two
-# an adjudication actually RUNS under are the two where a close landing after
-# the poll changes which handler this tick calls, so the sequential path pays a
-# refetch for them. The recovery labels beside them are only ever asked about
-# while closed -- an open `ready` issue is not an ending in progress -- so
-# nothing there earns that request.
-_CLEANUP_SWEEP_LABELS = frozenset(CLEANUP_SWEEP_LABELS)
-
 
 def _process_polled_issue(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, *, read_at: int,
 ) -> None:
     """Dispatch one issue this thread polled and still holds.
 
-    The sequential path's own entry, and what it adds over `_process_issue` is
-    the classification the other two paths get on their way to a worker: an
-    issue on a cleanup-swept label is refetched before anything routes it, and
-    a CLOSED reading at poll time additionally BINDS it to the sweep.
+    `read_at` is the moment the loop read before it listed anything
+    (`claim_notes.moment`), so no later than the read `issue` is.
 
-    The refetch is the load-bearing half, and it is taken on both readings of
-    the close rather than on one. The object in hand is the enumeration's,
-    and the two labels this applies to are the two where the close decides
-    which handler runs: an owner closed after the poll would otherwise reach
-    the stage its label names on a stale open reading -- spawning the
-    decomposer, or walking a dependency graph and activating children, on an
-    issue a human just ended -- and an owner reopened after the poll would
-    have a cleanup pass settle a ledger the live cycle is writing again, since
-    the sweep's own close re-read would be re-reading the same stale object.
+    The sequential path's own entry: it takes the classification the other two
+    paths take on their way to a worker, dropping hard-skipped issues as the
+    partition does, then runs under the issue's writer claim -- a contender
+    writes nothing and keeps only a closed reading in its latch, tied to a
+    cycle only where a read proves it. The closed reading is taken off the
+    enumeration's object before the classification, as the partition's is.
 
-    The binding is the other half, and it is one-way for the reason the
-    workers' is: a closed classification may not become an agent-spawning
-    stage handler on the strength of a reopen this tick raced, while an issue
-    that was open when it was polled has been classified as ordinary work all
-    along and the freshly-read close is what sends it to the sweep.
+    Under the claim the issue is read again before anything routes it, since
+    another poller may have advanced, closed, or reopened it since the poll;
+    the poll's reading carries over only where it is a close, one-way as the
+    workers' does. A latched close, or a closed reading on a cleanup label,
+    goes to the sweep inside the observation hold the worker paths use --
+    past the hard-skip filter too, since an operator's park defers the
+    ending's external half and never the mark.
+    """
+    latched = observations.close_observed(spec.slug, int(issue.number))
+    closed = issue_is_closed(issue)
+    skip, label = _poll_reading._classify_pollable_issue(gh, spec, issue)
+    if skip and not (latched or closed):
+        return
+    _claimed_poll(
+        gh, spec, issue,
+        _poll_models._PollReading(closed=closed, read_at=read_at),
+        cleanup=latched or (closed and label in _poll_models._CLEANUP_ROUTE_LABELS),
+    )
 
-    Refetched on the caller's own client rather than through
-    `_refetch_and_process`: nothing here crosses a thread, so what that mints
-    a per-worker client for does not apply, while the read it takes does.
 
-    Hard-skipped issues are dropped here as the partition drops them, rather
-    than inside `_process_issue`, so the classification this path takes is the
-    same one the other two take.
+def _claimed_poll(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    reading: _poll_models._PollReading,
+    *,
+    cleanup: bool,
+) -> None:
+    """Take one polled issue's writer claim, and pass it down the route it earned.
 
-    Which labels that applies to is `_cleanup_routed`'s question, and it is
-    not the same one the partition asks: a closed issue is routed by any of
-    the four cleanup labels, while only the two an adjudication runs under
-    earn the refetch an OPEN issue costs.
-
-    A latched close overrides the label as it does in the partition, and for
-    the same reason: the reading it carries is one the reopen it survived took
-    off the remote, so nothing this path could read would find it. It
-    overrides the hard-skip filter with it -- an operator's park defers the
-    external half of the ending, which is what the sweep does with a parked
-    issue anyway, and never the mark. And the cleanup it routes to is wrapped
-    in the same observation hold the worker paths use, because a pass that
-    raises here marked nothing either.
+    The reading carries the moment the loop read before listing, not one read
+    here: a hold another thread of this process found while this one
+    classified the issue would otherwise read as one the close was read after.
     """
     issue_number = int(issue.number)
-    latched = observations.close_observed(spec.slug, issue_number)
-    skip, label = _poll_reading._classify_pollable_issue(gh, spec, issue)
-    if skip and not latched:
-        return
-    closed = issue_is_closed(issue)
-    if not latched and not _cleanup_routed(label, closed=closed):
-        _dispatch_workers._polled_ordinary(gh, spec, issue, closed=closed)
-        return
-    if not latched and not closed:
-        _dispatch_workers._polled_open_owner(gh, spec, issue_number)
-        return
-    # The refetch is INSIDE the hold, because it is the first thing a cleanup
-    # spends and the likeliest thing to fail: a read that raised marked
-    # nothing, and the reading this pass was taking would otherwise be gone.
+    with _issue_processing._writer_claim(
+        gh, spec, issue_number, closed=issue if reading.closed else None,
+    ) as held:
+        if not held:
+            return
+        if cleanup:
+            _claimed_cleanup(gh, spec, issue_number, reading)
+            return
+        _dispatch_workers._polled_refetch(gh, spec, issue_number, reading=reading)
+
+
+def _claimed_cleanup(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    reading: _poll_models._PollReading,
+) -> None:
+    """Sweep one polled issue whose writer claim this thread holds.
+
+    A closed reading is latched first, fresh and with its moment, as the
+    enumeration latches its own on the worker paths; the refetch is inside
+    the hold, being the likeliest thing to fail, and a read that raised
+    marked nothing.
+    """
+    if reading.closed:
+        observations.observe_close(spec.slug, issue_number, reading.read_at, fresh=True)
     with _cleanup_observation._cleanup_observation(gh, spec, issue_number):
         _issue_processing._process_issue(
             gh, spec, gh.get_issue(issue_number),
             reading=_poll_models._PollReading(cleanup_only=True, closed=True),
         )
-
-
-def _cleanup_routed(label: str | None, *, closed: bool) -> bool:
-    """Whether this tick's own path has to treat the issue as a cleanup.
-
-    The two an adjudication RUNS under answer yes whatever the issue reads
-    as, because the close is exactly what this path has no hand-off to take
-    for it: an owner closed after the poll would otherwise reach the stage
-    its label names on a stale open reading. The two an interrupted ending
-    can be LEFT on answer yes only while closed -- an open `ready` issue is a
-    developer's to pick up rather than an ending in progress, and refetching
-    every one of them per tick would spend a request on a question nobody is
-    asking.
-    """
-    if label in _CLEANUP_SWEEP_LABELS:
-        return True
-    return closed and label in _poll_models._CLEANUP_ROUTE_LABELS
 
 
 def _dispatch_via_scheduler(

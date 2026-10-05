@@ -18,8 +18,8 @@ Driven by a lock that lets the race in at the first release it sees, because
 that is the seam: one acquisition means the poll arrives after the settlement,
 and two mean it arrives between them.
 
-A close latched BEFORE the hold goes is another matter: the claim-aware poll
-that reads it again says it is `fresh`, and the postponed drop is withdrawn
+A close latched BEFORE the hold goes is another matter: the poll that reads it
+again under the claim says it is `fresh`, and the postponed drop is withdrawn
 for it, while an owed one handed back unchanged leaves that drop to land.
 """
 
@@ -102,9 +102,8 @@ class DeferredSettlementRaceTest(ObservedCloseCase, unittest.TestCase):
         # receipt onto a thread that already carries one.
         self._released_while(self._polls)
 
-        self.assertIsNone(_observation_receipts.claim_receipt_post(_SLUG, _ISSUE))
-        claim = _observation_receipts.claim_receipt_post(_SLUG, _ISSUE, by_cycle=True)
-        self.assertEqual(claim.landed, _CYCLE, "and names the cycle it was posted for")
+        claim = _observation_receipts.claim_receipt_post(_SLUG, _ISSUE)
+        self.assertEqual(claim.landed, _CYCLE, "the memo names the cycle it was posted for")
 
     def test_nothing_arriving_still_settles(self) -> None:
         # The other side, so the critical section is about the gap rather

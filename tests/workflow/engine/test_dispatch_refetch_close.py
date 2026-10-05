@@ -30,7 +30,7 @@ from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.phases import LatePhase
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import LABEL_UMBRELLA
-from tests.workflow.observation_support import ObservedCloseCase, receipt_for
+from tests.workflow.observation_support import ObservedCloseCase, read_now, receipt_for
 
 _SPEC = SimpleNamespace(slug="acme/widget")
 
@@ -143,8 +143,8 @@ class SequentialRefetchCloseTest(_RefetchedCloseCase, unittest.TestCase):
         self.assertTrue(self._cancelled())
 
     def _polled(self) -> None:
-        """Dispatch this issue the way the sequential loop does."""
-        dispatch._process_polled_issue(self.github, _SPEC, self.polled)
+        """Dispatch this issue the way the sequential loop does, read just now."""
+        dispatch._process_polled_issue(self.github, _SPEC, self.polled, read_at=read_now())
 
 
 class WorkerRefetchCloseTest(_RefetchedCloseCase, unittest.TestCase):

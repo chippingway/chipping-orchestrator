@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Partition fresh poll results together with cleanup the observation registry still owes.
 
-Closed fanout entries receive their durable observation before submission.
-A missing issue in the poll response remains scheduled when a prior close
-has not been settled.
+Closed fanout entries receive their durable observation before submission,
+under the issue's writer claim, and only their latch where that claim is
+refused, tied to the cycle it ends only where a read behind the record still
+finds the issue closed. A missing issue in the poll response remains scheduled
+when a prior close has not been settled.
 """
 from __future__ import annotations
 
@@ -15,8 +17,10 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import (
     issue_is_closed,
 )
+from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.workflow.engine import (
     dispatch_closure as _dispatch_closure,
+    issue_processing as _issue_processing,
     poll_models as _poll_models,
     poll_reading as _poll_reading,
 )
@@ -51,8 +55,15 @@ def _partition_pollable_issues(
     enumeration does not even yield is added on the strength of the
     observation alone, since a human who moved the label off the two the
     closed sweep queries would otherwise take the reading away for good.
+
+    The moment every closed reading here carries is read before the listing
+    asks GitHub for anything, so it is no later than any read the listing
+    takes: another poller's hold that ended before it ended before the issue
+    was read, and one that did not may have written the record since.
     """
-    builder = _poll_models._PollablePartitionBuilder(deferred=deferred or frozenset())
+    builder = _poll_models._PollablePartitionBuilder(
+        deferred=deferred or frozenset(), read_at=_claim_notes.moment(),
+    )
     for issue in gh.list_pollable_issues():
         _sorted_pollable(builder, gh, spec, issue)
     builder.add_unyielded()
@@ -89,15 +100,25 @@ def _sorted_pollable(
     good. The receipt is the only thing that survives that, so it goes on the
     thread while the record can still name the cycle it belongs to.
 
-    It costs one pinned read per closed fan-out issue, and no more: the
-    receipt is written from the object this enumeration already listed, and
-    the same read answers whether the reading is owed at all -- an issue whose
-    record says there is nothing to end has its latch dropped again here, so
-    the machinery is carried only by the owners that actually need it.
+    It costs one pinned read per closed fan-out issue, read off the object
+    this enumeration listed, and an issue read behind it where the record
+    names a cycle the close would end; the same pinned read answers whether
+    the reading is owed at all -- an issue whose record says there is nothing
+    to end has its latch dropped again here, so the machinery is carried only
+    by the owners that actually need it.
 
-    Only where the reading actually travels with the route: the closed
-    fan-out set is exactly what carries one, and a closed issue drained in the
-    family bucket is a hard human stop with nothing to finalize.
+    Wherever a reading travels with the route: every closed reading and every
+    owed one, a closed issue whose label could not be read included, which the
+    family bucket drains -- so a refused bucket leaves its close owed.
+
+    The read and the receipt are the record's, so they are taken under the
+    issue's writer claim, `alongside` a worker of this process still running
+    the issue. A claim another poller holds, or one that could not be worked,
+    leaves the reading in this process's latch alone, scoped only where the
+    issue still reads closed behind the record. A close this poll read is
+    latched at the moment read before the listing, which its worker's
+    reading carries too; an owed issue read open carries none, its close
+    being an earlier poll's, and is retried rather than read afresh.
     """
     issue_number = int(issue.number)
     closed = issue_is_closed(issue)
@@ -105,5 +126,10 @@ def _sorted_pollable(
     if skip and not (closed or builder.owed(issue_number)):
         return
     builder.add(issue_number, label, closed)
-    if issue_number in builder.fanout_closed:
-        _dispatch_closure._recorded_at_poll(gh, spec, issue)
+    if not (closed or builder.owed(issue_number)):
+        return
+    with _issue_processing._writer_claim(
+        gh, spec, issue_number, closed=issue if closed else None, alongside=True,
+    ) as held:
+        if held:
+            _dispatch_closure._recorded_at_poll(gh, spec, issue, builder.read_at if closed else None)

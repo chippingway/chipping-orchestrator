@@ -8,9 +8,7 @@ no claim note records. A close scoped to the old cycle -- or read before the
 restart -- is then no close of the record's cycle: the barrier, the poll's
 guard, and the sweep each leave that cycle unmarked, and the poll posts and
 remembers no receipt for it, while a close read standing on it ends it and is
-receipted. Entered directly through `claiming_closes()`, holding the claim,
-since no production pass takes either yet -- and outside it, each still ends
-the record's cycle on the latch alone.
+receipted. Entered directly, holding the claim each dispatch seam takes.
 """
 from __future__ import annotations
 
@@ -99,18 +97,13 @@ class _RestartedCase(ObservedCloseCase):
 
 
 class RestartedCycleTest(_RestartedCase, unittest.TestCase):
-    """The close the old cycle was ended by, met by each claim-aware reconciliation."""
+    """The close the old cycle was ended by, met by each reconciliation under the claim."""
 
     def test_the_barrier_spares_the_fresh_cycle(self) -> None:
         with self._claimed():
             spared = _late_close_observation._latched_close_ends(self.github, _TEST_SPEC, self.owner, self._state())
         self.assertFalse(spared)
         self.assertFalse(self._cancelled())
-
-        with self.assertLogs(_WORKFLOW_LOG):
-            ended = _late_close_observation._latched_close_ends(self.github, _TEST_SPEC, self.owner, self._state())
-        self.assertTrue(ended, "outside the claim the latch alone ends it, as production does")
-        self.assertTrue(self._cancelled())
 
     def test_the_poll_guard_stops_without_marking(self) -> None:
         # Open again, the close cannot be tied to the fresh cycle, so the tick
@@ -131,10 +124,6 @@ class RestartedCycleTest(_RestartedCase, unittest.TestCase):
             _late_sweep._handle_closed_owner_cleanup(self.github, _TEST_SPEC, self.owner)
         self.assertFalse(self._cancelled())
         self.assertEqual((self.github.posted_comments, self.github.label_history), ([], []))
-
-        with self.assertLogs(_WORKFLOW_LOG):
-            _late_sweep._handle_closed_owner_cleanup(self.github, _TEST_SPEC, self.owner)
-        self.assertTrue(self._cancelled(), "outside the claim a reopened owner is marked all the same")
 
 
 class LocalRestartTest(_RestartedCase, unittest.TestCase):

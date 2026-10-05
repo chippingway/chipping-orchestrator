@@ -16,8 +16,8 @@ gives it back; a process that does not is a contender, and a contender is to
 do nothing for the issue this time and ask again on a later polling pass. It
 never waits, because what it would wait out is another poller's whole handler
 -- an agent run included -- and every other issue in its tick would wait with
-it. No dispatch path, family handler, close recovery, or base refresh takes a
-claim yet: the facility is complete here, and adopting it is each caller's.
+it. Every dispatch path takes it for the issue it dispatches, and a family
+handler for each child it writes; the per-tick base refresh takes none.
 
 It is exclusive between this process's own threads too: a key one thread holds
 as a writer is refused to a second writer here exactly as it is to another

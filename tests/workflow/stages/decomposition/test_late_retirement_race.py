@@ -29,7 +29,7 @@ from orchestrator.workflow.stages.decomposition import (
 )
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.fixtures import _TEST_SPEC
-from tests.workflow.observation_support import ObservedCloseCase, receipt_for
+from tests.workflow.observation_support import ObservedCloseCase, read_now, receipt_for
 from tests.workflow.stages.decomposition.late_run_support import LateCase
 from tests.workflow.stages.decomposition.late_settlement_support import (
     settle_single,
@@ -96,6 +96,7 @@ class _PollsAfterTheRetirement:
         self._polled = True
         _dispatch_closure._kept_closed_reading(
             self._github, _TEST_SPEC, self._number,
+            read_now(),
         )
         if self._dying:
             raise _DIED
