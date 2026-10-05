@@ -34,10 +34,10 @@ environment wins over the file:
 
 - **Source checkout** — `.env` at the checkout's root, the file `run.sh` reads `ORCHESTRATOR_BASE_BRANCH` from, and no
   other. A checkout without one reads none. The package counts as running from a source checkout when its root —
-  the directory holding the `orchestrator/` package, which an editable install leaves inside the checkout — carries
-  git metadata of its own (a `.git` directory, or the `.git` file of a linked worktree whose git directory exists)
-  and a `pyproject.toml` naming `chipping-orchestrator`. Neither a repository enclosing that root nor the launch
-  directory counts.
+  the directory holding the `orchestrator/` package, which an editable install leaves inside the checkout — is the
+  top of a git checkout, an ordinary clone or a linked worktree, by the same check every
+  [target](#developer-fallback-and-target-checks) passes, and carries a `pyproject.toml` naming
+  `chipping-orchestrator`. Neither a repository enclosing that root nor the launch directory counts.
 - **Installed package** — every other layout reads `~/.config/chipping-orchestrator/.env`, and never a `.env` beside
   the package in its environment's `site-packages`.
 
@@ -49,6 +49,10 @@ derived from the targets rather than from it. Both locations refuse the token ke
 
 - `GITHUB_TOKEN` — default _(required, env-only — not read from `.env`)_. fine-grained personal access token.
   A token written into `.env` is ignored with a warning at startup.
+- `REPOS` — default _(unset)_, required for an installed package. the repositories to manage, one
+  `owner/name|target_root|base_branch` entry each ([syntax](#multi-repo-repos-syntax)), every `target_root` a local
+  git checkout. Unset or blank, an installed package exits with status 1 before any GitHub call; only a source
+  checkout falls back to the [developer settings](#developer-fallback-and-target-checks).
 - `ORCHESTRATOR_TOKEN_FILE` — default `~/.config/<owner>/<repo>/token` for each configured repository. path to one
   personal access token file that answers for every repository (used when `GITHUB_TOKEN` is not in env)
 - `HITL_HANDLE` — default `geserdugarov`. comma-separated GitHub logins to @-mention when a human is needed
@@ -77,7 +81,8 @@ read like `cat ../chipping-orchestrator/.env`. `GITHUB_TOKEN` (and the aliases `
 `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `GIT_TOKEN`) found in either [`.env` location](#where-env-is-read)
 is logged-and-skipped at startup.
 
-Token resolution order, for each configured repository — every `REPOS` entry, or `REPO` when `REPOS` is unset:
+Token resolution order, for each configured repository — every `REPOS` entry, or the developer fallback's `REPO` when
+`REPOS` is unset:
 
 1. `GITHUB_TOKEN` exported in the orchestrator's launch environment, for every repository alike.
 2. `ORCHESTRATOR_TOKEN_FILE`, when set: one file for every repository alike.
@@ -91,16 +96,17 @@ each of them, file-backed ones included.
 
 ## Target repository
 
-Use `REPO` for a single repo (the default), or `REPOS` to drive several from one process. When `REPOS` is set, the
-legacy single-repo quartet (`REPO` / `TARGET_REPO_ROOT` / `BASE_BRANCH` / `REMOTE_NAME`) is ignored.
+`REPOS` names the repositories to manage, one entry each, and an installed package requires it. The single-repo
+quartet `REPO` / `TARGET_REPO_ROOT` / `BASE_BRANCH` / `REMOTE_NAME` is the developer fallback: read only while `REPOS`
+is unset and the package runs from a source checkout, and ignored whenever `REPOS` is set
+([which targets a start selects](#developer-fallback-and-target-checks)).
 
-- `REPO` — default `chippingway/chipping-orchestrator`. `owner/name` of the single repo to manage (ignored when `REPOS`
-  is set)
-- `TARGET_REPO_ROOT` — default `REPO_ROOT` (self-bootstrap). path to the local clone of `REPO` — worktrees are
-  `git worktree add`-ed from here
-- `BASE_BRANCH` — default `main`. branch PRs target
-- `REMOTE_NAME` — default `origin`. git remote in `TARGET_REPO_ROOT` that points at `REPO` on GitHub
-- `REPOS` — default _(unset)_. multi-repo configuration, entries separated by newlines or `;`
+- `REPOS` — default _(unset)_. the managed repositories, entries separated by newlines or `;`
+- `REPO` — default `chippingway/chipping-orchestrator`. developer fallback: `owner/name` of the single repo to manage
+- `TARGET_REPO_ROOT` — default `REPO_ROOT` (self-bootstrap). developer fallback: path to the local clone of `REPO` —
+  worktrees are `git worktree add`-ed from here
+- `BASE_BRANCH` — default `main`. developer fallback: branch PRs target
+- `REMOTE_NAME` — default `origin`. developer fallback: git remote in `TARGET_REPO_ROOT` that points at `REPO` on GitHub
 
 ### Multi-repo `REPOS` syntax
 
@@ -115,8 +121,8 @@ REPOS=acme/api|/srv/clones/acme-api|main;acme/web|/srv/clones/acme-web|master|pr
 ```
 
 Validation happens at import — a malformed entry, empty owner/name, empty base branch, empty `remote_name`, a
-non-integer or non-positive `parallel_limit`, or a duplicate slug aborts startup with a clear error. A `target_root`
-that does not exist on disk warns to stderr but does not block startup.
+non-integer or non-positive `parallel_limit`, or a duplicate slug aborts startup with a clear error. Once every entry
+has parsed, each `target_root` has to be a git checkout ([target checks](#developer-fallback-and-target-checks)).
 
 Each repo can have its own personal access token at `~/.config/<owner>/<repo>/token`, or a single `GITHUB_TOKEN` or
 `ORCHESTRATOR_TOKEN_FILE` covering every listed repo. Worktrees are namespaced `WORKTREES_DIR/<owner>__<name>/issue-N`
@@ -131,6 +137,54 @@ Slugs whose repo name contains `.lock`, `..`, or a trailing `.` (all rejected by
 `__h<16-hex>` suffix on the branch segment so two distinct slugs that would otherwise collapse to the same form (e.g.
 `owner/foo.lock` and `owner/foo_lock`) stay on distinct branches. The worktree directory keeps the readable
 `<owner>__<name>` form because filesystems tolerate these characters; only the branch ref carries the hash.
+
+### Developer fallback and target checks
+
+Which targets a start selects depends on where the running package sits ([source or installed](#where-env-is-read)):
+
+- **`REPOS` set** — its entries, in either layout. The developer settings are ignored, so a leftover
+  `TARGET_REPO_ROOT` that is not a checkout does not stop the start.
+- **`REPOS` unset or blank, source checkout** — the developer fallback: one repository, `REPO`, cloned at
+  `TARGET_REPO_ROOT`, which defaults to the orchestrator's own checkout.
+- **`REPOS` unset or blank, installed package** — none. The start exits with status 1 on an error that begins
+  `orchestrator: REPOS is unset, and an installed package has no default target`. `REPO`, `TARGET_REPO_ROOT`, the
+  package's location, and the launch directory are never a target there, and the user-location `.env` names targets
+  only through the `REPOS` it carries.
+
+Every selected target then has to be a directory git itself opens as the top of a working tree: an ordinary clone,
+or a linked worktree whose `.git` file names its git directory. The answer is git's own, because whether git opens a
+checkout depends on rules that change from one git version to the next. That covers the `gitdir:` format, a valid
+`HEAD`, a config git can parse (continued lines included), a repository format and extensions this git supports, and a
+`core.bare` that leaves a working tree. Startup runs this in each target, read-only:
+
+```sh
+git --git-dir=<target>/.git rev-parse --is-bare-repository --show-toplevel
+```
+
+It uses the launch environment the way the orchestrator runs a plain git command, minus the variables that would point
+git at another repository (`GIT_DIR`, `GIT_WORK_TREE`, and the like). Git is handed the target's own `.git` rather than
+left to discover one, so a repository around the target is never asked, even one whose `core.worktree` names the target.
+A directory without a `.git` of its own is only asked whether it is itself a bare repository, which decides how its
+refusal reads. Naming the repository that way skips the one check git makes only on discovery — that the checkout
+belongs to the user running git, or that `safe.directory` trusts it — so a target that passes is asked once more, with
+`git rev-parse --show-toplevel` run inside it. With its own `.git` already proved whole, that discovery stops there, and
+it refuses exactly the checkouts git would refuse every later command in. A target passes when git names that directory
+as the top of its working tree and opens it from inside. The configuration still imports nothing from the git layer: it
+starts `git` as a program, so `git` has to be on `PATH`.
+
+A missing path, a file, a plain directory (one inside a checkout, or one a surrounding repository claims as its work
+tree, included), a bare repository (a clone configured bare included), a checkout another user owns that no
+`safe.directory` entry trusts, and anything else git refuses to open are refused. A refusal exits with status 1 and
+names every unusable target at once, one line each, with the setting it came from, its path, and its repository; for a
+target git refuses, the first line of git's own error follows in parentheses:
+
+```text
+orchestrator: REPOS target /srv/clones/acme-web for 'acme/web' does not exist; point it at a local clone or linked worktree of acme/web
+```
+
+Both checks run while the configuration is imported, after `REPOS` has parsed and before a launch in any mode connects
+or touches anything: no GitHub client is connected, no label is bootstrapped, nothing is polled, and no maintenance
+pass runs until every selected target has passed.
 
 ## Agent roles
 

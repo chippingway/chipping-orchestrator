@@ -51,14 +51,16 @@ def load_config(
 
     The hermetic missing `ORCHESTRATOR_TOKEN_FILE` keeps every repository
     token empty; `token_file_override=False` leaves it out, so each
-    repository's own `~/.config/<owner>/<name>/token` answers instead.
+    repository's own `~/.config/<owner>/<name>/token` answers instead. Only
+    `PATH` is kept from the process, since the import asks git about every
+    target.
     """
     package = importlib.import_module("orchestrator")
     snapshot = _ConfigSnapshot(
         sys.modules.get(_CONFIG_MODULE),
         package.__dict__.get("config", _MISSING),
     )
-    full_environment = dict(_BASE_ENV)
+    full_environment = {**_BASE_ENV, "PATH": os.environ.get("PATH", os.defpath)}
     if not token_file_override:
         full_environment.pop(_TOKEN_FILE_ENV)
     if environment:

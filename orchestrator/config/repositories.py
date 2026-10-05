@@ -1,18 +1,22 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""REPOS parsing, validation, and default-spec construction.
+"""REPOS parsing, target selection, and target validation.
 
 Turns the ``REPOS`` environment value (entry tokenizing, owner/name and
 option validation, duplicate-slug detection, per-repo parallel-limit
-parsing) into the ``RepoSpec`` list threaded through the workflow, falling
-back to the legacy single-repo ``REPO`` / ``TARGET_REPO_ROOT`` /
-``BASE_BRANCH`` / ``REMOTE_NAME`` trio when ``REPOS`` is unset.
+parsing) into the ``RepoSpec`` list threaded through the workflow. When
+``REPOS`` is unset, the developer fallback built from ``REPO`` /
+``TARGET_REPO_ROOT`` / ``BASE_BRANCH`` / ``REMOTE_NAME`` stands in for it, but
+only where the caller offers one -- a package running from this project's own
+source checkout. An installed package offers none, so it has no target but
+the ones ``REPOS`` names. Every selected target is then held to a git
+checkout, as ``checkouts`` reads one, so a missing or unusable clone stops the
+process at import, before anything connects to GitHub.
 
-The abort-on-invalid and warn-to-stderr diagnostics live in
-``orchestrator.config`` (its single configuration-failure funnel) and are
-injected here as callables, so this module parses without importing config
-back. The data types it produces (``RepoSpec``, ``RepoEnvEntry``) live in
-``models``.
+The abort-on-invalid diagnostic lives in ``orchestrator.config`` (its single
+configuration-failure funnel) and is injected here as a callable, so this
+module parses without importing config back. The data types it produces
+(``RepoSpec``, ``RepoEnvEntry``) live in ``models``.
 """
 from __future__ import annotations
 
@@ -20,13 +24,20 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import NoReturn
 
+from orchestrator.config.checkouts import checkout_problem
 from orchestrator.config.models import RepoEnvEntry, RepoSpec
 
-# Diagnostics injected from ``orchestrator.config`` keep configuration failure
-# policy out of the parsing leaf: ``config_error`` aborts import and
-# ``config_warning`` writes a non-fatal diagnostic to stderr.
+# The diagnostic injected from ``orchestrator.config`` keeps configuration
+# failure policy out of the parsing leaf: ``config_error`` aborts import.
 ConfigError = Callable[[str], NoReturn]
-ConfigWarning = Callable[[str], None]
+
+_REPOS_REQUIRED = (
+    "orchestrator: REPOS is unset, and an installed package has no default "
+    "target; set REPOS to one or more 'owner/name|target_root|base_branch' "
+    "entries separated by ';'. REPO and TARGET_REPO_ROOT are developer "
+    "settings, read only when the orchestrator runs from its own source "
+    "checkout"
+)
 
 
 def iter_repos_entries(raw_repos: str) -> Iterator[tuple[int, str]]:
@@ -138,39 +149,11 @@ def _parse_parallel_limit(
     return parallel_limit
 
 
-def build_repo_spec(
-    entry: RepoEnvEntry,
-    default_parallel_limit: int,
-    config_error: ConfigError,
-    config_warning: ConfigWarning,
-) -> RepoSpec:
-    """Validate entry options and construct a repository specification."""
-    parallel_limit = _parse_parallel_limit(
-        entry,
-        default_parallel_limit,
-        config_error,
-    )
-    target_path = Path(entry.target_root)
-    if not target_path.exists():
-        config_warning(
-            f"orchestrator: REPOS entry {entry.slug!r} target_root "
-            f"{target_path} does not exist; worktree creation will fail",
-        )
-    return RepoSpec(
-        slug=entry.slug,
-        target_root=target_path,
-        base_branch=entry.base_branch,
-        remote_name=entry.remote_name,
-        parallel_limit=parallel_limit,
-    )
-
-
 def parse_repos_env(
     raw: str,
     *,
     default_parallel_limit: int,
     config_error: ConfigError,
-    config_warning: ConfigWarning,
 ) -> list[RepoSpec]:
     """Parse the REPOS env value into a list of RepoSpecs.
 
@@ -185,9 +168,9 @@ def parse_repos_env(
     accepted as an entry separator so the value fits on a single line in a
     ``.env`` file (the simple parser in `_dotenv.load_dotenv` cannot
     represent multi-line values). Aborts (SystemExit) on malformed entries or
-    duplicate slugs; a missing ``target_root`` is warned to stderr but not
-    fatal so a freshly-cloned host can still start the orchestrator and
-    notice the problem on the first tick rather than at import.
+    duplicate slugs. It reads only the value: whether each ``target_root`` is
+    a checkout is ``build_repo_specs``'s question, asked once every entry has
+    parsed.
     """
     specs: list[RepoSpec] = []
     seen_slugs: set[str] = set()
@@ -201,44 +184,80 @@ def parse_repos_env(
                 "each repo can appear only once",
             )
         seen_slugs.add(entry.slug)
-        specs.append(
-            build_repo_spec(
+        specs.append(RepoSpec(
+            slug=entry.slug,
+            target_root=Path(entry.target_root),
+            base_branch=entry.base_branch,
+            remote_name=entry.remote_name,
+            parallel_limit=_parse_parallel_limit(
                 entry,
                 default_parallel_limit,
                 config_error,
-                config_warning,
-            )
-        )
+            ),
+        ))
     if not specs:
         config_error(
             "orchestrator: REPOS is set but contains no valid entries; "
-            "either unset it or provide at least one "
-            "'owner/name|target_root|base_branch' entry"
+            "provide at least one 'owner/name|target_root|base_branch' entry, "
+            "or unset it to fall back to the developer settings when running "
+            "from a source checkout"
         )
     return specs
+
+
+def _require_checkouts(
+    specs: list[RepoSpec],
+    setting: str,
+    config_error: ConfigError,
+) -> None:
+    """Abort unless every selected target is a git checkout.
+
+    Every target is inspected before the abort, so one start names each
+    unusable target rather than the first of them.
+    """
+    problems: list[str] = []
+    for spec in specs:
+        problem = checkout_problem(spec.target_root)
+        if problem is not None:
+            problems.append(
+                f"orchestrator: {setting} target {spec.target_root} for "
+                f"{spec.slug!r} {problem}; point it at a local clone or "
+                f"linked worktree of {spec.slug}",
+            )
+    if problems:
+        config_error("\n".join(problems))
 
 
 def build_repo_specs(
     repos_raw: str,
     *,
-    default_spec: RepoSpec,
+    default_spec: RepoSpec | None,
+    default_parallel_limit: int,
     config_error: ConfigError,
-    config_warning: ConfigWarning,
 ) -> list[RepoSpec]:
-    """Build the configured RepoSpec list from the REPOS env value.
+    """Select the configured targets and hold each to a git checkout.
 
-    A single-element list holding ``default_spec`` (built from `REPO` /
-    `TARGET_REPO_ROOT` / `BASE_BRANCH` / `REMOTE_NAME` /
-    `MAX_PARALLEL_ISSUES_PER_REPO`) when `REPOS` is unset, so existing
-    single-repo deployments keep working unchanged; otherwise one element per
-    `REPOS` entry. The per-entry ``parallel_limit`` default is
-    ``default_spec.parallel_limit`` (i.e. `MAX_PARALLEL_ISSUES_PER_REPO`).
+    One element per ``REPOS`` entry whenever ``REPOS`` is set, whatever the
+    developer settings say, with ``default_parallel_limit`` (i.e.
+    ``MAX_PARALLEL_ISSUES_PER_REPO``) as each entry's ``parallel_limit``
+    default. Unset, it is the single ``default_spec`` -- the developer
+    fallback built from ``REPO`` / ``TARGET_REPO_ROOT`` / ``BASE_BRANCH`` /
+    ``REMOTE_NAME`` -- which the caller passes only for a package running from
+    a verified source checkout; ``None`` is an installed package, where an
+    unset ``REPOS`` aborts rather than fall back to any target. Whichever was
+    selected, every target has to be a checkout before this returns.
     """
-    if not repos_raw.strip():
-        return [default_spec]
-    return parse_repos_env(
-        repos_raw,
-        default_parallel_limit=default_spec.parallel_limit,
-        config_error=config_error,
-        config_warning=config_warning,
-    )
+    if repos_raw.strip():
+        specs = parse_repos_env(
+            repos_raw,
+            default_parallel_limit=default_parallel_limit,
+            config_error=config_error,
+        )
+        setting = "REPOS"
+    elif default_spec is None:
+        config_error(_REPOS_REQUIRED)
+    else:
+        specs = [default_spec]
+        setting = "TARGET_REPO_ROOT"
+    _require_checkouts(specs, setting, config_error)
+    return specs

@@ -95,8 +95,9 @@ orchestrator/
   config/               the bottom layer: the non-secret `.env` loader, the
                         env parsers and resolver behind the settings surface,
                         the source-checkout versus installed layout check,
-                        credential resolution and secret redaction, and the
-                        repository-config types
+                        target selection and the git-checkout check every
+                        target passes, credential resolution and secret
+                        redaction, and the repository-config types
   github/               the composed `GitHubClient` and the pinned durable-
                         state model over one owner per GitHub surface: issue
                         operations and the one walk over them a tick is served
@@ -221,6 +222,12 @@ self-exit and be restarted with new code.
   polling. It writes no *workflow* state — no label, no
   pinned state, no comment — and does delete the orchestrator-owned branches it proved reclaimable, in the clone and
   on the remote, which is what it is for. The form a nightly service timer runs.
+- **Configuration refusal** (`orchestrator.config`, at import): once the options are read, the first runtime owner
+  `cli.py` imports loads the configuration, and an invalid setting stops every launch mode there with exit status 1
+  and the error on stderr, before any GitHub client, label bootstrap, poll, or maintenance pass. That covers the
+  targets: an installed package without `REPOS`, and every selected target that is not a git checkout, all of them
+  named in one error. Which targets a start selects and what counts as a checkout are under
+  [`configuration.md#developer-fallback-and-target-checks`](configuration.md#developer-fallback-and-target-checks).
 - **Startup refusal** (`runtime.startup.require_issue_authors`): every launch mode reads its options and then stops
   with exit status 1 while `ALLOWED_ISSUE_AUTHORS` names nobody, before logging, the signal handler, the host claim,
   any GitHub client, or the scheduler exists, because an empty allowlist would trust every author. The options are

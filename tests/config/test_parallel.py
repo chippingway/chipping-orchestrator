@@ -51,7 +51,7 @@ class RepositoryParallelLimitParsingTest(unittest.TestCase):
     def test_three_field_entries_inherit_env_default(self) -> None:
         # Backward-compat: existing three-field REPOS configs inherit the
         # MAX_PARALLEL_ISSUES_PER_REPO env default (or 1 if unset).
-        with tempfile.TemporaryDirectory() as td:
+        with _support.target_checkout() as td:
             config = _reload.load_config(
                 {
                     _config_cases._PER_REPO_LIMIT_ENV: "2",
@@ -64,7 +64,7 @@ class RepositoryParallelLimitParsingTest(unittest.TestCase):
     def test_four_field_entries_inherit_env_default(self) -> None:
         # The existing four-field (with remote_name) shape stays backward-
         # compatible: parallel_limit falls back to the env default.
-        with tempfile.TemporaryDirectory() as td:
+        with _support.target_checkout() as td:
             config = _reload.load_config(
                 {
                     _config_cases._PER_REPO_LIMIT_ENV: "5",
@@ -78,7 +78,7 @@ class RepositoryParallelLimitParsingTest(unittest.TestCase):
     def test_fifth_field_overrides_per_repo_limit(self) -> None:
         # Per-entry override takes precedence over the global env default,
         # so a busy repo can run more issues in parallel than its peers.
-        with tempfile.TemporaryDirectory() as td:
+        with _support.target_checkout() as td:
             config = _reload.load_config(
                 {
                     _config_cases._PER_REPO_LIMIT_ENV: _config_cases._ENABLED_ENV,
@@ -97,7 +97,7 @@ class RepositoryParallelLimitParsingTest(unittest.TestCase):
     def test_mixed_entries_three_four_five_fields(self) -> None:
         # All three legacy field counts coexist; only the five-field entry
         # overrides the per-repo default.
-        with tempfile.TemporaryDirectory() as td:
+        with _support.target_checkout() as td:
             config = _reload.load_config(
                 {
                     _config_cases._PER_REPO_LIMIT_ENV: "2",

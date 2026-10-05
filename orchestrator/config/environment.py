@@ -428,7 +428,19 @@ class _SettingsResolver:
                 1,
             ),
         )
-        repo_settings: dict[str, Any] = {
+        repos_raw = env.get("REPOS", "")
+        # The developer fallback is offered only to a package running from a
+        # verified source checkout of this project; an installed one has no
+        # target but the ones `REPOS` names.
+        specs = build_repo_specs(
+            repos_raw,
+            default_spec=(
+                default_spec if layout.is_source_checkout(self._repo_root) else None
+            ),
+            default_parallel_limit=default_spec.parallel_limit,
+            config_error=self._config_error,
+        )
+        return {
             "TARGET_REPO_ROOT": default_spec.target_root,
             "BASE_BRANCH": default_spec.base_branch,
             "REMOTE_NAME": default_spec.remote_name,
@@ -438,23 +450,16 @@ class _SettingsResolver:
                 env.get("MAX_PARALLEL_ISSUES_GLOBAL", ""),
                 3,
             ),
-            "REPO_SPECS": build_repo_specs(
-                env.get("REPOS", ""),
-                default_spec=default_spec,
-                config_error=self._config_error,
-                config_warning=self._config_warning,
+            "REPO_SPECS": specs,
+            "WORKTREES_DIR": Path(env.get("WORKTREES_DIR", str(
+                layout.default_worktrees_dir(
+                    specs[0].target_root, from_repos=bool(repos_raw.strip()),
+                ),
+            ))),
+            "GITHUB_TOKENS": credentials.resolve_github_tokens(
+                spec.slug for spec in specs
             ),
         }
-        specs = repo_settings["REPO_SPECS"]
-        repo_settings["WORKTREES_DIR"] = Path(env.get("WORKTREES_DIR", str(
-            layout.default_worktrees_dir(
-                specs[0].target_root, from_repos=bool(env.get("REPOS", "").strip()),
-            ),
-        )))
-        repo_settings["GITHUB_TOKENS"] = credentials.resolve_github_tokens(
-            spec.slug for spec in specs
-        )
-        return repo_settings
 
     def _one_agent(self, setting_name: str, default: str) -> dict[str, Any]:
         spec = self._environ.get(setting_name, default)
