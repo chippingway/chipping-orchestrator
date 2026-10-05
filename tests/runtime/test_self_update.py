@@ -23,7 +23,7 @@ _BASE_COMMAND = f"rev-parse {_BASE_REF}"
 _DIFF_COMMAND = f"diff --name-only {_START_SHA} {_MOVED_SHA}"
 _ANCESTOR_COMMAND = f"merge-base --is-ancestor {_START_SHA} {_MOVED_SHA}"
 _RUNTIME_CHANGE = "orchestrator/runtime/loop.py\nREADME.md\n"
-_UNRELATED_CHANGE = "docs/architecture.md\nplans/roadmap.md\n"
+_UNRELATED_CHANGE = "docs/architecture.md\nplans/future-work-and-risks.md\n"
 _UNRESOLVED_REVISION = 128
 _NOT_AN_ANCESTOR = 1
 

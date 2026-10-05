@@ -95,9 +95,9 @@ Tests are the primary correctness gate. Add or update tests for any behavioral c
 - **Secrets.** `GITHUB_TOKEN` is deliberately *not* loaded from `.env`. Tokens live in
   `~/.config/<owner>/<repo>/token` or the process environment. Rationale:
   [`docs/configuration.md`](docs/configuration.md#github-personal-access-token).
-- **`plans/` is working notes, not spec.** Files under `plans/` (roadmap, design explorations, proposals) are
-  non-authoritative. Implement what the issue asks for, do not cite a `plans/` document in code, comments, or commit
-  messages, and leave those files untouched unless the issue explicitly asks you to edit one.
+- **`plans/` is working notes, not spec.** Files under `plans/` are non-authoritative human working notes.
+  Implement what the issue asks for, do not cite a `plans/` document in code, comments, or commit messages, and leave
+  those files untouched unless the issue explicitly asks you to edit one.
 
 ## Out of scope without explicit ask
 
