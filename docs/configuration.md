@@ -6,10 +6,12 @@ description: >-
 # Configuration reference
 
 All settings load from a `.env` file ([which one](#where-env-is-read)) or the process environment.
-[`../.env.example`](../.env.example) holds the basic parameters needed for a first run;
-[`../.env.example.advanced`](../.env.example.advanced) carries common advanced overrides and illustrative examples for
-opt-in settings. This page and the two beside it are the source of truth — every setting and every default lives on
-one of them, and both `.env.example*` files keep their inline comments terse and link back for the full rationale.
+[`../.env.example`](../.env.example) is the basic template: `REPOS` and the few other settings a first run needs, for
+one repository or several ([basic setup](#basic-setup)). [`../.env.example.advanced`](../.env.example.advanced) carries
+optional operational overrides and illustrative examples for opt-in settings, then the orchestrator-developer settings
+in a section of their own. This page and the two beside it are the source of truth — every setting and every default
+lives on one of them, and both `.env.example*` files keep their inline comments terse and link back for the full
+rationale.
 
 The orchestrator is deliberately stateless: every setting here selects backends and budgets at startup, or names
 files/paths outside the repo. Per-issue state lives in the issue's pinned JSON comment on GitHub.
@@ -45,12 +47,58 @@ The file's directory is only where settings come from: it is never a target repo
 derived from the targets rather than from it. Both locations refuse the token keys
 ([GitHub Personal Access Token](#github-personal-access-token)).
 
+## Basic setup
+
+[`../.env.example`](../.env.example) is everything a first run needs. Copy it to the `.env` your launch form reads
+([above](#where-env-is-read)):
+
+- **Source checkout** — `./run.sh`, `uv run python -m orchestrator`, or `uv run chipping-orchestrator` in a clone of
+  this repository. The template goes to the checkout's root:
+
+  ```sh
+  cp .env.example .env
+  ```
+
+- **Installed package** — the `chipping-orchestrator` command of a package installed outside a source checkout. The
+  template, taken from a clone of this repository, goes to the user location:
+
+  ```sh
+  mkdir -p ~/.config/chipping-orchestrator
+  cp .env.example ~/.config/chipping-orchestrator/.env
+  ```
+
+Then edit the copy. `REPOS` names what to manage, one `owner/name|target_root|base_branch` entry per repository
+([syntax](#repos-syntax)): the repository on GitHub, the absolute path to the top of an existing local clone of it, and
+the branch its pull requests target. One repository is one entry:
+
+```dotenv
+REPOS=acme/api|/home/alice/src/acme-api|main
+```
+
+Several repositories are several entries, separated by `;` because the `.env` loader reads each value from one line:
+
+```dotenv
+REPOS=acme/api|/home/alice/src/acme-api|main;acme/web|/home/alice/src/acme-web|master|upstream|2
+```
+
+The second entry also sets both optional fields: `upstream` is the git remote in that clone that points at `acme/web`,
+and `2` lets two `acme/web` issues run at once. Set `ALLOWED_ISSUE_AUTHORS` ([required](#required)) and `HITL_HANDLE`
+beside it, and give every entry a token — a file at `~/.config/<owner>/<name>/token` each, or one `GITHUB_TOKEN` for
+all of them ([resolution order](#github-personal-access-token)). Worktrees go under `wt-orchestrator` beside the first
+entry's clone unless `WORKTREES_DIR` says otherwise ([workspace](#workspace-and-agent-identity)).
+
+Nothing else is needed. [`../.env.example.advanced`](../.env.example.advanced) holds optional operational settings,
+each documented below, and closes with the orchestrator-developer settings `REPO`, `TARGET_REPO_ROOT`, `BASE_BRANCH`,
+and `REMOTE_NAME`. Those are for working on the orchestrator itself from its source checkout, against its own
+repository by default ([developer fallback](#developer-fallback-and-target-checks)), and are ignored whenever `REPOS`
+is set.
+
 ## Required
 
 - `GITHUB_TOKEN` — default _(required, env-only — not read from `.env`)_. fine-grained personal access token.
   A token written into `.env` is ignored with a warning at startup.
 - `REPOS` — default _(unset)_, required for an installed package. the repositories to manage, one
-  `owner/name|target_root|base_branch` entry each ([syntax](#multi-repo-repos-syntax)), every `target_root` a local
+  `owner/name|target_root|base_branch` entry each ([syntax](#repos-syntax)), every `target_root` a local
   git checkout. Unset or blank, an installed package exits with status 1 before any GitHub call; only a source
   checkout falls back to the [developer settings](#developer-fallback-and-target-checks).
 - `ORCHESTRATOR_TOKEN_FILE` — default `~/.config/<owner>/<repo>/token` for each configured repository. path to one
@@ -96,9 +144,11 @@ each of them, file-backed ones included.
 
 ## Target repository
 
-`REPOS` names the repositories to manage, one entry each, and an installed package requires it. The single-repo
-quartet `REPO` / `TARGET_REPO_ROOT` / `BASE_BRANCH` / `REMOTE_NAME` is the developer fallback: read only while `REPOS`
-is unset and the package runs from a source checkout, and ignored whenever `REPOS` is set
+`REPOS` names the repositories to manage, one entry each, for a single repository as for several, and an installed
+package requires it ([basic setup](#basic-setup)). The single-repo quartet `REPO` / `TARGET_REPO_ROOT` /
+`BASE_BRANCH` / `REMOTE_NAME` is the developer fallback, kept in the developer section of
+[`../.env.example.advanced`](../.env.example.advanced): read only while `REPOS` is unset and the package runs from a
+source checkout, and ignored whenever `REPOS` is set
 ([which targets a start selects](#developer-fallback-and-target-checks)).
 
 - `REPOS` — default _(unset)_. the managed repositories, entries separated by newlines or `;`
@@ -108,13 +158,21 @@ is unset and the package runs from a source checkout, and ignored whenever `REPO
 - `BASE_BRANCH` — default `main`. developer fallback: branch PRs target
 - `REMOTE_NAME` — default `origin`. developer fallback: git remote in `TARGET_REPO_ROOT` that points at `REPO` on GitHub
 
-### Multi-repo `REPOS` syntax
+<a id="multi-repo-repos-syntax"></a>
 
-Each entry is `owner/name|target_root|base_branch`, with two optional trailing fields:
+### `REPOS` syntax
+
+Each entry is `owner/name|target_root|base_branch` — the repository on GitHub, the path to the top of its local clone,
+and the branch its pull requests target — with two optional trailing fields:
 
 - fourth `|remote_name` — defaults to `origin`;
 - fifth `|parallel_limit` — defaults to `MAX_PARALLEL_ISSUES_PER_REPO`. Positional: to override `parallel_limit` you
   must also write the `remote_name` (use `origin` explicitly to keep the default).
+
+Write `target_root` as an absolute path: `~` and `$HOME` are not expanded, and a relative path is read against the
+launch directory. Entries are separated by `;` or newlines, and blank entries and entries starting with `#` are
+skipped. The `.env` loader reads each value from a single line, so a `.env` separates them with `;`; a value exported
+in the process environment may use either:
 
 ```dotenv
 REPOS=acme/api|/srv/clones/acme-api|main;acme/web|/srv/clones/acme-web|master|private|2
@@ -651,7 +709,7 @@ Each polling tick advances issues concurrently along two axes:
 
 - **Across repos.** When `REPOS` lists more than one entry, `runtime.ticks.run_tick` fans the per-repo
   `workflow.engine.tick.tick(gh, spec)` calls out across a `ThreadPoolExecutor` (one worker per repo).
-  The legacy single-repo mode (`REPOS` unset) stays in-thread.
+  A single configured repository — one `REPOS` entry, or the developer fallback — stays in-thread.
 - **Within a repo.** Per-issue handlers are dispatched to a long-lived `IssueScheduler`. Fan-out issues
   (`workflow:ready` / `workflow:implementing` / `workflow:documenting` / `workflow:validating` / `in_review` /
   `workflow:fixing` / `workflow:resolving_conflict` / `question` / `discussion`) are submitted one callable per
