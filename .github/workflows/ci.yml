@@ -43,39 +43,57 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
 
-      # `--python` names the interpreter this leg is about rather than letting
-      # uv pick a compatible one off the runner: a leg that silently resolved
-      # to the other version would report green for a version it never ran.
+      - name: Install Poetry
+        run: pipx install "poetry==2.5.1"
+
+      # Use the interpreter setup-python placed on PATH so every matrix leg
+      # proves the version it names, even when the runner has other Pythons.
+      - name: Select the matrix interpreter
+        run: poetry env use "$(command -v python)"
+
+      - name: Check the lockfile
+        run: poetry check --lock
+
       - name: Install from lock
-        run: uv sync --locked --python "${{ matrix.python-version }}"
+        run: poetry sync --no-interaction
 
       - name: Lint (ruff)
-        run: uv run ruff check orchestrator tests .github/scripts/docs_site.py
+        run: poetry run ruff check orchestrator tests .github/scripts/docs_site.py
 
       - name: Lint (wemake-python-styleguide)
-        run: uv run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS
+        run: poetry run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS
 
       - name: Tests (pytest)
-        run: uv run python -m pytest tests --cov=orchestrator --cov-report=term-missing
+        run: poetry run python -m pytest tests --cov=orchestrator --cov-report=term-missing
 
-      - name: Build (uv build)
-        run: uv build
+      - name: Build distributions
+        run: poetry build
 
       # The sync above installs this project into `.venv` editable, so every
       # step before this one reaches the console script through the source
       # tree and none of them read what the build backend packaged. This one
-      # reads only that: the wheel, in an environment holding it and the
+      # reads only that: each artifact, in an environment holding it and the
       # dependencies it declares and nothing else -- no project, no lockfile,
-      # no dev group. A wheel shipping no `orchestrator` package, an entry
+      # no dev group. An artifact shipping no `orchestrator` package, an entry
       # point naming a module it does not carry, or a runtime dependency the
       # lockfile supplies but `[project.dependencies]` omits fails here and
       # passes every step above.
       - name: Smoke-test the built wheel
         run: |
-          wheel="$(ls dist/*.whl)"
-          uv run --no-project --isolated --python "${{ matrix.python-version }}" \
-            --with "${wheel}" chipping-orchestrator --help
+          python -m venv "$RUNNER_TEMP/wheel-env"
+          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/wheel-env/bin/chipping-orchestrator" --help
+
+      # Poetry builds the wheel from the checkout, so installing the sdist
+      # independently is what detects a file omitted from the source archive.
+      - name: Smoke-test the built sdist
+        run: |
+          python -m venv "$RUNNER_TEMP/sdist-env"
+          "$RUNNER_TEMP/sdist-env/bin/python" -m pip install dist/*.tar.gz
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/sdist-env/bin/chipping-orchestrator" --help

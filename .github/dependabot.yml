@@ -12,8 +12,9 @@ updates:
       - "workflow:dependencies"
       - "workflow:github_actions"
 
-  - package-ecosystem: uv
+  - package-ecosystem: pip
     directory: /
+    versioning-strategy: increase
     schedule:
       interval: weekly
     cooldown:
@@ -22,15 +23,8 @@ updates:
       semver-minor-days: 14
       semver-patch-days: 14
     allow:
-      # An `allow:` block replaces the default rule rather than adding to it,
-      # so the direct-dependency rule is restated here to keep it.
+      # Routine and security updates target direct dependencies.
       - dependency-type: direct
-      # GitPython reaches the lockfile only through Streamlit, so a GitPython
-      # advisory matches no direct dependency and the grouped security job
-      # skips the whole `uv` group with nothing left to update. Naming the one
-      # package opens that group without putting every transitive dependency
-      # into the routine version-update queue.
-      - dependency-name: gitpython
     labels:
       - "workflow:dependencies"
-      - "workflow:python:uv"
+      - "workflow:python:pip"

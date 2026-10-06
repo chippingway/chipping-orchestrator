@@ -58,6 +58,27 @@ class VerifyCommandEnvironmentTest(
 ):
     """Redact output and strip secrets or credential locators from env."""
 
+    def test_virtualenv_filter_preserves_conda(self) -> None:
+        with patch.dict(os.environ, {
+            "VIRTUAL_ENV": "/srv/orchestrator/.venv",
+            "CONDA_PREFIX": "/opt/conda/envs/operator",
+            "CONDA_DEFAULT_ENV": "operator",
+            "CONDA_SHLVL": "1",
+            "PATH": (
+                "/srv/orchestrator/.venv/bin:/opt/conda/envs/operator/bin:"
+                "/usr/bin:/bin:/srv/orchestrator/.venv/bin"
+            ),
+        }):
+            commands = (
+                'test -z "${VIRTUAL_ENV+x}"',
+                'test "$CONDA_PREFIX" = /opt/conda/envs/operator',
+                'test "$CONDA_DEFAULT_ENV" = operator',
+                'test "$CONDA_SHLVL" = 1',
+                'test "$PATH" = /opt/conda/envs/operator/bin:/usr/bin:/bin',
+            )
+            run = runner._run_verify_commands(self.worktree, commands, 60)
+        self.assertEqual(run.status, "ok")
+
     def test_boundary_secret_fully_redacted(self) -> None:
         # `redact_secrets` does `str.replace(value, "***")` on the full
         # value, so a secret whose bytes straddle the truncation cut

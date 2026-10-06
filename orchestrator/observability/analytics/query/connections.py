@@ -52,7 +52,7 @@ def _psycopg() -> Any:
     except ImportError as error:
         raise AnalyticsReadError(
             "psycopg is required for the analytics reads; reinstall chipping-orchestrator "
-            "or run `uv sync --locked` in a source checkout"
+            "or run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` in a source checkout"
         ) from error
     return psycopg
 

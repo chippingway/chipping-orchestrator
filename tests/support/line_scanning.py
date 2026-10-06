@@ -13,7 +13,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _RUFF_OWNED = frozenset((".py",))
 _BINARY_EXT = frozenset((".png",))
-_IGNORED_NAMES = frozenset(("uv.lock", "LICENSE"))
+_IGNORED_NAMES = frozenset(("poetry.lock", "LICENSE"))
 
 
 def _load_limit() -> int:

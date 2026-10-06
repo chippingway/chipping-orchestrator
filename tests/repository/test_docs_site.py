@@ -59,13 +59,13 @@ _ARTIFACT_STEP = f"""      - name: Upload Pages artifact
         if: {_MAIN_ONLY}
         uses: actions/upload-pages-artifact@"""
 _BUILD_STEP = """      - name: Build documentation
-        run: uv run --no-sync mkdocs build --strict
+        run: poetry run mkdocs build --strict
 """
 _CHECK_STEP = f"""      - name: Check the built documentation
         env:
           {_site_support.SITE_VARIABLE}: {_site_support.SITE_DIRECTORY}
         run: >-
-          uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_docs_output.py
+          poetry run pytest tests/repository/test_docs_site.py tests/repository/test_docs_output.py
           tests/repository/test_docs_navigation.py
 """
 _PUBLISHING_STEPS = (_BUILD_STEP, _CHECK_STEP, _ARTIFACT_STEP)

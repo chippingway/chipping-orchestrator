@@ -9,20 +9,25 @@ description: >-
 
 ## CI / lint
 
+Run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` in a fresh review worktree before checks; `poetry run` does not
+install or refresh dependencies. Include `--with docs` or `--with dashboard` when the change needs those optional
+dependencies. Clear both markers for every Poetry command so an activated environment cannot override this `.venv/`.
+
 Reject (or request fixes) if any of these are red:
 
-- `ruff check orchestrator tests .github/scripts/docs_site.py`. Common offenders to look for explicitly:
+- `.venv/bin/python -m ruff check orchestrator tests .github/scripts/docs_site.py`. Common offenders to look for
+  explicitly:
   - **F401** — unused import on a package initializer. If the import is intended as a re-export, it must
     be aliased `from X import Y as Y` or listed in that initializer's `__all__`. A bare import will not
     survive ruff.
   - **F541** — f-strings without placeholders, typically in newly-added test files.
   - **F841** — unused local in tests.
   - **E402** — import after non-import code.
-- `uv run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS`. All WPS naming, complexity,
-  consistency, bug-prevention, refactoring, and OOP findings are rejection criteria.
+- `.venv/bin/python -m flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS`. All WPS naming,
+  complexity, consistency, bug-prevention, refactoring, and OOP findings are rejection criteria.
 - `git diff --check origin/main...HEAD` — trailing whitespace and blank lines at EOF. Check it even
   if everything else looks clean.
-- The full `pytest` run passes end-to-end on the commit under review — run it, or rely on current verification
+- The full `.venv/bin/python -m pytest tests` passes on the reviewed commit — run it, or use current verification
   evidence the orchestrator handed you for exactly this subject (see [Verification evidence](#verification-evidence)).
   Reject "known failure" hand-waves; if the PR claims a baseline failure, the report must include a reproduction on
   `origin/main` at the branch point. Otherwise the developer must fix it.

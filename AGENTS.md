@@ -67,13 +67,18 @@ Any agent that sizes or splits an issue, including the late adjudication of an o
 read [`.agents/skills/decompose/SKILL.md`](.agents/skills/decompose/SKILL.md). It carries what a child's scope has to
 include, the residual test every proposed child passes, and how the initial and late stages differ.
 
-The repo targets Python 3.12+ and installs from the lockfile with [`uv`](https://github.com/astral-sh/uv):
+The repo targets Python 3.12+ and installs from the lockfile with
+[Poetry 2.5.1](https://python-poetry.org/docs/#installation):
 
 ```sh
-uv sync --locked                              # creates .venv/ and installs runtime + dev deps from uv.lock
-uv run pytest tests                           # run the test suite
-uv run python -m orchestrator --once          # one polling tick then exit
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync                               # runtime + dev deps from poetry.lock
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run pytest tests                   # run the test suite
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator --once  # one polling tick then exit
 ```
+
+Run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` in each fresh worktree before checks; `poetry run` does not
+install dependencies. Clear both markers for every Poetry command so an activated environment cannot override the
+checkout's `.venv/`.
 
 Tests are the primary correctness gate. Add or update tests for any behavioral change.
 

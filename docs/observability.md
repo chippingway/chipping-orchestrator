@@ -125,8 +125,9 @@ feedback.
 Summarized here; the reference is
 [`analytics-database.md`](observability/analytics-database.md#operator-workflow).
 
-Run `uv run python -m orchestrator.observability.analytics.sync.cli` on whatever cadence you prefer — the JSONL sink
-is already the authoritative analytics surface on disk, so the replay cadence is operator-chosen rather than pinned.
+Run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator.observability.analytics.sync.cli` on whatever
+cadence you prefer — the JSONL sink is already the authoritative analytics surface on disk, so the replay cadence is
+operator-chosen rather than pinned.
 `--log-path` and `--db-url` override the env values for one-off replays of archived JSONL files. That page carries the
 hourly `flock`-guarded `cron` entry for an unattended deployment and why each part of it is spelled the way it is.
 
@@ -148,12 +149,13 @@ contract they share, and the thread-local connection cache a caller reuses a soc
 Summarized here; the reference is
 [`analytics-dashboard.md`](observability/analytics-dashboard.md#dashboard-orchestratorappsanalytics_dashboardpy).
 
-Streamlit app over that read model, opt-in via the `dashboard` dependency group so the default `uv sync --locked`
+Streamlit app over that read model, opt-in via the `dashboard` dependency group so the default `poetry sync`
 keeps installing only the polling runtime plus the dev tools:
 
 ```sh
-uv sync --group dashboard                                       # install streamlit + plotly alongside the runtime
-uv run streamlit run orchestrator/apps/analytics_dashboard.py   # launches a local browser tab
+# Install Streamlit + Plotly alongside the runtime, then launch the dashboard.
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py
 ```
 
 The page is composed entirely from owners under `observability/dashboard/`, stages its 16 widget reads into two cached

@@ -25,7 +25,7 @@ _ENTRY_POINT = "orchestrator.cli:main"
 _HELP_FLAG = "--help"
 _ONCE_FLAG = "--once"
 _HELP_TIMEOUT_SECONDS = 60
-_MISSING_SCRIPT_REASON = f"{_CONSOLE_SCRIPT} is not installed; run `uv sync`"
+_MISSING_SCRIPT_REASON = f"{_CONSOLE_SCRIPT} is not installed; run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync`"
 _ALLOWLIST_ENV = "ALLOWED_ISSUE_AUTHORS"
 _MISSING_ALLOWLIST = (
     "ALLOWED_ISSUE_AUTHORS must contain at least one GitHub login. "

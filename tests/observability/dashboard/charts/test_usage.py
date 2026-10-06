@@ -12,7 +12,7 @@ from orchestrator.observability.analytics.query.overview_models import (
 )
 from orchestrator.observability.dashboard.charts import usage
 
-_SKIP_REASON = "plotly not installed -- run `uv sync --group dashboard`"
+_SKIP_REASON = "plotly not installed -- run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard`"
 
 _YEAR = 2026
 

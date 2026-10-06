@@ -39,11 +39,12 @@ parser read them back is in [`../observability/analytics-database.md`](../observ
   unchanged. Never touches `ANALYTICS_LOG_PATH`, the analytics Postgres sync, or the analytics dashboard. Local
   filesystem only and observation-only — the polling loop never reads it back, so the file is safe to delete without
   affecting workflow state. A dedicated Streamlit viewer (`orchestrator/apps/trajectory_dashboard.py`, launched with
-  `uv run streamlit run orchestrator/apps/trajectory_dashboard.py`) reads this JSONL file directly — no Postgres or sync
-  — when you want to browse the recorded trajectories. **Privacy:** redaction masks only secret-shaped env values (and
-  the GitHub token), **not** issue/repo content, so an enabled trajectory file can carry issue titles/bodies, quoted
-  source, and the agent's own text turns in cleartext; scope its permissions accordingly. See
-  [`trajectories.md#trajectory-sink`](../observability/trajectories.md#trajectory-sink-trajectory_log_path).
+  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/trajectory_dashboard.py`) reads this
+  JSONL file directly — no Postgres or sync — when you browse recorded trajectories. **Privacy:** redaction masks
+  only secret-shaped env values (and the GitHub token), **not** issue/repo content, so an enabled trajectory file can
+  carry issue titles/bodies, quoted source, and the agent's text turns in cleartext; scope its permissions
+  accordingly.
+  See [`trajectories.md#trajectory-sink`](../observability/trajectories.md#trajectory-sink-trajectory_log_path).
 - `TRAJECTORY_RETENTION_DAYS` — default `90`. retention window for `TRAJECTORY_LOG_PATH`, same semantics as
   `ANALYTICS_RETENTION_DAYS`: `prune_trajectory_records()` removes older records and `0` (or any non-positive value)
   keeps trajectories indefinitely. Parsed from `.env`, but not yet called from the polling loop, so it affects the file
@@ -126,7 +127,7 @@ Postgres or Streamlit, so deferring or disabling the dashboard never affects wor
 4. **Populate Postgres from JSONL.** Run the sync on demand:
 
    ```sh
-   uv run python -m orchestrator.observability.analytics.sync.cli
+   env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator.observability.analytics.sync.cli
    ```
 
    Inserts dedupe by `content_hash`, so re-running is idempotent. No-op when `ANALYTICS_DB_URL` is unset/disabled,
@@ -136,8 +137,8 @@ Postgres or Streamlit, so deferring or disabling the dashboard never affects wor
 5. **Launch the dashboard.** Install the optional `dashboard` group once, then run Streamlit:
 
    ```sh
-   uv sync --group dashboard
-   uv run streamlit run orchestrator/apps/analytics_dashboard.py
+   env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard
+   env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py
    ```
 
    Streamlit prints a `http://localhost:8501` URL. The dashboard is independent of the polling tick and can be killed

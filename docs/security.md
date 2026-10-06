@@ -23,7 +23,7 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
   [`../.github/workflows/dependency-review.yml`](../.github/workflows/dependency-review.yml) gates what a PR
   *changes*, on every PR (see [Required checks](#required-checks));
   [`../.github/workflows/vulnerability-scan.yml`](../.github/workflows/vulnerability-scan.yml) audits every pin in
-  [`../uv.lock`](../uv.lock) weekly and on demand
+  [`../poetry.lock`](../poetry.lock) weekly and on demand
   ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)). The standing scan is what
   sees an advisory published against a version nobody is touching — a diff gate never looks at it again after the pin
   lands. It runs on a schedule rather than on a PR, so it cannot be a required check; enabling
@@ -48,21 +48,23 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
 - **Review / tests / scans for AI-generated code** — in repo. See
   [AI-generated code review, tests, and scans](#ai-generated-code-review-tests-and-scans).
 - **Package-registry hygiene (lockfiles, registry pinning)** — in repo. Runtime deps (`PyGithub`, `psycopg[binary]`)
-  are declared in [`../pyproject.toml`](../pyproject.toml); exact versions are pinned in [`../uv.lock`](../uv.lock); CI
-  installs via `uv sync --locked`
-  ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)). The one install CI makes
-  outside that lock is the wheel smoke check, whose throwaway environment resolves the distribution's declared
-  dependencies fresh from PyPI, because what it exists to prove is what an installer of the wheel gets rather than
-  what the lockfile pins; it runs `chipping-orchestrator --help` and is discarded with the job. Dependabot covers the
-  `uv` and `github-actions` ecosystems in [`../.github/dependabot.yml`](../.github/dependabot.yml), stamping every
-  update PR it opens with `workflow:dependencies` plus `workflow:github_actions` or `workflow:python:uv`, so the queue a
-  maintainer has to triage is one label filter. For routine version updates, `github-actions` uses its supported
-  ecosystem-wide window to hold every release for 30 days; `uv` holds a major or unclassified release for 30 days and
-  a minor or patch for 14 days. These cooldowns do not delay security updates. Dependabot allows only direct
-  dependencies by default, so a transitive package is in scope only once the `uv` entry's `allow:` rules name it:
-  `gitpython` is named there because GitPython reaches the lockfile through Streamlit, and its advisories would
-  otherwise leave the grouped security job with nothing it is allowed to update. An advisory against any other
-  transitive dependency needs its own rule added before a PR can open for it
+  are declared in [`../pyproject.toml`](../pyproject.toml); exact versions are pinned in
+  [`../poetry.lock`](../poetry.lock); CI installs via `poetry sync`
+  ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)). The wheel and sdist smoke
+  installs use separate throwaway environments that resolve the distribution's declared runtime dependencies fresh
+  from PyPI and run `chipping-orchestrator --help` outside the checkout. These prove what a package installer receives.
+  CI accepts unhashed PyPI installs for its tooling: `pipx` pins Poetry and the export plugin's top-level versions,
+  while their transitive dependencies resolve fresh. The sdist smoke install also resolves `poetry-core` through
+  build isolation within the manifest's version range. These installs are outside the project's hashed lockfile;
+  Scorecard's Pinned-Dependencies check may report them. CI accepts this tradeoff for tooling and package verification.
+  Dependabot covers `pip` and `github-actions` in [its configuration](../.github/dependabot.yml), stamping every
+  update PR with `workflow:dependencies` plus `workflow:github_actions` or `workflow:python:pip`. A maintainer selects
+  the dependency queue with one label filter. For routine version updates, `github-actions` uses its supported
+  ecosystem-wide window to hold every release for 30 days; `pip` holds a major or unclassified release for 30 days and
+  a minor or patch for 14 days. Dependabot's cooldowns do not delay security updates; manual Poetry resolutions need
+  the release-age override under [Dependabot security updates](#dependabot-security-updates). Dependabot allows only
+  direct dependencies in the `pip` entry's `allow:` rules. An advisory against a transitive dependency needs its own
+  rule added before a PR can open for it
   ([`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration)).
 - **Actions pinned to immutable commit SHAs** — in repo. Every `uses:` in
   [`../.github/workflows/`](../.github/workflows/) names a full 40-character commit SHA with the release it belongs to
@@ -119,19 +121,36 @@ all.
 
 Enable **Dependabot alerts** and **Dependabot security updates** at `Settings → Code security`. These are a different
 mechanism from the weekly version-update PRs [`../.github/dependabot.yml`](../.github/dependabot.yml) configures:
-alerts fire when a published advisory matches a version pinned in [`../uv.lock`](../uv.lock), and security updates
-open the PR that bumps that one dependency to the fixed version.
+alerts fire when a published advisory matches a version pinned in [`../poetry.lock`](../poetry.lock), and security
+updates open the PR that bumps that one dependency to the fixed version.
 
-- **They are not subject to the cooldown windows** the `uv` entry declares — 30 days for a major, 14 for a minor or
+- **They are not subject to the cooldown windows** the `pip` entry declares — 30 days for a major, 14 for a minor or
   a patch. Those windows are there to let a routine version update age before a maintainer has to look at it; a
   security patch is the case where waiting is the cost, and the cooldown applies to version updates only.
 - They are the acting half of the standing scan:
   [`../.github/workflows/vulnerability-scan.yml`](../.github/workflows/vulnerability-scan.yml) reports a vulnerable
   pin every week, but nothing inside this repository can open the bump PR that clears it. What such an update may
-  bump is still bounded by the `uv` entry's `allow:` rules — direct dependencies plus `gitpython` — so a finding
-  against any other transitive pin needs its own rule before a PR can open for it
+  bump is still bounded by the `pip` entry's `allow:` rules — direct dependencies — so a finding
+  against a transitive pin needs its own rule before a PR can open for it
   ([`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration)).
 - Alerts are visible to maintainers only, so enabling them discloses nothing about an unpatched pin.
+
+For manual security fixes younger than 14 days, bypass Poetry's `solver.min-release-age` filter for one resolution:
+
+- For runtime packages (`PyGithub` or `psycopg[binary]`), first raise the `>=` lower bound in `[project].dependencies`
+  to the fixed version, keeping the major-version cap, then run
+  `env -u VIRTUAL_ENV -u CONDA_PREFIX POETRY_SOLVER_MIN_RELEASE_AGE=0 poetry lock`. Raising the floor excludes
+  vulnerable versions for installed distributions as well as checkouts; a lock-only fix protects only the checkout.
+- For development, optional-group, or transitive packages, run
+  `env -u VIRTUAL_ENV -u CONDA_PREFIX POETRY_SOLVER_MIN_RELEASE_AGE=0 poetry update <package>` to limit the update to
+  that package and its required dependencies.
+
+If a whole-tree update or regenerated lock is unavoidable, apply the same override and check the diff for releases
+younger than 14 days across all packages. This per-command override leaves the committed policy intact; syncing an
+existing lock does not need it. See
+[Poetry's configuration reference][poetry-release-age].
+
+[poetry-release-age]: https://python-poetry.org/docs/configuration/#solvermin-release-age
 
 ### CodeQL advanced setup
 
@@ -324,7 +343,8 @@ Two GitHub-side controls combine to enforce this:
 
    ```
    /pyproject.toml          @<maintainer-handle>
-   /uv.lock                 @<maintainer-handle>
+   /poetry.lock             @<maintainer-handle>
+   /poetry.toml             @<maintainer-handle>
    /.github/dependabot.yml  @<maintainer-handle>
    /.github/workflows/      @<maintainer-handle>
    ```
@@ -338,8 +358,9 @@ Mark these checks **required** in the branch-protection rule (job names as they 
 
 - `ci (3.12)`, `ci (3.13)`, and `ci (3.14)` from [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml) —
   Ruff, WPS (`flake8 orchestrator tests --select=WPS`), pytest with an informational coverage report, and a launch of
-  `chipping-orchestrator --help` from the built wheel, installed from [`../uv.lock`](../uv.lock). The job is a matrix
-  over the three tested interpreters, and each matrix job reports its own check name
+  `chipping-orchestrator --help` from the built wheel and sdist in fresh pip environments. Lint and tests install
+  from [`../poetry.lock`](../poetry.lock). The job is a matrix over the three tested interpreters, and each matrix job
+  reports its own check name
   ([`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration)).
 - `dependency-review` from [`../.github/workflows/dependency-review.yml`](../.github/workflows/dependency-review.yml)
   — fails when a PR introduces a vulnerable or non-compliant dep.

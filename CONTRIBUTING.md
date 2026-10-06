@@ -20,17 +20,22 @@ See the [README](README.md#how-it-works) for how issues become pull requests.
 
 ## Set up a development checkout
 
-Use Linux, Git, Python 3.12 or newer, and `uv`. Fork the repository, then:
+Use Linux, Git, Python 3.12 or newer, and Poetry 2.5.1. Fork the repository, then:
 
 ```sh
 git clone https://github.com/YOUR-LOGIN/chipping-orchestrator.git
 cd chipping-orchestrator
 git switch -c my-change
-uv sync --locked
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync
 ```
 
-Local lint and test checks work without GitHub credentials or coding-agent setup. For dashboard work, install the
-optional dependencies with `uv sync --locked --group dashboard`.
+Local lint and test checks work without GitHub credentials or coding-agent setup. For dashboard work, use
+`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard`.
+
+Run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` in each new worktree before checks; `poetry run` does not
+install dependencies. Add `--with docs` for documentation work or `--with docs,dashboard` for both groups. Follow the
+[environment selection policy](docs/configuration/operations.md#dependency-tooling) for every Poetry command. To select
+another Python interpreter, use `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry env use /path/to/python`.
 
 Live orchestrator runs perform real GitHub operations. Use a dedicated test repository and follow the
 [configuration](docs/configuration.md) and [security](docs/security.md) guides.
@@ -53,9 +58,9 @@ pre-push checklist. The [documentation index](docs/README.md) helps you find the
 Before submitting a PR, run:
 
 ```sh
-uv run ruff check orchestrator tests
-uv run flake8 orchestrator tests --select=WPS
-uv run python -m pytest tests
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run ruff check orchestrator tests .github/scripts/docs_site.py
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m pytest tests
 git diff --check
 ```
 

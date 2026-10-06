@@ -66,7 +66,7 @@ _RENDER_PASSES = (
     (page_states, _NO_DATA),
 )
 
-_PANDAS_REASON = "pandas not installed -- run `uv sync --group dashboard`"
+_PANDAS_REASON = "pandas not installed -- run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard`"
 
 
 class ScriptStopped(Exception):

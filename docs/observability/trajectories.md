@@ -321,7 +321,7 @@ below resolves inside the call. The cron entry relies on `.env` for both
 `TRAJECTORY_LOG_PATH` and `TRAJECTORY_RETENTION_DAYS`, runs the prune helper, and logs how many records were removed:
 
 ```cron
-25 0 * * * cd /path/to/chipping-orchestrator && /usr/bin/flock -n -E 75 /tmp/chipping-orchestrator-trajectory.lock /home/<user>/.local/bin/uv run python -c 'from orchestrator.observability.analytics import retention; print(f"trajectory prune removed {retention.prune_trajectory_records()} record(s)")' >> /path/to/chipping-orchestrator/logs/trajectory-prune.cron.log 2>&1
+25 0 * * * cd /path/to/chipping-orchestrator && /usr/bin/flock -n -E 75 /tmp/chipping-orchestrator-trajectory.lock /path/to/chipping-orchestrator/.venv/bin/python -c 'from orchestrator.observability.analytics import retention; print(f"trajectory prune removed {retention.prune_trajectory_records()} record(s)")' >> /path/to/chipping-orchestrator/logs/trajectory-prune.cron.log 2>&1
 ```
 
 To make the same cron entry use a one-off retention window instead of `.env`, prefix the command with `env
@@ -339,11 +339,11 @@ through the same temp-file + `os.replace` path described above; it never touches
 
 ### Trajectory viewer (`orchestrator/apps/trajectory_dashboard.py`)
 
-A deliberately **separate** Streamlit page from the analytics dashboard, launched the same way (`uv run streamlit run
-orchestrator/apps/trajectory_dashboard.py`, opt-in `dashboard` group). The two pages stay apart on purpose: the
-analytics dashboard reads the numeric usage / cost rollup from Postgres, while the viewer reads the JSONL trajectory
-file **directly** — the trajectory bodies are never in Postgres — so an operator can browse trajectories with nothing
-but the file on disk (no database, no sync).
+A deliberately **separate** Streamlit page from the analytics dashboard, launched with
+`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/trajectory_dashboard.py`
+(opt-in `dashboard` group). The two pages stay apart on purpose: the analytics dashboard reads the numeric usage /
+cost rollup from Postgres, while the viewer reads the JSONL trajectory file **directly** — the trajectory bodies are
+never in Postgres — so an operator can browse trajectories with nothing but the file on disk (no database, no sync).
 
 **Read model (`orchestrator/observability/trajectory_viewer/`).** A pure, import-light, Streamlit-free reader (the
 file-backed analogue of `observability/analytics/query/`). Its owners take the analytics settings holder as an
