@@ -103,6 +103,9 @@ compare both versions' templates before changing settings: local overrides, chan
 can affect both the upgrade and a later rollback. Package changes are initiated by the operator; the source
 checkout's `run.sh` refresh procedure is a separate deployment route.
 
+The [v0.13.0 upgrade notes](release-timeline.md#v0130) cover the required author allowlist, installed targets,
+Poetry migration, worktree paths, and the report and verification contracts when upgrading from v0.12.0.
+
 ## Required
 
 - `GITHUB_TOKEN` — default _(required, env-only — not read from `.env`)_. fine-grained personal access token.
