@@ -392,9 +392,12 @@ Most writers rewrite the whole record from the state they read. The guarded comm
 is the contract for writers that share it, and the verification-evidence publication and settlement, the evidence
 reconciliation's retirements -- abandonment, a replay or damage dropped, a refused carry abandoned -- the invalidation
 of an unanswered carry on arrival in `validating`, and the developer report's recording, binding, refusal parks,
-publication preflight and settlement, the reconciliation's drops and the retirement of its damage park, and the fixing
-recovery's release (`workflow/engine/report_commits.py`) are the roads that commit through it so far; the approval
-squash's own invalidation of the evidence its approval rests on still rewrites the whole record. It derives a candidate
+publication preflight and settlement, the reconciliation's drops and the retirement of its damage park, the fixing
+recovery's release (`workflow/engine/report_commits.py`), and a reviewer round's launch, its no-verdict parks, the
+returned verdict persisted with its evidence transaction, the verdict's drops, and the parks a verdict takes
+(`workflow/stages/validating/review_writes.py`) are the roads that commit through it so far; the approval squash's
+own invalidation of the evidence its approval rests on, and a change request's handoff, still rewrite the whole
+record. It derives a candidate
 over a fresh reading of the comment its caller captured, refuses with nothing written where that comment or a record
 the decision rests on moved, or where another writer moved a field the caller is changing, measures the whole rendered
 candidate against the comment limit before any dependent effect, and lands through the strict in-place edit on

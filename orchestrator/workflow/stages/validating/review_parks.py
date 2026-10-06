@@ -38,9 +38,11 @@ returned -- the waiting verdict of that round and subject, and nothing is
 posted or written where none waits -- and an unrecorded verdict's park holds
 none. A park is measured before its notice is posted, at its own write -- its
 flags beside the notice's ledger entry and the watermark it stamps, each at the
-widest id, and the verdict it refuses dropped -- since a notice posted over a
-park GitHub then refuses leaves no park durable, and for a verdict nothing
-recorded the next tick's reviewer answers the round again. The write that keeps
+widest id, and the verdict it refuses dropped -- prepared as the guarded
+commit it lands as (`review_writes.parks_over`), over the comment read afresh,
+since a notice posted over a park GitHub then refuses leaves no park durable,
+and for a verdict nothing recorded the next tick's reviewer answers the round
+again. The write that keeps
 a waiting verdict instead, where nothing behind the notice proves a move, can
 be the wider of the two, and is measured behind the notice with the rest:
 measured up front, a waiting approval on a nearly full comment would never be
@@ -75,18 +77,25 @@ identified notice stays recorded as the orchestrator's own whichever way.
 A comment that will not read writes nothing, and nor does a write that,
 carrying what moved there, no longer fits: another road's write can spend the
 room the park was measured with, and the write keeping a waiting verdict was
-never measured before the notice. The verdict waits then, for a later tick
+never measured before the notice. That write is the park's guarded commit
+(`review_writes.PARK`), captured over the reading behind the notice and decided
+on the records the verdict stands on as that reading spells them, so a record
+another road moves after it -- a later report, a repoint, a verdict put in the
+place of the one held, evidence recorded or settled -- refuses it with nothing
+written, as does a comment that moved under the edit or an edit GitHub never
+confirmed. The verdict waits then, for a later tick
 whose notice asks again. Only a park that lands sets the flags and drops the
 verdict it refuses -- an unrecorded verdict's park holds none, and drops no
 record it finds, one no reader takes included -- and it reports the human wait
 (`park_awaiting_human`) only once its write is down, since that record is the
-moment the issue enters one. The write that lands is composed over the comment
+moment the issue enters one. The write that lands is laid over the comment
 as it stands whichever way the records went, so a field another road wrote
 behind the notice -- a round spent by a reply -- is kept rather than written
 back over by the state in hand, one both moved keeps both moves where they add
 up or only advance -- the run's usage beside that road's, the thread read as
 far as either read it (`state._keeps_both_moves`) -- and the ledger of the
-orchestrator's own comments is merged, the notice among them.
+orchestrator's own comments is merged, the notice among them; and so is what
+another road writes between that reading and the commit.
 
 The park a failed squash takes (`parks_the_failed_squash`) is filed here too,
 beside the funnel rather than through it: the recovery of a squash an earlier
@@ -130,6 +139,7 @@ from orchestrator.workflow.stages.validating import (
     review_coverage as _review_coverage,
     review_records as _review_records,
     review_verdicts as _verdicts,
+    review_writes as _review_writes,
     state as _state,
 )
 from orchestrator.workflow.state import stage_name
@@ -147,14 +157,6 @@ _AWAITING_HUMAN = "awaiting_human"
 
 # The agent role the reviewer's own parks are reported as.
 _REVIEWER = "reviewer"
-
-# What a park of a verdict stands on in the comment: the report's records, the
-# pull request the issue points at, the verdict itself, and the verification
-# evidence. Any of them another road moved since the tick last read or wrote
-# the comment is a subject nobody reviewed, or a verdict other than the one the
-# park refuses.
-_HELD_TO = (*_review_comment._VERDICT_RECORDS, *_review_comment._EVIDENCE_RECORDS)
-
 
 def parks_unverified(
     gh: GitHubClient,
@@ -235,43 +237,26 @@ def parks_over_the_subject(
     the report and verdict records the verdict was proved over. Behind the
     notice, a field the state in hand spells otherwise than that reading is
     this tick's own to write -- what the returned run staged among them -- and
-    one the comment spells otherwise is another road's, carried.
+    one the comment spells otherwise is another road's, carried. The park is
+    prepared before the notice and committed behind it, guarded by the last
+    reading (`review_writes`); one whose commit does not land reports nothing.
     """
     reason = park[0]
-    parked = state
-    if not _park_fits(state, reason, park[3]):
-        # With no room beside what the returned run staged, the park is taken
-        # over the comment as it stands, the run's usage and session unrecorded.
-        parked = _review_comment._read(gh, issue, state, "park a verdict with no room for what its run staged")
+    parked = _review_writes.parks_over(gh, issue, state, run, park)
     if parked is None:
-        return
-    if parked is not state and _review_comment._moved(parked.data, run.resolved_over, _HELD_TO):
-        log.warning(
-            "issue=#%d its pinned comment moved what its reviewer's verdict "
-            "stands on before the %s park was posted; posting and writing "
-            "nothing", issue.number, reason,
-        )
-        return
-    if not _park_fits(parked, reason, park[3]):
-        log.error(
-            "issue=#%d has no room on its pinned comment even for the %s park; "
-            "posting and writing nothing", issue.number, reason,
-        )
         return
     # A park over the comment as it stands writes nothing but that reading,
     # so that reading is what it is measured against.
     baseline = dict(run.resolved_over if parked is state else parked.data)
     lands = _behind_the_notice(gh, issue, parked, replace(run, resolved_over=baseline), park)
-    # What moved behind the notice was carried whole, and another road's
-    # write can have spent the room this one was measured with.
-    if lands is None or not _report_record_state.fits_the_comment(parked.data):
+    if lands is None or not _review_writes.lands(gh, issue, parked, _review_writes.PARK):
         log.error(
             "issue=#%d wrote nothing behind the notice of its %s park: its "
-            "pinned comment would not read, or has no room for that write "
-            "beside what moved there", issue.number, reason,
+            "pinned comment would not read, moved what the park was decided "
+            "on, or has no room for that write beside what moved there",
+            issue.number, reason,
         )
         return
-    gh.write_pinned_state(issue, parked)
     if lands:
         gh.emit_event(
             "park_awaiting_human",
@@ -378,7 +363,7 @@ def _behind_the_notice(
         return None
     # Evidence another road recorded or settled behind the notice is a subject
     # nobody reviewed, as surely as a push.
-    moved = _review_comment._moved(reread.read, run.resolved_over, _HELD_TO)
+    moved = _review_comment._moved(reread.read, run.resolved_over, _review_writes.VERDICT_STANDS_ON)
     if not moved and stands is None:
         log.info(
             "issue=#%d could not read the subject its reviewer's verdict is "

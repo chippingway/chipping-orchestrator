@@ -16,18 +16,24 @@ A report that cannot be handed over -- refused for good, or unreadable this
 tick -- ends the tick there with no reviewer spawned.
 
 The configured reviewer spec is persisted BEFORE the spawn, and the subject
-the reviewer is handed beside it, in a write of their own ahead of the launch
-(`review_records`). A backend hiccup that yields no session id, or a round that
-dies mid-review, still leaves a durable record of which spec ran that round and
-what it was shown, and a config flip mid-flight cannot retroactively rewrite
-the history. Overwriting both every round is correct here precisely because
-the reviewer is spawned fresh each time rather than resumed. Ahead of that
-write, the reading the subject was bound to is laid over the state in hand,
-measured from the comment as the tick read it
-(`review_comment._ResolvedSubject.lays_over`), so a run another road charged
-and folded, or a notice it posted, while the subject was resolved is kept by
-every write of the round rather than written back over. The workflow
-verification evidence current for that subject is asked behind the write
+the reviewer is handed beside it, in a guarded commit of their own ahead of the
+launch (`review_writes.lands_the_launch`), decided on the report records, the
+pull request, and the returned-verdict record the subject was bound over, and on
+the spec and subject themselves as that reading spelled them, so a launch
+repeated over a subject already recorded never runs beside another road's. A
+backend hiccup that yields no session id, or a round that dies mid-review,
+still leaves a durable record of which spec ran that round and what it was
+shown, and a config flip mid-flight cannot retroactively rewrite the history.
+Overwriting both every round is correct here precisely because the reviewer is
+spawned fresh each time rather than resumed. A commit that does not land -- one
+of those records moved, a comment that will not read, an edit nobody confirmed
+-- spawns no reviewer that tick. Ahead of that commit, the reading the subject
+was bound to is laid over the state in hand, measured from the comment as the
+tick read it (`review_comment._ResolvedSubject.lays_over`), and so, behind it,
+is whatever the commit landed over, measured from that reading: a run another
+road charged and folded, or a notice it posted, while the subject was resolved
+is kept by every write of the round rather than written back over. The workflow
+verification evidence current for that subject is asked behind the commit
 (`review_evidence`), since evidence is held to the subject the launch records,
 and handed over beside the report: the prompt quotes it under its revision and
 teaches the declaration the reviewer closes on -- the commands it ran on the
@@ -48,7 +54,8 @@ read-only and starts over next tick.
 
 The verdict itself fans out to two owners. A timeout or a missing VERDICT line
 parks, its return -- usage, session, and the subject it read -- recorded by
-the park's own write; an approval or a change request goes to
+the park's own guarded commit, prepared before its notice is posted
+(`review_writes.parks_the_return`); an approval or a change request goes to
 `review_disposition`, which records that return over its own last reading,
 persists the verdict with the evidence its declaration earned before
 publishing that evidence or acting on either verdict, and lets an approval
@@ -67,9 +74,12 @@ of that is written, for that reason: a report settling, the issue pointed at
 another pull request, or another round's verdict persisted while the reviewer
 runs is recorded there and nowhere in the state this tick holds, and every
 write the run makes from that state has to lay itself over that rather than
-undo it -- where the comment will not read, nothing is written at all. The disposition resolves the subject again
-for a verdict, and reads the comment once more behind that, before it
-persists anything. Failed-run parks (timeout and unknown verdict) enrich the
+undo it -- where the comment will not read, nothing is written at all. Each of
+those writes is a guarded commit captured over that reading
+(`review_writes`), so what another road writes after it is kept, or -- where
+it moved a record the write was decided on -- refuses the write. The
+disposition resolves the subject again for a verdict, and reads the comment
+once more behind that, before it persists anything. Failed-run parks (timeout and unknown verdict) enrich the
 shared park funnel with typed correlation fields (`agent_role`, `session_id`,
 `review_round`, `retry_count`, `pr_number`).
 """
@@ -100,8 +110,8 @@ from orchestrator.workflow.stages.validating import (
     review_comment as _review_comment,
     review_disposition as _review_disposition,
     review_evidence as _review_evidence,
-    review_records as _review_records,
     review_report as _review_report,
+    review_writes as _review_writes,
     state as _state,
 )
 
@@ -120,7 +130,8 @@ def _run_reviewer_round(
     of the round is written (`review_comment._ResolvedSubject.lays_over`): a
     run another road charged and folded while the subject was resolved is on
     that reading and nowhere in hand, and every later reading of the round is
-    measured from it, so no later one would see it move.
+    measured from it, so no later one would see it move. A launch whose commit
+    did not land ends the tick with no reviewer spawned.
     """
     round_n = int(state.get(_state._REVIEW_ROUND) or 0)
     if round_n >= config.MAX_REVIEW_ROUNDS:
@@ -139,6 +150,8 @@ def _run_reviewer_round(
         return None
     handover.lays_over(state, read)
     handover = _writes_the_launch(gh, spec, issue, state, handover)
+    if handover is None:
+        return None
     agent_result, handover = _launches(
         gh, issue, state, handover,
         agent_role="reviewer",
@@ -172,37 +185,39 @@ def _writes_the_launch(
     issue: Issue,
     state: PinnedState,
     handover: _review_comment._ResolvedSubject,
-) -> _review_comment._ResolvedSubject:
-    """Write the reviewer spec and its subject BEFORE the spawn; the subject over that write, its evidence beside it.
+) -> _review_comment._ResolvedSubject | None:
+    """Commit the reviewer spec and its subject BEFORE the spawn; the subject over that commit, its evidence beside it.
 
     The launch charge writes only the fields it took, so without a write of
     their own nothing would put these two down until the reviewer returned,
     and a round that died mid-review would leave no record of which spec ran
-    or what it was shown. They are written onto the comment as
-    `review_report` read it an instant ago -- carrying the report records in
-    hand -- rather than as the state in hand: that state carries what this
-    tick staged for the round's own write, a cleared park and a cap grant's
-    round reset among them, and a launch the run circuit refuses discards
-    those, which is what lets the grant be honored again once an agent-run
-    grant hands the park back. Both are staged on the state in hand too.
+    or what it was shown. They are committed over the comment as
+    `review_report` bound it an instant ago -- carrying the report records,
+    the pull request, and the verdict record in hand -- rather than as the
+    state in hand (`review_writes.lands_the_launch`): that state carries what
+    this tick staged for the round's own write, a cleared park and a cap
+    grant's round reset among them, and a launch the run circuit refuses
+    discards those, which is what lets the grant be honored again once an
+    agent-run grant hands the park back. Whatever the commit landed over -- a
+    run another road charged since the binding, say -- is carried onto the
+    state in hand with the launch's own two fields, measured from the binding
+    reading (`review_comment._ResolvedSubject.lays_over`). None where the
+    commit did not land: a record the round was decided on moved, the comment
+    would not read, or the edit was never confirmed, and no reviewer is
+    spawned this tick.
 
     The evidence the reviewer is handed is asked only behind that, since the
     proof holds evidence this orchestrator executed to the subject the launch
     records, and reviewer-reported evidence to the subject the last returned
     reviewer read -- this one's only where nothing moved since.
     """
-    durable = PinnedState(
-        comment_id=state.comment_id, state_data=dict(handover.resolved_over),
-    )
-    _review_records._records_the_launch(durable, handover.subject)
-    gh.write_pinned_state(issue, durable)
-    # The comment this write landed on is the one every later write of the
-    # round has to reach, rather than a second one pinned beside it.
-    state.comment_id = durable.comment_id
-    _review_records._records_the_launch(state, handover.subject)
+    landed = _review_writes.lands_the_launch(gh, issue, state, handover)
+    if landed is None:
+        return None
+    launched = replace(handover, resolved_over=landed)
+    launched.lays_over(state, handover.resolved_over)
     return replace(
-        handover,
-        resolved_over=dict(durable.data),
+        launched,
         evidence=_review_evidence.handed_evidence(gh, spec, issue, state, handover.subject),
     )
 
@@ -358,31 +373,32 @@ def _dispatch_reviewer_result(
 ) -> None:
     """Route a finished reviewer run and enrich failed-run parks with context.
 
-    A run that leaves no verdict has its return recorded here, by its park's
-    write; one that does leaves it to the disposition, which records it over
-    the reading it persists the verdict behind, so the usage is folded once.
+    A run that leaves no verdict has its return recorded by its park's guarded
+    commit (`review_writes.parks_the_return`); one that does leaves it to the
+    disposition, which records it over the reading it persists the verdict
+    behind, so the usage is folded once.
     """
     review = reviewer_run.agent_result
     pr_num = _guards._safe_int(reviewer_run.pr_number)
     if review.timed_out:
-        _review_records._records_the_return(state, review.usage, review.session_id, reviewer_run.subject)
-        _guards._park_awaiting_human(
-            gh, issue, state,
-            f"{config.HITL_MENTIONS} reviewer timed out after "
-            f"{config.REVIEW_TIMEOUT}s; manual intervention needed.",
-            reason=_state._REASON_REVIEWER_TIMEOUT,
-            agent_role="reviewer",
-            session_id=review.session_id,
-            review_round=reviewer_run.round_n,
-            retry_count=_guards._safe_int(state.get("retry_count")),
-            pr_number=pr_num,
-            bounded=True,
-        )
-        # Tag as transient so the next tick re-spawns the reviewer instead
+        # Tagged as transient so the next tick re-spawns the reviewer instead
         # of waiting for a human comment that the timeout itself does not
         # produce.
-        state.set(_state._PARK_REASON, _state._REASON_REVIEWER_TIMEOUT)
-        gh.write_pinned_state(issue, state)
+        _review_writes.parks_the_return(gh, issue, state, reviewer_run, (
+            _state._REASON_REVIEWER_TIMEOUT,
+            lambda: _guards._park_awaiting_human(
+                gh, issue, state,
+                f"{config.HITL_MENTIONS} reviewer timed out after "
+                f"{config.REVIEW_TIMEOUT}s; manual intervention needed.",
+                reason=_state._REASON_REVIEWER_TIMEOUT,
+                agent_role="reviewer",
+                session_id=review.session_id,
+                review_round=reviewer_run.round_n,
+                retry_count=_guards._safe_int(state.get("retry_count")),
+                pr_number=pr_num,
+                bounded=True,
+            ),
+        ))
         return
 
     verdict, body = _completion_verdicts._parse_review_verdict(
@@ -399,10 +415,7 @@ def _dispatch_reviewer_result(
     )
 
     if verdict == "unknown":
-        _review_records._records_the_return(state, review.usage, review.session_id, reviewer_run.subject)
-        _requested_changes._park_reviewer_no_verdict(
-            gh, issue, state, review, reviewer_run=reviewer_run,
-        )
+        _requested_changes._park_reviewer_no_verdict(gh, issue, state, reviewer_run)
         return
 
     # A verdict is persisted with the evidence its declaration earned, that

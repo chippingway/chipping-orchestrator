@@ -45,7 +45,10 @@ wrong agent a prompt with no review in it. Real text that merely omitted the
 marker is left for a human, and the stderr tail is suppressed there because
 the human is already reading model output. Unknown-verdict and reviewer-failure
 parks forward typed correlation fields (`agent_role`, `session_id`,
-`review_round`, `retry_count`, `pr_number`) through the shared park funnel.
+`review_round`, `retry_count`, `pr_number`) through the shared park funnel, and
+land with the run's own records in one guarded commit prepared before the
+notice is posted (`review_writes.parks_the_return`), as a reviewer timeout's
+park does.
 """
 from __future__ import annotations
 
@@ -77,6 +80,7 @@ from orchestrator.workflow.stages.validating import (
     fix_reports as _fix_reports,
     models as _models,
     report_settlement as _report_settlement,
+    review_writes as _review_writes,
     rounds as _rounds,
     state as _state,
 )
@@ -128,11 +132,9 @@ def _park_reviewer_no_verdict(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
-    review,
-    *,
-    reviewer_run: _models._ReviewerRun | None = None,
+    reviewer_run: _models._ReviewerRun,
 ) -> None:
-    """Park `validating` when the reviewer produced no VERDICT line.
+    """Park `validating` when the reviewer produced no VERDICT line, with what its run returned.
 
     `_reviewer_no_verdict_park` splits the transient failures from the one
     that needs a human; the reason it returns is set back on the pinned state
@@ -141,8 +143,11 @@ def _park_reviewer_no_verdict(
     human reading real reviewer text does not need the subprocess tail too.
     Enriches the emitted park event with typed correlation fields
     (`agent_role`, `session_id`, `review_round`, `retry_count`, `pr_number`)
-    drawn from the reviewer run and state.
+    drawn from the reviewer run and state. The run's records and the park
+    land in one guarded commit, prepared before the notice is posted
+    (`review_writes.parks_the_return`).
     """
+    review = reviewer_run.agent_result
     outcome = _reviewer_no_verdict_park(review)
     raw = (review.last_message or "").strip() or "(reviewer produced no final message)"
     diag = (
@@ -150,32 +155,31 @@ def _park_reviewer_no_verdict(
         if (review.last_message or "").strip()
         else _agent_diagnostics._format_stderr_diagnostics(review, "Reviewer")
     )
-    round_val = state.get(_state._REVIEW_ROUND) if reviewer_run is None else reviewer_run.round_n
-    pr_val = state.get("pr_number") if reviewer_run is None else reviewer_run.pr_number
-    _guards._park_awaiting_human(
-        gh,
-        issue,
-        state,
-        f"{config.HITL_MENTIONS} reviewer did not emit a VERDICT line; "
-        f"{outcome[1]}\n\n_Last reviewer message:_\n\n"
-        f"{_messages._as_blockquote(raw)}{diag}",
-        reason=outcome[0],
-        agent_role="reviewer",
-        session_id=review.session_id,
-        review_round=_guards._safe_int(round_val),
-        retry_count=_guards._safe_int(state.get("retry_count")),
-        pr_number=_guards._safe_int(pr_val),
-        bounded=True,
-    )
-    if outcome[0] == _state._REASON_REVIEWER_FAILED:
-        state.set(_state._PARK_REASON, _state._REASON_REVIEWER_FAILED)
     log.warning(
         "issue=#%s reviewer emitted no VERDICT; exit_code=%d "
         "timed_out=%s stderr_tail=%r",
         issue.number, review.exit_code, review.timed_out,
         _agent_diagnostics._stderr_log_tail(review),
     )
-    gh.write_pinned_state(issue, state)
+    kept = outcome[0] if outcome[0] == _state._REASON_REVIEWER_FAILED else None
+    _review_writes.parks_the_return(gh, issue, state, reviewer_run, (
+        kept,
+        lambda: _guards._park_awaiting_human(
+            gh,
+            issue,
+            state,
+            f"{config.HITL_MENTIONS} reviewer did not emit a VERDICT line; "
+            f"{outcome[1]}\n\n_Last reviewer message:_\n\n"
+            f"{_messages._as_blockquote(raw)}{diag}",
+            reason=outcome[0],
+            agent_role="reviewer",
+            session_id=review.session_id,
+            review_round=_guards._safe_int(reviewer_run.round_n),
+            retry_count=_guards._safe_int(state.get("retry_count")),
+            pr_number=_guards._safe_int(reviewer_run.pr_number),
+            bounded=True,
+        ),
+    ))
 
 
 def _post_reviewer_feedback(context: _models._RequestedChanges) -> int | None:

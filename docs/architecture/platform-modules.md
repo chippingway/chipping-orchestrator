@@ -292,9 +292,10 @@ orchestrator/
                         are primitives the in-memory double overrides, so the double answers through this policy.
                         A state read from the comment or written over it remembers what the comment carried then
                         (`PinnedState.synced`), spelled as its JSON is and outside the record itself, so what a
-                        tick staged on it since can be told from what it read; a state the developer report's guarded
-                        commits (`workflow/engine/report_commits.py`) did not land over -- refused over a comment that
-                        moved, or sent and never confirmed -- or whose report post or re-read left its transaction
+                        tick staged on it since can be told from what it read; a state the guarded commits taken
+                        through `workflow/engine/report_commits.py` -- the developer report's and a validating
+                        reviewer round's -- did not land over -- refused over a comment that moved, or sent and
+                        never confirmed -- or whose report post or re-read left its transaction
                         owed over a comment another road wrote meanwhile is marked `withheld`, and the legacy write
                         writes nothing for it, since written whole it would put back what another road wrote past it
     pull_request_reads.py

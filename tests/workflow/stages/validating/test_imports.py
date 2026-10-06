@@ -52,6 +52,7 @@ _OWNERS = (
     "review_parks",
     "review_resume",
     "review_verdicts",
+    "review_writes",
     "reviewer",
     "squash_writes",
     "state",

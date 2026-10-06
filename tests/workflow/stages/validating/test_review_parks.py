@@ -21,7 +21,6 @@ from __future__ import annotations
 import unittest
 from functools import partial
 from types import MappingProxyType
-from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.workflow.engine import comments as _comments
@@ -431,21 +430,17 @@ class ParkWriteTest(_parked.ParkedVerdictWorld, unittest.TestCase):
                 )
 
     def test_a_refused_write_reports_no_wait(self) -> None:
-        # GitHub refuses the park's write behind its notice: the refusal is
-        # raised out of the tick with nothing recorded, and no wait is
-        # reported for a park that never landed -- the event follows the
-        # write, and never stands in for it.
+        # GitHub refuses the park's commit behind its notice: the tick ends
+        # with nothing recorded, and no wait is reported for a park that never
+        # landed -- the event follows the commit, and never stands in for it.
         for reason in _PARKS:
             with self.subTest(reason):
                 self.setUp()
                 self.awaits(reason)
                 before = self.pinned()
-                refused = patch.object(
-                    self.github, "write_pinned_state", side_effect=RuntimeError("GitHub refused the edit"),
-                )
+                self.github.pinned_failures.refused.add(_world.ISSUE)
 
-                with refused, self.assertRaises(RuntimeError):
-                    self.parks(reason)
+                self.parks(reason)
 
                 noticed = _parked.NOTICES[reason] in self.issue.comments[-1].body
                 self.assertEqual(

@@ -655,16 +655,17 @@ kept, so the next write replaces the corruption in place instead of leaving a se
 Most writers rewrite the whole record from the state they read (`write_pinned_state`), which lands wherever it can — in
 place, or as a new comment where none is named or the named one is gone. A **guarded commit**
 (`workflow/engine/pinned_commit.py`, which the verification-evidence publication and settlement, the evidence
-reconciliation's retirements, `validating`'s invalidation of an unanswered carry, and the developer report's writes
-commit through) is never written from its caller's state. It is captured from the reading the caller decided on — the
-comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent one
-included, and the fields the caller owns — and derived over a fresh reading: each field the caller's staged state
-changed, every one of which it has to own, is laid over that reading; a transformation the caller's domain supplies
-decides its own owned field over the fresh value, so a total, a ledger, or a watermark both roads moved keeps both moves
-— or answers that the two will not join, which is refused as an owned conflict; and every other field, unknown ones
-included, is kept as the fresh reading carries it. Fields are compared as the JSON spells them, keys sorted, so `null`
-is not an absent field, `true` is not `1`, and `1.0` is not `1`, at any depth. The fresh reading can be taken alone too
-(`reread`), for a caller with requests of its own to make over the comment it captured before it stages anything.
+reconciliation's retirements, `validating`'s invalidation of an unanswered carry, the developer report's writes, and a
+reviewer round's launch, return, verdict, and park writes commit through) is never written from its caller's state. It
+is captured from the reading the caller decided on — the comment's id, every field as the comment's JSON spells it, the
+prerequisite fields the decision rests on, an absent one included, and the fields the caller owns — and derived over a
+fresh reading: each field the caller's staged state changed, every one of which it has to own, is laid over that
+reading; a transformation the caller's domain supplies decides its own owned field over the fresh value, so a total, a
+ledger, or a watermark both roads moved keeps both moves — or answers that the two will not join, which is refused as an
+owned conflict; and every other field, unknown ones included, is kept as the fresh reading carries it. Fields are
+compared as the JSON spells them, keys sorted, so `null` is not an absent field, `true` is not `1`, and `1.0` is not
+`1`, at any depth. The fresh reading can be taken alone too (`reread`), for a caller with requests of its own to make
+over the comment it captured before it stages anything.
 
 It refuses — writing nothing, and touching nothing the caller holds — where the comment will not read, will not parse,
 or is not the one captured (replaced, deleted, or never pinned: the strict edit never creates one); where a prerequisite
@@ -702,8 +703,32 @@ refusal for room alone is not, where the comment read again is still the one the
 simply too full and the roads behind a report still owed are what give its room back. A report post or re-read that
 leaves its transaction owed without any report write landing asks the comment the same question once more
 (`ReportCommit.withholds`): one another road wrote while the request was out withholds the state, and one still reading
-as the tick synced with leaves it to be written. Every road but these and the verification evidence's still writes its
-whole state.
+as the tick synced with leaves it to be written.
+
+A reviewer round's writes on `workflow:validating` land through the same tick-state guard
+(`stages/validating/review_writes.py`), each declaring the fields it owns and the records it was decided on, as those
+records read on the reading behind it: the launch's `review_agent` and `review_subject`, captured over the reading its
+subject was bound to rather than the tick's state and decided on the report records, `pr_number`, and
+`review_returned_verdict`; a returned run's own records -- its usage folded into the `issue_*` totals, its session,
+`last_review_at`, and `review_returned_subject` -- and the park a timeout or a missing VERDICT line takes with them,
+decided on the same records; and the returned verdict persisted with the transaction its claim was minted as, its drop,
+and the `reviewer_unverified` / `reviewer_unrecorded` parks and a failed verify gate's park, each decided on those and
+the `verification_evidence_*` records besides. Each is decided as well on the fields of its own it may stage exactly as
+the comment already spells them -- the launch on `review_agent` and `review_subject`, a return on
+`review_returned_subject`, a park on `awaiting_human` and `park_reason` -- since a commit tells a write's own moves by
+their difference from the reading, and a launch repeated over a subject already recorded, or a park taken by a round a
+reply bought over a parked reading, would otherwise land beside another road's spec, subject, or cleared park. A park is
+prepared before its notice, with what posting it writes reserved at its widest, and committed behind it; a verdict is
+held, over the very candidate sent, to the room its handoff and its transaction's settlement reserve, and one without
+that room is parked as unrecorded. A record another road moved after the reading a write was decided on, an owned field
+it moved, a comment that will not read or parse or is not the one read, or a candidate past `MAX_PINNED_BODY` refuses
+the write with nothing written, and nothing depending on it is made -- no reviewer launched, no notice posted, no
+evidence published, no verdict acted on -- and the tick's state is withheld as a refused report write's is. A write sent
+and never confirmed acts on nothing either: a launch it may have recorded is committed again, with nothing sent, by the
+next tick's round, and a verdict and transaction it may have persisted are published and finished by the next tick's
+reconciliation and recovery with no second reviewer, artifact, fold, charge, or round. Every road but these and the
+verification evidence's still writes its whole state, a change request's handoff and the approval's squash tail among
+them.
 
 The keys that matter for the state machine fall into a few groups:
 
@@ -2073,9 +2098,13 @@ The keys that matter for the state machine fall into a few groups:
   only where the comment has room for that whole write, so a field added to it moves that refusal too. A report
   recorded on any other route is not charged for it, since no other stage hands an approval back.
 - **Review subject.** `review_subject` is what the latest reviewer was handed, written beside `review_agent` ahead
-  of the spawn, in a write of its own onto the comment as the round just read it (the launch charge writes only its
-  own fields, and the state the tick holds carries what only the round's own write may land, such as a cap grant's
-  round reset): `pr`, `sha` (the head the pull request stood on), `requirements`
+  of the spawn, in a guarded commit of its own over the comment as the round just read it (the launch charge writes
+  only its own fields, and the state the tick holds carries what only the round's own write may land, such as a cap
+  grant's round reset), decided on the report records, `pr_number`, and `review_returned_verdict` there, and on
+  `review_agent` and `review_subject` themselves -- one that moved under it, a comment that will not read, or an
+  edit never confirmed spawns no reviewer that tick, and one never confirmed is committed again with nothing sent by
+  the next: `pr`, `sha` (the head the pull request stood on),
+  `requirements`
   (the fingerprint of the thread read the prompt quotes), and `report_revision` + `report_content` (the revision and
   digest of the developer report quoted whole in the prompt; both `null` is a subject with no report, a shape the
   reader accepts though no reviewer is spawned over a pull request with no report).
@@ -2210,17 +2239,22 @@ The keys that matter for the state machine fall into a few groups:
   service (`review_disposition.py`), where it persists the verdict a live reviewer round returned -- a road the
   recovery never takes, since it finishes a record already persisted -- and the change-request handoff below. In the
   service the transaction is minted first, since reading the reviewed tree is a
-  request of its own, and the record and that transaction go down in one write with the returned run's own records, over
-  the pinned comment read again once the subject has been resolved -- the last requests before that write -- BEFORE the
-  evidence is published through the dispatcher's own reconciliation. The service stages those run records itself --
-  `last_review_session_id`, `last_review_at`, `review_returned_subject`, and the reviewer's usage folded into
-  `issue_agent_runs` / `issue_total_tokens` / `issue_total_cost_usd` / `issue_cost_sources` -- over that last reading,
-  so a usage total another road folded meanwhile is added to rather than written back over. A subject proved to have
-  moved by then, or a `verification_evidence_*` record another road moved since the subject was resolved -- the
-  transaction was minted, and a reuse named its evidence, over the records it replaced -- writes the run's own records
-  and no verdict; one that would not read writes nothing. A record that would not read back as written -- feedback UTF-8
-  cannot carry, say -- or one the comment has no room for beside its transaction is written nowhere and nothing is
-  published: the service answers which, and parks it under `reviewer_unrecorded` (below). A returned run that does not
+  request of its own, and the record and that transaction go down in one guarded commit with the returned run's own
+  records, captured over the pinned comment read again once the subject has been resolved -- the last requests before
+  that commit -- BEFORE the evidence is published through the dispatcher's own reconciliation. A report record,
+  `pr_number`, the record itself, or a `verification_evidence_*` record another road moves after that reading refuses
+  the commit with nothing written or published, and so does a comment that will not read or parse or was replaced; an
+  edit never confirmed publishes and acts on nothing, and the record and transaction it may have left are published and
+  finished by the next tick with no second reviewer, artifact, fold, charge, or round. The service stages those run
+  records itself -- `last_review_session_id`, `last_review_at`, `review_returned_subject`, and the reviewer's usage
+  folded into `issue_agent_runs` / `issue_total_tokens` / `issue_total_cost_usd` / `issue_cost_sources` -- over that
+  last reading, so a usage total another road folded meanwhile is added to rather than written back over. A subject
+  proved to have moved by then, or a `verification_evidence_*` record another road moved since the subject was resolved
+  -- the transaction was minted, and a reuse named its evidence, over the records it replaced -- writes the run's own
+  records and no verdict; one that would not read writes nothing. A record that would not read back as written --
+  feedback UTF-8 cannot carry, say -- or one the comment has no room for beside its transaction, measured again over the
+  very candidate the commit sends, is written nowhere and nothing is published: the service answers which, and parks it
+  under `reviewer_unrecorded` (below). A returned run that does not
   name, as a whole number, the pull request its `subject` is on is refused before anything is minted, written, or
   published. The verdict is ready to act on only while the comment carries it as persisted, its subject -- held to it
   once more, the report records, the record itself, and `pr_number` read again last -- still stands, and its claim,
@@ -2238,10 +2272,12 @@ The keys that matter for the state machine fall into a few groups:
   superseded since -- sets it to `null` for a fresh reviewer. A `pr_number` naming another pull request than the
   record's `subject` -- moved while the verdict waited or between ticks -- is such a move too, even where that pull
   request still stands as it was handed: every road acting on the verdict reads the pull request off the comment. Every
-  write the service makes, the record's own included, is composed over the comment read again just before it, keeping
-  what another road wrote there -- newer records, and fields no verdict stands on, such as a `review_round` a reply
-  bought or the `last_action_comment_id` it read through -- save, where the report records, the record, and `pr_number`
-  stand, a field the service changed itself. A field both it and another road moved keeps both moves where they add up
+  write the service makes, the record's own included, is a guarded commit captured over the comment read again just
+  before it, keeping what another road wrote there, before that reading or after it -- newer records, and fields no
+  verdict stands on, such as a `review_round` a reply bought or the `last_action_comment_id` it read through -- save,
+  where the report records, the record, and `pr_number` stand, a field the service changed itself; a record it was
+  decided on that moves after that reading refuses it, and a drop refused so leaves the record waiting for a later tick
+  to decide again. A field both it and another road moved keeps both moves where they add up
   or only advance, however the records went -- the `issue_*` usage totals add, `issue_cost_sources` joins, and
   `last_action_comment_id` and the `pr_last_*` watermarks keep whichever reading went further, each only over values
   spelled as their writers spell them -- whole numbers for the run and token counts and the watermarks -- a hand edit
@@ -2268,15 +2304,16 @@ The keys that matter for the state machine fall into a few groups:
   that would not read, or a notice that left no id and so may have reached nobody, lands none either and leaves the
   record as it waited. That write keeping the record can be wider than the park's own, and is measured behind the notice
   like every other: where it does not fit nothing is written and the record waits for a later tick's notice, rather than
-  a park that fits being refused up front and the record waiting on it with nobody told. Every park write is composed
-  over the comment as it stands, keeping and merging what another road wrote behind the notice as every write of the
-  service does, and is measured again with it and not made where another road's write left no room. Only a park that
-  lands sets `awaiting_human` and `park_reason`, sets the record it holds to `null` in its own write -- a
-  `reviewer_unrecorded` park holds none, and leaves the key, or whatever record another road or a hand edit left there,
-  exactly as it found it, and a `reviewer_unverified` park holds the record only where it is the approval of the round
-  and subject its run returned, and posts and writes nothing where it is not -- and reports `park_awaiting_human` once
-  that write is down. Neither park retries itself: a bare `/orchestrator continue` buys a fresh reviewer, and an edit
-  under one nobody replied to waits for that reviewer rather than resuming the developer.
+  a park that fits being refused up front and the record waiting on it with nobody told. Every park write is the park's
+  guarded commit over the comment as it stands, keeping and merging what another road wrote behind the notice as every
+  write of the service does, measured again with it and not made where another road's write left no room or moved,
+  after the last reading, a record the park was decided on; the measurement before the notice is that commit prepared.
+  Only a park that lands sets `awaiting_human` and `park_reason`, sets the record it holds to `null` in its own write --
+  a `reviewer_unrecorded` park holds none, and leaves the key, or whatever record another road or a hand edit left
+  there, exactly as it found it, and a `reviewer_unverified` park holds the record only where it is the approval of the
+  round and subject its run returned, and posts and writes nothing where it is not -- and reports `park_awaiting_human`
+  once that write is down. Neither park retries itself: a bare `/orchestrator continue` buys a fresh reviewer, and an
+  edit under one nobody replied to waits for that reviewer rather than resuming the developer.
   A change request is handed over (`review_handoffs.py`) through the decision it was persisted from -- the
   record's own `round`, `verdict`, `subject`, and `feedback` -- in the tick its reviewer returned, or from the record
   alone on a later tick, which holds no decision, either way on that subject's pull request: another round's decision,
@@ -2825,10 +2862,10 @@ The keys that matter for the state machine fall into a few groups:
   `unknown-price` runs add nothing); `issue_cost_sources` is the sorted distinct `cost_source` set a terminal verdict
   reads to mark `(est.)` (any `estimated`) or unpriced `unknown` (any `unknown-price`). The increment rides the
   handler's existing single `write_pinned_state`, so an `interrupted` run that returns without writing never accrues.
-  Where a returned reviewer's write is laid over the pinned comment read again (`stages/validating/review_comment.py`),
-  a total another road folded a run into since the tick read the comment -- while the reviewer's subject was resolved
-  as well as while it ran -- is added to the reviewer's own fold, and the tags join, rather than either road's fold
-  being written away.
+  Where a returned reviewer's write is laid over the pinned comment read again (`stages/validating/review_comment.py`)
+  and committed over that reading (`stages/validating/review_writes.py`), a total another road folded a run into since
+  the tick read the comment -- while the reviewer's subject was resolved, while it ran, or between that reading and the
+  commit -- is added to the reviewer's own fold, and the tags join, rather than either road's fold being written away.
   The decomposer / question / discussion stages additionally skip the fold for `interrupted` runs, so even
   their dirty/commits inspection park (which does write pinned state) records no counter.
 - **Agent-run ledger.** `agent_run_allowance` + `agent_runs_used` + `agent_run_reservation` are read by

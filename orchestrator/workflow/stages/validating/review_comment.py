@@ -10,8 +10,11 @@ where it was. Nothing at that report's own location tells the two apart; only
 the records on the comment do.
 
 So `review_report` binds a resolved subject only to a comment read afresh that
-carries the report records the state in hand carries, and points the issue at
-the pull request the subject was resolved at (`_resolved_over`), and the
+carries the report records the state in hand carries, points the issue at the
+pull request the subject was resolved at, and carries the returned-verdict
+record the state in hand does -- a verdict another road persisted since the tick
+read the comment is one a later tick finishes, not a second reviewer's to
+answer (`_resolved_over`) -- and the
 in_review ready ping and the unmergeable park beside it ask the same once
 mergeability is read (`_records_in_hand`); the squash tail holds each of its
 writes to those records and more (`handoff._holds_its_records`). Where the
@@ -26,10 +29,14 @@ anything, measured from the comment as the tick read it
 (`_ResolvedSubject.lays_over`): what another road wrote while the subject was
 resolved -- a run it charged and folded, a notice it posted -- is on it and
 nowhere in hand, and every later reading is measured from it, so none would see
-that move. It then takes in the round's own launch charge once that charge is
-down (`_ResolvedSubject.carrying`): the charge lands on the state in hand only
-the fields it wrote, which read against the comment without them would be taken
-for this tick's own, and written back over a later charge another road wrote.
+that move. The round's launch is committed over that reading
+(`review_writes.lands_the_launch`), and what the commit landed -- the launch and
+whatever another road wrote since the binding -- is laid over the state in hand
+the same way, measured from it. It then takes in the round's own launch charge
+once that charge is down (`_ResolvedSubject.carrying`): the charge lands on the
+state in hand only the fields it wrote, which read against the comment without
+them would be taken for this tick's own, and written back over a later charge
+another road wrote.
 
 `_records_stand` reads the comment against that reading again, as the reviewer
 returns, once more behind the subject resolved again for its verdict, and once
@@ -48,8 +55,11 @@ behind this may act on or write over -- the disposition measures a returned
 run from the return's reading on, so a verdict another round persisted while
 the reviewer ran is caught there or nowhere. Records that moved
 refuse the verdict. Either way every write made from the state behind the
-reading is laid over the comment as it stands, so everything the comment
-changed since is carried onto the state in hand: a later report settled over the one the reviewer was handed, the
+reading is laid over the comment as it stands -- each a guarded commit captured
+over the reading this hands back (`review_writes`), so what the comment changes
+after it is kept as well, or refuses the write where it moves a record the write
+was decided on -- so everything the comment changed since is carried onto the
+state in hand: a later report settled over the one the reviewer was handed, the
 workflow verification evidence another road recorded or settled -- which that
 service holds the verdict's evidence claim to, over the comment as read last,
 rather than calling a settlement of the very evidence it claims a move -- a
@@ -201,10 +211,12 @@ class _ResolvedSubject:
         while the subject was resolved, the thread it read through, a notice it
         posted, are on it and nowhere in hand, and left out of `state` here no
         later reading would see them move -- the round's writes would put the
-        values the tick read back over them. The report records and the pull
-        request agree by then (`_resolved_over`), so a field both changed is
-        this tick's own to say, or keeps both moves where they add up or only
-        advance (`_Reread.lays_over`). A field the comment already spells as
+        values the tick read back over them. The report records, the pull
+        request, and the returned-verdict record agree by then
+        (`_resolved_over`), and the launch's commit lands only over them as
+        they read there (`review_writes.lands_the_launch`), so a field both
+        changed is this tick's own to say, or keeps both moves where they add
+        up or only advance (`_Reread.lays_over`). A field the comment already spells as
         `state` does -- one this tick wrote earlier in the tick -- has nothing
         to carry, and measured from `read` it would read as both roads' move
         and be kept twice. No road ahead of a reviewer on its tick folds a run
@@ -363,21 +375,24 @@ def _resolved_over(
     """The comment a subject resolved from `state` is bound to, or None.
 
     None where the comment will not read or parse, is not the one `state` was
-    read from, carries other report records than `state` does, or points the
+    read from, carries other report records than `state` does, points the
     issue at another pull request than `state` does -- a subject resolved at
     one pull request bound to a comment naming another would be judged, and
-    acted on, over the wrong one. The caller ends the tick without writing.
+    acted on, over the wrong one -- or carries another returned verdict than
+    `state` does, which a reviewer launched over it would write its own
+    verdict over. The caller ends the tick without writing.
     `purpose` is what the caller was about to do, for the log.
     """
     durable = _read(gh, issue, state, purpose)
     if durable is None:
         return None
-    if not _moved(durable.data, state.data, _BOUND_RECORDS):
+    if not _moved(durable.data, state.data, _VERDICT_RECORDS):
         return dict(durable.data)
     log.warning(
         "issue=#%d its pinned comment does not carry the records this tick "
-        "holds -- the developer report's, or the pull request it points at -- "
-        "so it will not %s; writing nothing this tick", issue.number, purpose,
+        "holds -- the developer report's, the pull request it points at, or "
+        "a reviewer's returned verdict -- so it will not %s; writing nothing "
+        "this tick", issue.number, purpose,
     )
     return None
 

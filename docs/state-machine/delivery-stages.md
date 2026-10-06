@@ -3769,9 +3769,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      record is refused the same way — parked under `report_undeliverable` with the debt set, so the reply resumes the
      developer for one — since a reviewer handed none would be judging work nobody has described. Before any of that
      is decided or written, the pinned comment is read once more (`review_comment._resolved_over`) and has to carry
-     the report records the state in hand carries, and point the issue at the same `pr_number`: the subject was
-     resolved from the state the tick read when it began, and a later report settled since — on the very head, by
-     another road — is there and nowhere in hand, as is the issue pointed at another pull request. Where it does not,
+     the report records and the `review_returned_verdict` the state in hand carries, and point the issue at the same
+     `pr_number`: the subject was resolved from the state the tick read when it began, and a later report settled
+     since — on the very head, by another road — is there and nowhere in hand, as is the issue pointed at another
+     pull request, or a verdict another road persisted, which a later tick finishes. Where it does not,
      or will not read or parse, no reviewer is handed anything and the tick ends WITHOUT writing, since any write would
      put the replaced report or pointer back; the next tick resolves the later one. The reading that agreed is laid
      over the state the tick holds, measured from the comment as the tick read it
@@ -3779,10 +3780,18 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      or a notice it posted while the subject was resolved is there and nowhere in hand, and every later reading of the
      round is measured from it, so left out here it would be written back over. Then persist
      `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the reviewer is spawned fresh each round with no
-     resume) and the resolved subject to `review_subject` (`review_records`), written ahead of the spawn onto the
-     comment as that reading found it — the launch charge writes only its own fields, and the state the tick holds
-     carries what only the round's own write may land, a cap grant's round reset among them, which a launch the run
-     circuit refuses has to discard. The charge that launch then takes on the comment is the round's own write too, so
+     resume) and the resolved subject to `review_subject` (`review_records`), in a guarded commit ahead of the spawn
+     over the comment as that reading found it (`review_writes.lands_the_launch`) — the launch charge writes only its
+     own fields, and the state the tick holds carries what only the round's own write may land, a cap grant's round
+     reset among them, which a launch the run circuit refuses has to discard. The commit is decided on the report
+     records, `pr_number`, `review_returned_verdict`, and its own `review_agent` and `review_subject` as that reading
+     spells them -- a launch repeated over a subject already recorded stages those two unchanged: one another road
+     moves behind
+     it, a comment that will not read or was replaced, or an edit GitHub never confirms spawns no reviewer and ends
+     the tick with nothing written — a launch recorded and never confirmed is committed again, with nothing sent, by
+     the next tick's round, which charges and runs one reviewer. What else the commit landed over is laid over the
+     state in hand, measured from that reading, as the binding was. The charge that launch then takes on the comment
+     is the round's own write too, so
      it is taken into the reading every later write of the round is measured against
      (`review_comment._ResolvedSubject.carrying`): a run another road charges while the reviewer runs is then a change
      on the comment to keep, not this round's count to write back over it. Behind that write the workflow
@@ -3796,7 +3805,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state, and
      so does a run the shutdown sweep interrupted. A reviewer that returns has the subject it was handed staged again as
      `review_returned_subject` beside its usage, session, and return time -- by the park a timeout or a missing verdict
-     takes, or by the disposition over its own last reading, so the usage is folded once: the launch's
+     takes, in its own guarded commit prepared before its notice (`review_writes.parks_the_return`), so a comment with
+     no room for that park beside the run's records posts nothing, or by the disposition over its own last reading,
+     so the usage is folded once: the launch's
      `review_subject` went down before the run budget was asked, so only this one says a reviewer really read the
      report.
      Before the timeout park, the no-verdict park, or anything a verdict earns is written, the pinned
@@ -3820,7 +3831,14 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      either, and `review_returned_verdict`, so a verdict another round persisted while the reviewer ran stays for
      that round's road -- this run is recorded, and its verdict neither persisted over that one nor acted on, since
      the disposition measures the run from this reading on. The round is measured from then on against the comment as
-     each reading found it, so every later reading keeps each of those moves once.
+     each reading found it, so every later reading keeps each of those moves once. Every write the run makes from
+     there is a guarded commit captured over the last such reading (`review_writes.py`): a field another road writes
+     after it is kept beside the run's own -- its usage, watermarks, and comment ids joined as above -- while a report
+     record, `pr_number`, or `review_returned_verdict` it moves, a `review_returned_subject` it replaces, the
+     `awaiting_human` / `park_reason` flags a park is taken over -- which a round a reply bought over a parked reading
+     stages as that reading already spelled them -- a comment that will not read or was replaced, or one filled past
+     room for the write refuses the write with nothing written, and a park refused behind its notice leaves that
+     notice with no park recorded, for the next tick's reviewer.
   6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
      - **approved** → handed, with the run, to the returned-verdict disposition (below), which persists it with the
        evidence its declaration earned and publishes that evidence before acting on it. Unless the records moved above,
@@ -4082,44 +4100,52 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        declared commands are minted as, then the subject held to what stands and the comment read again behind that
        resolution -- a `verification_evidence_*` record moved since refusing it as surely as a report -- then the run's
        own records staged, its usage folded over whatever usage that reading carries, and the verdict persisted as
-       `review_returned_verdict` with that transaction in ONE write before anything is published. A subject that moved
-       by then records the run with no verdict, and one nobody could read writes nothing; a verdict whose record would
-       not read back as written, or that the comment has no room for beside its transaction, is written and published
-       nowhere, and parks under `reviewer_unrecorded` (below), saying which. The transaction is published through the
+       `review_returned_verdict` with that transaction in ONE guarded commit before anything is published
+       (`review_writes.lands_the_verdict`), decided on the report, pull-request, verdict, and evidence records as that
+       reading spells them: one another road moves after it, or a comment that will not read or was replaced, refuses
+       the commit with nothing written or published, and an edit never confirmed publishes and acts on nothing, the
+       next tick's reconciliation and recovery publishing and finishing the verdict and transaction it may have left
+       with no second reviewer, artifact, fold, charge, or round. A subject that moved by then records the run with no
+       verdict, and one nobody could read writes nothing; a verdict whose record would not read back as written, or
+       that the comment has no room for beside its transaction -- measured again over the very candidate the commit
+       sends -- is written and published nowhere, and parks under `reviewer_unrecorded` (below), saying which. The
+       transaction is published through the
        [evidence reconciliation](#the-verification-evidence-transaction-every-dispatch), and the verdict is ready to act
        on only while the comment still carries it as persisted, its subject -- held to it once more, the comment read
        again last -- still stands, and its claim, judged over that last reading, has settled, or it declared none: a
-       settlement of the very evidence it claims readies it, and a push, a later report, or a later revision superseding
-       that evidence drops it. A later tick asks the same of a waiting verdict from the pinned comment alone
+       settlement of the very evidence it claims readies it, and a push, a later report, or a later revision
+       superseding that evidence drops it. A later tick asks the same of a waiting verdict from the pinned comment alone
        (`waiting_verdict_ready`), holding the standing subject to the one the record names, and finishes a ready one
        (`finishes_the_verdict`) only beside a run its caller rebuilt of the verdict's own round and subject, naming the
        pull request that subject is on, each read as the record spells it: through any other -- of another round,
        subject, or pull request, naming none, or of a round `False` for `0` or a report revision `True` for `1` -- it
-       acts on nothing and writes nothing. An owed transaction holds it
-       for a later tick while its subject stands and drops it once that subject is proved to have moved, and a lost
-       claim, published or reused, whichever the verdict -- superseded by a later revision included -- drops it for a
-       fresh reviewer. The subject's pull request has to be the one the issue points at: `pr_number` moved to another
-       -- while the verdict waited or between ticks -- drops it, since every road acting on it reads the pull request
-       off the comment. Every write it makes is composed over the comment read again just before it, keeping what
-       another road wrote there -- a round a reply bought included, both moves of a usage total, its cost tags, or a
-       comment-id watermark, and the comment-id ledger merged -- and every drop names only the verdict this road holds,
-       never one another road put in its place. The two parks a verdict takes instead of being acted on are filed in
-       `validating/review_parks.py`: an approval relying on no valid evidence under
-       `reviewer_unverified`, and a verdict that could not be persisted under `reviewer_unrecorded`, with nothing
-       published or acted on -- its notice asking for room on the pinned comment only where room is what refused the
-       verdict, and not where it would not read back as written. Each is measured before its notice is posted at the
-       park's own write -- its flags beside the notice's ledger entry and watermark, each at the widest id, with the
-       verdict it refuses dropped -- and taken over the comment as it stands, the returned run's usage and session
-       unrecorded, where it has no room beside what that run staged, but only while that reading carries the report,
-       pull-request, verdict, and evidence records the tick last read; nothing is posted or written where there is room
-       for no park. Behind the notice the subject is resolved again and the comment read last: a push, a repoint, a
-       later report, a verdict put in the place of the one parked, or a `verification_evidence_*` record moved there
-       lands no park and drops only the verdict held, over the newer records, whether or not the notice left an id;
-       where nothing proved a move, a subject nobody could read, or a notice that left no id and so may have reached
-       nobody, lands none either and leaves the verdict waiting -- in a write measured there, since keeping the verdict
-       can take more room than the park's own write, and not made where it does not fit. The write is composed over the
-       comment as it stands -- a round another road spent behind the notice kept, both moves of a usage total or a
-       watermark kept, the ledger merged -- measured again with what it carries, and not made where that no longer fits.
+       acts on nothing and writes nothing. An owed transaction holds it for a later tick while its subject stands and
+       drops it once that subject is proved to have moved, and a lost claim, published or reused, whichever the verdict
+       -- superseded by a later revision included -- drops it for a fresh reviewer. The subject's pull request has to be
+       the one the issue points at: `pr_number` moved to another -- while the verdict waited or between ticks -- drops
+       it, since every road acting on it reads the pull request off the comment. Every write it makes is a guarded
+       commit captured over the comment read again just before it, keeping what another road wrote there, before that
+       reading or after it -- a round a reply bought included, both moves of a usage total, its cost tags, or a
+       comment-id watermark, and the comment-id ledger merged -- refused with nothing written where a record it was
+       decided on moved after that reading, and every drop names only the verdict this road holds, never one another
+       road put in its place. The two parks a verdict takes instead of being acted on are filed in
+       `validating/review_parks.py`: an approval relying on no valid evidence under `reviewer_unverified`, and a verdict
+       that could not be persisted under `reviewer_unrecorded`, with nothing published or acted on -- its notice asking
+       for room on the pinned comment only where room is what refused the verdict, and not where it would not read back
+       as written. Each is measured before its notice is posted at the park's own write -- its flags beside the notice's
+       ledger entry and watermark, each at the widest id, with the verdict it refuses dropped -- and taken over the
+       comment as it stands, the returned run's usage and session unrecorded, where it has no room beside what that run
+       staged, but only while that reading carries the report, pull-request, verdict, and evidence records the tick last
+       read; nothing is posted or written where there is room for no park. Behind the notice the subject is resolved
+       again and the comment read last: a push, a repoint, a later report, a verdict put in the place of the one parked,
+       or a `verification_evidence_*` record moved there lands no park and drops only the verdict held, over the newer
+       records, whether or not the notice left an id; where nothing proved a move, a subject nobody could read, or a
+       notice that left no id and so may have reached nobody, lands none either and leaves the verdict waiting -- in a
+       write measured there, since keeping the verdict can take more room than the park's own write, and not made where
+       it does not fit. The write is the park's guarded commit over the comment as it stands -- a round another road
+       spent behind the notice kept, both moves of a usage total or a watermark kept, the ledger merged -- measured
+       again with what it carries, and not made where that no longer fits or a record the park was decided on moved
+       after its last reading; the measurement before the notice is that commit prepared.
        Only a park that lands sets `awaiting_human` and `park_reason`, drops the verdict it holds (a
        `reviewer_unrecorded` park holds none, and leaves whatever record stands there as it is, and a
        `reviewer_unverified` park holds only the approval of its run's round and subject, posting and writing nothing
