@@ -13,9 +13,9 @@ over a report or evidence record that moved while the relabel ran, or another
 road's record put down then -- and nothing here can tell which. Neither is this
 stage's to act on or to end, so the issue goes back to `validating`, whose
 recovery answers the handoff over the approval it names and whose verdict road
-answers the verdict, before a docs pass runs over either. An approval that
-collapsed nothing leaves no handoff record to stand over what moved while its
-relabel ran, so the approval itself is asked too: one that no longer covers
+answers the verdict, before a docs pass runs over either. No record stands over
+what moves once that handoff is ended, nor over a report edited in place at
+its location, so the approval itself is asked too: one that no longer covers
 the developer report the comment records as current, or that report as it
 reads at its location now, or whose evidence no longer stands, goes back the
 same way, and a report or evidence nobody could read holds the tick.
@@ -151,13 +151,12 @@ def _hands_back_what_validating_owes(
     relabelling the unchanged head straight back, and the review that return
     asks for would never run.
 
-    The approval itself is asked beside them, because an approval that
-    collapsed nothing leaves no handoff record, and its relabel is a request
-    long enough for another road to settle a later report or evidence
-    revision, or for a human to edit or delete the settled report in place,
-    which no record shows. One that no longer covers the developer report
-    the comment records as current, or that report as it reads at its
-    location now (`review_coverage._approval_stands`), or whose evidence no
+    The approval itself is asked beside them, because the handoff record is
+    ended once the relabel lands, and a later report or evidence revision
+    another road settles after that end, or the settled report a human edits
+    or deletes in place, is one no record shows. One that no longer covers the
+    developer report the comment records as current, or that report as it
+    reads at its location now (`review_coverage._approval_stands`), or whose evidence no
     longer stands (`approved_evidence.stands`), is an approval of work that is
     not there, and the docs pass would document it as reviewed: it goes back
     too, for the reviewer. A report or evidence nobody could read proves

@@ -404,12 +404,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recording or binding takes, and the fixing recovery's release (`report_commits.py`); a
                             reviewer round's launch, its no-verdict parks, the verdict persisted with its
                             transaction, the verdict's drops, and the parks a verdict takes
-                            (`stages/validating/review_writes.py`); and a change request's handoff, the drop,
+                            (`stages/validating/review_writes.py`); a change request's handoff, the drop,
                             retirement, and park of a handed one, and the recovery's anchor write-back, drops, and
                             bought-round settlement (`stages/validating/review_handoffs.py`,
-                            `review_launch_park.py`, `review_resume.py`) commit so far, while every other road still
-                            writes its whole state -- the approval squash's own invalidations among them: a candidate
-                            derived over a fresh reading of the
+                            `review_launch_park.py`, `review_resume.py`); and every write of an approval's tail --
+                            its verdict's retirement, the squash's own records, the handoff with the evidence it
+                            carries or invalidates, the failed squash's park, what it posted where its records
+                            moved, and the handoff's end behind the label (`stages/validating/squash_writes.py`) --
+                            commit so far, while every other road still writes its whole state: a candidate derived
+                            over a fresh reading of the
                             captured comment rather than written from the caller's state. A
                             write the caller did not declare refuses before anything is read; an unreadable,
                             unparsed, or replaced comment, a prerequisite spelled otherwise, and an owned field
@@ -463,7 +466,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             writes land through the same guard, each declaring its own `ReportWrite`
                             (`stages/validating/review_writes.py`), and so do a change request's handoff and the
                             recovery of one an earlier tick left waiting (`stages/validating/review_handoffs.py`,
-                            `review_launch_park.py`, `review_resume.py`)
+                            `review_launch_park.py`, `review_resume.py`) and every write of an approval's tail
+                            (`stages/validating/squash_writes.py`)
     report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
                             `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
                             report ready for publication, and a report asserted to be on the pull request at a URL
@@ -2459,8 +2463,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             names and whose verdict holds the label, before a docs pass runs over either. So does an
                             approval that no longer covers the developer report -- as recorded, and as it reads at its
                             location (`review_coverage._approval_stands`) -- or whose evidence no longer stands
-                            (`approved_evidence.stands`), since what moves during a relabel no handoff record stands
-                            over -- asked with the pinned comment read last behind those readings, whose report,
+                            (`approved_evidence.stands`), since what moves once the handoff record is ended behind
+                            the relabel no record stands over -- asked with the pinned comment read last behind those
+                            readings, whose report,
                             pointer, verdict, evidence, or approval records moving sends the issue back too
                             (`_approval_still_stands`); a report, evidence, or comment nobody could read holds the tick
       parks.py              the shared awaiting-human park and the missing-PR, dirty-tree, and question parks, plus
@@ -3649,8 +3654,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             below to answer; a location, an issue, or a pull request nobody could read holds the tick.
                             The move is also held to the approval's evidence answering for that commit
                             (`squash_evidence.py`): a carry the squash tail recorded is settled by the reconciliation
-                            ahead of this handler, and one the tail could not decide is decided here in a write of its
-                            own, the move left for the next tick. That proof is taken ahead of the coverage, so the
+                            ahead of this handler, and one the tail could not decide is decided here in a guarded
+                            commit of its own (`handoff.CARRIED`), the move left for the next tick. That proof is
+                            taken ahead of the coverage, so the
                             pull request is read last before the move, and a handoff the coverage drops takes a
                             settled carry onto its commit into history with it
       approval.py           the verify gate and the squash-and-hand-off tail both roads run, over the subject,
@@ -3679,12 +3685,25 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the count lives only on the collapse record the next tick would otherwise drop -- the
                             end of that record, and the `workflow:documenting` relabel that lands behind that
                             write rather than ahead of it, with the commit the move is owed over left on the
-                            comment across that boundary, so a relabel that does not land is the next tick's to
-                            retry rather than the next reviewer's to re-review. That write also carries the evidence
-                            the approval rests on onto the head the rewrite published, decided ahead of the comment
-                            it is laid over (`squash_evidence.py`), and the relabel waits for the carry to settle. The
-                            record is ended behind the label only where none of those records or subjects moved
-                            during the relabel, so documenting hands a moved one back to be answered
+                            comment across that boundary -- for an approval that collapsed nothing too, over the
+                            head it was given -- so a relabel that does not land, or that write landing with its
+                            response lost, is the next tick's to retry rather than the next reviewer's to re-review.
+                            That write also carries the evidence the approval rests on onto the head the rewrite
+                            published, decided ahead of the comment it is laid over (`squash_evidence.py`), and the
+                            relabel waits for the carry to settle; a carry the fresh candidate has no room to record
+                            or settle is invalidated in its place (`handoff._Held.settles`). Every write of the tail
+                            is a guarded commit over the comment read afresh (`squash_writes.py`), decided on the
+                            records the tail holds and every record a report debt is read from (`handoff.HELD_ON`) and
+                            owning what it declares: the verdict's retirement (`RETIRES`), the handoff -- the verdict,
+                            the approval and its claim, the park, the collapse record and its handoff, and what a carry
+                            or an invalidation writes (`HANDOFF`) -- and the end of the handoff behind the label
+                            (`_ENDS`); a refused write writes and relabels nothing, records what the tail posted, and
+                            retires its verdict where a record the approval was proved over -- a report owed among
+                            them -- moved under it, and one never confirmed is acted on no further. A park or a
+                            collapse record another road puts down during the verify gate holds the arc with nothing
+                            written and the verdict kept. The record is ended behind the label only where none of
+                            those records or subjects moved during the relabel, so documenting hands a moved one back
+                            to be answered
       handoff.py            what that arc posts on the pull request, seeds after, and holds its writes to: the
                             approval comment whose failure is logged and walked past, the squash notice its count is
                             worded from, and the in_review watermarks in two halves -- the snapshot taken behind the
@@ -3693,25 +3712,44 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reached past it, which is what each of the three watermarks becomes against what is
                             already persisted -- and the records every write of the tail is held to behind its
                             requests (`_holds_its_records`): the report, pointer, verdict, and evidence records in
-                            hand, and the three review subjects as the comment carried them when the tail last read
-                            or wrote it -- what every proof since was taken over -- the state laid over the comment as
+                            hand, and the three review subjects, the approval's claim, the report debt, the park, and
+                            the collapse record and its handoff as the comment carried them when the tail last read
+                            or wrote it -- what every proof since was taken over, and what the tail clears and ends
+                            itself -- the state laid over the comment as
                             read, measured from the comment as the tail last read or wrote it (`_Held`, which also
                             carries the run the approval's verify gate made) -- behind the squash, the last write the
                             squash made, or the reading before it where it made none -- and, where they moved,
                             nothing written but the
-                            ledger entries of what the tail posted and the end of the verdict it holds; and, on
-                            `_Held`, the proofs the arc asks behind the approval notice: the round's checkout still
-                            on the head the approval was of and clean (`checkout_stands`), since the branch is
-                            handed on from it, and the evidence its verdict was proved over (`evidence_stands`)
-      squash_writes.py      the client the approval's squash is handed on its gate, passing every call through,
-                            holding each write of the issue's own pinned comment to the records in hand and laying it
-                            over the comment first (`handoff._Held.follows`), and taking it, once it lands, as the one
-                            the tail last wrote. A write whose records moved is refused as a write GitHub refuses is,
-                            so the squash never puts an older report, round, or verdict back; and since the squash's
-                            reply does not say whether it wrote, measured from the reading before a squash that wrote
-                            a usage fold its write carried would be counted twice, while taken whole behind one that
-                            wrote nothing a round another road spent meanwhile would be written back over. A write of
-                            another issue's comment is neither guarded nor followed
+                            ledger entries of what the tail posted and -- where a record the approval was proved over
+                            moved, not a park or a collapse another road put down -- the end of the verdict it holds,
+                            in a guarded commit of its own, the tick's state withheld; the guarded writes the tail
+                            lands each write as (`_Held.lands`), decided on every record it holds and every record a
+                            report debt is read from (`HELD_ON`) and what each owns (`RETIRES`, `HANDOFF`, `CARRIED`,
+                            `SQUASH_PARK`), a refusal over a record the tail holds answered as one that reading
+                            caught; the commit carrying what the squash's evidence owes the head, a carry the fresh
+                            candidate has no room to record or settle invalidated in its place (`_Held.settles`);
+                            and, on
+                            `_Held`, the proofs the arc asks behind the
+                            approval notice: the round's checkout still on the head the approval was of and clean
+                            (`checkout_stands`), since the branch is handed on from it, and the evidence its verdict
+                            was proved over (`evidence_stands`)
+      squash_writes.py      the guarded commit every write of an approval's tail lands through (`lands`), under the
+                            developer report's tick-state guard (`engine/report_commits.py`): a refusal or an edit
+                            never confirmed writes nothing, withholds the tick's state, and licenses nothing behind
+                            it; the collapse record and its handoff a squash's writes own (`COLLAPSE_RECORDS`); and
+                            the client the approval's squash is handed on its gate, passing every call through,
+                            holding each write of the issue's own pinned comment to the records in hand, laying it
+                            over the comment first, and landing it through that commit (`handoff._Held.follows`),
+                            taking it, once it lands, as the one the tail last wrote. A write whose records moved, or
+                            whose commit did not land, is refused as a write GitHub refuses is, so the squash never
+                            puts an older report, round, or verdict back, and leaves the state, the reading it is
+                            synced with, and the tail's last reading as it found them -- so a field another road
+                            wrote, which the reading ahead of it took in, is never read as one the tick deleted; and
+                            since the squash's reply does not say
+                            whether it wrote, measured from the reading before a squash that wrote a usage fold its
+                            write carried would be counted twice, while taken whole behind one that wrote nothing a
+                            round another road spent meanwhile would be written back over. A write of another
+                            issue's comment is neither guarded nor followed
       verify.py             the approval's local verify gate: its run of the configured `VERIFY_COMMANDS` under
                             `VERIFY_TIMEOUT` over the round's checkout (`_runs_the_gate`), which the squash carries
                             as evidence where it publishes another head (`squash_evidence.py`), and how a refused
@@ -3738,7 +3776,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             minted under a context that moved -- during the squash included -- is invalidated the same
                             way. What an invalidation writes (`INVALIDATES`) and the record beyond the bound ones that
                             whether a carry still answers is read off (`CARRY_ANSWERS_ON`, the approval's claim) are the
-                            ownership and extra guard `collapse.py` commits an unanswered carry's invalidation under
+                            ownership and extra guard `collapse.py` commits an unanswered carry's invalidation under;
+                            what recording a carry writes (`CARRIES`), and what one decision stages
+                            (`SquashEvidence.writes`), are what the guarded commit carrying it owns; and that
+                            commit's candidate is held to the room the carry's settlement, and the invalidation
+                            behind it, need (`SquashEvidence.admits`), a carry without it refused for want of room
+                            (`SquashEvidence.without_room`)
       watermarks.py         the seed walk past leading orchestrator comments and a bare `/orchestrator
                             add-agent-runs` a grant left unread, and the ratchet that never regresses one
       requested_changes.py  the PR feedback and `workflow:fixing`-labeled dev fix, its report disposed of through
@@ -4421,10 +4464,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             feedback anchor; the
                             park a failed squash takes (`parks_the_failed_squash`) is filed beside the funnel rather
                             than through it, since the recovery of a squash an earlier tick did not finish reaches it
-                            with no reviewer run: measured before its notice keeping any verdict it does not retire,
-                            held behind that notice to the records the squash tail holds (`handoff._holds_its_records`)
-                            and, on the approval road, to the approved subject, and landing only behind a notice that
-                            was identified
+                            with no reviewer run: prepared before its notice as the guarded commit it lands as,
+                            keeping any verdict it does not retire (`review_writes._prepares_the_park`), held behind
+                            that notice to the records the squash tail holds (`handoff._holds_its_records`) and, on
+                            the approval road, to the approved subject, landing only behind a notice that was
+                            identified, and reported only once that commit is down (`handoff.SQUASH_PARK`)
       approved_evidence.py  the evidence an approval was proved over: the proof of a claim (`refusal`) -- the
                             current evidence named exactly, proved current again, its artifact re-read as the one that
                             settled, passing and covering `VERIFY_COMMANDS` -- which the arc takes again behind the

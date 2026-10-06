@@ -2387,8 +2387,8 @@ because there it is the claim that this stage has already rerouted rather than a
      behind that move, and otherwise drops it for the review; a waiting verdict holds the label there for the road
      that finishes it. That also keeps this stage from ever running with a record standing, which a later return to
      `validating` — step 4's drift unwind among them — would otherwise answer by relabelling the unchanged head
-     straight back here. An approval that collapsed nothing leaves no handoff record to stand over what moved while
-     its relabel ran — nor does a report edited or removed in place, which moves no record at all — so the approval
+     straight back here. No handoff record stands over what moves once that record is ended behind the relabel —
+     nor does a report edited or removed in place, which moves no record at all — so the approval
      itself is asked beside the records (`review_coverage._approval_stands`): one that no longer covers the
      `developer_report_current` the comment records (`review_approved_subject`), or that report as it reads at its
      location now, or whose `review_approved_evidence` no longer stands — the records and the artifact re-read as
@@ -2866,11 +2866,21 @@ lands **before** the relabel, because past the label the issue belongs to `docum
 this recovery: a tick dying between the two would strand a claim nothing there could answer and lose the watermarks
 the same write carries.
 
-That write does not leave the boundary empty, though, because the relabel is a second call and can fail on its own.
-What it ends is the **claim**; what it leaves in its place is `late_collapse_handoff_sha`, the commit the move is
-owed over. An issue left on `validating` with nothing on the comment is one the next tick runs a second reviewer on,
-over a branch already approved, squashed, and published — so the recovery route reads that record ahead of the
-reviewer and moves the label instead, then drops it in a write of its own behind the label. It is spent only while
+That write does not leave the boundary empty, though, because the relabel is a second call and can fail on its own,
+and the write itself can land with its response lost. What it ends is the **claim**; what it leaves in its place is
+`late_collapse_handoff_sha`, the commit the move is owed over — left by an approval that collapsed nothing too, over
+the head it was given. An issue left on `validating` with nothing on the comment is one the next tick runs a second
+reviewer on, over a branch already approved, squashed, and published — so the recovery route reads that record ahead
+of the reviewer and moves the label instead, then drops it in a guarded commit of its own behind the label. Every
+write of this tail is such a commit (`squash_writes.py`): decided on the report, `pr_number`, verdict, evidence,
+review-subject, claim, report-debt, park, collapse, and handoff records as the reading behind it spells them, owning
+only what it declares beside what the tick staged, and refused with nothing written, nothing relabeled, and the tick's
+state withheld where any moved under it — what the tail posted then recorded, and its verdict retired where a record
+the approval was proved over moved, a report owed among them — while one GitHub never confirmed moves nothing that
+tick and is settled by the next from the record it may have left, with no second reviewer, squash, notice, or charge.
+The readings ahead of those writes, and the one behind the verify gate, hold the tail to the same records as it last
+read or wrote them, so a park or a collapse record another road puts down during any request is never cleared or
+ended by the tail: nothing but what it posted is written over either, and the verdict waits. It is spent only while
 the pull request is still standing on the commit it names: anything that moved the publication on — a docs pass that
 pushed, a fix round, a rebase — has moved the work past the round the record was about, so it is dropped and the
 tick goes to the reviewer rather than sending unread work to `documenting`. Being no claim of an outstanding
@@ -3544,8 +3554,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      that still stands, and the handoff HOLDS over it with the record kept (`squash_evidence.carried_onto`), so the
      next tick with room settles it and moves the label with no second report or reviewer. A handoff
      whose carry was never decided -- the pull request or the artifact unread when the squash tail asked -- decides
-     it here, over the same proofs, in a write of its own (recorded, or refused with the evidence invalidated and the
-     record dropped), and leaves the move to the next tick; an unread reading again holds the tick. On the recovery
+     it here, over the same proofs, in a guarded commit of its own owning only what that decision writes (recorded,
+     or refused with the evidence invalidated and the record dropped), and leaves the move to the next tick; an
+     unread reading again, or a commit that does not land, holds the tick. On the recovery
      that evidence is asked FIRST, ahead of the coverage above, since its proof is requests long enough for a push:
      every refusal of it invalidates it whatever else moved beside it -- a context changed before the retry included,
      and a carry onto the handoff's commit that `review_approved_evidence` no longer names (removed, `null`, or
@@ -3929,11 +3940,13 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        this road reports as standing where it planned. On squash / force-push failure, park awaiting human
        under a durable
        `park_reason="squash_failed"` and stay on `workflow:validating`, through
-       `review_parks.parks_the_failed_squash`: measured before its notice beside any verdict it does not retire, and
-       landing only behind a notice that was identified, over the records in hand read again behind it and — on the
-       approval road — the approved subject resolved again there; a push or an edit there drops the approval's
-       verdict and parks nobody, a subject nobody could read or a notice that left no id writes what the squash left
-       with the verdict kept and no park, and a comment with no room for the park posts and writes nothing. The
+       `review_parks.parks_the_failed_squash`: prepared before its notice as the guarded commit it lands as, beside
+       any verdict it does not retire, and landing only behind a notice that was identified, over the records in hand
+       read again behind it and — on the approval road — the approved subject resolved again there; a push or an edit
+       there drops the approval's verdict and parks nobody, a subject nobody could read or a notice that left no id
+       writes what the squash left with the verdict kept and no park, a comment with no room for the park posts and
+       writes nothing, and a park whose commit lands unconfirmed reports no human wait and is found standing, and
+       mentions nobody again, by the next tick. The
        notice names which of four places
        that left the branch: the approved
        commits are still on it — the ordinary failure, which aborted before anything destructive or restored what it
@@ -3952,16 +3965,25 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        and the collapse the squash recorded is the next tick's recovery to finish, over what the comment carries then;
        one that will not read writes nothing. The squash's own writes — the collapse record ahead of its rewrite, the
        size gate's — carry the state in hand whole, and its reply does not say whether it made any, so its gate is
-       handed a client that guards and follows them (`squash_writes`). Each is held first to the same records and
-       laid over the comment as read then, exactly as the tail's own writes are, and one whose records moved is
+       handed a client that guards and follows them (`squash_writes`). Each is held first to the same records,
+       laid over the comment as read then, and landed as a guarded commit, exactly as the tail's own writes are, and
+       one whose records moved or whose commit did not land is
        refused the way a write GitHub refuses is: the record ahead of the rewrite is not made and nothing is
-       rewritten, and past the rewrite the collapse it recorded is left for the next tick's recovery. The reading
+       rewritten, and past the rewrite the collapse it recorded is left for the next tick's recovery. A refused write
+       puts back with the state what the reading ahead of it took in -- the reading the state is synced with and the
+       tail's last reading -- so a field another road wrote is kept by whatever lands behind it, a park included,
+       rather than read as one the tick deleted. The reading
        behind the squash is measured from the last write it made, or from the reading before it where it made none,
        so a field another road wrote while it ran — a round a reply spent — is kept, and a usage fold the squash's own
        write carried is counted once; the push goes to the pull request the tail was handed. Every
        write behind that reading — the handoff's, the park's, the one a refused notice leaves — is held to the same
-       records again and laid over the comment as read just ahead of it, so what another road wrote behind the notice
-       is kept. (4) On success,
+       records again, the report debt, the park, and the collapse record among them, laid over the comment as read
+       just ahead of it, and landed as a guarded commit decided on them (`handoff.HELD_ON`), so what another road wrote
+       behind the notice is kept, and one that moves them under the commit refuses it with nothing posted, written, or
+       relabeled behind it. A record of the collapse whose commit lands with its response lost is taken by the squash
+       as refused, so nothing is rewritten, announced, or parked; it carried the approval staged beside it, so the
+       tail's reading behind the squash records what it posted and retires the approval's verdict, and the next
+       tick's recovery finishes that collapse under the approval recorded, with no second reviewer. (4) On success,
        if `squashed_count > 1` post `:package: squashed N commits to 1` — a count of 0 or 1 replaced no history and
        posts nothing — seed the in_review watermarks (inside the
        `gh.get_pr()` try so a snapshot failure leaves them untouched; the walk advances through the leading run of
@@ -3969,8 +3991,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        delivered, and stops at the first unseen human comment on EITHER surface, so a PR-conversation comment
        numbered below a consumed reply holds the seed back rather than being swallowed by it — the scan that
        follows drops the consumed reply on its own), then end the collapse record and persist —
-       leaving `late_collapse_handoff_sha` in its place — and only then relabel to `workflow:documenting`, dropping
-       that record in a write of its own behind the label. A rewrite leaves the evidence the approval rests on
+       leaving `late_collapse_handoff_sha` in its place, the approved head for an approval that collapsed nothing —
+       and only then, once that commit has landed, relabel to `workflow:documenting`, dropping that record in a
+       guarded commit of its own behind the label. A rewrite leaves the evidence the approval rests on
        answering for the head the reviewer was handed, so that write also carries it onto the head the rewrite
        published -- a collapse, a one-commit subject rewrite, or the recovery's finish alike -- under the carry-forward
        decision described under
@@ -3988,11 +4011,15 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        evidence the approval was proved over is carried instead. The carry is recorded as a new
        `verification_evidence_pending` transaction -- the tested commit and tree unchanged, the published head its
        target, the carried run's transcript -- and `review_approved_evidence` is pointed at it, its digest and flags
-       those that transcript earns; the relabel is held this tick, and the next tick's reconciliation proves the
-       binding whole (the report and requirements included) -- and, for the reviewer's evidence, that the artifact
-       its transcript was copied from is still current and says what was copied, ahead of the post and again at the
-       settlement, so an edit or a deletion of it refuses the carry -- publishes an artifact naming the commit that
-       ran and the new head as an equivalent-tree target, and settles it, so step 1's handoff moves the label over
+       those that transcript earns, only where the very candidate that write's guarded commit sends -- another road's
+       writes since included -- has room for the carry's record, its settlement, and the invalidation behind it; one
+       without that room is invalidated in its place instead, in a commit of its own carrying no transaction
+       (`handoff._Held.settles`), rather than left owed and unpublishable or unrecorded with its handoff, whose
+       collapse the next tick would announce again. The relabel is held this tick, and the next tick's reconciliation
+       proves the binding whole (the report and requirements included) -- and, for the reviewer's evidence, that the
+       artifact its transcript was copied from is still current and says what was copied, ahead of the post and again
+       at the settlement, so an edit or a deletion of it refuses the carry -- publishes an artifact naming the commit
+       that ran and the new head as an equivalent-tree target, and settles it, so step 1's handoff moves the label over
        evidence answering for that head -- without a second reviewer, however many ticks the publication or the
        relabel take; a carry still owed for its approval, the comment having had no room to settle it, holds that
        handoff until a later tick settles it. A refused carry -- another or an unreadable tree, a context moved

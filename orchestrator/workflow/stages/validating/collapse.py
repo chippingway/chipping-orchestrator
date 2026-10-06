@@ -360,9 +360,13 @@ def _finished_handoff(
     settle it (`squash_evidence.carried_onto`).
     Where the tail could not decide -- a pull request or artifact nobody
     could read -- the carry is decided here, over the same proofs, and
-    recorded or refused in a write of its own laid over the comment as read
-    then, the move left for the next tick; a reading nobody could take again
-    holds the tick.
+    recorded or refused in a guarded commit of its own laid over the comment
+    as read then, decided on every record the tail holds and owning only what
+    the decision writes (`handoff.CARRIED`, `squash_evidence.SquashEvidence.writes`)
+    -- a carry the fresh comment has no room to record or settle invalidated in its
+    place (`handoff._Held.settles`) -- the move left for the next tick; a
+    reading nobody could take again, or a commit that does not land, holds the
+    tick.
 
     The proof is requests of its own, long enough for a push, so the coverage
     above is asked behind it rather than ahead: the pull request is the last
@@ -385,8 +389,7 @@ def _finished_handoff(
         if not carried.holds and _handoff._holds_its_records(
             gh, issue, state, "record what the evidence its approval rests on owes the squash", held,
         ):
-            carried.stages(state, issue.number)
-            gh.write_pinned_state(issue, state)
+            held.settles(gh, issue, state, carried, _handoff.CARRIED)
         return True
     standing = _handoff_stands(gh, issue, state, settled)
     if standing:

@@ -102,17 +102,26 @@ beside the funnel rather than through it: the recovery of a squash an earlier
 tick did not finish reaches it with no reviewer run, so behind its notice it is
 held to the report, pull-request, verdict, and evidence records in hand
 (`handoff._holds_its_records`) rather than to a run's reading -- and to the
-subject the approval behind the squash was of, where one was. It is measured
-before its notice, keeping any verdict it does not retire -- a later round's
-on that recovery road -- and lands only behind a notice that was identified,
-over that subject still standing, as the funnel's parks do. Where the records
-moved behind the notice, nothing but the notice's ledger entry and the end of
-the verdict held is written; where the subject moved, the verdict held is
-dropped and no park lands; and where the subject would not read, or the notice
-left no id, what the squash left is written with the verdict kept and no park.
-It is never taken over the comment as it stands with less beside it: its write
-is what makes the squash's own record drop durable, so a comment with no room
-for it is posted on and written to not at all -- the tick that died before its
+subject the approval behind the squash was of, where one was. It is prepared
+as the guarded commit it lands as before its notice, over the comment read
+afresh, with what posting the notice writes reserved at its widest and any
+verdict it does not retire kept -- a later round's on that recovery road
+(`review_writes._prepares_the_park`) -- and lands only behind a notice that was
+identified, over that subject still standing, as the funnel's parks do. Where
+the records moved behind the notice, nothing but the notice's ledger entry and
+the end of the verdict held is written; where the subject moved, the verdict
+held is dropped and no park lands; and where the subject would not read, or
+the notice left no id, what the squash left is written with the verdict kept
+and no park. Each of those is the tail's guarded commit (`handoff.SQUASH_PARK`),
+decided on every record the tail holds as the reading behind the notice spells
+them, so one another road moves after it refuses the write with nothing
+written and nothing reported -- recording the notice and retiring the verdict
+held where a record the approval was proved over moved -- and one GitHub never
+confirmed reports no human wait either: the park it may have landed is one the
+next tick finds standing, and the recovery retries quietly under it. It is
+never taken over the comment as it stands with less beside it: its write is
+what makes the squash's own record drop durable, so a comment with no room for
+it is posted on and written to not at all -- the tick that died before its
 write, which the squash recovery already answers.
 """
 from __future__ import annotations
@@ -129,8 +138,8 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     guards as _guards,
     park_watermarks as _park_watermarks,
-    report_record_state as _report_record_state,
-    report_record_values as _record_values,
+    pinned_commit_models as _commit_models,
+    report_commits as _commits,
 )
 from orchestrator.workflow.stages.validating import (
     handoff as _handoff,
@@ -291,14 +300,14 @@ def parks_the_failed_squash(
     the park's write is laid over. A push or an edit landing while the notice
     was posted is work nobody reviewed, so no park asks a human about it and
     the verdict is dropped for a fresh reviewer; a subject nobody could read
-    lands no park either, and keeps the verdict.
+    lands no park either, and keeps the verdict. The park is reported only
+    once its guarded commit has landed.
     """
     reason = _state._REASON_SQUASH_FAILED
-    if not _park_fits(state, reason, held.verdict):
-        log.error(
-            "issue=#%d has no room on its pinned comment for the %s park; "
-            "posting and writing nothing", issue.number, reason,
-        )
+    prepared = _review_writes._prepares_the_park(
+        _commits.ReportCommit(gh, issue, state), reason, held.verdict, _handoff.SQUASH_PARK,
+    )
+    if prepared.status is not _commit_models.CommitStatus.PREPARED:
         return
     posted = _posts_the_notice(gh, issue, state, words)
     stands = True
@@ -318,14 +327,7 @@ def parks_the_failed_squash(
         )
     if lands or stands is False:
         _verdicts.drops_the_verdict(state, only=held.verdict)
-    if not _report_record_state.fits_the_comment(state.data):
-        log.error(
-            "issue=#%d has no room on its pinned comment for the %s park beside "
-            "what moved there behind its notice; writing nothing", issue.number, reason,
-        )
-        return
-    gh.write_pinned_state(issue, state)
-    if lands:
+    if held.lands(gh, issue, state, _handoff.SQUASH_PARK) and lands:
         gh.emit_event(
             "park_awaiting_human",
             issue_number=issue.number,
@@ -408,25 +410,3 @@ def _posts_the_notice(gh: GitHubClient, issue: Issue, parked: PinnedState, words
     notice = _comments._post_issue_comment(gh, issue, parked, f"{config.HITL_MENTIONS} {words}")
     _park_watermarks._stamp_read_this_far(gh, issue, parked, said_before)
     return getattr(notice, "id", None)
-
-
-def _park_fits(state: PinnedState, reason: str, owned: _verdicts.ReturnedVerdict | None) -> bool:
-    """Whether the comment has room for the park's own write on `state`, measured at its widest.
-
-    That write sets the park's flags beside its notice's ledger entry and the
-    watermark it stamps, each at the widest id, and drops only `owned`, the
-    verdict it holds, and only where it is still the one waiting -- so it is
-    measured keeping any other, and keeping whatever record stands where it
-    holds none. The writes a park may end in instead -- the verdict dropped
-    where its subject moved, or kept where nothing proved a move -- are
-    measured behind the notice, with what moved there, and not made where they
-    do not fit.
-    """
-    widest = _record_values.MAX_RECORDED_NUMBER
-    landed = PinnedState(comment_id=state.comment_id, state_data=dict(state.data))
-    _comments._reserve_comment_slot(landed, widest)
-    landed.set("last_action_comment_id", widest)
-    _verdicts.drops_the_verdict(landed, only=owned)
-    landed.set(_AWAITING_HUMAN, True)
-    landed.set(_state._PARK_REASON, reason)
-    return _report_record_state.fits_the_comment(landed.data)

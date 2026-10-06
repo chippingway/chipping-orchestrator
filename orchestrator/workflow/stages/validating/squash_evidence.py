@@ -17,11 +17,14 @@ pull request standing on the new head, and the source's artifact still the
 one that settled.
 
 What that decision earns is a new transaction, recorded in the write that
-settles the squash's handoff: the tested commit and tree unchanged, the new
-head as the equivalent-tree target, and the source's own transcript, so the
-artifact the dispatcher's reconciliation publishes says which earlier commit
-ran and never relabels that run as one on the squash. The approval record is
-pointed at that transaction in the same write (`review_approved_evidence`), so
+settles the squash's handoff -- a guarded commit owning the pending record,
+the history and revision floor it moves, and the approval's claim beside the
+handoff's own fields (`SquashEvidence.writes`) -- the tested commit and tree
+unchanged, the new head as the equivalent-tree target, and the source's own
+transcript, so the artifact the dispatcher's reconciliation publishes says
+which earlier commit ran and never relabels that run as one on the squash. The
+approval record is pointed at that transaction in the same write
+(`review_approved_evidence`), so
 every road that later acts on the approval holds it to evidence answering for
 the head it is moving. The reconciliation proves the whole binding again --
 the report the subject names, re-read, and the requirements included --
@@ -39,6 +42,14 @@ names it with the digest and flags that transcript earns. An empty
 configuration runs nothing and binds nothing, and the recovery of a squash an
 earlier tick began has no run in hand: there the reviewer's evidence the
 approval rests on is what is carried.
+
+A carry is recorded only where the very candidate its write sends -- the
+fresh comment, another road's writes since included -- has room for its
+record, and to settle it and invalidate it once settled
+(`SquashEvidence.admits`): one recorded where it cannot settle would stand
+owed and unpublished on every later tick. Where it has not, the evidence is
+invalidated in its place, as for a carry the comment has no room to record at
+staging (`SquashEvidence.without_room`), in a write carrying no transaction.
 
 The move to `documenting` waits for it. A recorded carry holds the label for
 the tick that recorded it, and the next tick's reconciliation, ahead of every
@@ -93,7 +104,7 @@ import logging
 from dataclasses import dataclass, replace
 
 from orchestrator.git.verification import models as _verify_models
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState, pinned_state_body
 from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
     verification_carries as _carries,
@@ -108,6 +119,8 @@ from orchestrator.workflow.engine.review_subjects import APPROVED_SUBJECT
 from orchestrator.workflow.engine.verification_records import (
     CURRENT_EVIDENCE,
     EVIDENCE_HISTORY,
+    PENDING_EVIDENCE,
+    REVISION_FLOOR,
     CurrentEvidence,
     PendingEvidence,
 )
@@ -132,10 +145,24 @@ _OWED = _evidence_models.ReportEvidence(
     "the carry the approval's squash recorded onto the head is still owed to the pull request",
 )
 
+# Why a carry is invalidated rather than recorded where the comment its write
+# lands on -- another road's writes since included -- has no room for it, to
+# settle it, or to invalidate it once settled.
+_UNSETTLEABLE = _evidence_models.ReportEvidence(
+    _evidence_models.ReportEvidenceVerdict.DEFER,
+    "the pinned comment the carry would be recorded on has no room to settle it",
+)
+
 # What invalidating carried evidence writes (`_invalidates`): the evidence, the
 # history it goes into, the approval it was carried for, and the squash's
 # handoff over it.
 INVALIDATES = (CURRENT_EVIDENCE, EVIDENCE_HISTORY, APPROVED_SUBJECT, _late_handoffs.LATE_COLLAPSE_HANDOFF)
+
+# What recording a carry writes (`_records_the_carry`): the transaction owed,
+# an earlier one it retires into history, the revision floor it raises, and the
+# approval's claim pointed at it -- or, where the comment has no room for it,
+# what invalidating the evidence writes instead.
+CARRIES = (PENDING_EVIDENCE, EVIDENCE_HISTORY, REVISION_FLOOR, _approved_evidence.APPROVED_EVIDENCE, *INVALIDATES)
 
 # The record beyond those the evidence is bound through that whether a carry
 # still answers is read off (`carry_unanswered`): the approval's claim on it.
@@ -168,6 +195,38 @@ class SquashEvidence:
     def holds(self) -> bool:
         """Whether nothing was decided: a reading nobody could take, or a carry owed, for the next tick to ask again."""
         return self.refused is not None and self.refused.holds
+
+    @property
+    def writes(self) -> tuple[str, ...]:
+        """Every field `stages` may write, for the guarded commit carrying it to own: none where it stages nothing."""
+        if self.answers or self.holds:
+            return ()
+        return INVALIDATES if self.carry is None else CARRIES
+
+    def admits(self, candidate: PinnedState) -> str | None:
+        """Why the complete candidate a write carrying this decision sends may not land; None where it may.
+
+        Asked of the very candidate a guarded commit sends (`handoff._Held.settles`),
+        the fresh comment with every write another road made since laid under
+        it, not of the state the carry was staged on: a carry recorded where
+        its settlement, or the invalidation that settlement leaves room for
+        (`verification_record_state.settled_payload`), would not fit is one the
+        reconciliation stands down on every tick, owed and unpublished, and
+        the move it holds never comes. A decision that recorded no carry is
+        admitted as it stands.
+        """
+        pending = _record_state.read_pending_evidence(candidate)
+        carried = None if self.carry is None else self.carry.binding
+        if carried is None or pending is None or pending.binding != carried:
+            return None
+        settled = _record_state.settled_payload(candidate, pending)
+        if settled is not None and len(pinned_state_body(settled)) <= MAX_PINNED_BODY:
+            return None
+        return _UNSETTLEABLE.refusal
+
+    def without_room(self) -> SquashEvidence:
+        """This decision, where its carry has no room to be recorded or settled: refused, invalidating the evidence."""
+        return replace(self, carry=None, refused=_UNSETTLEABLE, through_a_carry=False)
 
     def stages(self, state: PinnedState, issue_number: int) -> None:
         """Stage onto `state` what this decision owes the comment; the caller writes.
@@ -391,7 +450,8 @@ def _invalidates(state: PinnedState) -> bool:
     shrinks the comment, so that refusal is always one the comment can carry.
     Whether the evidence was retired. The caller writes; every field this
     stages is one of `INVALIDATES`, which the commit invalidating an
-    unanswered carry owns (`collapse`).
+    unanswered carry owns (`collapse`), as does the commit staging a refused
+    carry (`SquashEvidence.writes`).
     """
     current = _settlement.read_current_evidence(state)
     if current is not None:

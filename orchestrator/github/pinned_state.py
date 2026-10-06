@@ -123,11 +123,12 @@ class PinnedState:
 
     ``withheld`` is set on a state a guarded commit taken through
     `workflow/engine/report_commits.py` did not land over -- the developer
-    report's, a validating reviewer round's, or a change request's handoff
-    and its recovery's -- one refused over a comment that moved, or one sent
-    and never confirmed -- and on one whose
-    report post or re-read left its transaction owed over a comment another
-    road wrote meanwhile: the comment is not, or may not be, what the state
+    report's, a validating reviewer round's, a change request's handoff and
+    its recovery's, or an approval tail's -- one refused over a comment that
+    moved, or one sent and never confirmed -- on one whose report post or
+    re-read left its transaction owed over a comment another road wrote
+    meanwhile, and on an approval tail's whose records the comment moved: the
+    comment is not, or may not be, what the state
     was decided on, so the whole-state writer writes nothing for it rather
     than put back everything another road wrote since. Any such commit that
     lands clears it.

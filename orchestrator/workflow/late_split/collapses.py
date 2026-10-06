@@ -228,8 +228,8 @@ def settle_pending_collapse(state: PinnedState, published: str) -> None:
     So the record does not simply go: it is handed to `handoffs`, which keeps
     the commit the move was made over -- the whole of what the move still
     needs and the only thing that says it is owed. An approval that collapsed
-    nothing hands on nothing: there was no claim to end, and the label is all
-    such an approval ever owed.
+    nothing hands on nothing here, since there was no claim to end; the
+    caller records the head that approval's move is owed over itself.
 
     The clear comes first and the successor second, so the two never stand
     together on the comment a write could land from. A reader that found both

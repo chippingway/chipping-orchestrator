@@ -209,11 +209,12 @@ Most owners write the record whole from the state they read. A guarded commit --
 verification-evidence publication and settlement, the evidence reconciliation's retirements, `validating`'s invalidation
 of an unanswered carry, the developer report's recording, its binding, its settlement (prepared before the report is
 posted), the reconciliation's drop and damage-park retirement, the park a refused recording or binding takes, the
-fixing recovery's release, a reviewer round's launch, return, verdict, drop, and park writes, and a change request's
-handoff (prepared before its feedback is posted), the drop, retirement, and park of a handed one, and the recovery's
-writes over a verdict left waiting -- lays only the
-fields its caller owns over a fresh reading instead, refusing with nothing written where the comment, a record the
-decision rests on, or a field the caller is changing moved, or where the whole candidate would not fit one comment.
+fixing recovery's release, a reviewer round's launch, return, verdict, drop, and park writes, a change request's
+handoff (prepared before its feedback is posted), the drop, retirement, and park of a handed one, the recovery's
+writes over a verdict left waiting, and every write of an approval's tail, its squash's own and a failed squash's park
+included -- lays only the fields its caller owns over a fresh reading instead, refusing with nothing written where the
+comment, a record the decision rests on, or a field the caller is changing moved, or where the whole candidate would
+not fit one comment.
 Every key, what writes it, what spends it, the guarded commit, and the legacy `codex_session_id` still honored on read
 are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
@@ -383,8 +384,8 @@ record or a waiting reviewer verdict: the approval that moved the label retires 
 is that approval's cleanup write having failed or another road's written during the relabel, and only `validating`
 answers either -- its recovery re-checks the approval over the head a handoff names, and a verdict holds the label
 there. So does an approval that no longer covers the current developer report -- as recorded, or as it reads at
-its location -- or whose evidence no longer stands, since one that collapsed nothing leaves no record to say what
-moved during its relabel, and an edit in place moves no record at all. Full flow:
+its location -- or whose evidence no longer stands, since no record stands over what moves once its handoff record is
+ended, and an edit in place moves no record at all. Full flow:
 [`state-machine/delivery-stages.md`][documenting].
 
 ### `_handle_validating` (label `workflow:validating`)
@@ -409,7 +410,9 @@ rechecked as the reviewer returns, after verification, behind the approval comme
 settled squash handoff moves the label, so a new report on an unchanged head always reaches a fresh reviewer. A failed
 verify gate or squash on that road parks only over that subject still standing (both filed in
 `stages/validating/review_parks.py`); a failure over work nobody reviewed parks nobody, and the next tick answers the
-subject as it stands.
+subject as it stands. Every write that road makes is a guarded commit (`stages/validating/squash_writes.py`), and the
+handoff ahead of the relabel records the commit the move is owed over for every approval, so a relabel that fails, or
+that write landing with its response lost, is the next tick's to move with no second reviewer.
 
 A squash this issue began and did not finish is answered ahead of all of that, behind only the terminals and ahead of
 every route that could point an agent at the branch: a branch mid-rewrite is not one a reviewer or a body-edit resume
