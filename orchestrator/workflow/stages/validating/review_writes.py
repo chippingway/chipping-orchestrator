@@ -46,6 +46,15 @@ tick: a launch's records written again over themselves with nothing sent, a
 verdict and its transaction finished by that tick's reconciliation and
 recovery with no second reviewer, artifact, fold, charge, or round.
 
+A change request's handoff, the retirement or drop of a handed one, the park
+its launch takes, and the recovery's own writes -- an anchor written back, a
+verdict dropped for good, a bought round settled -- land through `lands` as
+well, each declaring its own `ReportWrite` beside the owner that makes it
+(`review_handoffs`, `review_launch_park`, `review_resume`). The one write two
+owners share is declared here: a request answered by its developer's run
+(`ANSWERED`), which the handoff prepares behind the run and the round that
+run finishes (`requested_changes`) lands its park or its hand-back through.
+
 The launch is captured over the reading its subject was bound to rather than
 the tick's state (`lands_the_launch`): that state carries what the tick
 staged for the round's own write -- a cleared park, a cap grant's round reset
@@ -72,6 +81,7 @@ from orchestrator.workflow.engine import (
     prompt_delivery as _prompt_delivery,
     report_commits as _commits,
     review_subjects as _review_subjects,
+    run_ledger_values as _run_ledger_values,
     verification_records as _evidence_records,
 )
 from orchestrator.workflow.stages.validating import (
@@ -166,6 +176,29 @@ PARK = _commits.ReportWrite(
     decided_on=VERDICT_STANDS_ON | _PARK_FLAGS | {_review_subjects.RETURNED_SUBJECT},
 )
 
+# A persisted change request answered by its developer's run: the request
+# retired beside what the round left -- its park, or the hand-back to review
+# behind its report -- decided on the request handed, the pull request the
+# issue points at, the start of its developer's launch, the feedback anchor a
+# failed run's continue replays, and the park's flags as the reading the run
+# was launched over spells them. The report record the round makes first is
+# decided on the same records (`report_records.HandedRun.decided_on`), so a
+# move of any of them between the run and the request's retirement refuses
+# whatever writes them, and nothing is published, pushed, relabelled, or spent
+# behind it: a report recorded after the issue was pointed at another pull
+# request would be delivered there as an answer to a review of this one, and a
+# park recorded over an anchor another road repointed would have that continue
+# replay another comment, or none.
+ANSWERED = _commits.ReportWrite(
+    owned=frozenset((_verdicts.RETURNED_VERDICT,)),
+    decided_on=_PARK_FLAGS | {
+        _verdicts.RETURNED_VERDICT,
+        _review_comment._PR_NUMBER,
+        _verdicts._FEEDBACK_ANCHOR,
+        _run_ledger_values.AGENT_RUN_OWED_STARTED,
+    },
+)
+
 # What a verdict's commit answers where the candidate has no room for the
 # verdict at its handoff and its transaction settled beside it.
 _NO_ROOM = "no room for the verdict at its handoff"
@@ -175,17 +208,22 @@ def lands(gh: GitHubClient, issue: Issue, state: PinnedState, write: _commits.Re
     """Commit what `state` staged as `write` over the fresh comment; whether it landed.
 
     Where it landed `state` reads as the comment does, and is synced with it.
-    Where it did not -- refused, or sent and never confirmed -- nothing was
-    written over the comment, `state` is withheld from every whole-state write
-    behind it (`report_commits.ReportCommit.withholds`), and the caller makes
-    nothing that depends on the write.
+    Where it did not -- refused, `write.admits` refusing the candidate it
+    sends included, or sent and never confirmed -- nothing was written over
+    the comment, `state` is withheld from every whole-state write behind it
+    where the comment may have moved (`report_commits.ReportCommit.withholds`),
+    and the caller makes nothing that depends on the write.
     """
     landed = _commits.ReportCommit(gh, issue, state).lands(state, write)
-    if landed.status is _commit_models.CommitStatus.COMMITTED:
-        return True
+    # What `write.admits` refused the candidate with, where it did.
+    why = landed
+    if isinstance(landed, _commit_models.CommitOutcome):
+        if landed.status is _commit_models.CommitStatus.COMMITTED:
+            return True
+        why = (landed.refusal or landed.status).value
     log.warning(
         "issue=#%d its reviewer round's write did not land (%s); writing and "
-        "acting on nothing behind it", issue.number, (landed.refusal or landed.status).value,
+        "acting on nothing behind it", issue.number, why,
     )
     return False
 

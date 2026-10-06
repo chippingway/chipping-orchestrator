@@ -9,8 +9,9 @@ returned in, which a later tick's caller rebuilds (`run`). What those ticks
 leave is read back here -- the verdict waiting, the park, the feedback posted
 and the fix prompt quoting it, the commands the artifacts carry, the last
 notice -- beside how a tick runs whose developer answers a change
-request and pushes (`fixing`), and the replies no pinned comment can record
-over the notes that fill it (`UNRECORDED`, `fills`). The doubles a tick posts
+request and pushes (`fixing`), the replies no pinned comment can record
+over the notes that fill it (`UNRECORDED`, `fills`), and another road's park
+over a report it cannot deliver (`parks_over_its_report`). The doubles a tick posts
 or writes through are the owners' own: `review_handoff_test_support` for the
 feedback post and the run circuit, `review_park_test_support` for a park's
 notice and room.
@@ -19,10 +20,10 @@ from __future__ import annotations
 
 from types import MappingProxyType
 
-from orchestrator.github import comments as _trust
 from orchestrator.github.pinned_state import MAX_PINNED_BODY
 from orchestrator.workflow.engine import completion_verdicts as _completion_verdicts, prompts as _prompts
 from orchestrator.workflow.stages.validating import (
+    feedback_posts as _feedback_posts,
     models as _models,
     review_disposition as _disposition,
     review_parks as _parks,
@@ -69,15 +70,15 @@ UNRECORDED = (
 )
 
 
+# The park another road takes over a report it cannot deliver.
+UNDELIVERABLE = "report_undeliverable"
+
 # How an approval's tick runs: its checkout standing on the head the reviewer
 # was handed.
 ON_THE_HEAD = MappingProxyType({"head_shas": (_world.HEAD,)})
 
-# What a reviewer's feedback post says ahead of the findings it quotes, and
-# the hidden marker it closes on.
+# What a reviewer's feedback post says ahead of the findings it quotes.
 _FEEDBACK_OPENS = f"{_handoff.FEEDBACK_NOTICE}:\n\n"
-
-_MARKED = f"\n\n{_trust.ORCHESTRATOR_COMMENT_MARKER}"
 
 
 def fixing() -> dict:
@@ -94,6 +95,14 @@ def fills(case, filled: int) -> None:
     """Put `filled` characters of operator notes on `case`'s pinned comment."""
     state = case.github.read_pinned_state(case.issue)
     state.set("operator_notes", "x" * filled)
+    case.github.write_pinned_state(case.issue, state)
+
+
+def parks_over_its_report(case) -> None:
+    """Another road's park over a report it cannot deliver, as the report reconciliation takes it."""
+    state = case.github.read_pinned_state(case.issue)
+    state.set("awaiting_human", True)
+    state.set("park_reason", UNDELIVERABLE)
     case.github.write_pinned_state(case.issue, state)
 
 
@@ -114,7 +123,7 @@ def handed_on(case, prompted: str) -> tuple:
     """
     bodies = [said.body for said in case.pull_request.issue_comments]
     quoted = tuple(
-        body.split(_FEEDBACK_OPENS, 1)[1].removesuffix(_MARKED)
+        _feedback_posts._POST_RE.fullmatch(body)["findings"]
         for body in bodies
         if _FEEDBACK_OPENS in body
     )

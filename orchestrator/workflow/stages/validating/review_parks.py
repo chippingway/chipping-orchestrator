@@ -397,9 +397,9 @@ def _posts_the_notice(gh: GitHubClient, issue: Issue, parked: PinnedState, words
     The notice of the park a failed squash takes as well
     (`parks_the_failed_squash`), and of the park a handed change request's
     developer launch takes where nothing says whether it ran
-    (`review_handoffs.HandedLaunch.parks`), which is measured through
-    `_park_fits` too and settles behind its notice for itself, since it holds
-    the feedback anchor its continue replays. Read only as far as the orchestrator's own
+    (`review_launch_park.parks`), which is prepared before it as the guarded
+    commit it lands as and settles behind it for itself, since it holds the
+    feedback anchor its continue replays. Read only as far as the orchestrator's own
     comments go (`park_watermarks`), since a park follows a run long enough
     for a human to have written something nobody has read -- which is also
     why the mark is harmless where no park lands behind the notice.

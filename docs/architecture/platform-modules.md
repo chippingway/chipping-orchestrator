@@ -293,9 +293,10 @@ orchestrator/
                         A state read from the comment or written over it remembers what the comment carried then
                         (`PinnedState.synced`), spelled as its JSON is and outside the record itself, so what a
                         tick staged on it since can be told from what it read; a state the guarded commits taken
-                        through `workflow/engine/report_commits.py` -- the developer report's and a validating
-                        reviewer round's -- did not land over -- refused over a comment that moved, or sent and
-                        never confirmed -- or whose report post or re-read left its transaction
+                        through `workflow/engine/report_commits.py` -- the developer report's, a validating
+                        reviewer round's, and a change request's handoff and its recovery's -- did not land over --
+                        refused over a comment that moved, or sent and never confirmed -- or whose report post or
+                        re-read left its transaction
                         owed over a comment another road wrote meanwhile is marked `withheld`, and the legacy write
                         writes nothing for it, since written whole it would put back what another road wrote past it
     pull_request_reads.py
@@ -353,7 +354,9 @@ orchestrator/
                         the mutation mixin includes the read, retirement, and both evidence owners --
                         developer-report and verification-artifact, grouped because they are one kind of thing
                         reached one way -- in the client's inheritance chain
-    reviews.py          current-head review aggregation: approval verdicts and unread-feedback watermarks
+    reviews.py          current-head review aggregation: approval verdicts and unread-feedback watermarks, and the
+                        pull request's conversation read whole (`pr_conversation_thread`), a body quoting the pinned
+                        state's marker included, for a caller finding words it posted itself
     verification_artifacts.py
                         the workflow verification artifact: the workflow's own evidence about a tested tree, appended
                         as its own comment beside the developer report rather than into it and never into the

@@ -13,12 +13,16 @@ developer to answer a review of work that is not there. A request already
 handed resumes where its handoff stopped without posting its feedback again,
 held where its anchor is gone or names another comment, and launches nobody
 where the run ledger says its developer already ran -- its anchor kept even
-where that developer's push moved the subject.
+where that developer's push moved the subject. A post that landed whose id was
+lost is found by a later tick in the very words it was posted in, and anchored
+rather than posted again.
 
 The preparation a request is handed over behind is in
 `test_review_disposition.py`, the record it waits in in
-`test_review_verdicts.py`, and what holds the launch again where the run
-circuit charges and starts it in `test_review_launch_hold.py`.
+`test_review_verdicts.py`, what holds the launch again where the run circuit
+charges and starts it in `test_review_launch_hold.py`, and what the handoff's
+and a retirement's guarded commits refuse, and how a lost one is finished, in
+`test_review_handoff_commits.py`.
 """
 from __future__ import annotations
 
@@ -100,17 +104,17 @@ def _replaces_the_request(case, members: dict | None, *, pinned: dict | None = N
 
 
 # A handoff whose feedback post names no comment it can anchor on: the tick
-# that meets it, and how many feedback posts are on the pull request once a
-# later tick hands the request over from the pinned comment alone. An id that
-# is no positive whole number -- zero, a flag, a fraction -- names none.
+# that meets it. An id that is no positive whole number -- zero, a flag, a
+# fraction -- names none.
 _UNIDENTIFIED = (
-    ("a refused post", partial(_refused_once, lands=False), 1),
-    ("a post that landed with no id", partial(_refused_once, lands=True), 2),
-    ("a post answering id zero", partial(_refused_once, lands=True, answers=0), 2),
-    ("a post answering a flag", partial(_refused_once, lands=True, answers=True), 2),
-    ("a post answering a fraction", partial(_refused_once, lands=True, answers=FRACTIONAL_ID), 2),
-    ("a run naming no pull request", partial(_through, None), 1),
-    ("a run naming another pull request", partial(_through, _world.PR + 1), 1),
+    ("a refused post", partial(_refused_once, lands=False)),
+    ("a post that landed with no id", partial(_refused_once, lands=True)),
+    ("a post answering id zero", partial(_refused_once, lands=True, answers=0)),
+    ("a post answering a flag", partial(_refused_once, lands=True, answers=True)),
+    ("a post answering a fraction", partial(_refused_once, lands=True, answers=FRACTIONAL_ID)),
+    ("a post whose response was lost", partial(_refused_once, lands=True, answers=RuntimeError("response lost"))),
+    ("a run naming no pull request", partial(_through, None)),
+    ("a run naming another pull request", partial(_through, _world.PR + 1)),
 )
 
 # A handoff whose request is not the decision handed over: the members put
@@ -180,7 +184,8 @@ class ChangeRequestHandoffTest(_support.HandoffWorld, unittest.TestCase):
         # run count it found, beside the id of that post both on the record
         # and as the pinned replay anchor, BEFORE the relabel; then the one
         # developer is resumed on the feedback, its run the one charge the
-        # handoff adds, and the writes behind it retire the request.
+        # handoff adds, and the commit right behind that run retires the
+        # request.
         decision = self.seeds()
         charged = self.pinned()[_world.AGENT_RUNS_USED]
 
@@ -216,9 +221,9 @@ class ChangeRequestHandoffTest(_support.HandoffWorld, unittest.TestCase):
         # leave nothing to anchor the handoff on: nothing is relabelled,
         # launched, or written, and the request waits unhanded. A later tick,
         # holding no decision, hands it over from the pinned comment alone and
-        # reaches one developer -- behind a second post where the first
-        # landed, since a feedback post carries no receipt to find it by.
-        for name, handing, posts in _UNIDENTIFIED:
+        # reaches one developer behind one post: the one that landed is found
+        # in the words it was posted in and anchored, not posted again.
+        for name, handing in _UNIDENTIFIED:
             with self.subTest(name):
                 self.setUp()
                 decision = self.seeds()
@@ -235,7 +240,7 @@ class ChangeRequestHandoffTest(_support.HandoffWorld, unittest.TestCase):
                         tuple(self.github.label_history),
                         self.waiting(),
                     ),
-                    (1, posts, HANDED_BACK, None),
+                    (1, 1, HANDED_BACK, None),
                 )
 
     def test_only_its_own_request_is_handed(self) -> None:
@@ -320,7 +325,7 @@ class ChangeRequestHandoffTest(_support.HandoffWorld, unittest.TestCase):
                 decision = self.seeds()
                 road = partial(_support.moves_the_anchor, to=to)
 
-                with _another_road(self, "write_pinned_state", self._writes_the_handoff, road):
+                with _another_road(self, "edit_pinned_state", self._writes_the_handoff, road):
                     self.assertEqual(self.hands_over(decision).call_count, 0)
 
                 self.assertEqual(

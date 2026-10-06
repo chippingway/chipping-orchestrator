@@ -33,6 +33,7 @@ from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    report_commits as _commits,
     report_consumed_values as _consumed,
     report_delivery as _report_delivery,
 )
@@ -117,13 +118,20 @@ def _parks_the_unproved_head(
     instead, which is what reads the reply to this park as the answer to the
     report it asked for -- and the commit under it, where there is one, reaches
     the pull request the way every other candidate does once the reading that
-    refused can be taken.
+    refused can be taken. The park is the report domain's guarded commit
+    (`report_delivery.parks_the_debt`), decided on the road behind it as well
+    and retiring what that road retires in the same commit
+    (`ReportWrite.behind`): what another road wrote while the developer ran is
+    kept beside it, and a change request this run answered is retired with the
+    park or not at all.
     """
     state.set(_report_delivery.OWED_REPORT, True)
-    _report_delivery.parks_an_undeliverable_report(
-        gh, issue, state,
+    state.data.update(run.handed.retires)
+    _report_delivery.parks_the_debt(
+        _commits.ReportCommit(gh, issue, state), state,
         _UNPROVED_HEAD_PARK.format(mentions=config.HITL_MENTIONS),
-        consumed=run.handed.watermarks,
+        run.handed.watermarks,
+        parking=_report_delivery.PARKING.behind(run.handed),
     )
     return _state._OUTCOME_PARKED
 

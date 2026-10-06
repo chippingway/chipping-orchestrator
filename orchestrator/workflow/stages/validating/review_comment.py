@@ -78,16 +78,20 @@ reading hands back the comment as it found it (`_Reread.read`), which is what a
 later reading of the same run is measured against, since a move this tick kept
 beside another road's, measured again from the older comment, would be kept
 twice. A road that makes further requests behind the last reading and writes
-after them -- a change request's developer run -- lays the state in hand whole
-over whatever landed in between, which only a reading of its own would keep;
-the approval's squash tail takes one ahead of each of its writes
-(`handoff._holds_its_records`), save across the squash itself. Records are
-compared as the comment's JSON spells them, so one written
-`null` where there was none, or a revision spelled `true` where it was `1`, is
-a move. A comment that will not read or parse, or is no longer the one the
-state was read from, carries nothing, and the answer is the one that writes
-nothing: the run is charged, and the next tick spawns a reviewer over whatever
-the comment carries then.
+after them keeps what landed in between only by a reading of its own. A change
+request's developer run records what it left -- its report, the park it takes,
+the hand-back behind its relabel -- with the request retired, in guarded
+commits over the comment read afresh (`review_writes.ANSWERED`,
+`report_records.HandedRun.decided_on`), which keep another road's write or are
+refused by it; only the size gate's own writes around its push lay the state
+in hand whole. The approval's squash tail takes a reading ahead of each of its
+writes (`handoff._holds_its_records`), save across the squash itself. Records
+are compared as the comment's JSON spells them, so one written `null` where
+there was none, or a revision spelled `true` where it was `1`, is a move. A
+comment that will not read or parse, or is no longer the one the state was
+read from, carries nothing, and the answer is the one that writes nothing: the
+run is charged, and the next tick spawns a reviewer over whatever the comment
+carries then.
 
 A tick settling the round a reply bought asks its reading whether another road
 recorded a park there meanwhile (`_Reread.parks_anew`): its flags moved, which

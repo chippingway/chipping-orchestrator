@@ -9,10 +9,11 @@ a tick whose developer answers and pushes (`HandoffWorld.hands_over`): through
 that decision in the tick its reviewer returned, or from the pinned comment
 alone on a later tick, which holds none -- or in a tick that dies on the
 relabel ahead of that developer (`HandoffWorld.hands_over_unlaunched`).
-Beside that world: a feedback post GitHub refuses, or takes answering no
-usable id, once (`RefusesOnce`), the run circuit's start refused
-(`RefusesTheStart`), and what another road does between two of the handoff's
-requests -- a repoint, a run charged, the feedback anchor moved.
+Beside that world: a feedback post GitHub refuses, takes answering no usable
+id, or takes and loses the response to, once (`RefusesOnce`), the run
+circuit's start refused or its response lost (`RefusesTheStart`), and what another road does
+between two of the handoff's requests -- a repoint, a run charged, the
+feedback anchor moved.
 """
 from __future__ import annotations
 
@@ -83,16 +84,17 @@ def moves_the_anchor(case, *, to: str) -> None:
 def charges_a_run(case, *, owed: bool = True, pushes: bool = False) -> None:
     """Another road's run, charged and started as the run circuit does.
 
-    `owed` makes it the launch of the developer the waiting request is owed,
-    whose start records the count it was handed at; otherwise it is some
-    other launch -- a reviewer's -- which records none. Where it `pushes`,
-    that run pushes as a developer answering the request does, standing the
-    pull request on a head nobody reviewed.
+    `owed` makes it the launch of the developer the handed request waiting is
+    owed, whose start records the count it was handed at; otherwise it is
+    some other launch -- a reviewer's -- which records none, and may be
+    charged before any request is handed. Where it `pushes`, that run pushes
+    as a developer answering the request does, standing the pull request on a
+    head nobody reviewed.
     """
     state = case.github.read_pinned_state(case.issue)
-    handed = state.get(_world.RETURNED_VERDICT)["handed"]
+    owed_at = state.get(_world.RETURNED_VERDICT)["handed"] if owed else None
     _run_ledger._reserve_run(state, ANOTHER_LAUNCH)
-    _run_ledger._start_reserved_run(state, handed if owed else None)
+    _run_ledger._start_reserved_run(state, owed_at)
     case.github.write_pinned_state(case.issue, state)
     if pushes:
         _world.pushes(case)
@@ -102,8 +104,9 @@ class RefusesOnce:
     """A post that fails once where it says `phrase`, and goes through every other time.
 
     Refused outright, or -- where it `lands` -- taken with an answer whose id
-    is `answers`: none at all, or one that is no positive whole comment id.
-    `posts` is the client's own pull-request comment request.
+    is `answers`: none at all, or one that is no positive whole comment id; or,
+    where `answers` is an exception, taken with its response lost, which
+    raises that. `posts` is the client's own pull-request comment request.
     """
 
     def __init__(self, posts, phrase: str, *, lands: bool, answers: object = None) -> None:
@@ -120,6 +123,8 @@ class RefusesOnce:
         if not self._lands:
             raise RuntimeError("comment rejected")
         self._posts(thread, body)
+        if isinstance(self._answers, Exception):
+            raise self._answers
         return SimpleNamespace(id=self._answers)
 
 
@@ -128,16 +133,20 @@ class RefusesTheStart:
 
     The window between the run circuit's two writes: the charge and its
     reservation land, and the start that would let the spawn through does not,
-    so no agent is invoked.
+    so no agent is invoked. Where it `lands`, GitHub takes that start and
+    loses its response instead, which the circuit answers the same way.
     """
 
-    def __init__(self, writes) -> None:
+    def __init__(self, writes, *, lands: bool = False) -> None:
         self._writes = writes
+        self._lands = lands
 
     def __call__(self, issue, state):
-        if state.get(RESERVATION) == "started":
-            raise RuntimeError("GitHub refused the edit")
-        return self._writes(issue, state)
+        if state.get(RESERVATION) != "started":
+            return self._writes(issue, state)
+        if self._lands:
+            self._writes(issue, state)
+        raise RuntimeError("GitHub refused the edit, or lost its response")
 
 
 class HandoffWorld(_world.ReviewVerdictWorld):

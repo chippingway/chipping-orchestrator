@@ -200,8 +200,12 @@ class AnotherRoadBehind:
 
     def returning(self, message: str, **run_options) -> dict:
         """The tick in which a reviewer returned `message`, over a client carrying this request."""
-        with patch.object(self._owner, self._name, self):
+        with self.patched():
             return self._case.returns(message, **run_options)
+
+    def patched(self):
+        """A patch of the request, with this road behind it."""
+        return patch.object(self._owner, self._name, self)
 
 
 class ReviewVerdictWorld(_PatchedWorkflowMixin):

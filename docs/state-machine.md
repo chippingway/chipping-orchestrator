@@ -209,7 +209,9 @@ Most owners write the record whole from the state they read. A guarded commit --
 verification-evidence publication and settlement, the evidence reconciliation's retirements, `validating`'s invalidation
 of an unanswered carry, the developer report's recording, its binding, its settlement (prepared before the report is
 posted), the reconciliation's drop and damage-park retirement, the park a refused recording or binding takes, the
-fixing recovery's release, and a reviewer round's launch, return, verdict, drop, and park writes -- lays only the
+fixing recovery's release, a reviewer round's launch, return, verdict, drop, and park writes, and a change request's
+handoff (prepared before its feedback is posted), the drop, retirement, and park of a handed one, and the recovery's
+writes over a verdict left waiting -- lays only the
 fields its caller owns over a fresh reading instead, refusing with nothing written where the comment, a record the
 decision rests on, or a field the caller is changing moved, or where the whole candidate would not fit one comment.
 Every key, what writes it, what spends it, the guarded commit, and the legacy `codex_session_id` still honored on read

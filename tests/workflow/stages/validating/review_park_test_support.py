@@ -15,7 +15,8 @@ Beside that world: another road's work behind a park's notice, which is
 post, the moves that road can make that no other case makes -- a repoint, a
 verdict put in the place of the one parked -- a notice GitHub takes without
 answering its id (`LeavesNoId`), operator notes filling the pinned comment
-(`fills_to`), and what each park that landed reported (`reported`).
+-- or the room a change request's handoff needs in it (`fills_to`) -- and what
+each park that landed reported (`reported`).
 """
 from __future__ import annotations
 
@@ -70,11 +71,19 @@ def saying(phrase: str):
     return lambda body: phrase in body
 
 
-def fills_to(case, spare: int) -> None:
-    """Fill `case`'s pinned comment with operator notes to `spare` characters short of its ceiling."""
+def fills_to(case, spare: int, *, handing: bool = False) -> None:
+    """Fill `case`'s pinned comment with operator notes to `spare` characters short of its ceiling.
+
+    Where `handing`, the comment is measured with the change request it has
+    waiting at its widest handoff, beside its developer's charge
+    (`ReturnedVerdict.at_its_handoff`), so `spare` is what that handoff leaves.
+    """
     state = case.github.read_pinned_state(case.issue)
     state.set("operator_notes", "")
-    notes = MAX_PINNED_BODY - len(pinned_state_body(state.data)) - spare
+    measured = state
+    if handing:
+        measured = _verdicts.read_returned_verdict(state).at_its_handoff(state)
+    notes = MAX_PINNED_BODY - len(pinned_state_body(measured.data)) - spare
     state.set("operator_notes", "x" * notes)
     case.github.write_pinned_state(case.issue, state)
 

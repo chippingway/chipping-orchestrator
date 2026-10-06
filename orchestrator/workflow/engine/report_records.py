@@ -287,9 +287,28 @@ class HandedRun:
     readers travel with the report and move in the write that settles it. Empty
     is every road that settles what it delivered for itself, because what it
     delivered is answered whatever the report does.
+
+    `retires` is what the run's own report answers on the caller's road,
+    frozen as `((field, value), ...)` and written in the very commit that
+    records the report -- or in the park that holds a report owed in its place
+    (`report_delivery.parks_the_debt`) -- as `spends` is in the one that
+    settles it: a persisted change request this run answers is retired beside
+    the record of that answer, so a write GitHub never confirmed leaves both or
+    neither. Never written onto the record itself.
+
+    `decided_on` is what that road is decided on beyond the report records,
+    and every write recording or holding the run's report is decided on it
+    too -- the request, the pull request the issue points at, the start of
+    its developer's launch, and the anchor its feedback is replayed from as
+    the tick read them -- so another road moving any of them refuses the
+    record, and the publication, the push, the relabel, and the round behind
+    it, rather than answering a request that is no longer this run's to
+    answer. Empty, both, on every other road.
     """
 
     route: WorkflowLabel
     requirements_revision: str = ""
     spends: tuple = ()
     watermarks: tuple = ()
+    retires: tuple = ()
+    decided_on: frozenset = frozenset()

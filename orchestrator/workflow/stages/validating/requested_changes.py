@@ -12,7 +12,7 @@ feedback scan (`review_resume.finishes_a_handed_request`) -- a launch still
 owed is made then, and one that may have started is never made again: the
 request is dropped where the subject moved or the branch shows the developer's
 own work, and the launch parks for `/orchestrator continue` where nothing shows
-(`review_handoffs.HandedLaunch`) -- whereas a crash after a spawn under the old
+(`review_launch_park`) -- whereas a crash after a spawn under the old
 label would leave an issue nobody re-enters. A pushed fix bumps the round and
 relabels back; any park leaves the issue on `fixing`, whose handler owns the
 awaiting-human rescan from there.
@@ -32,7 +32,10 @@ on this route has to be retryable by `/orchestrator continue`, and the fixing
 handler replays that exact comment to reconstruct the batch, quoting its
 findings formatted (`feedback_posts`) whatever words it was posted in. It is
 the one durable copy of the feedback once the persisted verdict is handed on,
-so the handoff (`review_handoffs`) goes on only behind a post whose id it read.
+so the handoff (`review_handoffs`) goes on only behind a post whose id it read
+-- or, on a later tick, that it found by the words and the receipt it posts
+for that very request (`feedback_posts.finds`), where an earlier tick's post
+never named its id.
 It is a standalone key rather than part of the in_review bookmark pair, since
 `pending_fix_at` is what tells that route's round RESET from this route's bump.
 
@@ -80,6 +83,7 @@ from orchestrator.workflow.stages.validating import (
     fix_reports as _fix_reports,
     models as _models,
     report_settlement as _report_settlement,
+    review_verdicts as _verdicts,
     review_writes as _review_writes,
     rounds as _rounds,
     state as _state,
@@ -98,6 +102,10 @@ log = logging.getLogger("orchestrator.workflow")
 # back, so the next scan reads whatever arrived since under a route the
 # settlement has just cleared.
 _SETTLES_THE_ROUND = ((_records.SETTLED_ROUND, True),)
+
+# What the round's own report answers: the persisted change request it was
+# launched for, retired in the very commit that records that report.
+_RETIRES = ((_verdicts.RETURNED_VERDICT, None),)
 
 
 def _reviewer_no_verdict_park(review) -> tuple[str, str]:
@@ -182,11 +190,14 @@ def _park_reviewer_no_verdict(
     ))
 
 
-def _post_reviewer_feedback(context: _models._RequestedChanges) -> int | None:
-    """Post the reviewer's feedback on the PR; the id it landed as, or None where none was read.
+def _post_reviewer_feedback(
+    context: _models._RequestedChanges, held: _verdicts.ReturnedVerdict, *, finds: bool = False,
+) -> int | None:
+    """Post the reviewer's feedback on the PR for the persisted request `held`; the id it landed as, or None.
 
-    The post is in the words `feedback_posts.posted` writes, which that owner
-    also reads back where a replay shows the post (`feedback_posts.ShownPost`).
+    The post is in the words `feedback_posts.posted` writes, below them the
+    receipt naming `held` (`feedback_posts.receipted`), which that owner also
+    reads back where a replay shows the post (`feedback_posts.ShownPost`).
     The id is the replay anchor a `/orchestrator continue` on a later park of
     this route hands a fresh developer, and it is its caller's to stage: this
     route stages it at once, while a persisted verdict's handoff goes on only
@@ -195,15 +206,36 @@ def _post_reviewer_feedback(context: _models._RequestedChanges) -> int | None:
     to post on, a post that failed, and one whose response named no comment
     -- no positive whole id, that is -- all answer None. Only the post's entry
     in the orchestrator's comment ledger is staged here.
+
+    `finds` is a later tick's handoff of a request an earlier one may already
+    have posted for -- its response lost, or its handoff refused behind it --
+    so the pull request is read for that post first (`feedback_posts.finds`)
+    and one found is taken, its ledger entry staged, with nothing posted: one
+    receipted for `held` itself, or one a tick before receipts posted that
+    stands where `held`'s own would (`feedback_posts.finds`). A thread that
+    will not read posts nothing either, and answers None.
     """
     if context.pr_number is None:
         return None
+    words = _feedback_posts.posted(context.round_n, context.feedback)
+    pr_number = int(context.pr_number)
+    try:
+        found = _feedback_posts.finds(
+            context.gh, pr_number, words, held, context.state,
+        ) if finds else None
+    except Exception:
+        log.exception(
+            "issue=#%s could not read PR #%s for the review an earlier tick may have posted",
+            context.issue.number,
+            context.pr_number,
+        )
+        return None
+    if found is not None:
+        _comments._track_orchestrator_comment(context.state, found)
+        return found
     try:
         reviewer_comment = _comments._post_pr_comment(
-            context.gh,
-            int(context.pr_number),
-            context.state,
-            _feedback_posts.posted(context.round_n, context.feedback),
+            context.gh, pr_number, context.state, _feedback_posts.receipted(words, held),
         )
     except Exception:
         log.exception(
@@ -252,9 +284,11 @@ def _run_requested_fix(
 
 
 def _finish_requested_fix(
-    context: _models._RequestedChanges, attempt: _models._AwaitingDevAttempt,
+    context: _models._RequestedChanges,
+    attempt: _models._AwaitingDevAttempt,
+    handed: _verdicts.ReturnedVerdict,
 ) -> None:
-    """Read what the fix round left, and hand the pull request back with it.
+    """Read what the fix round left, and hand the pull request back with it, the request `handed` retired.
 
     The round is spent by a report reaching the pull request exactly as it is
     by a commit, because both are a handover the next reviewer has to read
@@ -280,6 +314,23 @@ def _finish_requested_fix(
     claiming the round it closed. A move that never lands leaves the record
     unbound on `fixing`, and the settled-round mark it carries is what lets the
     fixing stage's recovery finish the hand-back there.
+
+    The persisted change request `handed` -- the one this round answers -- is
+    retired in the first write that records what the round left, and only in
+    a guarded commit decided on that request, the pull request the issue
+    points at, the start of its developer's launch, the feedback anchor its
+    continue replays, and the park's flags: the commit recording its report
+    (`report_records.HandedRun.retires` and `decided_on`), so a move there
+    publishes, pushes, relabels, and spends nothing; the park a round that
+    parks instead takes -- a timeout, a question, a tree or a push it could not
+    publish, or a report it still owes, whose park writes the retirement itself
+    (`report_delivery.parks_the_debt`) -- or, behind the relabel, the hand-back
+    ahead of the report's settlement where no report was recorded first
+    (`_answers`). Each keeps another road's write while the developer ran or
+    the label moved, and nothing is settled or posted behind a hand-back that
+    did not land. Until then the request stays on the comment beside what the
+    round recorded, the obligation a later tick answers it by. A paused run,
+    and one the shutdown sweep killed, write nothing.
     """
     if attempt.paused:
         return
@@ -314,23 +365,41 @@ def _finish_requested_fix(
         # drift check snapshotted one for this route, and the reviewer round
         # runs behind the one the tick's own drift check left.
         handed=_records.HandedRun(
-            WorkflowLabel.FIXING, spends=owed.fields + _SETTLES_THE_ROUND,
+            WorkflowLabel.FIXING,
+            spends=owed.fields + _SETTLES_THE_ROUND,
+            retires=_RETIRES,
+            decided_on=_review_writes.ANSWERED.decided_on,
         ),
     )
     if outcome not in _state._REPORTING_OUTCOMES:
-        if not _guards._ignore_if_interrupted(
-            context.issue, attempt.run.agent_result,
-        ):
-            context.gh.write_pinned_state(context.issue, context.state)
+        if not _guards._ignore_if_interrupted(context.issue, attempt.run.agent_result):
+            _answers(context, handed)
         return
     if outcome == _state._OUTCOME_PUSHED:
         _late_gate_models._spend(context.state, owed)
     context.gh.set_workflow_label(context.issue, WorkflowLabel.VALIDATING)
-    context.gh.write_pinned_state(context.issue, context.state)
-    _report_settlement._settles_the_report(
-        context.gh, context.spec, context.issue, context.state,
-        WorkflowLabel.VALIDATING,
-    )
+    if _answers(context, handed):
+        _report_settlement._settles_the_report(
+            context.gh, context.spec, context.issue, context.state,
+            WorkflowLabel.VALIDATING,
+        )
+
+
+def _answers(context: _models._RequestedChanges, handed: _verdicts.ReturnedVerdict) -> bool:
+    """Land what the round left with the request `handed` retired beside it, in one guarded commit; whether it landed.
+
+    Over the comment read afresh (`review_writes.ANSWERED`), so every field
+    another road wrote meanwhile is kept, and a request, a repoint, a start,
+    an anchor, or a park it moved refuses it with nothing written. A request
+    the report's own record already retired is dropped there once. A state
+    withheld behind a write that did not land -- the report's own record
+    refused or never confirmed -- writes nothing: that record is what a later
+    tick finishes.
+    """
+    if context.state.withheld:
+        return False
+    _verdicts.drops_the_verdict(context.state, only=handed)
+    return _review_writes.lands(context.gh, context.issue, context.state, _review_writes.ANSWERED)
 
 
 def _park_review_cap(

@@ -11,13 +11,24 @@ checkout or a remote that moved past it, holds its bounce with a park of its
 own -- nobody launched or charged either way. A branch nobody could read -- its
 fetch refused, ahead of the park's notice or behind it, or its status or count
 unread -- holds the verdict for a later tick. Anything else parks under
-`agent_execution_failed` (`HandedLaunch.parks`) -- only behind the feedback
+`agent_execution_failed` (`review_launch_park.parks`) -- only behind the feedback
 anchor the request was handed over with, put back where something cleared it,
 and only where nothing moved behind the park's notice, the comment read behind
-the branch so a verdict another road put in place there is kept -- and
+the branch so a verdict another road put in place there is kept, and its run
+ledger still says the launch may have started -- and
 `/orchestrator continue` replays that feedback to one fresh developer: a post
 made before findings were formatted, its declaration raw, is replayed with its
 findings concise and left on the pull request as it was posted.
+
+The park (`review_launch_park.parks`), the write-back of a cleared anchor
+ahead of an owed launch, and the drop of a request that moved on are each a
+guarded commit: prepared before the park's notice, so a comment another road
+filled posts nothing, and refused where another road writes right ahead of
+them -- nothing written over that road's write, parked, reported, or
+launched. The drop of a launch that may have run is decided on its run ledger
+too, so a start written away ahead of it keeps the request for the developer
+it owes. One GitHub took and lost the response to is finished once by the
+next tick: no second notice, park, developer, or charge.
 """
 from __future__ import annotations
 
@@ -35,8 +46,10 @@ from tests.workflow.stages.validating import (
     raw_feedback_test_support as _raw,
     resumed_verdict_test_support as _resumed,
     review_handoff_test_support as _handoff,
+    review_park_test_support as _parked,
     review_verdict_readings as _read,
     review_verdict_test_support as _world,
+    review_write_test_support as _roads,
 )
 
 EXECUTION_FAILED = "agent_execution_failed"
@@ -144,26 +157,29 @@ _POSTED_RAW = (
     ("a failed run", _world.FAILED_REQUEST, _world.CONCISE_FAILURE),
 )
 
+# Where another write points a handed request's pinned anchor: at another
+# comment than the post the request was handed over with.
+_ELSEWHERE = "elsewhere"
+
+# How each guarded-commit case names another road's write.
+_ANOTHER_VERDICT = "another round's verdict"
+
+_A_PARK = "a park recorded"
+
+_UNPARSED = "an unparsed comment"
+
 # Where another write moves a handed request's pinned anchor ahead of the tick
 # that parks its launch, and behind that park's notice, which holds the park.
 _HELD_ANCHORS = (
-    ("another comment pinned", "elsewhere", None),
-    ("repointed behind the notice", None, "elsewhere"),
-    ("cleared, then repointed behind the notice", "nowhere", "elsewhere"),
+    ("another comment pinned", _ELSEWHERE, None),
+    ("repointed behind the notice", None, _ELSEWHERE),
+    ("cleared, then repointed behind the notice", "nowhere", _ELSEWHERE),
 )
-
-
-def _parks_over_its_report(case) -> None:
-    """Another road's park over a report it cannot deliver, as the report reconciliation takes it."""
-    state = case.github.read_pinned_state(case.issue)
-    state.set("awaiting_human", True)
-    state.set("park_reason", _UNDELIVERABLE)
-    case.github.write_pinned_state(case.issue, state)
 
 
 def _takes_the_request_over(case) -> None:
     """Another road finishing the request its own way: its verdict dropped, its anchor cleared, the issue parked."""
-    _parks_over_its_report(case)
+    _disposed.parks_over_its_report(case)
     state = case.github.read_pinned_state(case.issue)
     state.set(_world.RETURNED_VERDICT, None)
     state.set(_disposed.ANCHOR, None)
@@ -191,6 +207,91 @@ def _fetches_while_replaced(case, *_asked, **_named):
         state.set(_world.RETURNED_VERDICT, case.replacement)
         case.github.write_pinned_state(case.issue, state)
     return _FETCHED
+
+
+# Another road's newer verdict, of a later round and never handed, in the
+# place of a handed request; and its feedback anchor pointed at another comment.
+_REPLACES = _parked.replaces_the_verdict
+
+_REPOINTS_THE_ANCHOR = partial(_handoff.moves_the_anchor, to=_ELSEWHERE)
+
+# The two requests of a park another road's write can go right ahead of: its
+# preparation, which the notice waits on, and its commit, behind the notice.
+_PREPARE = "prepare"
+
+_COMMIT = "commit"
+
+# Another road's write right ahead of the park of a launch that may have run,
+# behind the last reading it was decided on, and which of its two requests it
+# goes ahead of: a verdict put in the request's place, its anchor pointed at
+# another comment, a run charged, a park of its own recorded, and the comment
+# itself unparsed or replaced. Each refuses the park.
+_AHEAD_OF_THE_PARK = (
+    (_ANOTHER_VERDICT, _REPLACES, _PREPARE),
+    (_A_PARK, _disposed.parks_over_its_report, _PREPARE),
+    (_UNPARSED, _roads.unparses, _PREPARE),
+    (_ANOTHER_VERDICT, _REPLACES, _COMMIT),
+    ("the anchor repointed", _REPOINTS_THE_ANCHOR, _COMMIT),
+    ("a run charged", partial(_handoff.charges_a_run, owed=False), _COMMIT),
+    (_A_PARK, _disposed.parks_over_its_report, _COMMIT),
+    (_UNPARSED, _roads.unparses, _COMMIT),
+    ("a replaced comment", _roads.repins, _COMMIT),
+)
+
+# Another road writing a handed launch's start away, its charge left standing
+# unstarted under the launch's own fingerprint: the launch owed again.
+_UNSTARTS = _roads.Writes({"agent_run_owed_started": ..., "agent_run_reservation": "reserved"})
+
+# The subject's report re-read a validating recovery makes ahead of the comment
+# a drop is read afresh from.
+_REREAD = "reread_report_location"
+
+# The two ticks a handed request's launch is recovered on.
+_FIXES = _resumed.ResumedVerdictWorld.fixes
+
+_VALIDATES = _resumed.ResumedVerdictWorld.validates
+
+# Where another road writes a launch that may have run back to owed that way,
+# and the tick that meets it: a fixing tick, behind the notice of the park it
+# takes; or a validating tick a relabel from outside brought the request back
+# to, which drops it as a launch that may have run -- behind the subject's
+# report re-read, ahead of the comment the drop is read afresh from, or right
+# ahead of the drop's commit.
+_UNSTARTING = (
+    (
+        "behind the park's notice",
+        _FIXES,
+        lambda case: _world.AnotherRoadBehind(case, COMMENT, _resumed.asks_for_a_continue, _UNSTARTS).patched(),
+    ),
+    (
+        "behind the subject's re-read",
+        _VALIDATES,
+        lambda case: _world.AnotherRoadBehind(case, _REREAD, bool, _UNSTARTS).patched(),
+    ),
+    ("ahead of the drop's commit", _VALIDATES, lambda case: _roads.AnotherRoadAhead(case, bool, _UNSTARTS).patched()),
+)
+
+# Another road's write right ahead of the commit dropping a request that moved
+# on, and the verdict that leaves waiting: one of its own in the request's
+# place refuses the drop and waits; a response GitHub lost drops it once.
+_AHEAD_OF_THE_DROP = (
+    (_ANOTHER_VERDICT, _REPLACES, _HANDED_REQUEST),
+    ("a lost response", _roads.loses_the_responses, None),
+)
+
+# Another road's write around the commit writing back an owed launch's
+# cleared anchor, and whether it goes right ahead of that commit: the anchor
+# pointed at another comment, a verdict put in the request's place, a park of
+# its own recorded, or the comment unparsed, there; or a park recorded behind
+# the subject's re-read, which the reading the write-back is decided over
+# carries. Each refuses the write-back.
+_AROUND_THE_WRITE_BACK = (
+    ("the anchor repointed", _REPOINTS_THE_ANCHOR, True),
+    (_ANOTHER_VERDICT, _REPLACES, True),
+    (_A_PARK, _disposed.parks_over_its_report, True),
+    (_UNPARSED, _roads.unparses, True),
+    ("a park behind the subject's re-read", _disposed.parks_over_its_report, False),
+)
 
 
 class UnaccountedLaunchTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
@@ -400,7 +501,7 @@ class BehindTheNoticeTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
         # park lands over it, its reason is kept, and the request waits.
         self.hands_over_unstarted()
         _resumed.starts(self, _resumed.STARTED)
-        road = _world.AnotherRoadBehind(self, COMMENT, _resumed.asks_for_a_continue, _parks_over_its_report)
+        road = _world.AnotherRoadBehind(self, COMMENT, _resumed.asks_for_a_continue, _disposed.parks_over_its_report)
 
         with patch.object(self.github, COMMENT, road):
             ran = self.fixes(**{**_disposed.fixing(), **_IN_SYNC})
@@ -465,6 +566,204 @@ class BehindTheNoticeTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
         with patch.object(self.github, COMMENT, road):
             self.fixes(**{**_disposed.fixing(), **_IN_SYNC})
         return anchor
+
+
+class GuardedRecoveryTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
+    """A launch's park, an anchor's write-back, and a drop land through guarded commits, each finished once.
+
+    Every case's road goes ahead of the first guarded commit -- or the first
+    preparation -- the fixing tick makes, which on these ticks is the
+    recovery's own.
+    """
+
+    def test_a_write_ahead_of_the_park_lands_none(self) -> None:
+        # Another road writes right ahead of the park of a launch that may
+        # have run. Ahead of its preparation, which its notice waits on,
+        # nothing is posted; ahead of its commit, the park is refused behind
+        # its one notice. Either way the comment stays exactly as that road
+        # left it, and nothing is reported or launched.
+        for name, road, request in _AHEAD_OF_THE_PARK:
+            with self.subTest(name, request=request):
+                self.setUp()
+                self.hands_over_unstarted()
+                _resumed.starts(self, how=_resumed.STARTED)
+                ahead = _roads.AnotherRoadAhead(self, bool, partial(_roads.leaves, road), request=request)
+
+                with ahead.patched():
+                    ran = self.fixes(**{**_disposed.fixing(), **_IN_SYNC})
+
+                self.assertEqual(
+                    (
+                        ran.call_count,
+                        self.pinned(),
+                        _parked.reported(self),
+                        _disposed.last_notice(self).count(CONTINUE),
+                    ),
+                    (0, self.left_behind, [], int(request == _COMMIT)),
+                )
+
+    def test_a_lost_park_is_answered_once(self) -> None:
+        # GitHub takes the park's commit and loses its response, so its event
+        # never goes out and nothing is launched. The next tick finds the park
+        # standing, posts no second notice and launches nobody, and
+        # `/orchestrator continue` replays the feedback to one fresh
+        # developer, who hands the pull request back.
+        self.hands_over_unstarted()
+        _resumed.starts(self, how=_resumed.STARTED)
+        with _roads.AnotherRoadAhead(self, bool, _roads.loses_the_responses).patched():
+            parked = self.fixes(**{**_disposed.fixing(), **_IN_SYNC}).call_count
+        self.github.pinned_failures.lost.discard(_world.ISSUE)
+        held = (parked, self.parked(), len(self.github.posted_comments))
+
+        again = (
+            self.fixes(**{**_disposed.fixing(), **_IN_SYNC}).call_count,
+            len(self.github.posted_comments),
+        )
+        self.asks_to_continue()
+        replayed = self.fixes(**_disposed.fixing())
+
+        self.assertEqual(
+            (held, again, replayed.call_count, self.github.label_history[-1]),
+            (
+                (0, ((EXECUTION_FAILED, True), None, []), held[2]),
+                (0, held[2]),
+                1,
+                VALIDATING,
+            ),
+        )
+
+    def test_a_lost_start_is_launched_once(self) -> None:
+        # The run circuit's write starting the developer a handed request owes
+        # lands and its response is lost, so no developer is spawned behind a
+        # start nobody confirmed. The next tick reads that start, launches it
+        # never again, and parks it, and `/orchestrator continue` replays the
+        # feedback to one fresh developer: one launch in all.
+        loses = _handoff.RefusesTheStart(self.github.write_pinned_state, lands=True)
+        with patch.object(self.github, "write_pinned_state", loses):
+            returned = self.returns(_resumed.UNDECLARED_REQUEST, **_disposed.fixing())
+        parked = self.fixes(**{**_disposed.fixing(), **_IN_SYNC}).call_count
+        held = (returned[_world.RUN_AGENT].call_count, parked, self.parked())
+        self.asks_to_continue()
+
+        replayed = self.fixes(**_disposed.fixing())
+
+        self.assertEqual(
+            (held, replayed.call_count),
+            ((0, 0, _PARKED), 1),
+        )
+
+    def test_a_write_around_the_write_back(self) -> None:
+        # The anchor of a handed request whose launch is still owed was
+        # cleared, and another road writes right ahead of the commit writing it
+        # back, or parks the issue behind the subject's re-read that write-back
+        # is decided behind: the write-back is refused or never made, the
+        # comment -- that road's park included -- stays exactly as that road
+        # left it, and nothing is relabelled or launched.
+        for name, road, ahead in _AROUND_THE_WRITE_BACK:
+            with self.subTest(name):
+                self.setUp()
+                self.hands_over_unstarted()
+                _resumed.clears_the_anchor(self)
+                around = (
+                    _roads.AnotherRoadAhead(self, bool, partial(_roads.leaves, road)) if ahead
+                    else _world.AnotherRoadBehind(self, _REREAD, bool, partial(_roads.leaves, road))
+                )
+
+                with around.patched():
+                    ran = self.fixes(**_disposed.fixing())
+
+                self.assertEqual(
+                    (ran.call_count, (self.pinned(), self.github.label_history)),
+                    (0, (self.left_behind, [FIXING])),
+                )
+
+    def test_a_lost_write_back_launches_once(self) -> None:
+        # GitHub takes the commit writing a cleared anchor back and loses its
+        # response, so nothing is launched behind it. The next tick finds the
+        # anchor written, writes nothing over it, and launches the one
+        # developer the request owes, honoring the charge its handoff
+        # reserved: no second post, and no second run charged.
+        self.hands_over_unstarted()
+        _resumed.clears_the_anchor(self)
+        anchor = self.pinned()[_world.RETURNED_VERDICT]["anchor"]
+        with _roads.AnotherRoadAhead(self, bool, _roads.loses_the_responses).patched():
+            lost = self.fixes(**_disposed.fixing()).call_count
+        self.github.pinned_failures.lost.discard(_world.ISSUE)
+        written = self.pinned()
+
+        ran = self.fixes(**_disposed.fixing()).call_count
+
+        pinned = self.pinned()
+        self.assertEqual(
+            (
+                lost,
+                written[_disposed.ANCHOR],
+                ran,
+                len(self.feedback_posts()),
+                pinned[_world.AGENT_RUNS_USED] - written[_world.AGENT_RUNS_USED],
+                self.waiting(),
+            ),
+            (0, anchor, 1, 1, 0, None),
+        )
+
+    def test_a_drop_is_refused_or_settled_once(self) -> None:
+        # A launch that may have run pushed, so its request is dropped for the
+        # stage's own road. Another road putting its own verdict in that
+        # request's place right ahead of the drop refuses it, and the comment
+        # stays exactly as that road left it, the newer verdict waiting;
+        # GitHub taking the drop and losing its response drops it once. The
+        # next tick launches nobody either way.
+        for name, road, waits in _AHEAD_OF_THE_DROP:
+            with self.subTest(name):
+                self.setUp()
+                self.hands_over_unstarted()
+                _resumed.starts(self, how=_resumed.STARTED)
+                _world.pushes(self)
+                with _roads.AnotherRoadAhead(self, bool, partial(_roads.leaves, road)).patched():
+                    dropped = self.fixes(**_disposed.fixing()).call_count
+                self.github.pinned_failures.lost.discard(_world.ISSUE)
+                left = (dropped, self.pinned() == self.left_behind, self.waiting())
+
+                self.assertEqual(
+                    (left, self.fixes(**{**_disposed.fixing(), **_PUSHED}).call_count),
+                    ((0, waits is not None, waits), 0),
+                )
+
+    def test_a_launch_owed_again_stays_owed(self) -> None:
+        # Another road writes the launch's start away after the reading the
+        # recovery decided on -- while the park's notice is posted, or around
+        # the drop a validating tick makes of a request a relabel from outside
+        # brought back -- leaving its charge standing unstarted under the
+        # launch's own fingerprint: the run ledger read behind it says the
+        # launch is owed again, so no park lands and nothing is dropped, and
+        # the request waits handed beside that charge. The next tick launches
+        # its one developer, honoring the charge rather than charging a second
+        # run or a fresh reviewer.
+        for name, tick, unstarting in _UNSTARTING:
+            with self.subTest(name):
+                self.setUp()
+                self.hands_over_unstarted()
+                _resumed.starts(self, how=_resumed.STARTED)
+                if tick is _VALIDATES:
+                    self.github.set_workflow_label(self.issue, LABEL_VALIDATING)
+                with unstarting(self):
+                    held = tick(self, **{**_disposed.fixing(), **_IN_SYNC}).call_count
+                parked = (held, self.parked(), self.pinned()[_world.AGENT_RUNS_USED])
+
+                self.assertEqual(
+                    (
+                        parked,
+                        tick(self, **_disposed.fixing()).call_count,
+                        self.pinned()[_world.AGENT_RUNS_USED],
+                        self.waiting(),
+                    ),
+                    (
+                        (0, (_UNPARKED, _HANDED_REQUEST, []), parked[2]),
+                        1,
+                        parked[2],
+                        None,
+                    ),
+                )
 
 
 class RawReplayTest(_resumed.ResumedVerdictWorld, unittest.TestCase):

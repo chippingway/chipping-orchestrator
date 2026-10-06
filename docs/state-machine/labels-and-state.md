@@ -729,9 +729,42 @@ the write with nothing written, and nothing depending on it is made -- no review
 evidence published, no verdict acted on -- and the tick's state is withheld as a refused report write's is. A write sent
 and never confirmed acts on nothing either: a launch it may have recorded is committed again, with nothing sent, by the
 next tick's round, and a verdict and transaction it may have persisted are published and finished by the next tick's
-reconciliation and recovery with no second reviewer, artifact, fold, charge, or round. Every road but these and the
-verification evidence's still writes its whole state, a change request's handoff and the approval's squash tail among
-them.
+reconciliation and recovery with no second reviewer, artifact, fold, charge, or round.
+
+A change request's handoff and its recovery land through that guard too, each declaring its own fields and records.
+The handoff (`stages/validating/review_handoffs.py`) is prepared before its feedback is posted -- the candidate measured
+with the request at its widest handoff and its developer's charge beside it -- so a comment another road filled, moved,
+or replaced posts nothing; behind the post it writes `review_returned_verdict` as handed beside
+`pending_fix_reviewer_comment_id`, asking that same room of the candidate the commit sends -- its post's ledger entry
+counted once -- so a comment another road filled while the post went out takes no handoff with no room left for the
+developer's charge, and decided on the report records, `pr_number`, `review_returned_verdict`, the
+`verification_evidence_*` records, that anchor, the run ledger the handed count is read off (`agent_runs_used`,
+`issue_agent_runs`, `agent_run_reservation`, `agent_run_fingerprint`, `agent_run_owed_started`), and `awaiting_human`
+and `park_reason`. A park another road records is a human's to answer: one the state in hand already shows -- carried
+onto it by the reading that proved the request ready -- posts, writes, relabels, and launches nothing, and the reading
+behind the post, the ones ahead of the relabel and the launch, and each the run circuit charges and starts the launch
+from (`stages/validating/review_launch_hold.py`) hold the request where one stands or its flags moved, with nothing
+written over it, relabelled, charged, or launched, until a reply clears it. The drop of a request
+whose subject or evidence moved before its developer was launched is decided on the same records, the anchor, and
+`agent_run_owed_started`; the retirement of one whose developer that start records launched on the verdict and that
+start alone. The `agent_execution_failed` park of a launch that may have run (`stages/validating/review_launch_park.py`)
+owns its flags, the verdict, the anchor, and its notice's ledger entry and thread read, decided on those records, the
+anchor, `awaiting_human` and `park_reason`, and the run ledger, and is prepared before its notice. The recovery of a
+waiting verdict (`stages/validating/review_resume.py`) writes back a cleared anchor decided on the records the request
+stands on, the anchor still cleared, and the park's flags -- writing nothing where the reading it is decided over shows
+a park standing -- drops a verdict for good over the comment read afresh with nothing of the
+tick's own beside it -- a handed one whose developer may have run only where that reading's run ledger still shows the
+launch not owed, and decided on that ledger too -- and settles a round a reply bought decided on the verdict and the
+park's flags. A change request's developer run retires it only in a guarded commit decided on it, `pr_number`,
+`agent_run_owed_started`, `pending_fix_reviewer_comment_id`, and the park's flags: the commit recording its report, the
+park the round takes, or the hand-back behind the relabel. Any of them refused writes nothing over the other road's
+write and nothing behind it -- no feedback post, relabel, notice, or launch -- and withholds the tick's state; one sent
+and never confirmed is finished by the next tick from what the comment carries -- a handoff found handed and resumed, a
+post found by its words and receipt, or by its place in the thread (`feedback_posts.finds`), a drop, retirement, park,
+or settlement found landed -- with no second post, developer, or charge, and no review round but the one the confirmed
+write itself leads to: a pushed fix's or a report's hand-back, a timeout park's recovery, the round a reply bought, or a
+fresh one a dropped record leaves its subject for. Every road but these and the verification evidence's still writes its
+whole state, the approval's squash tail among them.
 
 The keys that matter for the state machine fall into a few groups:
 
@@ -2320,23 +2353,51 @@ The keys that matter for the state machine fall into a few groups:
   A change request is handed over (`review_handoffs.py`) through the decision it was persisted from -- the
   record's own `round`, `verdict`, `subject`, and `feedback` -- in the tick its reviewer returned, or from the record
   alone on a later tick, which holds no decision, either way on that subject's pull request: another round's decision,
-  an approval, or other words hand nothing over, and its feedback is posted first, a post that failed or left no
-  positive whole id -- or a run naming no pull request, or another -- relabelling, launching, and writing nothing, and
-  leaving `handed` `null`; the whole subject is held again behind that post, and the record written with `handed` and
-  `anchor` set, beside a `pending_fix_reviewer_comment_id` naming the same post, BEFORE the relabel to
-  `workflow:fixing`; the launch -- the subject, the evidence the request claims, `agent_run_owed_started`, and
-  `pending_fix_reviewer_comment_id`, over the comment read again -- is held to what stands before that relabel and once
-  more right before the developer launch, so no relabel announces a launch another write behind the handed one already
-  ruled out, and the writes after that launch set the record to `null`. Every hold counts the issue pointed at another
-  pull request, or a later evidence revision superseding the evidence the request claims, as moves, and a move sets the
-  record to `null` in a write that keeps the newer records, clearing `pending_fix_reviewer_comment_id` where it still
-  names that post and keeping one another road wrote meanwhile -- which the post never stages over, since the anchor
-  goes down only with the handed write. A move proved by a reading that records `agent_run_owed_started` at `handed` is
+  an approval, or other words hand nothing over. The handoff's guarded commit is prepared first, over the comment read
+  afresh -- the record at its widest handoff and the developer's charge beside it -- so a comment another road filled,
+  moved, or replaced posts nothing; then its feedback is posted, a post that failed or left no positive whole id -- or a
+  run naming no pull request, or another -- relabelling, launching, and writing nothing, and leaving `handed` `null`. A
+  later tick looks first for the post an earlier one made -- a comment this orchestrator wrote on the pull request in
+  the words it posts, its marker included, never one another author copied, the line naming the review held to the
+  record's round alone, whichever reviewer and round cap it names, since a restart may configure either otherwise --
+  and takes it rather than posting twice. The whole subject is held again behind that post, and the record committed
+  with `handed` and `anchor` set, beside a `pending_fix_reviewer_comment_id` naming the same post, BEFORE the relabel to
+  `workflow:fixing` -- decided on the records, the anchor, the run ledger, and the park's flags above, and held to the
+  room its preparation was, so another road moving one after that reading, or filling the comment past that room,
+  refuses it with nothing relabelled or launched, and an edit never confirmed is resumed, or handed again behind the
+  post it finds, by the next tick; the launch -- the subject, the evidence the request claims, `agent_run_owed_started`,
+  `pending_fix_reviewer_comment_id`, and no park standing, over the comment read again -- is held to what stands before
+  that relabel and once more right before the developer launch, so no relabel announces a launch another write behind
+  the handed one already ruled out, and no developer runs under a park another road recorded, and the developer's
+  run sets the record to `null` only in a guarded commit that records what it left and
+  is decided on the record, `pr_number`, `agent_run_owed_started`, `pending_fix_reviewer_comment_id`, `awaiting_human`,
+  and `park_reason` as the tick read them: the commit recording its report, which writes the `null` itself, the commit
+  landing a park the round takes instead -- a timeout's, a question's, one over a tree or a push it could not publish,
+  or the report-debt park (`report_undeliverable`), which writes the `null` itself too -- or, where no report was
+  recorded first, the hand-back behind the relabel to `workflow:validating`. It is prepared over the comment read afresh
+  right behind the run, and every write recording or holding the run's report is decided on the same fields, so a record
+  another road put in its place, a start written away, or a park recorded -- behind the run or right ahead of the record
+  -- writes, posts, pushes, and spends nothing of that result; a hand-back refused, over a record or a field
+  another road wrote while the label moved, settles nothing behind it and keeps what that road wrote. The record stays
+  until that write lands with it, so one never confirmed leaves both or neither, and the ticks behind answer it as
+  they would a confirmed one -- never a record set to `null` with nothing of the run recorded, which the fixing stage
+  would hand back for a review nobody asked for. A run paused, killed by the shutdown sweep, or refused at the run
+  circuit sets nothing. Every hold counts the issue pointed
+  at another pull request, or a later evidence revision superseding the evidence the request claims, as moves, and a
+  move sets the
+  record to `null` in a guarded commit that keeps the newer records, clearing `pending_fix_reviewer_comment_id` where it
+  still names that post -- only where the record it set to `null` was the one held, never beside a record another road
+  put in its place -- and keeping one another road wrote meanwhile -- which the post never stages over, since the
+  anchor goes down only with the handed commit -- and refused, the record waiting, where the record, the anchor, or
+  `agent_run_owed_started` moves under it. A move proved by a reading that records `agent_run_owed_started` at `handed`
+  is
   that developer's own push and drops nothing: the record is retired as launched, as below, and the pinned anchor kept
   for that developer's replay. A record already `handed` posts no feedback again: it is relabelled and its developer
   launched, or -- where `agent_run_owed_started` records the start of that developer at `handed`, that developer already
-  launched -- set to `null` in a write composed over the comment read again, so a later report or anything else another
-  road wrote since the tick's reading is kept (any other run charged meanwhile, a reviewer's say, records no such start,
+  launched -- set to `null` in a guarded commit decided on the record and that start alone, so a later report or
+  anything else another road wrote since the tick's reading is kept, and a record another road put in its place, or that
+  start moved, refuses it with nothing written (any other run charged meanwhile, a reviewer's say, records no such
+  start,
   and a charge still standing as an unstarted `agent_run_reservation` recorded none: the launch stays owed, and the run
   circuit honors that reservation rather than charging again), which is asked again right before every launch, so a
   developer another road launched behind the relabel is never launched a second time -- and once more by the run
@@ -2362,16 +2423,19 @@ The keys that matter for the state machine fall into a few groups:
   `workflow:validating` asks behind the report hold and ahead of the round cap and the spawn. A record not yet `handed`
   is finished through a run rebuilt of its own `round` over the subject resolved again as a round resolves it, the issue
   fetched afresh, which has to record as the record's `subject`: a push, a later or edited report, or an edited issue
-  sets it to `null` in a write of the comment read afresh -- only while that comment still carries it, so a record
-  another road put in its place is kept -- and ends the tick, for the next tick's fresh reviewer, and a reading nobody
-  could take writes nothing. A record already `handed` -- its relabel never landed -- is relabelled and its developer
+  sets it to `null` in a guarded commit over the comment read afresh, with nothing of the tick's own beside it -- only
+  while that comment still carries it, so a record another road put in its place, before that reading or after it, is
+  kept -- and ends the tick, for the next tick's fresh reviewer, and a reading nobody could take writes nothing. A
+  record already `handed` -- its relabel never landed -- is relabelled and its developer
   launched, its feedback not posted again, while that launch is owed, and set to `null` the same way otherwise -- once
   its subject is resolved again, a reading nobody could take writing nothing -- since only a relabel from outside brings
   back one whose developer may have been launched; so is any record on a tick an awaiting-human park was cleared into,
   whose reply bought a round of its own -- where the report hold stops that round or a record waits, the tick ends in
-  one write composed over the comment read afresh against the tick's own reading, keeping the cleared park and carrying
-  what another road wrote meanwhile, the record set to `null` only where that comment still carries it, and the round
-  runs next tick. A park another road recorded there is kept as it wrote it where its `awaiting_human` or `park_reason`
+  one guarded commit captured over the comment read afresh against the tick's own reading, keeping the cleared park and
+  carrying what another road wrote meanwhile, the record set to `null` only where that comment still carries it, and
+  the round runs next tick; a record, `awaiting_human`, or `park_reason` another road moves after that reading refuses
+  it, and the next tick answers the reply again. A park another road recorded there is kept as it wrote it where its
+  `awaiting_human` or `park_reason`
   moved. One recorded again for the same reason moves neither, and shows only in its notice, which no field names: so a
   comment another road posted meanwhile -- an id in `orchestrator_comment_ids` the tick never recorded -- that opens
   with `HITL_MENTIONS`, as every park notice does and a status line may, writes nothing, the park standing, and the next
@@ -2383,7 +2447,8 @@ The keys that matter for the state machine fall into a few groups:
   A record no reader takes is left as it stands. `workflow:fixing` asks behind the report recovery and ahead of the
   feedback scan, whose no-feedback bounce would pay a second reviewer for a round already reviewed: a `handed` record
   whose launch is owed has its one developer launched, the issue not relabelled onto the label it is on, and one whose
-  launch may have started is never launched again (`stages/validating/review_handoffs.py`, `HandedLaunch`); while a park
+  launch may have started is never launched again (`stages/validating/review_handoffs.py`, `HandedLaunch`, and
+  `stages/validating/review_launch_park.py`); while a park
   stands -- the run circuit's `agent_run_limit` over a launch it refused -- that park's own dispatch answers first. The
   launch is owed unless `agent_run_owed_started` records a start at or past `handed`, is present and spelled as no count
   -- `null` included -- or the latest charge at or past `handed` is `started` under the very `agent_run_fingerprint` the
@@ -2398,9 +2463,10 @@ The keys that matter for the state machine fall into a few groups:
   or a remote that moved past it sets the record to `null` the same way, the anchor kept, and the next tick's own road
   publishes that work, or holds its bounce over it, and hands the pull request back, while a subject or branch nobody
   could read -- a fetch, a status, or a count that did not return -- writes nothing, the record kept for a later
-  reading. Anything else parks under `agent_execution_failed`, measured before its notice as the record's own parks are
-  (above), landing only behind an identified notice over the subject resolved again, the branch read again, and the
-  comment read again behind that -- the last reading before the park's write, so a record another road put in place
+  reading. Anything else parks under `agent_execution_failed` in one guarded commit, prepared before its notice as the
+  record's own parks are (above), landing only behind an identified notice over the subject resolved again, the branch
+  read again, and the comment read again behind that -- the last reading before the park's commit, so a record another
+  road put in place
   during the branch's reading is kept -- still carrying the record, the report records, `pr_number`, and the
   `verification_evidence_*` records, the record set to `null` in the park's own write -- and only behind the anchor
   `/orchestrator continue` replays: `pending_fix_reviewer_comment_id` naming the record's `anchor`, or cleared -- before
@@ -2412,13 +2478,19 @@ The keys that matter for the state machine fall into a few groups:
   road on the next tick, and the anchor is written as that reading spelled it -- cleared, where another road dropped the
   record and cleared it there; a park another road recorded there is kept as it wrote it, with no park landing over it
   and the record waiting; and a subject or branch that would not read, a notice nothing identified, or an anchor moved
-  there writes what moved and the notice's ledger entry and leaves the record for a later tick. Before either hook
+  there writes what moved and the notice's ledger entry and leaves the record for a later tick -- as does a run ledger
+  that reads there as the launch owed again, its start written away and its charge standing unstarted under the
+  launch's own fingerprint, which the next tick launches, honoring that charge. That commit is decided
+  on those records, the anchor, `awaiting_human` and `park_reason`, and the run ledger as that reading spells them, so
+  one another road moves after it refuses it with nothing written or reported, and one GitHub never confirmed is found
+  by the next tick, standing or not, with no second notice or developer. Before either hook
   launches a record's developer, a `pending_fix_reviewer_comment_id` something cleared since -- the fixing stage's
   bookmark clear, a report settlement writing the bookkeeping it froze -- is written back from the record's `anchor`,
-  once the subject is established -- a subject nobody could read writes nothing -- and over the comment read again,
-  since the record names the very post: where the report records, `pr_number`, or the record itself moved there -- a
-  record another road put in its place -- the tick ends with nothing written, posted, or launched. An anchor another
-  road pointed at another comment is still held.
+  once the subject is established -- a subject nobody could read writes nothing -- in a guarded commit over the comment
+  read again, since the record names the very post: where the report records, `pr_number`, or the record itself moved
+  there -- a record another road put in its place -- or a park stands there, or they, the anchor, or the park's flags
+  move under the commit, the tick ends with nothing written, posted, or launched. An anchor another road pointed at
+  another comment is still held.
   An approval record is acted on only over evidence proved current (`stages/validating/unverified_approvals.py`), and
   only the record of the run's own round, `approved` verdict, and subject -- a run whose record another road replaced
   or dropped is refused, having nothing to prove -- over the claim that record names, never one handed in beside it,
@@ -2635,8 +2707,9 @@ The keys that matter for the state machine fall into a few groups:
   the `/orchestrator continue` operator command replays when retrying a session-failure park (see
   [`_handle_fixing`](delivery-stages.md#_handle_fixing-label-workflowfixing)); the anchor is cleared on a
   pushed fix and inside `_clear_pending_fix_bookmarks`. A persisted change request's handoff stages it only in the
-  write that hands the request over, from a post whose id it read, and launches its developer only while it names the
-  comment the record's `anchor` does (see the returned reviewer verdict above).
+  guarded commit that hands the request over, from a post whose id it read or, on a later tick, that it found in the
+  words it posts, and launches its developer only while it names the comment the record's `anchor` does (see the
+  returned reviewer verdict above).
 
   `fixing_round_settled` is a bare `true` a report transaction's settlement puts up when the record it settles froze
   it, and it says the one thing that write cannot do for itself: move a label. A settlement closes `pending_fix_at`,

@@ -72,6 +72,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
+    report_commits as _commits,
     report_delivery as _report_delivery,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -124,7 +125,12 @@ def _records_the_fix(
     for such a run would reach the next reviewer with no account of it
     anywhere and no session left to ask. So the failure is parked as the
     missing report it also is, and the reply that answers it resumes the
-    session, which writes the report and publishes the work with it.
+    session, which writes the report and publishes the work with it. That park
+    is the report domain's guarded commit (`report_delivery.parks_the_debt`),
+    decided on the road behind it as well and retiring what that road retires
+    in the same commit (`ReportWrite.behind`): what another road wrote while
+    the developer ran is kept beside it, and a change request this run
+    answered is retired with the park or not at all.
     """
     if _report_delivery.recording_stops_the_tick(
         gh, issue, state, run.agent_result, run.handed,
@@ -133,10 +139,12 @@ def _records_the_fix(
     if _drift_reports._reports(run.agent_result):
         return False
     _drift_reports._owes_the_undescribed(state)
-    _report_delivery.parks_an_undeliverable_report(
-        gh, issue, state,
+    state.data.update(run.handed.retires)
+    _report_delivery.parks_the_debt(
+        _commits.ReportCommit(gh, issue, state), state,
         _UNFINISHED_PARK.format(mentions=config.HITL_MENTIONS),
-        consumed=run.handed.watermarks,
+        run.handed.watermarks,
+        parking=_report_delivery.PARKING.behind(run.handed),
     )
     return True
 
