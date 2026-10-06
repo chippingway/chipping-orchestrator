@@ -180,7 +180,10 @@ _RECORDING = _commits.ReportWrite(
 # describes, and whatever a run's consumed input advances -- the watermarks
 # among them keeping another road's moves beside these, as the ledger the
 # notice enters does. Decided on what the refusal behind it was decided on.
-_PARKING = _commits.ReportWrite(
+# Public for the roads that park through `parks_the_debt` on a write of their
+# own: a binding decided on its publication as well, and a release that drops
+# the record it parks over.
+PARKING = _commits.ReportWrite(
     owned=frozenset((
         _AWAITING_HUMAN, _PARK_REASON, OWED_REPORT, UNREPORTED_WORK,
         *_CONSUMABLE_FIELDS,
@@ -506,17 +509,17 @@ def parks_an_undeliverable_report(
     Public because every road that cannot deliver a report takes it, each with
     its own notice; what they share is the flag, the reason, the debt, and the
     silence. This is the stages' park, written over the whole state the
-    caller holds; a refused recording or binding takes the same park through
-    the guarded commit instead (`parks_the_debt`).
+    caller holds; a refused recording or binding, and the release of a report
+    no checkout can publish, take the same park through the guarded commit
+    instead (`parks_the_debt`).
 
     A park still standing gets no second notice, but everything else this owner
     owes happens anyway, the WRITE included. What a caller staged is the reason
     it has to: the consumed pairs below are one such thing, and so is anything
-    the road behind them released into the same state -- a recorded report a
-    checkout can no longer publish, say. Skipped on the strength of the park
-    already saying what the notice would, that write takes the release with it:
-    the caller is told the tick ended, the comment still carries the record,
-    and the very next tick publishes the report this road existed to withhold.
+    the road behind them staged into the same state -- the work a run left
+    undescribed, say. Skipped on the strength of the park already saying what
+    the notice would, that write takes it with it: the caller is told the tick
+    ended, and the comment says nothing of what that road decided.
     The debt is set here either way, since a park taken before `OWED_REPORT`
     existed carries the reason alone.
 
@@ -556,15 +559,16 @@ def parks_the_debt(
     notice: str,
     consumed: tuple = (),
     *,
-    publication: bool = False,
+    parking: _commits.ReportWrite = PARKING,
 ) -> None:
     """Take `parks_an_undeliverable_report`'s park through this domain's guarded commit.
 
-    The park a refused recording or binding takes, written over the fresh
-    comment rather than over the tick's whole state: `staged` is the tick's
-    state as the road behind the refusal left it, and what the park writes --
-    its flags, the debt, the work no report describes, the consumed input --
-    lands beside every field another road moved meanwhile. Everything else is
+    The park a refused recording or binding takes, and the one a release of a
+    report no checkout can publish rides, written over the fresh comment rather
+    than over the tick's whole state: `staged` is the tick's state as the road
+    behind the park left it, and what the park writes -- its flags, the debt,
+    the work no report describes, the consumed input, and whatever `parking`
+    owns besides -- lands beside every field another road moved meanwhile. Everything else is
     exactly that park's: once per attempt, bounded, the consumed input applied
     forward-only before the notice, and the debt set whether or not a notice is
     posted.
@@ -580,19 +584,23 @@ def parks_the_debt(
     written (`report_commits`), and the road that took the park meets the
     same refusal again on a later tick and parks then.
 
-    `publication` is a park decided on the publication a binding was made
-    against as well as on the report records: one another road has since
-    pointed at another pull request or receipt is a refusal of a publication
-    that is no longer the issue's, so it posts and parks nothing, and the next
-    tick decides over the publication the comment then names.
+    `parking` is the write the park lands as, `PARKING` unless the road
+    behind it writes more. A binding's park is decided on the publication the
+    binding was made against as well as on the report records
+    (`ReportWrite.on_the_publication`): one another road has since pointed at
+    another pull request or receipt is a refusal of a publication that is no
+    longer the issue's, so it posts and parks nothing, and the next tick
+    decides over the publication the comment then names. A release owns the
+    records it drops in the park's own write as well
+    (`stages/fixing/report_recovery.py`), so a newer record another road wrote
+    since refuses it with no notice posted.
     """
-    parking = _PARKING.on_the_publication() if publication else _PARKING
     _advance_consumed(staged, consumed)
     staged.set(OWED_REPORT, True)
     if not _park_stands(commit.issue, staged):
         staged.set(_AWAITING_HUMAN, True)
         staged.set(_PARK_REASON, UNDELIVERABLE_REPORT)
-        if commit.prepares_a_notice(staged, parking).reading is None:
+        if commit.prepares(staged, parking, notice=True).reading is None:
             log.error(
                 "issue=#%d could not prepare the park over the developer "
                 "report it owes; posting nothing", commit.issue.number,

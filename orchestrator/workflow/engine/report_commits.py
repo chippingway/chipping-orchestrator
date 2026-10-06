@@ -1,15 +1,21 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The guarded commits a developer report's delivery and binding land through.
+"""The guarded commits a developer report's delivery, binding, settlement, and retirement land through.
 
-A report is recorded, and later bound, on the strength of what the tick read:
-its revision is minted past every report record the comment carried, a
-superseded record's bookkeeping is carried from it, and the room every later
-write needs is reserved against everything else on the comment. Written whole
-from the tick's state, that write would put back every field another road
-moved since the tick read it -- an evidence record, a verdict, a watermark --
-and nothing on the comment would say so. So each write of this domain lands
-through the guarded commit (`pinned_commit`) over a fresh reading instead.
+A report is recorded, bound, settled and retired on the strength of what the
+tick read: its revision is minted past every report record the comment
+carried, a superseded record's bookkeeping is carried from it, the room every
+later write needs is reserved against everything else on the comment, and a
+settlement or a drop is decided on the transaction, the handoff and the park it
+finds. Written whole from the tick's state, that write would put back every
+field another road moved since the tick read it -- an evidence record, a
+verdict, a watermark -- and nothing on the comment would say so. So each write
+of this domain lands through the guarded commit (`pinned_commit`) over a fresh
+reading instead: the recording and the parks a refusal takes
+(`report_delivery`), the binding (`report_binding`), the settlement
+(`report_settling`), the reconciliation's drops and the retirement of its own
+park (`report_transaction`), and the fixing recovery's release of a report no
+checkout can publish (`stages/fixing/report_recovery.py`).
 
 The reading it is guarded by is the one the tick last synced with the comment
 (`PinnedState.synced`), not the state the tick holds now. A tick stages changes
@@ -33,8 +39,10 @@ that decided it -- a record's own reading, and the room every later write
 reserves -- rides the guard, so it is asked of the very candidate the commit
 sends, over the reading the strict edit then lands on or nowhere: a comment
 another road filled since the tick read it refuses the write here, before the
-code it describes goes out or the report is posted, rather than after. A park
-is prepared before its notice with what posting that notice writes reserved.
+code it describes goes out or the report is posted, rather than after. A write
+with an effect of its own to make first is PREPARED before it (`prepares`): a
+park before its notice, with what posting that notice writes reserved, and a
+settlement before its report is posted.
 
 What lands is laid over the tick's state, so every write behind it starts from
 the comment as it now stands. Anything else leaves the tick's state as it was
@@ -50,6 +58,13 @@ room alone is the exception, where the comment read again is still the one the
 tick synced with: that comment is simply too full, and the roads behind a
 report still owed are what give its room back. A later commit that lands lifts
 the mark.
+
+A road that made requests of its own over the comment -- a report posted or
+re-read -- and leaves without a write of this domain's landing asks the same
+question of the comment (`withholds`): one another road wrote meanwhile
+withholds the tick's state, so the stage behind never puts its whole state back
+over that write, and one still reading as the tick synced with leaves the
+road's own answer as it was.
 """
 from __future__ import annotations
 
@@ -105,13 +120,18 @@ class ReportWrite:
         """The same write, held to `admits` over the fresh comment."""
         return replace(self, admits=admits)
 
+    def owning(self, *fields: str) -> ReportWrite:
+        """The same write, owning `fields` as well."""
+        return replace(self, owned=self.owned.union(fields))
+
     def on_the_publication(self) -> ReportWrite:
         """The same write, decided as well on the pinned fields a publication is resolved from.
 
         The pull request and branch the issue records, and the code-publication
         receipt -- the implementing stage's own fields, resolved when asked.
-        A binding made against the publication the tick read them as is never
-        landed on a comment another road has since pointed at another one.
+        A binding or a settlement made against the publication the tick read
+        them as is never landed on a comment another road has since pointed at
+        another one.
         """
         owner = importlib.import_module(_stage_targets._IMPLEMENTING_STATE_OWNER)
         publication = {
@@ -137,31 +157,37 @@ class ReportCommit:
             parsed=self.state.parsed,
         )
 
-    def prepares_a_notice(
-        self, staged: PinnedState, write: ReportWrite,
+    def prepares(
+        self, staged: PinnedState, write: ReportWrite, *, notice: bool = False,
     ) -> _models.CommitOutcome:
-        """`staged` laid over the fresh comment and measured with a notice's own writes, written nowhere.
+        """`staged` laid over the fresh comment and measured, written nowhere.
 
-        For a park, whose notice is the one effect it makes before its record:
-        posting it enters the comment in the ledger of this orchestrator's
-        comments and may move the issue-thread watermark, so both are reserved
-        at the widest a comment id is recorded at. The ledger's entry is
-        reserved over the ledger the candidate carries -- the fresh comment's,
-        with the tick's own entries merged in -- since an id reserved before
-        that merge may be one another road has already recorded there, which
-        the merge keeps once and the measurement then misses. A record that
-        would not fit with them is one whose notice is never posted. A refusal
-        withholds the tick's state, as one `lands` meets does.
+        For a write with an effect to make before its record -- a park's
+        notice, a settlement's report -- that is never made for a record that
+        could not follow it. `write.admits` is asked of the candidate measured,
+        as it is of the one a commit sends.
+
+        `notice` is a park's, whose notice is the one effect it makes before
+        its record: posting it enters the comment in the ledger of this
+        orchestrator's comments and may move the issue-thread watermark, so
+        both are reserved at the widest a comment id is recorded at. The
+        ledger's entry is reserved over the ledger the candidate carries -- the
+        fresh comment's, with the tick's own entries merged in -- since an id
+        reserved before that merge may be one another road has already recorded
+        there, which the merge keeps once and the measurement then misses. A
+        record that would not fit with them is one whose notice is never
+        posted. A refusal withholds the tick's state, as one `lands` meets does.
         """
         reserved = PinnedState(
             comment_id=staged.comment_id,
             state_data=copy.deepcopy(staged.data),
             parsed=staged.parsed,
         )
-        reserved.set(_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, _record_values.MAX_RECORDED_NUMBER)
-        guard, kept = self._guarded(reserved, write, notice=True)
+        if notice:
+            reserved.set(_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, _record_values.MAX_RECORDED_NUMBER)
+        guard, kept = self._guarded(reserved, write, notice=notice)
         prepared = _commit.prepare(self.gh, self.issue, guard, reserved.data, kept)
-        self._withholds(prepared)
+        self.withholds(prepared)
         return prepared
 
     def lands(self, staged: PinnedState, write: ReportWrite) -> Any:
@@ -177,22 +203,23 @@ class ReportCommit:
             self.state.data = copy.deepcopy(landed.reading.data)
             _commit.takes_in(self.state, landed.reading.data)
             self.state.withheld = False
-        self._withholds(landed)
+        self.withholds(landed)
         if landed.refusal is _models.CommitRefusal.INADMISSIBLE:
             return landed.inadmissible
         return landed
 
-    def _withholds(self, outcome: _models.CommitOutcome) -> None:
-        """Keep the tick's state out of every later whole-state write, where `outcome` did not land over what it read.
+    def withholds(self, outcome: _models.CommitOutcome | None = None) -> bool:
+        """Keep the tick's state out of every whole-state write wherever the comment may have moved; whether it is.
 
-        A refusal says the comment is not what the tick's state was decided
-        on: written whole from that state, a later write would put back over
-        it everything another road wrote since -- the very records the refusal
-        kept -- and land the change refused. An edit sent and never confirmed
-        is no better: whatever the comment reads as now, landed or not,
-        another road may already have written past it, and only a later
-        reading can say -- so nothing this tick holds is written over it
-        either.
+        `outcome` is a write of this domain's that did not land over what it
+        read. A refusal says the comment is not what the tick's state was
+        decided on: written whole from that state, a later write would put
+        back over it everything another road wrote since -- the very records
+        the refusal kept -- and land the change refused. An edit sent and
+        never confirmed is no better: whatever the comment reads as now,
+        landed or not, another road may already have written past it, and only
+        a later reading can say -- so nothing this tick holds is written over
+        it either.
 
         A refusal for ROOM is the one that says nothing about whether the
         comment moved, so it is asked: read again, a comment that is still the
@@ -200,10 +227,20 @@ class ReportCommit:
         state may still be written over it -- the roads behind a report still
         owed are what give that room back. One that moved, or will not read,
         is withheld like any other.
+
+        Asked with no outcome by a road whose own requests ran over the
+        comment and that leaves without a write of this domain's landing -- a
+        report posted or re-read, and its settlement never reached: a post or
+        a re-read is long enough for another road to write the comment, and
+        the stage behind would put its whole state back over what that road
+        wrote. Asked as a refusal for room is. A state already withheld stays
+        so; only a commit that lands lifts it.
         """
-        if outcome.status not in {_models.CommitStatus.REFUSED, _models.CommitStatus.UNCONFIRMED}:
-            return
-        if outcome.refusal in _ROOM:
+        if outcome is not None and outcome.status not in {
+            _models.CommitStatus.REFUSED, _models.CommitStatus.UNCONFIRMED,
+        }:
+            return self.state.withheld
+        if not self.state.withheld and (outcome is None or outcome.refusal in _ROOM):
             synced = (
                 self.state.data if self.state.synced is None
                 else json.loads(self.state.synced)
@@ -213,8 +250,9 @@ class ReportCommit:
             )
             fresh = _commit.reread(self.gh, self.issue, _models.PinnedCommit.capture(reading))
             if isinstance(fresh, PinnedState) and fresh.reads_as(synced):
-                return
+                return False
         self.state.withheld = True
+        return True
 
     def _guarded(
         self, staged: PinnedState, write: ReportWrite, *, notice: bool = False,

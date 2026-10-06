@@ -455,10 +455,11 @@ wrote, and on an issue carrying none it costs one pinned read that has already h
 `developer_report_delivery`: binding one to a publication is a stage's step — the implementing publication's, and on
 an open pull request the review stages' own, which is also what binds a delivery a later push carried — exchanging
 the delivery for its transaction in one write before anything is posted, and taken again on every tick that
-republishes the same commit onto the same pull request until it lands. Recording a delivery and binding it are guarded
-commits over the comment as it stands (`workflow/engine/report_commits.py`): one GitHub took and never confirmed stops
-the tick before the push or the post, and the next tick finds that same record or transaction and carries it on with no
-second run and no second revision.
+republishes the same commit onto the same pull request until it lands. Recording a delivery, binding it, and settling
+the transaction are guarded commits over the comment as it stands (`workflow/engine/report_commits.py`), the
+settlement prepared before the report is posted and committed behind the post: one GitHub took and never confirmed stops
+the tick, and the next tick finds that same record, transaction or settlement and carries it on with no second run, no
+second revision, and no second report.
 
 ### The developer report lifecycle
 

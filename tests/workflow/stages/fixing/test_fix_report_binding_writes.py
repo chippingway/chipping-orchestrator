@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A fix round's recovered report whose binding did not land, and the tick it ends.
+"""A fix round's recovered report whose binding or post did not land, and the tick it ends.
 
 A round whose process ended between its push and the report's binding leaves a
 delivery the next fixing tick re-proves and binds, ahead of any scan. That
@@ -9,7 +9,9 @@ and an edit GitHub took and never confirmed leaves nobody able to say what the
 comment carries. Either way the tick ends right there and says nothing -- no
 notice, no park, no write -- so what the other road wrote stands, and the round
 is finished on a later tick from the same record, with no developer run and no
-second report.
+second report. A post GitHub took and never answered while another road wrote
+the comment ends it the same way: the comment is asked again behind the post,
+and the recovery writes nothing back over what that road wrote.
 """
 
 from __future__ import annotations
@@ -26,6 +28,12 @@ ISSUE = 1_795
 PR = 17_950
 
 RUN_AGENT = "run_agent"
+
+# The request a published report goes out as, and the lifetime run ledger a
+# launch is charged to.
+POST = "publish_developer_report"
+
+RUNS_USED = "agent_runs_used"
 
 REVIEW_ROUND = "review_round"
 
@@ -65,6 +73,34 @@ class UnlandedBindingTest(unittest.TestCase, world._FixReportMixin):
         self._assert_silent(recovered, said)
         self.assertIsNotNone(self.records()["delivered"])
         self._assert_finished_next()
+
+    def test_a_lost_post_beside_others_ends_the_tick(self) -> None:
+        # The binding lands, the post goes out and its answer is lost, and
+        # evidence lands behind it. The tick ends without writing its state
+        # back over that evidence, having charged nothing; the reconciliation
+        # ahead of the next handler finds the report by its receipt and
+        # settles it, and that handler hands the round back.
+        said = self._recorded_unbound()
+        charged = self.pinned().get(RUNS_USED)
+        self.github.report_failures.lost.add(PR)
+        with commit_support.behind(self.github, self.issue, POST, **_EVIDENCE):
+            recovered = self.parked_resume(world.reported(), committed=False)
+        self.github.report_failures.lost.discard(PR)
+
+        recovered[RUN_AGENT].assert_not_called()
+        self.assertEqual(
+            (
+                len(self.issue.comments),
+                len(self.published_reports()),
+                self.records()["pending"].report_revision,
+                self.pinned()[REVIEW_ROUND],
+                self.pinned().get(_EVIDENCE_FIELD),
+                self.github.label_history[-1],
+            ),
+            (said, 1, self.revision, 0, _EVIDENCE[_EVIDENCE_FIELD], (ISSUE, LABEL_FIXING)),
+        )
+        self._assert_finished_next()
+        self.assertEqual(self.pinned().get(RUNS_USED), charged)
 
     def _recorded_unbound(self) -> int:
         """A round whose process ended between its push and its binding; the comments said so far.

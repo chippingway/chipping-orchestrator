@@ -145,9 +145,10 @@ The additive `developer_report_*` pinned records (`workflow/engine/report_record
 `report_delivery_state.py` and `report_settlement_state.py`) carry that report and the publication transaction it is
 bound into across a process that dies mid-way; `workflow/engine/report_transaction.py` reconciles an outstanding
 transaction ahead of every stage handler — proving the world it was recorded against, publishing or re-reading the
-report, and settling the record in a single write once the issue's requirements read unchanged after that request,
-on this road and the binding's alike. The pull-request body leaves the run's closing message out wherever a report
-is owed or settled, and a reused pull request's description is never rewritten. Full contract:
+report, and settling the record in a single guarded commit (`workflow/engine/report_settling.py`) once the issue's
+requirements read unchanged after that request, on this road and the binding's alike. The pull-request body leaves
+the run's closing message out wherever a report is owed or settled, and a reused pull request's description is never
+rewritten. Full contract:
 [`workflow/conversations.md#the-developer-report-contract-in-developer-prompts`](workflow/conversations.md#the-developer-report-contract-in-developer-prompts);
 the whole lifecycle in one place — ownership, identity and location, ready versus verified, the evidence, recovery,
 review-subject freshness, and the round each road spends:

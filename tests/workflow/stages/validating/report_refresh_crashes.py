@@ -62,23 +62,25 @@ def dying_on_the_settlement(case):
     """A process that ends on the write that would settle the posted report.
 
     The comment is on the pull request and the transaction still names it
-    owed, which is the window a receipt exists to close.
+    owed, which is the window a receipt exists to close. The settlement is a
+    guarded commit, landed through the strict edit, so that is where the
+    process ends.
     """
-    writes = case.github.write_pinned_state
+    edits = case.github.edit_pinned_state
     with patch.object(
-        case.github, "write_pinned_state", _DiesOnTheSettlement(writes),
+        case.github, "edit_pinned_state", _DiesOnTheSettlement(edits),
     ), contextlib.suppress(_Crashed):
         yield
 
 
 class _DiesOnTheSettlement:
-    """The pinned writes a tick makes, ending on the one settling a report of the rewritten head."""
+    """The pinned edits a tick makes, ending on the one settling a report of the rewritten head."""
 
-    def __init__(self, writes) -> None:
-        self._writes = writes
+    def __init__(self, edits) -> None:
+        self._edits = edits
 
-    def __call__(self, issue, state):
+    def __call__(self, issue, state, **options):
         settled = _settlement.read_current_report(state)
         if settled is not None and settled.subject.source_sha == _support.REWRITTEN_HEAD:
             raise _Crashed
-        return self._writes(issue, state)
+        return self._edits(issue, state, **options)

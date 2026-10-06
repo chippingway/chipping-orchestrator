@@ -8,9 +8,9 @@ about. The description is judged first, read afresh by number, because the
 binding has to be told whether it names this implementation: a report verified
 on a description that does not is the one report this stage can neither keep
 nor route around. Then the report is bound and posted, or verified, by the
-engine. A binding whose guarded write did not land over the comment the tick
-read withholds the handoff right there and says nothing: the tick's state is
-withheld, so no park any reading below took could be recorded.
+engine. A binding or a settlement whose guarded write did not land over the
+comment the tick read withholds the handoff right there and says nothing: the
+tick's state is withheld, so no park any reading below took could be recorded.
 
 What follows is asked last, immediately before the relabel, because every one
 of it is a human's to change at any moment: the issue's requirements first --
@@ -106,7 +106,11 @@ def _hands_on(
     took behind it -- over an older transaction the delivery supersedes, say
     -- is a notice no write could record, posted again on every tick. The next
     tick binds the delivery afresh, or, where the binding landed after all,
-    finds the transaction and publishes it without binding again.
+    finds the transaction and publishes it without binding again. A
+    settlement prepared or committed over a comment that moved, or committed
+    unconfirmed, withholds it the same way: the reconciliation ahead of the
+    next handler finds the posted report by its receipt and settles it, or
+    finds nothing owed where the commit landed after all.
     """
     pr = reached.pull_request
     described = _pr_description._names_the_implementation(gh, issue, state, pr)

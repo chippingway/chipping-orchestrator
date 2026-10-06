@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The two ways a proved transaction finishes, and the one write that settles it.
+"""The two ways a proved transaction finishes, and the one guarded commit that settles it.
 
 A PUBLISH posts the report it carries and is idempotent by construction: the
 post is scoped by the transaction's receipt, so a retry finds whatever an
@@ -28,14 +28,23 @@ for the rest of its life. Either way nothing is published twice and no handoff
 is written.
 
 The settlement is ONE write. The current report, the handoff receipt, the
-watermarks the run consumed, the bookkeeping its route owed, and the drop of the
-pending record all land together, because every split between them is a window
-a crash turns into a second report, a lost round, or feedback answered twice.
+watermarks the run consumed, the bookkeeping its route owed, the debt, and the
+drop of the pending record all land together, because every split between them
+is a window a crash turns into a second report, a lost round, or feedback
+answered twice. That write is this domain's guarded commit (`report_settling`):
+PREPARED before either road posts or re-reads anything, so a comment with no
+room for it, or one whose records another road moved, has nothing published
+for it -- and committed after, over the comment read afresh, so every field
+another road wrote meanwhile stays as it wrote it and a record that moved under
+the decision refuses the write rather than being put back.
 
 It is taken last, after the requirements are read once more off GitHub: a post
 or a re-read is long enough for a human to edit the issue under it. Each
 settlement records which road made it, which is what `report_settled_reading`
-holds a later re-read of that report to.
+holds a later re-read of that report to. A post GitHub accepted whose answer
+never came back, and a settlement whose commit was never confirmed, each hold
+the tick with nothing repeated: the next post is scoped by the same receipt and
+finds the one that landed, and a settlement that landed leaves nothing owed.
 """
 from __future__ import annotations
 
@@ -54,19 +63,14 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
-    report_consumed_values as _consumed,
-    report_delivery as _delivery,
+    report_commits as _commits,
     report_evidence as _evidence,
     report_record_state as _record_state,
     report_records as _records,
-    report_settlement_state as _settlement,
+    report_settling as _settling,
 )
 
 log = logging.getLogger("orchestrator.workflow")
-
-_PARK_REASON = "park_reason"
-
-_AWAITING_HUMAN = "awaiting_human"
 
 
 def finishes(
@@ -97,25 +101,44 @@ def finishes(
     already on the pull request and the record still claims it, and every
     retry fails in the same place for the rest of the issue's life.
 
-    Stood down rather than held, for the reason every structural refusal on
-    this road stands down: what gives the room back is a route BEHIND this
-    guard -- a park cleared, a frozen pair settled, a bookmark closed -- so
-    holding would stop the only work that could clear the condition. Reported
-    at ERROR, because a comment this full is an operator's to know about
-    whether or not the routes below free it.
+    So the settlement's own guarded commit is PREPARED here, over the comment
+    read afresh, with everything it owes staged and measured at its widest
+    beside the room every write behind it needs (`report_settling`): room
+    another road gave back since the tick read the comment is room, and room
+    it spent is not. A comment another road moved under the records the
+    settlement is decided on posts nothing either, and holds the tick, since
+    the tick's state is withheld (`report_commits`): what it would settle over
+    is no longer what the comment carries.
+
+    Stood down rather than held where the comment the tick read is simply too
+    full, for the reason every structural refusal on this road stands down:
+    what gives the room back is a route BEHIND this guard -- a park cleared, a
+    frozen pair settled, a bookmark closed -- so holding would stop the only
+    work that could clear the condition. Reported at ERROR, because a comment
+    this full is an operator's to know about whether or not the routes below
+    free it.
+
+    Every road that leaves the transaction still owed after its requests --
+    a post unconfirmed or refused, a report edited, gone or untrusted, the
+    requirements moved under the post, the settlement's own commit refused --
+    asks the comment once more before it answers (`ReportCommit.withholds`).
+    The post or the re-read is long enough for another road to write the
+    comment, and the stage behind this would put its whole state back over
+    that road's evidence, verdict or newer record. A comment another road
+    moved withholds the tick's state and holds the tick; one still reading as
+    the tick read it leaves the road's own answer -- hold or stand down --
+    exactly as it was.
     """
-    settled = _record_state.settled_payload(state, pending)
-    if settled is None or not _record_state.fits_the_comment(settled):
-        log.error(
-            "issue=#%d cannot settle developer report revision %d on PR #%d "
-            "without writing a pinned comment past what GitHub accepts; "
-            "standing down with the report unpublished and still owed",
-            issue.number, pending.report_revision, pending.subject.pr_number,
-        )
-        return False
+    commit = _commits.ReportCommit(gh, issue, state)
+    if not _settling.prepares(commit, pending):
+        return state.withheld
     if pending.mode is _records.ReportMode.PUBLISH:
-        return publishes_the_report(gh, issue, state, pending, pull_request)
-    return verifies_the_report(gh, issue, state, pending)
+        holds = publishes_the_report(gh, issue, state, pending, pull_request)
+    else:
+        holds = verifies_the_report(gh, issue, state, pending)
+    if not _record_state.carries_pending_report(state):
+        return holds
+    return commit.withholds() or holds
 
 
 def publishes_the_report(
@@ -300,77 +323,6 @@ def _refuses_the_reading(
     return False
 
 
-def _settles_what_was_owed(
-    state: PinnedState, pending: _records.PendingReport,
-) -> None:
-    """Apply everything a finished transaction owed besides its two records.
-
-    The watermarks over the input the run consumed, the round or bookmarks its
-    route closes, the drop of the record itself, and the debt that record left
-    -- all of it on the caller's composed copy, so the one write that installs
-    the settled records installs these too. Split off into a write of their
-    own, a crash between the two leaves the report published and the round
-    unspent, or the feedback it answered still reading as unread.
-
-    Then the DEBT, and the park it was announced under. The debt first, since
-    every reader behind it -- the review hold, the
-    stale-approval hand-back, the resume that reads a reply as the report it
-    asked for -- asks the flag rather than the record, and left standing it
-    outlives the transaction that explains it. The fresh review budget an
-    `in_review` edit reset goes with it, for the same reason: it describes a
-    publication this write has just ended.
-
-    The PARK only where it is this owner's. A report nothing could deliver is
-    parked under one reason, and a human answering it repairs the condition
-    rather than replying -- an edited comment restored, a checkout cleaned --
-    so the settlement that follows is the only thing that will ever say the
-    wait is over. Any other reason belongs to whoever took it, and a human
-    waiting on a question is still waiting.
-
-    Each field is written only where it says something, because a null this
-    comment did not already carry is bytes the record reserved nothing for:
-    the ceiling is measured before a transaction is accepted, and a
-    settlement that grows the comment is one the measurement did not model.
-
-    NOTHING is retired while this issue records work nobody has described. A
-    report recorded over the branch as it stands retires that flag as it is
-    recorded, so a flag still standing here says the transaction just settled
-    was written before those commits existed -- it is a true account of an
-    earlier head, and the head the branch is on now is still owed one of its
-    own. Retired anyway, the debt, the park asking for that report, and the
-    budget its publication is owed would all come off together, and the next
-    reply would publish those commits under a report that never saw them. What
-    the transaction itself owed is applied either way: those pairs are this
-    run's own bookkeeping, and an undescribed head beside them is a debt about
-    a later commit rather than a reason to answer this one twice.
-    """
-    _consumed.advance_consumed(state, pending.watermarks)
-    # The settled-round mark is REPLACED by this write, never merely left:
-    # retired first and re-raised below wherever this record's own spends carry
-    # it. It says that the transaction the handoff beside it describes was a
-    # fixing round's, and the two have to be one fact -- a mark an EARLIER
-    # settlement raised somewhere that stage was not behind would otherwise
-    # survive, and a later settlement of any route's would hand it a handoff
-    # recorded under `workflow:fixing` to be correlated against. Read that way,
-    # a manual relabel back onto `fixing` is bounced straight to the reviewer
-    # with the feedback it was moved there to answer never scanned. Both
-    # spellings cost the comment the same and no key is added where none was,
-    # so the reservation that replays the record's own pairs still bounds this.
-    if state.get(_records.SETTLED_ROUND) is not None:
-        state.set(_records.SETTLED_ROUND, None)
-    _consumed.close_bookkeeping(state, pending.spends)
-    _record_state.clear_pending_report(state)
-    if state.get(_delivery.UNREPORTED_WORK):
-        return
-    for owing in (_delivery.OWED_REPORT, _delivery.OWED_ROUND_RESET):
-        if state.get(owing):
-            state.set(owing, None)
-    if state.get(_PARK_REASON) != _delivery.UNDELIVERABLE_REPORT:
-        return
-    state.set(_PARK_REASON, None)
-    state.set(_AWAITING_HUMAN, False)
-
-
 def settles(
     gh: GitHubClient,
     issue: Issue,
@@ -378,7 +330,7 @@ def settles(
     pending: _records.PendingReport,
     current: _records.CurrentReport,
 ) -> bool:
-    """Record one current report and one completed handoff, in one write.
+    """Record one current report and one completed handoff, in one guarded commit.
 
     Everything the transaction owed lands here together: what the pull request
     now carries, the receipt saying THIS transaction finished, the watermarks
@@ -388,14 +340,14 @@ def settles(
     outstanding -- which the next tick would settle again, spending a second
     round over feedback that was already answered.
 
-    Composed whole before any of it is installed, because the atomicity has to
-    hold against a refusal as well as against a crash. Both settled writers
-    refuse what their own readers would not hand back, and a settlement
-    half-applied is the loss the record exists to prevent arrived at from the
-    other side: the pending record dropped beside a published report that
-    nothing records the pull request as carrying. Built on a copy, a refusal
-    leaves the caller's state exactly as it was found and nothing reaches
-    GitHub at all.
+    Composed whole on a copy before any of it is committed, because the
+    atomicity has to hold against a refusal as well as against a crash. Both
+    settled writers refuse what their own readers would not hand back, and a
+    settlement half-applied is the loss the record exists to prevent arrived
+    at from the other side: the pending record dropped beside a published
+    report that nothing records the pull request as carrying. Refused there,
+    the caller's state is exactly as it was found and nothing reaches GitHub
+    at all.
 
     Reaching that refusal is a record this build did not write. `record_
     pending_report` measures this very write before it accepts a transaction,
@@ -403,13 +355,32 @@ def settles(
     already read back once -- so it is reported loudly and the tick is held in
     front of a human rather than retried quietly forever.
 
+    The commit is this domain's guarded one (`report_settling`), over the
+    comment read afresh behind the post and the re-reads: every report record,
+    the handoff, the debt, the park and the publication it was decided on have
+    to read as the tick read them, and a field it writes that another road
+    moved some other way refuses it too. Every other field -- another domain's
+    evidence or verdict, a usage total -- is the comment's as it finds it. Its
+    final candidate is held to the room the reviewer round and the fixing
+    hand-back behind it need, so a comment another road filled while the
+    report was posted refuses it with the pending record kept.
+
     False on a settlement that landed, because the transaction is finished and
-    the tick belongs to whatever runs behind it.
+    the tick belongs to whatever runs behind it. A commit that did not land
+    leaves the transaction owed with the report already where it went, and a
+    later tick finds that report by its receipt rather than posting it again.
+    It holds the tick wherever the tick's state is withheld -- refused over a
+    comment another road moved, or sent and never confirmed, since nobody can
+    say what that comment carries -- and stands down only where the comment the
+    tick read is simply too full, for the routes behind this guard to give the
+    room back.
 
     The requirements are proved again first, over an issue read afresh, since
     an edit can land inside the post or the re-read. Refused, nothing is
     written and the transaction stays owed, which withholds the handoff for the
-    drift resume to answer; a re-read nobody could take holds the tick.
+    drift resume to answer; a re-read nobody could take holds the tick. The
+    comment is asked once more behind either, by `finishes`, before the tick
+    is let on.
 
     The DEBT the record left goes with it, and the park it was announced
     under: this is the moment the pull request carries the report, so anything
@@ -457,29 +428,12 @@ def settles(
             "settled under; recording the settlement without one", issue.number,
         )
         under = None
-    settled = PinnedState(state_data=dict(state.data))
-    stored = _settlement.record_current_report(settled, current) and (
-        _settlement.record_handoff(settled, _records.ReportHandoff(
+    return _settling.lands(
+        _commits.ReportCommit(gh, issue, state), pending, _records.ReportHandoff(
             receipt=pending.receipt,
             pr_number=pending.subject.pr_number,
             report_revision=pending.report_revision,
             source_sha=pending.subject.source_sha,
             settled_under=under,
-        ))
+        ), current,
     )
-    if not stored:
-        log.error(
-            "issue=#%d published developer report revision %d on PR #%d and "
-            "settles into a record this build will not store; holding the "
-            "tick with the transaction still owed",
-            issue.number, pending.report_revision, pending.subject.pr_number,
-        )
-        return True
-    _settles_what_was_owed(settled, pending)
-    state.data = settled.data
-    gh.write_pinned_state(issue, state)
-    log.info(
-        "issue=#%d settled developer report revision %d on PR #%d",
-        issue.number, pending.report_revision, pending.subject.pr_number,
-    )
-    return False
