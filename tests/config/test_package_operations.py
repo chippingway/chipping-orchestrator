@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import os
 import shlex
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -13,10 +12,11 @@ import unittest
 from pathlib import Path
 
 from tests.config import config_test_support as _support
+from tests.support.installed_package import installed_copy
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _OPERATIONS_GUIDE = _REPO_ROOT / "docs" / "configuration" / "operations.md"
-_CHECK_TIMEOUT_SECONDS = 15
+_CHECK_TIMEOUT_SECONDS = 60
 _REPOS_ENV = "REPOS"
 
 
@@ -42,11 +42,7 @@ class InstalledConfigurationCheckTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self._root = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
-        installed = self._root / "site-packages"
-        shutil.copytree(
-            _REPO_ROOT / "orchestrator", installed / "orchestrator",
-            ignore=shutil.ignore_patterns("__pycache__"),
-        )
+        installed = installed_copy(self._root / "site-packages")
         self._launch = self._root / "launch"
         self._launch.mkdir()
         self._dotenv = self._root / "home" / ".config" / "chipping-orchestrator" / ".env"

@@ -931,8 +931,8 @@ deployments, `python -m orchestrator --once` for a single tick,
 branches it proved reclaimable, locally and on the remote) without polling and without writing any workflow state —
 the runbook for that pass is
 [`configuration/operations.md#reclaiming-a-finished-issues-artifacts`](configuration/operations.md#reclaiming-a-finished-issues-artifacts) —
-`--log-level DEBUG` for verbose logs, and the `chipping-orchestrator` console script equivalent to
-all four are in [`configuration/operations.md#run-modes`](configuration/operations.md#run-modes).
+and `--log-level DEBUG` for verbose logs are all in
+[`configuration/operations.md#run-modes`](configuration/operations.md#run-modes).
 
 ### Launcher dependency refresh
 
