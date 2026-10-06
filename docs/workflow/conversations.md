@@ -618,7 +618,12 @@ replays, whose findings are quoted formatted while the comment and its id stay a
 A change request stands without evidence: its failed run is published before its feedback, and it is handed to the one
 developer it owes behind that feedback posted and anchored (`stages/validating/review_handoffs.py`), keeping its
 record through the relabel to `workflow:fixing` so a tick that stops between the relabel and the launch launches
-exactly that developer later rather than paying a second reviewer. An approval reaches the verify gate, the approval
+exactly that developer later rather than paying a second reviewer. The handoff is a guarded commit prepared before the
+feedback is posted, so a pinned comment with no room for it posts nothing, and committed behind the post over the
+records it was decided on, so another road's write behind that post relabels and launches nobody; a later tick takes
+a post an earlier one made in the same words, this orchestrator's own, rather than posting the feedback twice -- its
+opening line held to the request's round alone, whichever reviewer and round cap it names. An
+approval reaches the verify gate, the approval
 record, and the squash only on evidence that passed and is current — its own declared run with every command exiting
 0, once that transaction has settled on the pull request, or the exact current evidence it reused — either way proved
 current again, and either way including every configured `VERIFY_COMMANDS` command exactly as configured

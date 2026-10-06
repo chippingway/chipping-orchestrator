@@ -11,22 +11,32 @@ be told from a park's notice, so that tick writes nothing, the park standing,
 and the next answers the reply again. Either way the next tick runs the
 reviewer the reply bought, and the issue is never left waiting on the park the
 reply answered.
+
+Where a verdict the park outlived waits, the tick settles in one guarded
+commit that drops it. Another road putting its own verdict in that one's
+place, or unparsing the comment, right ahead of that commit refuses it with
+nothing written over that road's write; a run another road charged there is
+kept beside it; and one GitHub took and lost the response to is settled once.
+The reviewer the reply bought runs once whichever way.
 """
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from functools import partial
 from itertools import product
 from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.workflow.engine import comments as _comments
-from orchestrator.workflow.stages.validating import report_hold as _report_hold
+from orchestrator.workflow.stages.validating import report_hold as _report_hold, review_verdicts as _verdicts
 from tests.workflow.fixtures import _agent
 from tests.workflow.stages.validating import (
     disposed_verdict_test_support as _disposed,
     resumed_verdict_test_support as _resumed,
+    review_verdict_readings as _read,
     review_verdict_test_support as _world,
+    review_write_test_support as _roads,
 )
 
 _REVIEW_CAP = "review_cap"
@@ -39,6 +49,27 @@ _REPLIES = (
 
 # A fresh reviewer that returns no verdict, so its round parks and nothing else runs.
 _UNDECIDED_REVIEWER = _agent(session_id="fresh-reviewer", last_message="Looked it over.")
+
+# The run count another road charges up to right ahead of a settlement.
+_CHARGED = 9
+
+
+def _replaces_the_verdict(case) -> None:
+    """Another road's newer verdict, of a later round, in place of the one `case` had waiting."""
+    state = case.github.read_pinned_state(case.issue)
+    waited = _verdicts.read_returned_verdict(state)
+    newer = replace(waited, round_n=waited.round_n + 1)
+    state.set(_world.RETURNED_VERDICT, newer.recorded())
+    case.github.write_pinned_state(case.issue, state)
+
+
+# Another road's write right ahead of the commit settling a bought round over
+# a waiting verdict: its own verdict in that one's place, or the comment
+# unparsed. Each refuses the settlement.
+_AHEAD_OF_THE_SETTLEMENT = (
+    ("another round's verdict", _replaces_the_verdict),
+    ("an unparsed comment", _roads.unparses),
+)
 
 
 class BoughtRoundTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
@@ -90,6 +121,75 @@ class BoughtRoundTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
         )
         self.github.write_pinned_state(self.issue, state)
         return True
+
+
+class SettledRoundTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
+    """The tick a reply bought a round on settles a waiting verdict in one guarded commit, or writes nothing.
+
+    Every case's road goes ahead of the first guarded commit the tick makes,
+    which on these ticks is the settlement's own.
+    """
+
+    def test_a_write_ahead_of_the_settlement(self) -> None:
+        # Another road writes right ahead of the commit settling the round:
+        # the commit is refused, no reviewer runs, and the comment stays
+        # exactly as that road left it.
+        for name, road in _AHEAD_OF_THE_SETTLEMENT:
+            with self.subTest(name):
+                self.setUp()
+                self._parks_beside_a_verdict()
+                ahead = _roads.AnotherRoadAhead(self, bool, partial(_roads.leaves, road))
+
+                with ahead.patched():
+                    ran = self.validates(**_disposed.ON_THE_HEAD)
+
+                self.assertEqual((ran.call_count, self.pinned()), (0, self.left_behind))
+
+    def test_another_roads_run_is_kept(self) -> None:
+        # Another road charges a run right ahead of the commit settling the
+        # round: the park is cleared and the verdict dropped beside it, its
+        # run count kept, and the next tick runs the one reviewer the reply
+        # bought.
+        self._parks_beside_a_verdict()
+        charges = _roads.Writes({_world.AGENT_RUNS_USED: _CHARGED})
+        with _roads.AnotherRoadAhead(self, bool, charges).patched():
+            settled = self.validates(**_disposed.ON_THE_HEAD).call_count
+        charged = self.pinned()[_world.AGENT_RUNS_USED]
+        left = (settled, self.parked()[:2], charged)
+
+        ran = self.validates(**{**_disposed.ON_THE_HEAD, _world.RUN_AGENT: [_UNDECIDED_REVIEWER]})
+
+        self.assertEqual(
+            (left, ran.call_count),
+            ((0, ((None, False), None), _CHARGED), 1),
+        )
+
+    def test_a_lost_settlement_runs_one_round(self) -> None:
+        # GitHub takes the commit settling the round and loses its response:
+        # the park stands cleared and the verdict dropped, so the next tick
+        # runs the one reviewer the reply bought, and the tick after runs none.
+        self._parks_beside_a_verdict()
+        with _roads.AnotherRoadAhead(self, bool, _roads.loses_the_responses).patched():
+            settled = self.validates(**_disposed.ON_THE_HEAD).call_count
+        self.github.pinned_failures.lost.discard(_world.ISSUE)
+        left = (settled, self.parked()[:2])
+
+        reviewed = self.validates(**{**_disposed.ON_THE_HEAD, _world.RUN_AGENT: [_UNDECIDED_REVIEWER]}).call_count
+        again = self.validates(**{**_disposed.ON_THE_HEAD, _world.RUN_AGENT: [_UNDECIDED_REVIEWER]}).call_count
+
+        self.assertEqual(
+            (left, reviewed, again),
+            ((0, ((None, False), None)), 1, 0),
+        )
+
+    def _parks_beside_a_verdict(self) -> None:
+        """An approval relying on no evidence left waiting beside a park a trusted `/orchestrator continue` answers."""
+        _read.seeds_a_verdict(self, None)
+        state = self.github.read_pinned_state(self.issue)
+        state.set("awaiting_human", True)
+        state.set("park_reason", "reviewer_unrecorded")
+        self.github.write_pinned_state(self.issue, state)
+        self.asks_to_continue(_resumed.CONTINUE)
 
 
 if __name__ == "__main__":

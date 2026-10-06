@@ -49,6 +49,7 @@ _OWNERS = (
     "review_evidence",
     "review_handoffs",
     "review_launch_hold",
+    "review_launch_park",
     "review_parks",
     "review_resume",
     "review_verdicts",

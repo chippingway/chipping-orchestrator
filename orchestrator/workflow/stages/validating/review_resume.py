@@ -33,10 +33,13 @@ at its location, and the requirements of the issue fetched afresh -- which has
 to be the subject the verdict records: a push, a new or edited report, or an
 edit of the issue since is work nobody reviewed, so the verdict is dropped for
 good and the tick ends there, for the next tick to hand a fresh reviewer the
-subject as it stands, or refuse it. That drop is a write of the comment read
-afresh, made only while it still carries that verdict (`_drops_it`): staged
-instead, it would ride the round's writes and put `null` back over a verdict
-another road recorded in its place meanwhile. A reading nobody could take ends
+subject as it stands, or refuse it. That drop is a guarded commit
+(`engine/pinned_commit.py`) captured over the comment read afresh, made only
+while it still carries that verdict (`_drops_it`), with nothing of this tick's
+in it but the drop: staged instead, it would ride the round's writes and put
+`null` back over a verdict another road recorded in its place meanwhile, and
+one recorded between that reading and the commit refuses it with nothing
+written. A reading nobody could take ends
 the tick with nothing written, for the next one to ask again. The checkout the
 verdict is finished in is restored only behind that reading, since a stale
 verdict is dropped over GitHub's readings alone: a checkout that will not
@@ -49,13 +52,20 @@ is still owed (`review_handoffs.HandedLaunch.owed`). One whose developer may
 have been launched is dropped the same way instead, for the next tick's round,
 once its subject is read afresh -- a reading nobody could take holds it: the
 relabel is made before the launch, so only a relabel from outside brings such
-a verdict back. Nor is a verdict finished on a tick an awaiting-human park was
+a verdict back. That drop rests on the run ledger, so the comment read for it
+has to show the launch not owed still, and its commit is decided on the
+ledger as well (`_LAUNCHED_DROP`): a start written away, its charge left
+unstarted, drops nothing, and the next tick launches the developer owed,
+honoring that charge. Nor is a verdict finished on a tick an awaiting-human park was
 cleared into: that reply bought a fresh round of its own, so the verdict the
 park outlived is dropped, only where the comment still carries it, in the one
-write that settles the tick -- composed over the comment read afresh, keeping
-the cleared park and carrying what another road wrote meanwhile, a park it
-recorded kept as it wrote it -- and the round runs on the next tick
-(`settles_a_bought_round`).
+guarded commit that settles the tick -- captured over the comment read afresh,
+keeping the cleared park and carrying what another road wrote meanwhile, a
+park it recorded kept as it wrote it, and decided on the verdict and the
+park's flags as that reading spells them (`_BOUGHT_ROUND`), so a verdict
+another road records, or a park it records or clears, after that reading
+refuses it, and the next tick answers the reply again -- and the round runs on
+the next tick (`settles_a_bought_round`).
 
 On `workflow:fixing` (`finishes_a_handed_request`) it is asked ahead of the
 feedback scan, whose no-feedback bounce would otherwise walk past it: the
@@ -69,12 +79,14 @@ as the validating tick resolves it, the evidence it claims still the settled
 evidence, and the branch read against its pull request. A moved subject or
 claim, a commit the pull request has not got, loose work in the checkout, or a
 remote that moved past it -- the developer's own work, or a review nobody is
-asking about any more -- drops the verdict for good, the same way, and the next
+asking about any more -- drops the verdict for good, the same way and on the
+same ledger, and the next
 tick's own road publishes that work, or holds its bounce over it, and hands the
 pull request back for review; a reading nobody could take -- the branch's
 included: a fetch, a status, or a count that did not return -- holds the tick,
-the verdict kept for a later reading; and anything else parks the launch for
-`/orchestrator continue` (`review_handoffs.HandedLaunch.parks`). While a park
+the verdict kept for a later reading (`review_launch_park.has_moved_on`); and
+anything else parks the launch for `/orchestrator continue`
+(`review_launch_park.parks`). While a park
 stands -- the run circuit's over a spent allowance it refused the launch on,
 say -- the hook stands down: the park's own dispatch answers the reply it waits
 on, and the launch is asked for again once it clears.
@@ -83,15 +95,26 @@ Either launch is made only behind the feedback anchor the handoff was written
 beside, and a pinned `pending_fix_reviewer_comment_id` something cleared since
 -- the fixing stage's bookmark clear, a report settlement writing the
 bookkeeping it froze -- is written back first from the record's own `anchor`,
-which names that very post, in a write composed over the comment read again --
-only once the subject is established, since that is the first write this road
-makes, and a subject nobody could read holds the tick with nothing written; the
-park writes it back in its own write, since that anchor is what its
-`/orchestrator continue` replays. Records that moved on that comment -- a
-verdict another road put in this one's place, say -- end the tick with nothing
-written or handed over, for the next tick to read the comment as it stands. An
-anchor another road pointed elsewhere is left for the handoff, or the park, to
-hold.
+which names that very post, in a guarded commit captured over the comment read
+again (`_ANCHOR_BACK`) -- only once the subject is established, since that is
+the first write this road makes, and a subject nobody could read holds the tick
+with nothing written; the park writes it back in its own commit, since that
+anchor is what its `/orchestrator continue` replays. Records that moved on
+that comment -- a verdict another road put in this one's place, say -- end the
+tick with nothing written or handed over, for the next tick to read the
+comment as it stands, and so do records, or an anchor, another road moves
+between that reading and the commit. An anchor another road pointed elsewhere
+is left for the handoff, or the park, to hold.
+
+Every write here lands through that guarded commit under the tick-state guard
+the validating reviewer writes share (`review_writes.lands`), so a refusal
+writes nothing and withholds the tick's state from every whole-state write
+behind it, and a commit GitHub took and never confirmed is acted on no
+further: the next tick reads what the comment carries and finishes it from
+there -- the round run, the verdict found dropped, the anchor found written and
+the launch made -- with no second reviewer, post, developer, or charge, and no
+review round but the one the confirmed write itself leads to: the round a
+reply bought, or the fresh round a dropped verdict leaves its subject for.
 """
 from __future__ import annotations
 
@@ -106,16 +129,20 @@ from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, prompt_context as _prompt_context
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    prompt_context as _prompt_context,
+    report_commits as _commits,
+)
 from orchestrator.workflow.stages.validating import (
     models as _models,
-    review_claims as _claims,
     review_comment as _review_comment,
     review_disposition as _disposition,
     review_handoffs as _handoffs,
+    review_launch_park as _launch_park,
     review_report as _review_report,
     review_verdicts as _verdicts,
-    stranded as _stranded,
+    review_writes as _review_writes,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -123,6 +150,31 @@ log = logging.getLogger("orchestrator.workflow")
 _PR_NUMBER = "pr_number"
 
 _AWAITING_HUMAN = "awaiting_human"
+
+# The write that settles a tick a reply bought a fresh round on: the round,
+# the cleared park, and whatever else the tick staged, and the verdict the
+# park outlived dropped. Decided on that verdict and on the park's flags as
+# the reading behind the reply spells them, so a verdict another road put in
+# its place, or a park recorded or cleared meanwhile, refuses it.
+_BOUGHT_ROUND = _commits.ReportWrite(
+    owned=frozenset((_verdicts.RETURNED_VERDICT,)),
+    decided_on=_review_writes._PARK_FLAGS | {_verdicts.RETURNED_VERDICT},
+)
+
+# The drop of a handed request whose developer the run ledger shows may have
+# run: decided on that ledger as well, the proof the launch is no longer owed,
+# so a start written away -- its charge put back unstarted -- before the
+# commit refuses the drop, and the next tick launches the developer owed.
+_LAUNCHED_DROP = _review_writes.DROP.deciding_on(*_handoffs.RUN_LEDGER)
+
+# The write-back of a handed request's anchor something cleared: decided on
+# what the request stands on, on that anchor, still cleared, and on the park's
+# flags, as the comment spells them -- a park another road recorded is a
+# human's to answer, and no launch is readied under it.
+_ANCHOR_BACK = _commits.ReportWrite(
+    owned=frozenset((_verdicts._FEEDBACK_ANCHOR,)),
+    decided_on=_review_writes.VERDICT_STANDS_ON | _review_writes._PARK_FLAGS | {_verdicts._FEEDBACK_ANCHOR},
+)
 
 # The run a waiting verdict is finished through: no process was invoked for
 # it, and nothing a disposition reads comes from its output -- the feedback a
@@ -145,9 +197,9 @@ def settles_a_bought_round(
 
     `read` is the pinned comment as the tick read it, and `held` whether the
     report hold stops the round. The round runs this tick only where the hold
-    lets it and no verdict waits. Otherwise one write settles the tick,
-    composed over the comment read afresh against `read`
-    (`review_comment._records_stand`): what another road wrote there meanwhile
+    lets it and no verdict waits. Otherwise one guarded commit settles the
+    tick (`_BOUGHT_ROUND`), captured over the comment read afresh against
+    `read` (`review_comment._records_stand`): what another road wrote there meanwhile
     -- a run charged, an allowance granted, a verdict recorded -- is carried,
     and this tick's own moves -- the cleared park and the round the reply
     bought -- are kept, save a park another road recorded there, told by its
@@ -164,7 +216,8 @@ def settles_a_bought_round(
     the reply again over the comment as it stands -- the grant or
     `/orchestrator continue` the reply was, unrecorded, answered then. So does
     a comment that will not read, or a thread of another road's posts that
-    will not.
+    will not, and a commit refused over a verdict, or a park, another road
+    moved after that reading.
     """
     waiting = _verdicts.read_returned_verdict(state)
     if not held and waiting is None:
@@ -189,7 +242,7 @@ def settles_a_bought_round(
             "issue=#%d drops the reviewer verdict it had waiting: a reply to its "
             "park bought a fresh round", issue.number,
         )
-    gh.write_pinned_state(issue, state)
+    _review_writes.lands(gh, issue, state, _BOUGHT_ROUND)
     return True
 
 
@@ -232,7 +285,7 @@ def resumes_a_returned_verdict(
         "issue=#%d drops the reviewer verdict it had waiting: the developer "
         "it was handed to may have run", issue.number,
     )
-    _drops_it(gh, issue, state, waiting)
+    _drops_it(gh, issue, state, waiting, launch)
     return True
 
 
@@ -261,7 +314,7 @@ def finishes_a_handed_request(
     run = _resumed_run(gh, issue, state, handed, launch.context.wt)[1]
     if run is None:
         return True
-    moved_on = partial(_moved_on, spec, issue, state, handed, run.wt)
+    moved_on = partial(_launch_park.has_moved_on, spec, issue, state, handed, run.wt)
     moved = moved_on()
     if moved is None:
         log.warning(
@@ -275,9 +328,9 @@ def finishes_a_handed_request(
             "and left work, or its claim moved; dropping the verdict for the stage's road",
             issue.number,
         )
-        _drops_it(gh, issue, state, handed)
+        _drops_it(gh, issue, state, handed, launch)
     else:
-        launch.parks(moved_on)
+        _launch_park.parks(launch, moved_on)
     return True
 
 
@@ -287,12 +340,13 @@ def _hands_over(launch: _handoffs.HandedLaunch) -> bool:
     The anchor is written back only once the subject the request stands on is
     established, since that write is the first this road makes: a subject or
     thread nobody could read holds the tick with nothing written, and a moved
-    one drops the verdict for good (`_resumed_run`). It is written over the
+    one drops the verdict for good (`_resumed_run`). It is committed over the
     comment read again, and only where the anchor is still cleared there --
-    another road's anchor is the handoff's to hold. Nothing is handed over
-    where that comment will not read, or where the records moved there: a
-    verdict another road put in this one's place is that road's to finish, and
-    the next tick reads the comment as it stands. Past that the
+    another road's anchor is the handoff's to hold (`_writes_the_anchor_back`).
+    Nothing is handed over where that comment will not read, where the records
+    moved there, or where the commit did not land: a verdict another road put
+    in this one's place is that road's to finish, and the next tick reads the
+    comment as it stands. Past that the
     handoff holds the launch to what stands itself -- the subject, the
     claimed evidence, the run ledger, and the anchor -- and drops, retires, or
     holds the verdict as what moved says.
@@ -304,18 +358,8 @@ def _hands_over(launch: _handoffs.HandedLaunch) -> bool:
         )
         if run is None:
             return held
-        reread = _review_comment._records_stand(
-            context.gh, context.issue, context.state, dict(context.state.data), persisted=True,
-        )
-        if reread is None or not reread.stood:
+        if not _writes_the_anchor_back(launch):
             return True
-        if context.state.get(_verdicts._FEEDBACK_ANCHOR) is None:
-            log.info(
-                "issue=#%d writes back the feedback anchor its handed change "
-                "request records, comment %s", context.issue.number, handed.anchor,
-            )
-            context.state.set(_verdicts._FEEDBACK_ANCHOR, handed.anchor)
-            context.gh.write_pinned_state(context.issue, context.state)
     log.info(
         "issue=#%d hands its waiting change request to the developer it owes, "
         "without a second reviewer", context.issue.number,
@@ -324,46 +368,82 @@ def _hands_over(launch: _handoffs.HandedLaunch) -> bool:
     return True
 
 
-def _drops_it(gh: GitHubClient, issue: Issue, state: PinnedState, waiting: _verdicts.ReturnedVerdict) -> None:
-    """Drop `waiting` for good, in a write of the comment read afresh, only while that comment still carries it.
+def _writes_the_anchor_back(launch: _handoffs.HandedLaunch) -> bool:
+    """Write back the feedback anchor `launch`'s request records, over the comment read again; whether to hand over.
+
+    The comment is read against the state in hand (`review_comment.
+    _records_stand`): one that will not read, or whose records moved -- a
+    verdict another road put in this one's place, say -- hands nothing over,
+    and the next tick reads it as it stands; so does one showing a park
+    another road recorded since the tick read the comment, which is a human's
+    to answer and is left exactly as it was written. An anchor that reading
+    carries is another road's, and the handoff's to hold, so nothing is
+    written over it. A cleared one is written back from the verdict's own in
+    a guarded commit (`_ANCHOR_BACK`) captured over that reading, which a
+    record moved after it, a park recorded, or an anchor written meanwhile
+    refuses with nothing written; one GitHub never confirmed is written back
+    again, or found written, by a later tick.
+    """
+    context = launch.context
+    reread = _review_comment._records_stand(
+        context.gh, context.issue, context.state, dict(context.state.data), persisted=True,
+    )
+    if reread is None or not reread.stood:
+        return False
+    if context.state.get(_AWAITING_HUMAN):
+        log.warning(
+            "issue=#%d a park stands on its pinned comment; writing back no "
+            "feedback anchor and handing nothing over under it", context.issue.number,
+        )
+        return False
+    if context.state.get(_verdicts._FEEDBACK_ANCHOR) is not None:
+        return True
+    log.info(
+        "issue=#%d writes back the feedback anchor its handed change "
+        "request records, comment %s", context.issue.number, launch.handed.anchor,
+    )
+    context.state.set(_verdicts._FEEDBACK_ANCHOR, launch.handed.anchor)
+    return _review_writes.lands(context.gh, context.issue, context.state, _ANCHOR_BACK)
+
+
+def _drops_it(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    waiting: _verdicts.ReturnedVerdict,
+    launched: _handoffs.HandedLaunch | None = None,
+) -> None:
+    """Drop `waiting` for good, in a guarded commit over the comment read afresh, only while it still carries it.
 
     Staged on the state in hand instead, the drop would ride the writes of
     whatever runs behind it -- a fresh reviewer's round, the fixing stage's
     bounce -- and put `null` back over a verdict another road recorded in its
-    place meanwhile. So the comment is read again and written with nothing of
-    this tick's in it but the drop, and the caller ends the tick: the next one
-    reads the comment as it stands. Nothing is written where it will not
-    read, or where it carries another verdict than `waiting`.
+    place meanwhile. So the comment is read again and committed with nothing
+    of this tick's in it but the drop (`review_writes.DROP`), decided on the
+    records the verdict stands on as that reading spells them, and the caller
+    ends the tick: the next one reads the comment as it stands. Nothing is
+    written where it will not read, where it carries another verdict than
+    `waiting`, or where one of those records moves before the commit lands.
+
+    `launched` is the launch the request owes where the drop rests on its run
+    ledger showing that launch may have run. That reading has to show it
+    still: a launch owed there again -- its start written away, its charge
+    left standing unstarted -- drops nothing, and the next tick launches the
+    developer owed, honoring that charge. The commit is decided on the run
+    ledger too (`_LAUNCHED_DROP`), so a move of it after that reading refuses
+    the drop with nothing written.
     """
     fresh = _review_comment._read(gh, issue, state, "drop the reviewer verdict it had waiting")
-    if fresh is not None and _verdicts.drops_the_verdict(fresh, only=waiting):
-        gh.write_pinned_state(issue, fresh)
-
-
-def _moved_on(
-    spec: _config_models.RepoSpec,
-    issue: Issue,
-    state: PinnedState,
-    handed: _verdicts.ReturnedVerdict,
-    wt: Path,
-) -> bool | None:
-    """Whether a handed request whose launch may have run has moved on: its claim superseded, or work on the branch.
-
-    The evidence it claims no longer the settled evidence is a review nobody
-    is asking about any more, and a commit the checkout at `wt` carries that
-    its pull request has not got is work a developer did, which the stage's
-    own bounce publishes -- and so is loose work in the checkout, or a remote
-    that moved past it, which that bounce holds over with a notice of its own.
-    False only where the branch is proved to carry nothing unpublished, and
-    None where it could not be read (`stranded._StrandedEvidence.unread`): a
-    fetch, a status, or a count that did not return proves nothing either
-    way, so the verdict waits, with nothing written, for a later reading.
-    """
-    claim = handed.evidence
-    if claim is not None and _claims.claim_standing(state, claim) is not _claims.ClaimStanding.SETTLED:
-        return True
-    branch = _stranded._stranded_evidence(spec, wt, state, issue)
-    return None if branch.unread else not branch.settled
+    if fresh is None:
+        return
+    if launched is not None and launched.owed(fresh):
+        log.info(
+            "issue=#%d the run ledger read afresh owes the developer launch its "
+            "handed change request may have run; dropping nothing", issue.number,
+        )
+        return
+    if _verdicts.drops_the_verdict(fresh, only=waiting):
+        _review_writes.lands(gh, issue, fresh, _review_writes.DROP if launched is None else _LAUNCHED_DROP)
 
 
 def _resumed_run(

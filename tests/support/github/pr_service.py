@@ -249,6 +249,9 @@ class _PullFeedbackService:
         comments.sort(key=lambda listed_comment: listed_comment.id)
         return comments
 
+    def pr_conversation_thread(self, pr: FakePR) -> list[FakeComment]:
+        return sorted(pr.issue_comments, key=lambda listed_comment: listed_comment.id)
+
     def pr_inline_comments_after(
         self,
         pr: FakePR,

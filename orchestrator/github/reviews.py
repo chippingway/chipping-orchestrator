@@ -103,6 +103,15 @@ class GitHubReviewMixin:
         pr_comments.sort(key=lambda comment: comment.id)
         return pr_comments
 
+    def pr_conversation_thread(self, pr: PullRequest) -> list[IssueComment]:
+        """Return every PR conversation comment in id order, none left out.
+
+        Unlike `pr_conversation_comments_after`, a body carrying the pinned
+        state's marker is kept: a caller matching words it posted itself must
+        find them even where those words quote that marker.
+        """
+        return sorted(pr.get_issue_comments(), key=lambda comment: comment.id)
+
     def pr_inline_comments_after(
         self,
         pr: PullRequest,

@@ -7,11 +7,12 @@ what stands before the relabel announcing it, where one is made, and once more
 right before it hands the launch to the run circuit, but the circuit charges
 and starts the launch requests after that last reading -- long enough for
 another road to push, settle a later report, repoint the issue, drop or
-replace the verdict, clear or repoint the feedback anchor, or supersede the
-evidence the request claims -- or start a launch of this very identity without
-the owed count, which nothing tells from this one. A developer launched over
-any of those answers a review of work the pull request no longer carries, is
-one no failed run could replay the feedback to, or is a second one. So the
+replace the verdict, clear or repoint the feedback anchor, supersede the
+evidence the request claims, or park the issue awaiting a human -- or start a
+launch of this very identity without the owed count, which nothing tells from
+this one. A developer launched over any of those answers a review of work the
+pull request no longer carries, is one no failed run could replay the feedback
+to, runs under a park nobody has answered, or is a second one. So the
 launch goes to the circuit owed once (`run_charge_state.OwedLaunch`) behind
 this hold, which the circuit asks where it writes: the whole subject resolved
 again right behind the charge, and every reading the charge and its start are
@@ -40,6 +41,12 @@ from orchestrator.workflow.stages.validating import (
 
 log = logging.getLogger("orchestrator.workflow")
 
+# What every reading the launch is charged and started from has to spell as the
+# last one the hold took in did: the report records, the pull request the issue
+# points at, and the park's flags -- a park another road recorded is a human's
+# to answer, and a developer launched under it answers nobody's ask.
+_HELD_RECORDS = (*_review_comment._BOUND_RECORDS, *_review_comment._PARK)
+
 
 def owed_launch(
     context: _models._RequestedChanges,
@@ -62,15 +69,18 @@ def owed_launch(
 class _LaunchHold:
     """What one handed change request's developer launch is held to, across the readings the circuit takes.
 
-    Each reading it accepts is laid over the state the launch is made from
-    (`review_comment._Reread.lays_over`): the circuit carries onto that state
-    only the fields its own writes changed, and the writes behind the
-    developer's run write that state whole, so anything else another road
-    wrote there -- a run allowance granted, a usage total folded -- would be
-    put back to the comment the handoff read. Every reading is measured
-    against the last one this hold took in, since a move carried once and
-    measured again from the older comment would be kept twice where it adds
-    up.
+    Each reading it accepts is laid over the state the launch is made from,
+    and remembered there as the comment's (`review_comment._Reread.lays_over`):
+    the circuit carries onto that state only the fields its own writes
+    changed. The guarded commits behind the developer's run -- the record of
+    its report, its park, the hand-back, each retiring the request -- keep
+    whatever another road wrote that the tick did not stage, but the size
+    gate's own writes around a push still write that state whole, so anything
+    else another road wrote there -- a run allowance granted, a usage total
+    folded -- would be put back by them to the comment the handoff read. Every
+    reading is measured against the last one this hold took in, since a move
+    carried once and measured again from the older comment would be kept twice
+    where it adds up.
     """
 
     def __init__(
@@ -115,8 +125,10 @@ class _LaunchHold:
         holds, would land on a comment nobody reads. The verdict is still the
         one handed, not dropped or replaced by another road; the feedback
         anchor, read as the fixing stage's replay reads it, still names the
-        post the verdict records; the report records and the pull request the
-        issue points at are where the last reading had them; and the evidence
+        post the verdict records; the report records, the pull request the
+        issue points at, and the park's flags are where the last reading had
+        them (`_HELD_RECORDS`) -- a park recorded meanwhile is another road's,
+        for a human to answer; and the evidence
         the request claims is still the settled evidence, not superseded. Its
         run ledger rules out a start of this launch too -- one of its very
         identity STARTED with no owed count, or one whose record no reader
@@ -135,7 +147,7 @@ class _LaunchHold:
         stands = stands and _verdicts.read_returned_verdict(reading) == handed
         if stands and handed.evidence is not None:
             stands = _claims.claim_standing(reading, handed.evidence) is _claims.ClaimStanding.SETTLED
-        if stands and not _review_comment._moved(reading.data, self._measured, _review_comment._BOUND_RECORDS):
+        if stands and not _review_comment._moved(reading.data, self._measured, _HELD_RECORDS):
             accepted = _review_comment._Reread(stood=True, read=dict(reading.data))
             accepted.lays_over(self._context.state, self._measured)
             self._measured = accepted.read

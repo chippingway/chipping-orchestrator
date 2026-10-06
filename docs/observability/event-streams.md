@@ -60,7 +60,8 @@ file is the durable record.
 - `park_awaiting_human` — every `_park_awaiting_human` (in `workflow/engine/guards.py`) call site, plus
   `_on_question`, `_on_dirty_worktree`, `_on_unreadable_worktree`, the validating parks filed in
   `stages/validating/review_parks.py`, the park of a handed change request's developer launch that may have started
-  (`stages/validating/review_handoffs.py`, `HandedLaunch.parks`), and the question- and discussion-stage
+  (`stages/validating/review_launch_park.py`, `parks`) -- emitted once its guarded commit is down -- and the
+  question- and discussion-stage
   `_park_question` / `_park_discussion` funnels;
   fanned out to `ANALYTICS_LOG_PATH` alongside this audit log through the shared `GitHubClient.emit_event` chokepoint;
   extras: `stage` (read from the current

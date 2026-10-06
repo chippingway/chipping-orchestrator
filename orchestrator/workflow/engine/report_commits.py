@@ -69,7 +69,10 @@ road's own answer as it was.
 The guard is not the report's alone: a validating reviewer round's launch,
 return, verdict, drop, and park writes land through these same commits, each
 declaring its own fields and the records it was decided on
-(`stages/validating/review_writes.py`).
+(`stages/validating/review_writes.py`), and so do a change request's handoff,
+the drop, retirement, and park of a handed one, and the recovery's writes over
+a verdict an earlier tick left waiting (`stages/validating/review_handoffs.py`,
+`review_launch_park.py`, `review_resume.py`).
 """
 from __future__ import annotations
 
@@ -128,6 +131,14 @@ class ReportWrite:
     def owning(self, *fields: str) -> ReportWrite:
         """The same write, owning `fields` as well."""
         return replace(self, owned=self.owned.union(fields))
+
+    def deciding_on(self, *fields: str) -> ReportWrite:
+        """The same write, decided as well on `fields`, which have to read exactly as the tick read them."""
+        return replace(self, decided_on=self.decided_on.union(fields))
+
+    def behind(self, handed: _records.HandedRun) -> ReportWrite:
+        """The same write, owning what the road `handed` names retires with it, and decided on what it is decided on."""
+        return self.owning(*dict(handed.retires)).deciding_on(*handed.decided_on)
 
     def on_the_publication(self) -> ReportWrite:
         """The same write, decided as well on the pinned fields a publication is resolved from.

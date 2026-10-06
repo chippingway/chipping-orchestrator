@@ -351,21 +351,24 @@ def recording_stops_the_tick(
     delivered = _minting.delivered_report(gh, issue, state, agent_result, handed)
     if delivered is None:
         return _unreported_run_holds(commit, agent_result, handed)
-    refusal = _records_the_report(commit, delivered)
+    refusal = _records_the_report(commit, delivered, handed)
     if refusal is None:
         return False
     if isinstance(refusal, RecordingRefusal):
         staged = commit.staging()
         staged.set(UNREPORTED_WORK, True)
+        staged.data.update(handed.retires)
         parks_the_debt(commit, staged, _explains_the_refusal(
             issue.number, delivered, refusal,
             _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED,
-        ), handed.watermarks)
+        ), handed.watermarks, parking=PARKING.behind(handed))
     return True
 
 
 def _records_the_report(
-    commit: _commits.ReportCommit, delivered: _records.DeliveredReport,
+    commit: _commits.ReportCommit,
+    delivered: _records.DeliveredReport,
+    handed: _records.HandedRun,
 ) -> RecordingRefusal | CommitOutcome | None:
     """Land one run's record over the fresh comment: None where it landed, or what stopped it.
 
@@ -376,9 +379,12 @@ def _records_the_report(
     A comment that will not carry the candidate at all is that room refusal
     too, measured for the record's own write. Any
     other answer is the commit's: a comment that would not read, was replaced,
-    or moved under the records this report was minted from or the fields it
-    writes, which no rewrite of the report answers and the next tick reads
-    afresh -- and a write sent and never confirmed, which may have landed.
+    or moved under the records this report was minted from, the fields it
+    writes, or what the road behind it is decided on (`HandedRun.decided_on`),
+    which no rewrite of the report answers and the next tick reads afresh --
+    and a write sent and never confirmed, which may have landed. What that
+    road retires with the record (`HandedRun.retires`) is written in this very
+    commit, so it lands with the record or not at all.
     """
     # What no comment's room changes is asked here, of the record alone: its
     # own reading, and whether any comment could carry it. The room of THIS
@@ -393,12 +399,13 @@ def _records_the_report(
         return refusal
     staged = commit.staging()
     staged.set(_records.DELIVERED_REPORT, alone.get(_records.DELIVERED_REPORT))
+    staged.data.update(handed.retires)
     if staged.get(_PARK_REASON) == UNDELIVERABLE_REPORT:
         staged.set(_PARK_REASON, None)
     for owing in (OWED_REPORT, UNREPORTED_WORK):
         if staged.get(owing):
             staged.set(owing, None)
-    landed = commit.lands(staged, _RECORDING.admitting(
+    landed = commit.lands(staged, _RECORDING.behind(handed).admitting(
         lambda fresh: _delivery_state.stage_delivered_report(fresh, delivered),
     ))
     if not isinstance(landed, CommitOutcome):
@@ -472,13 +479,14 @@ def _unreported_run_holds(
     )
     staged = commit.staging()
     staged.set(UNREPORTED_WORK, True)
+    staged.data.update(handed.retires)
     parks_the_debt(commit, staged, _UNREPORTED_PARK.format(
         mentions=config.HITL_MENTIONS,
         withheld=(
             _NOTHING_ADDED if handed.route in _UNDER_REVIEW
             else _NOTHING_OPENED
         ),
-    ), handed.watermarks)
+    ), handed.watermarks, parking=PARKING.behind(handed))
     return True
 
 
@@ -585,7 +593,10 @@ def parks_the_debt(
     same refusal again on a later tick and parks then.
 
     `parking` is the write the park lands as, `PARKING` unless the road
-    behind it writes more. A binding's park is decided on the publication the
+    behind it writes more. A road that retires something with what its run
+    left (`HandedRun.retires`) stages it on `staged` and parks as
+    `PARKING.behind` that road, so the park and the retirement land together
+    or not at all -- a response lost on the park leaves both. A binding's park is decided on the publication the
     binding was made against as well as on the report records
     (`ReportWrite.on_the_publication`): one another road has since pointed at
     another pull request or receipt is a refusal of a publication that is no

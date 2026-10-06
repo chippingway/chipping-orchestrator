@@ -206,6 +206,17 @@ class UnreadFeedbackTest(_ReviewClientTestCase):
                     [1, 3, 9],
                 )
 
+    def test_the_whole_thread_leaves_nothing_out(self) -> None:
+        # A caller finding words it posted itself reads the conversation
+        # whole, in id order: a body quoting the pinned state's marker -- a
+        # reviewer's findings may -- is kept, and so is one already read.
+        pull_request = _ReviewedPR(conversation_page=_UNREAD_COMMENTS)
+
+        self.assertEqual(
+            [comment.id for comment in self.gh.pr_conversation_thread(pull_request)],
+            [1, 3, 8, 9],
+        )
+
     def test_reviews_after_keeps_only_unread_feedback(self) -> None:
         pull_request = _ReviewedPR(review_page=(
             _review(8, _COMMENTED, body=_FEEDBACK_BODY),

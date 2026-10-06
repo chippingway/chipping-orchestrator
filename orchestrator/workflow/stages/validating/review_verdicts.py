@@ -14,9 +14,11 @@ evidence is published or the verdict disposed of, and dropped by whichever
 write disposes of it. Only the disposition service writes it
 (`review_disposition`), which every live reviewer round hands its verdict to,
 with the change-request handoff it hands a ready request to
-(`review_handoffs`) and the recovery that finishes or drops a verdict an
-earlier tick left waiting (`review_resume`); this owner is the record alone --
-its shape, its reader, its measurement, and its writers.
+(`review_handoffs`), the park a handed request's launch takes
+(`review_launch_park`), and the recovery that finishes or drops a verdict an
+earlier tick left waiting (`review_resume`) -- each through the guarded commit
+of the pinned state; this owner is the record alone -- its shape, its reader,
+its measurement, and its writers.
 
 `review_returned_verdict` holds the round the reviewer ran as, its verdict,
 the subject it was handed exactly as `review_subjects` records one, the
@@ -63,7 +65,9 @@ of the feedback it posted and that comment's ledger entry, and stays pinned
 through the developer launch's own charge of the run ledger and its start, so
 the handoff, that charge, and the start are reserved here, and the transaction
 the verdict claims is measured beside the reservation rather than beside the
-narrower record. It is staged only with exactly that transaction, and a
+narrower record. The handoff's own commit is measured the same way, its post's
+ledger entry the one the comment already stages rather than one more reserved
+beside it. It is staged only with exactly that transaction, and a
 verdict claiming none only without one: a published claim persisted apart from
 the transaction it names relies on evidence nothing will ever settle.
 """
@@ -331,8 +335,12 @@ class ReturnedVerdict:
         the widest a recorded number or fingerprint is spelled, the charge and
         its start through the ledger's own writers, the very ones the run
         circuit writes them with; the started write, carrying that count, is
-        wider than the reserved one it replaces. An approval is never handed,
-        and is measured as it is.
+        wider than the reserved one it replaces. A request already handed
+        names its post -- measured as the handoff's own commit, staged behind
+        that post -- so the ledger records that very id rather than reserving
+        one more: the entry the commit lands, once, and no wider, so the
+        commit asks no more room than its preparation before the post did. An
+        approval is never handed, and is measured as it is.
         """
         reserved = PinnedState(comment_id=state.comment_id, state_data=dict(state.data))
         written = self
@@ -340,7 +348,10 @@ class ReturnedVerdict:
             widest = _record_values.MAX_RECORDED_NUMBER
             written = replace(self, handed=widest, anchor=widest)
             reserved.set(_FEEDBACK_ANCHOR, widest)
-            _comments._reserve_comment_slot(reserved, widest)
+            if self.anchor is None:
+                _comments._reserve_comment_slot(reserved, widest)
+            else:
+                _comments._track_orchestrator_comment(reserved, self.anchor)
             # The charge adds one to the count it finds.
             reserved.set(_run_ledger_values.AGENT_RUNS_USED, widest - 1)
             _run_ledger._reserve_run(reserved, _review_records._WIDEST_FINGERPRINT)

@@ -97,7 +97,10 @@ proof could not be read. `reviewer` hands every returned verdict to that
 disposition, and `review_resume` finishes one an earlier tick left waiting,
 ahead of the round cap and the spawn and, on `fixing`, ahead of the
 feedback scan, asking `review_handoffs` whether a handed request's developer
-is still owed and parking a launch that may have run and shows nothing. The
+is still owed and `review_launch_park` whether a launch that may have run
+moved on, parking it there where it shows nothing. Every write those owners
+make is a guarded commit of the pinned state, declared through
+`review_writes` -- the handoff's prepared before its feedback is posted. The
 parks a failed verify gate or squash takes on the approval road are filed in
 `review_parks` too, behind notices of their own.
 `review_records` writes what the round puts down -- the spec and subject ahead

@@ -653,11 +653,11 @@ class ReplacedVerdictTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
         self._parks_beside_a_verdict()
         dropped = _world.AnotherRoadBehind(
             self,
-            "write_pinned_state",
+            "edit_pinned_state",
             lambda written: written.get(_world.RETURNED_VERDICT) is None,
             self._replaces_the_verdict,
         )
-        with patch.object(self.github, "write_pinned_state", dropped):
+        with patch.object(self.github, "edit_pinned_state", dropped):
             settled = self.validates(**_disposed.ON_THE_HEAD).call_count
 
         ran = self.validates(**{**_disposed.ON_THE_HEAD, _world.RUN_AGENT: [_UNDECIDED_REVIEWER]})

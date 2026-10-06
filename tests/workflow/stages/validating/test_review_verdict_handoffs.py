@@ -6,7 +6,8 @@ Through `review_disposition`: a request ready in the tick its reviewer
 returned is handed over there, and one held on its evidence is handed over
 from the record by the later tick that finishes it, with no reviewer again. A
 feedback post that failed or left no id hands nothing on, and the next tick
-posts it again. A request a tick already handed -- its relabel refused, or its
+posts it again -- or finds the one that landed by its words, whatever its
+findings quote. A request a tick already handed -- its relabel refused, or its
 developer's start -- is replayed from where that handoff stopped: its
 feedback never posted twice, and its developer launched once and charged once. A request persisted before findings
 were formatted, its verification declaration raw beside whatever claim it
@@ -20,8 +21,10 @@ anchor moving behind each of its requests -- are covered beside
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 from unittest.mock import patch
 
+from orchestrator.github.pinned_state import PINNED_STATE_MARKER
 from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING
 from tests.workflow.stages.validating import (
     disposed_verdict_test_support as _disposed,
@@ -30,6 +33,7 @@ from tests.workflow.stages.validating import (
     review_handoff_test_support as _handoff,
     review_verdict_readings as _read,
     review_verdict_test_support as _world,
+    review_write_test_support as _roads,
 )
 
 PR_COMMENT = "pr_comment"
@@ -43,11 +47,34 @@ HANDED_BACK = ((_world.ISSUE, LABEL_FIXING), (_world.ISSUE, LABEL_VALIDATING))
 
 UNDECLARED_REQUEST = f"{_world.REQUESTED}\n\nVERDICT: CHANGES_REQUESTED"
 
+# A reviewer requesting a change whose findings quote the pinned state's
+# marker, which the readers of unread pull-request feedback leave out.
+QUOTING_REQUEST = (
+    f"{_world.REQUESTED}\n2. Never read a body quoting `{PINNED_STATE_MARKER}` as the state."
+    "\n\nVERDICT: CHANGES_REQUESTED"
+)
+
 # A reviewer asking for that change beside its declared run, which failed.
 REQUESTING = _world.declared_run(exit_status=1, verdict="CHANGES_REQUESTED")
 
 # The member of a handed verdict's record naming the post it was handed over with.
 HANDED_WITH = "anchor"
+
+# A park as a human's reply leaves it: cleared.
+_ANSWERED = MappingProxyType({"awaiting_human": False, "park_reason": None})
+
+# How a tick's feedback post leaves nothing to anchor on, and the request it
+# was posted for: refused outright, taken with an answer naming no comment, or
+# taken with its response lost over findings quoting the pinned state's marker.
+_UNANCHORED = (
+    ("refused", MappingProxyType({"lands": False}), UNDECLARED_REQUEST),
+    ("landed with no id", MappingProxyType({"lands": True}), UNDECLARED_REQUEST),
+    (
+        "lost, quoting the state marker",
+        MappingProxyType({"lands": True, "answers": RuntimeError("response lost")}),
+        QUOTING_REQUEST,
+    ),
+)
 
 # Each request a tick persisted before findings were formatted: the reply its
 # reviewer returned, where that tick stopped, and the findings the tick
@@ -120,15 +147,17 @@ class DisposedRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
                 )
 
     def test_a_post_it_cannot_anchor_holds_it(self) -> None:
-        # Refused outright, or taken with an answer naming no comment: nothing
-        # is handed, relabelled, or launched without the anchor. The next tick
-        # posts again and reaches one developer -- twice over on the pull
-        # request where the first post landed, since a feedback post carries
-        # no receipt to find it by.
-        for name, lands, posts in (("refused", False, 1), ("landed with no id", True, 2)):
+        # Refused outright, taken with an answer naming no comment, or taken
+        # with its response lost: nothing is handed, relabelled, or launched
+        # without the anchor. The next tick reaches one developer behind one
+        # feedback post: it posts again where the first was refused, and finds
+        # the one that landed, in the very words it would post -- reading the
+        # thread whole, so findings quoting the pinned state's marker are no
+        # exception -- rather than posting it twice.
+        for name, fails, reply in _UNANCHORED:
             with self.subTest(name):
                 self.setUp()
-                left = self._held_on_the_post(lands=lands)
+                left = self._held_on_the_post(reply, **fails)
 
                 fixed = self.finishes(**_disposed.fixing())
 
@@ -140,18 +169,67 @@ class DisposedRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
                         tuple(self.github.label_history),
                         self.waiting(),
                     ),
-                    ((0, None, ()), 1, posts, HANDED_BACK, None),
+                    ((0, None, ()), 1, 1, HANDED_BACK, None),
                 )
 
-    def _held_on_the_post(self, *, lands: bool) -> tuple:
-        """The tick whose feedback post GitHub refuses, or takes naming no comment where it `lands`.
+    def test_a_park_behind_its_subject_posts_nothing(self) -> None:
+        # Another road parks the issue over a report it cannot deliver while
+        # the request is proved ready -- in the tick its reviewer returned,
+        # or on a later tick finishing it waiting -- and the reading that
+        # proves it carries the park onto the tick's state. Nothing is posted,
+        # relabelled, or launched under that park, which stays as that road
+        # wrote it with the request waiting; once a reply clears it, a later
+        # tick hands the request to its one developer behind one post.
+        for fresh in (True, False):
+            with self.subTest(fresh=fresh):
+                self.setUp()
+                held = self._parked_while_proved(fresh=fresh)
+                _roads.Writes(_ANSWERED)(self)
 
-        What it left: the developers it launched, the run count the request
-        was handed at, and every relabel.
+                fixed = self.finishes(**_disposed.fixing())
+
+                self.assertEqual(
+                    (
+                        held,
+                        fixed[_world.RUN_AGENT].call_count,
+                        len(self.feedback_posts()),
+                        tuple(self.github.label_history[-2:]),
+                    ),
+                    ((0, 0, ((_disposed.UNDELIVERABLE, True), "changes_requested")), 1, 1, HANDED_BACK),
+                )
+
+    def _parked_while_proved(self, *, fresh: bool) -> tuple:
+        """Another road's park landing while the request is proved ready; what the tick it lands in leaves.
+
+        In the tick its reviewer returned where `fresh`, right behind the issue
+        read that resolves its subject; otherwise on a later tick finishing it,
+        its first post refused, once that tick read the comment. The developers
+        launched, the feedback posts, and the park with the verdict waiting.
         """
-        refuses = _handoff.RefusesOnce(self.github.pr_comment, _handoff.FEEDBACK_NOTICE, lands=lands)
+        if fresh:
+            parks = _world.AnotherRoadBehind(self, "get_issue", self._before_its_post, _disposed.parks_over_its_report)
+            with parks.patched():
+                ran = self.returns(UNDECLARED_REQUEST, **_disposed.fixing())
+        else:
+            self._held_on_the_post(UNDECLARED_REQUEST, lands=False)
+            ran = self.finishes(meanwhile=_disposed.parks_over_its_report, **_disposed.fixing())
+        launched = ran[_world.RUN_AGENT].call_count
+        return launched, len(self.feedback_posts()), self.parked()[:2]
+
+    def _before_its_post(self, _issue_number) -> bool:
+        """Whether the request is persisted and its feedback not yet posted."""
+        return self.waiting() is not None and not self.feedback_posts()
+
+    def _held_on_the_post(self, reply: str, **fails) -> tuple:
+        """The tick whose reviewer returns `reply` and whose feedback post fails once as `fails` says.
+
+        `fails` is as `RefusesOnce` takes it. What the tick left: the
+        developers it launched, the run count the request was handed at, and
+        every relabel.
+        """
+        refuses = _handoff.RefusesOnce(self.github.pr_comment, _handoff.FEEDBACK_NOTICE, **fails)
         with patch.object(self.github, PR_COMMENT, refuses):
-            held = self.returns(UNDECLARED_REQUEST, **_disposed.fixing())
+            held = self.returns(reply, **_disposed.fixing())
         handed = self.pinned()[_world.RETURNED_VERDICT][_disposed.HANDED]
         return (held[_world.RUN_AGENT].call_count, handed, tuple(self.github.label_history))
 
