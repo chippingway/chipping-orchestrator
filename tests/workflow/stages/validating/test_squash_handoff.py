@@ -20,17 +20,27 @@ The notice is the other end of the same rule. A post that was owed and did not
 go out leaves the count still needed, so the record stays, the label stays,
 and the next tick republishes the commit the remote already carries as the
 leased no-op it is and words the notice again.
+
+Each of those writes is a guarded commit, and one GitHub takes and never
+confirms moves nothing behind it: the handoff it may have landed is what the
+next tick reads, moving the label alone -- no second reviewer, squash, or
+notice.
 """
 from __future__ import annotations
 
 import unittest
+from contextlib import ExitStack
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import report_delivery as _report_delivery
 from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
 from tests.support.fakes import LazyPullRequest
 from tests.workflow import published_reports as _published_reports
-from tests.workflow.stages.validating import squash_approval_support as _support
+from tests.workflow.stages.validating import (
+    approval_commit_test_support as _one,
+    squash_approval_support as _support,
+)
 from tests.workflow.stages.validating.squash_approval_support import (
     _CollapseWorldMixin,
     _RefusesTheCollapse,
@@ -58,6 +68,13 @@ NOT_A_COMMIT = "not-a-sha"
 
 PR_NUMBER_KEY = "pr_number"
 
+# The handoff's write, the one guarded commit that records the commit its
+# relabel is owed over.
+_THE_HANDOFF = _one.staging(_support.HANDOFF_KEY)
+
+# The strict rewrite a guarded commit lands through, beside the whole write.
+PINNED_EDIT = "edit_pinned_state"
+
 REVIEW_ROUND = "review_round"
 
 # The approval whose squash is recorded, whose subject a later round reviews.
@@ -77,21 +94,36 @@ class _RefusesTheNotice:
 
 
 class _RecordsTheLabelAtEachWrite:
-    """What the label history and the comment were at each durable write."""
+    """What the label history and the comment were at each durable write, whole or guarded."""
 
     def __init__(self, github) -> None:
         self.writes: list[tuple[int, dict]] = []
         self._github = github
         self._writes = github.write_pinned_state
+        self._edits = github.edit_pinned_state
 
     def __call__(self, issue, state):
-        moved = len(self._github.label_history)
-        self.writes.append((moved, dict(state.data)))
+        self._records(state)
         return self._writes(issue, state)
 
     def labels_when(self, key: str) -> list[int]:
         """How many labels had moved at each write that carried `key`."""
         return [moved for moved, written in self.writes if key in written]
+
+    def patched(self):
+        """Both writers of the pinned comment, each recording what it was handed."""
+        stack = ExitStack()
+        stack.enter_context(patch.object(self._github, _support.PINNED_WRITE, self))
+        stack.enter_context(patch.object(self._github, PINNED_EDIT, self._edited))
+        return stack
+
+    def _edited(self, issue, state, *, over):
+        self._records(state)
+        return self._edits(issue, state, over=over)
+
+    def _records(self, state) -> None:
+        moved = len(self._github.label_history)
+        self.writes.append((moved, dict(state.data)))
 
 
 class SquashHandoffTest(
@@ -117,7 +149,7 @@ class SquashHandoffTest(
         github, issue = self._approved_issue()
         writes = _RecordsTheLabelAtEachWrite(github)
 
-        with patch.object(github, _support.PINNED_WRITE, writes):
+        with writes.patched():
             self._lands_a_collapse(github, issue)
 
         self.assertTrue(writes.writes)
@@ -130,7 +162,7 @@ class SquashHandoffTest(
         github, issue = self._approved_issue()
         writes = _RecordsTheLabelAtEachWrite(github)
 
-        with patch.object(github, _support.PINNED_WRITE, writes):
+        with writes.patched():
             self._lands_a_collapse(github, issue)
 
         self.assertEqual(writes.labels_when(_support.HANDOFF_KEY), [0])
@@ -183,6 +215,41 @@ class SquashHandoffTest(
         self.assertEqual(pinned[_support.COLLAPSE_KEY], _support.COLLAPSED_HEAD)
         self.assertEqual(pinned[COUNT_KEY], _support.COLLAPSED_COMMITS)
         self.assertNotIn(HANDED_ON, github.label_history)
+
+    def test_a_lost_handoff_moves_the_label_alone(self) -> None:
+        # The handoff's write lands and its response is lost, so nothing
+        # behind it is acted on and the label stays. That write ended the
+        # collapse into the commit the move is owed over, so the next tick
+        # moves the label alone -- no reviewer, no squash, no second notice --
+        # and ends the record behind it: whether the write was the approval's
+        # own or the one the recovery of a recorded collapse made.
+        for recovered in (False, True):
+            with self.subTest(recovered=recovered):
+                self.assertEqual(
+                    self._loses_the_handoff(recovered=recovered),
+                    ((0, 0), 1, [HANDED_ON], False),
+                )
+
+    def _loses_the_handoff(self, *, recovered: bool) -> tuple:
+        """One handoff whose write's response is lost -- the recovery's, where `recovered` -- and the tick behind it.
+
+        The first moves no label. What they left: the reviewer runs and
+        squashes the second made, every squash notice posted, every label
+        moved, and whether the handoff record still stands.
+        """
+        github, issue, _pr = self._setup()
+        if recovered:
+            self._records_a_collapse(github)
+        with _one.LosesOneResponse(SimpleNamespace(github=github), _THE_HANDOFF).patched():
+            self._lands_a_collapse(github, issue)
+        self.assertEqual(github.label_history, [])
+        mocks = self._run_squash_approval(github, issue, _RefusesTheCollapse())
+        return (
+            (mocks[_support.RUN_AGENT].call_count, mocks[_support.SQUASH_SEAM].call_count),
+            sum(SQUASH_NOTICE in body for _, body in github.posted_pr_comments),
+            github.label_history,
+            _support.HANDOFF_KEY in github.read_pinned_state(issue).data,
+        )
 
 
 class RefusedRelabelTest(

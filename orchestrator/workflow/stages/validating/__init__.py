@@ -24,9 +24,11 @@ what that arc leaves on the pull request for its own sake -- the approval
 comment, the squash notice, and the watermark seed `approval` runs behind that
 notice so neither the docs hop nor in_review replays the orchestrator's own
 comments as human feedback -- and the records each write of its tail is held
-to. `squash_writes` hands the squash a client
-that holds its own writes of the pinned comment to those records too, and
-follows them, since the tail's next reading is measured from the last.
+to. `squash_writes` lands each of those writes as a guarded commit
+over the comment read afresh, and hands the squash a client that holds its
+own writes of the pinned comment to those records too, lands them the same
+way, and follows them, since the tail's next reading is measured from the
+last.
 `watermarks` holds the seed walk `handoff` hands the PR to, which stops at the
 first comment the dev has not consumed rather than at the first one the
 orchestrator did not write. `requested_changes` owns the remaining two

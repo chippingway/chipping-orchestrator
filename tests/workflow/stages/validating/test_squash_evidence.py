@@ -23,7 +23,9 @@ during the relabel itself leaves the handoff standing, so the documenting tick
 hands the issue back for the carry to be proved again. A carry whose approved
 subject goes while its settlement proves it is never settled over that
 removal, and a carry left to a later tick takes no later review of the
-squashed head in the approved one's place.
+squashed head in the approved one's place. A handoff write carrying the carry
+that lands with its response lost is settled the same way, by the ticks behind
+it, with one artifact and one reviewer.
 """
 from __future__ import annotations
 
@@ -35,10 +37,11 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.git.verification import models as _verify_models
 from orchestrator.github.verification_evidence import EvidenceSource
-from orchestrator.workflow.engine import review_subjects as _review_subjects
+from orchestrator.workflow.engine import report_delivery as _report_delivery, review_subjects as _review_subjects
 from tests.workflow.fixtures import LABEL_DOCUMENTING, LABEL_VALIDATING, _agent
 from tests.workflow.git_owners import seam_patch
 from tests.workflow.stages.validating import (
+    approval_commit_test_support as _one,
     review_verdict_readings as _read,
     review_verdict_test_support as _world,
     squash_evidence_test_support as _support,
@@ -157,6 +160,18 @@ _DROPS_THE_SUBJECT = _support.SquashedRoundWorld.drops_the_record
 
 _REMOVES_THE_CLAIM = partial(_NULLS_THE_CLAIM, popped=True)
 
+# The handoff's write: the first guarded commit staging the approval's claim,
+# which the squash records nothing of here.
+_THE_HANDOFF = _one.staging(_support.APPROVED_EVIDENCE)
+
+# Each road into the handoff -- the approval's own, and the recovery of a
+# collapse whose notice was refused -- beside how full another road leaves the
+# comment ahead of its commit: room for the carry's record and not for its
+# settlement, or no room even for that record.
+_FULL_COMMENTS = tuple(
+    (recovered, spare) for recovered in (False, True) for spare in (_one.FITS, _one.OVERFLOWS)
+)
+
 
 class _Rewrite(NamedTuple):
     """One squash a carry follows, the configuration and gate it runs under, and what it owes and publishes.
@@ -253,6 +268,69 @@ class CarriedEvidenceTest(_support.SquashedRoundWorld, unittest.TestCase):
                 self.assertEqual(self._carried_artifacts(), 1)
                 self.assertEqual(self._carried_transcript(), rewrite.transcript)
                 self.assertEqual(self.spent_since(before), (1, 1, _world.REVIEWER_TOKENS))
+
+    def test_a_lost_carry_write_is_settled_once(self) -> None:
+        # The handoff's write recording the carry lands and its response is
+        # lost: the tick acts on nothing behind it, and stands as one whose
+        # write was confirmed does. The next tick publishes and settles the
+        # carry and moves the label, with one artifact and one reviewer.
+        with _one.LosesOneResponse(self, _THE_HANDOFF).patched():
+            self.approves()
+        self.assertEqual((self.standing(), self.claims()), (HELD, True))
+
+        launched = self.later()[_world.RUN_AGENT].call_count
+
+        self.assertEqual(
+            (launched, self.standing(), self._carried_artifacts(), self.spent()[0]),
+            (0, HANDED_ON, 1, 1),
+        )
+
+    def test_an_unsettleable_carry_is_invalidated(self) -> None:
+        # Another road fills the comment right ahead of the handoff's commit,
+        # leaving room for the carry's own record but not for its settlement,
+        # or no room even for that record -- on the approval's own road, and
+        # on the recovery of a collapse whose notice was refused. No carry is
+        # recorded owed with nowhere to settle, and none is left unrecorded
+        # with the handoff behind it: the evidence is invalidated, the approval
+        # retired, the collapse ended, and the handoff dropped in its place,
+        # in a commit that carries no transaction. The next tick publishes and
+        # holds over no carry, announces the squash no second time, and
+        # answers the squashed head as any invalidated carry leaves it: the
+        # report its rewrite owes, parked for a human, with no agent run.
+        for recovered, spare in _FULL_COMMENTS:
+            with self.subTest(recovered=recovered, spare=spare):
+                self.setUp()
+                filled = _one.FillsAhead(self, _THE_HANDOFF, spare)
+                self._carries_onto_a_full_comment(filled, recovered=recovered)
+
+                self.assertEqual(
+                    (self.standing(), self.pinned().get(_world.RETURNED_VERDICT)), (INVALIDATED, None),
+                )
+                launched = self.later(_agent())[_world.RUN_AGENT].call_count
+                self.assertEqual(
+                    (
+                        launched,
+                        self.standing(),
+                        self.pinned().get("park_reason"),
+                        sum(_support.SQUASH_NOTICE in said.body for said in self.pull_request.issue_comments),
+                    ),
+                    (0, INVALIDATED, _report_delivery.UNDELIVERABLE_REPORT, 1),
+                )
+
+    def _carries_onto_a_full_comment(self, filled: _one.FillsAhead, *, recovered: bool) -> None:
+        """The tick whose handoff carries the evidence, the comment `filled` right ahead of its commit.
+
+        The approval's own, or -- where `recovered` -- the recovery behind an
+        approval whose squash notice was refused.
+        """
+        if recovered:
+            with patch.object(self.github, PR_COMMENT, _support.RefusesTheNotice(self.github)):
+                self.approves(verify_result=_passing_gate())
+        with filled.patched():
+            if recovered:
+                self.later(squash_result=_support.LandsTheSquash(self))
+            else:
+                self.approves()
 
     def _announced(self) -> bool:
         """Whether the squash notice is on the pull request."""

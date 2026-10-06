@@ -17,8 +17,8 @@ see is that write having failed, a handoff left over records that moved
 during the move, or another road's put down then -- and nothing here can tell
 which. So does an approval that no longer covers the developer report --
 as recorded, or as it reads at its location -- or the evidence it was proved
-over, which is all an approval that collapsed nothing, or a report edited in
-place, leaves to say that something moved during its relabel.
+over, which is all a move after the handoff record was ended, or a report
+edited in place, leaves to say that something moved.
 
 After the run the order matters just as much: the interruption and live-pause
 refusals both precede the disposition and both return WITHOUT writing pinned

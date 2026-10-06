@@ -399,11 +399,12 @@ of an unanswered carry on arrival in `validating`, and the developer report's re
 publication preflight and settlement, the reconciliation's drops and the retirement of its damage park, the fixing
 recovery's release (`workflow/engine/report_commits.py`), and a reviewer round's launch, its no-verdict parks, the
 returned verdict persisted with its evidence transaction, the verdict's drops, and the parks a verdict takes
-(`workflow/stages/validating/review_writes.py`), and a change request's handoff -- prepared before its feedback is
+(`workflow/stages/validating/review_writes.py`), a change request's handoff -- prepared before its feedback is
 posted -- the drop, retirement, and park of a handed one, and the recovery's anchor write-back, drops, and settlement
-of a round a reply bought (`review_handoffs.py`, `review_launch_park.py`, `review_resume.py` beside it) are the roads
-that commit through it so far; the approval squash's own invalidation of the evidence its approval rests on still
-rewrites the whole record. It derives a candidate
+of a round a reply bought (`review_handoffs.py`, `review_launch_park.py`, `review_resume.py` beside it), and every
+write of an approval's tail -- its verdict's retirement, the squash's own records, the handoff with the evidence it
+carries or invalidates, a failed squash's park, and the handoff's end behind the label (`squash_writes.py` beside
+them) -- are the roads that commit through it so far. It derives a candidate
 over a fresh reading of the comment its caller captured, refuses with nothing written where that comment or a record
 the decision rests on moved, or where another writer moved a field the caller is changing, measures the whole rendered
 candidate against the comment limit before any dependent effect, and lands through the strict in-place edit on

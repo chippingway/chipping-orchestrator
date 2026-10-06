@@ -294,10 +294,11 @@ orchestrator/
                         (`PinnedState.synced`), spelled as its JSON is and outside the record itself, so what a
                         tick staged on it since can be told from what it read; a state the guarded commits taken
                         through `workflow/engine/report_commits.py` -- the developer report's, a validating
-                        reviewer round's, and a change request's handoff and its recovery's -- did not land over --
-                        refused over a comment that moved, or sent and never confirmed -- or whose report post or
-                        re-read left its transaction
-                        owed over a comment another road wrote meanwhile is marked `withheld`, and the legacy write
+                        reviewer round's, a change request's handoff and its recovery's, and an approval tail's --
+                        did not land over -- refused over a comment that moved, or sent and never confirmed -- or
+                        whose report post or re-read left its transaction owed over a comment another road wrote
+                        meanwhile, or whose approval tail's records the comment moved, is marked `withheld`, and
+                        the legacy write
                         writes nothing for it, since written whole it would put back what another road wrote past it
     pull_request_reads.py
                         PR status, open and commit-pinned lookup, branch enumeration, and unreadable-publication

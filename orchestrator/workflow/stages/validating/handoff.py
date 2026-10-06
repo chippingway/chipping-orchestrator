@@ -25,30 +25,47 @@ the road carries on.
 Every write an approval's tail makes -- the squash, the handoff behind it, the
 park a failed squash takes -- follows requests of its own, and each is held
 first to the report, pull-request, returned-verdict, and verification-evidence
-records the state in hand carries, and to the review subjects and the
-approval's evidence claim the comment carried when the tail last read or
-wrote it (`_holds_its_records`) -- what every proof since, the evidence's
-included, was taken over, and what a carry answers on. Where they stand,
+records the state in hand carries, and to the review subjects, the
+approval's evidence claim, the report debt a review subject stands only
+without, the park, and the collapse record and its handoff as the comment
+carried them when the tail last read or wrote it (`_holds_its_records`) --
+what every proof since, the evidence's included, was taken over, what a carry
+answers on, and what the tail itself clears or ends. Where they stand,
 the state is laid over the comment as read then, measured from the comment as
 the tail last read or wrote it (`_Held`): a field another road wrote meanwhile
 -- a round spent by a reply -- is carried rather than written back over. The
-squash writes the state in hand wherever it writes, which its own reply does
-not say, so it is handed a client that holds each of those writes to the same
-records and lays it over the comment first, refusing one whose records moved,
-and follows them (`squash_writes`): the reading behind it is measured from
-the last of them -- from the reading before it, where it wrote none. Where the records
-moved, nothing the approval holds is written, but what every post leaves on
-the ledger is owed all the same: the post is the orchestrator's, and a prompt
-keeps an orchestrator comment only where that ledger vouches for it. So is the
-end of the verdict the approval finishes, which rested on the records that
-moved -- retired over the comment as read, and only that verdict: one another
-road put in its place stays.
+write then lands as a guarded commit over the comment read afresh
+(`_Held.lands`, `squash_writes.lands`), decided on every record the tail holds
+-- those, with every record a report debt is read from -- exactly as that
+reading spells them (`HELD_ON`), and owning what each write declares
+(`RETIRES`, `HANDOFF`, `CARRIED`, `SQUASH_PARK`) beside what the tick staged:
+a record another road moves after that reading refuses it as surely as one
+moved before it, and every other field is the fresh reading's. A carry of the
+evidence the approval rests on is held to that very candidate as well
+(`_Held.settles`): where the fresh comment has no room to record or settle it, it is
+invalidated in its place rather than recorded owed for good. The squash
+writes the state in hand wherever it writes, which its own reply does not
+say, so it is handed a client that holds each of those writes to the same
+records, lays it over the comment first, and lands it through the same
+commit, refusing one whose records moved or whose commit did not land, and
+follows them (`squash_writes`): the reading behind it is measured from the
+last of them -- from the reading before it, where it wrote none. Where the
+records moved -- caught by that reading or refused by the commit -- nothing
+the approval holds is written, and the tick's state is withheld from every
+whole-state write behind it, but what every post leaves on the ledger is owed
+all the same: the post is the orchestrator's, and a prompt keeps an
+orchestrator comment only where that ledger vouches for it. So is the end of
+the verdict the approval finishes where what moved is a record that approval
+was proved over, a report owed among them -- retired over the comment as
+read, in a guarded commit of its own, and only that verdict: one another road
+put in its place stays. A park or a collapse record another road put down
+keeps the verdict waiting, for the human or the recovery that answers it.
 """
 from __future__ import annotations
 
 import copy
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import partial
 
 from github.Issue import Issue
@@ -63,7 +80,10 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
-    report_record_state as _report_record_state,
+    pinned_commit_models as _commit_models,
+    prompt_delivery as _prompt_delivery,
+    report_commits as _commits,
+    report_delivery as _report_delivery,
     review_subjects as _review_subjects,
 )
 from orchestrator.workflow.stages.validating import (
@@ -85,6 +105,95 @@ _HELD_RECORDS = (*_review_comment._VERDICT_RECORDS, *_review_comment._EVIDENCE_R
 # What a write the squash makes is about to do, for the log where the records
 # moved under it and it is refused.
 _SQUASH_WRITE = "let its squash write the state in hand over it"
+
+# What reading the comment again behind a write it refused is for.
+_UNLANDED = "record what it posted behind a write the comment refused"
+
+# The refusals a comment's room earns: a candidate past what one comment holds,
+# and one the write's own check of its room refused.
+_NO_ROOM = frozenset((_commit_models.CommitRefusal.OVERFLOW, _commit_models.CommitRefusal.INADMISSIBLE))
+
+_AWAITING_HUMAN = "awaiting_human"
+
+# A park's flags, which the handoff clears and a failed squash's park sets.
+_PARK_FLAGS = frozenset((_AWAITING_HUMAN, _state._PARK_REASON))
+
+# What the approval answers through beside the records in hand, measured from
+# the comment as the tail last read or wrote it: the review subjects and its
+# evidence claim, and the report debt a review subject stands only without --
+# a report owed is one the pull request does not carry as the approval read it.
+_APPROVED_OVER = (*_review_comment._APPROVAL_RECORDS, _report_delivery.OWED_REPORT)
+
+# The records the approval was proved over, whose move refuses everything it
+# holds and retires the verdict it finishes (`_holds_its_records`).
+_PROVED_OVER = frozenset((*_HELD_RECORDS, *_APPROVED_OVER))
+
+# What another road moving holds the tail with its verdict kept: a park, which
+# a human answers, and a collapse record or its handoff, which only the squash
+# recovery answers. Measured, as `_APPROVED_OVER` is, from the comment as the
+# tail last read or wrote it, since the tail clears a park and ends a collapse
+# itself -- and a park or a record laid over the state in hand from another
+# road's write would be cleared or ended by the tail's next write unseen.
+_HELD_APART = frozenset((*_PARK_FLAGS, *_squash_writes.COLLAPSE_RECORDS))
+
+# What every guarded write of the tail is decided on, exactly as the reading it
+# was decided over spells it: the records `_holds_its_records` holds the tail
+# to -- the report's, the pull request, the returned verdict, the evidence, the
+# review subjects, the approval's claim, the park, and the collapse record and
+# handoff it reads and ends -- with every record a report debt is read from,
+# as the evidence proofs bind them (`report_delivery.REPORT_DEBT`). A write
+# staging one of them unchanged -- a park over a reading already parked, a drop
+# of a verdict another road replaced -- would otherwise land beside another
+# road's move of it unseen.
+HELD_ON = frozenset((*_PROVED_OVER, *_HELD_APART, *_report_delivery.REPORT_DEBT))
+
+# A write the squash makes of its own: the collapse it records ahead of its
+# rewrite, or drops behind a rollback, and the size gate's records, which ride
+# it as what the tick staged.
+_THROUGH = _commits.ReportWrite(owned=_squash_writes.COLLAPSE_RECORDS, decided_on=HELD_ON)
+
+# The end of the verdict the approval holds, beside whatever the tick staged:
+# the run's records, a squash the gate held, a notice that went unposted.
+RETIRES = _commits.ReportWrite(owned=frozenset((_verdicts.RETURNED_VERDICT,)), decided_on=HELD_ON)
+
+# The handoff behind a published squash: the verdict retired, the approval it
+# finishes recorded with its evidence claim, a park ended, and the collapse
+# record ended into the commit the relabel is owed over. A carry the squash's
+# evidence earns rides it as well (`squash_evidence.SquashEvidence.writes`).
+HANDOFF = _commits.ReportWrite(
+    owned=frozenset((
+        _verdicts.RETURNED_VERDICT,
+        _review_subjects.APPROVED_SUBJECT,
+        _approved_evidence.APPROVED_EVIDENCE,
+        *_PARK_FLAGS,
+        *_squash_writes.COLLAPSE_RECORDS,
+    )),
+    decided_on=HELD_ON,
+)
+
+# What the evidence the approval rests on owes a head, recorded in a write of
+# its own -- the carry, or the evidence invalidated with the handoff over it.
+CARRIED = _commits.ReportWrite(owned=frozenset(), decided_on=HELD_ON)
+
+# What a tail whose records moved still writes over the comment as it stands:
+# its posts' ledger entries, merged, and the end of the verdict it holds, only
+# where that is still the one waiting.
+_POSTED = _commits.ReportWrite(
+    owned=frozenset((_comments._ORCH_COMMENT_IDS, _verdicts.RETURNED_VERDICT)),
+    decided_on=frozenset((_verdicts.RETURNED_VERDICT,)),
+)
+
+# The park a failed squash takes: its flags, the verdict it retires, and the
+# ledger entry and the thread read through that posting its notice adds.
+SQUASH_PARK = _commits.ReportWrite(
+    owned=frozenset((
+        _verdicts.RETURNED_VERDICT,
+        *_PARK_FLAGS,
+        _prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID,
+        _comments._ORCH_COMMENT_IDS,
+    )),
+    decided_on=HELD_ON,
+)
 
 
 @dataclass
@@ -127,19 +236,67 @@ class _Held:
             waiting = None
         return cls(waiting, subject, gate_run=gate_run)
 
-    def writes(self, gh: GitHubClient, issue: Issue, state: PinnedState) -> None:
-        """Write `state` over `issue`'s pinned comment, and take it as the comment the tail last wrote."""
-        gh.write_pinned_state(issue, state)
-        self.wrote(state)
+    def lands(
+        self, gh: GitHubClient, issue: Issue, state: PinnedState, write: _commits.ReportWrite,
+    ) -> bool | None:
+        """Commit what `state` staged as `write` over `issue`'s pinned comment, guarded; whether it landed.
 
-    def wrote(self, state: PinnedState) -> None:
-        """Take `state`, just written, as the comment the tail last wrote.
-
-        A copy to its depth, since the state in hand goes on being staged on
-        after the write, and a record it changes in place would otherwise
-        read as the comment having changed it.
+        Through the guarded commit every write of the tail lands through
+        (`squash_writes.lands`), decided on `HELD_ON` as the tick last synced
+        with the comment. What landed is the comment the tail last wrote: a
+        copy to its depth, since the state in hand goes on being staged on
+        after the write, and a record it changes in place would otherwise read
+        as the comment having changed it. What did not land wrote nothing, and
+        the caller makes nothing that depends on it: None where the comment
+        has no room for the candidate it would send -- past what one comment
+        holds, or refused by the write's own check of its room
+        (`write.admits`) -- False otherwise. A refusal naming a record the
+        tail holds that moved under the commit itself is answered as a move
+        `_holds_its_records` catches: what the tail posted is recorded over
+        the comment as it stands then, and the verdict it holds retired where
+        that record is one the approval was proved over.
         """
-        self.comment = copy.deepcopy(state.data)
+        landed = _squash_writes.lands(gh, issue, state, write)
+        if landed.status is _commit_models.CommitStatus.COMMITTED:
+            self.comment = copy.deepcopy(state.data)
+            return True
+        if landed.refusal in _NO_ROOM:
+            return None
+        durable = None
+        if HELD_ON.intersection(landed.fields):
+            durable = _review_comment._read(gh, issue, state, _UNLANDED)
+        if durable is not None:
+            proved = _PROVED_OVER.intersection(landed.fields)
+            kept = self if proved else replace(self, verdict=None)
+            _records_what_it_posted(gh, issue, state, durable, kept)
+        return False
+
+    def settles(self, gh: GitHubClient, issue: Issue, state: PinnedState, carried, write: _commits.ReportWrite) -> bool:
+        """Land `write` with what `carried` owes the head staged beside it; whether it landed.
+
+        `carried` is the decision on the evidence the approval rests on
+        (`squash_evidence.SquashEvidence`), staged onto `state` and owned by
+        the write that carries it. A carry is held to the complete candidate
+        that write sends (`SquashEvidence.admits`): where the fresh comment --
+        every write another road made since included -- has no room to record
+        it, or to settle it, it is not recorded owed and unpublishable, but
+        invalidated in its place, in a commit of its own over `state` as it
+        stood before the carry was staged (`SquashEvidence.without_room`),
+        which carries no transaction and so may fit where the carry did not.
+        A decision that staged no carry is not retried: what it writes is
+        already the least the write can carry.
+        """
+        unstaged = copy.deepcopy(state.data)
+        carried.stages(state, issue.number)
+        carrying = write.owning(*carried.writes).admitting(carried.admits)
+        landed = self.lands(gh, issue, state, carrying)
+        if landed is not None or carried.carry is None:
+            return bool(landed)
+        state.data = unstaged
+        carried = carried.without_room()
+        carried.stages(state, issue.number)
+        carrying = write.owning(*carried.writes)
+        return bool(self.lands(gh, issue, state, carrying))
 
     def follows(self, gate):
         """`gate`, its client holding each write of its issue's pinned comment to the records in hand, and following it.
@@ -147,12 +304,15 @@ class _Held:
         Handed to the squash, which writes the state in hand whole and whose
         reply does not say whether it wrote (`squash_writes`): each write is
         asked first whether the comment still carries the report,
-        pull-request, verdict, and evidence records in hand, and laid over it
-        (`_holds_its_records`); once it lands, it is the comment the tail last
-        wrote.
+        pull-request, verdict, and evidence records in hand, laid over it
+        (`_holds_its_records`), and landed as a guarded commit of the squash's
+        own records beside what the tick staged; once it lands, it is the
+        comment the tail last wrote, and where it does not, that reading and
+        the state are left as the write found them.
         """
         holds = partial(_holds_its_records, gate.gh, gate.issue, purpose=_SQUASH_WRITE, held=self)
-        return _squash_writes.followed(gate, holds, self.wrote)
+        lands = partial(self.lands, gate.gh, gate.issue, write=_THROUGH)
+        return _squash_writes.followed(gate, holds, lands, self)
 
     def checkout_stands(self, gate) -> bool | None:
         """Whether the gate's checkout still stands on the head the approval was of, clean; None where unread.
@@ -284,33 +444,51 @@ def _holds_its_records(
     Asked ahead of each write an approval's tail makes behind requests of its
     own, `purpose` naming the write. The review subjects and the approval's
     evidence claim (`review_comment._APPROVAL_RECORDS`) -- which the tail
-    stages the last two of itself -- are measured from `held.comment`, the
-    comment as the tail last read or wrote it, the reading every proof
-    since was taken over: a subject another road replaced or removed
-    meanwhile is one the evidence carried or proved for the move may no longer
-    answer for, and a claim removed or replaced leaves a carry answering on
-    nobody's word, whatever `state` still spells. Where the records stand, `state` is laid
-    over the comment as read, measured from `held.comment` -- or, where that
-    is None, taken whole over it, only the ledger of the orchestrator's own
-    comments merged (`review_comment._Reread.lays_over`) -- and that reading is
-    what the next one is measured from. Where they moved, nothing `state` holds
-    is written over them (`_records_what_it_posted`). A comment that will not
-    read, or is no longer the one `state` was read from, is left as it stands.
+    stages the last two of itself -- and the report debt a review subject
+    stands only without are measured from `held.comment`, the comment as the
+    tail last read or wrote it, the reading every proof since was taken over:
+    a subject another road replaced or removed meanwhile is one the evidence
+    carried or proved for the move may no longer answer for, a claim removed
+    or replaced leaves a carry answering on nobody's word, and a report owed is
+    one the pull request does not carry as the approval read it, whatever
+    `state` still spells. So are the park and the collapse record and its
+    handoff (`_HELD_APART`), which the tail clears and ends itself: laid over
+    `state` from another road's write, the tail's next write would clear a park
+    a human is to answer, or end a collapse the recovery is to finish, unseen.
+    Where the records stand, `state` is laid over the comment as read,
+    measured from `held.comment` -- or, where that is None, taken whole over
+    it, only the ledger of the orchestrator's own comments merged
+    (`review_comment._Reread.lays_over`) -- and that reading is what the next
+    one is measured from. Where they moved, nothing `state` holds is written
+    over them but what the tail posted -- and the end of the verdict it holds,
+    where a record the approval was proved over moved
+    (`_records_what_it_posted`) -- and `state` is withheld from every
+    whole-state write behind this. A comment that will not read, or is no
+    longer the one `state` was read from, is left as it stands.
     """
     durable = _review_comment._read(gh, issue, state, purpose)
     if durable is None:
         return False
     measured = state.data if held.comment is None else held.comment
-    if _review_comment._moved(durable.data, state.data, _HELD_RECORDS) or _review_comment._moved(
-        durable.data, measured, _review_comment._APPROVAL_RECORDS,
-    ):
+    proved = _review_comment._moved(durable.data, state.data, _HELD_RECORDS) or _review_comment._moved(
+        durable.data, measured, _APPROVED_OVER,
+    )
+    apart = held.comment is not None and _review_comment._moved(
+        durable.data, held.comment, _HELD_APART,
+    )
+    if proved or apart:
         log.warning(
             "issue=#%s its pinned comment does not carry the developer report, "
-            "pull request, verdict, verification evidence, review subject, or "
-            "approval claim records this tick holds, so it will not %s; recording only the "
-            "comments it posted and retiring the verdict it holds", issue.number, purpose,
+            "pull request, verdict, verification evidence, review subject, approval "
+            "claim, report debt, park, or collapse records this tick holds, so it will "
+            "not %s; recording only the comments it posted, and retiring the verdict it "
+            "holds where what moved is a record its approval was proved over",
+            issue.number, purpose,
         )
-        _records_what_it_posted(gh, issue, state, durable, held)
+        state.withheld = True
+        _records_what_it_posted(
+            gh, issue, state, durable, held if proved else replace(held, verdict=None),
+        )
         return False
     read = dict(durable.data)
     _review_comment._Reread(stood=True, read=read).lays_over(
@@ -329,8 +507,11 @@ def _records_what_it_posted(
     answers the subject as it stands, while a verdict another road put in the
     place of the one held stays for that road. Each id is merged once among
     the newest the ledger's bound holds, and an entry naming no comment is
-    nobody's post. Nothing is written where neither changes the comment, or
-    where the comment has no room for what does.
+    nobody's post. Committed guarded by `durable` (`_POSTED`), decided on the
+    verdict as it reads there and owning only the ledger and that verdict, so
+    every other field is the fresh reading's. Nothing is written where neither
+    changes the comment, or where the comment has no room for what does or
+    moved the verdict under the commit.
     """
     ledger = durable.get(_comments._ORCH_COMMENT_IDS)
     posted = state.get(_comments._ORCH_COMMENT_IDS)
@@ -339,15 +520,8 @@ def _records_what_it_posted(
     ours = sorted(entry for entry in posted if _state._is_whole(entry))
     _comments._track_orchestrator_comment(durable, *ours)
     retired = _verdicts.drops_the_verdict(durable, only=held.verdict)
-    if durable.get(_comments._ORCH_COMMENT_IDS) == ledger and not retired:
-        return
-    if _report_record_state.fits_the_comment(durable.data):
-        gh.write_pinned_state(issue, durable)
-        return
-    log.error(
-        "issue=#%s has no room on its pinned comment to record the comments "
-        "its approval posted; leaving it as it stands", issue.number,
-    )
+    if durable.get(_comments._ORCH_COMMENT_IDS) != ledger or retired:
+        _squash_writes.lands(gh, issue, durable, _POSTED)
 
 
 def _seed_in_review_handoff_watermarks(

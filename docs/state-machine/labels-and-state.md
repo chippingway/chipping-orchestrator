@@ -658,8 +658,9 @@ kept, so the next write replaces the corruption in place instead of leaving a se
 Most writers rewrite the whole record from the state they read (`write_pinned_state`), which lands wherever it can — in
 place, or as a new comment where none is named or the named one is gone. A **guarded commit**
 (`workflow/engine/pinned_commit.py`, which the verification-evidence publication and settlement, the evidence
-reconciliation's retirements, `validating`'s invalidation of an unanswered carry, the developer report's writes, and a
-reviewer round's launch, return, verdict, and park writes commit through) is never written from its caller's state. It
+reconciliation's retirements, `validating`'s invalidation of an unanswered carry, the developer report's writes, a
+reviewer round's launch, return, verdict, and park writes, a change request's handoff and its recovery's writes, and
+every write of an approval's tail commit through) is never written from its caller's state. It
 is captured from the reading the caller decided on — the comment's id, every field as the comment's JSON spells it, the
 prerequisite fields the decision rests on, an absent one included, and the fields the caller owns — and derived over a
 fresh reading: each field the caller's staged state changed, every one of which it has to own, is laid over that
@@ -763,8 +764,47 @@ and never confirmed is finished by the next tick from what the comment carries -
 post found by its words and receipt, or by its place in the thread (`feedback_posts.finds`), a drop, retirement, park,
 or settlement found landed -- with no second post, developer, or charge, and no review round but the one the confirmed
 write itself leads to: a pushed fix's or a report's hand-back, a timeout park's recovery, the round a reply bought, or a
-fresh one a dropped record leaves its subject for. Every road but these and the verification evidence's still writes its
-whole state, the approval's squash tail among them.
+fresh one a dropped record leaves its subject for.
+
+Every write of an approval's tail on `workflow:validating` lands through the same guard
+(`stages/validating/squash_writes.py`), behind the reading of the comment the tail already takes ahead of each
+(`handoff._holds_its_records`), and is decided on every record the tail holds as that reading spells it
+(`handoff.HELD_ON`): the report records, `pr_number`, `review_returned_verdict`, the `verification_evidence_*`
+records, the three review subjects and `review_approved_evidence`, `awaiting_human` and `park_reason`, the
+`late_collapse_*` record with `late_collapse_handoff_sha`, and every record a report debt is read from, as the
+evidence proofs bind them (`developer_report_owed` beside those). That reading holds the tail to all of them as well,
+measured from the comment as the tail last read or wrote it, and so does the one behind the verify gate: a report
+recorded as owed is a move of what the approval was proved over, retiring its verdict for a fresh reviewer, while a
+park or a collapse record another road put down is never laid over the state for the tail's next write to clear or
+end -- the arc writes nothing over it but what it posted, and the verdict waits for a later tick. Each write declares
+what it owns beside what the tick staged: the retirement of the approval's verdict -- behind a subject that moved or
+would not read, a squash the size gate held, or a notice that went unposted -- owns `review_returned_verdict`; the
+squash's own writes through the client it is handed own the collapse record, the size gate's records riding them as
+the tick's; the handoff ahead of the relabel owns the verdict it retires, `review_approved_subject` and
+`review_approved_evidence`, the park it ends, and the collapse record and `late_collapse_handoff_sha`, plus
+`verification_evidence_pending`, `_history`, and `_revision_floor` with the claim where the squash's evidence earns a
+carry and what an invalidation writes where it is refused; a carry decided by the settled handoff's recovery owns only
+what that decision writes; a failed squash's `squash_failed` park owns its flags, the verdict it retires, and what
+posting its notice writes, prepared before that notice; and the end of `late_collapse_handoff_sha` behind the label
+owns that field alone, over the comment read once the label moved. A carry is held to the very candidate its commit
+sends, another road's writes since included: where that candidate is past `MAX_PINNED_BODY`, or has no room for the
+carry's settlement or for the invalidation the settlement leaves room for, the carry is not recorded owed and
+unpublishable, nor left unrecorded with the handoff behind it, but invalidated in its place, in a commit of its own
+carrying no transaction. A record another road moved after that reading, an owned field it moved, a comment
+that will not read or parse or was replaced, or a candidate past `MAX_PINNED_BODY` refuses the write with nothing
+written and the tick's state withheld: no park is reported, no handoff ended, and no label moved, and where a record
+the tail holds moved, only what it posted is recorded on the ledger -- and the verdict it holds retired, where that
+record is one the approval was proved over -- as where that reading itself caught the move. A write sent and never
+confirmed acts on nothing either: the handoff it may have landed names the commit the relabel is owed over -- for
+every approval, one that collapsed nothing included -- so the next tick's recovery moves the label with no second
+reviewer, gate, squash, notice, or charge; a carry it may have recorded is published and settled by the next tick's
+reconciliation once; and a park it may have landed is found standing, and mentions nobody again. The squash's record
+of its collapse is the one write whose unconfirmed edit the squash itself answers, taking it as refused and rewriting
+nothing; where it landed, it carried the approval the tail had staged beside it, which the tail's next reading finds
+where it last read none, so the tail records what it posted, retires the approval's verdict, and parks nothing, and
+the next tick's recovery finishes the collapse that record claims under that approval with no second reviewer. Every
+road but these, a change request's, the reviewer round's, and the verification evidence's still writes its whole
+state.
 
 The keys that matter for the state machine fall into a few groups:
 
@@ -1411,8 +1451,8 @@ The keys that matter for the state machine fall into a few groups:
   verify gate's `verify_*` reason is set in the park's own write too, through the funnel a returned verdict's parks
   take (`stages/validating/review_parks.py`): only over the approved subject still standing behind the gate and
   behind the park's notice, and only behind a notice that was identified. A failed squash-on-approval sets
-  `squash_failed` in the park's own write as well (`review_parks.parks_the_failed_squash`), measured before its
-  notice, landing only behind one identified, over the report, `pr_number`, `review_returned_verdict`, and
+  `squash_failed` in the park's own guarded commit as well (`review_parks.parks_the_failed_squash`), prepared before
+  its notice, landing only behind one identified, over the report, `pr_number`, `review_returned_verdict`, and
   `verification_evidence_*` records the squash tail holds -- and, on the approval road, over the approved subject
   standing behind that notice --
   and what reads it back is the recovery that took it: that route retries on every tick and stays silent while its
@@ -4292,8 +4332,8 @@ rather than preserving.
   `workflow:validating` with the record simply dropped is one the next tick runs a second reviewer on, over a branch
   already approved, squashed, and published. It names the commit the move is owed over, which is the whole of what
   the move needs and the only thing that says it is owed. The validating recovery route reads it ahead of the
-  reviewer, moves the label, and drops it in a write of its own behind that label — laid over the comment read again
-  once the label has moved, and only where it still names the commit that handoff finished beside the report,
+  reviewer, moves the label, and drops it in a guarded commit of its own behind that label — laid over the comment
+  read again once the label has moved, and only where it still names the commit that handoff finished beside the report,
   `pr_number`, verdict, and evidence records the move was taken over and the review subjects the comment carried
   just ahead of it, so a record another road wrote during the relabel stands, and so does this one where those
   records moved; the `workflow:documenting` tick that finds either
@@ -4302,7 +4342,9 @@ rather than preserving.
   work past the round the record was about, and the branch then goes to the reviewer rather than on to
   `documenting` unread. It is deliberately NOT a member of the group above: nothing about the rewrite is
   outstanding by then, so it freezes no branch out of base sync and refuses no resume. An approval that collapsed
-  nothing leaves none, and neither does one whose commit is not a whole object id: the value is spent on a
+  nothing leaves one too, over the head it was given, since a relabel that fails -- or the handoff's write landing
+  with its response lost -- would otherwise leave nothing saying its move is owed and the next tick would pay a second
+  reviewer for it. One whose commit is not a whole object id leaves none: the value is spent on a
   comparison against the head the pull request stands on, so one no commit could equal is one that comparison can
   never catch — and on an issue with no pull request to read, nothing else stands between such a value and a label
   moved past the reviewer. Such a value is dropped rather than refused, which is the opposite of what the claim it

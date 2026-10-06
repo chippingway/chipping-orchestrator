@@ -70,9 +70,10 @@ The guard is not the report's alone: a validating reviewer round's launch,
 return, verdict, drop, and park writes land through these same commits, each
 declaring its own fields and the records it was decided on
 (`stages/validating/review_writes.py`), and so do a change request's handoff,
-the drop, retirement, and park of a handed one, and the recovery's writes over
-a verdict an earlier tick left waiting (`stages/validating/review_handoffs.py`,
-`review_launch_park.py`, `review_resume.py`).
+the drop, retirement, and park of a handed one, the recovery's writes over a
+verdict an earlier tick left waiting (`stages/validating/review_handoffs.py`,
+`review_launch_park.py`, `review_resume.py`), and every write of an approval's
+tail, its squash's own included (`stages/validating/squash_writes.py`).
 """
 from __future__ import annotations
 

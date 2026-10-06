@@ -375,7 +375,9 @@ def _prepares_the_park(
 
     Staged on a copy of `commit.state`: the park's flags under `reason`, and
     `held` dropped -- only where it is still the verdict waiting, so the park
-    is measured keeping any other.
+    is measured keeping any other. The park a failed squash takes is prepared
+    here as well, as the approval tail's own write
+    (`review_parks.parks_the_failed_squash`).
     """
     staged = commit.staging()
     _verdicts.drops_the_verdict(staged, only=held)
