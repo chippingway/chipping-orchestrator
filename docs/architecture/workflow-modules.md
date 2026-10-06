@@ -3676,7 +3676,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             squash an earlier tick did not finish gets -- and nothing it holds is posted or written
                             past a published rewrite, nor the label moved on either road, where the pinned comment no
                             longer carries the report, pointer, verdict, or evidence records in hand or the review
-                            subjects the tail last read or wrote, nor past a
+                            subjects, claim, report debt, park, or collapse records the tail last read or wrote, nor
+                            past a
                             returned verdict still waiting there, a later review than the approval; that number
                             read as an identity before the squash subject may reference it: the optional squash,
                             the park each of its four readings earns, filed through `review_parks.py`, the notice
