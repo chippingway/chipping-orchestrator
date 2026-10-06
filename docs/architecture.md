@@ -823,6 +823,18 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   rewrite, and the base-sync auto rebase and its crash recovery. Each of them refuses a moved REMOTE as well — the
   rewrite, the conflict publications, and the base-sync rebases pin `force_with_lease` to the SHA they observed
   before the rewrite, and the rest are pinned to the head the gate's own entry froze.
+- A typed boundary for the base-sync push sits beside it, dormant until the workflow coordinator that will own the
+  publication calls it. `git/base_sync/rewrite_handoffs.py` defines the frozen, data-only candidate and landed records
+  — the original and rewritten heads and trees, the branch, the base and remote readings, the worktree status, the
+  attempt's anchor, pull request, and stage, and the lease-pinned push's outcome, an uncertain answer included — with
+  no GitHub client, issue, pinned state, or callback in them. `rewrite_facts.py` reads a candidate and
+  `rewrite_transport.py` publishes exactly its rewritten head under its original lease once the checkout and the
+  remote, read again, refuse nothing. A head that left the candidate, a tree dirtied or made unreadable, a base ref
+  rewound so it no longer contains the tip the replay sits over, or a remote off the anchor refuses before anything is
+  sent; a remote already on the candidate is one of those, so a publication that landed is never pushed again, even
+  for the same frozen candidate. A base that only advanced still publishes. The lease refuses a remote moved after
+  that reading, and a push git answered with a failure is classified by reading the remote again. Nothing calls them
+  yet; the auto rebase still publishes through `base_sync/publication.py`.
 - The bare `HEAD` form is left for the one push that could name no commit at all: a gated push on an install running
   with `DECOMPOSE=off` whose checkout would not prove its own head. The switch keeps candidates out of the
   MEASUREMENT and not out of a push that knows what it is publishing, so the commit is named off the checkout there

@@ -46,6 +46,14 @@ _ATTEMPTS_OWNER = "orchestrator.git.base_sync.attempts"
 
 _TRANSFERS_OWNER = "orchestrator.git.base_sync.transfers"
 
+# The typed handoffs an automatic PR base rewrite crosses the git boundary as,
+# and the two owners that read and publish them.
+_REWRITE_OWNERS = (
+    "orchestrator.git.base_sync.rewrite_handoffs",
+    "orchestrator.git.base_sync.rewrite_facts",
+    "orchestrator.git.base_sync.rewrite_transport",
+)
+
 _OWNERS = (
     "orchestrator.git.base_sync.landed_recovery",
     "orchestrator.git.base_sync.landed_settlement",
@@ -72,7 +80,7 @@ _OWNERS = (
     _STATE_OWNER, _PERSISTENCE_OWNER, _OUTCOMES_OWNER, _SNAPSHOT_OWNER,
     _RECOVERY_OWNER, _STARTUP_OWNER, _ELIGIBILITY_OWNER, _PUBLICATION_OWNER,
     _GUARDS_OWNER, _PR_OWNER, _CONFLICTS_OWNER, _FROZEN_OWNER,
-    _ATTEMPTS_OWNER, _TRANSFERS_OWNER,
+    _ATTEMPTS_OWNER, _TRANSFERS_OWNER, *_REWRITE_OWNERS,
 )
 
 _MODULES = ("orchestrator.git.base_sync", *_OWNERS)
@@ -91,7 +99,9 @@ _FLAT_MODULES = (
 # workflow owners and their marker package may be reached. Every owner is typed by that vocabulary, so
 # this is also the exempt set the forbidden-prefix check below drops before it
 # looks for an inverted dependency. The pre-PR owner adds only the git envelope
-# its rebases run under and the repository spec they read their base ref off.
+# its rebases run under and the repository spec they read their base ref off,
+# and so do the rewrite handoffs and their readers: what they hand the workflow
+# is data, so nothing that reaches the GitHub layer may sit behind them.
 _ALLOWED_MODULES = (
     "orchestrator",
     "orchestrator.workflow",
@@ -104,7 +114,14 @@ _ALLOWED_MODULES = (
 _ALLOWED_ROOTS = (
     (_STATE_OWNER, ("orchestrator.git",)),
     (_PRE_PR_OWNER, ("orchestrator.config", "orchestrator.git")),
+    *(
+        (owner, ("orchestrator.config", "orchestrator.git"))
+        for owner in _REWRITE_OWNERS
+    ),
 )
+
+# The client library a handoff must never carry, named by its import root.
+_GITHUB_CLIENT_ROOT = "github"
 
 # Every owner outside that layer annotates its fields and arguments with the
 # composed GitHub client, which drags the analytics and usage graph in behind
@@ -129,6 +146,7 @@ _OWNER_ONLY_NAMES = (
     "_AutoRebaseRequest",
     "_PENDING_PUSH_SHA",
     "_PendingRewrite",
+    "_RewriteCandidate",
     "_auto_rebase_retry_decision",
     "_clears_the_attempt",
     "_fetch_recovery_snapshot",
@@ -136,6 +154,7 @@ _OWNER_ONLY_NAMES = (
     "_park_dirty_recovery",
     "_pending_rewrite",
     "_publish_auto_rebase",
+    "_publishes_the_candidate",
     "_recover_pending_auto_base_rebase",
     "_refresh_base_and_worktrees",
     "_reset_clear_and_park",
@@ -200,6 +219,19 @@ class LayeringTest(unittest.TestCase):
                         imported.startswith(_FORBIDDEN_PREFIXES),
                         f"{module} inverts the dependency via {imported}",
                     )
+
+    def test_rewrite_owners_load_no_github_client(self) -> None:
+        for owner in _REWRITE_OWNERS:
+            with self.subTest(module=owner):
+                planted = probe_import(owner).modules
+                self.assertFalse(
+                    any(
+                        name == _GITHUB_CLIENT_ROOT
+                        or name.startswith(f"{_GITHUB_CLIENT_ROOT}.")
+                        for name in planted
+                    ),
+                    f"{owner} loads the GitHub client library",
+                )
 
     def _imports_past_the_label_owner(self, module: str) -> list[str]:
         return [
