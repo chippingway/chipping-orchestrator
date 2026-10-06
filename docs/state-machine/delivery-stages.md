@@ -3880,7 +3880,11 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        beside the report records and the pull request pointer, before anything below is written — a comment that will
        not read ends the tick with nothing written, what the comment changed since the last reading is carried first,
        and a `verification_evidence_*` record moved there is a move as surely as a later report, since the approval
-       would rest on evidence no longer current; an empty command tuple returns `not_run`, which advances without
+       would rest on evidence no longer current -- and so are a review subject or `review_approved_evidence` moved,
+       and a `developer_report_owed` recorded, a debt the subject stands only without; a park or a `late_collapse_*`
+       record another road put down there ends the tick with nothing written and the verdict kept, since a human or
+       the squash recovery answers it and no write behind may clear or end it; an empty command tuple returns
+       `not_run`, which advances without
        being evidence that anything passed, and any other non-ok result parks — only where the subject and those
        records stood: a result about a subject that moved while it ran is recorded, not parked on — through the
        funnel a returned verdict's parks take (`review_parks.parks_over_the_subject`, worded by
@@ -3896,10 +3900,14 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        `SQUASH_ON_APPROVAL=off` a checkout ahead of the pull request is one `documenting` would publish as its own
        recovered docs work; a moved or dirty checkout records no approval and squashes nothing, and one nobody could
        read holds), and read the pinned comment behind that comment — held to the report records, `pr_number`,
-       `review_returned_verdict`, and the `verification_evidence_*` records in hand, and laid over the comment as read,
-       so a round spent or a run charged meanwhile is kept (`handoff._holds_its_records`): a push, an issue edit, a
-       later report or evidence revision, or a verdict put in place meanwhile squashes nothing and records no
-       approval, and the approval comment stays on the ledger wherever the comment reads. The evidence the held
+       `review_returned_verdict`, and the `verification_evidence_*` records in hand, and to the review subjects,
+       `review_approved_evidence`, `developer_report_owed`, the park, and the `late_collapse_*` records as the comment
+       carried them when the arc last read it, and laid over the comment as read, so a round spent or a run charged
+       meanwhile is kept (`handoff._holds_its_records`): a push, an issue edit, a later report or evidence revision, a
+       report recorded owed, a verdict put in place, or a park or collapse record another road put down meanwhile
+       squashes nothing and records no approval -- the approval's verdict kept waiting behind a park or a collapse
+       record, and retired behind anything else the approval was proved over -- and the approval comment stays on the
+       ledger wherever the comment reads. The evidence the held
        verdict was proved over is proved again behind the comment as it is behind the gate
        (`handoff._Held.evidence_stands`), since its artifact can be deleted or edited on the pull request where no
        record shows it: evidence that no longer proves retires the verdict and squashes nothing, and evidence nobody
@@ -3958,14 +3966,18 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        hold is a reflog entry nobody could look in, and one still reachable from HEAD was never rewritten at all.
        Once the squash returns, before that park and before anything below — the write a held squash makes included —
        the pinned comment is read again and has to carry the report records, `pr_number`, `review_returned_verdict`,
-       and the `verification_evidence_*` records the state in hand carries (`handoff._holds_its_records`): the rewrite
-       and its force-push are time another road can settle a later report or evidence revision, repoint the issue, or
-       replace the verdict in. Where it moved them, nothing more is posted and the label stays: the one write is the
-       comment as read with the ledger entries of what the tail posted and the approval's own verdict set to `null`,
-       and the collapse the squash recorded is the next tick's recovery to finish, over what the comment carries then;
-       one that will not read writes nothing. The squash's own writes — the collapse record ahead of its rewrite, the
-       size gate's — carry the state in hand whole, and its reply does not say whether it made any, so its gate is
-       handed a client that guards and follows them (`squash_writes`). Each is held first to the same records,
+       and the `verification_evidence_*` records the state in hand carries, and the review subjects,
+       `review_approved_evidence`, `developer_report_owed`, the park, and the `late_collapse_*` records as the tail
+       last read or wrote them (`handoff._holds_its_records`): the rewrite and its force-push are time another road
+       can settle a later report or evidence revision, record a report owed, repoint the issue, replace the verdict,
+       park the issue, or record a squash in. Where it moved them, nothing more is posted and the label stays: the
+       one write is the comment as read with the ledger entries of what the tail posted -- and the approval's own
+       verdict set to `null`, save behind a park or a collapse record another road put down, which keeps it waiting
+       for the human or the recovery that answers it -- and the collapse the squash recorded is the next tick's
+       recovery to finish, over what the comment carries then; one that will not read writes nothing. The squash's
+       own writes — the collapse record ahead of its rewrite, the size gate's — carry the state in hand whole, and its
+       reply does not say whether it made any, so its gate is handed a client that guards and follows them
+       (`squash_writes`). Each is held first to the same records,
        laid over the comment as read then, and landed as a guarded commit, exactly as the tail's own writes are, and
        one whose records moved or whose commit did not land is
        refused the way a write GitHub refuses is: the record ahead of the rewrite is not made and nothing is
