@@ -121,11 +121,12 @@ class PinnedState:
     next one while every field another writer moved meanwhile is kept as that
     writer left it.
 
-    ``withheld`` is set on a state a guarded commit did not land over -- one
-    refused over a comment that moved, or one sent and never confirmed: the
-    comment is not, or may not be, what the state was decided on, so the
-    whole-state writer writes nothing for it rather than put back everything
-    another road wrote since. A guarded commit that lands clears it.
+    ``withheld`` is set on a state the developer report's guarded commit did
+    not land over (`workflow/engine/report_commits.py`) -- one refused over a
+    comment that moved, or one sent and never confirmed: the comment is not,
+    or may not be, what the state was decided on, so the whole-state writer
+    writes nothing for it rather than put back everything another road wrote
+    since. A report commit that lands clears it.
     """
 
     comment_id: int | None = None
