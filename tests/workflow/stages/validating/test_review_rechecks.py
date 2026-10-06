@@ -33,6 +33,7 @@ from orchestrator import config
 from orchestrator.github.developer_reports import content_digest
 from orchestrator.workflow.engine import (
     comments as _comments,
+    pinned_commit as _pinned_commit,
     prompt_context as _prompt_context,
     report_records as _records,
     report_settled_reading as _settled_reading,
@@ -128,12 +129,91 @@ _REPOINTS = (
     ("while its subject is resolved again", _REQUIREMENTS_READ, 1),
 )
 
+# The guarded commit a round's writes land through: the first the one recording
+# its launch, and the second, where its reviewer left no verdict, the one
+# recording its park. A write landing ahead of either is behind the reading
+# the commit was decided on, where no request of the round's own leaves room.
+_GUARDED_COMMIT = (_pinned_commit, "commit")
+
 # When another road's run lands beside a round, as the seam its write lands
-# behind: while the reviewer runs, and while the report its subject is resolved
-# from is read, right before the reading the round is bound to.
+# behind: while the reviewer runs, while the report its subject is resolved
+# from is read, right before the reading the round is bound to, and right
+# ahead of the commit recording its launch.
 _RUNS_BESIDE = (
     ("while the reviewer ran", None),
     ("while its subject was resolved", (_settled_reading, "carried_text")),
+    ("ahead of its launch's commit", _GUARDED_COMMIT),
+)
+
+# The park a timed-out reviewer leaves, which the next tick retries silently.
+TIMED_OUT_PARK = "reviewer_timeout"
+
+# What a reviewer that left no verdict returns: one timed out, and one whose
+# reply carries no VERDICT line, which a human answers.
+_NO_VERDICT = (
+    ("timed out", _agent(session_id=LATE_REVIEWER, timed_out=True), TIMED_OUT_PARK),
+    ("no verdict line", _agent(session_id=LATE_REVIEWER, last_message="Looks fine to me."), None),
+)
+
+# Where the pinned comment records a park.
+AWAITING_HUMAN = world.AWAITING_HUMAN
+
+PARK_REASON = world.PARK_REASON
+
+# Another road's write right ahead of a commit of the round's own, behind the
+# reading the commit was decided on: a later report settled on the same head,
+# the issue pointed at another pull request, and a verdict another round
+# persisted.
+_MOVES = (
+    (
+        "a later report",
+        lambda case: _published_reports.republishes_the_report(case.github, case.issue, world.SECOND_REPORT),
+    ),
+    ("a repoint", partial(world.restate, pr_number=OTHER_PR)),
+    ("another round's verdict", partial(world.restate, review_returned_verdict={"round": 7, "verdict": "approved"})),
+)
+
+
+def _replaces_the_subject(case) -> None:
+    """Another road recording, as the subject the latest reviewer was handed, one on a head nobody reviewed."""
+    handed = case.pinned()[world.REVIEWED]
+    world.restate(case, **{world.REVIEWED: {**handed, "sha": PUSHED_HEAD}})
+
+
+# A round repeated over a park a reply answered -- the issue read parked under
+# its reason, and a reviewer launched again over the subject the last round
+# already recorded -- with another road's write right ahead of one of its
+# commits: the park the issue was read under, how many commits of the tick go
+# by first, and the reviewer it runs; and how many reviewers that tick runs.
+# The spec or the subject replaced ahead of the launch, which stages both as the
+# comment already spells them; and the park cleared ahead of the park a
+# timed-out or verdict-less reviewer takes, which stages its flags as the
+# parked reading already spelled them.
+_REPEATED = (
+    (
+        "the spec replaced ahead of the launch",
+        partial(world.restate, review_agent="another-reviewer"),
+        (TIMED_OUT_PARK, 0, REVIEW_APPROVED_MESSAGE),
+        0,
+    ),
+    (
+        "the subject replaced ahead of the launch",
+        _replaces_the_subject,
+        (TIMED_OUT_PARK, 0, REVIEW_APPROVED_MESSAGE),
+        0,
+    ),
+    (
+        "the park cleared ahead of a timed-out reviewer's park",
+        partial(world.restate, **{AWAITING_HUMAN: False, PARK_REASON: None}),
+        (TIMED_OUT_PARK, 1, _NO_VERDICT[0][1]),
+        1,
+    ),
+    (
+        "the park cleared ahead of a verdict-less reviewer's park",
+        partial(world.restate, **{AWAITING_HUMAN: False, PARK_REASON: None}),
+        ("reviewer_unrecorded", 1, _NO_VERDICT[1][1]),
+        1,
+    ),
 )
 
 
@@ -162,34 +242,6 @@ class _FirstTimeThrough:
         return self._answer
 
 
-def _unpairs(case) -> None:
-    """Restate the handoff beside the current report as one revision on.
-
-    What a hand edit, or a write that landed half, leaves: the two records a
-    settlement writes together no longer describe the same report, and
-    neither says which revision is the latest.
-    """
-    handoff = dict(case.pinned()[_records.REPORT_HANDOFF])
-    world.restate(case, **{
-        _records.REPORT_HANDOFF: {**handoff, "revision": handoff["revision"] + 1},
-    })
-
-
-def _runs_beside(case) -> None:
-    """Another road's run beside the reviewer's, charged and folded, and the notice it posted and read through.
-
-    The notice's id is kept as `case.theirs`.
-    """
-    state = case.github.read_pinned_state(case.issue)
-    case.theirs = case.github.comment(case.issue, "another road's notice").id
-    for spent, by in zip(SPENT, (1, 1, THEIR_TOKENS), strict=True):
-        state.set(spent, state.get(spent) + by)
-    state.set(COST_SOURCES, sorted({*state.get(COST_SOURCES), UNPRICED}))
-    state.set(THREAD_MARK, case.theirs)
-    _comments._track_orchestrator_comment(state, case.theirs)
-    case.github.write_pinned_state(case.issue, state)
-
-
 class _ApprovedReports(world._ReviewedReports):
     """The approval of the first report, where each case needs to find it."""
 
@@ -206,6 +258,51 @@ class _ApprovedReports(world._ReviewedReports):
         self.reported_round(world.FIRST_REPORT)
         self.reviewed(REVIEW_APPROVED_MESSAGE)
         self.documented()
+
+    def _unpairs(self) -> None:
+        """Restate the handoff beside the current report as one revision on.
+
+        What a hand edit, or a write that landed half, leaves: the two records a
+        settlement writes together no longer describe the same report, and
+        neither says which revision is the latest.
+        """
+        handoff = dict(self.pinned()[_records.REPORT_HANDOFF])
+        world.restate(self, **{
+            _records.REPORT_HANDOFF: {**handoff, "revision": handoff["revision"] + 1},
+        })
+
+    def _runs_beside(self, *_case) -> None:
+        """Another road's run beside the reviewer's, charged and folded, and the notice it posted and read through.
+
+        The notice's id is kept as `theirs`.
+        """
+        state = self.github.read_pinned_state(self.issue)
+        self.theirs = self.github.comment(self.issue, "another road's notice").id
+        for spent, by in zip(SPENT, (1, 1, THEIR_TOKENS), strict=True):
+            state.set(spent, state.get(spent) + by)
+        state.set(COST_SOURCES, sorted({*state.get(COST_SOURCES), UNPRICED}))
+        state.set(THREAD_MARK, self.theirs)
+        _comments._track_orchestrator_comment(state, self.theirs)
+        self.github.write_pinned_state(self.issue, state)
+
+    def _raced(self, change, reviewer, seam, *, passes: int = 0):
+        """One validating tick whose reviewer returns `reviewer`, with `change` made to the comment beside it.
+
+        `reviewer` is the result, or the final message of one. Made behind
+        `seam` -- an owner and the name of the step on it -- once `passes`
+        earlier calls of it have gone by, or, where there is none, while the
+        reviewer runs.
+        """
+        if isinstance(reviewer, str):
+            reviewer = _agent(session_id=LATE_REVIEWER, last_message=reviewer)
+        if seam is None:
+            return self._ticked(
+                self._run_validating, MagicMock(side_effect=_FirstTimeThrough(change, reviewer)), committed=False,
+            )
+        owner, name = seam
+        stepped = _FirstTimeThrough(change, getattr(owner, name), passes=passes)
+        with patch.object(owner, name, stepped):
+            return self._ticked(self._run_validating, [reviewer], committed=False)
 
 
 class ReviewRecheckTest(unittest.TestCase, _ApprovedReports):
@@ -242,6 +339,43 @@ class ReviewRecheckTest(unittest.TestCase, _ApprovedReports):
                 (config.REVIEW_AGENT_SPEC, handed),
             )
         self.assertNotEqual(self.pinned().get(LAST_REVIEWER), LATE_REVIEWER)
+
+    def test_a_lost_launch_runs_one_reviewer(self) -> None:
+        # The commit recording the reviewer's launch lands and its response
+        # is lost: no reviewer is spawned behind a launch nobody confirmed,
+        # and nothing is charged. The next tick finds the launch recorded,
+        # commits it again with nothing sent, and runs exactly one reviewer,
+        # charged and folded once.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.reported_round(world.FIRST_REPORT)
+        before = self.pinned()
+        self.github.pinned_failures.lost.add(ISSUE)
+
+        unconfirmed = self._ticked(self._run_validating, [], committed=False)
+        self.github.pinned_failures.lost.discard(ISSUE)
+        recorded = self.pinned()
+        relaunched = self._ticked(
+            self._run_validating, [_agent(session_id=LATE_REVIEWER, last_message=REVIEW_APPROVED_MESSAGE)],
+            committed=False,
+        )
+
+        self.assertEqual(
+            (
+                unconfirmed[RUN_AGENT].call_count,
+                [recorded[field] - before[field] for field in SPENT],
+                recorded[world.REVIEWED] != before.get(world.REVIEWED),
+            ),
+            (0, [0, 0, 0], True),
+        )
+        relaunched_over = self.pinned()
+        self.assertEqual(
+            (
+                relaunched[RUN_AGENT].call_count,
+                [relaunched_over[field] - before[field] for field in SPENT[:2]],
+                self.github.label_history[-1],
+            ),
+            (1, [1, 1], DOCUMENTED),
+        )
 
     def test_a_report_settled_at_handoff_is_kept(self) -> None:
         # A squash handoff whose relabel did not land, under an approval of
@@ -393,7 +527,7 @@ class SettledPairTest(unittest.TestCase, _ApprovedReports):
         # past a reviewer, the record goes, and the reviewer round refuses.
         self._approved_and_relabelled()
         world.restate(self, **{HANDOFF_SHA: self.pull_request.head.sha})
-        _unpairs(self)
+        self._unpairs()
 
         self.assert_refused(self.reviewed(), _review_report._STALE)
 
@@ -416,7 +550,7 @@ class SettledPairTest(unittest.TestCase, _ApprovedReports):
             state, head=_fix_world.PUBLISHED_HEAD, base_sha=COLLAPSE_BASE, count=2,
         )
         self.github.write_pinned_state(self.issue, state)
-        _unpairs(self)
+        self._unpairs()
 
         recovered = self._ticked(
             self._run_validating,
@@ -456,12 +590,12 @@ class SettledPairTest(unittest.TestCase, _ApprovedReports):
     def _unpaired_in_review(self, when: str) -> None:
         """One `in_review` tick, over a pair unpaired at the moment `when` names."""
         if when == BEFORE_THE_TICK:
-            _unpairs(self)
+            self._unpairs()
             self.in_review_tick()
             return
         with patch.object(
             self.github, "pr_is_mergeable",
-            _FirstTimeThrough(partial(_unpairs, self), True),
+            _FirstTimeThrough(self._unpairs, True),
         ):
             self.in_review_tick()
 
@@ -485,7 +619,7 @@ class ReturnRaceTest(unittest.TestCase, _ApprovedReports):
                 self.reported_round(world.FIRST_REPORT)
                 before = self.pinned()
 
-                self._raced(partial(_runs_beside, self), REVIEW_APPROVED_MESSAGE, seam)
+                self._raced(self._runs_beside, REVIEW_APPROVED_MESSAGE, seam)
 
                 self._keeps_both_runs(before)
 
@@ -562,22 +696,117 @@ class ReturnRaceTest(unittest.TestCase, _ApprovedReports):
         repoints = partial(world.restate, self, pr_number=OTHER_PR)
         return self._raced(repoints, message, seam, passes=passes)
 
-    def _raced(self, change, message: str, seam, *, passes: int = 0):
-        """One validating tick whose reviewer returns `message`, with `change` made to the comment beside it.
 
-        Made behind `seam` -- an owner and the name of the step on it -- once
-        `passes` earlier calls of it have gone by, or, where there is none,
-        while the reviewer runs.
-        """
-        reviewer = _agent(session_id=LATE_REVIEWER, last_message=message)
-        if seam is None:
-            return self._ticked(
-                self._run_validating, MagicMock(side_effect=_FirstTimeThrough(change, reviewer)), committed=False,
-            )
-        owner, name = seam
-        stepped = _FirstTimeThrough(change, getattr(owner, name), passes=passes)
-        with patch.object(owner, name, stepped):
-            return self._ticked(self._run_validating, [reviewer], committed=False)
+
+class RoundCommitTest(unittest.TestCase, _ApprovedReports):
+    """A round's launch and a return's park land through guarded commits, over what another road wrote ahead of them."""
+
+    def test_a_move_ahead_of_the_launch_spawns_nobody(self) -> None:
+        # Another road settles a later report, points the issue at another
+        # pull request, or persists another round's verdict right ahead of
+        # the commit recording the reviewer's launch -- behind the reading the
+        # round was bound to: the commit is refused, no reviewer runs, nothing
+        # is posted or relabelled, and the comment stays exactly as that road
+        # left it, for the next tick to answer.
+        for name, road in _MOVES:
+            with self.subTest(name):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.reported_round(world.FIRST_REPORT)
+
+                mocks = self._raced(partial(self._leaves_behind, road), REVIEW_APPROVED_MESSAGE, _GUARDED_COMMIT)
+
+                self.assertEqual(
+                    (mocks[RUN_AGENT].call_count, self._left(), self.github.workflow_label(self.issue)),
+                    (0, self.left_behind, LABEL_VALIDATING),
+                )
+
+    def test_a_return_park_keeps_another_roads_run(self) -> None:
+        # A reviewer times out, or leaves no verdict line, and another road
+        # charges and folds a run of its own, reading the thread through a
+        # notice it posted, right ahead of the commit recording the park --
+        # behind the park's own notice: the park lands over it with the
+        # reviewer's session recorded, both runs charged and folded once
+        # each, that road's tokens and cost tag kept, the thread read as far
+        # as that road read it, and its notice recorded as the orchestrator's.
+        for name, reviewer, reason in _NO_VERDICT:
+            with self.subTest(name):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.reported_round(world.FIRST_REPORT)
+                before = self.pinned()
+
+                self._parks_behind(self._runs_beside, reviewer)
+
+                pinned = self.pinned()
+                self.assertEqual(
+                    (
+                        (pinned[AWAITING_HUMAN], pinned[PARK_REASON], pinned[LAST_REVIEWER]),
+                        [pinned[field] - before[field] for field in SPENT],
+                        (pinned[COST_SOURCES], pinned[THREAD_MARK]),
+                    ),
+                    (
+                        (True, reason, LATE_REVIEWER),
+                        [2, 2, THEIR_TOKENS],
+                        (sorted({*before[COST_SOURCES], UNPRICED}), self.theirs),
+                    ),
+                )
+                self.assertLessEqual(
+                    {*before[LEDGER], self.theirs}, set(pinned[LEDGER]),
+                )
+
+    def test_a_move_ahead_of_a_return_park_lands_none(self) -> None:
+        # Another road settles a later report, points the issue at another
+        # pull request, or persists another round's verdict right ahead of
+        # the commit recording a timed-out or verdict-less reviewer's park:
+        # no park lands, and nothing the tick holds is written over what that
+        # road left. The notice is on the thread, and the next tick spawns a
+        # reviewer over the comment as it stands.
+        for no_verdict, move in itertools.product(_NO_VERDICT, _MOVES):
+            with self.subTest(no_verdict[0], move=move[0]):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.reported_round(world.FIRST_REPORT)
+
+                self._parks_behind(move[1], no_verdict[1])
+
+                self.assertEqual(self.pinned(), self.left_behind[0])
+
+    def test_a_repeated_round_holds_its_own_records(self) -> None:
+        # A reply answers the park a round left, and the round runs again over
+        # the subject the comment already records, so its launch stages the
+        # spec and subject, and the park it takes its flags, exactly as the
+        # comment spells them. Each commit is still decided on them: another
+        # road replacing the spec or the subject ahead of the launch spawns no
+        # reviewer, and one clearing the park ahead of a timed-out or
+        # verdict-less reviewer's park lands no record of it -- either way the
+        # comment stays exactly as that road left it.
+        for name, road, raced, runs in _REPEATED:
+            with self.subTest(name):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.reported_round(world.FIRST_REPORT)
+                self._ticked(self._run_validating, [_NO_VERDICT[0][1]], committed=False)
+                self.replies_to_a_park(reply="/orchestrator continue", reason=raced[0])
+
+                mocks = self._raced(
+                    partial(self._leaves_behind, road), raced[2], _GUARDED_COMMIT, passes=raced[1],
+                )
+
+                self.assertEqual(
+                    (mocks[RUN_AGENT].call_count, self.pinned()), (runs, self.left_behind[0]),
+                )
+
+    def _parks_behind(self, road, reviewer) -> None:
+        """One tick whose `reviewer` left no verdict, with `road` landing right ahead of its park's commit."""
+        self._raced(partial(self._leaves_behind, road), reviewer, _GUARDED_COMMIT, passes=1)
+
+    def _leaves_behind(self, road, *_case) -> None:
+        """`road`'s work on this case, and what it left kept as `left_behind` (`_left`)."""
+        road(self)
+        self.left_behind = self._left()
+
+    def _left(self) -> tuple:
+        """The pinned comment, and how many comments the issue and the pull request were posted."""
+        posted = (len(self.github.posted_comments), len(self.github.posted_pr_comments))
+        return self.pinned(), *posted
+
 
 if __name__ == "__main__":
     unittest.main()

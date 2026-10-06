@@ -399,11 +399,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             cannot keep both roads' moves of its field, refused as an owned conflict
     pinned_commit.py        the guarded commit itself, through which the verification-evidence publication and
                             settlement, the evidence reconciliation's retirements, `validating`'s invalidation of an
-                            unanswered carry, and the developer report's recording, binding, publication preflight
+                            unanswered carry, the developer report's recording, binding, publication preflight
                             and settlement, the reconciliation's drops and damage-park retirement, the park a refused
-                            recording or binding takes, and the fixing recovery's release (`report_commits.py`)
-                            commit so far, while every other road still writes its whole state -- the approval
-                            squash's own invalidations among them: a candidate derived over a fresh reading of the
+                            recording or binding takes, and the fixing recovery's release (`report_commits.py`),
+                            and a reviewer round's launch, its no-verdict parks, the verdict persisted with its
+                            transaction, the verdict's drops, and the parks a verdict takes
+                            (`stages/validating/review_writes.py`) commit so far, while every other road still writes
+                            its whole state -- the approval squash's own invalidations and a change request's handoff
+                            among them: a candidate derived over a fresh reading of the
                             captured comment rather than written from the caller's state. A
                             write the caller did not declare refuses before anything is read; an unreadable,
                             unparsed, or replaced comment, a prerequisite spelled otherwise, and an owned field
@@ -452,7 +455,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             road whose own requests ran over the comment -- a report posted or re-read -- and that
                             leaves without a write of this domain's landing asks `withholds` the same question with
                             no outcome: a comment another road wrote meanwhile withholds the state, and one still
-                            reading as the tick synced with leaves it to be written
+                            reading as the tick synced with leaves it to be written. A validating reviewer round's
+                            writes land through the same guard, each declaring its own `ReportWrite`
+                            (`stages/validating/review_writes.py`)
     report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
                             `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
                             report ready for publication, and a report asserted to be on the pull request at a URL
@@ -3575,14 +3580,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             for a developer, and owed to that reply whether or not the park outlived the tick that
                             cleared it -- and about the note a deferral left, which that round discharges -- and the
                             verdict fan-out: a timeout or a missing verdict parks with the run's return recorded by the
-                            park's own write, and an approval or a change request goes to `review_disposition.py`, which
+                            park's own guarded commit, prepared before its notice (`review_writes.parks_the_return`),
+                            and an approval or a change request goes to `review_disposition.py`, which
                             records that return over its own last reading, so the usage is folded once. The developer
                             report is resolved through `review_report.py` ahead of the spawn and the subject it yields
-                            written beside the reviewer spec before the spawn, onto the comment as that resolution read
-                            it, through `review_records.py`, once that reading is laid over the state the tick holds,
-                            measured from the comment as the tick read it, so a run another road charged and folded or a
+                            committed beside the reviewer spec before the spawn, over the comment as that resolution
+                            read it (`review_writes.lands_the_launch`) -- decided on the report records, the pull
+                            request, the returned-verdict record, and the spec and subject themselves there, so one
+                            that moved, a comment that will not read, or an edit never confirmed spawns no reviewer --
+                            once that reading is laid over the
+                            state the tick holds, measured from the comment as the tick read it, and what the commit
+                            landed over laid over it behind that, so a run another road charged and folded or a
                             notice it posted while the subject was resolved is kept by every write of the round; behind
-                            that write the verification evidence current for exactly that subject is asked through
+                            that commit the verification evidence current for exactly that subject is asked through
                             `review_evidence.py` and handed to the prompt beside the report; the launch charge written
                             behind it is taken into that reading as well, so a later charge another road writes is never
                             mistaken for this round's own and written back over; the pinned comment is read again
@@ -3721,8 +3731,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             add-agent-runs` a grant left unread, and the ratchet that never regresses one
       requested_changes.py  the PR feedback and `workflow:fixing`-labeled dev fix, its report disposed of through
                             `fix_reports.py` and bound behind the round and the relabel -- its record carrying the
-                            fixing stage's settled-round mark for a relabel that never lands -- plus the no-VERDICT park
-                            and the split that tells a provider's failure from a reviewer's. The feedback post answers
+                            fixing stage's settled-round mark for a relabel that never lands -- plus the no-VERDICT
+                            park, landing with the run's records through `review_writes.parks_the_return`, and the
+                            split that tells a provider's failure from a reviewer's. The feedback post answers
                             the id it landed as, or nothing where it had no pull request to go on, failed, or named no
                             positive whole comment id, and leaves that anchor to its caller: the persisted request's
                             handoff (`review_handoffs.py`), the one road posting it, goes on only behind one and stages
@@ -3941,10 +3952,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             parks nothing, so `review_coverage.py` takes it again
       review_comment.py     the pinned comment a review is bound to. The subject is resolved from the state the tick
                             read when it began, so the comment is read once it is resolved and has to carry the same
-                            report records, and point the issue at the same pull request: a later report settled in
-                            between -- on the very head, by another road -- is there and nowhere in hand, while the
-                            report the tick resolved still reads intact, and a subject resolved at one pull request
-                            bound to a comment naming another would be judged over the wrong one. Where it does not,
+                            report records and returned-verdict record, and point the issue at the same pull request: a
+                            later report settled in between -- on the very head, by another road -- is there and
+                            nowhere in hand, while the report the tick resolved still reads intact, a subject resolved
+                            at one pull request bound to a comment naming another would be judged over the wrong one,
+                            and a verdict another road persisted is a later tick's to finish. Where it does not,
                             the comment will not read or parse, or the fresh reading is another comment than the one
                             the state was read from -- replaced or gone, whose write would pin a second one -- nothing
                             is handed over and the tick ends WITHOUT writing, since any write would put the replaced
@@ -3964,7 +3976,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             hand -- a later report, evidence another road recorded or settled, a round a reply bought,
                             a run another road charged -- save, where the records stand, a field the tick changed too,
                             which its own write says; another comment or an unread one carries nothing and the tick
-                            writes nothing. A field both roads changed keeps both changes where they add up or only
+                            writes nothing. The writes behind the reviewer's return, the disposition, and the parks it
+                            asks for are guarded commits captured over the reading this hands back
+                            (`review_writes.py`), so what the comment changes after it is kept as well, or refuses
+                            them. A field both roads changed keeps both changes where they add up or only
                             advance -- the usage totals, their cost tags, a comment-id watermark, each only as its
                             writers spell it (`state.py`) -- and the ledger of the orchestrator's own comments is
                             merged rather than carried or kept whole, an id either side recorded kept once among the
@@ -4024,8 +4039,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             over; a reading nobody could take is told apart from a subject that moved, so a persisted
                             verdict is held rather than dropped. Nothing here parks or posts
       review_records.py     what a reviewer round writes onto the pinned comment, through writers the round and the
-                            report settlement's measurement share: the spec and the subject it is handed, written ahead
-                            of the spawn -- onto the comment as `review_report.py` read it, since the launch charge
+                            report settlement's measurement share -- staging only, the round's own writes landing
+                            through `review_writes.py`: the spec and the subject it is handed, committed ahead
+                            of the spawn -- over the comment as `review_report.py` read it, since the launch charge
                             writes only its own fields and the state in hand carries what only the round's own write may
                             land -- and the session, return time and returned subject it leaves; and the reservation of
                             the whole round at its widest (spec, subject, launch charge, session, return time, returned
@@ -4033,6 +4049,31 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             write to. The usage meters the return folds are left out: running totals every run folds,
                             already on the comment from the developer run whose report it is wherever that run's usage
                             parsed
+      review_writes.py      the guarded commits (`engine/pinned_commit.py`) a reviewer round's writes land through,
+                            under the developer report's tick-state guard (`engine/report_commits.py`): each captured
+                            over the reading the tick last synced with -- which every reading of the round lays its
+                            moves into -- owning what the tick staged since beside the fields it declares, and keeping
+                            both moves of a usage total, its cost tags, a comment-id watermark, and the comment-id
+                            ledger. The launch (`lands_the_launch`) is captured over the reading its subject was bound
+                            to rather than the state in hand, and owns the spec and the subject it is handed; a
+                            return's own records (`RETURN`), and the park a reviewer that left no verdict takes with
+                            them (`parks_the_return`, prepared before its notice with what posting it writes reserved
+                            at its widest), are decided on the report records, `pr_number`, and the returned-verdict
+                            record; a verdict persisted with its transaction (`lands_the_verdict`, staged on a copy and
+                            held to the room its handoff and the transaction's settlement reserve over the very
+                            candidate sent -- no room answers as unrecorded), its drop (`DROP`), and a verdict's park
+                            (`PARK`, prepared before its notice by `parks_over`, over the comment as it stands with
+                            the run's records left out where only room refused it) on those and the
+                            `verification_evidence_*` records besides (`VERDICT_STANDS_ON`). Each is decided as well
+                            on the fields of its own it may stage exactly as the comment already spells them -- the
+                            launch's spec and subject, a return's subject, a park's flags -- since the commit tells a
+                            write's moves by their difference from the capture, and a launch repeated over a recorded
+                            subject, or a park a reply-bought round takes over a parked reading, would otherwise land
+                            beside another road's spec, subject, or cleared park. A record that moved, an
+                            owned field another road moved, a comment that will not read, parse, or is not the one
+                            read, or a candidate past what one comment holds refuses the write with nothing written,
+                            and nothing that depends on it is made; an edit never confirmed acts on nothing either, the
+                            records it may have left settling it on a later tick
       review_evidence.py    the current verification evidence a reviewer is handed, asked by `reviewer.py` once the
                             launch has recorded the round's subject: only a record bound to exactly the subject it is
                             about to review -- pull request, head, requirements, and the report's revision and digest,
@@ -4080,7 +4121,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             stands with the pinned comment read again behind that resolution -- an evidence record moved
                             since refusing it as a report does -- then stages the run's own records over that reading,
                             its usage folded over whatever usage another road folded meanwhile, the last requests before
-                            the verdict is persisted with its minted transaction in one write -- or, where the record
+                            the verdict is persisted with its minted transaction in one guarded commit
+                            (`review_writes.lands_the_verdict`), which a record moved after that reading refuses with
+                            nothing written or published, and an edit never confirmed leaves for a later tick to finish
+                            from the records it may have left -- or, where the record
                             would not read back as written or the comment has no room for either, nothing written or
                             published and an answer that says which (`review_parks.UNREADABLE`, `review_parks.NO_ROOM`),
                             which parks under `reviewer_unrecorded` -- then publishes that transaction through the
@@ -4100,8 +4144,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and a refusal -- or a declaration that earned no evidence, parked with no proof asked --
                             parks it under `reviewer_unverified` only once the approval is held to its subject and claim
                             again, measured from the comment its readiness was proved over, a move there dropping it for
-                            a fresh reviewer instead. Every write is composed over the comment as read just before it,
-                            keeping what another road wrote there, and drops only ever the verdict it holds. The
+                            a fresh reviewer instead. Every write is a guarded commit captured over the comment as read
+                            just before it (`review_writes.py`), keeping what another road wrote there before or after
+                            that reading, refused where a record it was decided on moved, and drops only ever the
+                            verdict it holds. The
                             feedback a verdict is persisted with -- what a change request posts and hands its developer,
                             in that tick or from the record on a later one -- is the reviewer's findings formatted
                             through `engine/review_findings.py` only once the declaration has been read off the run's
@@ -4246,9 +4292,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             there, like a push, lands no park and drops only the verdict held, over the newer records,
                             whether or not the notice left an id, while -- where nothing proved a move -- a subject that
                             would not read, or a notice that left no id, lands none either and leaves the verdict
-                            waiting. That write is composed over the comment as it stands, so a field another road wrote
-                            behind the notice -- a round spent -- is kept, measured again once it carries what moved,
-                            and not made where another road's write left no room. Only a park that lands sets its flags,
+                            waiting. That write is the park's guarded commit (`review_writes.PARK`), over the comment as
+                            it stands, so a field another road wrote behind the notice -- a round spent -- is kept,
+                            measured again once it carries what moved, and not made where another road's write left no
+                            room or moved a record the park was decided on after its last reading. The measurement
+                            before the notice is the same commit prepared (`review_writes.parks_over`). Only a park that
+                            lands sets its flags,
                             drops the verdict it holds -- a `reviewer_unrecorded` park holds none, and leaves whatever
                             record stands there as it is, and a `reviewer_unverified` park holds only the approval of
                             its run's round and subject, posting and writing nothing where that is not what waits -- and

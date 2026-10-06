@@ -32,18 +32,19 @@ from orchestrator import config as _config
 from orchestrator.workflow.stages.validating import (
     review_claims as _claims,
     review_disposition as _disposition,
+    review_parks as _parks,
     review_verdicts as _verdicts,
 )
 from tests.workflow.reviewed_reports import restate
 from tests.workflow.stages.validating import (
     disposed_verdict_test_support as _disposed,
+    review_park_test_support as _parked,
     review_verdict_readings as _read,
     review_verdict_test_support as _world,
+    review_write_test_support as _roads,
 )
 
 REREAD = "reread_report_location"
-
-PINNED_WRITE = "write_pinned_state"
 
 # The strict edit the evidence settlement's guarded commit lands through.
 PINNED_EDIT = "edit_pinned_state"
@@ -240,25 +241,25 @@ _ONCE_WRITTEN = (
     (
         "later evidence behind the verdict's write",
         lambda _case: _world.declared_run(),
-        (PINNED_WRITE, _CARRIES_THE_VERDICT, _read.settles_evidence),
+        (PINNED_EDIT, _CARRIES_THE_VERDICT, _read.settles_evidence),
         (None, False, 1, 2, 0),
     ),
     (
         "a push beside a reply behind a reuse's write",
         lambda case: REUSING.format(digest=_read.settles_evidence(case).content_revision),
-        (PINNED_WRITE, _CARRIES_THE_VERDICT, partial(_answers_a_reply, moves=(_world.pushes,))),
+        (PINNED_EDIT, _CARRIES_THE_VERDICT, partial(_answers_a_reply, moves=(_world.pushes,))),
         (None, False, 1, 1, 1),
     ),
     (
         "later evidence behind a reuse's write",
         lambda case: REUSING.format(digest=_read.settles_evidence(case).content_revision),
-        (PINNED_WRITE, _CARRIES_THE_VERDICT, _read.settles_evidence),
+        (PINNED_EDIT, _CARRIES_THE_VERDICT, _read.settles_evidence),
         (None, False, 1, 2, 0),
     ),
     (
         "a push behind a change request's write",
         lambda _case: UNDECLARED_REQUEST,
-        (PINNED_WRITE, _CARRIES_THE_VERDICT, _world.pushes),
+        (PINNED_EDIT, _CARRIES_THE_VERDICT, _world.pushes),
         (None, False, 1, None, 0),
     ),
     (
@@ -284,21 +285,9 @@ _WHILE_IT_WAITED = (
 # The writes behind which another road clears the verdict or puts its own in
 # its place: the one persisting it, and the commit settling its evidence.
 _REPLACED_BEHIND = (
-    ("the verdict's write", PINNED_WRITE, _CARRIES_THE_VERDICT),
+    ("the verdict's write", PINNED_EDIT, _CARRIES_THE_VERDICT),
     ("the settlement", PINNED_EDIT, _SETTLED),
 )
-
-
-class _RefusesTheVerdict:
-    """A pinned-comment write GitHub refuses wherever it carries a returned verdict, and takes otherwise."""
-
-    def __init__(self, writes) -> None:
-        self._writes = writes
-
-    def __call__(self, issue, state):
-        if _CARRIES_THE_VERDICT(state):
-            raise RuntimeError("GitHub refused the edit")
-        return self._writes(issue, state)
 
 
 def _leaves(case, *, replaces: bool) -> None:
@@ -328,6 +317,39 @@ def _restores_and_settles(case) -> None:
     _world.reconciles(case)
 
 
+# The ledger of the orchestrator's own comments, and a notice another road
+# posts and records there.
+LEDGER = "orchestrator_comment_ids"
+
+ANOTHER_NOTICE = 1_999_002
+
+# Another road's write right ahead of the commit persisting a verdict, behind
+# the last reading the verdict was decided on, and what preparing it answers:
+# a later report or evidence settled, a verdict of that road's own or one
+# written `null` where there was none, a repoint, or the comment unparsed or
+# replaced refuses the commit; a comment filled to its limit has no room for
+# the verdict, which its caller parks as unrecorded.
+_AHEAD_OF_THE_COMMIT = (
+    ("a later report", _read.settles_a_later_report, NOTHING),
+    ("evidence settled", _read.settles_evidence, NOTHING),
+    ("another round's verdict", partial(_leaves, replaces=True), NOTHING),
+    ("a verdict written null", partial(_leaves, replaces=False), NOTHING),
+    ("a repoint", _REPOINTS, NOTHING),
+    ("an unparsed comment", _roads.unparses, NOTHING),
+    ("a replaced comment", _roads.repins, NOTHING),
+    ("a full comment", partial(_parked.fills_to, spare=0), _disposition.Prepared(unrecorded=_parks.NO_ROOM)),
+)
+
+# Another road's write right ahead of the commit dropping a waiting verdict a
+# push moved the subject of, and whether the drop lands beside it: a verdict
+# of that road's own in place of the one held, or a later evidence revision
+# recorded, refuses it; a reply answered does not.
+_AHEAD_OF_THE_DROP = (
+    ("another round's verdict", partial(_leaves, replaces=True), False),
+    ("a later evidence revision", _roads.Writes({"verification_evidence_revision": 2}), False),
+    ("a reply answered", _answers_a_reply, True),
+)
+
 # Another road's work once a tick has read the comment its verdict waits on an
 # owed transaction in -- its artifact edited, so that tick's own
 # reconciliation stood down -- and what the tick leaves: whether the verdict
@@ -339,6 +361,21 @@ _OWED = (
     ("nothing else", None, (False, APPROVED, True, None)),
     ("settled by another tick", _restores_and_settles, (True, APPROVED, False, 1)),
     ("a push", _world.pushes, (False, None, True, None)),
+)
+
+
+# Each response a returned approval's tick can lose -- the failures it is lost
+# through, the issue or pull request named there, and the write behind which it
+# starts losing, None for from the first -- and whether the transaction the
+# verdict persisted is settled once that tick holds: the artifact's post, the
+# commit settling it, and the commit persisting the verdict itself, which
+# leaves the artifact unposted.
+_POST_LOST = ("report_failures", _world.PR, None)
+
+_LOST = (
+    ("the artifact's post", _POST_LOST, False),
+    ("the settlement", ("pinned_failures", _world.ISSUE, _CARRIES_THE_VERDICT), True),
+    ("the verdict's own commit", ("pinned_failures", _world.ISSUE, None), False),
 )
 
 
@@ -410,9 +447,10 @@ class PersistedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 )
 
     def test_a_refused_write_publishes_nothing(self) -> None:
-        refusing = _RefusesTheVerdict(self.github.write_pinned_state)
-        with patch.object(self.github, PINNED_WRITE, refusing), self.assertRaises(RuntimeError):
-            self.returns(_world.declared_run())
+        # GitHub refuses the commit persisting the verdict: nothing is
+        # recorded, and nothing that depends on the record is made.
+        self.github.pinned_failures.refused.add(_world.ISSUE)
+        self.returns(_world.declared_run())
 
         pinned = self.pinned()
         self.assertEqual(
@@ -493,17 +531,19 @@ class EvidenceStandingTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 self.assertEqual(persisted, ready.returned())
 
     def test_owed_evidence_needs_no_reviewer(self) -> None:
-        # The post lands and its response is lost, or the commit settling it
-        # does: the tick holds with the verdict persisted beside its
-        # transaction, owed or settled with nobody told. The next tick's
-        # reconciliation finds the artifact by its receipt and settles it, or
-        # finds nothing owed, and the verdict is ready from the record the
-        # first tick wrote, read off the comment alone -- with no second
-        # reviewer, charge, artifact, or settlement.
-        for settlement in (False, True):
-            with self.subTest(settlement=settlement):
+        # The commit persisting the verdict lands and its response is lost,
+        # or the artifact's post does, or the commit settling it: the tick
+        # publishes or acts on nothing past the response it lost, with the
+        # verdict persisted beside its transaction, owed or settled with
+        # nobody told. The next tick's reconciliation posts the artifact, finds
+        # it by its receipt and settles it, or finds nothing owed, and the
+        # verdict is ready from the record the first tick wrote, read off the
+        # comment alone -- with no second reviewer, charge, fold, round,
+        # artifact, or settlement.
+        for lost in _LOST:
+            with self.subTest(lost[0]):
                 self.setUp()
-                self._held(settlement=settlement)
+                self._held(lost[1])
                 waiting = self.pinned()
                 spent = _read.spent(self)
                 self.assertEqual(
@@ -512,7 +552,7 @@ class EvidenceStandingTest(_world.ReviewVerdictWorld, unittest.TestCase):
                         waiting[_world.RETURNED_VERDICT][VERDICT],
                         waiting[_world.PENDING_EVIDENCE] is None,
                     ),
-                    (NOTHING, APPROVED, settlement),
+                    (NOTHING, APPROVED, lost[2]),
                 )
 
                 finished = self.finishes()
@@ -635,15 +675,18 @@ class EvidenceStandingTest(_world.ReviewVerdictWorld, unittest.TestCase):
                     (False, None, before),
                 )
 
-    def _held(self, *, settlement: bool = False) -> None:
-        """Return an approval over its own run, losing the response to its artifact's post or settling commit."""
-        lost, number = (
-            (self.github.pinned_failures.lost, _world.ISSUE) if settlement
-            else (self.github.report_failures.lost, _world.PR)
-        )
-        lost.add(number)
-        self.returns(_world.declared_run())
-        lost.discard(number)
+    def _held(self, lost: tuple = _POST_LOST) -> None:
+        """Return an approval over its own run, losing the response `lost` names, as `_LOST` spells one."""
+        failures, number, behind = lost
+        losing = getattr(self.github, failures).lost
+        if behind is None:
+            losing.add(number)
+            self.returns(_world.declared_run())
+        else:
+            _world.AnotherRoadBehind(
+                self, PINNED_EDIT, behind, lambda _case: losing.add(number),
+            ).returning(_world.declared_run())
+        losing.discard(number)
 
 
 class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
@@ -780,6 +823,98 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 self.assertEqual(
                     (self.prepared, self.pinned()[_world.RETURNED_VERDICT]), (NOTHING, self.left),
                 )
+
+
+
+class CommitRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
+    """A verdict's commit, and a drop's, land over another road's write right ahead of them, or not at all."""
+
+    def test_a_move_ahead_of_the_commit_writes_none(self) -> None:
+        # Another road writes right ahead of the commit persisting the
+        # verdict, behind the last reading it was decided on: nothing is
+        # persisted, published, or folded, and the comment stays exactly as
+        # that road left it.
+        for name, road, prepared in _AHEAD_OF_THE_COMMIT:
+            with self.subTest(name):
+                self.setUp()
+
+                self._raced_ahead(_CARRIES_THE_VERDICT, road, self.returns, _world.declared_run())
+
+                self.assertEqual(
+                    (self.prepared, *self._left()), (prepared, *self.left_behind),
+                )
+
+    def test_a_reply_ahead_of_the_commit_is_kept(self) -> None:
+        # Another road answers a reply, and records a notice it posted as the
+        # orchestrator's, right ahead of the commit persisting the verdict:
+        # the commit lands over it -- the reviewer's usage folded beside the
+        # answer's, the thread read as far as that road read it, its round and
+        # notice kept -- and the verdict's evidence is published and settled
+        # behind it, its artifact recorded beside that notice.
+        ledger = [*self.pinned().get(LEDGER, []), ANOTHER_NOTICE]
+        answering = partial(_answers_a_reply, moves=(_roads.Writes({LEDGER: ledger}),))
+
+        self._raced_ahead(_CARRIES_THE_VERDICT, answering, self.returns, _world.declared_run())
+
+        pinned = self.pinned()
+        recorded = {ANOTHER_NOTICE, self.pull_request.issue_comments[-1].id}
+        self.assertEqual(
+            (
+                self.prepared.ready.returned(),
+                pinned[REVIEW_ROUND],
+                pinned[LAST_ACTION],
+                (pinned[AGENT_RUNS], pinned[TOKENS]),
+                _read.current_evidence_revision(self),
+                recorded <= set(pinned[LEDGER]),
+            ),
+            (
+                _verdicts.ReturnedVerdict.read(pinned[_world.RETURNED_VERDICT]),
+                1,
+                ANSWERED_THROUGH,
+                (2, ANSWER_TOKENS + _world.REVIEWER_TOKENS),
+                1,
+                True,
+            ),
+        )
+
+    def test_a_move_ahead_of_a_drop(self) -> None:
+        # A push moves the subject of a waiting verdict, and another road
+        # writes right ahead of the commit dropping it: one that put its own
+        # verdict in place of the one held, or recorded a later evidence
+        # revision, refuses the drop -- the comment stays as it left it, and
+        # the verdict held waits for a later tick -- while a reply answered is
+        # kept beside the drop.
+        for name, road, dropped in _AHEAD_OF_THE_DROP:
+            with self.subTest(name):
+                self.setUp()
+                settled = _read.settles_evidence(self)
+                _read.seeds_a_verdict(self, settled, reused=True)
+
+                self._raced_ahead(bool, road, self.finishes, meanwhile=_world.pushes)
+
+                left = self.left_behind[0]
+                if dropped:
+                    left = {**left, _world.RETURNED_VERDICT: None}
+                self.assertIsNone(self.ready)
+                self.assertEqual(self.pinned(), left)
+
+    def _raced_ahead(self, when, road, tick, *asked, **options) -> None:
+        """`tick` asked with `road` landing right ahead of the first guarded commit `when` names.
+
+        What the road left -- the pinned comment and the comments on the pull
+        request -- is kept as `left_behind`.
+        """
+        with _roads.AnotherRoadAhead(self, when, partial(self._leaves_behind, road)).patched():
+            tick(*asked, **options)
+
+    def _leaves_behind(self, road, case) -> None:
+        """`road`'s work on `case`, and what it left kept as `left_behind` (`_left`)."""
+        road(case)
+        self.left_behind = self._left()
+
+    def _left(self) -> tuple:
+        """The pinned comment, and every comment on the pull request."""
+        return self.pinned(), len(self.pull_request.issue_comments)
 
 
 if __name__ == "__main__":

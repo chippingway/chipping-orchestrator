@@ -10,7 +10,8 @@ At the launch the circuit writes the lifetime run charge. On the return the
 round writes the usage the reviewer ran up, the session it ran as, when it
 returned, and the subject it was handed, again, as the one a reviewer really
 read (`_records_the_return`) -- and, where it approves, the subject the
-approval covers in that same write.
+approval covers in that same write. The writers here only stage; the launch
+and the return land through guarded commits (`review_writes`).
 
 A developer report is accepted only where the comment its settlement leaves
 has room for every one of those (`reserves_the_round`). Otherwise a report

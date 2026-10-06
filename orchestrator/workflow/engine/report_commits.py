@@ -65,6 +65,11 @@ question of the comment (`withholds`): one another road wrote meanwhile
 withholds the tick's state, so the stage behind never puts its whole state back
 over that write, and one still reading as the tick synced with leaves the
 road's own answer as it was.
+
+The guard is not the report's alone: a validating reviewer round's launch,
+return, verdict, drop, and park writes land through these same commits, each
+declaring its own fields and the records it was decided on
+(`stages/validating/review_writes.py`).
 """
 from __future__ import annotations
 

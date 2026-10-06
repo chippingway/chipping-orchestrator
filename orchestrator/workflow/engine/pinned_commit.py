@@ -48,13 +48,17 @@ and so do the evidence reconciliation's retirements -- a transaction abandoned
 or dropped, a refused carry abandoned with its approval
 (`verification_transaction`, `verification_carries`) -- `validating`'s
 invalidation of carried evidence that no longer answers
-(`stages/validating/collapse.py`), and the developer report's recording,
+(`stages/validating/collapse.py`), the developer report's recording,
 binding, publication preflight and settlement, the reconciliation's drops and
 the retirement of its own park, the park a refused recording or binding takes,
-and the release of a report no checkout can publish (`report_commits`). Every
-other road still rewrites the whole record, the approval squash's own
-invalidation of the evidence its approval rests on among them
-(`stages/validating/squash_evidence.py`).
+and the release of a report no checkout can publish (`report_commits`), and a
+reviewer round's launch, the parks a reviewer that left no verdict takes, the
+returned verdict persisted with its transaction, its drops, and the parks a
+verdict takes instead of being acted on, under the same tick-state guard
+(`stages/validating/review_writes.py`). Every other road still rewrites the
+whole record, the approval squash's own invalidation of the evidence its
+approval rests on and a change request's handoff among them
+(`stages/validating/squash_evidence.py`, `stages/validating/review_handoffs.py`).
 
 The report's commits are captured over the reading a tick last synced with the
 comment (`PinnedState.synced`), so what the tick staged since is told from what

@@ -121,13 +121,14 @@ class PinnedState:
     next one while every field another writer moved meanwhile is kept as that
     writer left it.
 
-    ``withheld`` is set on a state the developer report's guarded commit did
-    not land over (`workflow/engine/report_commits.py`) -- one refused over a
-    comment that moved, or one sent and never confirmed -- and on one whose
+    ``withheld`` is set on a state a guarded commit taken through
+    `workflow/engine/report_commits.py` did not land over -- the developer
+    report's, or a validating reviewer round's -- one refused over a comment
+    that moved, or one sent and never confirmed -- and on one whose
     report post or re-read left its transaction owed over a comment another
     road wrote meanwhile: the comment is not, or may not be, what the state
     was decided on, so the whole-state writer writes nothing for it rather
-    than put back everything another road wrote since. A report commit that
+    than put back everything another road wrote since. Any such commit that
     lands clears it.
     """
 
