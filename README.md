@@ -41,7 +41,7 @@ See the [state-machine overview][states] for labels and transitions, and the
 
 ## Requirements
 
-- Linux, Git, Python 3.12 or newer, and [`uv`](https://docs.astral.sh/uv/getting-started/installation/). CI tests
+- Linux, Git, Python 3.12 or newer, and [Poetry 2.5.1](https://python-poetry.org/docs/#installation). CI tests
   Python 3.12, 3.13, and 3.14; newer versions are not tested.
 - An authenticated CLI for every configured role. Defaults are
   [`claude`](https://docs.anthropic.com/en/docs/claude-code) for decomposition and implementation, and
@@ -55,12 +55,13 @@ Agents run with their approval and sandbox checks disabled, so the host account 
 
 ## Quick start
 
-Clone and install from the lockfile, then copy the basic template to the checkout's `.env`:
+Install Poetry with `pipx install poetry==2.5.1`, then clone, install from the lockfile, and copy the basic template
+into the checkout's `.env`:
 
 ```sh
 git clone https://github.com/chippingway/chipping-orchestrator.git
 cd chipping-orchestrator
-uv sync --locked
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync
 cp .env.example .env
 ```
 

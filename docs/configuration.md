@@ -53,8 +53,9 @@ derived from the targets rather than from it. Both locations refuse the token ke
 [`../.env.example`](../.env.example) is everything a first run needs. Copy it to the `.env` your launch form reads
 ([above](#where-env-is-read)):
 
-- **Source checkout** — `./run.sh`, `uv run python -m orchestrator`, or `uv run chipping-orchestrator` in a clone of
-  this repository. The template goes to the checkout's root:
+- **Source checkout** — `./run.sh`, `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator`, or
+  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run chipping-orchestrator` in a clone of this repository. The template
+  goes to the checkout's root:
 
   ```sh
   cp .env.example .env
@@ -651,6 +652,11 @@ The verify shell shares the agent's environment filter (`agents.environment.filt
   agent-produced code, and a hostile dependency reading `$ANTHROPIC_API_KEY` would gain billable access to the
   operator's model account).
 
+The shared filter removes `VIRTUAL_ENV` and its `bin` directory from `PATH` in agent and verify environments for every
+managed repository, so worktree commands cannot select the orchestrator's virtualenv through either. It preserves
+Conda activation markers and their `PATH` entries for Conda-based target repositories. Their setup and verification
+commands must select the intended environment.
+
 **Do not embed secret literals in `VERIFY_COMMANDS`.** Verify failures park `awaiting_human` with the offending command
 string published *verbatim* in the GitHub issue comment, and every approving reviewer declares each configured command
 exactly as written, with the output it quotes, in a verification artifact the orchestrator publishes on the pull request
@@ -872,16 +878,16 @@ The five steps from a JSONL sink to a running Streamlit page — confirm the rec
 ## Continuous integration
 
 [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs `ruff check orchestrator tests`,
-`flake8 orchestrator tests --select=WPS`, pytest with an informational missing-line coverage report, `uv build`, and a
-launch of `chipping-orchestrator --help` from a throwaway environment holding that wheel and the dependencies it
-declares and nothing else, as five separate mandatory steps for every push to `main` and every pull request. The
-whole set runs on Python 3.12, 3.13, and 3.14 — the versions a run proves, out of the
+`flake8 orchestrator tests --select=WPS`, pytest with an informational missing-line coverage report, `poetry build`,
+and launches of `chipping-orchestrator --help` from the wheel and sdist in fresh environments with their declared
+runtime dependencies, as separate mandatory steps for every push to `main` and every pull request. The whole set
+runs on Python 3.12, 3.13, and 3.14 — the versions a run proves, out of the
 open-ended range `requires-python = ">=3.12"` admits — under a 20-minute job timeout. A second push to a pull request
 cancels the run its earlier push started, while a run on `main` is cancelled by nothing, queued or started. Dependabot
 opens weekly `workflow:dependencies` update PRs. The coverage report has no minimum threshold.
 [`../.github/workflows/vulnerability-scan.yml`](../.github/workflows/vulnerability-scan.yml) adds the standing half of
 dependency scanning: on a weekly `schedule` and on `workflow_dispatch` it audits every version pinned in
-[`../uv.lock`](../uv.lock) — not what a PR changes — and fails when a published advisory names one.
+[`../poetry.lock`](../poetry.lock) — not what a PR changes — and fails when a published advisory names one.
 [`../.github/workflows/scorecard.yml`](../.github/workflows/scorecard.yml) grades the repo's supply-chain posture with
 OpenSSF Scorecard weekly, on every push to `main`, and on demand, publishing the results the README badge and the
 public viewer read and uploading the SARIF to code scanning.
@@ -891,7 +897,7 @@ every workflow names a full commit SHA with its release in a trailing comment, a
 updates rewrite that pair. The lint contract the Ruff run enforces — its own defaults plus `E501`, with no baseline
 of this repo's own — the per-file lint scopes, the repository-wide 120-column target, workflow token permissions, the
 rules an inline `# noqa` may name, the order imports are sorted into, the commit-SHA pins, the job timeouts, the
-run-cancellation rule, the two interpreters, the packaging smoke check, the dependency review, and how the scheduled
+run-cancellation rule, the three interpreters, the packaging smoke checks, the dependency review, and how the scheduled
 scans work are in
 [`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration).
 
@@ -913,6 +919,14 @@ the runbook for that pass is
 [`configuration/operations.md#reclaiming-a-finished-issues-artifacts`](configuration/operations.md#reclaiming-a-finished-issues-artifacts) —
 `--log-level DEBUG` for verbose logs, and the `chipping-orchestrator` console script equivalent to
 all four are in [`configuration/operations.md#run-modes`](configuration/operations.md#run-modes).
+
+### Launcher dependency refresh
+
+`run.sh refresh_dependencies` compares the dependency files with `.venv/.poetry-dependencies` before each Python
+launch. A mismatch triggers `poetry install --no-interaction`; success records the new fingerprints, while a failure
+warns, launches the available environment, and retries on the next restart. Its timeout, process isolation,
+and operator sync requirements are in the
+[operator runbook](configuration/operations.md#launcher-dependency-refresh).
 
 ## Running under systemd (user service)
 

@@ -39,6 +39,7 @@ logs/
 tmp/
 
 # Python
+uv.lock
 __pycache__/
 .venv/
 venv/

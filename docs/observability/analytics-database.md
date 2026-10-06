@@ -137,8 +137,9 @@ The command lives here — the argument parser, the UTC-pinned log formatter, th
 over the replay `orchestrator/observability/analytics/sync/run.py` owns. Run on demand:
 
 ```sh
-uv run python -m orchestrator.observability.analytics.sync.cli   # uses configured env vars
-uv run python -m orchestrator.observability.analytics.sync.cli --log-path /path/to/rotated.jsonl --db-url postgresql://other/db
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator.observability.analytics.sync.cli
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator.observability.analytics.sync.cli \
+  --log-path /path/to/rotated.jsonl --db-url postgresql://other/db
 ```
 
 **Batched inserts.** Reads `ANALYTICS_LOG_PATH` line by line, accumulates validated row tuples into a buffer sized by
@@ -211,20 +212,20 @@ comes from:
 
 ## Operator workflow
 
-Run `uv run python -m orchestrator.observability.analytics.sync.cli` on whatever cadence you prefer; `--log-path` and
-`--db-url` override the env values for one-off replays of archived JSONL files. The default cadence is operator-chosen
-because the JSONL sink is already the authoritative analytics surface on disk — the database is for aggregation and
-reporting, not durability.
+Run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator.observability.analytics.sync.cli` on whatever
+cadence you prefer. `--log-path` and `--db-url` override the env values for one-off replays of archived JSONL files.
+The default cadence is operator-chosen because the JSONL sink is already the authoritative analytics surface on disk
+— the database is for aggregation and reporting, not durability.
 
 For an unattended deployment, drive the sync from `cron`. A typical entry runs hourly, guards against overlap with
 `flock`, and captures output:
 
 ```cron
-00 * * * * cd /path/to/chipping-orchestrator && /usr/bin/flock -n /tmp/chipping-orchestrator-analytics-sync.lock /home/<user>/.local/bin/uv run python -m orchestrator.observability.analytics.sync.cli --log-path /path/to/chipping-orchestrator/logs/analytics.jsonl --db-url 'postgresql://<user>:<password>@<host>:<port>/<database>' >> /path/to/chipping-orchestrator/logs/analytics-sync.cron.log 2>&1
+00 * * * * cd /path/to/chipping-orchestrator && /usr/bin/flock -n /tmp/chipping-orchestrator-analytics-sync.lock /path/to/chipping-orchestrator/.venv/bin/python -m orchestrator.observability.analytics.sync.cli --log-path /path/to/chipping-orchestrator/logs/analytics.jsonl --db-url 'postgresql://<user>:<password>@<host>:<port>/<database>' >> /path/to/chipping-orchestrator/logs/analytics-sync.cron.log 2>&1
 ```
 
-- `cd /path/to/chipping-orchestrator` so `uv run` finds the project's `pyproject.toml`.
-- Absolute `/home/<user>/.local/bin/uv` because cron's `PATH` does not include `~/.local/bin`.
+- `cd /path/to/chipping-orchestrator` so configuration and log paths resolve from the checkout.
+- The absolute `.venv/bin/python` path selects the installed environment without relying on cron's `PATH`.
 - `flock -n` makes the run a no-op when a previous invocation is still holding the lock, so a long replay never overlaps
   with the next tick.
 - `--log-path` and `--db-url` are explicit CLI overrides, so the cron entry does not depend on `.env` being loadable

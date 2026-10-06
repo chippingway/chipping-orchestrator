@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Credential filtering and git identity for agent subprocesses."""
+"""Credential and virtualenv filtering and git identity for agent subprocesses."""
 from __future__ import annotations
 
 import os
@@ -15,6 +15,11 @@ _FORBIDDEN_AGENT_ENV = frozenset((
     "GITHUB_ENTERPRISE_TOKEN",
     "GIT_TOKEN",
     "GH_HOST",
+))
+# Worktree commands must not use any inherited virtualenv or its executables.
+# Conda's activation markers stay with its PATH entries for Conda-based targets.
+_INHERITED_ENVIRONMENT_MARKERS = frozenset((
+    "VIRTUAL_ENV",
 ))
 _AGENT_WRITE_CREDENTIAL_LOCATORS = frozenset((
     "SSH_AUTH_SOCK",
@@ -72,7 +77,7 @@ def _env_key_allowed(
     *,
     allow_provider_auth: bool,
 ) -> bool:
-    if env_key in _FORBIDDEN_AGENT_ENV:
+    if env_key in _FORBIDDEN_AGENT_ENV or env_key in _INHERITED_ENVIRONMENT_MARKERS:
         return False
     if env_key in _AGENT_WRITE_CREDENTIAL_LOCATORS:
         return False
@@ -86,8 +91,8 @@ def filter_agent_env(
     *,
     allow_provider_auth: bool = True,
 ) -> dict[str, str]:
-    """Remove write credentials and secret-shaped values from an env."""
-    return {
+    """Remove write credentials, secrets, and inherited virtualenv activation."""
+    filtered_env = {
         env_key: env_value
         for env_key, env_value in environ.items()
         if _env_key_allowed(
@@ -95,6 +100,20 @@ def filter_agent_env(
             allow_provider_auth=allow_provider_auth,
         )
     }
+    virtualenv = environ.get("VIRTUAL_ENV")
+    if virtualenv and "PATH" in filtered_env:
+        filtered_env["PATH"] = _without_virtualenv_bin(filtered_env["PATH"], virtualenv)
+    return filtered_env
+
+
+def _without_virtualenv_bin(search_path: str, virtualenv: str) -> str:
+    """Preserve PATH order while removing the inherited virtualenv's bin entries."""
+    virtualenv_bin = os.path.normpath(os.path.join(virtualenv, "bin"))
+    return os.pathsep.join(
+        path_entry
+        for path_entry in search_path.split(os.pathsep)
+        if os.path.normpath(path_entry) != virtualenv_bin
+    )
 
 
 def agent_env(extra_env: dict[str, str] | None) -> dict[str, str]:

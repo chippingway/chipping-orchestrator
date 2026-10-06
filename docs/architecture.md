@@ -347,6 +347,10 @@ self-exit and be restarted with new code.
   (`Restart=always`) exiting on a self-update failure silently crash-loops the service with the orchestrator never
   running, so a stale-but-running process plus a journal warning is preferred — the warning is the operator's signal
   to restore the checkout.
+- **Dependency refresh** (`run.sh refresh_dependencies`): before every Python launch, the wrapper checks the
+  checkout's dependency files against its successful install stamp and refreshes the environment when they differ.
+  The [operator runbook](configuration/operations.md#launcher-dependency-refresh) documents the stamp, timeout and
+  child-process caveat, optional-group handling, sync requirements, and retry policy.
 - **Signals**: SIGINT/SIGTERM set a flag and call `scheduler.shutdown(wait=False)` synchronously so the submit path is
   closed mid-tick; the loop then stops at the next tick boundary and drains. The drain terminates in-flight agent and
   verify subprocess groups up front (`agents.processes.terminate_all_running`) so a worker parked in a long agent /
@@ -586,6 +590,10 @@ The agent subprocess env is filtered to keep host secrets and the orchestrator's
 reach. The same filter runs for the verify-command runner (with `allow_provider_auth=False`, which also strips provider
 keys).
 
+- **Inherited virtualenv activation** (`_INHERITED_ENVIRONMENT_MARKERS`: `VIRTUAL_ENV`) is stripped for every managed
+  repository, including its `bin` directory on `PATH`. Conda activation is preserved. The
+  [environment selection policy](configuration/operations.md#dependency-tooling) covers target-repository setup
+  and verification requirements.
 - **GitHub-token-bearing env vars** are stripped (`GITHUB_TOKEN`, `GH_TOKEN`, etc. — the `_FORBIDDEN_AGENT_ENV`
   exact-match set) so a prompt-injected agent cannot push or call the GitHub API.
 - **Production-secret-shaped env vars** are stripped by name shape: anything matching `_AGENT_SECRET_SUFFIXES`

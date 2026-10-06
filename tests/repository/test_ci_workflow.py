@@ -55,14 +55,21 @@ _CONCURRENCY_BLOCK = "\n".join((
     "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
 ))
 
-_BUILD_COMMAND = "run: uv build"
+_BUILD_COMMAND = "run: poetry build"
 # The invocation that proves the built wheel: an environment holding that
 # wheel and the dependencies it declares and nothing else -- no project, no
 # lockfile, no dev group -- running the console script out of it.
 _WHEEL_SMOKE = (
-    'wheel="$(ls dist/*.whl)"',
-    "uv run --no-project --isolated",
-    '--with "${wheel}" chipping-orchestrator --help',
+    'python -m venv "$RUNNER_TEMP/wheel-env"',
+    '"$RUNNER_TEMP/wheel-env/bin/python" -m pip install dist/*.whl',
+    'cd "$RUNNER_TEMP"',
+    '"$RUNNER_TEMP/wheel-env/bin/chipping-orchestrator" --help',
+)
+_SDIST_SMOKE = (
+    'python -m venv "$RUNNER_TEMP/sdist-env"',
+    '"$RUNNER_TEMP/sdist-env/bin/python" -m pip install dist/*.tar.gz',
+    'cd "$RUNNER_TEMP"',
+    '"$RUNNER_TEMP/sdist-env/bin/chipping-orchestrator" --help',
 )
 
 # The pages that state the tested versions in prose.
@@ -106,14 +113,27 @@ class CiPythonMatrixTest(unittest.TestCase):
             f">={_PYTHON_VERSIONS[0]}",
         )
 
+    def test_python_classifiers_match_the_matrix(self) -> None:
+        manifest = tomllib.loads(_MANIFEST.read_text(encoding=_ENCODING))
+        classifiers = [
+            classifier for classifier in manifest["project"]["classifiers"]
+            if classifier.startswith("Programming Language :: Python :: 3.")
+        ]
+        self.assertEqual(
+            classifiers,
+            [f"Programming Language :: Python :: {version}" for version in _PYTHON_VERSIONS],
+        )
 
-class CiWheelSmokeTest(unittest.TestCase):
-    def test_the_run_launches_the_wheel_it_builds(self) -> None:
+
+class CiDistributionSmokeTest(unittest.TestCase):
+    def test_the_run_launches_both_distributions(self) -> None:
         workflow = _workflow()
         self.assertIn(_BUILD_COMMAND, workflow)
-        for fragment in _WHEEL_SMOKE:
-            with self.subTest(fragment=fragment):
-                self.assertIn(fragment, workflow)
+        for commands in (_WHEEL_SMOKE, _SDIST_SMOKE):
+            with self.subTest(artifact=commands[0]):
+                script = "\n".join(f"          {command}" for command in commands)
+                self.assertIn(script, workflow)
+                self.assertLess(workflow.index(_BUILD_COMMAND), workflow.index(script))
 
 
 class DocumentedPythonVersionsTest(unittest.TestCase):

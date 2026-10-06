@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Credential-filtering owner tests."""
+"""Credential and virtualenv filtering owner tests."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ import unittest
 
 from orchestrator.agents import environment as _environment
 from tests.agents import agent_test_values as _agent_cases
+
+_VIRTUAL_ENV = "VIRTUAL_ENV"
 
 
 class FilterAgentEnvTest(unittest.TestCase):
@@ -112,3 +114,52 @@ class FilterAgentEnvTest(unittest.TestCase):
 
     def test_empty_env_passthrough(self) -> None:
         self.assertEqual(_environment.filter_agent_env({}), {})
+
+
+class VirtualenvEnvironmentTest(unittest.TestCase):
+    """Virtualenv removal preserves the rest of the inherited environment."""
+
+    def test_virtualenv_filter_preserves_conda(self) -> None:
+        env = {
+            "CONDA_PREFIX": "/opt/conda/envs/operator",
+            "CONDA_DEFAULT_ENV": "operator",
+            "CONDA_SHLVL": "1",
+            _agent_cases._PATH_ENV: (
+                f"/opt/conda/envs/operator/bin::{_agent_cases._SYSTEM_PATH}:"
+                "/srv/other/.venv/bin:/srv/orchestrator/.venv-tools/bin"
+            ),
+        }
+        search_path = env[_agent_cases._PATH_ENV]
+        inherited_env = {
+            **env,
+            _VIRTUAL_ENV: "/srv/orchestrator/.venv/",
+            _agent_cases._PATH_ENV: (
+                f"/srv/orchestrator/.venv/bin:{search_path}:"
+                "/srv/orchestrator/.venv/bin/:/srv/orchestrator/.venv/./bin"
+            ),
+        }
+        for allow in (True, False):
+            with self.subTest(allow_provider_auth=allow):
+                filtered_env = _environment.filter_agent_env(
+                    inherited_env, allow_provider_auth=allow,
+                )
+                self.assertEqual(filtered_env, env)
+
+    def test_empty_activation_or_path(self) -> None:
+        for env, expected in (
+            (
+                {_agent_cases._PATH_ENV: "/srv/orchestrator/.venv/bin"},
+                {_agent_cases._PATH_ENV: "/srv/orchestrator/.venv/bin"},
+            ),
+            (
+                {_VIRTUAL_ENV: "", _agent_cases._PATH_ENV: _agent_cases._SYSTEM_PATH},
+                {_agent_cases._PATH_ENV: _agent_cases._SYSTEM_PATH},
+            ),
+            ({_VIRTUAL_ENV: "/srv/orchestrator/.venv"}, {}),
+            (
+                {_VIRTUAL_ENV: "/srv/orchestrator/.venv", _agent_cases._PATH_ENV: ""},
+                {_agent_cases._PATH_ENV: ""},
+            ),
+        ):
+            with self.subTest(environ=env):
+                self.assertEqual(_environment.filter_agent_env(env), expected)

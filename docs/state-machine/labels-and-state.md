@@ -25,10 +25,13 @@ namespaced — `in_review`, `question`, `discussion`, and the `done` / `rejected
 
 The prefix is a collision guard, not the membership test — being a `WorkflowLabel` member is. A `workflow:`-prefixed
 name that is not one resolves to no state at all: the `workflow:dependencies` / `workflow:github_actions` /
-`workflow:python:uv` service labels Dependabot stamps on its update PRs
+`workflow:python:pip` service labels Dependabot stamps on its update PRs
 ([configuration/operations.md](../configuration/operations.md#continuous-integration)) share the prefix and nothing in
 the tree reads them, so they route nowhere and a label write leaves them in place exactly as it leaves `bug` or
 `enhancement`. Applying one as a workflow label is what the typo guard below rejects.
+
+`workflow:python:uv` is a retired Dependabot service label. Existing PRs retain it; the `pip` entry stamps
+`workflow:python:pip` on new updates. Both are outside the workflow state vocabulary.
 
 Three non-workflow **control labels** modify behavior without occupying the workflow slot:
 

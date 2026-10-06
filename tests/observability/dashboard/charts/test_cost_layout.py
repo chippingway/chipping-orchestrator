@@ -9,7 +9,7 @@ from importlib.util import find_spec
 from orchestrator.observability.dashboard.charts import cost_layout, primitives
 from orchestrator.observability.dashboard.layout import base_layout
 
-_SKIP_REASON = "plotly not installed -- run `uv sync --group dashboard`"
+_SKIP_REASON = "plotly not installed -- run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard`"
 
 _ROW_HEIGHT = primitives.HORIZONTAL_BAR_ROW_HEIGHT
 

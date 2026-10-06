@@ -2,23 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 """What each ecosystem's Dependabot entry has to declare to GitHub.
 
-Three blocks carry behavior. The service labels stamped on every update PR let
-a reviewer select the dependency queue by label rather than by reading titles:
-the shared one the whole queue is filtered by, plus the one naming which
-ecosystem moved. The cooldown windows hold a release for a stabilization
-period before an update PR opens. GitHub Actions accepts only an
-ecosystem-wide default window, while `uv` accepts SemVer-specific windows, so
-each entry is held against the policy shape its ecosystem supports. The `uv`
-allow rules name GitPython, which reaches the lockfile only through Streamlit:
-an `allow:` block replaces Dependabot's default rule instead of adding to it,
-so losing either rule either stops direct updates outright or sends the
-grouped security job back to skipping the whole group with no allowed
-dependency matched.
+The service labels stamped on every update PR let a reviewer select the
+dependency queue by label rather than by reading titles: the shared one the
+whole queue is filtered by, plus the one naming which ecosystem moved. The
+cooldown windows hold a release for a stabilization period before an update PR
+opens. GitHub Actions accepts only an ecosystem-wide default window, while
+`pip` accepts SemVer-specific windows, so each entry is held against the policy
+shape its ecosystem supports. The `pip` entry explicitly limits updates to
+direct dependencies and requests lower-bound increases.
 
-Nothing in the tree reads this config -- GitHub does -- so a dropped label, a
-window quietly rewritten on one ecosystem, or a deleted allow rule would
-otherwise surface only on the next update PR, once it had already failed to
-open.
+Nothing in the tree reads this config -- GitHub does -- so dropped labels,
+rewritten cooldown windows, or a widened dependency scope would otherwise
+surface only in the update PRs GitHub opens.
 
 The check is a text match for the block each entry must carry rather than a
 read of what it happens to declare: what GitHub has to receive is exact, so
@@ -45,17 +40,17 @@ _ENCODING = "utf-8"
 # The labels every ecosystem's entry must declare, in file order.
 _EXPECTED_LABELS = (
     ("github-actions", ("workflow:dependencies", "workflow:github_actions")),
-    ("uv", ("workflow:dependencies", "workflow:python:uv")),
+    ("pip", ("workflow:dependencies", "workflow:python:pip")),
 )
 _SERVICE_LABELS = frozenset(
     label for _, labels in _EXPECTED_LABELS for label in labels
 )
-# GitHub Actions accepts only its ecosystem-wide window; `uv` can tier its
+# GitHub Actions accepts only its ecosystem-wide window; `pip` can tier its
 # stabilization windows by SemVer change.
 _EXPECTED_COOLDOWNS = (
     ("github-actions", (("default-days", 30),)),
     (
-        "uv",
+        "pip",
         (
             ("default-days", 30),
             ("semver-major-days", 30),
@@ -64,12 +59,9 @@ _EXPECTED_COOLDOWNS = (
         ),
     ),
 )
-# The `uv` allow rules, in file order: the default rule the block would
-# otherwise replace, then the transitive dependency the grouped security job
-# needs named before GitPython's advisories reach it.
-_EXPECTED_UV_ALLOW = (
+# The `pip` entry restricts routine and security updates to direct dependencies.
+_EXPECTED_PIP_ALLOW = (
     "dependency-type: direct",
-    "dependency-name: gitpython",
 )
 _DOCUMENTING_PAGES = (
     Path("docs") / "configuration" / "operations.md",
@@ -130,12 +122,15 @@ class DependabotCooldownPolicyTest(unittest.TestCase):
                 )
 
 
-class DependabotAllowRulesTest(unittest.TestCase):
-    def test_uv_allows_direct_updates_and_gitpython(self) -> None:
+class DependabotPipUpdatesTest(unittest.TestCase):
+    def test_pip_allow_rules_and_floor_strategy(self) -> None:
         declared = _block(
-            "allow", (f"- {rule}" for rule in _EXPECTED_UV_ALLOW),
+            "allow", (f"- {rule}" for rule in _EXPECTED_PIP_ALLOW),
         )
-        self.assertIn(declared, _entry_declarations("uv"))
+        ecosystem = "pip"
+        declarations = _entry_declarations(ecosystem)
+        self.assertEqual(declared, _entry_block(ecosystem, "allow"))
+        self.assertIn("    versioning-strategy: increase", declarations.splitlines())
 
 
 class DocumentedServiceLabelsTest(unittest.TestCase):

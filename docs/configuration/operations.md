@@ -7,37 +7,28 @@ supervises it in production, and when an edited `.env` takes effect. The environ
 
 ## Continuous integration
 
-[`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) runs
-`ruff check orchestrator tests .github/scripts/docs_site.py`,
-`flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS`,
-`pytest tests --cov=orchestrator --cov-report=term-missing`, `uv build`, and a launch of the console script
-from the wheel that build produced, as five separate mandatory steps for every push to `main` and every pull request,
-installing from the committed [`../../uv.lock`](../../uv.lock) via `uv sync --locked`. The pytest step prints coverage
-and missing lines for visibility but sets no minimum threshold.
+[`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) runs Ruff, WPS, pytest with an informational
+coverage report, `poetry build`, and separate wheel and sdist smoke installs on every push to `main` and every pull
+request. It installs Poetry 2.5.1 with `pipx`, checks the committed [`../../poetry.lock`](../../poetry.lock) with
+`poetry check --lock`, then installs runtime and development dependencies with `poetry sync --no-interaction`.
+`poetry run` executes the checks without changing the environment. The coverage report sets no minimum threshold.
 
 The job runs the whole set on Python 3.12, 3.13, and 3.14. These are the versions CI verifies within the range
 [`../../pyproject.toml`](../../pyproject.toml) admits: `requires-python = ">=3.12"` names a floor and no ceiling, so a
-newer interpreter installs without CI coverage. Python 3.12 is checked because it is the floor an installer reads.
-All matrix jobs install the same pins from the same lockfile, and each selects its interpreter explicitly with
-`uv sync --locked --python <version>`, so a job cannot report green for a version it never ran. `fail-fast: false`
-keeps the remaining jobs running when one fails, preserving the evidence from each interpreter. The jobs report as
-`ci (3.12)`, `ci (3.13)`, and `ci (3.14)`; branch-protection rules must require all three check names
+newer interpreter installs without CI coverage. The explicit classifiers name only the three tested versions. All
+matrix jobs install the same pins from the same lockfile. `actions/setup-python` provides each matrix interpreter,
+which `poetry env use "$(command -v python)"` selects explicitly. `fail-fast: false` keeps the remaining jobs running
+when one fails. Branch protection must require `ci (3.12)`, `ci (3.13)`, and `ci (3.14)`
 ([`../security.md#required-checks`](../security.md#required-checks)).
 
-The last two steps are about the distribution rather than the tree. `uv build` builds the sdist and, from it, the
-wheel; the step after installs that wheel into an environment created for it alone —
-`uv run --no-project --isolated --python <version> --with <wheel> chipping-orchestrator --help` — and requires the
-console script to exit successfully from there. `uv sync` above installs this project into `.venv` as an editable
-install, so the console script does exist by then, but it reaches the package through the source tree and nothing
-before this step reads what the build backend packaged. A wheel that ships no `orchestrator` package — the flat layout
-is declared explicitly under `[tool.hatch.build.targets.wheel]` for that reason — an entry point naming a module the
-wheel does not carry, or a runtime dependency supplied by the lockfile but omitted from `[project.dependencies]`,
-passes every other step and fails for the first person to install the distribution. `--no-project` and `--isolated`
-are what keep the answer honest: neither the project environment nor the lockfile is on the path the script imports
-from. What answers `--help` is the wheel's own contents beside the dependencies it declares for itself, resolved fresh
-from PyPI, which is the reading an installer of this distribution gets rather than the one `uv.lock` settles. The step
-configures nothing, and needs nothing configured: the command line is read before any owner that resolves the
-settings is imported, so `--help` answers even where a `REPOS` value would abort a real launch.
+The packaging steps prove the distribution independently of the editable checkout. `poetry build` uses poetry-core
+and builds both artifacts from the tree; installing the sdist separately catches files missing from the archive even
+when the wheel works. Each smoke step creates its own `python -m venv`, installs the artifact with that environment's
+`python -m pip install`, changes directory outside the checkout, and runs `chipping-orchestrator --help`. The flat
+package is declared under `[tool.poetry].packages`. These environments contain only the distribution and its declared
+runtime dependencies, resolved fresh from PyPI, so an undeclared dependency supplied by the project lock cannot hide a
+packaging error. The smoke steps configure nothing, and need nothing configured: the command line is read before any
+owner that resolves the settings is imported, so `--help` answers even where a `REPOS` value would abort a real launch.
 
 The job declares `timeout-minutes: 20`, generous next to the few minutes a green run takes and far under the six-hour
 default GitHub would otherwise cancel it at; the reasoning that ceiling serves is the same one the scans below are
@@ -76,9 +67,10 @@ complexity limit. `flake8 orchestrator tests --select=WPS` must pass without dia
 every remaining file/rule exclusion must correspond to one of those diagnostics.
 
 The rule set is Ruff's own. `[tool.ruff.lint]` in [`../../pyproject.toml`](../../pyproject.toml) declares no `select`,
-so what `ruff check orchestrator tests` enforces is whatever the `ruff` resolved in [`../../uv.lock`](../../uv.lock)
-ships as its defaults, plus the single `E501` opted into through `extend-select`. That pair is the whole contract.
-`[dependency-groups]` names a floor (`ruff>=`) rather than a version, and `uv sync --locked` installs the lockfile's
+so what `ruff check orchestrator tests` enforces is whatever the `ruff` resolved in
+[`../../poetry.lock`](../../poetry.lock) ships as its defaults, plus the single `E501` opted into
+through `extend-select`. That pair is the whole contract.
+`[dependency-groups]` names a floor (`ruff>=`) rather than a version, and `poetry sync` installs the lockfile's
 resolution, so what settles the rule set is the lock and what moves it is a regenerated one — which is what the weekly
 `workflow:dependencies` PR carries when it bumps the tool. A `select` of this repo's own would be a copy of those
 defaults taken on the day it was written, and a copy buys only the drift it cannot follow: every rule the tool adds
@@ -203,37 +195,46 @@ group, so later deployments wait.
 declared timeout, shorter than that default, on every job in all six workflows, and holds the list it walks against
 the workflow directory, so a seventh workflow arrives with a timeout rather than outside every check.
 
-[`../../.github/dependabot.yml`](../../.github/dependabot.yml) opens weekly update PRs for the `github-actions` and `uv`
-(Python `pyproject.toml` + `uv.lock`) ecosystems. For routine version updates, `github-actions` uses the ecosystem-wide
-cooldown GitHub supports and holds every release for 30 days. The `uv` entry holds a major release, and anything SemVer
+[`../../.github/dependabot.yml`](../../.github/dependabot.yml) opens weekly update PRs for `github-actions` and `pip`
+(Python `pyproject.toml` + `poetry.lock`). For routine version updates, `github-actions` uses the ecosystem-wide
+cooldown GitHub supports and holds every release for 30 days. The `pip` entry holds a major release, and anything SemVer
 does not classify, for 30 days; it holds a minor or a patch for 14 days. Cooldowns do not delay security updates. The
-`uv` entry additionally declares `allow:` rules, which replace Dependabot's default rule rather than extend it —
-`dependency-type: direct` restates that default, and `dependency-name: gitpython` names the single transitive dependency
-it is widened for, because GitPython reaches the lockfile only through Streamlit and its advisories would otherwise
-leave a grouped security job with no allowed dependency to update. Each entry also declares the service labels GitHub
-stamps on the PRs it opens:
+`pip` entry limits update PRs to direct dependencies with `dependency-type: direct` in its `allow:` block.
+Each entry also declares the service labels GitHub stamps on the PRs it opens:
 `workflow:dependencies` on every update PR, so the whole dependency queue is one label filter, plus
-`workflow:github_actions` or `workflow:python:uv` naming which ecosystem moved. Those three share the `workflow:`
+`workflow:github_actions` or `workflow:python:pip` naming which ecosystem moved. Those three share the `workflow:`
 prefix with the labels the orchestrator writes but are not workflow states — nothing in the tree reads them, so a PR
-carrying one is not an issue in a stage. `github-actions` and `uv` above name the ecosystems Dependabot updates, not
-labels. [`../../tests/repository/test_dependabot_config.py`](../../tests/repository/test_dependabot_config.py) holds
-the cooldown policies, the allow rules, and the labels against what the config declares.
+carrying one is not an issue in a stage. `github-actions` and `pip` above name the ecosystems Dependabot updates, not
+labels. The `pip` entry uses `versioning-strategy: increase` so dependency updates raise runtime lower bounds to the
+locked versions tested by CI.
+[`../../tests/repository/test_dependabot_config.py`](../../tests/repository/test_dependabot_config.py) holds the
+cooldown policies, the direct-dependency scope, the versioning strategy, and the labels against the config.
+
+Create all three custom labels in GitHub's **Issues → Labels** before Dependabot runs. The orchestrator does not
+create these service labels, and [Dependabot ignores custom labels that do not exist][dependabot-labels].
+
+`workflow:python:uv` is retired and remains on historical PRs. When reviewing `pip` updates, verify that they change
+the manifest and lock together, cover `dev`, `docs`, and `dashboard`, raise runtime lower bounds to the locked
+versions, preserve one entry per package and the major caps, honor cooldowns, and carry the service labels above.
+Use manual group bumps if Dependabot cannot update a group cleanly.
 [`../../.github/workflows/dependency-review.yml`](../../.github/workflows/dependency-review.yml) runs
 `actions/dependency-review-action` on every PR and fails the check when a PR introduces a vulnerable or non-compliant
 dependency.
 
 [`../../.github/workflows/vulnerability-scan.yml`](../../.github/workflows/vulnerability-scan.yml) is the standing
 scan beside that diff gate: a weekly `schedule` plus `workflow_dispatch`, the second so an edit to it is verifiable
-from the Actions tab instead of a week away. It exports the pins from [`../../uv.lock`](../../uv.lock) with
-`uv export --locked --all-groups --no-emit-project`, then audits them with `pip-audit` and fails the job when a
-published advisory names one of them. Why the export and the audit are shaped that way:
+from the Actions tab instead of a week away. It exports the pins from [`../../poetry.lock`](../../poetry.lock) with
+`poetry export --all-groups --without-hashes -f requirements.txt`, then audits them with `pip-audit` and fails the job
+when a published advisory names one of them. The job installs `poetry-plugin-export` at the workflow's exact pin into
+the Poetry tool environment with `pipx inject`; exporting does not require installing the project. Why the export and
+audit are shaped that way:
 
 - **`--all-groups`** covers the `dashboard` and `docs` groups as well as the runtime and `dev` ones, so the audit is
-  the whole lockfile rather than the subset a default `uv sync --locked` installs.
+  the whole lockfile rather than the subset a default `poetry sync` installs.
 - **Environment markers are stripped** from the export before the audit. A pin kept for another platform
   (`colorama` under Windows, `tzdata`) is a version this repository still ships, and an audit reading markers would
   skip it as inapplicable to the Linux runner — silently, and while reporting success.
-- **The scanner is CI-only.** `uvx` runs `pip-audit` from a throwaway environment, so it audits the pins without
+- **The scanner is CI-only.** `pipx run` runs `pip-audit` from a throwaway environment, so it audits the pins without
   becoming one: it appears in neither [`../../pyproject.toml`](../../pyproject.toml) nor the lockfile, and the
   version range there is what keeps a new major from changing the CLI under the job.
 - **`--no-deps --disable-pip` and `--strict`.** The exported versions are already the complete pinned set, and the
@@ -250,6 +251,45 @@ into a bump PR is Dependabot's job, which is why enabling Dependabot security up
 [`../security.md#dependabot-security-updates`](../security.md#dependabot-security-updates). The audit reads the whole
 lockfile while those updates reach only what the `allow:` rules above name, so a finding against a transitive pin
 those rules do not name is cleared by widening them or by hand rather than by waiting for a PR.
+For manual security fixes younger than 14 days, follow the
+[manual security-fix procedure](../security.md#dependabot-security-updates).
+
+### Dependency tooling
+
+Poetry keeps checkout environments in `.venv/`, and the default sync installs runtime plus `dev` dependencies.
+`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with docs` and
+`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard` select optional groups; use `--with docs,dashboard`
+for both. Sync removes unselected groups. `poetry run` executes commands without syncing. The wrapper's install policy,
+timeouts, and operator sync requirements are documented under
+[Launcher dependency refresh](#launcher-dependency-refresh).
+
+Poetry uses an inherited `VIRTUAL_ENV` or non-base `CONDA_PREFIX` even with `virtualenvs.in-project = true`.
+Prefix every manual Poetry command with `env -u VIRTUAL_ENV -u CONDA_PREFIX` so it selects this checkout's `.venv/`.
+Agent and verify subprocesses remove `VIRTUAL_ENV` and its `bin` directory from `PATH` for all managed repositories;
+Conda markers and their `PATH` entries stay together so Conda-based targets keep a consistent activation. Commands for
+a Poetry target launched from Conda must explicitly deactivate it or use the manual override above. Without that
+override, `poetry sync` can remove unrelated packages from the operator's active Conda environment; the subprocess
+filter does not protect it. The launcher clears both markers for its dependency install, while its Python process
+inherits the caller's Conda activation.
+
+The manifest accepts Poetry `>=2.4,<3`; CI and the operator setup pin `2.5.1`. Poetry 2.4 is the minimum for the
+[release-age setting][poetry-release-age] in [`../../poetry.toml`](../../poetry.toml), which holds new releases for
+14 days during resolution. Use `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry lock` for dependency or group changes and
+`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry check --lock`
+to detect a stale lock. A project version bump does not change the lock. Never commit package sources or mirror URLs.
+If a mirror is required, validate a maintainer-local mirror plugin's output before using it; the committed lock must
+stay free of `[package.source]` entries.
+`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry show --outdated --top-level` reports outdated direct dependencies.
+
+Keep runtime dependencies' lower bounds and major-version caps in the manifest, and keep each locked version
+within its declared range. Repository checks accept lock-only updates within those ranges. Raise runtime lower
+bounds with manual updates; for a lock-only security update, raise the affected lower bound to exclude vulnerable
+releases. Use the [manual security-fix procedure](../security.md#dependabot-security-updates) for security fixes
+younger than 14 days.
+
+[dependabot-labels]:
+  https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#labels
+[poetry-release-age]: https://python-poetry.org/docs/configuration/#solvermin-release-age
 
 ## Publishing the documentation
 
@@ -263,17 +303,17 @@ optional. The Markdown under `docs/` is the source for both the website and GitH
 Install the optional `docs` dependency group from the lockfile, then start the local preview:
 
 ```sh
-uv sync --locked --group docs
-uv run --no-sync mkdocs serve
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with docs
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run mkdocs serve
 ```
 
 Open `http://127.0.0.1:8000/` to browse the preview. To check the deployable HTML, build it once and point the
 checks at that output, as the **Documentation** workflow does:
 
 ```sh
-uv run --no-sync mkdocs build --strict
-DOCS_SITE_DIR=site uv run --no-sync pytest tests/repository/test_docs_site.py tests/repository/test_docs_output.py \
-  tests/repository/test_docs_navigation.py
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run mkdocs build --strict
+env -u VIRTUAL_ENV -u CONDA_PREFIX DOCS_SITE_DIR=site poetry run pytest tests/repository/test_docs_site.py \
+  tests/repository/test_docs_output.py tests/repository/test_docs_navigation.py
 ```
 
 The build writes to the ignored `site/` directory. `DOCS_SITE_DIR` makes `tests/repository/test_docs_output.py` check
@@ -282,7 +322,7 @@ instead of building a copy of its own. A directory it names that holds no built 
 rebuilt or skipped. Without the variable, the same `pytest` command builds a fresh strict copy into a temporary
 directory. Links in the Markdown sources are checked by `tests/repository/test_doc_links.py`, which needs no
 documentation builder and runs with the rest of the suite in [Continuous integration](#continuous-integration). The
-`docs` group is separate from runtime and development dependencies, so the default `uv sync --locked` does not install
+`docs` group is separate from runtime and development dependencies, so the default `poetry sync` does not install
 the documentation builder.
 
 [`../../mkdocs.yml`](../../mkdocs.yml) defines the navigation, site URL, search-enabled theme, the template directory
@@ -383,6 +423,8 @@ configuration examples lead back to the repository; the site does not publish th
 
 ## Run modes
 
+### Launch commands
+
 - `./run.sh` — production. Continuous polling. `run.sh` does `git pull --ff-only origin "$ORCHESTRATOR_BASE_BRANCH"`
   (read from `.env`, default `main`) and re-launches the orchestrator after each clean exit, so a self-modifying merge
   picks up new code automatically. If a non-base branch is checked out the pull is skipped, and if the fast-forward
@@ -390,6 +432,10 @@ configuration examples lead back to the repository; the site does not publish th
   existing working tree anyway instead of exiting — under `Restart=always` a stale-but-running orchestrator beats a
   silent crash loop. See [`../architecture.md#process-model`](../architecture.md#process-model) for the full
   skip-and-warn contract.
+
+  Run only one wrapper per checkout. Additional daemons need separate checkouts and `.venv/` environments;
+  see [Running more than one poller](#running-more-than-one-poller). Dependency refreshes run before each Python
+  launch; see [Launcher dependency refresh](#launcher-dependency-refresh).
 
   The wrapper relaunches after every exit that is not a signal stop, a refused start included: a launch whose
   `ALLOWED_ISSUE_AUTHORS` names nobody, whose settings fail validation, or one of whose targets is not a checkout git
@@ -427,13 +473,71 @@ configuration examples lead back to the repository; the site does not publish th
 - `python -m orchestrator --log-level DEBUG` — verbose logs.
 
 Both forms above call `orchestrator/cli.py`, which is also what the `chipping-orchestrator` console script declared in
-[`../../pyproject.toml`](../../pyproject.toml) runs (`uv run chipping-orchestrator --once`). The module form is what
+[`../../pyproject.toml`](../../pyproject.toml) runs
+(`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run chipping-orchestrator --once`). The module form is what
 `run.sh` launches and what the systemd unit below therefore supervises; the console script is the equivalent for an
 install that has the project on its `PATH`.
 
 On first start the orchestrator creates the workflow labels and the `backlog` / `paused` /
 `workflow:community_contribution` control labels on the repo, then begins polling open issues every `POLL_INTERVAL`
 seconds. On a repo it drove before the labels were namespaced, each pre-namespace label is renamed in place instead.
+
+### Poetry migration for operators
+
+Install `poetry==2.5.1` with `pipx` and put its executable directory on the systemd unit's `PATH` before the migration
+reaches the base checkout. Stop the service, remove `.venv/`, then recreate it with
+`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` (add `--with dashboard` where needed), replace `uv run` in existing
+crontabs and units with `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run` or the absolute `.venv/bin/python` path, and
+restart the service. Restart the wrapper too so its shell functions come from the updated `run.sh`.
+
+Follow the [environment selection policy](#dependency-tooling) when recreating `.venv/` with the required groups.
+Create the `workflow:python:pip` label in GitHub's **Issues → Labels** before Dependabot's next run; keep
+`workflow:python:uv` on historical PRs.
+On a fresh repository, create `workflow:dependencies` and `workflow:github_actions` too.
+
+For deployments that verify this repository, also update
+[`VERIFY_COMMANDS`](../configuration.md#local-verification-gate) wherever it uses `uv run`. Fresh per-issue worktrees
+need `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` before verification because `poetry run` does not install
+dependencies. Apply the environment selection policy to each command:
+
+```dotenv
+VERIFY_COMMANDS=env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --no-interaction && env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m pytest -q;env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run ruff check orchestrator tests
+```
+
+Add `--with docs` or `--with dashboard` to the sync command when the configured checks require those optional groups.
+Venv-based targets need absolute executable paths or explicit virtualenv activation in `VERIFY_COMMANDS`.
+
+To roll back, revert the migration, stop the service, remove `.venv/` and recreate it with `uv sync --locked`, restore
+the crontab, unit, and `VERIFY_COMMANDS` commands, and restart. The restored lock has the same pins unless dependency
+updates merged after migration.
+
+### Launcher dependency refresh
+
+Run only one `run.sh` wrapper per checkout, and give each additional daemon its own checkout and `.venv/`. A refresh
+changes installed packages, so sharing a checkout can cause simultaneous installs or replace packages under another
+running Python process. Use separate environments for other long-running processes, and stop processes using this
+checkout's `.venv/` before a manual install or sync.
+
+Before each Python launch, `run.sh refresh_dependencies` compares the current `pyproject.toml` and `poetry.lock` git
+blob IDs with the successful install stamp in `.venv/.poetry-dependencies`. A missing or mismatched stamp runs
+`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry install --no-interaction`. Only a successful install records the current IDs.
+New environments and rollbacks are checked even when the pull brings no changes.
+
+The timeout sends SIGTERM to the Poetry process after 300 seconds, followed by SIGKILL 10 seconds later if needed.
+`timeout --foreground` keeps the installer in the wrapper's process group so operator signals stop the refresh and
+wrapper together. Timeout signals do not cover Poetry's child processes: a stalled build subprocess can survive and
+keep modifying `.venv/` after the wrapper launches Python.
+This foreground signal behavior is deliberate. After a timeout, stop the wrapper and any surviving build processes
+before repairing or syncing the environment.
+
+The additive install preserves installed optional groups and packages removed from the lock. Packages exclusive to
+an optional group remain at their installed versions until a sync selects that group, even when shared transitive
+dependencies change during a refresh. To upgrade those packages and remove obsolete ones, including packages dropped
+for security reasons, sync with every desired optional group selected; for example,
+`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard` when only the dashboard group is enabled.
+
+A missing installer, failed or timed-out refresh, or unwritable stamp warns that the environment may be partially
+updated and launches it, then retries on each restart until it succeeds.
 
 ## Running more than one poller
 
@@ -443,6 +547,9 @@ the in-process scheduler guards (a duplicate active issue, the caps, the family 
 Left unset, `WORKTREES_DIR` defaults beside the first configured target — the first `REPOS` entry, or
 `TARGET_REPO_ROOT` without `REPOS` ([default](../configuration.md#workspace-and-agent-identity)) — so pollers whose
 lists start with different repositories resolve different roots unless every one of them sets it explicitly.
+
+The shared issue claims coordinate workflow work. Set the same `WORKTREES_DIR` in every poller's checkout, and follow
+the checkout and environment isolation requirements under [Launcher dependency refresh](#launcher-dependency-refresh).
 
 - **One writer per issue.** Each dispatched issue is taken under a host-local writer claim: an exclusive `flock` on a
   file in `WORKTREES_DIR/.issue-writer-claims/`, named `repo-<id>-issue-<n>.lock` for the repository's numeric GitHub
@@ -555,6 +662,7 @@ WantedBy=default.target
 - A non-interactive systemd service does not inherit your shell's `PATH`. If `codex` or `claude` lives under
   `~/.local/bin`, add it to `Environment=PATH=…`, or set `CODEX_BIN` / `CLAUDE_BIN` to absolute paths via additional
   `Environment=` lines.
+- Include the directory containing `poetry` in the unit's `PATH` so dependency refreshes can run after a self-update.
 
 ### Enabling
 
@@ -1189,11 +1297,12 @@ When each setting's change takes effect:
   `REPOS`, so an edit that changes either moves it too: set it explicitly before such an edit on a host with issues in
   flight ([default](../configuration.md#workspace-and-agent-identity))
 - `ANALYTICS_DB_URL` — next `python -m orchestrator.observability.analytics.sync.cli` invocation, and next
-  `uv run streamlit run orchestrator/apps/analytics_dashboard.py` start (the value is parsed once, when the analytics
-  settings holder is first imported, so a browser reload is not enough — relaunch Streamlit). The polling loop does not
-  read this setting.
-- `DASHBOARD_PARALLEL_READS` — next `uv run streamlit run orchestrator/apps/analytics_dashboard.py` start. Parsed once
-  per process, on the first render's import of the read-mode owner.
+  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py` start.
+  The value is parsed once when the analytics settings holder is first imported, so a browser reload is not enough —
+  relaunch Streamlit. The polling loop does not read this setting.
+- `DASHBOARD_PARALLEL_READS` — next
+  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py` start.
+  The value is parsed once per process, on the first render's import of the read-mode owner.
 - `MAX_PARALLEL_ISSUES_PER_REPO`, `MAX_PARALLEL_ISSUES_GLOBAL` — next Python start. Per-`REPOS` `parallel_limit`
   overrides take precedence over `MAX_PARALLEL_ISSUES_PER_REPO`.
 - `WORKFLOW_TRANSITION_GUARD` — next Python start (parsed at config import).

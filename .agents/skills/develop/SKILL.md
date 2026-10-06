@@ -10,16 +10,28 @@ description: >-
 
 ## Environment and commands
 
-The repo targets Python 3.12+ and installs from the lockfile with [`uv`](https://github.com/astral-sh/uv):
+The repo targets Python 3.12+ and installs from the lockfile with
+[Poetry 2.5.1](https://python-poetry.org/docs/#installation):
 
 ```sh
-uv sync --locked                                                           # create .venv/ with runtime + dev deps
-uv run ruff check orchestrator tests .github/scripts/docs_site.py          # run Ruff
-uv run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS # run wemake-python-styleguide
-uv run pytest tests                                                        # run the test suite
-uv run python -m orchestrator --once                                       # one polling tick then exit
-uv run python -m orchestrator --log-level DEBUG                            # continuous polling with debug logs
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync                                # create .venv/ with runtime + dev deps
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run ruff check orchestrator tests .github/scripts/docs_site.py
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run pytest tests                    # run the test suite
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator --once   # one polling tick then exit
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator --log-level DEBUG
 ```
+
+Run the sync command above in every fresh worktree before checks: `poetry run` executes commands without installing or
+refreshing dependencies. Add `--with dashboard` or `--with docs` when the change needs an optional group; use
+`--with docs,dashboard` to install both. Sync removes unselected optional groups, while
+`poetry install` preserves packages already installed but does not upgrade packages exclusive to unselected optional
+groups. Select an existing Python 3.12+ interpreter with
+`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry env use /path/to/python` when the default interpreter is unsuitable.
+
+Prefix every manual Poetry command with `env -u VIRTUAL_ENV -u CONDA_PREFIX`, as in the examples above. The
+[environment selection policy](../../../docs/configuration/operations.md#dependency-tooling) explains inherited
+activation and the Conda requirements for target repositories.
 
 ## License headers
 
@@ -47,7 +59,7 @@ Before committing, run each of these and fix what they report:
 
 - `.venv/bin/python -m ruff check orchestrator tests .github/scripts/docs_site.py` — the lint contract is **Ruff's
   own default rule set plus `E501`**. `[tool.ruff.lint]` in `pyproject.toml` declares no `select`, so the run enforces
-  whatever the `ruff` resolved in `uv.lock` ships as its defaults; do not add one back, and do not answer a new
+  whatever the `ruff` resolved in `poetry.lock` ships as its defaults; do not add one back, and do not answer a new
   diagnostic by narrowing the selection. Re-resolving that lock can bring rules with it — fix what they report, in the
   same commit as the bump. There is no tree-wide waiver either: the only suppressions are the exact-path entries under
   `[tool.ruff.lint.per-file-ignores]` and inline `# noqa: <CODE> - <reason>` directives, each naming the rule it
@@ -67,12 +79,12 @@ Before committing, run each of these and fix what they report:
     naming what the catch protects; anything narrower catches the exception it means.
   - The defaults also carry the modernization and simplification families — **UP**, **B**, **SIM**, **C4**, **RET**,
     **RUF** — so a diagnostic from one of those is a rewrite, not a waiver.
-- `uv run ruff check orchestrator tests .github/scripts/docs_site.py --select=I001 --fix` — `I001` is in the run above,
-  so this is just the fixer for it; `tests/repository/test_import_sorting.py` fails on a block left unsorted too.
+- `.venv/bin/python -m ruff check orchestrator tests .github/scripts/docs_site.py --select=I001 --fix` — this fixes
+  `I001`, which the run above enforces; `tests/repository/test_import_sorting.py` fails on a block left unsorted too.
   Never split one module's names across several `from ... import` statements to duck **WPS235** — the sorter merges
   every statement reading from the same module back into one.
-- `uv run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS` — all WPS naming, complexity,
-  consistency, bug-prevention, refactoring, and OOP rules must pass.
+- `.venv/bin/python -m flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS` — all WPS naming,
+  complexity, consistency, bug-prevention, refactoring, and OOP rules must pass.
 - `git diff --check` — catches whitespace errors in unstaged changes.
 - `git diff --cached --check` — catches whitespace errors in staged changes.
 - `git diff --check origin/main...HEAD` — catches whitespace errors in committed branch changes.
@@ -231,11 +243,22 @@ explicitly asks you to edit or remove one.
 
 ## Dependencies
 
-`pyproject.toml` pins `PyGithub` and `psycopg[binary]` as runtime deps; `pytest`, `pytest-cov`, `ruff`, and
+`pyproject.toml` pins `PyGithub` and `psycopg[binary]` as runtime deps; `packaging`, `pytest`, `pytest-cov`, `ruff`, and
 `wemake-python-styleguide` live in the `dev` group; the analytics dashboard's `streamlit` and `plotly` live in the
-separate `dashboard` group so the default `uv sync --locked` stays minimal. `uv.lock` is the source of truth for exact
-versions and is committed — regenerate it (`uv lock`) whenever `pyproject.toml` changes. Anything else needs
-justification.
+separate `dashboard` group so the default `poetry sync` stays minimal. `poetry.lock` is the source of truth for exact
+versions and is committed — update it (`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry lock`) whenever dependency
+declarations or group settings change.
+Version-only releases do not change the lock. Keep one lock entry per package and cap runtime major upgrades. Raise
+runtime lower bounds with manual updates; Dependabot's `pip` entry requests this with `versioning-strategy: increase`.
+Repository checks accept a lock-only update within the declared range.
+`poetry.toml` keeps environments in `.venv/` and holds new releases for 14 days when resolving. Do not commit package
+sources or mirror URLs; the lock uses implicit PyPI. For security fixes younger than 14 days, follow the
+[manual security-fix procedure](../../../docs/security.md#dependabot-security-updates).
+
+Install the export plugin only when exporting for an audit or a release, using
+`pipx inject poetry "poetry-plugin-export==<version>"` with the exact pin from the
+[vulnerability-scan workflow](../../../.github/workflows/vulnerability-scan.yml).
+Anything else needs justification.
 
 ## Out of scope without explicit ask
 

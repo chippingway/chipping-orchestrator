@@ -48,8 +48,34 @@ self_update() {
     return 0
 }
 
+refresh_dependencies() {
+    local dependency_stamp=".venv/.poetry-dependencies"
+    local dependency_signature detail msg
+    # Only a successful additive install advances the stamp, so failed refreshes
+    # retry on each launch and optional groups the operator enabled survive.
+    if ! dependency_signature=$(git hash-object -- pyproject.toml poetry.lock 2>/dev/null); then
+        detail="Could not fingerprint pyproject.toml and poetry.lock."
+    elif [ -f "$dependency_stamp" ] && [ "$(cat "$dependency_stamp")" = "$dependency_signature" ]; then
+        return 0
+    elif ! command -v poetry >/dev/null 2>&1; then
+        detail="The Poetry executable is not on PATH."
+    elif ! env -u VIRTUAL_ENV -u CONDA_PREFIX \
+        timeout --foreground --kill-after=10s 300s poetry install --no-interaction; then
+        detail="'poetry install --no-interaction' failed or timed out (300s limit)."
+    elif printf '%s\n' "$dependency_signature" > "$dependency_stamp"; then
+        return 0
+    else
+        detail="Could not record the successful dependency refresh in $dependency_stamp."
+    fi
+    msg="[$(date -Iseconds)] WARNING: dependency refresh failed -- the environment may be partially updated. "
+    msg+="$detail The wrapper will retry before the next launch."
+    echo "$msg" >&2
+    return 0
+}
+
 self_update
 while true; do
+    refresh_dependencies
     .venv/bin/python -m orchestrator "$@"
     rc=$?
     # 130 = SIGINT, 143 = SIGTERM. The orchestrator exits with these codes

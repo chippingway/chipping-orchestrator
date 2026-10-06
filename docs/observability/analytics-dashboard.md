@@ -290,7 +290,7 @@ path, while reads have a different error story and injection shape.
 
 ## Dashboard (`orchestrator/apps/analytics_dashboard.py`)
 
-Streamlit app over the read model. Opt-in via the `dashboard` dependency group so the default `uv sync --locked` keeps
+Streamlit app over the read model. Opt-in via the `dashboard` dependency group so the default `poetry sync` keeps
 installing only the polling runtime plus `pytest`, `ruff`, and `wemake-python-styleguide`. Streamlit (and its transitive
 pandas), `plotly`, and every dashboard owner the page composes — the chart owners that reach Plotly and the
 plotly-free theme among them — are imported inside the pass
@@ -530,8 +530,9 @@ helpers — `st`, the theme, and the pandas handle beside them are passed in as 
 chart owners' own rather than a handle threaded down.
 
 ```sh
-uv sync --group dashboard                                  # install streamlit + plotly alongside the runtime + dev deps
-uv run streamlit run orchestrator/apps/analytics_dashboard.py   # launches a local browser tab
+# Install Streamlit + Plotly alongside the runtime + dev dependencies, then launch the dashboard.
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py
 ```
 
 **Page chrome.** A sticky topbar carries the page title with the data extent / repo / event summary on the left and the
@@ -831,9 +832,10 @@ The dashboard never raises an unhandled exception at the user — every missing-
 as a labeled banner.
 
 - `` `ANALYTICS_DB_URL` is not configured. … `` (top-level `st.warning`, app stops) — *env* — `ANALYTICS_DB_URL`
-  is unset, empty, or set to `off` / `disabled` / `none`. Set it in `.env` and **relaunch** `uv run streamlit run
-  orchestrator/apps/analytics_dashboard.py` (the URL is parsed once, when the analytics settings holder is first
-  imported, so a browser reload alone will not pick up the new value).
+  is unset, empty, or set to `off` / `disabled` / `none`. Set it in `.env` and **relaunch** with
+  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py`
+  (the URL is parsed once, when the analytics settings holder is first imported, so a browser reload alone will not
+  pick up the new value).
 - `Could not load analytics filter options: …` (top-level `st.error`, app stops) — *DB connectivity* — The
   dashboard could not reach Postgres at startup. Confirm `docker compose ps` shows `analytics-db` healthy, that the host
   / port / credentials in `ANALYTICS_DB_URL` match `analytics-db/.env`, and that the user can connect with `psql`.

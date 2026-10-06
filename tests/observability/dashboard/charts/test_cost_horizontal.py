@@ -10,7 +10,7 @@ from inspect import signature
 from orchestrator.observability.dashboard import palette
 from orchestrator.observability.dashboard.charts import cost_horizontal, primitives
 
-_SKIP_REASON = "plotly not installed -- run `uv sync --group dashboard`"
+_SKIP_REASON = "plotly not installed -- run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard`"
 
 _ROW_HEIGHT = primitives.HORIZONTAL_BAR_ROW_HEIGHT
 

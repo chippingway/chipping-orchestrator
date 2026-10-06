@@ -12,7 +12,7 @@ from orchestrator.observability.analytics.query.cost_models import (
 from orchestrator.observability.dashboard import palette
 from orchestrator.observability.dashboard.charts import cost_horizontal, cost_repo
 
-_SKIP_REASON = "plotly not installed -- run `uv sync --group dashboard`"
+_SKIP_REASON = "plotly not installed -- run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard`"
 
 _DEARER_COST = 8.0
 

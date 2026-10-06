@@ -35,7 +35,7 @@ def default_connect(db_url: str) -> Any:
     except ImportError as error:
         raise RuntimeError(
             "psycopg is required for analytics_sync; reinstall chipping-orchestrator "
-            "or run `uv sync --locked` in a source checkout"
+            "or run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` in a source checkout"
         ) from error
     return psycopg.connect(db_url)
 
