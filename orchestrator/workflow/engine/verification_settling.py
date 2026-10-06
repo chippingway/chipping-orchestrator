@@ -55,10 +55,16 @@ the tick that next proves the world may defer before it ever reads the thread
 again; where that entry finds the comment unreadable, replaced, or no longer
 parsing, or goes out unconfirmed, the tick holds, since nothing behind the
 reconciliation may act on a record nobody can say. A refusal of the binding
-short of a reading nobody could take abandons
-a carry instead, with the approval it was recorded for, in the write that
-records that entry (`verification_carries`); a commit that did not land never
-does, since nothing refused the binding.
+short of a reading nobody could take abandons a carry instead, with the
+approval it was recorded for, in one guarded commit that records that entry
+too, staged on and guarded by the comment read behind the proof
+(`verification_carries`) -- and only while that comment still carries every
+bound record as the tick read it, since a record another road moved ahead of
+the proof or during it refuses what the tick decided over rather than the
+binding. Where that abandonment is not made, or does not land over a comment
+that still reads, the carry stays owed and the entry is committed alone. A
+settlement commit that did not land never abandons one, since nothing refused
+the binding.
 """
 from __future__ import annotations
 
@@ -72,7 +78,6 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     pinned_commit as _commit,
-    report_record_state as _report_record_state,
     verification_comments as _verification_comments,
     verification_durable as _durable,
     verification_live_work as _live_work,
@@ -80,7 +85,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
-from orchestrator.workflow.engine.verification_carries import abandons, is_carry
+from orchestrator.workflow.engine.verification_carries import ABANDONS, abandons, is_carry
 from orchestrator.workflow.engine.verification_current import copied_source_verdict
 from orchestrator.workflow.engine.verification_settlement_state import settled_state
 from orchestrator.workflow.state import WorkflowLabel
@@ -99,6 +104,10 @@ SETTLES = (
     _records.REVISION_FLOOR,
     *_verification_comments.MERGED_LEDGER,
 )
+
+# What abandoning a carry whose binding was refused may write: the
+# abandonment's own fields, and the ledger entry its artifact takes.
+ABANDONS_RECORDING = (*ABANDONS, *_verification_comments.MERGED_LEDGER)
 
 
 def settles(
@@ -294,21 +303,45 @@ def _leaves_it_owed(
     is committed over the comment as it stands
     (`verification_comments.records_the_artifact`); a comment that entry
     finds nobody can read as the one this tick read holds the tick, whatever
-    the binding was refused for. A carry refused on
+    the binding was refused for. A carry whose binding was refused on
     anything but a reading nobody could take goes into history instead, with
-    the approval it was recorded for and that ledger entry, in one write over
-    `latest`, the comment read behind the proof (`verification_carries`), and
-    only where the comment can carry it.
+    the approval it was recorded for and that ledger entry, in one guarded
+    commit staged on `latest`, the comment read behind the proof, and guarded
+    by it (`ABANDONS_RECORDING`, `verification_carries`): a record another
+    road moved after that reading refuses it, every field it does not own is
+    kept as the comment carries it, and the ledger entry is merged into
+    whatever ledger it finds. Only where `latest` still carries every bound
+    record as the tick read it, though: a record another road moved ahead of
+    the proof or during it is a refusal of what the tick decided over, not of
+    the binding, so the carry stays owed for the next tick to decide over
+    what the comment carries then, with the ledger entry committed alone --
+    as it is wherever the abandonment does not land over a comment that still
+    reads. Where it lands, the reading it landed as becomes the state in
+    hand, and the reading that state is synced with (`pinned_commit.takes_in`).
     """
-    if refused.holds or not is_carry(pending):
+    moved = _durable.guarded(reading.state, ()).moved(latest.data)
+    if refused.holds or moved or not is_carry(pending):
         held = _verification_comments.records_the_artifact(reading.gh, reading.issue, reading.state, comment_id)
         return held or refused.holds
+    guard = _durable.guarded(latest, ABANDONS_RECORDING)
     _comments._track_orchestrator_comment(latest, comment_id)
     abandons(latest, pending)
-    if _report_record_state.fits_the_comment(latest.data):
-        reading.state.data = latest.data
-        reading.gh.write_pinned_state(reading.issue, reading.state)
-    return False
+    outcome = _commit.commit(
+        reading.gh, reading.issue, guard, latest.data, _verification_comments.MERGED_LEDGER,
+    )
+    abandoned = _durable.refusal_of(outcome)
+    if abandoned is None:
+        reading.state.data = outcome.reading.data
+        _commit.takes_in(reading.state, outcome.reading.data)
+        return False
+    log.info(
+        "issue=#%d is not abandoning the refused carry of verification evidence "
+        "revision %d: %s; leaving it owed", reading.issue.number, pending.revision,
+        abandoned.refusal,
+    )
+    if abandoned.holds:
+        return True
+    return _verification_comments.records_the_artifact(reading.gh, reading.issue, reading.state, comment_id)
 
 
 def _label_of(fresh: Issue) -> WorkflowLabel | None:

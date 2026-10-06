@@ -244,13 +244,17 @@ class MovedUnderTheReaderTest(_support.SquashedRoundWorld, unittest.TestCase):
         # The carry is recorded, and while its settlement re-reads the
         # developer report another road puts an approval of another subject
         # in place of the one the carry was recorded for. The settlement is
-        # refused and the carry abandoned, but the approval retired with a
-        # carry is only its own: the replacement stands as written.
+        # refused over that move and the carry left owed, since the move is
+        # not the carry's binding refused; the next tick's proof refuses it and
+        # abandons it, but the approval retired with a carry is only its own:
+        # the replacement stands as written throughout.
         self.approves()
         replaces = _world.AnotherRoadBehind(self, REPORT_REREAD, bool, _replaces_the_approval, 2)
 
         with patch.object(self.github, REPORT_REREAD, replaces):
             self.later()
+        self.assertEqual(self.standing()[1][0], (HEAD, SQUASHED))
+        self.later()
 
         self.assertEqual(self.standing()[:2], _ABANDONED[:2])
         self.assertEqual(self.pinned().get(_review_subjects.APPROVED_SUBJECT), dict(REPLACEMENT))

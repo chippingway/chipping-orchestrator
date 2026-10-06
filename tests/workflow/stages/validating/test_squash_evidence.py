@@ -302,11 +302,12 @@ class RefusedCarryTest(_support.SquashedRoundWorld, unittest.TestCase):
         # records while the reconciliation's settlement re-reads the developer
         # report -- on the carry's first publication, or on the retry of one
         # nobody could confirm, for the reviewer's evidence and the approval
-        # gate's run alike. The settlement is composed over the comment read
-        # behind its proof, which no longer carries the subject the carry
-        # answers through: the removal stands, the carry is abandoned rather
-        # than settled, the handoff over it is dropped, and the label never
-        # moves.
+        # gate's run alike. The comment read behind the settlement's proof no
+        # longer carries the subject the carry answers through, so the
+        # removal stands and nothing is settled; the carry is left owed rather
+        # than abandoned over a record that moved under the proof. The next
+        # tick's proof refuses it over the removal and abandons it, the
+        # handoff over it is dropped, and the label never moves.
         for gate, prior, carried in (
             (_GATE_BINDS_NOTHING, (), CARRIED),
             (_GATE_BINDS_NOTHING, (RefusedCarryTest._publishes_unconfirmed,), CARRIED),
@@ -324,6 +325,8 @@ class RefusedCarryTest(_support.SquashedRoundWorld, unittest.TestCase):
 
                 with patch.object(self.github, REPORT_REREAD, behind):
                     self.later()
+                self.assertEqual(self.standing()[1], OWED_CARRY)
+                self.later()
 
                 self.assertEqual(self.standing(), (*SETTLEMENT_REFUSED, (REVIEWED, carried)))
                 self.assertIsNone(self.pinned().get(_review_subjects.APPROVED_SUBJECT))

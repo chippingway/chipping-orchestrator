@@ -44,9 +44,15 @@ was never confirmed is reported as UNCONFIRMED rather than as either answer --
 whatever receipt the caller's own domain keeps is what a later reading settles
 it by. The verification-evidence publication and settlement commit through this
 (`verification_durable`, `verification_publishing`, `verification_settling`),
-and so do the developer report's recording, binding, and the park a refusal of
-either takes (`report_commits`); every other road still rewrites the whole
-record.
+and so do the evidence reconciliation's retirements -- a transaction abandoned
+or dropped, a refused carry abandoned with its approval
+(`verification_transaction`, `verification_carries`) -- `validating`'s
+invalidation of carried evidence that no longer answers
+(`stages/validating/collapse.py`), and the developer report's recording,
+binding, and the park a refusal of either takes (`report_commits`). Every other
+road still rewrites the whole record, the approval squash's own invalidation
+of the evidence its approval rests on among them
+(`stages/validating/squash_evidence.py`).
 
 The report's commits are captured over the reading a tick last synced with the
 comment (`PinnedState.synced`), so what the tick staged since is told from what

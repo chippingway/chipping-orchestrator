@@ -135,6 +135,16 @@ OWED_REPORT = "developer_report_owed"
 # developer that can write the report again.
 UNDELIVERABLE_REPORT = "report_undeliverable"
 
+# Every record `owes_a_report` reads, for a guarded write whose decision rests
+# on whether a report is owed and has to land only while none of them moved:
+# each the evidence binds itself through (`verification_durable`).
+REPORT_DEBT = (
+    _records.DELIVERED_REPORT,
+    _records.PENDING_REPORT,
+    _PARK_REASON,
+    OWED_REPORT,
+)
+
 # Work a COMPLETED run committed that no record of this issue's describes.
 # Kept apart from the debt above, which any road that cannot deliver a report
 # writes: a record of an EARLIER run is still a record, so the debt alone
