@@ -451,9 +451,10 @@ refresh to walk
 reconciliations and ahead of the reuse guard below: the record is durable and the publication that follows it is
 not, so a tick that died in between leaves a pull request without the report the next reviewer is meant to read,
 and no stage would go back for it. It proves the world the record froze, publishes or re-reads the report, and
-settles the whole obligation in one write; short of that it holds a read nobody could take, stands down on
-anything a route behind it would fix, retires a transaction whose pull request is over, and parks once on a record
-it may not act on
+settles the whole obligation in one guarded commit; short of that it holds a read nobody could take or a write that
+did not land over the comment it read — another road wrote it while the report was out, or GitHub never confirmed the
+edit — stands down on anything a route behind it would fix, retires a transaction whose pull request is over, and
+parks once on a record it may not act on
 ([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch))
 — a report debt a rewritten pull-request head left, which holds the roads past an approval (`workflow:documenting`,
 `in_review`) while any claim stands, readable or not, and leaves `workflow:validating` to pay it

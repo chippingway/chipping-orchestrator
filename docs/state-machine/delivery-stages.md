@@ -3665,11 +3665,13 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      `report_settlement`'s, over the pull request, its description, and the issue read again. A reply resumes the
      session through the drift route, whose report supersedes the undelivered one. Anything else still owed — a
      reading nobody could take, or a pull request somebody moved under the report — holds silently, since the next
-     tick is as likely to settle it. So does a binding this tick's settlement sent that did not land over the comment it
-     read — refused over a comment another road moved since, or never confirmed: the tick's state is withheld, so a park
-     behind it would be a notice no write could record, and the hold says nothing at all until a later tick binds afresh
-     or the reconciliation publishes what landed. A park the awaiting-human branch cleared into this round is written
-     when the hold stops it, in the one write step 4 composes over the comment read afresh
+     tick is as likely to settle it. So does a binding this tick's settlement sent, or the settlement's own preparation
+     or commit, that did not land over the comment it read — refused over a comment another road moved since, or never
+     confirmed — and a post or re-read that left the report owed while another road wrote the comment: the tick's state
+     is withheld, so a park behind it would be a notice no write could record, and the hold says nothing at all until a
+     later tick binds or settles afresh, finding a posted report by its receipt, or finds nothing owed. A park the
+     awaiting-human branch cleared into this round is written when the hold stops it, in the one write step 4 composes
+     over the comment read afresh
      (`review_resume.settles_a_bought_round`), so its reply is not answered twice.
      Once no report is owed -- on arrival, or once this tick settled it -- a claimed `developer_report_rewrite_debt` is
      asked last (`report_refresh._rewrite_holds_the_review`), against the pull request's head read the way the

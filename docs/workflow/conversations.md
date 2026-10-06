@@ -505,7 +505,8 @@ division of labour between the developer and the orchestrator never changes.
   is finished with no second developer run, no second report, and no round spent twice:
   - a post GitHub refused or never confirmed, and one it accepted while the response was lost, by the
     [developer-report transaction][report-transaction] ahead of every handler, which finds an accepted post by its
-    receipt rather than posting again;
+    receipt rather than posting again — and the same for a settlement refused because another road wrote the
+    comment while the report was out, or accepted with its answer lost, which leaves nothing owed where it landed;
   - a report recorded and never bound — the process dying before the gate or before the binding, or the
     reviewer-requested round's relabel to `workflow:validating`, which it takes before the binding, never landing —
     by the stage that binds it: `workflow:validating`'s review hold, or `workflow:fixing`'s recovery, which hands the
