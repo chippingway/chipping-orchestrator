@@ -41,8 +41,9 @@ See the [state-machine overview][states] for labels and transitions, and the
 
 ## Requirements
 
-- Linux, Git, Python 3.12 or newer, and [Poetry 2.5.1](https://python-poetry.org/docs/#installation). CI tests
-  Python 3.12, 3.13, and 3.14; newer versions are not tested.
+- Linux, Git, and Python 3.12 or newer. CI tests Python 3.12, 3.13, and 3.14; newer versions are not tested.
+- [pipx](https://pipx.pypa.io/stable/installation/) or a dedicated virtual environment for a published package;
+  [Poetry 2.5.1](https://python-poetry.org/docs/#installation) for a source checkout.
 - An authenticated CLI for every configured role. Defaults are
   [`claude`](https://docs.anthropic.com/en/docs/claude-code) for decomposition and implementation, and
   [`codex`](https://github.com/openai/codex) for review. Any role can instead use
@@ -54,6 +55,24 @@ Agents run with their approval and sandbox checks disabled, so the host account 
 [security checklist][security] before using the orchestrator on a public or untrusted repository.
 
 ## Quick start
+
+### Install a published package
+
+Choose a version published on PyPI and replace `X.Y.Z` in the package name and constraints URL below.
+The `--backend pip` flag requires [pipx 1.12.0 or newer](https://pipx.pypa.io/stable/changelog.html).
+For older pip-only versions, omit this flag.
+
+```sh
+pipx install --python python3.12 --backend pip \
+  --pip-args="--constraint https://github.com/chippingway/chipping-orchestrator/releases/download/vX.Y.Z/constraints.txt" \
+  "chipping-orchestrator==X.Y.Z"
+```
+
+Follow the [package installation and upgrade instructions][installation] to download version-matched `.env` templates
+without cloning and configure `~/.config/chipping-orchestrator/.env`.
+The same guide covers a dedicated venv and returning to a previous version. Upgrades are operator-initiated.
+
+### Run from a source checkout
 
 Install Poetry with `pipx install poetry==2.5.1`, then clone, install from the lockfile, and copy the basic template
 into the checkout's `.env`:
@@ -96,18 +115,8 @@ On first start, the orchestrator creates its labels and begins polling open issu
 under `wt-orchestrator`, beside the first repository's clone. File a small issue to exercise the workflow; a completed
 change stops at `in_review` for a human to merge.
 
-An installed `chipping-orchestrator` command — a package installed outside a source checkout — reads its settings from
-`~/.config/chipping-orchestrator/.env` instead, never from a `.env` in the launch directory. Apply the same template
-there, edit it the same way, and start the command:
-
-```sh
-mkdir -p ~/.config/chipping-orchestrator
-cp .env.example ~/.config/chipping-orchestrator/.env
-chipping-orchestrator
-```
-
 The [configuration reference][configuration] covers both setups, credentials, agent routing, every setting,
-and advanced examples. The [operations guide][operations] covers other run modes, running more
+and advanced examples. The [operations guide][operations] covers run modes, running more
 than one poller on one host, and systemd deployment.
 
 ## Asking the orchestrator a question
@@ -147,9 +156,11 @@ effects.
 
 ## Observability
 
-`logs/orchestrator.log` records process and issue activity, while `logs/analytics.jsonl` records transitions, timing,
-agent outcomes, usage, and cost estimates. Optional surfaces add an audit log, a Postgres-backed analytics dashboard,
-and a file-backed trajectory viewer without becoming part of workflow state.
+`orchestrator.log` records process and issue activity, while `analytics.jsonl` records transitions, timing, agent
+outcomes, usage, and cost estimates. Both live under `LOG_DIR`: `<checkout>/logs` by default in a source checkout, or
+`~/.local/state/chipping-orchestrator/logs` after [package setup][installation]. An explicit `ANALYTICS_LOG_PATH` can
+place analytics elsewhere. Optional surfaces add an audit log, a Postgres-backed analytics dashboard, and a
+file-backed trajectory viewer without becoming part of workflow state.
 
 ![Analytics page with spend and token usage over time categorized by different dimensions][analytics-image]
 
@@ -212,7 +223,9 @@ Licensed under the Apache License, Version 2.0. See [LICENSE][license] for the f
 [workflow]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/workflow.md
 [security]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/security.md
 [configuration]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md
-[operations]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration/operations.md
+[installation]:
+  https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#package-installation-upgrades-and-rollback
+[operations]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#run-modes
 [question-contract]:
   https://github.com/chippingway/chipping-orchestrator/blob/main/docs/workflow/conversations.md#question-stage
 [question-handler]:

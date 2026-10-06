@@ -21,8 +21,8 @@ Two companion pages carry what is read on its own rather than scanned for a valu
 
 - [`configuration/observability.md`](configuration/observability.md) — the sink paths and retention windows, the
   analytics database URL, skill-trigger tracking, the dashboard read mode, and the dashboard quickstart.
-- [`configuration/operations.md`](configuration/operations.md) — continuous integration, documentation publishing,
-  run modes, the systemd user service, and what an edited `.env` takes to apply.
+- [`configuration/operations.md`](configuration/operations.md) — package installation, upgrades and rollback,
+  continuous integration, documentation publishing, run modes, the systemd user service, and applying `.env` changes.
 - [`configuration/snapshot-capability-check.md`](configuration/snapshot-capability-check.md) — the
   disposable-repository check that proves a production token and its rulesets can create, fetch, verify, and delete
   the late split's snapshot refs, and what each failure means.
@@ -61,13 +61,10 @@ derived from the targets rather than from it. Both locations refuse the token ke
   cp .env.example .env
   ```
 
-- **Installed package** — the `chipping-orchestrator` command of a package installed outside a source checkout. The
-  template, taken from a clone of this repository, goes to the user location:
-
-  ```sh
-  mkdir -p ~/.config/chipping-orchestrator
-  cp .env.example ~/.config/chipping-orchestrator/.env
-  ```
+- **Installed package** — the `chipping-orchestrator` command of a package installed outside a source checkout. Follow
+  the [package installation instructions](#package-installation-upgrades-and-rollback) to download `.env.example`
+  and `.env.example.advanced` from the chosen release tag without cloning. On first setup, copy the basic
+  template to `~/.config/chipping-orchestrator/.env`; keep an existing file when upgrading or rolling back.
 
 Then edit the copy. `REPOS` names what to manage, one `owner/name|target_root|base_branch` entry per repository
 ([syntax](#repos-syntax)): the repository on GitHub, the absolute path to the top of an existing local clone of it, and
@@ -94,6 +91,17 @@ each documented below, and closes with the orchestrator-developer settings `REPO
 and `REMOTE_NAME`. Those are for working on the orchestrator itself from its source checkout, against its own
 repository by default ([developer fallback](#developer-fallback-and-target-checks)), and are ignored whenever `REPOS`
 is set.
+
+## Package installation, upgrades, and rollback
+
+A published PyPI version can be installed with pipx or a dedicated `python -m venv`, applying that release's
+`constraints.txt` to its runtime dependencies. The
+[operator instructions](configuration/operations.md#package-installation-upgrades-and-rollback) give commands for
+both routes, version-matched template downloads, configuration checks, backups, upgrades, and rollback. Installed
+packages use `~/.config/chipping-orchestrator/.env` and the explicit `REPOS` targets above. Review release notes and
+compare both versions' templates before changing settings: local overrides, changed defaults, and validation rules
+can affect both the upgrade and a later rollback. Package changes are initiated by the operator; the source
+checkout's `run.sh` refresh procedure is a separate deployment route.
 
 ## Required
 
@@ -838,7 +846,9 @@ error.
   [`configuration/operations.md#running-more-than-one-poller`](configuration/operations.md#running-more-than-one-poller)
 - `LOG_DIR` — default `<REPO_ROOT>/logs`. directory `runtime/logs.py` attaches its `FileHandler` under
   (`orchestrator.log`, rotated ~10 MiB × 5). Also the default parent for `ANALYTICS_LOG_PATH`
-  (`LOG_DIR/analytics.jsonl`). Already covered by the `*.log` `.gitignore` rule.
+  (`LOG_DIR/analytics.jsonl`). In a source checkout this is `<checkout>/logs`; in an installed package it is inside
+  the Python environment's `site-packages`, where recreating or uninstalling the environment can delete logs.
+  [Package setup](#package-installation-upgrades-and-rollback) sets an absolute `LOG_DIR` outside that environment.
 - `AGENT_GIT_NAME` — default `chipping-orchestrator`. `GIT_AUTHOR_NAME`/`GIT_COMMITTER_NAME` injected into agent
   spawns, and the name on the commits the orchestrator creates itself: the approval squash is authored and committed
   under it, and the documenting pass's `PR_REF_IN_SUBJECT` replacement of the `docs:` commit is committed under it
@@ -912,7 +922,8 @@ summarizes itself with, and the one-time repository settings are in
 
 ## Run modes
 
-`./run.sh` for production polling, `python -m orchestrator --once` for a single tick,
+`./run.sh` for source-checkout production polling, the installed `chipping-orchestrator` command for packaged
+deployments, `python -m orchestrator --once` for a single tick,
 `--cleanup-terminal-artifacts` for a maintenance-only run that reclaims finished issues' artifacts (deleting the
 branches it proved reclaimable, locally and on the remote) without polling and without writing any workflow state —
 the runbook for that pass is
@@ -930,8 +941,9 @@ and operator sync requirements are in the
 
 ## Running under systemd (user service)
 
-The recommended production deployment is a systemd **user** service supervising `run.sh` directly. The unit file, the
-`loginctl enable-linger` that boot-time start requires, and the day-to-day `systemctl --user` commands are in
+The recommended production deployment is a systemd **user** service supervising `run.sh` for a source checkout or
+the installed command for a package deployment. The unit file, the `loginctl enable-linger` that boot-time start
+requires, and the day-to-day `systemctl --user` commands are in
 [`configuration/operations.md#running-under-systemd-user-service`](configuration/operations.md#running-under-systemd-user-service).
 
 ## Applying `.env` changes
