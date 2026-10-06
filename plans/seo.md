@@ -34,8 +34,8 @@ support, cost visibility.
 ## Priority 3 — Smaller on-page items
 
 - **Social preview image.** Create and upload a 1280×640 PNG in Settings → General → Social preview.
-- **Publish to PyPI.** Add `readme = "README.md"`, `keywords`, `classifiers`, and repository/documentation URLs to
-  `pyproject.toml` before publishing, so the PyPI page includes the README as its project description.
+- **Publish to PyPI.** Add relevant `keywords` to `pyproject.toml` and finish the remaining
+  [PyPI release preparation](pypi-release.md).
 - **Code of conduct.** Add `.github/CODE_OF_CONDUCT.md`.
 
 ---

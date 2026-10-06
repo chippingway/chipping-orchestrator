@@ -1,8 +1,8 @@
 # Docker deployment and external runtime storage
 
 Date: 2026-09-17. Status: implementation plan; all subtasks are pending.
-Updated 2026-10-05: subtask 2 installs Python dependencies through the tooling chosen in the
-[Poetry migration plan](poetry-migration.md), and subtask 4 sizes storage for its per-worktree environments.
+Subtask 2 uses the current [Poetry tooling](../docs/configuration/operations.md#dependency-tooling), and subtask 4
+sizes storage for its per-worktree environments.
 
 This is working material, not a specification. Saving this plan does not migrate data or change running services.
 Implementation must follow the repository's authoritative documentation and the
@@ -181,23 +181,23 @@ service and login bootstrap supplied by later subtasks.
 
 - Add a Dockerfile with a supported Python 3.12+ base, Git, CA certificates, shell, `rg`, and the required project
   build/test tools. Justify any additional OS package needed by a CLI.
-- **Install the orchestrator from a wheel, not from the source tree.** Use a builder stage with pinned Poetry: the
-  version `requires-poetry` accepts, plus `poetry-plugin-export`. It runs `poetry build --format wheel` and
-  `poetry export --only main -f requirements.txt`; keep the hashes in the export. The runtime stage copies the export
-  first and installs it into a dedicated virtual environment with `--require-hashes`. It then copies the wheel and
-  installs it with `--no-deps`. Neither Poetry nor `poetry.lock` reaches the runtime stage, and the optional
+- **Install the orchestrator from a wheel, not from the source tree.** Use a builder stage with Poetry 2.5.1 and
+  `poetry-plugin-export==1.10.1`, matching the current CI pins. It runs
+  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry build --format wheel` and
+  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry export --only main -f requirements.txt`; keep the hashes in the export.
+  The runtime stage copies the export first and installs it into a dedicated virtual environment with
+  `--require-hashes`. It then copies the wheel and installs it with `--no-deps`.
+  Neither Poetry nor `poetry.lock` reaches the runtime stage, and the optional
   `dashboard` and `docs` groups stay out because the export covers only the main group.
 - **Keep the dependency layer stable across releases.** Like uv, Poetry cannot install from its lock without
   `pyproject.toml`, and that file changes with every version bump. The export leaves out the root project, so a
   release that changes no dependency reuses the cached dependency layer and rebuilds only the wheel layer. Once PyPI
   releases exist, the image may instead install the published wheel with the release's constraints asset, as the
-  PyPI release plan defines it.
-- **Agent tooling: Poetry.** When this repository is itself a target, agents run `poetry sync` and `poetry run` in
-  its worktrees, so the agent tooling includes Poetry. Pin it to the version `requires-poetry` accepts, install it
-  outside the agent home, and keep it separate from the orchestrator's runtime environment.
-- **Fallback if the migration hasn't landed.** If this subtask starts before the Poetry migration lands, use the uv
-  equivalents with the same layer structure: `uv build --wheel`, and
-  `uv export --no-dev --no-emit-project --format requirements-txt`.
+  [maintainer guide](../CONTRIBUTING.md#publishing-to-pypi) defines it.
+- **Agent tooling: Poetry.** When this repository is itself a target, agents run
+  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` and `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run` in its
+  worktrees, so the agent tooling includes Poetry. Pin it to 2.5.1, install it outside the agent home, and keep it
+  separate from the orchestrator's runtime environment.
 - Pin compatible CLI releases and record image provenance. Antigravity has a native Linux CLI; a desktop IDE is
   not required for its current headless backend. Verify supported architecture and runtime libraries for each binary.
 - Separate the common Python runtime build stage from the agent tooling so the sync service can reuse a smaller
