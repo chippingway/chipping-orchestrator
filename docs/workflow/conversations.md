@@ -620,7 +620,9 @@ developer it owes behind that feedback posted and anchored (`stages/validating/r
 record through the relabel to `workflow:fixing` so a tick that stops between the relabel and the launch launches
 exactly that developer later rather than paying a second reviewer. The handoff is a guarded commit prepared before the
 feedback is posted, so a pinned comment with no room for it posts nothing, and committed behind the post over the
-records it was decided on, so another road's write behind that post relabels and launches nobody; a later tick takes
+records it was decided on, so another road's write behind that post relabels and launches nobody; a park another road
+records -- before the post, behind it, or at the run circuit's charge and start -- is kept for its human, with
+nothing posted, relabelled, or launched under it; a later tick takes
 a post an earlier one made in the same words, this orchestrator's own, rather than posting the feedback twice -- its
 opening line held to the request's round alone, whichever reviewer and round cap it names. An
 approval reaches the verify gate, the approval

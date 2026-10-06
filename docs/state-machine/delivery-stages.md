@@ -4179,13 +4179,16 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        round, verdict, subject, and feedback -- is handed over in the tick its reviewer returned, and a later tick,
        holding no decision, hands the request over from the record alone, in the checkout the issue's developer resumes
        in -- restored only behind the relabel, once the launch is held to its subject, so a moved subject drops the
-       verdict with no checkout restored. The handoff's guarded commit is prepared over the comment read afresh before
-       anything is posted -- the verdict at its widest handoff, the developer's charge beside it -- so a comment another
-       road filled, moved, or replaced posts nothing; then the feedback is posted on that subject's pull request -- or,
-       on a later tick, the post an earlier one made for this very request is found there -- in the words it posts,
-       the line naming the review held to the request's round alone whichever reviewer and round cap it names, and
-       the hidden receipt below them naming the request's round, subject, and evidence claim, so another request's
-       receipted post in the same findings is never taken, or in the words a tick before receipts posted it in, raw or
+       verdict with no checkout restored. Nothing is posted, written, relabelled, or launched while the state in hand
+       shows a park standing -- another road's, which the reading that proved the request ready carried onto it -- and
+       the request waits for the reply that clears it. The handoff's guarded commit is prepared over the comment read
+       afresh before anything is posted -- the verdict at its widest handoff, the developer's charge beside it -- so a
+       comment another road filled, moved, parked, or replaced posts nothing; then the feedback is posted on that
+       subject's pull request -- or, on a later tick, the post an earlier one made for this very request is found there
+       -- in the words it posts, the line naming the review held to the request's round alone whichever reviewer and
+       round cap it names, and the hidden receipt below them naming the request's round, subject, and evidence claim, so
+       another request's receipted post in the same findings is never taken, or in the words a tick before receipts
+       posted it in, raw or
        concise, only where that post stands behind the report and evidence the request was reviewed over and no landed
        handoff's ledger entry accounts for it -- this orchestrator's own and no copy another author wrote, read off the
        whole thread so findings quoting the pinned state's marker are found too, and taken instead
