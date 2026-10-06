@@ -586,11 +586,13 @@ The round (`stages/validating/reviewer.py`) hands every returned verdict to the 
 (`stages/validating/review_disposition.py`). What the run declared is read only out of a run that completed, and never
 in place of its verdict: commands it ran become a reviewer-reported transaction bound to the subject it was handed and
 the full tree of the reviewed head, and a reuse a claim on the evidence it named (`stages/validating/review_claims.py`).
-The verdict is persisted as `review_returned_verdict` with that claim and transaction in one write — over the subject
-resolved again and the pinned comment read behind it, a verdict of a subject that moved while the reviewer ran being
-recorded and acted on by nobody — and the transaction is published through the dispatcher's own evidence
-reconciliation before either verdict is acted on. A publication that holds or stands down ends the tick with the
-verdict waiting; a later tick publishes it and finishes the verdict from the record
+The verdict is persisted as `review_returned_verdict` with that claim and transaction in one guarded commit
+(`stages/validating/review_writes.py`) — over the subject resolved again and the pinned comment read behind it, a
+verdict of a subject that moved while the reviewer ran being recorded and acted on by nobody, and a report,
+pull-request, verdict, or evidence record another road moves after that reading refusing the commit with nothing
+written or published — and the transaction is published through the dispatcher's own evidence reconciliation before
+either verdict is acted on. A publication that holds or stands down ends the tick with the verdict waiting, as does a
+commit GitHub never confirmed; a later tick publishes it and finishes the verdict from the record
 (`stages/validating/review_resume.py`) with no second reviewer, usage fold, run charge, or round. Evidence that can
 never settle — retired, superseded, or bound to a verification context that has since moved — drops the verdict for a
 fresh reviewer, and so does a subject that moves while it waits. One the pinned comment has no room to persist, with

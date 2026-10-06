@@ -69,14 +69,15 @@ per-stage behavior is in
   `REVIEW_AGENT` changes take effect on the next validating tick. The current value is recorded in `review_agent` for
   traceability only. Each reviewer is handed the developer report its pull request carries — re-read from where it
   settled and quoted whole beside the issue and the inspection commands, never fetched by the reviewer or left to the
-  bounded thread excerpt — and what it reviewed is recorded beside the spec as `review_subject`, both written before the
-  reviewer spawns: the pull request, its head, the requirements revision, and the report revision. The same subject is
-  recorded again as `review_returned_subject` in the write a reviewer that RETURNS makes, since the launch's record goes
-  down before the run budget is asked and a refused launch leaves it with no reviewer invoked; that returned record is
-  what tells a hand-back still owed its review from one a reviewer has read. A pull request with no report recorded, a
-  report about another commit than that head, and one written against requirements the issue has moved past are refused
-  rather than handed over — save that a report of the head this orchestrator's own rewrite replaced (a rebase, a
-  conflict resolution, or commits an earlier tick left unpushed), where a recorded
+  bounded thread excerpt — and what it reviewed is recorded beside the spec as `review_subject`, both committed before
+  the reviewer spawns over the comment the subject was bound to, so a record moved there, or a commit nobody
+  confirmed, spawns no reviewer: the pull request, its head, the requirements revision, and the report revision. The
+  same subject is recorded again as `review_returned_subject` in the write a reviewer that RETURNS makes, since the
+  launch's record goes down before the run budget is asked and a refused launch leaves it with no reviewer invoked; that
+  returned record is what tells a hand-back still owed its review from one a reviewer has read. A pull request with no
+  report recorded, a report about another commit than that head, and one written against requirements the issue has
+  moved past are refused rather than handed over — save that a report of the head this orchestrator's own rewrite
+  replaced (a rebase, a conflict resolution, or commits an earlier tick left unpushed), where a recorded
   `developer_report_rewrite_debt` explains exactly that gap, holds the reviewer while the developer is resumed for a
   fresh report of the rewritten head, which is the report handed over once it settles. A report that changes on an
   unchanged head is a new subject, so it always reaches a fresh reviewer — one settling before the spawn holds the
