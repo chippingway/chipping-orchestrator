@@ -3284,8 +3284,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that refuses it, so the next tick republishes the same commit onto the same pull request
       report_handoff.py     a landed push to the handoff: the description judged on a fresh read, the report the
                             run delivered bound and published through `engine/report_binding.py` with that verdict
-                            -- a binding whose guarded write did not land over the comment the tick read, refused
-                            over a moved comment or never confirmed, withholds the handoff right there and says
+                            -- a binding or settlement whose guarded write did not land over the comment the tick
+                            read, refused over a moved comment or never confirmed, or a post that left the report
+                            owed while another road wrote the comment, withholds the handoff right there and says
                             nothing, since the tick's state is withheld and no park behind it could be recorded --
                             and the relabel reached last -- held until no report is still owed (a debt no retry
                             can pay -- no record left, or a report a human edited, removed or wrote untrusted, per
@@ -3883,9 +3884,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             edited, removed, or written untrusted, asked with the reading the implementing handoff
                             takes -- and a debt no record describes at all. Every one of those is something the
                             reconciliation stands down on rather than holding, so a silent hold there would
-                            suppress every later reviewer with nobody told. A settlement whose binding did not land
-                            over the comment the tick read -- refused over a moved comment or never confirmed -- is
-                            the one silent hold among them: the tick's state is withheld, so no park could be recorded.
+                            suppress every later reviewer with nobody told. A settlement whose binding, preparation
+                            or commit did not land over the comment the tick read -- refused over a moved comment or
+                            never confirmed -- or whose post or re-read left the report owed while another road wrote
+                            the comment, is the one silent hold among them: the tick's state is withheld, so no park
+                            could be recorded.
                             Once nothing is owed it asks `report_refresh.py` about the rewritten-head report debt
       report_refresh.py     the rewritten-head report debt (`workflow/engine/report_rewrite_debt.py`) the report hold
                             asks once nothing else is owed, against the pull request's head as the reviewer's subject

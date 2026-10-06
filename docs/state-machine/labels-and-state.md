@@ -699,8 +699,11 @@ tick's state as it was and marks it withheld (`PinnedState.withheld`): the state
 moved, and written whole it would put back every record the refusal kept, so the whole-state writer writes nothing for
 it for the rest of the tick, until a guarded commit lands. A write sent and never confirmed is withheld the same way; a
 refusal for room alone is not, where the comment read again is still the one the tick synced with, since that comment is
-simply too full and the roads behind a report still owed are what give its room back. Every road but these and the
-verification evidence's still writes its whole state.
+simply too full and the roads behind a report still owed are what give its room back. A report post or re-read that
+leaves its transaction owed without any report write landing asks the comment the same question once more
+(`ReportCommit.withholds`): one another road wrote while the request was out withholds the state, and one still reading
+as the tick synced with leaves it to be written. Every road but these and the verification evidence's still writes its
+whole state.
 
 The keys that matter for the state machine fall into a few groups:
 
@@ -1388,9 +1391,10 @@ The keys that matter for the state machine fall into a few groups:
   `stages/implementing/pr_description.py` take the same park after a push, for a report that cannot be bound and a
   description that does not close the issue and name the session — which no owner rewrites, so the notice quotes the
   two lines for a human to put there — and `stages/implementing/report_handoff.py` takes it for a debt no retry can
-  pay and a settled report that no longer stands, though never behind a binding that did not land, whose withheld
-  state could record no park. It is announced once while it stands, retired the moment a report IS recorded or a
-  settlement carries one onto the pull request, and spent by the publication handoff beside the agent timeout's,
+  pay and a settled report that no longer stands, though never behind a binding or settlement that did not land, or a
+  post that left the report owed while another road wrote the comment, whose withheld state could record no park. It
+  is announced once while it stands, retired the moment a report IS recorded or a settlement carries one onto the
+  pull request, and spent by the publication handoff beside the agent timeout's,
   since reaching that line means the report the park was about has reached the pull request. The late
   size gate re-sets its own reasons for the same kind of reason: `late_measurement_failed`,
   `late_candidate_moved`, `late_unauthorized_exemption`, `late_evidence_missing`, `late_plan_pr_hold_failed`,
