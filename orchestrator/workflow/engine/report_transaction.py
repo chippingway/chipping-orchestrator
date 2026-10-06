@@ -39,6 +39,18 @@ already merged it strands the issue in front of the terminal that would have
 finished it. The pull request is read first and an ending retires the
 transaction whatever the records beside it say; nothing is written over them on
 that road, so the evidence an operator would repair them from survives the drop.
+
+Every write this owner makes but the damage park itself -- the settlement
+(`report_settling`, through `report_publishing`), a drop, and that park coming
+down -- is this domain's guarded commit (`report_commits`), decided on the
+records as the tick read them and owning only what it changes: another
+road's evidence, verdict, usage or watermark written meanwhile stays as that
+road wrote it, and a record another road moved refuses the write rather than
+being dropped or settled over. A write that did not land over the comment the
+tick read, or went out and was never confirmed, holds the tick with nothing
+behind it written, and a later tick decides afresh from what the comment then
+carries: a report already posted is found by its receipt and never posted
+twice, and a settlement that landed leaves nothing owed.
 """
 from __future__ import annotations
 
@@ -53,6 +65,7 @@ from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
+    report_commits as _commits,
     report_evidence as _evidence,
     report_evidence_models as _evidence_models,
     report_publishing as _publishing,
@@ -60,6 +73,7 @@ from orchestrator.workflow.engine import (
     report_records as _records,
     report_replay_guards as _replay,
 )
+from orchestrator.workflow.engine.pinned_commit_models import CommitStatus
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -83,6 +97,15 @@ _TERMINAL_LABELS = (WorkflowLabel.DONE, WorkflowLabel.REJECTED)
 # Why a record cannot be acted on, in the words its park quotes.
 _UNREADABLE_RECORD = "a field is missing, or is not the shape this orchestrator writes"
 
+# What this owner's own retirements write -- the drop of a transaction nothing
+# is owed for, and its own park coming down -- decided on every report record,
+# on the handoff a finished transaction is recognized by, and on the park
+# reason that says whose park is standing.
+_RETIRING = _commits.ReportWrite(
+    owned=frozenset((_records.PENDING_REPORT, _PARK_REASON, _AWAITING_HUMAN)),
+    decided_on=_commits.REPORT_RECORDS | {_records.REPORT_HANDOFF, _PARK_REASON},
+)
+
 _DAMAGED_RECORD_PARK = (
     "{mentions} this issue records a developer report it still owes its pull "
     "request, and the record cannot be acted on: {detail}. Nothing was "
@@ -105,7 +128,8 @@ def _reconciles_pending_report(
     """Finish a report transaction this issue recorded and never completed.
 
     True is a tick this owner finished -- held over a reading nobody could
-    take, or parked over a record nobody can read. False is every other issue
+    take or a write that did not land over the comment the tick read, or
+    parked over a record nobody can read. False is every other issue
     on every other tick, and also the transaction this call just settled: the
     report is on the pull request, the handoff is recorded, and the handler
     below carries on with an issue whose report obligation is discharged.
@@ -300,11 +324,16 @@ def _drops(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool:
     and the reading that retires it is one this tick already paid for. Any park
     this owner took over the record goes down in that same write, since what
     the park was waiting for is exactly what the drop settles.
+
+    It is a guarded commit (`_retires`), so a newer transaction, settlement or
+    park another road wrote since the tick read the comment is never dropped
+    with the one this tick decided was over.
     """
-    _record_state.clear_pending_report(state)
-    _retires_damage_park(state)
-    gh.write_pinned_state(issue, state)
-    return False
+    commit = _commits.ReportCommit(gh, issue, state)
+    staged = commit.staging()
+    _record_state.clear_pending_report(staged)
+    _retires_damage_park(staged)
+    return _retires(commit, staged)
 
 
 def _clears_the_damage_park(
@@ -319,16 +348,46 @@ def _clears_the_damage_park(
     and then settled, or the field cleared to abandon the report -- both come
     through here.
 
-    False always: retiring a park finishes nothing, it only stops the tick
-    being held for something that is over.
+    False wherever the park came down or there was none: retiring a park
+    finishes nothing, it only stops the tick being held for something that is
+    over. A retirement that did not land holds the tick where it leaves the
+    tick's state withheld (`_retires`).
     """
-    if _retires_damage_park(state):
-        log.info(
-            "issue=#%d no longer carries the unreadable developer-report "
-            "record it was parked on; clearing the park", issue.number,
-        )
-        gh.write_pinned_state(issue, state)
-    return False
+    if state.get(_PARK_REASON) != _DAMAGED_RECORD:
+        return False
+    log.info(
+        "issue=#%d no longer carries the unreadable developer-report record "
+        "it was parked on; clearing the park", issue.number,
+    )
+    commit = _commits.ReportCommit(gh, issue, state)
+    staged = commit.staging()
+    _retires_damage_park(staged)
+    return _retires(commit, staged)
+
+
+def _retires(commit: _commits.ReportCommit, staged: PinnedState) -> bool:
+    """Land one of this owner's retirements over the fresh comment; whether the tick stops.
+
+    Decided on every report record, the handoff and the park reason as the
+    tick read them, owning only the pending record and this owner's park, so
+    every other field -- another domain's evidence or verdict, a usage total,
+    a watermark -- is the comment's as it finds it, and a record or park
+    another road wrote since refuses the write rather than being retired with
+    it. What lands is laid over the tick's state and the tick carries on. What
+    did not is left for a later tick to decide afresh: one that withheld the
+    tick's state -- refused over a comment that moved, or sent and never
+    confirmed -- stops it, since nothing behind it could be written; one
+    refused for room over the comment the tick read lets it carry on.
+    """
+    landed = commit.lands(staged, _RETIRING)
+    if landed.status is CommitStatus.COMMITTED:
+        return False
+    log.warning(
+        "issue=#%d did not land the retirement of its developer-report record "
+        "(%s); leaving it for a later tick", commit.issue.number,
+        (landed.refusal or landed.status).value,
+    )
+    return commit.state.withheld
 
 
 def _retires_damage_park(state: PinnedState) -> bool:

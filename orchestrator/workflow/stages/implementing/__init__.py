@@ -77,8 +77,8 @@ go out, since that report describes the branch before it.
 Once the push lands and the pull request is known, `publication` hands the
 rest to `report_handoff`, which binds the report to that publication and posts
 or verifies it through `report_binding`, whose settlement in
-`report_publishing` reads the issue's requirements once more before it records
-anything. It withholds the handoff while any report is still owed, so the next
+`report_publishing` reads the issue's requirements once more before it commits
+anything through `report_settling`. It withholds the handoff while any report is still owed, so the next
 tick republishes the same commit onto the same pull request with no developer
 run and nothing new opened; and last before the handoff it re-reads the
 requirements, what settled, the checkout and the description, in that order,

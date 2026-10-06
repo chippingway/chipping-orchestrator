@@ -34,7 +34,10 @@ reply the notice asks for, publishes the report nothing could place. Whatever
 that record SUPERSEDED is released with it, since a transaction the delivery
 replaced is one the reconciliation would otherwise publish over text this issue
 has already replaced. The debt outlives both, which is what keeps the review
-held and the reply answerable.
+held and the reply answerable. That release is the park's own guarded commit
+(`report_delivery.parks_the_debt`), decided on every report record the tick
+read: a newer record another road wrote meanwhile is never released with the
+one this tick found, and a release that did not land ends the tick.
 
 A tick that binds stops there, and where the publication SETTLES it finishes the
 recovered round as the live road would have: the route bookkeeping the record
@@ -90,10 +93,11 @@ from orchestrator.git.verification import (
 )
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import (
-    report_consumed_values as _consumed,
+    report_commits as _commits,
     report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
     report_record_state as _record_state,
+    report_records as _records,
 )
 from orchestrator.workflow.stages.fixing import (
     models as _models,
@@ -119,6 +123,13 @@ _UNREADABLE_PARK = (
     "already answered and replaces the first report with the second. Repair "
     "the pinned comment -- or clear the `developer_report_delivery` field to "
     "abandon the report -- and the next tick resumes on its own."
+)
+
+# What the release of a report no road on this host can publish writes: the
+# park's own fields, and the delivery and the transaction it superseded that it
+# drops in that same write -- decided on every report record the park is.
+_RELEASING = _report_delivery.PARKING.owning(
+    _records.DELIVERED_REPORT, _records.PENDING_REPORT,
 )
 
 # What a report no road on this host can publish is held under.
@@ -245,7 +256,10 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     A checkout that refuses for GOOD is announced and released, and the tick
     carries ON rather than ending: what that notice settles is this road's
     question, and every road behind it declines such a checkout on its own
-    terms rather than on this one's say-so.
+    terms rather than on this one's say-so. A release whose guarded commit did
+    not land over the comment the tick read ends the tick instead, silently:
+    the tick's state is withheld (`report_commits`), so a road behind it would
+    act on a comment nobody can say it still holds.
     """
     if not _delivery_state.carries_delivered_report(ctx.state):
         return False
@@ -261,7 +275,7 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
         return True
     if not published:
         _releases_an_unpublishable_report(ctx, delivered)
-        return False
+        return ctx.state.withheld
     return _binds_the_recovered_report(ctx, published)
 
 
@@ -317,6 +331,10 @@ def _binds_the_recovered_report(
     could record, and post it again on every tick behind. The next tick binds
     the delivery afresh, or, where the binding landed after all, finds the
     transaction rather than the delivery and the reconciliation publishes it.
+    A settlement whose preparation or commit did not land ends it the same
+    way: the reconciliation ahead of the next handler finds the report already
+    posted by its receipt and settles it, or, where the commit landed after
+    all, nothing is owed and the mark it raised hands the round back.
     """
     hold = _reporting._holds_an_unpublished_report(ctx, published)
     if hold.unread or ctx.state.withheld:
@@ -370,11 +388,22 @@ def _releases_an_unpublishable_report(
     reply brings the report that discharges it.
 
     What the dead run CONSUMED is recorded with it, off the record's own pairs,
-    and only here -- staged BEFORE the release, since afterwards there is no
-    record to read them from. Everywhere else the publication is still ahead
+    and only here -- read off the record the caller holds rather than off the
+    staged comment, since after the release there is no record there to read
+    them from. Everywhere else the publication is still ahead
     and the settlement that completes it is what moves a reader; a park is
     where this road ends instead, so the batch that reached an agent is
     written down as read rather than handed to whatever answers the reply.
+
+    The write is this domain's guarded commit, the park's own
+    (`report_delivery.parks_the_debt`) owning the two records it drops
+    besides: prepared before the notice is posted, decided on every report
+    record the tick read, and landing beside every field another road wrote
+    meanwhile. A delivery, transaction or settlement another road wrote since
+    refuses it with no notice posted and nothing released, and the next tick
+    decides over what the comment then carries; one refused only after its
+    notice went out, or sent and never confirmed, leaves the tick's state
+    withheld for the caller to end the tick on.
 
     And whatever this record SUPERSEDED goes with it, for the reason the
     record itself does. A delivery recorded over an outstanding transaction
@@ -394,17 +423,19 @@ def _releases_an_unpublishable_report(
     standing too, and needs to be: the claim alone keeps the debt, and the
     reconciliation parks such a record rather than publishing from it.
     """
-    superseded = _record_state.read_pending_report(ctx.state)
-    _consumed.advance_consumed(ctx.state, delivered.watermarks)
+    commit = _commits.ReportCommit(ctx.gh, ctx.issue, ctx.state)
+    staged = commit.staging()
+    superseded = _record_state.read_pending_report(staged)
     if (
         superseded is not None
         and superseded.report_revision < delivered.report_revision
     ):
-        _record_state.clear_pending_report(ctx.state)
-    _delivery_state.clear_delivered_report(ctx.state)
-    _report_delivery.parks_an_undeliverable_report(
-        ctx.gh, ctx.issue, ctx.state,
+        _record_state.clear_pending_report(staged)
+    _delivery_state.clear_delivered_report(staged)
+    _report_delivery.parks_the_debt(
+        commit, staged,
         _UNPUBLISHABLE_PARK.format(mentions=_config.HITL_MENTIONS),
+        delivered.watermarks, parking=_RELEASING,
     )
 
 

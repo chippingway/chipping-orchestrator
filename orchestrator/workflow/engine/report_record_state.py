@@ -49,7 +49,8 @@ That measurement is offered to the publication as well as taken at acceptance,
 because a record that defers lets the routes behind the guard run and every one
 of them writes to this same comment. What was reserved can be spent by work
 entitled to spend it, so the room is proved again on the tick that would use it
--- before the report is posted, while a refusal still costs nothing.
+-- before the report is posted, while a refusal still costs nothing, over the
+candidate the settlement's guarded commit would send (`report_settling`).
 """
 from __future__ import annotations
 
@@ -237,8 +238,9 @@ def record_pending_report(
 def fits_the_comment(staged: dict) -> bool:
     """Whether the comment one staged payload writes is one GitHub accepts.
 
-    Public because the publication asks it of `settled_payload` below on the
-    tick it would settle, not only here on the tick the record was accepted.
+    Public because the settlement's preparation asks it of `settled_payload`
+    below on the tick it would settle (`report_settling`), not only here on the
+    tick the record was accepted.
     It is also the one test an overflow is built behind, so a refusal never
     reports a comment this would have accepted.
     """
@@ -247,13 +249,18 @@ def fits_the_comment(staged: dict) -> bool:
 
 
 def settled_payload(
-    state: _pinned_state.PinnedState, pending: _records.PendingReport,
+    state: _pinned_state.PinnedState,
+    pending: _records.PendingReport,
+    current: _records.CurrentReport | None = None,
+    handoff: _records.ReportHandoff | None = None,
 ) -> dict | None:
     """Return the payload settling this transaction would leave behind, or None.
 
     Public because it is asked twice about the same transaction: here, when the
-    record is accepted, and again by the publication on the tick that would
-    settle it. A transaction that cannot complete stands down on purpose, so
+    record is accepted, and again on the tick that would settle it, of the very
+    candidate the settlement's guarded commit is prepared as over the comment
+    read afresh (`report_settling`). A transaction that cannot complete stands
+    down on purpose, so
     the routes behind the guard run -- and a park taken, a notice recorded, a
     ledger entry added, a watermark advanced all write to this same comment.
     What was reserved can be spent by work entitled to spend it, so the room
@@ -316,6 +323,17 @@ def settled_payload(
     going to take. Through that stage's own owner, so a member added there
     moves this reservation with it.
 
+    `current` and `handoff` are the two records of a settlement whose report
+    is already posted, measured as they will land rather than at their widest
+    -- and with the comment-id entry that post left already on `state`, so no
+    second one is reserved. That is the measurement the settlement's own
+    commit is held to over its final candidate (`report_settling`): another
+    road can fill the comment while the report is posted, and a settlement
+    that still fits there may leave no room for the reviewer round or the
+    fixing hand-back behind it, which GitHub would then refuse. Measured this
+    way, it is never more than the widest one asked before the post over the
+    same comment.
+
     None where either settled write refuses the record this transaction would
     hand it, which is a transaction with no settlement to measure at all. The
     values here are the pending record's own, already proved by the reader
@@ -326,14 +344,14 @@ def settled_payload(
     invalid record rather than as a settlement too large to fit.
     """
     settled = _pinned_state.PinnedState(state_data=dict(state.data))
-    if pending.mode is _records.ReportMode.PUBLISH:
+    if current is None and pending.mode is _records.ReportMode.PUBLISH:
         _comments._reserve_comment_slot(settled, _WIDEST_IDENTITY)
     importlib.import_module(
         _stage_targets._VALIDATING_REVIEW_RECORDS_OWNER,
     ).reserves_the_round(settled)
     _consumed.advance_consumed(settled, pending.watermarks)
     _consumed.close_bookkeeping(settled, pending.spends)
-    recorded = _settlement.record_current_report(settled, _records.CurrentReport(
+    recorded = _settlement.record_current_report(settled, current or _records.CurrentReport(
         subject=pending.subject,
         report_revision=pending.report_revision,
         content_revision=_WIDEST_DIGEST,
@@ -342,7 +360,7 @@ def settled_payload(
         ),
         mode=pending.mode,
     ))
-    handed = _settlement.record_handoff(settled, _records.ReportHandoff(
+    handed = _settlement.record_handoff(settled, handoff or _records.ReportHandoff(
         receipt=pending.receipt,
         pr_number=pending.subject.pr_number,
         report_revision=pending.report_revision,

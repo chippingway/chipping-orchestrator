@@ -35,6 +35,7 @@ from orchestrator.workflow.stages.implementing import (
 )
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeGitHubClient, FakePR, FakePRRef, make_issue
+from tests.workflow.engine import report_commit_test_support as commit_support
 from tests.workflow.engine.report_checkout_fixture import Fetched, fresh_checkout
 from tests.workflow.fixtures import _TEST_SPEC, LABEL_VALIDATING, SHA_LENGTH
 from tests.workflow.git_owners import seam_patch
@@ -139,12 +140,36 @@ class ReportTransactionCase:
         _record_state.record_pending_report(self.state, pending)
         return pending
 
-    def reconcile(self) -> bool:
-        """Run the dispatcher's report guard over this issue's world."""
+    def reconcile(self, *, afresh: bool = False, **since) -> bool:
+        """Run the dispatcher's report guard over this issue's world, as one tick reading the comment first.
+
+        What that tick reads is `state` by default: whatever a case staged on
+        it is what the comment carries (`_pins`). `afresh` is a later tick
+        reading the comment exactly as the ticks and roads before it left it,
+        which is what a case about a write that did not land, or landed
+        unconfirmed, has to be read back through. `since` is another road's
+        whole-state write of those fields right after that reading, which the
+        tick never sees.
+        """
+        if afresh:
+            self.state = self.gh.read_pinned_state(self.issue)
+        else:
+            self._pins()
+        if since:
+            commit_support.another_road(self.gh, self.issue, **since)
         with self._seams():
             return _transaction._reconciles_pending_report(
                 self.gh, _TEST_SPEC, self.issue, self.label, self.state,
             )
+
+    def _pins(self) -> None:
+        """Pin `state` on the issue as the comment a tick has just read it off.
+
+        The guarded commits behind the reconciliation land over that comment,
+        and only over it.
+        """
+        commit_support.pinned((self.gh, self.issue), self.state)
+        self.state.withheld = False
 
     @contextlib.contextmanager
     def _seams(self):

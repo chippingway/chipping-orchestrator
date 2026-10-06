@@ -327,7 +327,7 @@ def _parks_the_debt(
             pr=published.number,
             detail=detail,
         ),
-        publication=True,
+        parking=_delivery.PARKING.on_the_publication(),
     )
 
 
@@ -352,6 +352,10 @@ def _publishes_what_is_owed(
     the one term the caller cannot vouch for, since an edit during the run or
     the push leaves the report answering requirements the issue no longer has;
     it is left owed for the drift resume, and a re-read that failed likewise.
+    That re-read is a request over the comment the binding just landed, so the
+    comment is asked once more behind it (`ReportCommit.withholds`): one another
+    road wrote meanwhile withholds the tick's state, and the caller's whole-state
+    write behind this puts nothing back over that road's write.
 
     What the caller decides on is the record: a transaction that did not settle
     is still there for the handoff to refuse on and the next tick to finish.
@@ -376,5 +380,6 @@ def _publishes_what_is_owed(
             issue.number, pending.report_revision,
             published.number, edited.refusal,
         )
+        _commits.ReportCommit(gh, issue, state).withholds()
         return
     _publishing.finishes(gh, issue, state, pending, published.pull_request)

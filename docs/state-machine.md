@@ -207,11 +207,12 @@ the attempt is cleared or the issue routed to `workflow:validating`
 ([rewritten-head report debt](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)).
 Most owners write the record whole from the state they read. A guarded commit -- adopted so far by the
 verification-evidence publication and settlement, the evidence reconciliation's retirements, `validating`'s invalidation
-of an unanswered carry, and the developer report's recording, its binding, and the park a refusal of either takes --
-lays only the fields its caller owns over a fresh reading instead, refusing with nothing written where the comment, a
-record the decision rests on, or a field the caller is changing moved, or where the whole candidate would not fit one
-comment. Every key, what writes it, what spends it, the guarded commit, and the legacy
-`codex_session_id` still honored on read are in
+of an unanswered carry, and the developer report's recording, its binding, its settlement (prepared before the report
+is posted), the reconciliation's drop and damage-park retirement, the park a refused recording or binding takes, and
+the fixing recovery's release -- lays only the fields its caller owns over a fresh reading instead, refusing with
+nothing written where the comment, a record the decision rests on, or a field the caller is changing moved, or where
+the whole candidate would not fit one comment. Every key, what writes it, what spends it, the guarded commit, and the
+legacy `codex_session_id` still honored on read are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
 
 ## Stage handlers

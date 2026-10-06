@@ -682,7 +682,10 @@ this serializes two pollers writing one issue. GitHub's comment edit takes no co
 between a reading and the write laid over it without closing it.
 
 The developer report's writes commit this way too (`workflow/engine/report_commits.py`): recording a finished run's
-delivery, binding it into a transaction, and the `report_undeliverable` park a refusal of either takes. Each is captured
+delivery, binding it into a transaction, settling that transaction (`workflow/engine/report_settling.py`, prepared
+before the report is posted and committed behind the post), the reconciliation's drop of a transaction nothing is owed
+for and the retirement of its own `report_record_damaged` park, the `report_undeliverable` park a refused recording or
+binding takes, and the fixing recovery's release of a report no checkout can publish. Each is captured
 over the reading its tick last synced with the comment — what a state remembers it was read from or written as
 (`PinnedState.synced`) — rather than over the state the tick holds, because a tick stages changes between two writes (a
 run's usage and session, the park a reply answered) that have always ridden the next one. A field the tick changed since
@@ -990,7 +993,11 @@ The keys that matter for the state machine fall into a few groups:
   uncommitted changes — parks with the frozen pairs that record held applied and the record itself RELEASED, since
   left there, restoring or cleaning the checkout would publish the report and send the issue to review, which is the
   decision the notice exists to put in front of a human. The debt outlives that release, so the review stays held
-  and the reply still brings a report. A reading nobody could TAKE is on neither list — an unreadable tree, a head
+  and the reply still brings a report. The release rides that park's own guarded commit, owning the delivery and the
+  transaction it superseded besides the park's fields and decided on every report record the tick read, so a newer
+  record another road wrote meanwhile is never released with the one the tick found — no notice is posted and
+  nothing dropped — and a release that did not land, or landed unconfirmed, ends the tick, the next one finding
+  whatever the comment then carries. A reading nobody could TAKE is on neither list — an unreadable tree, a head
   that would not resolve, a pull request this poll could not fetch — and buys nothing: nothing published, nothing
   released, no notice, and the poll behind it asks again. A binding REFUSES rather than parks — it
   stages nothing and says which refusal it was — and `report_binding.py` is what answers the refusal: a comment too
@@ -1103,6 +1110,25 @@ The keys that matter for the state machine fall into a few groups:
   and the handoff beside it are always about one transaction. That write is composed whole before any of it is
   installed, so a settled record its own
   writer refuses lands none of itself rather than dropping the pending record beside a published report.
+  It lands as the [guarded commit](#pinned-state) above (`workflow/engine/report_settling.py`), over the comment read
+  afresh behind the post and the re-reads: it owns exactly those fields — the two settled records, the pending record,
+  the watermarks and bookkeeping pairs this record froze, `fixing_round_settled`, `developer_report_owed`,
+  `developer_report_owed_round_reset`, and `park_reason` / `awaiting_human` where the park is `report_undeliverable` —
+  and is decided on every report record, the handoff, the debt, the park, `developer_report_unreported_work`, and the
+  pull request, branch and code-publication receipt the evidence was proved against. So another domain's evidence or
+  verdict and a usage total written meanwhile stay as they were written, a watermark and the comment-id ledger keep
+  both roads' moves, and a newer record, a repointed pull request or receipt, a park, or a field it writes moved
+  another way refuses it with nothing written. Its final candidate is held to the room every write behind it needs —
+  the reviewer round, and the fixing hand-back where the record raises `fixing_round_settled` — measured with the two
+  settled records as they land, so a comment another road filled while the report was posted refuses it with the
+  pending record kept rather than taking the room the hand-back needs. The report is on the pull request by then, so a
+  refused or unconfirmed commit holds the tick with the tick's state withheld, and a later tick settles from what the
+  comment carries: a transaction still owed finds its report by its receipt rather than posting it again, and one
+  whose settlement landed after all is owed nothing. Every other road that leaves the transaction owed once its post
+  or re-read has gone out — an answer lost, a report edited, gone or untrusted, the requirements moved under it —
+  reads the comment once more before it answers: one another road wrote meanwhile withholds the tick's state and
+  holds the tick, so nothing behind it writes that state back over the other road's evidence, verdict or newer
+  record, and one still reading as the tick read it leaves that road's own answer, hold or stand down, as it was.
 
   Every field is read fail-closed and every group all-or-nothing, so a record short of a member reads as no record,
   the two members named below excepted.
@@ -1169,7 +1195,14 @@ The keys that matter for the state machine fall into a few groups:
   ledger entry added, a watermark advanced all write to this same comment. What the record reserved can be spent by
   work entitled to spend it, leaving a comment GitHub still accepts and a settlement that no longer fits on top of
   it. Refused before the post, nothing has happened and a later tick settles once the room comes back; refused at
-  the write, the report is already on the pull request.
+  the write, the report is already on the pull request. It is taken as the settlement's own guarded commit PREPARED
+  over the comment read afresh before the post, everything the settlement owes staged on it and this measurement
+  asked of that very candidate — so room another road spent since the tick read the comment refuses the post, room
+  it gave back is room, and a record the settlement is decided on that moved meanwhile posts nothing either, holding
+  the tick with its state withheld. A refusal for room alone over the comment the tick read stands down. The commit
+  behind the post asks it once more over its own final candidate, with the settled records as they land and the
+  post's ledger entry already in place rather than reserved again — a measurement never larger than this one over the
+  same comment, so a comment nobody else wrote that passed before the post passes again.
 
   The CODE-PUBLICATION RECEIPT is reserved beside it, in *both* measurements. A transaction can be recorded before
   the commit it reports on is pushed; its evidence then stands down to the publication gate, and that gate writes

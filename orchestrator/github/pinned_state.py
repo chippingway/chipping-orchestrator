@@ -123,10 +123,12 @@ class PinnedState:
 
     ``withheld`` is set on a state the developer report's guarded commit did
     not land over (`workflow/engine/report_commits.py`) -- one refused over a
-    comment that moved, or one sent and never confirmed: the comment is not,
-    or may not be, what the state was decided on, so the whole-state writer
-    writes nothing for it rather than put back everything another road wrote
-    since. A report commit that lands clears it.
+    comment that moved, or one sent and never confirmed -- and on one whose
+    report post or re-read left its transaction owed over a comment another
+    road wrote meanwhile: the comment is not, or may not be, what the state
+    was decided on, so the whole-state writer writes nothing for it rather
+    than put back everything another road wrote since. A report commit that
+    lands clears it.
     """
 
     comment_id: int | None = None

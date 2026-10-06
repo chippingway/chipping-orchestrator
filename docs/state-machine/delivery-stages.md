@@ -985,7 +985,13 @@ because there it is the claim that this stage has already rerouted rather than a
     composed whole before any of it is installed, so a settled record its own writer refuses lands none of itself
     rather than dropping the pending record beside a report nothing says the pull request carries. Reaching that
     refusal is a record this build did not write, so it is logged at ERROR and the tick is held with the
-    transaction still owed rather than retried quietly. The tick otherwise carries on to the handler.
+    transaction still owed rather than retried quietly. The write is the
+    [guarded commit](labels-and-state.md#pinned-state) `workflow/engine/report_settling.py` lands over the comment
+    read afresh behind the post or re-read: it owns exactly what it settles and is decided on every report record,
+    the handoff, the debt and park it may retire, the undescribed-work flag, and the pull request, branch and
+    code-publication receipt the evidence proved, so another road's evidence, verdict or usage written meanwhile
+    survives, a watermark and the comment-id ledger keep both roads' moves, and anything it was decided on that moved
+    refuses it with nothing written — see **Held** below. The tick otherwise carries on to the handler.
   - **Held** (tick stops, nothing written) → a reading nobody could take, and only that: an unreadable worktree or
     head, a fetch that failed, a recorded pull request that would not read, an issue whose comments would not read
     (the requirements revision is computed from them), an issue that would not re-read for the settlement's own
@@ -993,8 +999,17 @@ because there it is the claim that this stage has already rerouted rather than a
     (`ReportPresence.UNCONFIRMED`), and a verification whose AUTHOR would not read — `user` comes off the object
     GitHub handed back and `login` comes off that, so either is a request that can fail, and a failure is nobody
     saying rather than an author this deployment refuses. Beside them is the one damaged reading that holds rather
-    than parking: a code-publication receipt group with some of its members and not others. The next tick asks
-    again. A pull
+    than parking: a code-publication receipt group with some of its members and not others. And beside those, the
+    settlement's own guarded commit or its preparation where it did not land over the comment the tick read — a
+    record it was decided on or a field it writes moved by another road, a comment replaced or no longer parsing,
+    an edit refused as moved, a final candidate that would leave the reviewer round or the fixing hand-back behind it
+    no room — or where it went out and was never confirmed: the tick's state is withheld, so nothing behind it is
+    written, and nothing is posted where the preparation refused. Any refusal below that comes *after* the post or
+    re-read went out — a reading short of PRESENT, an untrusted author, requirements edited under it — asks the
+    comment once more first, and is held here instead where another road wrote it meanwhile: the tick's state is
+    withheld, so the stage behind writes nothing back over that road's evidence, verdict or newer record. The next
+    tick asks again — a report already posted is found by its receipt rather than posted twice, and a settlement
+    that landed after all leaves nothing owed, its round spent and its readers advanced once. A pull
     request nobody could read holds *without* parking anything: the damage is still damage, but whether it stands
     in front of a terminal is exactly what could not be established, so the tick that can establish it is the one
     that decides.
@@ -1010,8 +1025,14 @@ because there it is the claim that this stage has already rerouted rather than a
     measured when the record was accepted, but a transaction that stands down lets the routes behind this guard run
     and each of them writes to that same comment, so what was reserved can be spent by work entitled to spend it —
     and the check is taken again here, *before* the report is posted, since a refusal after it leaves a comment on
-    the thread that no write can ever record. Each of those is cleared by a route *behind* this guard, or by a human
-    on the thread — the publication gate that pushes the commit, the drift resume that answers the edit, the
+    the thread that no write can ever record. It is taken as the settlement's own guarded commit PREPARED over the
+    comment read afresh, with the same measurement as its check, so room another road gave back since the tick read
+    the comment is room; a comment too full that is still the one the tick read stands down here, while one another
+    road moved meanwhile holds (**Held** above). The commit behind the post is held to the same room over its final
+    candidate, with the settled records as they land — never more than the measurement before the post — so another
+    road that filled the comment during the post refuses it with the transaction kept, rather than leaving the
+    hand-back a fixing round's settlement owes no room. Each of those is cleared by a route *behind* this guard, or by
+    a human on the thread — the publication gate that pushes the commit, the drift resume that answers the edit, the
     dirty-worktree park, the park whose clearing gives the room back — so holding them would strand the issue behind
     the very handler that fixes them, or in front of every route it has for as long as one edited comment stands.
     Nothing is ever posted twice on that path: the post is scoped by the receipt and only an `ABSENT` reading
@@ -1021,7 +1042,10 @@ because there it is the claim that this stage has already rerouted rather than a
   - **Retired** → the recorded pull request has merged or closed; the record is dropped rather than retried forever.
     Reading by number is what makes this reachable at all: a thread somebody force-pushed off the recorded commit is
     invisible to a search by commit whether it is open or closed, so an ended one would otherwise stand down on
-    every tick for the rest of the issue's life over work that is finished.
+    every tick for the rest of the issue's life over work that is finished. The drop is a guarded commit decided on
+    every report record, the handoff and the park reason, owning only the pending record and this owner's park: what
+    another road wrote meanwhile survives, a newer record or park it wrote is never dropped with the one the tick
+    read, and a drop that did not land, or landed unconfirmed, holds the tick.
   - **Parked** (`park_reason="report_record_damaged"`) → the issue CLAIMS a transaction this build may not act on,
     or claims a settled record beside it this build did not write. Every one of these is judged *before anything is
     settled* and *behind the pull-request reading*, and both halves of that matter. Before settling, because both
@@ -1082,7 +1106,8 @@ because there it is the claim that this stage has already rerouted rather than a
     This owner's own park is its to retire as well as to take: both endings clear `awaiting_human` and the reason,
     because a park nothing takes back leaves every stage behind the guard reading the issue as waiting on a reply
     nobody owes. No other owner's park is ever touched — each of those belongs to a stage still waiting for what it
-    asked for.
+    asked for. The retirement is the drop's guarded commit, so it lands beside whatever another road wrote since the
+    tick read the comment and never over a record or park that road wrote in its place.
 - **Replay**: a handoff already naming the transaction's receipt drops the record without publishing again, which
   is the window where the settlement landed and the process died before the drop. Watermarks only ever move
   forward and the round is applied from the pair the transaction froze, so a replayed settlement counts nothing
@@ -2256,7 +2281,12 @@ because there it is the claim that this stage has already rerouted rather than a
        next tick republishes with no developer run, binding that very record or publishing that very transaction at the
        run's own revision. A binding that did not land either way withholds the handoff before any of the last readings
        below, saying nothing: a park one of them took behind it -- over an older transaction the delivery supersedes,
-       say -- would be a notice no write could record, posted again on every tick.
+       say -- would be a notice no write could record, posted again on every tick. The settlement behind the post is a
+       guarded commit too (`engine/report_settling.py`), prepared before the post and committed behind it: one that did
+       not land over the comment the tick read, or landed unconfirmed, withholds the handoff the same silent way, and
+       the reconciliation ahead of the next handler settles the posted report by its receipt, or finds nothing owed.
+       So does a post or re-read that leaves the report owed while another road wrote the comment meanwhile: the
+       comment is asked once more behind it, and the tick's state is withheld rather than written back over that road.
      - **a report still owed refuses the handoff**, exactly as a moved checkout does. A bind with no room, a thread read
        or post GitHub refused, a lost response, and a failed requirements re-read leave the branch pushed, the pull
        request open, the receipt and `late_approved_sha` recorded, and the debt standing, with nothing parked; the next
@@ -4459,13 +4489,23 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      have to outlive this tick. A binding whose guarded write did not land over the comment this tick read -- refused
      over a comment another road moved since, or sent and never confirmed -- ends the tick saying and writing nothing,
      since the tick's state is withheld and a notice behind it could never be recorded; the next tick binds afresh, or
-     the reconciliation publishes the transaction where the binding landed after all. A record nobody can READ parks
+     the reconciliation publishes the transaction where the binding landed after all. A settlement whose guarded
+     commit or its preparation did not land ends the tick the same silent way: the reconciliation ahead of the next
+     handler finds the posted report by its receipt and settles it, or finds nothing owed where the commit landed after
+     all, and the mark that settlement raised hands the round back once. A post or re-read that leaves the report owed
+     -- its answer lost, the requirements edited under it -- while another road wrote the comment ends it the same way,
+     since the comment is asked again behind it and the tick's state is withheld rather than written back over that
+     road's evidence, verdict or newer record. A record nobody can READ parks
      under `report_undeliverable` with the record untouched, since the debt is claimed by the key alone and reading it
      as an absence lets the scan through. The two refusals no later poll takes back -- a worktree GONE, and a tree this
      host proved DIRTY -- announce once and RELEASE the record as they park, with the pairs it froze applied in that
      same write: left there, restoring or cleaning the checkout would publish the report and send the issue to review,
-     which is the decision the notice exists to put in front of a human. A reading nobody could TAKE is neither, and
-     buys nothing at all: nothing published, nothing released, no notice, and the poll behind it asks again.
+     which is the decision the notice exists to put in front of a human. That write is the park's own guarded commit
+     (`engine/report_delivery.parks_the_debt`), owning the delivery and the transaction it superseded beside the park
+     and decided on every report record this tick read: what another road wrote meanwhile survives, a newer record it
+     wrote is never released with the one this tick found -- no notice is posted and nothing is dropped -- and a
+     release that did not land, or landed unconfirmed, ends the tick silently. A reading nobody could TAKE is neither,
+     and buys nothing at all: nothing published, nothing released, no notice, and the poll behind it asks again.
 
      A reviewer's change request handed over to this label (`review_returned_verdict` with `handed`) is answered right
      behind that, still ahead of the scan (`validating/review_resume.finishes_a_handed_request`): its feedback is a

@@ -13,9 +13,10 @@ the thread has moved out of reach -- edited, removed, or written by an author
 this deployment does not trust -- and a debt no record describes at all, a run
 that committed and wrote no report. A reply resumes the session through the
 drift route, and the report it writes then supersedes the one that could not be
-delivered. A binding the settlement sent that did not land over the comment the
-tick read is the one silent hold among those: the tick's state is withheld, so
-a park behind it would be a notice no write could record.
+delivered. A binding the settlement sent, or the settlement's own commit, that
+did not land over the comment the tick read is the one silent hold among those:
+the tick's state is withheld, so a park behind it would be a notice no write
+could record.
 
 Once nothing is owed there, a head this orchestrator rewrote is asked about
 last (`report_refresh`): the pull request stands on a commit the settled report
@@ -162,13 +163,14 @@ def _refusal_after_settling(
     one of them is something the reconciliation stands down on rather than
     holding -- so a report the reviewer waits behind needs somebody told.
 
-    Nobody is told anything where the settlement's own binding did not land
-    over the comment this tick read -- refused over a comment another road
-    moved since, or sent and never confirmed. That leaves the tick's state
-    WITHHELD (`report_commits`), so a park behind it is a notice no write could
-    record, posted again on every tick; the review is held silently instead,
-    and the next tick binds afresh, or the reconciliation publishes the
-    transaction where the binding landed after all.
+    Nobody is told anything where the settlement's own binding, or its
+    preparation or commit, did not land over the comment this tick read --
+    refused over a comment another road moved since, or sent and never
+    confirmed. That leaves the tick's state WITHHELD (`report_commits`), so a
+    park behind it is a notice no write could record, posted again on every
+    tick; the review is held silently instead, and the next tick binds or
+    settles afresh -- finding a report already posted by its receipt -- or
+    finds nothing owed where the write landed after all.
     """
     if state.withheld:
         return ""
