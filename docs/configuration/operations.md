@@ -710,13 +710,13 @@ configuration examples lead back to the repository; the site does not publish th
 
 ### Launch commands
 
-- `./run.sh` — production. Continuous polling. `run.sh` does `git pull --ff-only origin "$ORCHESTRATOR_BASE_BRANCH"`
-  (read from `.env`, default `main`) and re-launches the orchestrator after each clean exit, so a self-modifying merge
-  picks up new code automatically. If a non-base branch is checked out the pull is skipped, and if the fast-forward
-  fails (diverged base, rebase in progress, network error) the wrapper logs a loud warning to stderr and launches the
-  existing working tree anyway instead of exiting — under `Restart=always` a stale-but-running orchestrator beats a
-  silent crash loop. See [`../architecture.md#process-model`](../architecture.md#process-model) for the full
-  skip-and-warn contract.
+- `./run.sh` — production for a source checkout. Continuous polling. `run.sh` does
+  `git pull --ff-only origin "$ORCHESTRATOR_BASE_BRANCH"` (read from `.env`, default `main`) and re-launches the
+  orchestrator after each clean exit, so a self-modifying merge picks up new code automatically. If a non-base branch
+  is checked out the pull is skipped, and if the fast-forward fails (diverged base, rebase in progress, network error)
+  the wrapper logs a loud warning to stderr and launches the existing working tree anyway instead of exiting — under
+  `Restart=always` a stale-but-running orchestrator beats a silent crash loop. See
+  [`../architecture.md#process-model`](../architecture.md#process-model) for the full skip-and-warn contract.
 
   Run only one wrapper per checkout. Additional daemons need separate checkouts and `.venv/` environments;
   see [Running more than one poller](#running-more-than-one-poller). Dependency refreshes run before each Python
@@ -759,9 +759,10 @@ configuration examples lead back to the repository; the site does not publish th
 
 Both forms above call `orchestrator/cli.py`, which is also what the `chipping-orchestrator` console script declared in
 [`../../pyproject.toml`](../../pyproject.toml) runs
-(`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run chipping-orchestrator --once`). The module form is what
-`run.sh` launches and what the systemd unit below therefore supervises; the console script is the equivalent for an
-install that has the project on its `PATH`.
+(`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run chipping-orchestrator --once`). The module form is what `run.sh`
+launches, so the [systemd unit](#running-under-systemd-user-service) for a source checkout supervises `run.sh`. A
+package deployment runs the installed `chipping-orchestrator` command instead, which its unit supervises; see
+[package setup](#install-and-configure).
 
 On first start the orchestrator creates the workflow labels and the `backlog` / `paused` /
 `workflow:community_contribution` control labels on the repo, then begins polling open issues every `POLL_INTERVAL`

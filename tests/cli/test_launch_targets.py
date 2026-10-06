@@ -29,6 +29,7 @@ from tests.support.git import (
     _foreign_owner_settings,
     _run_git,
 )
+from tests.support.installed_package import installed_copy
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _LAUNCH_TIMEOUT_SECONDS = 60
@@ -105,16 +106,6 @@ def _unusable_checkouts(scratch: Path) -> dict[Path, str]:
     return {scratch / checkout: problem for checkout, problem in _PROBLEMS.items()}
 
 
-def _installed_copy(site_packages: Path) -> Path:
-    """A copy of the package in `site-packages`, the layout a wheel installs."""
-    shutil.copytree(
-        _REPO_ROOT / "orchestrator",
-        site_packages / "orchestrator",
-        ignore=shutil.ignore_patterns("__pycache__"),
-    )
-    return site_packages
-
-
 def _launch(
     package_parent: Path,
     scratch: Path,
@@ -163,8 +154,8 @@ class LaunchTargetTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self._scratch = Path(self.enterContext(TemporaryDirectory()))
-        self._site_packages = _installed_copy(self._scratch / "site-packages")
-        self._claimed = _installed_copy(
+        self._site_packages = installed_copy(self._scratch / "site-packages")
+        self._claimed = installed_copy(
             _claim_work_tree(self._scratch / "claims:env", "site-packages"),
         )
         shutil.copy(_REPO_ROOT / "pyproject.toml", self._claimed)
