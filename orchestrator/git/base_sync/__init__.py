@@ -34,7 +34,12 @@ because the write that makes a member and the step that drops it are several
 roads over one record. What a finished rebase is force-published with lives in
 ``publication``, the refusals that keep it from being published at all live in
 ``guards``, and the relabel, notice, and audit event a rebase that really
-conflicted is handed to its stage with live in ``conflicts``. Every base-sync
+conflicted is handed to its stage with live in ``conflicts``. The typed,
+data-only handoffs an automatic PR base rewrite crosses the git boundary as
+live in ``rewrite_handoffs``, read off the checkout and the remote by
+``rewrite_facts`` and published or observed by ``rewrite_transport``; all
+three are dormant, called by nothing until the workflow's base-rewrite
+coordinator takes the publication over. Every base-sync
 name is defined on one of these owners, and callers import the owner they need
 directly, so this initializer binds nothing and importing ``state`` or
 ``pre_pr`` never drags the PyGithub types ``models``, ``refresh``,

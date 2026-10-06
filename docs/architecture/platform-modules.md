@@ -611,6 +611,24 @@ orchestrator/
                         room for it. The rewrite evidence it hands that gate beside the candidate is
                         assembled by `transfer_evidence`, since the tick that makes the rewrite is not the only one
                         that needs it
+      rewrite_handoffs.py
+                        the frozen, data-only handoffs an automatic PR base rewrite crosses the git boundary as:
+                        the candidate -- original and rewritten heads and their trees, the branch, the base and
+                        remote readings, the worktree status, and the attempt's anchor, pull request, and stage --
+                        and the landed record of one lease-pinned publication of it, an uncertain answer included.
+                        Neither carries a GitHub client, an issue, pinned state, or a callback. Dormant, like the two
+                        owners below: nothing calls them until the workflow's base-rewrite coordinator takes the
+                        publication over, and the auto rebase still publishes through `publication`
+      rewrite_facts.py  reads a candidate off the checkout and the remote, and reads both again before a push: a
+                        head that left the candidate, a tree dirtied or made unreadable, a base ref rewound so it
+                        no longer contains the tip the replay sits over, or a remote off the anchor -- already on
+                        the candidate included -- refuses, while a base that only advanced does not
+      rewrite_transport.py
+                        publishes exactly the candidate's rewritten head, leased to its original one, through the
+                        branch transport once that fresh reading refuses nothing, so a publication that landed is
+                        never sent again, even for the same frozen candidate. A push git answered with a failure is
+                        classified by reading the remote again -- elsewhere is a rejection, on the candidate or
+                        unreadable is uncertain; observing a landing reads the remote and pushes nothing
       transfer_values.py
                         the bounded transfer handoff vocabulary and settled-phase reading, loaded lazily from the
                         workflow record when needed
@@ -1210,6 +1228,9 @@ off a facade:
   the rewrite the publisher or recovery hands to the size gate. `transfers` classifies the interrupted permission
   through `transfer_attempts` and `transfer_publication`, using the bounded handoff values in `transfer_values`.
   `recovery_holds` reads the refusals the dispatch hold releases for off `refresh_selection` and `frozen`, and
-  answers a held anchor through `replay_cleanup` and `replay_publication_parks`. The three keyword-call adapters — the
-  PR sync, the conflict route, and the crash recovery — still take the argument lists their callers spell and
-  normalize each into the typed context entry point beside it.
+  answers a held anchor through `replay_cleanup` and `replay_publication_parks`. `rewrite_handoffs` carries only data
+  as well; `rewrite_facts` reads it through the verification, measurement, and publication probes and the branch
+  transport, and `rewrite_transport` publishes it through `rewrite_facts` and the branch transport. No owner in the
+  package calls the three, which stay dormant until the workflow coordinator consumes them. The three
+  keyword-call adapters — the PR sync, the conflict route, and the crash recovery — still take the argument lists
+  their callers spell and normalize each into the typed context entry point beside it.
