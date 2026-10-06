@@ -3,24 +3,6 @@
 Working notes for unfinished release preparation. The recurring tag, build, validation, upload, retry, and
 constraints-asset procedure lives in the [maintainer release guide](../CONTRIBUTING.md#notes-for-maintainers).
 
-## Installation and upgrade documentation
-
-- Add a concise PyPI installation entry to `README.md`, linking to the operator instructions.
-- Add installation, upgrade, and rollback commands to `docs/configuration/operations.md` for both supported routes:
-  `pipx install chipping-orchestrator==X.Y.Z`, and a dedicated `python -m venv` managed with `python -m pip`.
-  Show how each route applies the release's `constraints.txt`. Use environment-specific installers, never bare `pip`.
-- Explain how an installed user obtains the basic and advanced `.env` templates for their chosen signed release tag
-  without cloning the repository. Use the installed configuration location and required settings already documented
-  in [configuration](../docs/configuration.md#basic-setup); do not introduce a separate launch-directory convention.
-- Document stopping the process, backing up operator settings, installing a chosen version, checking compatibility,
-  and restarting. Keep upgrades operator-initiated and preserve configuration, credentials, targets, worktrees, and
-  logs. Include separate commands for returning to the previous version through pipx and through the dedicated venv.
-- Explain configuration drift: where release notes and version-matched templates identify added, renamed, or removed
-  settings, changed defaults, and stricter validation; how to compare them while retaining local overrides; and how
-  startup diagnostics guide repairs before polling resumes. Cover configuration changes that also affect rollback.
-- Link the operator release instructions to `CONTRIBUTING.md#notes-for-maintainers` and keep the
-  [configuration overview](../docs/configuration.md) consistent with those instructions.
-
 ## Remaining validation and policy
 
 - Cover configuration reuse and diagnostics across a manual package upgrade and rollback. Reuse the existing
