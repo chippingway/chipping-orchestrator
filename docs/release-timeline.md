@@ -1,18 +1,19 @@
 # chipping-orchestrator release timeline
 
-Source material for a public timeline of `chipping-orchestrator`: all **14 published releases**, from `v0.12.0` back to
-`v0.1.0`, checked against the [GitHub release history][releases] and tagged changes on **2026-10-02**. Releases run
-newest first. The table gives each milestone a date, version, and suggested title; the lists below supply its
-functionality and supporting sources.
+Source material for a public timeline of `chipping-orchestrator`: all **15 published releases**, from `v0.13.0` back to
+`v0.1.0`, with links to the [GitHub release history][releases] and tagged changes. Releases run newest first. The table
+gives each milestone a date, version, and suggested title; the lists below supply its functionality, upgrade guidance,
+and supporting sources.
 
 Dates are GitHub release publication dates in **UTC**, rather than commit or tag dates. Each list describes what shipped
-at that tag. Changes made after `v0.12.0` are outside this timeline. Historical names and controls are retained where
-they explain a release; use the [documentation index](README.md) for current operation and configuration.
+at that tag. Changes after `v0.13.0` are outside this timeline. Historical names and controls are retained where they
+explain a release; use the [documentation index](README.md) for current operation and configuration.
 
 ## Timeline milestones
 
 | Published date | Release | Suggested timeline title |
 |---|---|---|
+| 2026-10-06 | [v0.13.0](#v0130) | Developer reports, verification evidence, and Poetry packaging |
 | 2026-09-15 | [v0.12.0](#v0120) | Human size approval, lifetime budgets, and artifact cleanup |
 | 2026-08-31 | [v0.11.1](#v0111) | Cumulative PR limits and the chipping-orchestrator name |
 | 2026-08-26 | [v0.11.0](#v0110) | Size-gated publication and reusable implementation splits |
@@ -27,6 +28,85 @@ they explain a release; use the [documentation index](README.md) for current ope
 | 2026-06-03 | [v0.3.0](#v030) | Analytics dashboard and scheduled issue processing |
 | 2026-05-26 | [v0.2.0](#v020) | Documentation, Q&A, verification, and parallel work |
 | 2026-05-19 | [v0.1.0](#v010) | GitHub issues become reviewed pull requests |
+
+## v0.13.0
+
+Published **2026-10-06**. Sources: [release notes][v0.13.0] and [tagged changes][changes-0.13.0].
+
+**Added functionality**
+
+- Revisioned developer reports published as dedicated pull-request comments before implementation or fix work reaches
+  review. Reports describe the final change, its rationale, and unresolved risks; a report-only update needs no commit.
+  Durable publication receipts recover interrupted deliveries without duplicate comments or lost review bookkeeping.
+- Automated reviews and approvals bound to the exact pull request, head, requirements revision, and developer report.
+  Changed reports or requirements invalidate an earlier approval even when the head is unchanged. Orchestrator-owned
+  rebases and conflict rewrites trigger a report refresh before another review.
+- Append-only workflow verification artifacts for local checks and reviewer declarations. A concise visible summary
+  identifies the outcome and tested commit; exact commands, exit statuses, and output remain in a hidden payload.
+  Readers also accept the earlier visible-evidence format.
+- Persisted reviewer verdicts and evidence, reconciled before approval or a change-request handoff. Approval requires
+  current passing evidence covering every configured `VERIFY_COMMANDS` command; with none configured, it still needs
+  at least one passing check. Equivalent-tree approval squashes preserve proved evidence.
+- Antigravity CLI (`agy`) support for every agent role, including resumed sessions, usage, skill telemetry, and
+  trajectories. Tracked asynchronous commands must finish before success; premature developer exits receive bounded
+  command recovery, and exhausted recovery parks as a retryable execution failure.
+- Host-local issue writer claims coordinate dispatch, base refresh, child writes, and close recovery across pollers
+  sharing one `WORKTREES_DIR`. Guarded report, evidence, and reviewer-state commits preserve unrelated pinned fields and
+  refuse decisions whose recorded subject moved.
+- Ordinary re-decomposition inside a late-split lineage preserves ancestry and depth limits, records new snapshot
+  consumers before seeding them, and holds children until their seeds and snapshot protection are proved. Replacements
+  inherit no size authorization.
+- Optional `TERMINAL_ARTIFACT_CLEANUP_WINDOW` and `TERMINAL_ARTIFACT_CLEANUP_TIMEZONE` schedule automatic cleanup in a
+  local window, taking precedence over the interval. On-demand cleanup retains its host-quiet requirements.
+- `park_awaiting_human` analytics and correlations back to the agent run or evaluation that caused the wait. Repeated
+  polls of an existing park emit no new transition; the records use existing analytics storage.
+- Poetry packaging and a lockfile for source deployments, with package installation, upgrade, rollback, and manual
+  release instructions. Installed runs load user configuration, target explicit clones, and answer `--help` without
+  repository configuration. Runtime dependencies remain PyGithub and psycopg.
+
+**Improvements and changes**
+
+- `ALLOWED_ISSUE_AUTHORS` must name at least one GitHub login. Installed packages require `REPOS`, and every target
+  must be the root of an existing git checkout; invalid setup fails before connecting to GitHub or launching an agent.
+- `DEPENDENCY_POLL_EVERY_N_TICKS`, default `5`, reduces blocked/umbrella dependency reads. Lazy worker repositories and
+  pull-request filtering avoid unnecessary GitHub detail requests.
+- `PR_REF_IN_SUBJECT`, default `on`, normalizes approval and documentation commit subjects to the pull request's
+  reference, removing the tracked issue's reference. Approval can rewrite a one-commit branch for its subject alone;
+  generated PR titles omit the tracked issue's numeric suffix.
+- Trusted feedback settles only the exact issue and pull-request comment batches delivered to the developer.
+  Separate surface watermarks preserve later comments, and recovered fix rounds avoid spending review rounds twice.
+- Published MkDocs documentation, grouped navigation, contributor guidance, issue forms, and strict source/build link
+  checks. Poetry replaces uv in CI and launch tooling; locked runtime major versions and dependency cooldowns bound
+  updates without adding runtime dependencies.
+
+**Upgrade notes from v0.12.0**
+
+- Set `ALLOWED_ISSUE_AUTHORS` before restarting. An empty allowlist prevents every launch mode, including `--once` and
+  on-demand cleanup. Workflow labels are unchanged and pinned-state additions require no bulk issue-state migration.
+- For source deployments, install Poetry `2.5.1`, stop the service, and recreate `.venv/` from `poetry.lock` with
+  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync`. Select `--with docs` and/or `--with dashboard` when needed. Replace
+  `uv run` in service units, crontabs, and applicable `VERIFY_COMMANDS`; see the
+  [operator migration procedure](configuration/operations.md#poetry-migration-for-operators).
+- Installed packages read `~/.config/chipping-orchestrator/.env` and require `REPOS` entries naming existing local
+  clones; `REPO` and `TARGET_REPO_ROOT` remain source-checkout developer settings. Source checkouts keep reading their
+  own `.env`. Confirm each target's token at `~/.config/<owner>/<name>/token`, or use an env-only `GITHUB_TOKEN`.
+- Preserve the current absolute `WORKTREES_DIR` when upgrading an active deployment: its default follows the first
+  configured target clone. Every poller on one host must use that same root and this version's claim protocol, with a
+  separate checkout and environment per daemon. Stop all older pollers before starting coordinated ones.
+- Review the [developer report](workflow.md#developer-report-contract-in-developer-prompts) and
+  [reviewer verification](workflow.md#reviewer-verification-contract-in-reviewer-prompts) contracts. Reports and
+  verification are published separately; absent, stale, failed, or incomplete approval evidence parks the issue.
+  Existing work without a recorded report may pause at `report_undeliverable`; follow its reply instructions.
+  The local verification gate still runs after a valid reviewer approval. Verification payloads remain readable in
+  comment source: keep secrets out of commands and recorded output.
+- Set `DEPENDENCY_POLL_EVERY_N_TICKS=1` to retain every-tick dependency dispatch. Set `PR_REF_IN_SUBJECT=off` where
+  GitHub's default squash-merge message would add a second PR reference. A configured cleanup window requires a valid
+  IANA timezone; an unset window preserves the daily interval default.
+- Before returning to v0.12.0, stop every v0.13.0 poller and finish outstanding report, verification, reviewer, and
+  replacement-split recovery. The earlier binary does not reconcile these new records. Follow the
+  [Poetry rollback procedure](configuration/operations.md#poetry-migration-for-operators) when restoring a source
+  deployment, and the [late-state drain](configuration/operations.md#rolling-back-to-an-older-orchestrator) when
+  returning to a version that predates late-split state.
 
 ## v0.12.0
 
@@ -350,6 +430,7 @@ Published **2026-05-19**. Sources: [release notes][v0.1.0] and [tagged history][
 - A polling launcher with self-update/restart behavior, file logs, and GitHub Actions lint and test checks.
 
 [releases]: https://github.com/chippingway/chipping-orchestrator/releases
+[v0.13.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.13.0
 [v0.12.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.12.0
 [v0.11.1]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.11.1
 [v0.11.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.11.0
@@ -364,6 +445,7 @@ Published **2026-05-19**. Sources: [release notes][v0.1.0] and [tagged history][
 [v0.3.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.3.0
 [v0.2.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.2.0
 [v0.1.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.1.0
+[changes-0.13.0]: https://github.com/chippingway/chipping-orchestrator/compare/v0.12.0...v0.13.0
 [changes-0.12.0]: https://github.com/chippingway/chipping-orchestrator/compare/v0.11.1...v0.12.0
 [changes-0.11.1]: https://github.com/chippingway/chipping-orchestrator/compare/v0.11.0...v0.11.1
 [changes-0.11.0]: https://github.com/chippingway/chipping-orchestrator/compare/v0.10.1...v0.11.0
