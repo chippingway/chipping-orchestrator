@@ -104,7 +104,13 @@ from orchestrator.workflow.engine import (
     verification_record_state as _record_state,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.verification_records import CurrentEvidence, PendingEvidence
+from orchestrator.workflow.engine.review_subjects import APPROVED_SUBJECT
+from orchestrator.workflow.engine.verification_records import (
+    CURRENT_EVIDENCE,
+    EVIDENCE_HISTORY,
+    CurrentEvidence,
+    PendingEvidence,
+)
 from orchestrator.workflow.late_split import handoffs as _late_handoffs
 from orchestrator.workflow.stages.validating import (
     approved_evidence as _approved_evidence,
@@ -125,6 +131,17 @@ _OWED = _evidence_models.ReportEvidence(
     _evidence_models.ReportEvidenceVerdict.HOLD,
     "the carry the approval's squash recorded onto the head is still owed to the pull request",
 )
+
+# What invalidating carried evidence writes (`_invalidates`): the evidence, the
+# history it goes into, the approval it was carried for, and the squash's
+# handoff over it.
+INVALIDATES = (CURRENT_EVIDENCE, EVIDENCE_HISTORY, APPROVED_SUBJECT, _late_handoffs.LATE_COLLAPSE_HANDOFF)
+
+# The record beyond those the evidence is bound through that whether a carry
+# still answers is read off (`carry_unanswered`): the approval's claim on it.
+# The report debt its review subject stands only without is bound already
+# (`verification_durable`).
+CARRY_ANSWERS_ON = (_approved_evidence.APPROVED_EVIDENCE,)
 
 
 @dataclass(frozen=True)
@@ -372,7 +389,9 @@ def _invalidates(state: PinnedState) -> bool:
     answering for a head the pull request has left, so it hands no reviewer
     anything -- and writing the approval null and the handoff away only ever
     shrinks the comment, so that refusal is always one the comment can carry.
-    Whether the evidence was retired.
+    Whether the evidence was retired. The caller writes; every field this
+    stages is one of `INVALIDATES`, which the commit invalidating an
+    unanswered carry owns (`collapse`).
     """
     current = _settlement.read_current_evidence(state)
     if current is not None:

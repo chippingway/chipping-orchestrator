@@ -40,19 +40,26 @@ second post or a second history entry, since an index naming one revision
 twice is one its own reader refuses. A retirement the comment has no room for
 writes nothing and leaves the record owed, and so does one whose pinned
 comment, read afresh, no longer carries what the tick read: every retirement is
-composed over that fresh reading, so a transaction another road recorded
-meanwhile is never written away. Everything else short of proof either HOLDS
+staged on that fresh reading and committed guarded by it
+(`verification_durable`), so a transaction, an approval, or a floor another
+road wrote meanwhile is never written away, and every field the retirement
+does not own is kept as the comment carries it. One that went out and was
+never confirmed holds the tick, and the next finds the record gone or retires
+it again, with no second entry. Everything else short of proof either HOLDS
 the tick over a reading nobody could take or STANDS DOWN with the transaction
 still owed, for a push, a drift resume, a fresh reviewer, or fresher evidence
 to answer.
 
 Save a CARRY: a transaction carrying a run onto a head it did not run on,
 which only an approval's squash records and which nothing later makes answer
-again once refused. Any refusal but a reading nobody could take abandons it
-into history with the approval it was recorded for (`verification_carries`)
--- here, ahead of the post, and on the publication and the settlement behind
-it (`verification_publishing`, `verification_settling`) -- for a fresh
-reviewer to answer the head as it stands. A carry that copied settled
+again once refused. Any refusal of it but a reading nobody could take
+abandons it into history with the approval it was recorded for
+(`verification_carries`) -- here, ahead of the post, and on the publication
+and the settlement behind it (`verification_publishing`,
+`verification_settling`) -- for a fresh reviewer to answer the head as it
+stands. A bound record another road moved under the settlement is a refusal of
+what the tick decided over, not of the carry, and leaves it owed for the next
+tick to answer here over the comment as it reads then. A carry that copied settled
 evidence's transcript is refused here too where that source no longer says
 what it copied (`verification_current.copied_source_verdict`), and again
 ahead of its settlement.
@@ -77,7 +84,7 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
-from orchestrator.workflow.engine.verification_carries import abandons, is_carry
+from orchestrator.workflow.engine.verification_carries import abandons_afresh, is_carry
 from orchestrator.workflow.engine.verification_current import copied_source_verdict
 
 log = logging.getLogger("orchestrator.workflow")
@@ -211,43 +218,42 @@ def _retires(
     *,
     indexed: bool = False,
 ) -> bool:
-    """Retire a transaction that will never settle, over the comment as it stands.
+    """Retire a transaction that will never settle, in one guarded commit over the comment as it stands; True holds.
 
-    Composed over the pinned comment read afresh rather than the state the
-    tick holds, which has to still carry every bound record exactly as that
-    state does (`verification_durable`): another road may have recorded a
-    newer transaction since, and a retirement composed over the older state
-    would erase it and lower the revision floor under it. A comment that will
-    not read holds the tick; one where a record moved stands down with nothing
-    written, for the next tick to answer what it carries then.
+    Staged on the pinned comment read afresh rather than the state the tick
+    holds, which has to still carry every bound record exactly as that state
+    does (`verification_durable`), and committed guarded by that reading:
+    another road may have recorded a newer transaction since, and a
+    retirement composed over the older state would erase it and lower the
+    revision floor under it. A comment that will not read holds the tick; one
+    where a record moved, before that reading or under the commit, stands
+    down with nothing written, for the next tick to answer what it carries
+    then. Every field the retirement does not own is kept as the comment
+    carries it when it lands.
 
     `indexed` drops the record outright, for a revision a settled or retired
-    record already carries. Otherwise it is abandoned into history through its
-    owner (`verification_carries`), and a retirement the comment could not
-    carry leaves the record owed, which every consumer already fails closed
-    on. A carry takes the approval it was recorded for with it, in the same
-    write -- where its entry has no room as well, since that only shrinks the
-    comment -- and nothing is written where nothing changed. The write is this
-    owner's, since a record left standing would be answered again on every
-    poll.
+    record already carries, owning that record alone. Otherwise it is
+    abandoned into history through its owner
+    (`verification_carries.abandons_afresh`), and a retirement the comment
+    could not carry leaves the record owed, which every consumer already
+    fails closed on; a carry takes the approval it was recorded for with it,
+    in the same commit -- where its entry has no room as well, since that only
+    shrinks the comment. Nothing is sent where nothing changed, and a commit
+    nobody confirmed holds: the next tick finds the record gone, or retires
+    it again, with no second history entry. The write is this owner's, since
+    a record left standing would be answered again on every poll.
     """
-    durable, moved = _durable.durable_comment(gh, issue, state)
-    if moved is not None:
-        log.info(
-            "issue=#%d is not retiring the verification evidence it owes: %s",
-            issue.number, moved.refusal,
-        )
-        return moved.holds
-    read = dict(durable.data)
-    if indexed:
+    if not indexed:
+        return abandons_afresh(gh, issue, state, pending)
+    durable, refused = _durable.durable_comment(gh, issue, state)
+    if refused is None:
+        guard = _durable.guarded(durable, (_records.PENDING_EVIDENCE,))
         durable.set(_records.PENDING_EVIDENCE, None)
-    elif not abandons(durable, pending):
-        log.error(
-            "issue=#%d has no room on its pinned comment to retire the "
-            "verification evidence it owes; leaving it owed", issue.number,
-        )
-    if durable.data == read:
+        refused = _durable.lands(gh, issue, state, guard, durable)
+    if refused is None:
         return False
-    state.data = durable.data
-    gh.write_pinned_state(issue, state)
-    return False
+    log.info(
+        "issue=#%d is not dropping the verification evidence record it already "
+        "settled or retired: %s", issue.number, refused.refusal,
+    )
+    return refused.holds

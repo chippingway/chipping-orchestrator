@@ -1152,23 +1152,37 @@ because there it is the claim that this stage has already rerouted rather than a
     that entry finds unreadable, replaced, or no longer parsing holds the tick instead) -- save a
     carry onto a head it did not run on, which only an approval's squash records and nothing later makes answer again
     once refused: refused on anything but a reading nobody could take -- its proof ahead of the post, the source it
-    copied edited, deleted, or no longer current (a publication retried over a lost response included), its own
-    artifact found edited under its receipt, or the proof, the records read behind it, or either artifact re-read ahead
-    of its settlement -- it is abandoned into history and the approval it was recorded for retired in the same write
-    (`review_approved_subject` written `null`, `verification_carries`), so a context, a head, or an artifact put back
-    afterwards moves no label over it. Only the approval the carry was recorded for goes -- one another road recorded
-    in its place stands -- and it goes even where the comment has no room for the carry's entry, since that write only
-    shrinks the comment: the carry then stays owed, under an approval nothing acts on, for a later tick to abandon.
-    A carry left owed for its standing approval -- the settlement had no room, before the post or behind it, or its
-    commit did not land -- holds the squash handoff rather than letting it drop (`squash_evidence.carried_onto`), so
-    the next tick with room settles it and moves the label, with no second report or reviewer.
+    copied edited, deleted, or no longer current (a publication retried over a lost response included), its own artifact
+    found edited under its receipt, or the proof or either artifact re-read ahead of its settlement -- it is abandoned
+    into history and the approval it was recorded for retired in the same guarded commit (`review_approved_subject`
+    written `null`, `verification_carries`), so a context, a head, or an artifact put back afterwards moves no label
+    over it. That commit is staged on the pinned comment read afresh -- at the settlement, the reading behind the proof,
+    recording the artifact's ledger entry too -- and guarded by it: an approval, a transaction, or any other bound
+    record another road moved under it refuses it with nothing written and the carry owed (at the settlement, the ledger
+    entry is then committed alone), and every field it does not own -- a returned verdict, a usage total, another road's
+    comment ids -- is kept as written. A bound record another road moved after the tick read the comment and before or
+    during the settlement's proof refuses what the tick decided over rather than the carry: nothing is abandoned, the
+    ledger entry is committed alone, and the next tick's proof decides over the comment as it reads then. Only the
+    approval the carry was recorded for goes, spelled exactly as the carry recorded it -- one another road recorded in
+    its place, of another subject or respelled, stands -- and it goes even where the comment has no room for the carry's
+    entry, since that write only shrinks the comment: the carry then stays owed, under an approval nothing acts on, for
+    a later tick to abandon.
+    A carry left owed for its standing approval -- the settlement had no room, before the post or behind it, a record
+    moved under it, or its commit did not land -- holds the squash handoff rather than letting it drop
+    (`squash_evidence.carried_onto`), so the next tick with room settles it and moves the label, with no second report
+    or reviewer.
   - **Retired** → a record whose revision a settled or retired record already carries (a replay its own handoff
     names, or one a restored comment brought back) is dropped without a second post or history entry; an unreadable
     record is dropped; a record whose pull request ended, past which a revision was spent, or beside a revision floor
-    nobody can read is abandoned into history. Every retirement is composed over the pinned comment read afresh, which
-    has to carry every bound record as the tick held it, so a transaction recorded meanwhile is never written away: a
-    comment that moved stands down and one that will not read holds. A retirement the comment has no room for writes
-    nothing and leaves the record owed. It never parks.
+    nobody can read is abandoned into history. Every retirement here is one guarded commit staged on the pinned comment
+    read afresh, which has to carry every bound record as the tick held it, and guarded by that reading, owning only the
+    records it retires: a transaction, a report or a report debt, a review subject, an approval, or a floor another road
+    moved before that reading or under the commit -- or the same transaction retired there first -- stands it down with
+    nothing written, so a transaction recorded meanwhile is never written away nor a revision indexed twice, while every
+    field it does not own is kept as it reads then; a comment that will not read or was replaced holds. A retirement the
+    comment has no room for, over that reading or the one the commit takes, writes nothing and leaves the record owed;
+    one that went out unconfirmed holds, and the next tick finds the record gone or retires it again, with no second
+    history entry. It never parks.
 - **Relying on it later**: `current_evidence_verdict` proves the current record again for a reader -- no revision
   past it spent, its handoff, its artifact re-read at the recorded comment with the pass flag its commands earn, and
   then the whole proof above -- so newer evidence posted and never settled, a deleted or edited artifact, or a flag it
@@ -3467,7 +3481,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      (`verification_current.carry_answers`) or that `review_approved_evidence` no longer names, is invalidated there
      (`squash_evidence.carry_unanswered`), and the approval it was carried for with it (`review_approved_subject`
      written `null`; one another road recorded in its place, of another subject, stands), in a
-     write of its own over the comment read afresh, the tick spent on it, ahead of any round it could be handed to —
+     guarded commit of its own staged on the comment read afresh and held to the bound evidence records, to
+     `review_approved_evidence`, and to the report debt the carry's review subject stands only without
+     (`developer_report_owed`, an undeliverable `park_reason`, and the report records) -- a claim, an approval, a review
+     subject, or a debt another road moved meanwhile, before that reading or under the commit, holds the tick with
+     nothing written, and every field the invalidation does not own is kept -- the tick spent on it, ahead of
+     any round it could be handed to —
      the issue the documenting stage or `in_review` hands back over such a carry arrives here; one carrying only
      the `late_collapse_handoff_sha` a finished handoff left moves the label that handoff
      never got to move (and drops the record behind it), or drops it unspent where the pull request has since moved off

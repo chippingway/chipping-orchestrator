@@ -398,10 +398,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             candidate (INADMISSIBLE); and `CONFLICT`, what a domain transformation answers where it
                             cannot keep both roads' moves of its field, refused as an owned conflict
     pinned_commit.py        the guarded commit itself, through which the verification-evidence publication and
-                            settlement and the developer report's recording, binding, and the park a refusal of either
-                            takes (`report_commits.py`) commit so far, while every other road still writes its whole
-                            state: a candidate derived over a
-                            fresh reading of the captured comment rather than written from the caller's state. A
+                            settlement, the evidence reconciliation's retirements, `validating`'s invalidation of an
+                            unanswered carry, and the developer report's recording, binding, and the park a refusal of
+                            either takes (`report_commits.py`) commit so far, while every other road still writes its
+                            whole state -- the approval squash's own invalidations among them: a candidate derived over
+                            a fresh reading of the captured comment rather than written from the caller's state. A
                             write the caller did not declare refuses before anything is read; an unreadable,
                             unparsed, or replaced comment, a prerequisite spelled otherwise, and an owned field
                             another writer moved to something other than what the caller staged each refuse after;
@@ -418,8 +419,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             caller with requests of its own to make over it before it stages anything. `takes_in` is for
                             a road that lays another road's moves over a tick's state without writing -- the validating
                             reread and the run circuit's merge -- or replaces that state with what a commit landed, as
-                            the verification settlement does, so the reading that state last synced with
-                            (`PinnedState.synced`) counts those fields as the comment's
+                            the verification settlement and the evidence retirements do, so the reading that state last
+                            synced with (`PinnedState.synced`) counts those fields as the comment's
     report_commits.py       the developer report's guarded commits: a `ReportWrite` declares the fields one write
                             owns, the report records it was decided on, and the check the fresh comment has to pass
                             first; a `ReportCommit` lands it over the issue's comment guarded by the reading the
@@ -757,8 +758,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             agent was out stays unread under its notice. `owes_a_report` beside it is what the implementing publication asks before
                             it hands work on: both records asked as a CLAIM so a truncated one counts as a debt, and the
                             park, which writes `developer_report_owed` beside its reason so the debt of a road with
-                            no record to leave outlives any later park that replaces that reason -- and onto an
-                            older park still standing with the reason alone, with no second notice. A park already
+                            no record to leave outlives any later park that replaces that reason -- and onto an older
+                            park still standing with the reason alone, with no second notice. Every record it reads is
+                            published as `REPORT_DEBT`, which the verification evidence binds each of its guarded writes
+                            to (`verification_durable.py`), since a review subject stands only while no report is owed.
+                            A park already
                             saying everything the notice would still WRITES: what a caller staged into the same
                             state -- the consumed pairs, and a record the road behind them released -- is what
                             that write is for, and skipping it would tell the caller the tick ended while the
@@ -1177,10 +1181,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             asked ahead of the carry's post and again ahead of its settlement
     verification_carries.py a refused carry -- a transaction carrying a run onto a head it did not run on, which only
                             an approval's squash records -- abandoned into history with the approval it was recorded
-                            for (`review_approved_subject` written null, while it is still that approval, and even
-                            where the carry's own entry has no room), composed onto the state in hand or over the
-                            comment read afresh (`verification_durable.py`); asked on every refusal short of an unread
-                            reading, ahead of the post, at the publication lookup, and at the settlement. Which
+                            for (`review_approved_subject` written null, while it is still that approval spelled exactly
+                            as the carry recorded it, and even where the carry's own entry has no room), in one guarded
+                            commit staged on the pinned comment read afresh and guarded by it
+                            (`verification_durable.py`), owning only the record, its history, and that approval
+                            (`ABANDONS`), so an approval, a transaction, or any other bound record another road moved
+                            under it refuses it with nothing written and the carry owed, while every field it does not
+                            own is kept as written; asked on every refusal of the carry short of an unread reading,
+                            ahead of the post and at the publication lookup (`abandons_afresh`, which the reconciliation
+                            abandons every transaction that will never settle through too), and at the settlement, where
+                            that commit records the artifact's ledger entry as well, and only while the comment read
+                            behind its proof still carries every bound record as the tick read it. Which
                             approval a run was recorded for -- the very subject it answers for
                             (`retires_its_approval`) -- is the rule a settled carry invalidated in `validating` keeps
                             too (`stages/validating/squash_evidence.py`), and the one a carry still owed holds the
@@ -1228,7 +1239,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             over a comment that still reads, the artifact's ledger entry is committed alone
                             (`verification_comments.records_the_artifact`), holding the tick where that finds the
                             comment unreadable, replaced, or no longer parsing; a carry whose binding is refused is
-                            abandoned with its approval and that entry in one write instead
+                            abandoned with its approval and that entry instead, in one guarded commit staged on that
+                            last reading and guarded by it (`ABANDONS_RECORDING`) -- only while that reading still
+                            carries every bound record as the tick read it, since a record moved before or during the
+                            proof refuses what the tick decided over rather than the carry -- the entry committed alone
+                            where that abandonment is not made or does not land over a comment that still reads
     verification_live_work.py
                             whether an issue is live work evidence may settle for -- not closed, not `done` or
                             `rejected`, not held by a hard-skip control label, and wearing a workflow label --
@@ -1237,21 +1252,29 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     verification_durable.py the evidence domain's adapter over the guarded commit: the pinned comment read afresh
                             before a settlement or a retirement through the commit's own reading
                             (`pinned_commit.reread`) -- the comment this tick read, parsed, and carrying `pr_number`,
-                            the developer report's records, the three review subjects -- the approved one, which a
+                            the developer report's records and the report debt a review subject stands only without
+                            (`report_delivery.REPORT_DEBT`: `developer_report_owed` and an undeliverable `park_reason`
+                            beside them), the three review subjects -- the approved one, which a
                             carry across an approval's squash answers through, included -- and the evidence records
                             and revision floor exactly as the state in hand spells them, or the field that moved;
                             the capture every guarded evidence write is taken under, those bound records its
-                            prerequisites (`guarded`); and what a guarded write's outcome refuses in this domain's
-                            words (`refusal_of`): an unread or replaced comment and an unconfirmed write HOLD, and
-                            every other refusal -- a moved record, a comment moved under the edit, no room -- DEFERS
+                            prerequisites with any other record the caller's decision reads (`guarded`, `rests_on`); the
+                            commit of a retirement staged on the comment read afresh, laying what landed over the state
+                            in hand and the reading it is synced with (`lands`); and what a guarded write's outcome
+                            refuses in this domain's words (`refusal_of`): an unread or replaced comment and an
+                            unconfirmed write HOLD, and every other refusal -- a moved record, a comment moved under the
+                            edit, no room -- DEFERS
     verification_transaction.py
                             the evidence reconciliation the dispatcher runs directly behind the report
                             transaction: stands aside on work that is not live (closed, `done`/`rejected`, a
                             hard-skip control label, or no workflow label); drops a record whose revision a settled
                             or retired record already carries (a replay, or a restored comment) and an unreadable
                             one; abandons one whose pull request ENDED, or past which a revision was spent or
-                            nobody can say what was -- every retirement composed over the comment read afresh
-                            (`verification_durable.py`), and nothing written where it moved or has no room; holds
+                            nobody can say what was -- every retirement one guarded commit staged on the comment read
+                            afresh and guarded by it (`verification_durable.py`), owning only what it retires, with
+                            nothing written where a record moved before that reading or under the commit, or where it
+                            has no room, and every field it does not own kept; a retirement nobody confirmed holds, for
+                            a later tick to find gone or retire once; holds
                             over a reading nobody could take, stands down on everything a route behind it answers --
                             save a carry onto a head it did not run on, which it abandons, retiring the approval it
                             was recorded for, on any refusal but an unread reading (`verification_carries.py`), its
@@ -3515,7 +3538,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             runs an agent -- and, where nothing claims one, whether current evidence carried onto a
                             head no longer answers for its review or is no longer named by the approval's claim
                             (`squash_evidence.carry_unanswered`), which is invalidated with the approval resting on it
-                            in a write of its own ahead of any round -- over the same tail the
+                            in a guarded commit of its own ahead of any round, staged on the comment read afresh, held
+                            to the bound evidence records -- the report debt its review subject stands only without
+                            among them -- and to the approval's claim (`squash_evidence.CARRY_ANSWERS_ON`) at that
+                            reading and under the commit, and owning only what it retires
+                            (`squash_evidence.INVALIDATES`) -- over the same tail the
                             approval road runs -- what the branch is owed
                             does not depend on which reading sent the tick. Asked only from that road it would be
                             asked on no tick whose reviewer times out, crashes, or votes CHANGES_REQUESTED: an
@@ -3630,8 +3657,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a carry is proved whole again before the handoff moves a label over it
                             (`current_evidence_verdict`), ahead of the approval's coverage on the relabel's retry, and
                             a handoff that coverage drops takes the carry with it (`drops_the_handoff`); evidence
-                            minted under a context that moved -- during the squash included -- is invalidated the
-                            same way
+                            minted under a context that moved -- during the squash included -- is invalidated the same
+                            way. What an invalidation writes (`INVALIDATES`) and the record beyond the bound ones that
+                            whether a carry still answers is read off (`CARRY_ANSWERS_ON`, the approval's claim) are the
+                            ownership and extra guard `collapse.py` commits an unanswered carry's invalidation under
       watermarks.py         the seed walk past leading orchestrator comments and a bare `/orchestrator
                             add-agent-runs` a grant left unread, and the ratchet that never regresses one
       requested_changes.py  the PR feedback and `workflow:fixing`-labeled dev fix, its report disposed of through

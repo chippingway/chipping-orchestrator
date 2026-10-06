@@ -654,17 +654,17 @@ kept, so the next write replaces the corruption in place instead of leaving a se
 
 Most writers rewrite the whole record from the state they read (`write_pinned_state`), which lands wherever it can — in
 place, or as a new comment where none is named or the named one is gone. A **guarded commit**
-(`workflow/engine/pinned_commit.py`, which the verification-evidence publication and settlement and the developer
-report's writes commit through) is never written from its caller's state. It is captured from the reading the caller
-decided on — the comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests
-on, an absent one included, and the fields the caller owns — and derived over a fresh reading: each field the caller's
-staged state changed, every one of which it has to own, is laid over that reading; a transformation the caller's domain
-supplies decides its own owned field over the fresh value, so a total, a ledger, or a watermark both roads moved keeps
-both moves — or answers that the two will not join, which is refused as an owned conflict; and every other field,
-unknown ones included, is kept as the fresh reading carries it. Fields are compared as the JSON spells them, keys
-sorted, so `null` is not an absent field, `true` is not `1`, and `1.0` is not `1`, at any depth. The fresh reading can
-be taken alone too (`reread`), for a caller with requests of its own to make over the comment it captured before it
-stages anything.
+(`workflow/engine/pinned_commit.py`, which the verification-evidence publication and settlement, the evidence
+reconciliation's retirements, `validating`'s invalidation of an unanswered carry, and the developer report's writes
+commit through) is never written from its caller's state. It is captured from the reading the caller decided on — the
+comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent one
+included, and the fields the caller owns — and derived over a fresh reading: each field the caller's staged state
+changed, every one of which it has to own, is laid over that reading; a transformation the caller's domain supplies
+decides its own owned field over the fresh value, so a total, a ledger, or a watermark both roads moved keeps both moves
+— or answers that the two will not join, which is refused as an owned conflict; and every other field, unknown ones
+included, is kept as the fresh reading carries it. Fields are compared as the JSON spells them, keys sorted, so `null`
+is not an absent field, `true` is not `1`, and `1.0` is not `1`, at any depth. The fresh reading can be taken alone too
+(`reread`), for a caller with requests of its own to make over the comment it captured before it stages anything.
 
 It refuses — writing nothing, and touching nothing the caller holds — where the comment will not read, will not parse,
 or is not the one captured (replaced, deleted, or never pinned: the strict edit never creates one); where a prerequisite
@@ -690,14 +690,14 @@ that reading is its own and lands as the tick spells it; the write declares its 
 records it was decided on. A usage total, the cost tags, a comment-id watermark, and the comment-id ledger keep both
 roads' moves rather than conflicting. A road that lays another road's moves over a tick's state without writing — the
 validating reread, the run circuit's merge — advances that reading for the fields it laid, and one that replaces the
-state with what its own commit landed — the verification settlement — advances it to that reading whole
-(`pinned_commit.takes_in`), so none of it counts as the tick's own move. A refused report write leaves the tick's state
-as it was and marks it withheld (`PinnedState.withheld`): the state was decided on a comment that has since moved, and
-written whole it would put back every record the refusal kept, so the whole-state writer writes nothing for it for the
-rest of the tick, until a guarded commit lands. A write sent and never confirmed is withheld the same way; a refusal for
-room alone is not, where the comment read again is still the one the tick synced with, since that comment is simply too
-full and the roads behind a report still owed are what give its room back. Every road but these and the verification
-evidence's still writes its whole state.
+state with what its own commit landed — the verification settlement and the evidence retirements — advances it to that
+reading whole (`pinned_commit.takes_in`), so none of it counts as the tick's own move. A refused report write leaves the
+tick's state as it was and marks it withheld (`PinnedState.withheld`): the state was decided on a comment that has since
+moved, and written whole it would put back every record the refusal kept, so the whole-state writer writes nothing for
+it for the rest of the tick, until a guarded commit lands. A write sent and never confirmed is withheld the same way; a
+refusal for room alone is not, where the comment read again is still the one the tick synced with, since that comment is
+simply too full and the roads behind a report still owed are what give its room back. Every road but these and the
+verification evidence's still writes its whole state.
 
 The keys that matter for the state machine fall into a few groups:
 
@@ -1017,7 +1017,9 @@ The keys that matter for the state machine fall into a few groups:
   silent exit, or unfinished command is the report the debt is owed. The flags are single, so any later park — a
   resumed run that times out, a question — replaces `park_reason`, and without the flag the report that finally comes
   back would read as an ordinary reply on an issue owing nothing. `owes_a_report` reads it beside the two records and
-  the reason, and the write that records a delivered report retires it with the reason — as does the settlement
+  the reason -- the four published as `report_delivery.REPORT_DEBT`, which every guarded verification-evidence write is
+  held to, since a review subject stands only while no report is owed, so a debt another road records or pays under one
+  stands it down -- and the write that records a delivered report retires it with the reason — as does the settlement
   that puts a report
   on the pull request, which retires the `report_undeliverable` park itself where that is the park it answers: a
   condition a human REPAIRS rather than replies to (an edited report restored, a checkout cleaned) leaves nothing else
@@ -2089,9 +2091,16 @@ The keys that matter for the state machine fall into a few groups:
   settled handoff's retry invalidates the carry and drops the handoff for a fresh reviewer. Nor does any approval over
   a carry whose review subject no longer stands, or that no claim names (`squash_evidence.carry_unanswered`): the
   documenting stage and `in_review` hand the issue back, and `validating` invalidates the carry on arrival, ahead of
-  any round. Whichever road invalidates or abandons evidence an approval rests on retires the approval it was
-  recorded for in the same write -- only that one: an approval another road recorded in its place, of another subject,
-  stands -- even where the comment has no room for the evidence's own history entry --
+  any round, in a guarded commit of its own staged on the pinned comment read afresh -- held to the bound evidence
+  records, the report debt the carry's review subject stands only without (`developer_report_owed` and an undeliverable
+  `park_reason` beside the report records) among them, and to this claim, owning only the current record, the history,
+  the
+  approval, and the settled squash handoff, so a claim, an approval, a review subject, or a debt another road moved
+  meanwhile, before that reading or under the commit, holds the tick with nothing written, and every other field is kept
+  as written. Whichever road invalidates or abandons evidence an approval rests
+  on retires the approval it was recorded for in the same write -- only that one, spelled exactly as the evidence
+  recorded it: an approval another road recorded in its place, of another subject or spelled otherwise, stands -- even
+  where the comment has no room for the evidence's own history entry --
   `review_approved_subject` written `null`, which `approval_covers_current` refuses -- so no reader takes it for an
   approval recorded before claims, and nothing moves it on until a fresh reviewer's approval replaces it. The claim is
   guarded like the review subjects across the tail's proof, relabel, and the write
@@ -2117,9 +2126,11 @@ The keys that matter for the state machine fall into a few groups:
   transcript earns, `use` `published` -- in the write settling the squash's handoff, so the move waits until the next
   tick's reconciliation settles it as the current evidence -- a carry of the reviewer's evidence held until then to
   the artifact it copied (`copied_from`), so an edit or a deletion of that artifact, on a publication retried over a
-  lost response included, abandons it. A carry still owed for its approval -- the reconciliation stood down for want
-  of room on the comment, before the post or behind it -- holds the move with the handoff kept, and the next tick
-  settles it; a carry abandoned leaves the claim naming no current evidence, which drops the handoff like any other;
+  lost response included, abandons it. A carry still owed for its approval -- the reconciliation stood down for want of
+  room on the comment, before the post or behind it, or over a bound record another road moved under its settlement,
+  which refuses what the tick decided over rather than the carry -- holds the move with the handoff kept, and the next
+  tick settles it or refuses it over the comment as it reads then; a carry abandoned leaves the claim naming no current
+  evidence, which drops the handoff like any other;
   a refused carry -- a context moved during the squash
   included -- invalidates the evidence and drops the handoff in that same write, and so does a settled carry that no
   longer proves whole when the handoff's relabel is retried, or whose handoff that retry drops. Additive, and written
@@ -2439,7 +2450,8 @@ The keys that matter for the state machine fall into a few groups:
   comment read afresh (`workflow/engine/verification_publishing.py`), so a comment another road filled since the tick
   read it, or one whose bound records moved, posts nothing. Before the settlement the issue and the pinned comment are
   read afresh: the issue has to be live work still, by the same rule as above, or nothing at all is written; the
-  comment has to carry every bound record -- `pr_number`, the `developer_report_*` group, `review_subject`,
+  comment has to carry every bound record -- `pr_number`, the `developer_report_*` group (`developer_report_owed`
+  included) and `park_reason`, whose report debt a review subject stands only without, `review_subject`,
   `review_returned_subject`, `review_approved_subject`, the four evidence records, and `verification_evidence_revision`
   -- exactly as the tick held them, the whole proof above is taken again over it, and the artifact re-read at the
   comment it landed as has to be exactly this transaction's, not edited or deleted since
@@ -2462,9 +2474,18 @@ The keys that matter for the state machine fall into a few groups:
   record whose revision a settled or retired record already carries --
   a replay its own handoff names, or one a restored comment brought back -- is dropped without a second post or history
   entry, an unreadable record is dropped, and one whose pull request ended, past which a revision was spent, or beside a
-  floor nobody can read is abandoned into history. Every retirement is composed over the pinned comment read afresh and
-  held to the same bound records, so a transaction recorded meanwhile is never erased nor the floor lowered under it; a
-  retirement the comment has no room for writes nothing and leaves the record owed. A reader relying on the current
+  floor nobody can read is abandoned into history. Every retirement the reconciliation makes is one guarded commit
+  staged on the pinned comment read afresh -- which has to carry the same bound records as the tick held them -- and
+  guarded by that reading: it owns only what it retires (`verification_evidence_pending` and
+  `verification_evidence_history`, with `review_approved_subject` for a carry's approval; the pending record alone for a
+  replay dropped), so a transaction, an approval, a report or a report debt, a review subject, or a floor another road
+  moved before that reading or under the commit -- `null` written where nothing was, or a number respelled, included --
+  refuses it with nothing written and the record owed, and every field it does not own -- a usage total, a watermark, a
+  returned verdict, another road's comment ids -- is kept as the comment carries it when it lands. A retirement the
+  comment has no room for writes nothing and leaves the record owed, measured over that reading and again over the
+  comment the commit reads; a comment that will not read or was replaced holds the tick with nothing written; and a
+  retirement that went out unconfirmed holds it too, for the next tick to find the record gone or retire it again, with
+  no second history entry. A reader relying on the current
   record re-proves all of that and its publication besides: no revision past it spent (`verification_evidence_revision`
   at its own), so a newer artifact posted and never settled supersedes it; the handoff describing it; and the comment it
   recorded still our artifact with every binding member the artifact encodes, the digest, and a `passed` its commands

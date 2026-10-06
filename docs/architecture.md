@@ -389,14 +389,17 @@ Per-issue durable state lives in a single **pinned comment** on the issue (`<!--
 The orchestrator process is stateless; the label and the pinned JSON are the entire dispatch input.
 
 Most writers rewrite the whole record from the state they read. The guarded commit on `workflow/engine/pinned_commit.py`
-is the contract for writers that share it, and the verification-evidence publication and settlement and the developer
-report's recording, binding, and refusal parks (`workflow/engine/report_commits.py`) are the roads that commit through
-it so far: it derives a candidate over a fresh reading of the comment its caller captured, refuses with nothing written
-where that comment or a record the decision rests on moved, or where another writer moved a field the caller is
-changing, measures the whole rendered candidate against the comment limit before any dependent effect, and lands
-through the strict in-place edit on `github/pinned_state.py`, reporting an edit nobody confirmed as neither answer. It
-narrows the window between a reading and the write over it; it does not serialize two pollers, since GitHub's comment
-edit takes no condition. The contract is on [`state-machine/labels-and-state.md`][pinned-state].
+is the contract for writers that share it, and the verification-evidence publication and settlement, the evidence
+reconciliation's retirements -- abandonment, a replay or damage dropped, a refused carry abandoned -- the invalidation
+of an unanswered carry on arrival in `validating`, and the developer report's recording, binding, and refusal parks
+(`workflow/engine/report_commits.py`) are the roads that commit through it so far; the approval squash's own
+invalidation of the evidence its approval rests on still rewrites the whole record. It derives a candidate over a fresh
+reading of the comment its caller captured, refuses with nothing written where that comment or a record the decision
+rests on moved, or where another writer moved a field the caller is changing, measures the whole rendered candidate
+against the comment limit before any dependent effect, and lands through the strict in-place edit on
+`github/pinned_state.py`, reporting an edit nobody confirmed as neither answer. It narrows the window between a reading
+and the write over it; it does not serialize two pollers, since GitHub's comment edit takes no condition. The contract
+is on [`state-machine/labels-and-state.md`][pinned-state].
 
 For the full per-tick sequence — eligible-issue enumeration, the cap exemption a no-agent bucket earns, what the base
 refresh rebases and pushes, the read-only skip the `question` and `discussion` labels take, the per-tick

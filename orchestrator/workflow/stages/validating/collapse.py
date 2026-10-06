@@ -161,33 +161,42 @@ def _retires_an_unanswered_carry(gh: GitHubClient, issue: Issue, state: PinnedSt
     approval it was carried for with it (`squash_evidence._invalidates`), so
     no reader takes that approval for one recorded before approvals named
     evidence; an approval another road recorded in its place, of another
-    subject, stands. That is composed over the comment read afresh and held
-    to every record the evidence is bound through (`verification_durable`),
-    in a write of its own, the tick spent on it so the round below starts
-    from the comment as written. A comment that moved or will not read holds
-    the tick for the next to ask again. A retirement the comment has no room
-    for leaves the record, which every reader refuses, and the approval is
-    still retired in that write -- the comment only shrinks by it -- so
-    restoring the room later moves nothing on over it; the tick carries on,
-    and a comment already carrying that refusal is not written again.
+    subject, stands. That is staged on the comment read afresh, held to every
+    record the evidence is bound through -- the report debt its review
+    subject stands only without among them -- and to the approval's claim
+    (`squash_evidence.CARRY_ANSWERS_ON`), and committed guarded by that
+    reading (`verification_durable`), owning only what it retires
+    (`squash_evidence.INVALIDATES`) -- every other field, a returned verdict
+    or a usage total among them, is kept as the comment carries it -- in a
+    commit of its own, the tick spent on it so the round below starts from the
+    comment as written. A comment that moved, before that reading or under the
+    commit, or will not read, and a commit nobody confirmed, hold the tick for
+    the next to ask again. A retirement the comment has no room for leaves the
+    record, which every reader refuses, and the approval is still retired in
+    that commit -- the comment only shrinks by it -- so restoring the room
+    later moves nothing on over it; the tick carries on, and a comment already
+    carrying that refusal is sent nothing.
     """
     if not _squash_evidence.carry_unanswered(state):
         return False
-    durable, moved = _durable.durable_comment(gh, issue, state)
-    if moved is not None:
-        return True
-    read = dict(durable.data)
-    retired = _squash_evidence._invalidates(durable)
-    log.log(
-        logging.INFO if retired else logging.ERROR,
-        "issue=#%s its carried verification evidence no longer answers for the "
-        "review it was carried for; %s, and retiring the approval it was carried for where that still stands",
-        issue.number, "invalidating it" if retired else "no room to invalidate it",
+    durable, refused = _durable.durable_comment(gh, issue, state, _squash_evidence.CARRY_ANSWERS_ON)
+    if refused is None:
+        guard = _durable.guarded(durable, _squash_evidence.INVALIDATES, _squash_evidence.CARRY_ANSWERS_ON)
+        retired = _squash_evidence._invalidates(durable)
+        log.log(
+            logging.INFO if retired else logging.ERROR,
+            "issue=#%s its carried verification evidence no longer answers for the review it was carried "
+            "for; %s, and retiring the approval it was carried for where that still stands",
+            issue.number, "invalidating it" if retired else "no room to invalidate it",
+        )
+        refused = _durable.lands(gh, issue, state, guard, durable)
+        if refused is None:
+            return retired
+    log.info(
+        "issue=#%s is not invalidating the carried verification evidence that no longer "
+        "answers: %s", issue.number, refused.refusal,
     )
-    if durable.data != read:
-        state.data = durable.data
-        gh.write_pinned_state(issue, state)
-    return retired
+    return True
 
 
 def _finished_collapse(

@@ -10,28 +10,39 @@ the tick holds sees any of it, and a write composed over that state would put
 the replaced records back over the newer ones -- a settlement declaring
 evidence current for a subject the comment no longer carries, or a retirement
 erasing a transaction recorded meanwhile and lowering the revision floor under
-it. So the settlement and every retirement ask here first.
+it. So the settlement, the reconciliation's retirements, and `validating`'s
+invalidation of an unanswered carry ask here first.
 
 So the comment is read again, through the guarded commit's own reading
 (`pinned_commit.reread`), and it has to be the comment this tick read and
 still carry every record the evidence is bound through exactly as the state in
 hand spells them: the developer report's transaction and settled pair, the
-review subjects -- the approved one among them, since evidence carried across
-an approval's squash answers for the approved review -- and this domain's own
-records and revision floor. Which records those are is this domain's choice,
+report debt a review subject stands only without -- an undeliverable park's
+reason and the debt it records -- the review subjects -- the approved one
+among them, since evidence carried across an approval's squash answers for the
+approved review -- and this domain's own records and revision floor. Which records those are is this domain's choice,
 and they are the prerequisites of every guarded write it makes (`guarded`);
-the comparison is the commit's, as the comment's JSON spells each record, so a
-field written `null` where there was none, or `true` where there was `1`, is a
-move. The records that move are the caller's to refuse over; the
-fresh reading comes back with them, since it is the one comment any write may
-still be laid over.
+a caller whose decision reads a record beyond them names it too (`rests_on`),
+and it is held the same way. The comparison is the commit's, as the comment's
+JSON spells each record, so a field written `null` where there was none, or
+`true` where there was `1`, is a move. The records that move are the caller's
+to refuse over; the fresh reading comes back with them, since it is the one
+comment any write may still be laid over.
+
+A retirement is staged on that fresh reading and committed guarded by it
+(`lands`): the commit reads the comment once more, lays only the fields the
+retirement owns over it where every prerequisite still reads as that reading
+did, and keeps every other field -- a usage total, a watermark, another
+road's verdict or comment ids -- as it finds it. What landed becomes the state
+in hand.
 
 A comment that will not read or parse, or is no longer the one the state was
 read from, holds: nobody could say what it carries, and a write over it would
 pin a second comment or replace one nobody read. A guarded write is answered in
 the same two words (`refusal_of`): one that could not read the comment as it
 was captured, or went out and was never confirmed, holds, since the record may
-read either way and the transaction's receipt settles it on a later tick;
+read either way and a later tick settles it from what the record then carries
+-- the transaction's receipt, or the retired record gone or still standing;
 every other refusal -- a record that moved, a comment that moved under the
 edit, a write the comment has no room for -- defers, with whatever the write
 was for still owed.
@@ -48,21 +59,24 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit as _commit,
     pinned_commit_models as _commit_models,
+    report_delivery as _report_delivery,
     report_records as _report_records,
     review_subjects as _review_subjects,
     verification_records as _records,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 
-# Every record the evidence is bound through: the pull request, the developer
-# report's transaction and settled pair, the review subjects -- the approved
+# Every record the evidence is bound through: the pull request, every record
+# a report debt is read from -- the developer report's delivery and
+# transaction, an undeliverable park's reason, and the debt it records
+# (`report_delivery.REPORT_DEBT`), since a review subject stands only while
+# nothing is owed -- the settled report, the review subjects -- the approved
 # one included, which evidence carried across an approval's squash answers
 # through -- and this domain's own four records and the revision floor beside
 # them.
 _BOUND_RECORDS = (
     "pr_number",
-    _report_records.PENDING_REPORT,
-    _report_records.DELIVERED_REPORT,
+    *_report_delivery.REPORT_DEBT,
     _report_records.CURRENT_REPORT,
     _report_records.REPORT_HANDOFF,
     _review_subjects.REVIEW_SUBJECT,
@@ -111,30 +125,62 @@ _UNCONFIRMED = ReportEvidence(
 )
 
 
-def guarded(state: PinnedState, owned: Iterable[str]) -> _commit_models.PinnedCommit:
+def guarded(
+    state: PinnedState, owned: Iterable[str], rests_on: Iterable[str] = (),
+) -> _commit_models.PinnedCommit:
     """The commit `state` guards as it was read: every bound record a prerequisite, and `owned` the caller's to write.
 
-    Captured before anything is staged on `state`, since what the write
-    changes is told by its difference from this.
+    `rests_on` names any other record the caller's decision reads, a
+    prerequisite as well. Captured before anything is staged on `state`,
+    since what the write changes is told by its difference from this.
     """
-    return _commit_models.PinnedCommit.capture(state, prerequisites=_BOUND_RECORDS, owned=owned)
+    return _commit_models.PinnedCommit.capture(
+        state, prerequisites=(*_BOUND_RECORDS, *rests_on), owned=owned,
+    )
 
 
 def durable_comment(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
+    gh: GitHubClient, issue: Issue, state: PinnedState, rests_on: Iterable[str] = (),
 ) -> tuple[PinnedState | None, ReportEvidence | None]:
     """The comment read afresh, and the refusal its records earn, if any.
 
-    `(comment, None)` where it carries every bound record as `state` does,
-    `(comment, DEFER)` where one moved, and `(None, HOLD)` where it will not
-    read or parse or is not the comment `state` was read from.
+    `(comment, None)` where it carries every bound record -- and every one
+    `rests_on` names -- as `state` does, `(comment, DEFER)` where one moved,
+    and `(None, HOLD)` where it will not read or parse or is not the comment
+    `state` was read from.
     """
-    guard = guarded(state, ())
+    guard = guarded(state, (), rests_on)
     durable = _commit.reread(gh, issue, guard)
     if not isinstance(durable, PinnedState):
         return None, _UNREAD
     moved = guard.moved(durable.data)
     return durable, (_moved(moved) if moved else None)
+
+
+def lands(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    guard: _commit_models.PinnedCommit,
+    staged: PinnedState,
+) -> ReportEvidence | None:
+    """Commit what `staged` changes over the reading `guard` was captured from, and lay what landed over `state`.
+
+    For a retirement: `guard` taken over the comment read afresh
+    (`durable_comment`) before anything was staged on it, and `staged` that
+    reading with the retirement staged. None where it landed -- or where the
+    comment already reads as `staged`, with nothing sent -- and `state` then
+    reads as the comment does, and so does the reading it is synced with
+    (`pinned_commit.takes_in`), so a guarded commit behind it counts none of it
+    as the tick's own move; otherwise the refusal its outcome earns here
+    (`refusal_of`), with `state` as it was.
+    """
+    outcome = _commit.commit(gh, issue, guard, staged.data)
+    refused = refusal_of(outcome)
+    if refused is None:
+        state.data = outcome.reading.data
+        _commit.takes_in(state, outcome.reading.data)
+    return refused
 
 
 def refusal_of(outcome: _commit_models.CommitOutcome) -> ReportEvidence | None:
