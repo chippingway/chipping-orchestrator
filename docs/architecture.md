@@ -846,10 +846,13 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   and measured on the whole announcement write, a debt with no room parked `auto_base_rebase_unrecorded_debt` with the
   attempt kept, the notice and the `base_rebased` event said once behind the announcement mark, the round reset, a
   human's retry spent, and the route to `workflow:validating` taken only for a head the base has not advanced past
-  again. Every write is a guarded commit, so a refused or unconfirmed one stops the finish with nothing behind it
-  made. Its post-push, pre-route step is where the evidence a landed head is routed with is decided, on the base lag
-  alone so far. It runs under its caller's issue writer claim. Nothing calls it yet; the auto rebase still finishes
-  through `base_sync/publication.py` and its recovery through `base_sync/persistence.py`.
+  again. A landing the pinned record does not account for — one that moved nothing, a publication a guard refused,
+  a replay record naming another head, a lag against the base nobody could count — makes nothing, and a head this
+  tick pushed nothing for is announced as one found standing. Every write is a guarded commit, so a refused or
+  unconfirmed one stops the finish with nothing behind it made. Its post-push, pre-route step is where the evidence a
+  landed head is routed with is decided, on the base lag alone so far. It runs under its caller's issue writer claim.
+  Nothing calls it yet; the base-rewrite coordinator still delegates the finish to `base_sync/publication.py` and its
+  recovery to `base_sync/persistence.py`.
 - The bare `HEAD` form is left for the one push that could name no commit at all: a gated push on an install running
   with `DECOMPOSE=off` whose checkout would not prove its own head. The switch keeps candidates out of the
   MEASUREMENT and not out of a push that knows what it is publishing, so the commit is named off the checkout there
