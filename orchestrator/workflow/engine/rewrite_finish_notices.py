@@ -13,8 +13,9 @@ stood on it, whichever road reached it -- is reported as already published.
 Both recovery notices say whether the base has advanced past that head since,
 in which case another rebase comes first. The texts and the event's payload
 are the ones every finish has always produced, live issues and the analytics
-sink already carry them, so each is spelled here exactly as the crash recovery
-still spells its own (`git/base_sync/recovery_notices.py`).
+sink already carry them, so the notice of a landing found already standing is
+spelled here exactly as the git owner that still finishes that road spells
+its own (`git/base_sync/recovery_notices.py`).
 
 The notice is best effort: a post that fails is logged, and the publication it
 was about is recorded all the same. A post that lands enters the ledger of

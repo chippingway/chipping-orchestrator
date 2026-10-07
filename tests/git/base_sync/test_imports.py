@@ -59,7 +59,6 @@ _OWNERS = (
     "orchestrator.git.base_sync.replay_cleanup",
     "orchestrator.git.base_sync.replay_evidence",
     "orchestrator.git.base_sync.replay_publication_parks",
-    "orchestrator.git.base_sync.replay_recovery",
     "orchestrator.git.base_sync.replay_refusals",
     "orchestrator.git.base_sync.replay_transfer_parks",
     "orchestrator.git.base_sync.transfer_permits",
@@ -83,14 +82,16 @@ _MODULES = ("orchestrator.git.base_sync", *_OWNERS)
 
 # The module paths a second import site for these owners would take: the flat
 # spelling itself, and the inventory and resolver hooks one would be built from.
-# The per-tick refresh and the base-rewrite coordinator are the workflow's, so
-# their git spellings would be a shim pointing this layer back up at it.
+# The per-tick refresh, the base-rewrite coordinator, and the order a crash
+# recovery is routed in are the workflow's, so their git spellings would be a
+# shim pointing this layer back up at it.
 _FLAT_MODULES = (
     "orchestrator._base_sync_export_manifest",
     "orchestrator._base_sync_exports",
     "orchestrator.base_sync",
     "orchestrator.git.base_sync.pr",
     "orchestrator.git.base_sync.refresh",
+    "orchestrator.git.base_sync.replay_recovery",
 )
 
 # The state owner exists to spell out the pinned-state keys and the label
@@ -154,7 +155,7 @@ _OWNER_ONLY_NAMES = (
     "_park_dirty_recovery",
     "_pending_rewrite",
     "_publishes_the_candidate",
-    "_recover_pending_auto_base_rebase",
+    "_recovery_context",
     "_reset_clear_and_park",
     "_rewritten_by_the_rebase",
     "_route_pr_worktree_to_resolving_conflict",

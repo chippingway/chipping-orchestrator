@@ -28,12 +28,6 @@ REBASE_AGAIN_PHRASE = "rebasing once more"
 
 DIRTY_FILES = ("scratch.txt", "notes.md")
 
-NOTICE_BUILDERS = (
-    _recovery_notices._already_published_recovery_notice,
-    _recovery_notices._pushed_recovery_notice,
-)
-
-
 def _park_dirty(context, snapshot) -> bool:
     """Park a dirty recovery over a fixed set of leftover files."""
     return outcomes._park_dirty_recovery(context, snapshot, list(DIRTY_FILES))
@@ -64,46 +58,30 @@ PARK_CASES = (
 
 
 class RecoveryNoticeTest(unittest.TestCase):
-    """Both notices name the recovered head and where the issue goes next."""
+    """The notice of a landing found already standing names it and where the issue goes next.
+
+    A retry this tick pushed is announced by the workflow's shared finish,
+    whose notices are held there.
+    """
 
     def test_current_head_promises_the_route(self) -> None:
-        for builder in NOTICE_BUILDERS:
-            with self.subTest(notice=builder.__name__):
-                notice = builder(
-                    fixtures._recovery_context(behind=0),
-                    fixtures.RECOVERED_SHA,
-                )
-                self.assertIn(f"#{fixtures.PR_NUMBER}", notice)
-                self.assertIn(SHORT_LOCAL, notice)
-                self.assertIn(
-                    f"`{fixtures.LABEL}` -> `{fixtures.VALIDATING}`",
-                    notice,
-                )
-                self.assertNotIn(REBASE_AGAIN_PHRASE, notice)
+        notice = _recovery_notices._already_published_recovery_notice(
+            fixtures._recovery_context(behind=0), fixtures.RECOVERED_SHA,
+        )
+
+        self.assertIn(f"#{fixtures.PR_NUMBER}", notice)
+        self.assertIn(SHORT_LOCAL, notice)
+        self.assertIn(ALREADY_PUBLISHED, notice)
+        self.assertIn(f"`{fixtures.LABEL}` -> `{fixtures.VALIDATING}`", notice)
+        self.assertNotIn(REBASE_AGAIN_PHRASE, notice)
 
     def test_lagging_head_announces_another_rebase(self) -> None:
-        for builder in NOTICE_BUILDERS:
-            with self.subTest(notice=builder.__name__):
-                notice = builder(
-                    fixtures._recovery_context(behind=2),
-                    fixtures.RECOVERED_SHA,
-                )
-                self.assertIn("2 commit(s)", notice)
-                self.assertIn(REBASE_AGAIN_PHRASE, notice)
-
-    def test_notices_name_their_own_recovery_path(self) -> None:
-        context = fixtures._recovery_context()
-
-        self.assertIn(
-            ALREADY_PUBLISHED,
-            _recovery_notices._already_published_recovery_notice(
-                context, fixtures.RECOVERED_SHA,
-            ),
+        notice = _recovery_notices._already_published_recovery_notice(
+            fixtures._recovery_context(behind=2), fixtures.RECOVERED_SHA,
         )
-        self.assertIn(
-            "pushed the recovered head",
-            _recovery_notices._pushed_recovery_notice(context, fixtures.RECOVERED_SHA),
-        )
+
+        self.assertIn("2 commit(s)", notice)
+        self.assertIn(REBASE_AGAIN_PHRASE, notice)
 
 
 class AlreadyPublishedRecoveryTest(unittest.TestCase):

@@ -3,9 +3,11 @@
 """Persist and end the lifecycle of one auto-rebase attempt.
 
 Replay and announcement checkpoints each land in the crash window they close.
-The workflow's publication of a clean rebase records its replay here and the
-recovery announces here; the workflow's finish puts the same mark down through
-its own guarded checkpoint and reads it back here. Every completion clears the
+The workflow's publication of a clean rebase records its replay here, and the
+finish of a landing the recovery finds already standing announces here; the
+workflow's finish -- of a publication or of the recovery's retry -- puts the
+same mark down through its own guarded checkpoint and reads it back here.
+Every completion clears the
 whole attempt. attempt_records validates interrupted replay evidence and
 defines the field group that the clear includes.
 """
@@ -101,9 +103,10 @@ def _announces(
     again puts a second `base_rebased` on the stream and a second notice on
     the pull request for one publication that happened once.
 
-    Made here by the recovery's finish, which announces a landing an earlier
-    tick left; the workflow's finish of a rebase this tick published leaves
-    the same window and lands the same mark through its guarded checkpoint
+    Made here by the finish of a landing an earlier tick left and the
+    recovery found standing; the workflow's finish -- of a rebase this tick
+    published, or of a replay the recovery pushed again -- leaves the same
+    window and lands the same mark through its guarded checkpoint
     (`workflow/engine/rewrite_finish.py`). Neither is distinguishable
     afterwards from an attempt that never got that far.
 

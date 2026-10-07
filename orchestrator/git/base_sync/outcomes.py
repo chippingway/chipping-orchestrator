@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Complete ordinary crash recovery or park its checkout and push failures.
 
-The recovery coordinator supplies the verified comparison and preserves the
-order of its decisions. Replay-specific refusal outcomes live with their
-checkout, publication, and transfer owners; recovery notices own the messages
-posted by a successful finish.
+The workflow's recovery coordinator (`workflow/engine/rewrite_recovery.py`)
+supplies the verified comparison and preserves the order of its decisions,
+and its retry (`workflow/engine/rewrite_retry.py`) takes the dirty and failed
+push parks here. Replay-specific refusal outcomes live with their checkout,
+publication, and transfer owners; recovery notices own the messages posted by
+the finish of a landing found already standing.
 """
 from __future__ import annotations
 

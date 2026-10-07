@@ -8,8 +8,9 @@ That is the whole point of doing it here: what licenses the reissued push is
 the claim that the replay contributes what the adjudication accepted, and the
 only way to hold this domain to it is to let a real `git rebase` produce the
 replay and let the digest be taken over what git actually wrote. Every case
-enters where the refresh does, through the eligibility gate, since the decision
-it hands back is what says the tick is over.
+enters where the workflow's base-rewrite coordinator does, through the
+recovery decision, since the decision it hands back is what says the tick is
+over.
 
 Each window has to end in the same place -- the push the dead tick never
 made goes out, the verdict moves with it, and the tick is over -- and neither
@@ -21,7 +22,6 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.git.base_sync import eligibility, models
 from orchestrator.git.measurement import (
     additions as _measurement,
     commits as _measurement_commits,
@@ -42,6 +42,7 @@ from orchestrator.workflow.stages.implementing import (
 )
 from orchestrator.workflow.state import WorkflowLabel
 from tests.git.base_sync import recovery_git_support as fixtures
+from tests.git.base_sync.recovery_entry_support import resumed
 from tests.git.base_sync.vouched_replay_git_support import (
     KEY_PENDING_REWRITE_SHA,
     VouchedReplayGitFixtureMixin,
@@ -169,29 +170,14 @@ class _AdjudicatedRecoveryCase(VouchedReplayGitFixtureMixin, unittest.TestCase):
 
 
 def _resumes(case) -> bool:
-    """The tick after the crash, entered where the refresh enters it.
+    """The tick after the crash, entered where the workflow's coordinator enters it.
 
-    Through the eligibility gate rather than the recovery call, because what
-    has to be proved is not only that the push goes out: the decision this
-    gate hands back is what says the tick is OVER, so nothing behind it
-    rebases the branch a second time or spawns anything over it. The replay
-    the crash left is already on the advanced base, so nothing is behind.
+    Through the recovery decision rather than the recovery call, because what
+    has to be proved is not only that the push goes out: the decision it hands
+    back is what says the tick is OVER, so nothing behind it rebases the
+    branch a second time or spawns anything over it.
     """
-    issue = case.gh._issues[fixtures.ISSUE]
-    return eligibility._auto_rebase_recovery_decision(
-        models._AutoRebaseContext(
-            gh=case.gh,
-            spec=case.spec,
-            issue=issue,
-            state=case.gh.read_pinned_state(issue),
-            worktree=case.work,
-            pr_number=fixtures.PR_NUMBER,
-            behind=0,
-            label=fixtures.LABEL,
-            pending_pre_rebase_sha=case.anchor,
-        ),
-        None,
-    ).should_continue
+    return resumed(case, fixtures.LABEL).should_continue
 
 
 class CrashBeforeTheGrantTest(_AdjudicatedRecoveryCase):
@@ -209,10 +195,14 @@ class CrashBeforeTheGrantTest(_AdjudicatedRecoveryCase):
         self._assert_the_verdict_moved()
         self.assertEqual(len(self._events_of(TRANSFER_EVENT)), 1)
         self._assert_nothing_was_read_again()
-        # The record of the attempt ends with the push that discharged it.
+        # The record of the attempt ends with the push that discharged it, so
+        # the tick after it has nothing to recover and moves nothing again.
         pinned = self.gh.pinned_data(fixtures.ISSUE)
         self.assertIsNone(pinned.get(fixtures.KEY_PENDING_PUSH_SHA))
         self.assertIsNone(pinned.get(KEY_PENDING_REWRITE_SHA))
+        self.assertTrue(_resumes(self))
+        self.assertEqual(self.push.leases, [self.anchor])
+        self.assertEqual(len(self._events_of(TRANSFER_EVENT)), 1)
 
 
 class CrashAfterTheGrantTest(_AdjudicatedRecoveryCase):

@@ -20,8 +20,10 @@ landed -- or landed and lost its answer -- only a fresh reading shows the branch
 already standing on it. The lease covers what is left, the moment between that
 reading and the push.
 
-The workflow's ordinary publication of a clean rebase is what reads a
-candidate here (`workflow/engine/rewrite_publication.py`); see
+The workflow's ordinary publication of a clean rebase reads a candidate here
+(`workflow/engine/rewrite_publication.py`), and so does its retry of a replay
+an interrupted tick never published (`workflow/engine/rewrite_retry.py`), over
+the remote head the recovery verified (`recovery_push`); see
 `rewrite_handoffs`.
 """
 from __future__ import annotations
@@ -30,7 +32,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from orchestrator.config import models as _config_models
-from orchestrator.git import branch_transport
+from orchestrator.git import branch_transport, ref_transport
 from orchestrator.git.base_sync.rewrite_handoffs import (
     _CheckoutReading,
     _RewriteAttempt,
@@ -93,6 +95,7 @@ def _prepares_the_candidate(
     worktree: Path,
     attempt: _RewriteAttempt,
     branch: str,
+    remote: ref_transport._RefRead | None = None,
 ) -> _RewriteCandidate:
     """Read the candidate a finished rebase left in `worktree`.
 
@@ -101,13 +104,20 @@ def _prepares_the_candidate(
     looking. The remote is asked through the authenticated branch read, which
     tells a branch the remote does not carry ("") from a read that established
     nothing (None) and keeps the scrubbed line saying why.
+
+    `remote` is a reading of the branch the caller has already taken and
+    decided on, and the candidate carries it rather than a second one: the
+    recovery that resumes an interrupted attempt fetches the branch, resolves
+    its head, and classifies the checkout against exactly that head. Whatever
+    the remote does after it is the publication's to find, since the push
+    reads the branch again first.
     """
     return _RewriteCandidate(
         attempt=attempt,
         branch=branch,
         original_tree=_verification_probes._tree_sha(worktree, attempt.anchor),
         checkout=_reads_the_checkout(spec, worktree),
-        remote=branch_transport._remote_branch_read(spec, worktree, branch),
+        remote=branch_transport._remote_branch_read(spec, worktree, branch) if remote is None else remote,
     )
 
 

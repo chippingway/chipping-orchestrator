@@ -5,15 +5,10 @@
 The repository ``recovery_git_support`` builds, with the interrupted rebase a
 real `git rebase` onto an advanced base -- the shape the divergence counts read
 as an out-of-band update -- and the moves a case makes to leave the branch and
-the pinned record the way a crash, a rollback, or a hand edit leaves them, and
-`recover` hands the recovery the attempt record read off the comment.
+the pinned record the way a crash, a rollback, or a hand edit leaves them.
 """
 from __future__ import annotations
 
-from orchestrator.git.base_sync import (
-    attempt_records as _attempt_records,
-    recovery,
-)
 from tests.git.base_sync import recovery_git_support as fixtures
 
 KEY_PENDING_REWRITE_SHA = "pending_auto_base_rebase_rewrite_sha"
@@ -38,28 +33,9 @@ UNRELATED_FILE = "unrelated.py"
 
 
 class VouchedReplayGitFixtureMixin(fixtures.RecoveryGitFixtureMixin):
-    """A real replay of the branch, recovered on the record the attempt left.
-
-    `recover` hands the recovery the attempt record read off the comment, the
-    way the eligibility gate does.
-    """
+    """A real replay of the branch, recovered on the record the attempt left."""
 
     replays = True
-
-    def recover(self, label: str = fixtures.LABEL) -> bool:
-        """Run the recovery over the issue as it now reads."""
-        state = self.gh.read_pinned_state(self.issue)
-        return recovery._recover_pending_auto_base_rebase(
-            self.gh,
-            self.spec,
-            self.issue,
-            state,
-            self.work,
-            pr_number=fixtures.PR_NUMBER,
-            label=label,
-            pending_pre_rebase_sha=self.anchor,
-            pending_rewrite=_attempt_records._pending_rewrite(state),
-        )
 
     def strand_an_unrelated_head(self, *, forget_record: bool = True) -> str:
         """Leave the branch on a divergent commit this attempt never made.

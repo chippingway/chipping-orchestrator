@@ -57,10 +57,12 @@ Run under the issue writer claim the caller already holds -- the base refresh
 route -- and asks for none of its own, since that very hold would refuse it.
 
 The ordinary publication of a clean rebase (`rewrite_publication`) hands its
-landing here. The crash recovery does not yet: the workflow's base-rewrite
-coordinator (`base_rewrite`) still delegates it to the git owners, which
-finish a landing it left through `git/base_sync/persistence.py` by the same
-order, and the recovery handing its landings here is what retires that road.
+landing here, and so does the recovery's retry of a replay an interrupted tick
+never published (`rewrite_retry`). A landing the recovery finds already
+standing does not yet: the workflow's recovery coordinator
+(`rewrite_recovery`) still delegates it to the git owner of that road, which
+finishes it through `git/base_sync/persistence.py` by the same order, and that
+road handing its landings here is what retires the second spelling.
 """
 from __future__ import annotations
 
@@ -78,7 +80,7 @@ from orchestrator.workflow.engine import (
     rewrite_finish_notices as _notices,
     rewrite_finish_writes as _writes,
 )
-from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -140,11 +142,18 @@ def _vouched(finish: LandedFinish) -> bool:
     records what it produced -- not a contradiction, and vouching for the
     landing there (the transfer permission that licensed its push) is the
     recovery's, ahead of handing it over.
+
+    One record never written is vouched for all the same: an attempt from
+    before the record existed, whose replay the recovery retried on the counts
+    alone -- a strictly-ahead checkout, pushed under the anchor's lease. The
+    push this tick made and saw land is that retry's own. A landing it only
+    found standing is still nobody's, since nothing says whose push that was.
     """
     recorded = _attempt_records._pending_rewrite(finish.state)
     attempt = finish.landed.candidate.attempt
     if not recorded.is_declared:
-        return False
+        unwritten = not recorded.left_a_replay
+        return unwritten and finish.road is FinishRoad.RECOVERY and finish.pushed
     terms = (recorded.pr_number, recorded.stage) == (attempt.pr_number, attempt.stage)
     return terms and recorded.sha in {"", finish.head}
 

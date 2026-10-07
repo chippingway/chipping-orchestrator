@@ -7,6 +7,9 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
+from orchestrator.git.measurement import commits as _measurement_commits
+from orchestrator.git.measurement.models import FrozenCommit
+from tests.git.base_sync.candidate_reads_support import _BehindTheBase
 from tests.git.base_sync.gate_reads_support import _gate_candidates
 from tests.git.base_sync.refresh_scenarios import PUSH_PATCH, REBASE_PATCH, _scenario
 from tests.git.base_sync.refresh_test_support import (
@@ -14,6 +17,7 @@ from tests.git.base_sync.refresh_test_support import (
     _CrashRecoveryVerificationFixture,
     _diverged,
     _git_result,
+    _patched,
     _pending_attempt,
     _RemoteHeadGit,
     _SyncWorktreeWithBaseFixture,
@@ -150,14 +154,18 @@ class CrashRecoveryDivergenceUnitTest(
         )
 
     def test_pending_push_behind_falls_through(self) -> None:
+        # An attempt from before the record of its replay existed, so the
+        # counts are what retry it: strictly ahead of a remote still on the
+        # anchor. The base has advanced past the recovered head again, so the
+        # retry's finish leaves it to the rebase this same tick goes on with.
         self._seed_pr_issue(
             pending_auto_base_rebase_push_sha=BEFORE_SHA,
             review_round=3,
         )
         self._add_pr()
         scenario = self._fallthrough_scenario(
-            "old-remote-sha",
-            ahead_behind=(1, 0),
+            BEFORE_SHA,
+            ahead_behind=_BehindTheBase(_diverged(1, 0), {REBASED_SHA: 2}),
             # The recovered push lands, so the pull request stands on what it
             # published when the rebase behind it is leased against the head
             # that push left.
@@ -166,14 +174,16 @@ class CrashRecoveryDivergenceUnitTest(
         # Two pushes, two commits: the recovered head, then the one the
         # rebase behind it rewrote that into. Publishing the same commit
         # twice is a receipt the gate recognizes rather than a second push.
-        # The recovered push reads twice -- the measurement, then the proof
-        # that the checkout is still on what went out -- and the rebase
-        # behind that is what moves the head. Each reading is the commit its
+        # Every reading of the checkout before the rebase -- the candidate,
+        # the measurement, the reading before the push, and the proof that the
+        # checkout is still on what went out -- is the recovered head, and the
+        # rebase behind that is what moves it. Each reading is the commit its
         # caller named, because both callers name the head they read out of
         # this one checkout.
-        _gate_candidates(
-            self, REBASED_SHA, REBASED_SHA, NEW_REBASED_SHA,
-        )
+        rebase = scenario[REBASE_PATCH]
+        _patched(self, _measurement_commits, "_prove_candidate_commit", MagicMock(
+            side_effect=lambda *_: FrozenCommit(sha=NEW_REBASED_SHA if rebase.called else REBASED_SHA),
+        ))
 
         scenario.run(self)
 
@@ -213,7 +223,7 @@ class CrashRecoveryDivergenceUnitTest(
         self,
         remote_head: str,
         *,
-        ahead_behind: tuple[int, int] | None = None,
+        ahead_behind=None,
         push=None,
     ):
         patches = {
@@ -235,9 +245,7 @@ class CrashRecoveryDivergenceUnitTest(
             ),
         }
         if ahead_behind is not None:
-            patches["ahead_behind"] = MagicMock(
-                return_value=_diverged(*ahead_behind),
-            )
+            patches["ahead_behind"] = MagicMock(side_effect=ahead_behind)
         return _scenario(**patches)
 
     def _assert_fallthrough_publication(

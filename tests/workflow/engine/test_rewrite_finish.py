@@ -47,8 +47,10 @@ _FOUND_TO_REVIEW = f"{_FOUND}{_TO_REVIEW} so the reviewer re-runs against the re
 
 _ROUTED = (support.LABEL_VALIDATING,)
 
-# The method a landing this tick sent nothing for is filed under.
+# The method a landing this tick sent nothing for is filed under, and the one a
+# push a recovery made is.
 _FOUND_METHOD = "crash_recovery_relabel_only"
+_PUSHED_METHOD = "crash_recovery_pushed"
 
 # A recovered push whose answer was lost, and the remote then read on the replay.
 _PUSHED_UNANSWERED = replace(support.PUSHED_AGAIN, outcome=_PushOutcome.UNCERTAIN)
@@ -80,11 +82,11 @@ _SENT = (
 # what it found, the method its event files, what it came to, and the labels
 # it wrote.
 _RECOVERIES = (
-    (support.PUSHED_AGAIN, f"{_PUSHED}{_TO_REVIEW}.", "crash_recovery_pushed", FinishOutcome.ROUTED, _ROUTED),
-    (_PUSHED_UNANSWERED, f"{_PUSHED}{_TO_REVIEW}.", "crash_recovery_pushed", FinishOutcome.ROUTED, _ROUTED),
+    (support.PUSHED_AGAIN, f"{_PUSHED}{_TO_REVIEW}.", _PUSHED_METHOD, FinishOutcome.ROUTED, _ROUTED),
+    (_PUSHED_UNANSWERED, f"{_PUSHED}{_TO_REVIEW}.", _PUSHED_METHOD, FinishOutcome.ROUTED, _ROUTED),
     (
         replace(support.PUSHED_AGAIN, behind=2), f"{_PUSHED}{_ADVANCED}",
-        "crash_recovery_pushed", FinishOutcome.CONTINUED, (),
+        _PUSHED_METHOD, FinishOutcome.CONTINUED, (),
     ),
     (support.FOUND, _FOUND_TO_REVIEW, _FOUND_METHOD, FinishOutcome.ROUTED, _ROUTED),
     (_ALREADY_STANDING, _FOUND_TO_REVIEW, _FOUND_METHOD, FinishOutcome.ROUTED, _ROUTED),
@@ -128,6 +130,7 @@ _UNACCOUNTED = (
     ("the attempt was made for another pull request", {support.KEY_REWRITE_PR: 43}, support.FOUND),
     ("the attempt was made from another stage", {support.KEY_REWRITE_STAGE: "workflow:in_review"}, support.FOUND),
     ("the attempt recorded no replay", _UNRECORDED, support.FOUND),
+    ("a publication over an attempt that recorded no replay", _UNRECORDED, support.PUBLISHED),
     ("its lag against the base was not counted", {}, replace(support.FOUND, behind=None)),
     ("no anchor is pinned", {support.KEY_PENDING_PUSH: None}, support.PUBLISHED),
     ("the anchor is another head", {support.KEY_PENDING_PUSH: support.OTHER}, support.PUBLISHED),
@@ -289,6 +292,20 @@ class UnaccountedLandingTest(unittest.TestCase):
         self.assertEqual(world.finalizes(support.FOUND), FinishOutcome.ROUTED)
 
         self.assertEqual(support.attempt(world.pinned()), _RETIRED)
+
+    def test_an_unrecorded_retry_is_finished(self) -> None:
+        # An attempt from before its record existed is retried on the counts
+        # alone, and the push the recovery made and saw land is that retry's
+        # own -- whichever answer git gave it. A landing found standing over
+        # the same comment is nobody's.
+        for road in (support.PUSHED_AGAIN, _PUSHED_UNANSWERED):
+            with self.subTest(outcome=road.outcome.value):
+                world = support.FinishWorld.seeded(**_UNRECORDED)
+
+                self.assertEqual(world.finalizes(road), FinishOutcome.ROUTED)
+
+                self.assertEqual(support.attempt(world.pinned()), _RETIRED)
+                self.assertEqual(world.said()[1], [effects.rebased(_PUSHED_METHOD)])
 
     def test_a_finished_landing_is_not_finished_again(self) -> None:
         world = support.FinishWorld.seeded()

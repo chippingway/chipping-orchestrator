@@ -417,8 +417,14 @@ Two paths depending on whether a PR exists:
   route — no remote to push, so the local branch stays linear without publishing a rewrite.
 - **PR-having worktrees** in `workflow:validating` / `workflow:documenting` / `in_review` / `workflow:fixing` go
   through `_sync_pr_worktree_to_base`, the workflow's base-rewrite coordinator (`workflow/engine/base_rewrite.py`),
-  which orders the git `base_sync` gates, rebase, and recovery and delegates the recovery's effects to their owners —
-  reached even when the checkout is no longer behind base, so a pinned anchor's recovery is still answered. A clean
+  which orders the git `base_sync` gates and rebase and hands a pinned anchor to the workflow's recovery coordinator
+  (`workflow/engine/rewrite_recovery.py`) — reached even when the checkout is no longer behind base, so a pinned
+  anchor's recovery is still answered. The recovery asks its readings, refusals, and parks of the git owners in the
+  order they have always been asked; a replay its crash kept off the pull request is retried by the workflow
+  (`workflow/engine/rewrite_retry.py`) exactly as the publication below publishes a clean rebase -- the candidate
+  reading, the gate, the exact-candidate push under the anchor's lease, and the finish -- with the transfer permit
+  asked first where a transfer is the only voucher, and a push the recovery finds already landed is still finished by
+  the git owners. A clean
   rebase is the workflow's own publication (`workflow/engine/rewrite_publication.py`): the git owner reads the
   candidate the rebase left (`git/base_sync/rewrite_facts.py`), the size gate and the transfer permit rule on it, and
   the git owner pushes exactly that candidate (`git/base_sync/rewrite_transport.py`, force-with-lease pinned to the
@@ -521,8 +527,9 @@ its anchor to hold back the handler that finalizes the issue.
 A clean rebase whose push LANDS leaves the pull request on a head no developer report is about, and the reviewer
 road refuses the report of the head before it. So the finish stages the report debt that head leaves
 (`developer_report_rewrite_debt`, see [Pinned state](#pinned-state)) -- through
-`workflow/engine/rewrite_finish_debt.py` for a push the tick made itself and `git/base_sync/report_debt.py` for one
-the recovery finishes -- the pinned pull request, its branch, the anchor the push was leased against, and the head
+`workflow/engine/rewrite_finish_debt.py` for a push the tick made itself or the recovery's retry reissued, and
+`git/base_sync/report_debt.py` for one the recovery finds already landed -- the pinned pull request, its branch, the
+anchor the push was leased against, and the head
 that landed -- and the debt
 rides the write that records the announcement mark, ahead of the write that clears the attempt and ahead of the
 relabel, so the validating report refresh asks the developer for that head's report with no human reply. The
@@ -552,8 +559,9 @@ recovery back to finish the landed head -- recording the debt first, or parking 
 standing claim the rewrite cannot be carried onto is no such debt, and `workflow/engine/report_rewrite_room.py` is what
 tells the two refusals apart, for the conflict stage as well.
 
-The finish of a head the refresh published itself is the workflow's (`workflow/engine/rewrite_finish.py`); the
-recovery still finishes through the base-sync owners by the same order, until it is handed over too. The finish is
+The finish of a head the refresh published itself, or the recovery's retry pushed again, is the workflow's
+(`workflow/engine/rewrite_finish.py`); a landing the recovery finds already standing still finishes through the
+base-sync owners by the same order, until it is handed over too. The finish is
 handed the typed landing (`git/base_sync/rewrite_handoffs.py`) beside the issue it finishes and applies the policy
 above to the ordinary
 publication, a recovered push, a landing a recovery found standing, and a finish whose mark already names the head
@@ -565,8 +573,10 @@ the ledger that comment carries — the park before its notice, and the retireme
 another road's move refuses — or one nobody confirmed — stops the finish with nothing behind it made, and the
 next finish picks up from the mark or the anchor it left. A landing the record does not account for — a rewrite that
 moved nothing, a publication a guard refused for anything but the remote already standing on it, a replay record
-(`pending_auto_base_rebase_rewrite_*`) naming another head, made under other terms, damaged, or never written, a lag
-against the base that could not be counted, and a finish already retired included — makes nothing, leaving the
+(`pending_auto_base_rebase_rewrite_*`) naming another head, made under other terms, damaged, or never written -- save
+the push the recovery's own retry made and saw land over an attempt from before that record existed, which the counts
+alone vouched for -- a lag against the base that could not be counted, and a finish already retired included — makes
+nothing, leaving the
 attempt, the label, and the round as they are. A record whose terms stand with no head yet is the window before the
 rebase recorded its replay, left to the recovery's vouching ahead of the hand-over; a publication refused because the
 remote already stands on the replay sent nothing, and is announced on either road as a push found standing. A
@@ -2891,11 +2901,12 @@ The keys that matter for the state machine fall into a few groups:
   `pending_auto_base_rebase_push_sha` — set to the pre-rebase local HEAD immediately BEFORE
   `_rebase_base_into_worktree`; cleared on every exit that leaves the branch where the attempt found it. A non-empty
   value on entry means a previous tick rebased and died
-  before the post-push write, and `_recover_pending_auto_base_rebase` keys off it to either no-op, push the recovered
-  head, or park, on the record described below. While it stands, the dispatcher holds the stage handler back
-  (`recovery_holds._recovery_holds_dispatch`): a refresh that could not reach the recovery — a failed base fetch, a
-  pull request that would not read — would otherwise hand a reviewer, a developer, or a decomposer a replay no push
-  has published. On a label the refresh does not drive — the read-only stages it skips and a generation an
+  before the post-push write, and the workflow's recovery (`workflow/engine/rewrite_recovery.py`) keys off it to
+  either no-op, push the recovered head, or park, on the record described below. While it stands, the dispatcher
+  holds the stage handler back (`recovery_holds._recovery_holds_dispatch`): a refresh that could not reach the
+  recovery — a failed base fetch, a pull request that would not read — would otherwise hand a reviewer, a developer,
+  or a decomposer a replay no push has published. On a label the refresh does not drive — the read-only stages it
+  skips and a generation an
   adjudication is still deciding included — nothing is waited on: the dispatcher takes the refresh's own ineligible
   road itself, a clear or the stranded park, and over a checkout that is not on disk goes straight to the park, since
   no reading of where the branch stands can be taken. The stranded park asks for the label back and a reply both,
@@ -2956,8 +2967,8 @@ The keys that matter for the state machine fall into a few groups:
   may be standing, so nothing is dropped and the next tick still has an anchor to come back with.
   **The whole record is live: every write, the clear, and the readings.** The terms and the anchor go down before
   `git rebase`, the replay goes down before the dirty check, both finishes mark what they announced, and every ending
-  drops the group; the three answers and the presence test on the mark are what `_recover_pending_auto_base_rebase`
-  decides on. An unpublished checkout is
+  drops the group; the three answers and the presence test on the mark are what the workflow's recovery decides on.
+  An unpublished checkout is
   classified on the three-valued read: absent falls back to the divergence counts, in flight is proved by what the
   contribution is — or, past the permit's own grant, by the permission that grant persisted, cross-bound to the
   anchor, the terms, and the accepted pair before it is called outstanding — and damaged and disowning both park. The
@@ -2973,7 +2984,7 @@ The keys that matter for the state machine fall into a few groups:
   `auto_base_rebase_push_failed` where the push, the remote, or an announced publication the remote lost is what
   refused, and `auto_base_rebase_failed` where the pinned comment is; the foreign-publication, the
   unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand.
-  **The post-publication route is live too.** The selector hands `landed_recovery` every head the pull request
+  **The post-publication route is live too.** The recovery hands `landed_recovery` every head the pull request
   already carries, beside how far the transfer got, and eligibility's open-PR gate hands `terminal_handoff` every
   anchored attempt whose pull request merged or closed. A landed head is finished only where something the attempt wrote
   vouches for it — the record naming the head, or, for a replay the permit alone published, a permission bound to this
@@ -4815,8 +4826,8 @@ back as no authorization.
   ahead of every `validating` route.
 - `auto_clean_rebase`, entered from `validating`, `documenting`, `in_review`, or `fixing`: the base refresh's clean
   rebase (`workflow/engine/rewrite_publication.publishes`). Its recovery is the refresh's own crash recovery — the
-  reissued push and the leased no-op, both `permit_only` — and the terminal handoff of a pull request that merged or
-  closed.
+  reissued push (`workflow/engine/rewrite_retry.retries`) and the leased no-op, both `permit_only` — and the terminal
+  handoff of a pull request that merged or closed.
 - `conflict_rebase`, entered from `resolving_conflict`: the clean rebase `conflicts/publication._publish_clean_rebase`
   runs. Its recovery is `conflicts/divergence._push_recovered_commits`, over the `conflict_replay_*` record written
   before the replay.

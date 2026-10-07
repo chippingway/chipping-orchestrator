@@ -13,6 +13,7 @@ makes, moves. A case about one of them seeds the one reading it is about.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from unittest.mock import MagicMock
 
 from orchestrator.git import branch_transport
@@ -44,6 +45,27 @@ class _LevelWithTheBase:
         if branch == spec.base_branch:
             return _publication_probes._BranchDivergence(tip=GATE_BASE_SHA, readable=True)
         return self._probe(spec, worktree, branch, *revision)
+
+
+class _BehindTheBase:
+    """The divergence probe, answering each head counted against the base branch as far behind as `behind` names it.
+
+    A head it does not name is level with the base. Every other branch -- the
+    pull request's -- reads as `branch`, the comparison a crash recovery
+    classifies its checkout on. A recovered head a further base advance left
+    behind, and the head the rebase behind its finish replays it into, are two
+    readings of one probe, which is why the count is the head's own.
+    """
+
+    def __init__(self, branch: _publication_probes._BranchDivergence, behind: Mapping[str, int]) -> None:
+        self._branch = branch
+        self._behind = behind
+
+    def __call__(self, spec, _worktree, branch, *revision):
+        if branch != spec.base_branch:
+            return self._branch
+        counted = self._behind.get(revision[0] if revision else "", 0)
+        return _publication_probes._BranchDivergence(tip=GATE_BASE_SHA, behind=counted, readable=True)
 
 
 class _PullRequestBranches:

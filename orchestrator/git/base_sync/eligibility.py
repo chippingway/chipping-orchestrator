@@ -14,16 +14,17 @@ A PR that is no longer open, or cannot be read at all, belongs to the stage
 handler that finalizes it rather than to the refresh -- once an attempt still
 anchored to a terminal one has had its whole handoff ended, since the debt it
 leaves would otherwise hold that handler back. Only then may crash
-recovery claim the tick, and only a clean worktree that is genuinely behind
-base earns a rebase of its own.
+recovery claim the tick -- the workflow's own question
+(`workflow/engine/rewrite_recovery.py`), asked between these -- and only a
+clean worktree that is genuinely behind base earns a rebase of its own.
 """
 from __future__ import annotations
 
 from github.PullRequest import PullRequest
 
 from orchestrator.git.base_sync import (
-    attempt_records as _attempt_records,
     recovery,
+    replay_cleanup as _replay_cleanup,
     terminal_handoff as _terminal_handoff,
 )
 from orchestrator.git.base_sync.models import (
@@ -42,20 +43,17 @@ from orchestrator.github.comments import filter_trusted
 
 
 def _auto_rebase_label_is_eligible(context: _AutoRebaseContext) -> bool:
-    """Clear stale recovery state and reject labels refresh does not drive."""
+    """Clear stale recovery state and reject labels refresh does not drive.
+
+    An anchor under such a label is answered here, with the clear or the park
+    `replay_cleanup` chooses between: nothing is fetched, compared, or
+    published, since no later tick under this label reaches the recovery.
+    """
     if context.label in _PR_REFRESH_DETOUR_LABELS:
         return True
     if context.pending_pre_rebase_sha:
-        recovery._recover_pending_auto_base_rebase(
-            context.gh,
-            context.spec,
-            context.issue,
-            context.state,
-            context.worktree,
-            pr_number=context.pr_number,
-            label=context.label,
-            pending_pre_rebase_sha=str(context.pending_pre_rebase_sha),
-            pending_rewrite=_attempt_records._pending_rewrite(context.state),
+        _replay_cleanup._answers_an_ineligible_label(
+            recovery._recovery_context(context),
         )
     log.debug(
         "issue=#%d behind %s/%s by %d but label=%r; not auto-rebasing",
@@ -177,32 +175,6 @@ def _open_auto_rebase_pr(
         pr_status,
     )
     return None
-
-
-def _auto_rebase_recovery_decision(
-    context: _AutoRebaseContext,
-    consumed_comment_id: int | None,
-) -> _AutoRebaseDecision:
-    """Run pending crash recovery and retain only an uncommitted retry."""
-    if not context.pending_pre_rebase_sha:
-        return _AutoRebaseDecision(True, consumed_comment_id)
-    if recovery._recover_pending_auto_base_rebase(
-        context.gh,
-        context.spec,
-        context.issue,
-        context.state,
-        context.worktree,
-        pr_number=context.pr_number,
-        label=context.label,
-        pending_pre_rebase_sha=str(context.pending_pre_rebase_sha),
-        pending_rewrite=_attempt_records._pending_rewrite(context.state),
-        behind=context.behind,
-        unparking_consumed_max=consumed_comment_id,
-    ):
-        return _AutoRebaseDecision(should_continue=False)
-    if not context.state.get(_AWAITING_HUMAN):
-        consumed_comment_id = None
-    return _AutoRebaseDecision(True, consumed_comment_id)
 
 
 def _normal_auto_rebase_can_start(context: _AutoRebaseContext) -> bool:

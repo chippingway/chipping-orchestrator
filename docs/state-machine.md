@@ -131,9 +131,12 @@ down instead, and takes its own park on the tick after that one clears
 Before any issue is dispatched the tick fetches `<remote>/<base>` once and rebases each existing per-issue worktree
 onto it, so a long-lived worktree does not stay anchored to whatever base looked like when it was added. The refresh
 is the workflow's (`workflow/engine/base_refresh.py`), and so are the order a PR-having worktree's route is taken in
-(`workflow/engine/base_rewrite.py`) and the ordinary publication of a clean rebase
-(`workflow/engine/rewrite_publication.py`); the selection, the rebase, the candidate and its exact-candidate push,
-and the crash-recovery effects are the git `base_sync` owners' that route delegates to. Each worktree
+(`workflow/engine/base_rewrite.py`), the ordinary publication of a clean rebase
+(`workflow/engine/rewrite_publication.py`), and the order an interrupted attempt's recovery is asked in, with the retry
+of a replay its crash kept off the pull request (`workflow/engine/rewrite_recovery.py`, `rewrite_retry.py`); the
+selection, the rebase, the candidate and its exact-candidate push, the recovery's readings, refusals, and parks, and
+the finish of a push the recovery finds already landed are the git `base_sync` owners' that route delegates to. Each
+worktree
 is synced under its issue's writer claim — the one every dispatch path takes, on the same key — held from before the
 issue is read until its route ends, recovery and settlement included, so an issue another poller on the host is
 dispatching or refreshing is left untouched for the tick and synced on a later one. A pre-PR
@@ -156,8 +159,9 @@ carry one debt onto the latest head a push landed; a no-op, a refused push, a re
 moved records none and leaves a standing debt as it is. A landed head whose debt the pinned comment has no room for —
 measured on the whole announcement write it rides and on the comment as it stands — is neither announced nor
 routed: it parks with the attempt standing until room is made and a human replies. A head the refresh published
-itself is finished by the workflow-owned finish (`workflow/engine/rewrite_finish.py`) over guarded commits; a crash
-recovery still finishes through the git owners by the same order. The `question` and `discussion` labels — and the
+itself, or its recovery's retry pushed again, is finished by the workflow-owned finish
+(`workflow/engine/rewrite_finish.py`) over guarded commits; a landing the recovery finds already standing still
+finishes through the git owners by the same order. The `question` and `discussion` labels — and the
 parks and in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto rebase's
 anchor, of the records and parks that freeze a branch only the late size-gate claims keep the refresh away, so its
 recovery answers the anchor ahead of any stage handler. The failure modes, their durable `park_reason` tokens, and the

@@ -10,9 +10,11 @@ that routes a landed rebase to `validating` first stages the rewrite as report
 DEBT (`workflow/engine/report_rewrite_debt.py`) -- the pull request, its
 branch, the anchor the push replaced, and the exact head that landed -- and the
 validating hold asks the developer for that head's report with no human
-involved. The finish of a rebase the tick published itself stages it through
-the workflow's own owner (`workflow/engine/rewrite_finish_debt.py`); this is
-the crash recovery's, and the two word and measure the debt alike.
+involved. The finish of a rebase the tick published itself, or the crash
+recovery's retry pushed again, stages it through the workflow's own owner
+(`workflow/engine/rewrite_finish_debt.py`); this is the finish of a landing
+the recovery finds already standing, and the two word and measure the debt
+alike.
 
 Staged here and made durable by the finish's own announcement write, which goes
 out ahead of the write that clears the attempt and ahead of the relabel, so no

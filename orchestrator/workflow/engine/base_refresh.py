@@ -20,8 +20,9 @@ routes is taken, to its end.
 The tick enters here because which issue's worktree may be touched, under
 whose claim, and by which route are the workflow's decisions; the git layer
 under it supplies the fetch, the checkout reads, the rebase, the push of a
-candidate the workflow's publication has ruled on, and the recovery effects
-the base-rewrite coordinator still delegates. Its lines report on
+candidate the workflow's publication or recovery retry has ruled on, the
+recovery's readings, refusals, and parks, and the finish of a landing the
+recovery finds already standing, which it still delegates. Its lines report on
 `orchestrator.base_sync`, the channel of every git owner a route runs through,
 so one operator filter follows a refresh from its fetch to its last write.
 """

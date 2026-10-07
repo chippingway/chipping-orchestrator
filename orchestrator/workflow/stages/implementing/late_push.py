@@ -30,9 +30,10 @@ which of those the comment owes, this owner owns the write they ride, and
 that really landed leaves.
 
 The push itself is the one step a caller may hand in (`late_transport`), and
-only the base-sync auto rebase does: its publication is the git owner's push of
-the exact candidate it prepared (`git/base_sync/rewrite_transport.py`), which
-reads the checkout and the remote again first. The ending barrier is asked
+only the base-sync auto rebase and its crash recovery's retry do: their
+publication is the git owner's push of the exact candidate it prepared
+(`git/base_sync/rewrite_transport.py`), which reads the checkout and the
+remote again first. The ending barrier is asked
 between that reading and the push, so it is still the last question before
 anything is sent; the measurement, the permit, the proof, and the settlement
 are this owner's whichever transport carried the push.

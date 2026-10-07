@@ -36,8 +36,10 @@ Nothing here decides what an outcome means for the issue -- no size policy, no
 announcement, no route, no pinned-state write. The workflow's ordinary
 publication of a clean rebase makes its push here, once the size gate and the
 transfer permit have ruled on the candidate
-(`workflow/engine/rewrite_publication.py`); the observation of a landing is
-dormant until the crash recovery takes it up. See `rewrite_handoffs`.
+(`workflow/engine/rewrite_publication.py`), and so does the crash recovery's
+retry of a replay nothing published (`workflow/engine/rewrite_retry.py`); the
+observation of a landing is dormant until the recovery of one takes it up. See
+`rewrite_handoffs`.
 """
 from __future__ import annotations
 
