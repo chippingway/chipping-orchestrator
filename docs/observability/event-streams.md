@@ -239,11 +239,15 @@ file is the durable record.
   the PR head (behind base, or an unpushed local rebase); every increment site (`_emit_conflict_round_incremented`)
   emits `action="incremented"` with `outcome`; extras: `pr_number`, `conflict_round`, `review_round`, `retry_count`,
   `outcome` (for increments), `sha`.
-- `base_rebased` — `_sync_pr_worktree_to_base` after a clean refresh-time rebase + push that routes the issue from
-  `workflow:validating` / `workflow:documenting` / `in_review` / `workflow:fixing` back to `workflow:validating`; also
-  `_recover_pending_auto_base_rebase` when a crashed prior tick is finalized; extras: `pr_number`, `sha` (new head),
-  `method` ∈ {`auto_clean_rebase`, `crash_recovery_pushed`, `crash_recovery_relabel_only`}, `review_round`
-  (post-reset, so 0), `retry_count`; `stage` names the stage the issue was in when the rebase started.
+- `base_rebased` — once per landed refresh-time rebase of `workflow:validating` / `workflow:documenting` /
+  `in_review` / `workflow:fixing`, ahead of the route back to `workflow:validating` (which a head the base has
+  advanced past again does not take; the next rebase goes on from it instead): the workflow's finish
+  (`workflow/engine/rewrite_finish_notices.py`) for the clean rebase `_sync_pr_worktree_to_base` publishes, and
+  `_recover_pending_auto_base_rebase` (`git/base_sync/recovery_notices.py`) when a crashed prior tick is finalized;
+  extras: `pr_number`, `sha` (new head), `method` ∈ {`auto_clean_rebase` for the tick's own push,
+  `crash_recovery_pushed` for a push a recovery reissued, `crash_recovery_relabel_only` for a head found already
+  standing on the pull request}, `review_round` (post-reset, so 0), `retry_count`; `stage` names the stage the issue
+  was in when the rebase started.
 - `agent_run_budget` — the per-issue lifetime agent-run ledger's four durable transitions, emitted by
   `workflow/engine/run_budget.py` together with an identical analytics record; extras: `phase`, the whole ledger
   reading, the launch correlation, and the bounded refusal reason in
