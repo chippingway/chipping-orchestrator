@@ -38,13 +38,13 @@ parser read them back is in [`../observability/analytics-database.md`](../observ
   orchestrator prompt lands as `user_input`); when off, no trajectory work runs and the `agent_exit` record is
   unchanged. Never touches `ANALYTICS_LOG_PATH`, the analytics Postgres sync, or the analytics dashboard. Local
   filesystem only and observation-only — the polling loop never reads it back, so the file is safe to delete without
-  affecting workflow state. A dedicated Streamlit viewer (`orchestrator/apps/trajectory_dashboard.py`, launched with
-  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/trajectory_dashboard.py`) reads this
+  affecting workflow state. A dedicated developer Streamlit viewer reads this
   JSONL file directly — no Postgres or sync — when you browse recorded trajectories. **Privacy:** redaction masks
   only secret-shaped env values (and the GitHub token), **not** issue/repo content, so an enabled trajectory file can
   carry issue titles/bodies, quoted source, and the agent's text turns in cleartext; scope its permissions
   accordingly.
-  See [`trajectories.md#trajectory-sink`](../observability/trajectories.md#trajectory-sink-trajectory_log_path).
+  See [`trajectories.md#trajectory-sink`](../observability/trajectories.md#trajectory-sink-trajectory_log_path)
+  and the [developer launch instructions](../development.md#trajectory-viewer).
 - `TRAJECTORY_RETENTION_DAYS` — default `90`. retention window for `TRAJECTORY_LOG_PATH`, same semantics as
   `ANALYTICS_RETENTION_DAYS`: `prune_trajectory_records()` removes older records and `0` (or any non-positive value)
   keeps trajectories indefinitely. Parsed from `.env`, but not yet called from the polling loop, so it affects the file
@@ -102,51 +102,18 @@ audit surface rather than analytics-specific.
 ## Analytics dashboard quickstart
 
 The pipeline is opt-in and layered: the orchestrator writes JSONL (`ANALYTICS_LOG_PATH`), a local Postgres aggregates it
-(`ANALYTICS_DB_URL`), and Streamlit reads from Postgres. Each layer is independent — the polling loop never touches
-Postgres or Streamlit, so deferring or disabling the dashboard never affects workflow correctness.
+(`ANALYTICS_DB_URL`), and Streamlit reads from Postgres. Each layer is independent; the polling loop never touches
+Postgres or Streamlit. The sync runs directly from the installed pipx environment; its launch commands and cron
+example are in the [operator workflow](../observability/analytics-database.md#operator-workflow). The dashboard needs a
+source checkout and the optional `dashboard` dependencies; setup and launch commands are in the
+[developer guide](../development.md#analytics-sync-and-dashboard).
 
-1. **Confirm the JSONL sink is producing records.** `ANALYTICS_LOG_PATH` defaults to `logs/analytics.jsonl`.
-   `wc -l logs/analytics.jsonl` and `tail -1 logs/analytics.jsonl | python -m json.tool` sanity-check it.
-2. **Start the local Postgres service.** For a new database, the operator first creates `analytics-db/data/`;
-   an existing deployment must keep its data directory. Start the service from `analytics-db/` with
-   `docker compose up -d`. The init script
-   ([`../../analytics-db/init/01-schema.sql`](../../analytics-db/init/01-schema.sql)) creates the `analytics_events`
-   table on first start; the data volume lives at `analytics-db/data/` (gitignored). The port binding is pinned to
-   `127.0.0.1` and credentials default to `orchestrator` / `orchestrator`; override `POSTGRES_PASSWORD` (and any
-   other field) in `analytics-db/.env` before exposing the port off-host or storing real data. Missing bind sources
-   fail startup. After moving the checkout, follow the
-   [container recreation steps](../observability/analytics-database.md#moving-or-renaming-the-checkout).
-3. **Point the orchestrator at the database.** Set `ANALYTICS_DB_URL` in `.env`:
+For a pipx installation, the JSONL sink defaults to `LOG_DIR/analytics.jsonl`, typically
+`~/.local/state/chipping-orchestrator/logs/analytics.jsonl` after package setup. Configure `ANALYTICS_DB_URL` in
+`~/.config/chipping-orchestrator/.env` for the installed sync. Set the same database URL in the dashboard checkout's
+`.env`, and an absolute `ANALYTICS_LOG_PATH` there if testing the sync from source. The operator provisions the
+database following [service layout](../observability/analytics-database.md#service-layout).
+Replay is idempotent, and relaunching the dashboard never affects workflow progress.
 
-   ```sh
-   ANALYTICS_DB_URL=postgresql://orchestrator:orchestrator@127.0.0.1:5432/orchestrator_analytics
-   ```
-
-   Putting the database password in `.env` is acceptable — the URL is the only credential, it is scoped to local-only
-   Postgres, and never grants write access to GitHub. The polling loop does not re-read this setting.
-4. **Populate Postgres from JSONL.** Run the sync on demand:
-
-   ```sh
-   env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator.observability.analytics.sync.cli
-   ```
-
-   Inserts dedupe by `content_hash`, so re-running is idempotent. No-op when `ANALYTICS_DB_URL` is unset/disabled,
-   `ANALYTICS_LOG_PATH` is explicitly disabled, or the JSONL file is absent. Schedule on whatever cadence you prefer;
-   see [`analytics-database.md#operator-workflow`](../observability/analytics-database.md#operator-workflow) for a
-   sample `cron` entry.
-5. **Launch the dashboard.** Install the optional `dashboard` group once, then run Streamlit:
-
-   ```sh
-   env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard
-   env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py
-   ```
-
-   Streamlit prints a `http://localhost:8501` URL. The dashboard is independent of the polling tick and can be killed
-   and relaunched without affecting workflow progress. Re-run step 4 to pick up new records.
-
-   `orchestrator/apps/analytics_dashboard.py` is the only entrypoint the page has, and the one to name in shell
-   history, scripts, and service units.
-
-See [`analytics-database.md`](../observability/analytics-database.md) for the schema and the sync internals, and
-[`analytics-dashboard.md`](../observability/analytics-dashboard.md) for the read-model split, the dashboard layout,
-and the in-app empty / error banners.
+See [analytics database](../observability/analytics-database.md) for the schema and sync internals, and
+[analytics dashboard](../observability/analytics-dashboard.md) for the layout and empty/error banners.

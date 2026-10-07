@@ -290,8 +290,8 @@ path, while reads have a different error story and injection shape.
 
 ## Dashboard (`orchestrator/apps/analytics_dashboard.py`)
 
-Streamlit app over the read model. Opt-in via the `dashboard` dependency group so the default `poetry sync` keeps
-installing only the polling runtime plus `pytest`, `ruff`, and `wemake-python-styleguide`. Streamlit (and its transitive
+Streamlit app over the read model, run as a source-checkout developer tool with the optional `dashboard` dependency
+group. pipx installs the polling runtime without dashboard dependencies. Streamlit (and its transitive
 pandas), `plotly`, and every dashboard owner the page composes — the chart owners that reach Plotly and the
 plotly-free theme among them — are imported inside the pass
 that reaches them — importing the launch path from a test or non-dashboard caller does not require the group to be
@@ -529,11 +529,7 @@ mock has one place to land. Streamlit is never imported in these
 helpers — `st`, the theme, and the pandas handle beside them are passed in as parameters, and the figures are the
 chart owners' own rather than a handle threaded down.
 
-```sh
-# Install Streamlit + Plotly alongside the runtime + dev dependencies, then launch the dashboard.
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py
-```
+Setup and launch commands are in the [developer guide](../development.md#analytics-sync-and-dashboard).
 
 **Page chrome.** A sticky topbar carries the page title with the data extent / repo / event summary on the left and the
 in-range spend pill on the right. A sticky filter bar exposes `3D` / `7D` / `30D` / `All` inline presets (anchored at
@@ -832,8 +828,8 @@ The dashboard never raises an unhandled exception at the user — every missing-
 as a labeled banner.
 
 - `` `ANALYTICS_DB_URL` is not configured. … `` (top-level `st.warning`, app stops) — *env* — `ANALYTICS_DB_URL`
-  is unset, empty, or set to `off` / `disabled` / `none`. Set it in `.env` and **relaunch** with
-  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py`
+  is unset, empty, or set to `off` / `disabled` / `none`. Set it in the developer checkout's `.env` and **relaunch**
+  the dashboard using the [developer instructions](../development.md#analytics-sync-and-dashboard)
   (the URL is parsed once, when the analytics settings holder is first imported, so a browser reload alone will not
   pick up the new value).
 - `Could not load analytics filter options: …` (top-level `st.error`, app stops) — *DB connectivity* — The
@@ -845,7 +841,7 @@ as a labeled banner.
   [Service layout](analytics-database.md#service-layout)).
 - `No analytics events have been recorded yet. …` (top-level `st.info`, app stops) — *data* — The
   `analytics_events` table holds zero rows. Confirm the JSONL sink is on (`ANALYTICS_LOG_PATH`), that recent workflow
-  activity produced records, and run `python -m orchestrator.observability.analytics.sync.cli` to populate Postgres.
+  activity produced records, and run analytics sync to populate Postgres.
 - `No analytics events match the current filters.` (page banner) — *data* — The data extent is non-empty but every
   row was filtered out. Widen the window preset, pick `All` for the repo, blank the issue-number input, and confirm the
   event / stage multi-selects still have **every option selected** (an empty multi-select is the documented "show
@@ -871,6 +867,6 @@ If a sidebar multi-select is **explicitly cleared** (no items selected), every d
 — that is the documented "show nothing for this dimension" signal. Re-select the items (or hit the `↺` reset chip
 Streamlit renders on the widget) to restore the default unfiltered shape.
 
-If `python -m orchestrator.observability.analytics.sync.cli` runs cleanly (non-zero `inserted=`) but the dashboard
+If analytics sync runs cleanly (non-zero `inserted=`) but the dashboard
 still shows zero rows, double-check the `ANALYTICS_DB_URL` the sync used — passing `--db-url postgresql://other/db`
 (or a different shell environment) populates a different database than the one the dashboard is reading.

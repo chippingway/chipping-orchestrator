@@ -101,7 +101,8 @@ Summarized here; the reference is
 Trajectories are file-backed only — there is no trajectory equivalent of the analytics sync CLI, and the Postgres
 schema never ingests their bodies. To browse them on another host, mirror the JSONL file (a locked, key-restricted
 `rsync` over SSH) and point the viewer at the copy; to bound it, drive `prune_trajectory_records` yourself, since the
-polling loop does not call it. That page carries the receiver setup, the `authorized_keys` restriction, the sync and
+polling loop does not call it. The prune helper runs in the installed pipx environment and reads the installed
+configuration. That page carries the receiver setup, the `authorized_keys` restriction, the sync and
 prune cron entries, and the mirror-versus-archive decision retention forces.
 
 ## Analytics database (`analytics-db/`)
@@ -125,11 +126,10 @@ feedback.
 Summarized here; the reference is
 [`analytics-database.md`](observability/analytics-database.md#operator-workflow).
 
-Run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator.observability.analytics.sync.cli` on whatever
-cadence you prefer — the JSONL sink is already the authoritative analytics surface on disk, so the replay cadence is
-operator-chosen rather than pinned.
-`--log-path` and `--db-url` override the env values for one-off replays of archived JSONL files. That page carries the
-hourly `flock`-guarded `cron` entry for an unattended deployment and why each part of it is spelled the way it is.
+Replay cadence is operator-chosen: the JSONL sink is already the authoritative analytics surface on disk.
+The sync runs directly from the installed pipx environment, including its runtime Postgres driver, and reads
+`~/.config/chipping-orchestrator/.env`. The reference above carries launch commands and an hourly `flock`-guarded
+cron example. `--log-path` and `--db-url` override the settings for one-off replays of archived JSONL files.
 
 ### Read model (`orchestrator/observability/analytics/query/`)
 
@@ -149,14 +149,9 @@ contract they share, and the thread-local connection cache a caller reuses a soc
 Summarized here; the reference is
 [`analytics-dashboard.md`](observability/analytics-dashboard.md#dashboard-orchestratorappsanalytics_dashboardpy).
 
-Streamlit app over that read model, opt-in via the `dashboard` dependency group so the default `poetry sync`
-keeps installing only the polling runtime plus the dev tools:
-
-```sh
-# Install Streamlit + Plotly alongside the runtime, then launch the dashboard.
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py
-```
+Streamlit app over that read model, available as a source-checkout developer tool with the optional `dashboard`
+dependency group. pipx installs the polling runtime without these optional dependencies. Setup and launch commands
+are in the [developer guide](development.md#analytics-sync-and-dashboard).
 
 The page is composed entirely from owners under `observability/dashboard/`, stages its 16 widget reads into two cached
 waves around the chrome it draws between them, and never raises at the operator — every missing-data or

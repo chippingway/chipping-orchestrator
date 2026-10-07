@@ -16,12 +16,20 @@ package holding it is responsible for, is in
 
 ## Service layout
 
+If you installed with pipx, check the installed version with
+`pipx runpip chipping-orchestrator show chipping-orchestrator`. Use the matching `vX.Y.Z` tag (including any prerelease
+suffix) when cloning the repository or downloading `analytics-db/compose.yml`, `analytics-db/init/01-schema.sql`, and
+`analytics-db/.env.example`, preserving that directory layout, before running the commands below. The installed sync
+and database schema must agree on columns, so use files from that release.
+
 [`../../analytics-db/compose.yml`](../../analytics-db/compose.yml) brings up a single `postgres:16` container with
 the data directory on a host bind (`./data`, gitignored) and the init directory mounted read-only. The port binding is
 pinned to `127.0.0.1` so the database is unreachable off-host regardless of firewall configuration; re-binding to
 `0.0.0.0` is intentionally a code change rather than an env-var change. Credentials default to `orchestrator` /
 `orchestrator` and are overridable via `analytics-db/.env` (`POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` /
-`POSTGRES_PORT`). `docker compose` reads `.env` from the compose-file directory, not the orchestrator root.
+`POSTGRES_PORT`). To customize these values, copy [`.env.example`](../../analytics-db/.env.example) to
+`analytics-db/.env` and edit it before starting the service. `docker compose` reads `.env` from the compose-file
+directory, not the orchestrator root.
 
 Both binds set `create_host_path: false`: a missing source fails startup instead of silently creating an empty
 directory. On a first deployment, the operator must create `analytics-db/data/` before starting the service. For an
@@ -133,14 +141,10 @@ sync's refresh hook does NOT recover from a column mismatch.
 
 ## Sync CLI (`orchestrator/observability/analytics/sync/cli.py`)
 
-The command lives here — the argument parser, the UTC-pinned log formatter, the stdout summary, and the exit code —
-over the replay `orchestrator/observability/analytics/sync/run.py` owns. Run on demand:
-
-```sh
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator.observability.analytics.sync.cli
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator.observability.analytics.sync.cli \
-  --log-path /path/to/rotated.jsonl --db-url postgresql://other/db
-```
+The packaged sync CLI owns the argument parser, UTC-pinned log formatter, stdout summary, and exit code over the replay
+`orchestrator/observability/analytics/sync/run.py` owns. It runs in the pipx environment with the runtime
+`psycopg[binary]` dependency; Poetry and the optional dashboard group are not needed. Launch commands and one-off
+replay examples are under [operator workflow](#operator-workflow).
 
 **Batched inserts.** Reads `ANALYTICS_LOG_PATH` line by line, accumulates validated row tuples into a buffer sized by
 `sync/ingest.py`'s `BATCH_SIZE` (default 500), and flushes each full batch via `cur.executemany("INSERT ... ON CONFLICT
@@ -212,23 +216,49 @@ comes from:
 
 ## Operator workflow
 
-Run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator.observability.analytics.sync.cli` on whatever
-cadence you prefer. `--log-path` and `--db-url` override the env values for one-off replays of archived JSONL files.
+Run analytics sync from the installed poller's pipx environment on whatever cadence you prefer. It reads
+`~/.config/chipping-orchestrator/.env` and the process environment; set `ANALYTICS_DB_URL` to the provisioned database's
+libpq URL.
+`ANALYTICS_LOG_PATH` defaults to the installed poller's `LOG_DIR/analytics.jsonl`. Use the same service user and any
+process/service overrides as the poller. Launch from outside an orchestrator source checkout so Python imports the
+installed package:
+
+```sh
+cd "$HOME"
+"$(pipx environment --value PIPX_HOME)/venvs/chipping-orchestrator/bin/python" \
+  -m orchestrator.observability.analytics.sync.cli
+```
+
+`--log-path /path/to/rotated.jsonl` and `--db-url postgresql://other/db` override the settings for one-off replays of
+archived JSONL files. For local-only Postgres, storing the database password in `.env` as part of `ANALYTICS_DB_URL`
+is acceptable: that credential is scoped to the analytics database and never grants write access to GitHub.
 The default cadence is operator-chosen because the JSONL sink is already the authoritative analytics surface on disk
 — the database is for aggregation and reporting, not durability.
 
-For an unattended deployment, drive the sync from `cron`. A typical entry runs hourly, guards against overlap with
-`flock`, and captures output:
+For hourly unattended replay, run `pipx environment --value PIPX_HOME` as the service user and replace
+`/absolute/pipx-home` below with that result. Replace `<user>` and adjust the output path if your external log
+directory differs from the package setup example. Create the output directory before installing the cron entry:
 
-```cron
-00 * * * * cd /path/to/chipping-orchestrator && /usr/bin/flock -n /tmp/chipping-orchestrator-analytics-sync.lock /path/to/chipping-orchestrator/.venv/bin/python -m orchestrator.observability.analytics.sync.cli --log-path /path/to/chipping-orchestrator/logs/analytics.jsonl --db-url 'postgresql://<user>:<password>@<host>:<port>/<database>' >> /path/to/chipping-orchestrator/logs/analytics-sync.cron.log 2>&1
+```sh
+mkdir -p "$HOME/.local/state/chipping-orchestrator/logs"
 ```
 
-- `cd /path/to/chipping-orchestrator` so configuration and log paths resolve from the checkout.
-- The absolute `.venv/bin/python` path selects the installed environment without relying on cron's `PATH`.
-- `flock -n` makes the run a no-op when a previous invocation is still holding the lock, so a long replay never overlaps
-  with the next tick.
-- `--log-path` and `--db-url` are explicit CLI overrides, so the cron entry does not depend on `.env` being loadable
-  from cron's environment.
-- `>> ...analytics-sync.cron.log 2>&1` keeps stdout and stderr in the project log area instead of routing failures to
-  local `mail`.
+Cron does not inherit the poller's systemd `Environment=` or `EnvironmentFile=` settings. Copy any service-only
+settings, including `REPOS`, `LOG_DIR`, `ANALYTICS_LOG_PATH`, and `ANALYTICS_DB_URL`, into the installed `.env`, or
+uncomment and edit the matching assignments below. The command loads the full orchestrator configuration at startup,
+so `REPOS` must name valid local clones even for analytics sync. Crontab assignments override `.env`; use literal
+values and absolute paths because they do not expand `$HOME` or other variables.
+
+```cron
+# Optional overrides: uncomment and match the poller's service environment.
+# REPOS=acme/api|/srv/clones/acme-api|main
+# LOG_DIR=/home/<user>/.local/state/chipping-orchestrator/logs
+# ANALYTICS_LOG_PATH=/absolute/path/analytics.jsonl
+# ANALYTICS_DB_URL=postgresql://orchestrator:orchestrator@127.0.0.1:5432/orchestrator_analytics
+00 * * * * cd / && /usr/bin/flock -n /tmp/chipping-orchestrator-analytics-sync.lock /absolute/pipx-home/venvs/chipping-orchestrator/bin/python -m orchestrator.observability.analytics.sync.cli >> /home/<user>/.local/state/chipping-orchestrator/logs/analytics-sync.cron.log 2>&1
+```
+
+The installed `.env` supplies settings not overridden in the cron environment; the cron command needs no tool checkout.
+Rotate the cron log, and stop maintenance jobs as well as the poller before upgrading or replacing their shared pipx
+environment.
+Source-checkout commands for development are in the [developer guide](../development.md#analytics-sync-and-dashboard).

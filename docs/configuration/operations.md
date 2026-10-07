@@ -7,21 +7,40 @@ edited `.env` takes effect. The environment-variable reference is in
 
 ## Package installation, upgrades, and rollback
 
-Use a version already published on PyPI whose matching [GitHub release][package-releases] includes `constraints.txt`.
-Replace `X.Y.Z` with that version, including any prerelease suffix; its release tag is `vX.Y.Z`. Python 3.12, 3.13,
-and 3.14 are tested. The commands below use `python3.12`; select an installed interpreter supported by the chosen
-release. No Poetry installation is needed for either package route. The
-[maintainer guide](../../CONTRIBUTING.md#notes-for-maintainers) describes how signed tags, release notes, packages,
-and constraints are published.
+Install the published PyPI package with [pipx][pipx-installation] 1.16.0 or newer. This minimum supports `pipx pin`
+and `pipx unpin`, reuse of saved `--pip-args` during upgrades, and forced installs into existing uv environments
+([changelog][pipx-changelog]). Check `pipx --version` and upgrade older pipx before following this guide.
+Python 3.12, 3.13, and 3.14 are tested.
+Poetry and a clone of the orchestrator repository are only needed for [development](../development.md).
+The [maintainer guide](../../CONTRIBUTING.md#notes-for-maintainers) describes release publication.
 
-The [pipx][pipx-installation] install, upgrade, and rollback commands below use `--backend pip`, supported by
-[pipx 1.12.0 and newer][pipx-changelog]. For older pip-only versions, omit this flag from those commands. Selecting
-pip ensures that the constraints in `--pip-args` reach pip even when uv is available on the host.
+### Install and configure
 
-### Download the chosen release's files
+```sh
+pipx install chipping-orchestrator
+pipx ensurepath
+```
 
-Run these blocks in the same shell. Release files are retained separately from the live settings for comparison and
-rollback; this directory does not select targets or become a launch directory:
+Open a new terminal after `pipx ensurepath` if the command is not yet on `PATH`. If pipx's default interpreter is
+older than Python 3.12, select an installed supported one with
+`pipx install --python python3.12 chipping-orchestrator`. pipx keeps the package's dependencies in an isolated
+environment and exposes the installed `chipping-orchestrator` command. See the [pipx command reference][pipx-cli]
+for installer options.
+
+The forced install examples below use `--python python3.12`; substitute the interpreter used by your installation.
+Pass it on every forced install: with the uv backend, `pipx install --force` can reset an existing environment to
+pipx's default Python when `--python` is omitted.
+Ignore pipx's `--python is ignored when --force is passed` warning for uv-backed environments and keep `--python`.
+On pip-backed environments, a forced install never changes the interpreter, even with `--python`; use
+[`pipx reinstall --python`](#change-the-python-interpreter) to change it on either backend.
+
+Check the installed version with `pipx runpip chipping-orchestrator show chipping-orchestrator`, then download that
+version's templates below and configure the live settings. Keep configuration and logs outside the pipx environment.
+
+#### Download the chosen release's files
+
+Replace `X.Y.Z` with the installed version, including any prerelease suffix; its release tag is `vX.Y.Z`.
+Run these blocks in the same shell. Download both templates without cloning the orchestrator repository:
 
 ```sh
 ORCHESTRATOR_VERSION='X.Y.Z'
@@ -30,8 +49,6 @@ ORCHESTRATOR_RELEASE_DIR="$HOME/.local/share/chipping-orchestrator/releases/v${O
   set -eu
   umask 077
   mkdir -p "${ORCHESTRATOR_RELEASE_DIR:?}"
-  curl --fail --location --output "${ORCHESTRATOR_RELEASE_DIR:?}/constraints.txt" \
-    "https://github.com/chippingway/chipping-orchestrator/releases/download/v${ORCHESTRATOR_VERSION:?}/constraints.txt"
   for ORCHESTRATOR_TEMPLATE in .env.example .env.example.advanced; do
     curl --fail --location --output "${ORCHESTRATOR_RELEASE_DIR:?}/$ORCHESTRATOR_TEMPLATE" \
       "https://raw.githubusercontent.com/chippingway/chipping-orchestrator/v${ORCHESTRATOR_VERSION:?}/${ORCHESTRATOR_TEMPLATE}"
@@ -39,36 +56,10 @@ ORCHESTRATOR_RELEASE_DIR="$HOME/.local/share/chipping-orchestrator/releases/v${O
 )
 ```
 
-Stop if a download fails. The templates match the selected release tag. `constraints.txt` pins the tested runtime
-dependencies, while the package version is selected explicitly below. Use each version's own constraints during
-upgrades and rollback.
+Stop if a download fails. Retain these version-matched files for upgrade comparisons and rollback; their directory
+does not select targets or become a launch directory.
 
-### Install and configure
-
-Choose one route. With **pipx**, select its pip backend so the constraints arguments reach pip:
-
-```sh
-pipx install --python python3.12 --backend pip \
-  --pip-args="--constraint \"${ORCHESTRATOR_RELEASE_DIR:?}/constraints.txt\"" \
-  "chipping-orchestrator==${ORCHESTRATOR_VERSION:?}"
-ORCHESTRATOR_ENV="$(pipx environment --value PIPX_HOME)/venvs/chipping-orchestrator"
-```
-
-pipx exposes `chipping-orchestrator` in its executable directory, normally `~/.local/bin`; use `pipx ensurepath` if
-that directory is absent from your shell's `PATH`. See the [pipx command reference][pipx-cli] for installer options.
-
-With a **dedicated venv**, keep the environment separate from target clones, worktrees, and settings:
-
-```sh
-ORCHESTRATOR_ENV="$HOME/.local/share/chipping-orchestrator/venv"
-python3.12 -m venv "${ORCHESTRATOR_ENV:?}"
-"${ORCHESTRATOR_ENV:?}/bin/python" -m pip install \
-  --constraint "${ORCHESTRATOR_RELEASE_DIR:?}/constraints.txt" "chipping-orchestrator==${ORCHESTRATOR_VERSION:?}"
-```
-
-Use that environment's `python -m pip` for every install; activation and a bare `pip` command are unnecessary.
-[Pip constraints](https://pip.pypa.io/en/stable/user_guide/#constraints-files) restrict dependency versions without
-installing unrelated entries from the file.
+#### Configure live settings
 
 For **first setup only**, copy the basic template into the installed configuration location and set an absolute log
 directory outside the Python environment. This block refuses to overwrite an existing `.env`:
@@ -84,86 +75,104 @@ directory outside the Python environment. This block refuses to overwrite an exi
 )
 ```
 
-The block records the expanded absolute path in `.env`; that file does not expand `$HOME` or `~` in values.
+The block appends the expanded absolute `LOG_DIR` path at the end of `.env`; the file does not expand `$HOME` or `~`.
+To change the path, edit that line rather than add another assignment: the first occurrence in `.env` wins.
 `orchestrator.log` and the default `analytics.jsonl` then live under `~/.local/state/chipping-orchestrator/logs`.
-Without this override, `LOG_DIR` defaults to `<REPO_ROOT>/logs`, which for an installed package is inside the
-environment's `site-packages`, independent of the launch directory or systemd's `WorkingDirectory`. Recreating or
-uninstalling that environment can delete those logs, and changing the Python minor version changes their default
-path. For an existing installation using the default, stop the poller, copy its logs to the external directory, and
-set an absolute `LOG_DIR` before replacing the environment. Preserve any explicit `ANALYTICS_LOG_PATH` override at
-an absolute path outside the environment too.
+Without this override, `LOG_DIR` defaults to `<REPO_ROOT>/logs`, inside the installed environment's `site-packages`.
+Recreating or uninstalling that environment can delete those logs. For an existing installation using the default,
+stop the poller, copy its logs to the external directory, and set an absolute `LOG_DIR` before replacing the
+environment. Preserve explicit `ANALYTICS_LOG_PATH` and `TRAJECTORY_LOG_PATH` overrides outside the environment too.
 
-Edit `~/.config/chipping-orchestrator/.env` as described in [basic setup](../configuration.md#basic-setup): set `REPOS`
-to existing local target clones, `ALLOWED_ISSUE_AUTHORS`, and `HITL_HANDLE`, and adjust agent routing if needed. Copy
-only wanted operational overrides from `.env.example.advanced` into that same file. The developer fallback settings
-do not supply installed targets. Keep GitHub tokens in the existing per-repository token files or launch environment
-([credentials](../configuration.md#github-personal-access-token)); `.env` does not load them. The launch directory's
-`.env` is never read by an installed package.
+Edit `~/.config/chipping-orchestrator/.env` following [basic setup](../configuration.md#basic-setup): set `REPOS` to
+existing local target clones, `ALLOWED_ISSUE_AUTHORS`, and `HITL_HANDLE`, and adjust agent routing if needed.
+Copy only wanted operational overrides from `.env.example.advanced` into that same file. Keep GitHub tokens in
+per-repository token files or the launch environment ([credentials](../configuration.md#github-personal-access-token));
+`.env` does not load them. The launch directory's `.env` is never read by an installed package.
 
 ### Select an existing environment
 
-Before checks, upgrades, or rollback in a new shell, set `ORCHESTRATOR_ENV` again for your installation route.
-With **pipx**:
-
-```sh
-ORCHESTRATOR_ENV="$(pipx environment --value PIPX_HOME)/venvs/chipping-orchestrator"
-```
-
-With the **dedicated venv** above:
-
-```sh
-ORCHESTRATOR_ENV="$HOME/.local/share/chipping-orchestrator/venv"
-```
-
-Adjust the path for a custom installation. Run the remaining blocks for the chosen procedure in that same shell.
-`${VAR:?}` guards below stop on an unset or empty variable before a command can use the wrong interpreter or path.
+`pipx list` shows the installed package and its exposed command. Use `pipx runpip chipping-orchestrator` for package
+inspection and dependency checks; it selects the package's isolated environment without activating it.
+`command -v chipping-orchestrator` shows the absolute launcher path to use in a service unit.
 
 ### Check compatibility and start
 
-Review the chosen release's notes for Python and agent CLI requirements, settings changes, and workflow-state
-compatibility. With `ORCHESTRATOR_ENV` set by the chosen route above, verify the installed version, dependency
-consistency, CLI, and local configuration before starting a poller:
+Review the installed release's [notes][package-releases] for Python and agent CLI requirements, settings changes,
+and workflow-state compatibility. Check the package version, dependency consistency, CLI, and local configuration
+before starting a poller:
 
 ```sh
 (
   set -eu
-  "${ORCHESTRATOR_ENV:?}/bin/python" -m pip show chipping-orchestrator
-  "${ORCHESTRATOR_ENV:?}/bin/python" -m pip check
-  "${ORCHESTRATOR_ENV:?}/bin/chipping-orchestrator" --help
-  "${ORCHESTRATOR_ENV:?}/bin/python" -c \
+  cd "$HOME"
+  pipx runpip chipping-orchestrator show chipping-orchestrator
+  pipx runpip chipping-orchestrator check
+  chipping-orchestrator --help
+  "$(pipx environment --value PIPX_HOME)/venvs/chipping-orchestrator/bin/python" -c \
     'from orchestrator.runtime.startup import require_issue_authors; require_issue_authors(); print("Configuration OK")'
 )
 ```
 
-The configuration check runs the startup settings resolver and required-author check without connecting to GitHub
-or polling. It checks local target validity, but does not prove token permissions, agent authentication, or the
-compatibility of live issue state. Run it as the service user with the same environment overrides as the real launch.
-`--help` checks the CLI only; `--once` performs a real polling tick and can start work.
+Changing to `$HOME` keeps the configuration check outside an orchestrator source checkout so it imports the installed
+package. The check reads `~/.config/chipping-orchestrator/.env`, validates local settings and target checkouts,
+and checks the required author allowlist without connecting to GitHub or polling. Run it as the service user with
+the same pipx location and process/service overrides as the real launch. It does not prove token permissions,
+agent authentication, or compatibility with live issue state. `--help` checks the CLI only; `--once` performs a real
+polling tick and can start agents. Stop on a failed check and repair the settings before starting or resuming polling.
 
-Stop on a failed check. Startup diagnostics on stderr identify invalid settings, missing `REPOS`, invalid target
-checkouts, or an empty `ALLOWED_ISSUE_AUTHORS`. Repair the live `.env` or overriding process/service environment and
-repeat the checks before resuming polling. Unknown or removed settings may be ignored, so diagnostics do not replace
-the release-note and template comparison below.
+Start in the foreground:
 
-Start in the foreground with `"${ORCHESTRATOR_ENV:?}/bin/chipping-orchestrator"`, or use the
-[systemd user service](#running-under-systemd-user-service) with `ExecStart` pointing to the installed command.
-Retain the absolute `LOG_DIR` and any explicit log-file paths across upgrades so logs stay outside the environment.
-The installed command does not run the source checkout's `run.sh` update loop: selecting another package version is
-an operator action.
+```sh
+chipping-orchestrator
+```
+
+Startup diagnostics identify invalid settings, missing `REPOS`, invalid target checkouts, or an empty
+`ALLOWED_ISSUE_AUTHORS`. Repair the live `.env` or overriding process/service environment before restarting.
+Unknown or removed settings may be ignored, so diagnostics do not replace release-note and template comparisons.
+For persistent supervision, use the [systemd user service](#running-under-systemd-user-service).
+
+### Moving from a dedicated venv
+
+For the v0.13.0 installation route at `~/.local/share/chipping-orchestrator/venv`, record the installed version with
+`~/.local/share/chipping-orchestrator/venv/bin/python -m pip show chipping-orchestrator`. Keep that exact version and
+its tested runtime dependency pins during migration; upgrade separately using the
+[upgrade checklist](#upgrade-a-package).
+Before stopping, read the recorded release's [notes][package-releases], set `ORCHESTRATOR_VERSION` to that version,
+and download its templates and `constraints.txt` using the [pinned procedure](#pin-a-release-and-runtime-dependencies).
+Retain a configuration backup and the service unit as described under [upgrades](#upgrade-a-package).
+
+Choose a [safe stopping point](#safe-restart-guidance), run `systemctl --user stop orchestrator.service` (or Ctrl+C
+the foreground poller), and wait for shutdown. Deactivate the dedicated venv if it is active, then run the constrained
+`pipx install` command from that procedure with the recorded version and its constraints, followed by
+`pipx ensurepath`. The procedure explicitly selects a supported Python interpreter. Open a new terminal if needed
+so the pipx command is on `PATH`.
+
+Keep `~/.config/chipping-orchestrator/.env` and its absolute `LOG_DIR`, along with any explicit analytics or trajectory
+paths outside the environment. Skip the first-setup template copy. Compare the downloaded templates with the existing
+settings and run the [compatibility checks](#check-compatibility-and-start). Confirm the installed version matches
+the recorded version before restarting.
+Replace the service's `ExecStart` with the absolute pipx launcher path shown by
+`command -v chipping-orchestrator`. Run `systemctl --user daemon-reload` and
+`systemctl --user start orchestrator.service`, then check startup output and polling logs.
+
+Keep the dedicated venv until the new installation passes these checks. If migration fails, stop the new poller,
+restore the saved unit and compatible configuration, reload systemd, and restart the dedicated-venv service, honoring
+the release's [rollback restrictions](#return-to-the-previous-package-version). Remove the old venv only after a
+successful migration; subsequent upgrades and rollback use the pipx procedures below.
 
 ### Upgrade a package
 
-In a new shell, first [select the installed environment](#select-an-existing-environment) again, then complete these
-steps in that shell:
+Package changes are operator-initiated. Use `pipx upgrade-all --skip chipping-orchestrator` for routine updates of
+other apps so they do not change the package under a running poller. Before upgrading:
 
-1. Read the new release notes and check compatibility with the current Python, agents, targets, and live workflow
-   state. Record the current `Version` from `pipx runpip chipping-orchestrator show chipping-orchestrator` or
-   `"${ORCHESTRATOR_ENV:?}/bin/python" -m pip show chipping-orchestrator`. Retain that version's constraints and both
-   templates; use the download block for it first if they are missing.
-2. Choose a safe stopping point using [restart guidance](#safe-restart-guidance), preferably with no live agent
-   child. Stop the supervisor with `systemctl --user stop orchestrator.service`, or Ctrl+C the foreground command,
-   and wait for shutdown to finish before changing its environment.
-3. Back up operator settings and retain the previous release selection:
+1. Read the [release notes][package-releases] for the version you intend to install and record that version. Check
+   compatibility with the current Python, agents, targets, and live workflow state. Record the current `Version` from
+   `pipx runpip chipping-orchestrator show chipping-orchestrator` and retain its templates; if they are missing, run the
+   [template download](#download-the-chosen-releases-files) for that version first.
+2. Choose a [safe stopping point](#safe-restart-guidance), preferably with no live agent child. Stop the supervisor
+   with `systemctl --user stop orchestrator.service`, or Ctrl+C the foreground command, and wait for shutdown.
+   Stop every poller using this pipx environment before changing it.
+3. Back up settings and retain the previous release selection:
 
    ```sh
    ORCHESTRATOR_PREVIOUS_VERSION='A.B.C'
@@ -178,43 +187,80 @@ steps in that shell:
    )
    ```
 
-   Replace `A.B.C` with the recorded version. Also back up any custom service unit and its referenced environment
-   files with their existing access restrictions. Record process/service overrides: they take precedence over `.env`.
-   Keep credentials, target clones, and worktrees at their existing paths. Keep `LOG_DIR` and explicit log-file paths
-   outside the isolated Python environment, following [log setup](#install-and-configure), so replacing that
-   environment preserves the logs.
-4. Set `ORCHESTRATOR_VERSION` to the chosen new version and repeat the release-file download block. Compare settings
-   as described below, retaining local overrides, then run the command for your route:
-
-   **pipx**:
+   Replace `A.B.C` with the recorded version. Also retain custom service units, referenced environment files, and
+   process/service overrides with their existing access restrictions. Keep credentials, clones, worktrees, and
+   external log paths in place.
+4. For an unconstrained, unpinned installation, upgrade to the latest available release:
 
    ```sh
-   pipx install --force --backend pip \
-     --pip-args="--upgrade --constraint \"${ORCHESTRATOR_RELEASE_DIR:?}/constraints.txt\"" \
-     "chipping-orchestrator==${ORCHESTRATOR_VERSION:?}"
+   pipx upgrade chipping-orchestrator
+   pipx runpip chipping-orchestrator show chipping-orchestrator
    ```
 
-   **Dedicated venv**:
+   An enabled [release-age cooldown](../security.md#checklist-mapping) is saved and reused by upgrades and forced
+   installs unless `PIPX_COOLDOWN` or explicit `--cooldown` overrides it; `pipx reinstall` always uses the saved
+   window and ignores `PIPX_COOLDOWN`. If it hides a fresh release you have reviewed, add `--cooldown 0` (or a shorter
+   window) to the upgrade or recovery install, for example
+   `pipx install --force --python python3.12 --cooldown 0 "chipping-orchestrator==X.Y.Z"`.
+   pipx saves the chosen window, including zero, for later upgrades and forced installs; restore your usual window
+   explicitly on the next package change if needed.
+
+   For a constrained installation, repeat the [pinned procedure](#pin-a-release-and-runtime-dependencies) with the
+   new version and its own constraints. `pipx upgrade` reuses the `--pip-args` saved at installation, including the
+   previous release's constraint path. To return to unconstrained, unpinned releases, use the forced reinstall
+   command in that section. After a rollback without constraints, run `pipx unpin chipping-orchestrator` before
+   the upgrade above, with the poller stopped.
+
+   Stop if installation fails or the displayed `Version` differs from the version reviewed in step 1. For an
+   unconstrained installation, recover that reviewed version explicitly (replace `X.Y.Z` with it):
 
    ```sh
-   "${ORCHESTRATOR_ENV:?}/bin/python" -m pip install --upgrade \
-     --constraint "${ORCHESTRATOR_RELEASE_DIR:?}/constraints.txt" "chipping-orchestrator==${ORCHESTRATOR_VERSION:?}"
+   pipx install --force --python python3.12 "chipping-orchestrator==X.Y.Z"
+   pipx runpip chipping-orchestrator show chipping-orchestrator
    ```
 
-   Stop if installation fails; leave the poller stopped until the chosen version installs and passes its checks.
-   These commands select an exact version and reuse the environment's interpreter. If a release requires another
-   interpreter, provision a supported one and recreate the isolated environment with it while the process is
-   stopped, retaining the external settings and logs.
-5. Repeat [compatibility and configuration checks](#check-compatibility-and-start) and confirm the displayed version
-   is the chosen one. Start the foreground command again, or run `systemctl --user start orchestrator.service`.
-   Check startup output and existing logs for successful connections and polling. A changed service unit also needs
-   `systemctl --user daemon-reload` before starting; editing `.env` alone does not.
+   Leave the poller stopped until the intended version is installed and passes checks.
+5. On every upgrade, repeat the [template download](#download-the-chosen-releases-files) for the intended version and
+   [compare configuration](#compare-configuration-across-versions) before resuming.
+6. Repeat [compatibility checks](#check-compatibility-and-start), then start `chipping-orchestrator` again or run
+   `systemctl --user start orchestrator.service`. Check startup output and logs for connections and polling.
+   A changed unit needs `systemctl --user daemon-reload`; editing `.env` alone does not.
+
+If a release requires a different Python interpreter, follow
+[Change the Python interpreter](#change-the-python-interpreter) before installing it.
+
+### Change the Python interpreter
+
+Provision a supported interpreter and stop every poller using the environment. Record the installed `Version` with
+`pipx runpip chipping-orchestrator show chipping-orchestrator`.
+For a pinned installation, unpin before reinstalling and restore the pin after a successful reinstall:
+
+```sh
+pipx unpin chipping-orchestrator
+pipx reinstall --python python3.13 chipping-orchestrator
+pipx pin chipping-orchestrator
+pipx runpip chipping-orchestrator show chipping-orchestrator
+```
+
+Substitute the chosen interpreter; skip the unpin and pin commands for an unpinned installation. Reinstall reuses
+the saved package requirement and installation options, including constraints and the cooldown window. It ignores
+`PIPX_COOLDOWN` and has no `--cooldown` option.
+
+A saved `==X.Y.Z` keeps that version, while a bare package name can install the newest available release.
+`pipx upgrade` and `pipx upgrade-all` replace a saved version requirement with the bare package name, so a later
+interpreter-only reinstall can also upgrade the orchestrator. The constrained procedure avoids those upgrade
+commands and retains `==X.Y.Z`.
+
+Confirm the displayed `Version` matches the intended release; for an interpreter-only change, it must match the
+recorded version. If it differs, use the explicit version install in [Upgrade a package](#upgrade-a-package) or the
+[pinned procedure](#pin-a-release-and-runtime-dependencies) with the chosen interpreter to install the intended
+release. Keep the poller stopped if any command fails. Retain the external settings and logs, then repeat
+compatibility checks before restarting.
 
 ### Compare configuration across versions
 
-The [release notes][package-releases] identify added, renamed, or removed settings, changed defaults, stricter
-validation, and any required migration or rollback restriction. Compare the two version-matched templates, then
-compare the new basic template with the live settings:
+Release notes identify added, renamed, or removed settings, changed defaults, stricter validation, and any migration
+or rollback restrictions. Compare the retained templates and the live settings in the same shell as the upgrade:
 
 ```sh
 diff -u "${ORCHESTRATOR_PREVIOUS_RELEASE_DIR:?}/.env.example" "${ORCHESTRATOR_RELEASE_DIR:?}/.env.example"
@@ -222,73 +268,126 @@ diff -u "${ORCHESTRATOR_PREVIOUS_RELEASE_DIR:?}/.env.example.advanced" "${ORCHES
 diff -u "${ORCHESTRATOR_RELEASE_DIR:?}/.env.example" "$HOME/.config/chipping-orchestrator/.env"
 ```
 
-`diff` exits 1 when files differ; review those differences. Add required settings, translate renamed keys, and remove
-obsolete ones according to the notes, merging into the existing `.env` rather than replacing it with a template.
-Keep local target paths, author lists, agent specs, budgets, and other deliberate overrides. For a changed default,
-decide whether to adopt it or explicitly retain the previous value. Check selected advanced overrides and service
-environment settings too; commented examples do not represent active local settings.
+`diff` exits 1 when files differ; review those differences. Merge required changes into the existing `.env` rather
+than replacing it. Keep local target paths, author lists, agent specs, budgets, and other deliberate overrides.
+For a changed default, decide whether to adopt it or explicitly retain the previous value. Check selected advanced
+settings and service overrides too; commented examples are not active settings.
 
-Keep the pre-upgrade backup and record the edits. A new setting may be unknown to the older package; a renamed key
-may need translating back; a value or default accepted by one version may fail or behave differently in the other.
-Configuration checks validate the installed version's rules. Repeat them after every repair and after rollback.
+Keep the backup and record edits. Older versions can ignore new settings or reject values accepted by a newer one,
+so review startup diagnostics after every repair and after rollback.
 
 ### Return to the previous package version
 
-Read both releases' rollback notes before changing packages: restoring `.env` does not undo workflow state written
-on GitHub. If returning to an older version that cannot handle the late split state, complete the
-[workflow drain](#rolling-back-to-an-older-orchestrator) with the newer orchestrator running and `DECOMPOSE=off`.
-Honor any other release-specific migration restrictions before stopping. Once the required drains are complete,
-stop the process and supervisor as for an upgrade and wait for shutdown before downgrading.
+Read both releases' rollback notes: restoring `.env` does not undo workflow state written on GitHub. Before returning
+to a version that cannot handle late split state, complete the
+[workflow drain](#rolling-back-to-an-older-orchestrator) with the newer package running and `DECOMPOSE=off`.
+Honor other release-specific restrictions, then stop the process and supervisor and wait for shutdown.
 
-[Select the installed environment](#select-an-existing-environment) again if this is a new shell. Select the retained
-pre-upgrade backup explicitly, replacing `YYYYMMDDTHHMMSSZ` with its timestamp, and recover its version and release
-directory before running the rollback commands in that same shell:
+Select the retained backup explicitly, replacing `YYYYMMDDTHHMMSSZ` with its timestamp:
 
 ```sh
 ORCHESTRATOR_BACKUP_DIR="$HOME/.local/share/chipping-orchestrator/backups/YYYYMMDDTHHMMSSZ"
 ORCHESTRATOR_PREVIOUS_VERSION="$(cat "${ORCHESTRATOR_BACKUP_DIR:?}/version.txt")"
-ORCHESTRATOR_PREVIOUS_RELEASE_DIR="$HOME/.local/share/chipping-orchestrator/releases/v${ORCHESTRATOR_PREVIOUS_VERSION:?}"
 ```
 
-Stop if the backup or version record is missing. Use that version's retained constraints. With **pipx**:
+Stop if the backup or version record is missing. For a constrained installation, repeat the
+[pinned procedure](#pin-a-release-and-runtime-dependencies) with the recorded previous version and that version's
+own constraints. For an unconstrained installation, reinstall the recorded version:
 
 ```sh
-pipx install --force --backend pip \
-  --pip-args="--upgrade --constraint \"${ORCHESTRATOR_PREVIOUS_RELEASE_DIR:?}/constraints.txt\"" \
-  "chipping-orchestrator==${ORCHESTRATOR_PREVIOUS_VERSION:?}"
+pipx install --force --python python3.12 "chipping-orchestrator==${ORCHESTRATOR_PREVIOUS_VERSION:?}"
 ```
 
-With the **dedicated venv**:
+Stop if installation fails.
+After a successful rollback, run `pipx pin chipping-orchestrator` to prevent `pipx upgrade` and `pipx upgrade-all`
+from replacing the chosen version ([pipx pinning][pipx-pinning]). Unpin only for a planned upgrade or
+[interpreter change](#change-the-python-interpreter) while the poller is stopped.
 
-```sh
-"${ORCHESTRATOR_ENV:?}/bin/python" -m pip install --upgrade \
-  --constraint "${ORCHESTRATOR_PREVIOUS_RELEASE_DIR:?}/constraints.txt" \
-  "chipping-orchestrator==${ORCHESTRATOR_PREVIOUS_VERSION:?}"
-```
-
-Restore or translate configuration only where the older version requires it. Before restoring the saved `.env`,
-preserve the current file so edits made after the upgrade backup remain available. If `.env.pre-rollback` already
-exists, choose another filename for the preserved copy throughout these commands:
+Restore or translate configuration only where the older version requires it. Preserve the current `.env` before
+restoring the backup; if `.env.pre-rollback` already exists, use another filename throughout:
 
 ```sh
 (
   set -eu
+  umask 077
   test ! -e "$HOME/.config/chipping-orchestrator/.env.pre-rollback"
   cp -p "$HOME/.config/chipping-orchestrator/.env" "$HOME/.config/chipping-orchestrator/.env.pre-rollback"
   cp -p "${ORCHESTRATOR_BACKUP_DIR:?}/configuration/.env" "$HOME/.config/chipping-orchestrator/.env"
 )
+```
+
+Compare the restored settings with the saved current file:
+
+```sh
 diff -u "$HOME/.config/chipping-orchestrator/.env" "$HOME/.config/chipping-orchestrator/.env.pre-rollback"
 ```
 
-`diff` exits 1 when files differ. Reconcile intentional operator changes from `.env.pre-rollback` and any service
-environment overrides according to the older release's settings. Retain credentials, targets, worktrees, and logs.
-Repeat the compatibility checks with the older release's notes, verify its installed version, and restart using the
-same foreground command or `systemctl --user start orchestrator.service`.
+`diff` exits 1 when files differ. Reconcile edits made since the backup with the older version's supported settings,
+keeping compatible target paths, author lists, log paths, and other deliberate overrides. Review process/service
+overrides too.
+
+Repeat [compatibility checks](#check-compatibility-and-start), confirm the restored version, then restart and inspect
+startup output and logs. Keep external logs and credentials at their existing paths throughout.
+
+### Pin a release and runtime dependencies
+
+For reproducible installs, upgrades, or rollback, choose a release whose matching [GitHub release][package-releases]
+includes `constraints.txt`. Set `ORCHESTRATOR_VERSION` to that exact version and use the
+[download block](#download-the-chosen-releases-files) for its templates. Download its runtime constraints too:
+
+```sh
+curl --fail --location --output "${ORCHESTRATOR_RELEASE_DIR:?}/constraints.txt" \
+  "https://github.com/chippingway/chipping-orchestrator/releases/download/v${ORCHESTRATOR_VERSION:?}/constraints.txt"
+```
+
+Stop if the download fails. Select an installed Python supported by the chosen release; for an existing environment,
+pass its interpreter on every forced install (`python3.12` below). To use a different interpreter, first follow
+[Change the Python interpreter](#change-the-python-interpreter), then use the chosen interpreter in the forced
+install below.
+
+For a fresh release you have reviewed, add `--cooldown 0` (or a shorter window) to the command below if an enabled
+[release-age cooldown](../security.md#checklist-mapping) would exclude it or any constrained dependency. Explicit
+`--cooldown` overrides both `PIPX_COOLDOWN` and the saved value, and pipx saves the chosen window, including zero,
+for later upgrades and forced installs. Restore your usual window explicitly on the next package change if needed.
+
+Use an absolute `ORCHESTRATOR_RELEASE_DIR` path without whitespace: the uv backend splits constraint paths on
+whitespace even when quoted. If `$HOME` contains spaces, set `ORCHESTRATOR_RELEASE_DIR` to a directory whose absolute
+path has no whitespace and repeat the template and constraint downloads there; retain it for later reinstalls.
+
+With the poller stopped, install the chosen version using those constraints:
+
+```sh
+pipx install --force --python python3.12 \
+  --pip-args="--constraint ${ORCHESTRATOR_RELEASE_DIR:?}/constraints.txt" \
+  "chipping-orchestrator==${ORCHESTRATOR_VERSION:?}"
+```
+
+`pipx install --force` requests a forced reinstall and keeps an existing environment's recorded installer backend.
+The `--pip-args` constraint is applied by pip or uv, whichever that
+environment uses. [Pip constraints][pip-constraints]
+restrict runtime dependency versions; the explicit package requirement selects the orchestrator version.
+Keep `--upgrade` out of `--pip-args`: pipx supplies it during upgrades, and uv rejects duplicate flags.
+Use each release's own constraints, compare settings, and repeat compatibility checks before starting.
+
+After a successful installation, run `pipx pin chipping-orchestrator` to exclude the environment from routine
+upgrades. pipx saves the installation's `--pip-args`; unpinning alone leaves the constraint path in place. Upgrade
+a constrained installation by repeating this procedure for the new version with its own templates and constraints.
+
+To return to the latest release without saved constraints, stop every poller using the environment and run:
+
+```sh
+pipx install --force --python python3.12 chipping-orchestrator
+```
+
+The forced install replaces the saved pip arguments and clears the pin, permitting subsequent upgrades.
+Compare configuration and repeat compatibility checks before restarting.
 
 [package-releases]: https://github.com/chippingway/chipping-orchestrator/releases
-[pipx-installation]: https://pipx.pypa.io/stable/installation/
+[pipx-installation]: https://pipx.pypa.io/stable/how-to/install-pipx.html
 [pipx-cli]: https://pipx.pypa.io/stable/reference/cli.html
 [pipx-changelog]: https://pipx.pypa.io/stable/changelog.html
+[pipx-pinning]: https://pipx.pypa.io/stable/how-to/pin-packages.html
+[pip-constraints]: https://pip.pypa.io/en/stable/user_guide/#constraints-files
 
 ## Continuous integration
 
@@ -541,12 +640,13 @@ For manual security fixes younger than 14 days, follow the
 
 ### Dependency tooling
 
-Poetry keeps checkout environments in `.venv/`, and the default sync installs runtime plus `dev` dependencies.
+Poetry is developer tooling for source checkouts; package users install with pipx. It keeps checkout environments
+in `.venv/`, and the default sync installs runtime plus `dev` dependencies.
 `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with docs` and
 `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard` select optional groups; use `--with docs,dashboard`
 for both. Sync removes unselected groups. `poetry run` executes commands without syncing. The wrapper's install policy,
-timeouts, and operator sync requirements are documented under
-[Launcher dependency refresh](#launcher-dependency-refresh).
+timeouts, and sync requirements are documented under
+[Launcher dependency refresh](../development.md#launcher-dependency-refresh).
 
 Poetry uses an inherited `VIRTUAL_ENV` or non-base `CONDA_PREFIX` even with `virtualenvs.in-project = true`.
 Prefix every manual Poetry command with `env -u VIRTUAL_ENV -u CONDA_PREFIX` so it selects this checkout's `.venv/`.
@@ -557,7 +657,7 @@ override, `poetry sync` can remove unrelated packages from the operator's active
 filter does not protect it. The launcher clears both markers for its dependency install, while its Python process
 inherits the caller's Conda activation.
 
-The manifest accepts Poetry `>=2.4,<3`; CI and the operator setup pin `2.5.1`. Poetry 2.4 is the minimum for the
+The manifest accepts Poetry `>=2.4,<3`; CI and developer setup pin `2.5.1`. Poetry 2.4 is the minimum for the
 [release-age setting][poetry-release-age] in [`../../poetry.toml`](../../poetry.toml), which holds new releases for
 14 days during resolution. Use `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry lock` for dependency or group changes and
 `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry check --lock`
@@ -713,30 +813,11 @@ configuration examples lead back to the repository; the site does not publish th
 
 ### Launch commands
 
-- `./run.sh` — production for a source checkout. Continuous polling. `run.sh` does
-  `git pull --ff-only origin "$ORCHESTRATOR_BASE_BRANCH"` (read from `.env`, default `main`) and re-launches the
-  orchestrator after each clean exit, so a self-modifying merge picks up new code automatically. If a non-base branch
-  is checked out the pull is skipped, and if the fast-forward fails (diverged base, rebase in progress, network error)
-  the wrapper logs a loud warning to stderr and launches the existing working tree anyway instead of exiting — under
-  `Restart=always` a stale-but-running orchestrator beats a silent crash loop. See
-  [`../architecture.md#process-model`](../architecture.md#process-model) for the full skip-and-warn contract.
+Use the command installed by pipx:
 
-  Run only one wrapper per checkout. Additional daemons need separate checkouts and `.venv/` environments;
-  see [Running more than one poller](#running-more-than-one-poller). Dependency refreshes run before each Python
-  launch; see [Launcher dependency refresh](#launcher-dependency-refresh).
-
-  The wrapper relaunches after every exit that is not a signal stop, a refused start included: a launch whose
-  `ALLOWED_ISSUE_AUTHORS` names nobody, whose settings fail validation, or one of whose targets is not a checkout git
-  opens exits with status 1 and is started again a second later. Such a deployment polls nothing and repeats the
-  error on stderr each second until the cause is fixed — the `.env`
-  ([`../configuration.md#required`](../configuration.md#required)), or the target itself: a missing clone, broken git
-  metadata, or a checkout another user owns that `safe.directory` does not trust
-  ([`../configuration.md#developer-fallback-and-target-checks`](../configuration.md#developer-fallback-and-target-checks)).
-
-  Ctrl+C (or `SIGTERM`) stops the wrapper: the orchestrator exits with `128 + signum` and `run.sh` skips the restart
-  loop. A second Ctrl+C terminates immediately.
-- `python -m orchestrator --once` — single tick then exit. Useful for tests and debugging.
-- `python -m orchestrator --cleanup-terminal-artifacts` — reclaim the worktrees and branches of finished issues, then
+- `chipping-orchestrator` — continuous polling.
+- `chipping-orchestrator --once` — one real polling tick, including label setup and possible agent launches.
+- `chipping-orchestrator --cleanup-terminal-artifacts` — reclaim the worktrees and branches of finished issues, then
   exit. Polls no issue, ensures no labels, and writes **no workflow state** — no label, no pinned state, no comment.
   It does delete refs, which is what it is for: the orchestrator-owned branches it proved reclaimable go from the
   local clone *and* from the remote, after the fail-closed gates cleared each one. It connects read-only clients and
@@ -758,14 +839,10 @@ configuration examples lead back to the repository; the site does not publish th
   pass between polling passes — every `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS`, or inside
   `TERMINAL_ARTIFACT_CLEANUP_WINDOW` where one is set ([When it runs](#when-it-runs)) — and the timer will simply
   defer.
-- `python -m orchestrator --log-level DEBUG` — verbose logs.
+- `chipping-orchestrator --log-level DEBUG` — verbose logs.
 
-Both forms above call `orchestrator/cli.py`, which is also what the `chipping-orchestrator` console script declared in
-[`../../pyproject.toml`](../../pyproject.toml) runs
-(`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run chipping-orchestrator --once`). The module form is what `run.sh`
-launches, so the [systemd unit](#running-under-systemd-user-service) for a source checkout supervises `run.sh`. A
-package deployment runs the installed `chipping-orchestrator` command instead, which its unit supervises; see
-[package setup](#install-and-configure).
+Source-checkout module launches and the restart wrapper are for developers; see the
+[developer guide](../development.md#direct-launch-commands).
 
 On first start the orchestrator creates the workflow labels and the `backlog` / `paused` /
 `workflow:community_contribution` control labels on the repo, then begins polling open issues every `POLL_INTERVAL`
@@ -773,60 +850,15 @@ seconds. On a repo it drove before the labels were namespaced, each pre-namespac
 
 ### Poetry migration for operators
 
-Install `poetry==2.5.1` with `pipx` and put its executable directory on the systemd unit's `PATH` before the migration
-reaches the base checkout. Stop the service, remove `.venv/`, then recreate it with
-`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` (add `--with dashboard` where needed), replace `uv run` in existing
-crontabs and units with `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run` or the absolute `.venv/bin/python` path, and
-restart the service. Restart the wrapper too so its shell functions come from the updated `run.sh`.
-
-Follow the [environment selection policy](#dependency-tooling) when recreating `.venv/` with the required groups.
-Create the `workflow:python:pip` label in GitHub's **Issues → Labels** before Dependabot's next run; keep
-`workflow:python:uv` on historical PRs.
-On a fresh repository, create `workflow:dependencies` and `workflow:github_actions` too.
-
-For deployments that verify this repository, also update
-[`VERIFY_COMMANDS`](../configuration.md#local-verification-gate) wherever it uses `uv run`. Fresh per-issue worktrees
-need `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` before verification because `poetry run` does not install
-dependencies. Apply the environment selection policy to each command:
-
-```dotenv
-VERIFY_COMMANDS=env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --no-interaction && env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m pytest -q;env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run ruff check orchestrator tests
-```
-
-Add `--with docs` or `--with dashboard` to the sync command when the configured checks require those optional groups.
-Venv-based targets need absolute executable paths or explicit virtualenv activation in `VERIFY_COMMANDS`.
-
-To roll back, revert the migration, stop the service, remove `.venv/` and recreate it with `uv sync --locked`, restore
-the crontab, unit, and `VERIFY_COMMANDS` commands, and restart. The restored lock has the same pins unless dependency
-updates merged after migration.
+Poetry applies to developer source checkouts. The
+[source-tooling migration](../development.md#poetry-migration-for-source-checkouts) covers checkout environments,
+verification commands, and development service units. Published-package users install and upgrade with pipx.
 
 ### Launcher dependency refresh
 
-Run only one `run.sh` wrapper per checkout, and give each additional daemon its own checkout and `.venv/`. A refresh
-changes installed packages, so sharing a checkout can cause simultaneous installs or replace packages under another
-running Python process. Use separate environments for other long-running processes, and stop processes using this
-checkout's `.venv/` before a manual install or sync.
-
-Before each Python launch, `run.sh refresh_dependencies` compares the current `pyproject.toml` and `poetry.lock` git
-blob IDs with the successful install stamp in `.venv/.poetry-dependencies`. A missing or mismatched stamp runs
-`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry install --no-interaction`. Only a successful install records the current IDs.
-New environments and rollbacks are checked even when the pull brings no changes.
-
-The timeout sends SIGTERM to the Poetry process after 300 seconds, followed by SIGKILL 10 seconds later if needed.
-`timeout --foreground` keeps the installer in the wrapper's process group so operator signals stop the refresh and
-wrapper together. Timeout signals do not cover Poetry's child processes: a stalled build subprocess can survive and
-keep modifying `.venv/` after the wrapper launches Python.
-This foreground signal behavior is deliberate. After a timeout, stop the wrapper and any surviving build processes
-before repairing or syncing the environment.
-
-The additive install preserves installed optional groups and packages removed from the lock. Packages exclusive to
-an optional group remain at their installed versions until a sync selects that group, even when shared transitive
-dependencies change during a refresh. To upgrade those packages and remove obsolete ones, including packages dropped
-for security reasons, sync with every desired optional group selected; for example,
-`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard` when only the dashboard group is enabled.
-
-A missing installer, failed or timed-out refresh, or unwritable stamp warns that the environment may be partially
-updated and launches it, then retries on each restart until it succeeds.
+Dependency refresh by the source wrapper is developer tooling. Its fingerprints, timeout behavior, and optional
+groups are in the [developer guide](../development.md#launcher-dependency-refresh). Stop all processes using a pipx
+environment before upgrading or reinstalling the package.
 
 ## Running more than one poller
 
@@ -837,8 +869,15 @@ Left unset, `WORKTREES_DIR` defaults beside the first configured target — the 
 `TARGET_REPO_ROOT` without `REPOS` ([default](../configuration.md#workspace-and-agent-identity)) — so pollers whose
 lists start with different repositories resolve different roots unless every one of them sets it explicitly.
 
-The shared issue claims coordinate workflow work. Set the same `WORKTREES_DIR` in every poller's checkout, and follow
-the checkout and environment isolation requirements under [Launcher dependency refresh](#launcher-dependency-refresh).
+The shared issue claims coordinate workflow work. Set the same `WORKTREES_DIR` in every poller's process or service
+environment. Installed pollers under one account read the same `~/.config/chipping-orchestrator/.env`; use process
+or service overrides for different `REPOS` lists and a distinct absolute `LOG_DIR` for each poller, including
+concurrent `--once` runs. Override any explicit `ANALYTICS_LOG_PATH` and `TRAJECTORY_LOG_PATH` with distinct absolute
+paths per poller too; the default analytics path follows `LOG_DIR`. Runtime log rotation and analytics retention
+rewrites do not coordinate across processes, so sharing these files can lose records even when issue claims are
+separate. Stop every process using a shared pipx environment before upgrading it. Developer source wrappers also
+need the isolation described under
+[Development restart wrapper](../development.md#development-restart-wrapper).
 
 - **One writer per issue.** Each dispatched issue is taken under a host-local writer claim: an exclusive `flock` on a
   file in `WORKTREES_DIR/.issue-writer-claims/`, named `repo-<id>-issue-<n>.lock` for the repository's numeric GitHub
@@ -916,9 +955,9 @@ the checkout and environment isolation requirements under [Launcher dependency r
 
 ## Running under systemd (user service)
 
-The recommended production deployment is a systemd **user** service. For a source checkout, supervise `run.sh`
-directly; for a packaged installation, supervise the installed `chipping-orchestrator` command. A foreground process
-does not survive a reboot, a `tty` logout, or the user manager being torn down.
+For persistent operation, use a systemd **user** service supervising the command installed by pipx. A foreground
+process does not survive a reboot, a `tty` logout, or the user manager being torn down. Source-checkout service
+configuration belongs to the [developer guide](../development.md#development-restart-wrapper).
 
 A detached `screen` / `tmux` session wrapped in a `Type=forking` unit looks similar but is the wrong shape: systemd ends
 up supervising `screen`, not the orchestrator; `ExecStop` races the screen session's own lifecycle; logs split; and the
@@ -926,8 +965,8 @@ unit silently does nothing at boot unless linger is enabled. Keep `screen` / `tm
 
 ### Unit file
 
-Drop this at `~/.config/systemd/user/orchestrator.service`, replacing the working directory and the `PATH` entries.
-The example uses a source checkout:
+Drop this at `~/.config/systemd/user/orchestrator.service`. Replace `<user>` with the account that installed the
+package, and adjust `ExecStart` to the path shown by `command -v chipping-orchestrator`:
 
 ```ini
 [Unit]
@@ -936,8 +975,8 @@ After=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/path/to/chipping-orchestrator
-ExecStart=/path/to/chipping-orchestrator/run.sh
+WorkingDirectory=/home/<user>
+ExecStart=/home/<user>/.local/bin/chipping-orchestrator
 Restart=always
 RestartSec=5
 Environment=PATH=/home/<user>/.local/bin:/usr/local/bin:/usr/bin:/bin
@@ -946,22 +985,18 @@ Environment=PATH=/home/<user>/.local/bin:/usr/local/bin:/usr/bin:/bin
 WantedBy=default.target
 ```
 
-For pipx, set `ExecStart=/home/<user>/.local/bin/chipping-orchestrator` (adjust for the pipx executable directory).
-For the dedicated venv above, set
-`ExecStart=/home/<user>/.local/share/chipping-orchestrator/venv/bin/chipping-orchestrator`.
-Select an existing `WorkingDirectory`; it does not choose the installed configuration file, which remains
-`~/.config/chipping-orchestrator/.env`, or the default log directory inside `site-packages`. Set an absolute `LOG_DIR`
-outside the environment as described in [package setup](#install-and-configure). Package services use the same
-stop/start commands and restart supervision as the checkout service.
+`WorkingDirectory` must exist. It selects neither the installed configuration file,
+`~/.config/chipping-orchestrator/.env`, nor the log directory. Set an absolute `LOG_DIR` outside the pipx environment
+as described in [package setup](#install-and-configure).
 
-- `Type=simple` because the command stays in the foreground — systemd tracks its PID. With `run.sh`, `SIGTERM` from
-  `systemctl stop` propagates through the wrapper to the orchestrator (exit `143`, no restart loop).
-- `Restart=always` covers machine-level events (reboot, OOM, host crash). Application-level self-restart after a
-  self-modifying merge is still handled inside `run.sh`.
-- A non-interactive systemd service does not inherit your shell's `PATH`. If `codex` or `claude` lives under
-  `~/.local/bin`, add it to `Environment=PATH=…`, or set `CODEX_BIN` / `CLAUDE_BIN` to absolute paths via additional
-  `Environment=` lines.
-- Source-checkout services also need the directory containing `poetry` in the unit's `PATH` for dependency refreshes.
+- `Type=simple` tracks the foreground orchestrator process. `SIGTERM` from `systemctl stop` triggers its shutdown.
+- `Restart=always` restarts an exited process; `systemctl stop` suppresses that restart. Package version changes
+  require an explicit pipx upgrade while the service is stopped.
+  A refused start (empty `ALLOWED_ISSUE_AUTHORS` or invalid settings or targets) repeats every five seconds
+  (`RestartSec=5`); check `journalctl --user-unit orchestrator.service -f` for the diagnostic, then stop the service
+  and repair its configuration.
+- A non-interactive service does not inherit your shell's `PATH`. Include directories containing `codex`, `claude`,
+  or `agy` in `Environment=PATH=…`, or configure absolute `CODEX_BIN`, `CLAUDE_BIN`, and `AGY_BIN` paths.
 
 ### Enabling
 
@@ -984,9 +1019,9 @@ journalctl --user-unit orchestrator.service -f      # tail the supervised comman
 ```
 
 systemd's journal captures the supervised command's stdout/stderr (process lifecycle, exit codes, restart messages).
-The orchestrator's own structured log lives at `LOG_DIR/orchestrator.log` (rotated, ~10 MiB × 5). A source checkout
-defaults to `<checkout>/logs`; package setup above records an absolute `LOG_DIR` pointing to
-`~/.local/state/chipping-orchestrator/logs`. `WorkingDirectory` does not select the default log location.
+The orchestrator's own structured log lives at `LOG_DIR/orchestrator.log` (rotated, ~10 MiB × 5).
+Package setup above records an absolute `LOG_DIR` pointing to `~/.local/state/chipping-orchestrator/logs`.
+`WorkingDirectory` does not select the default log location.
 Check the journal first for "did it start / did it die", then `LOG_DIR/orchestrator.log` for per-issue handler detail.
 
 ## Reclaiming what a split leaves on the remote
@@ -1310,7 +1345,7 @@ cannot change what GitHub says happened.
   - **Scheduling state is in memory only.** A restart outside the window waits for the next one; a restart inside it
     may repeat a pass the previous process already made that night, which is safe — the pass reads the host again
     and reports whatever is already gone as done. Nothing guarantees exactly one pass per window across restarts.
-- **On demand.** `python -m orchestrator --cleanup-terminal-artifacts` runs exactly the same pass once and exits,
+- **On demand.** `chipping-orchestrator --cleanup-terminal-artifacts` runs exactly the same pass once and exits,
   regardless of the interval or the window — the form to point a nightly service timer at on hosts whose orchestrator
   is not always up. See [Run modes](#run-modes) for what that mode connects and why it exits 0 when it defers.
 - **Only on a quiet host.** Before it reads anything, the pass closes its own scheduler's admission (`submit` refuses
@@ -1497,12 +1532,9 @@ own at a candidate boundary, and never blocks workflow progress either way.
 
 ## Applying `.env` changes
 
-`.env` — the source checkout's own, or `~/.config/chipping-orchestrator/.env` for an installed package
-([which one](../configuration.md#where-env-is-read)) — is read once, when `python -m orchestrator` starts. The
-orchestrator process never reloads it, so most edits take effect on the **next fresh Python start** — there is no
-signal to make a running process re-read configuration.
-`run.sh` is the usual restart mechanism: each loop iteration launches a new Python process (and `git pull --ff-only`s
-the orchestrator checkout to `ORCHESTRATOR_BASE_BRANCH` along the way).
+`~/.config/chipping-orchestrator/.env` is read once, when `chipping-orchestrator` starts. Most edits take effect
+on the next process start; there is no signal to reload configuration. Restart the foreground command or systemd
+service at a safe stopping point. [Developer checkouts](../development.md) use their own root `.env`.
 
 ### What survives a restart
 
@@ -1533,55 +1565,38 @@ hazards are worth knowing:
 - **Live `codex` / `claude` child — avoid.** Wait for the agent to exit. Forcing a restart can park the issue or leave
   a dirty worktree behind.
 
-Set the shell's `LOG_DIR` to the running process's log directory: `<checkout>/logs` for the source default, or
+Set the shell's `LOG_DIR` to the running process's log directory:
 `~/.local/state/chipping-orchestrator/logs` after package setup above, unless overridden. Use an absolute path;
 settings in `.env` are not automatically shell variables. Then inspect processes and logs:
 
 ```sh
-pgrep -af 'python -m orchestrator|chipping-orchestrator|codex|claude|run.sh'
+pgrep -af 'chipping-orchestrator|codex|claude|agy'
 tail -f "${LOG_DIR:?}/orchestrator.log"
 journalctl --user -u orchestrator.service -f   # systemd users
 ```
 
 ### Per launch style
 
-**Foreground terminal (`./run.sh` in a shell).**
+**Foreground terminal.**
 
-1. Edit `.env`.
-2. Confirm no agent child is running (`pgrep -af 'codex|claude'`).
-3. Ctrl+C the terminal (`run.sh` exits with code 130 and skips the restart loop).
-4. Re-run `./run.sh`.
-
-A second Ctrl+C while `run.sh` is mid-shutdown terminates immediately.
-
-**`tmux` / `screen` session.**
-
-1. Attach (`tmux attach -t orchestrator`, or `screen -r`).
-2. Check live output for an in-flight stage handler; cross-check with `pgrep -af 'codex|claude'`.
-3. At a safe point, Ctrl+C the orchestrator and re-run `./run.sh`.
-4. Detach (Ctrl+B then D for tmux, Ctrl+A then D for screen).
+1. Edit `~/.config/chipping-orchestrator/.env`.
+2. Wait for a safe stopping point without an agent child; inspect processes with `pgrep -af 'codex|claude|agy'`.
+3. Ctrl+C the command and wait for shutdown.
+4. Start `chipping-orchestrator` again.
 
 **systemd user service.**
 
-1. Edit the checkout's `.env`, or `~/.config/chipping-orchestrator/.env` for an installed package.
-2. **Skip `systemctl --user daemon-reload`** unless the `.service` unit file itself changed — `daemon-reload` reloads
-   unit definitions, not `.env`.
-3. When safe (no live agent child), `systemctl --user restart orchestrator.service`.
-4. Tail logs: `journalctl --user -u orchestrator.service -f`.
+1. Edit `~/.config/chipping-orchestrator/.env`.
+2. Run `systemctl --user daemon-reload` only if the `.service` unit changed; it reloads unit definitions, not `.env`.
+3. When safe, run `systemctl --user restart orchestrator.service`.
+4. Tail logs with `journalctl --user -u orchestrator.service -f`.
 
-When `GITHUB_TOKEN` is supplied via the unit's `EnvironmentFile=`, edit that file and restart the service. When the
-token is hard-coded in an inline `Environment=` line, changing the value requires editing the unit *and* a
-`daemon-reload` before the restart.
+When `GITHUB_TOKEN` is supplied via the unit's `EnvironmentFile=`, edit that file and restart. Changing an inline
+`Environment=` value requires editing the unit and running `daemon-reload` before restarting.
 
-**Direct `python -m orchestrator --once`.**
-
-Each `--once` invocation is a fresh Python process and reads the current `.env` on every call.
-
-**Installed command in a foreground terminal.**
-
-Edit `~/.config/chipping-orchestrator/.env`, wait for a safe stopping point, Ctrl+C the command, and start
-`chipping-orchestrator` (pipx) or the dedicated venv's `bin/chipping-orchestrator` again. Installed packages keep the
-selected package version across restarts; [package upgrades](#upgrade-a-package) require an explicit install.
+Each `chipping-orchestrator --once` invocation starts a new process and reads current settings. Restarts keep the
+installed package version; [package upgrades](#upgrade-a-package) are explicit operator actions. Development
+wrapper restarts are described in the [developer guide](../development.md#development-restart-wrapper).
 
 ### Setting-by-setting expectations
 
@@ -1605,12 +1620,12 @@ When each setting's change takes effect:
 - `WORKTREES_DIR` — next Python start. Left unset, it follows the first `REPOS` entry, or `TARGET_REPO_ROOT` without
   `REPOS`, so an edit that changes either moves it too: set it explicitly before such an edit on a host with issues in
   flight ([default](../configuration.md#workspace-and-agent-identity))
-- `ANALYTICS_DB_URL` — next `python -m orchestrator.observability.analytics.sync.cli` invocation, and next
-  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py` start.
+- `ANALYTICS_DB_URL` — next analytics sync invocation and dashboard launch
+  ([operator sync commands](../observability/analytics-database.md#operator-workflow),
+  [developer dashboard commands](../development.md#analytics-sync-and-dashboard)).
   The value is parsed once when the analytics settings holder is first imported, so a browser reload is not enough —
   relaunch Streamlit. The polling loop does not read this setting.
-- `DASHBOARD_PARALLEL_READS` — next
-  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py` start.
+- `DASHBOARD_PARALLEL_READS` — next developer analytics dashboard launch.
   The value is parsed once per process, on the first render's import of the read-mode owner.
 - `MAX_PARALLEL_ISSUES_PER_REPO`, `MAX_PARALLEL_ISSUES_GLOBAL` — next Python start. Per-`REPOS` `parallel_limit`
   overrides take precedence over `MAX_PARALLEL_ISSUES_PER_REPO`.
@@ -1622,5 +1637,6 @@ When each setting's change takes effect:
 - `GITHUB_TOKEN` — not loaded from `.env`. Update the process environment or rewrite the token file before the next
   start: the one `ORCHESTRATOR_TOKEN_FILE` names, or else each configured repository's own
   `~/.config/<owner>/<repo>/token`
-- `ORCHESTRATOR_BASE_BRANCH` — `run.sh` captures this once before its restart loop, so editing it only takes effect
-  after `run.sh` itself is restarted. The Python process picks it up on the same next start.
+- `ORCHESTRATOR_BASE_BRANCH` — developer source wrappers capture this before the restart loop, so editing it requires
+  restarting the wrapper itself ([developer guide](../development.md#development-restart-wrapper)). The Python
+  process picks it up on the same next start.

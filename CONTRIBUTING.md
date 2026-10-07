@@ -23,6 +23,7 @@ See the [README](README.md#how-it-works) for how issues become pull requests.
 Use Linux, Git, Python 3.12 or newer, and Poetry 2.5.1. Fork the repository, then:
 
 ```sh
+pipx install "poetry==2.5.1"
 git clone https://github.com/YOUR-LOGIN/chipping-orchestrator.git
 cd chipping-orchestrator
 git switch -c my-change
@@ -39,6 +40,8 @@ another Python interpreter, use `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry env u
 
 Live orchestrator runs perform real GitHub operations. Use a dedicated test repository and follow the
 [configuration](docs/configuration.md) and [security](docs/security.md) guides.
+The [developer guide](docs/development.md) covers checkout configuration, direct launches, the restart wrapper,
+and optional analytics tools. User installations follow the [pipx quick start](README.md#quick-start).
 Do not access or change `analytics-db/data/`; it holds operator-owned runtime data.
 
 ## Make a focused change
@@ -122,9 +125,10 @@ after the PyPI upload, digest comparison, and installation checks below succeed.
 
 Build from a clean checkout of the signed release tag whose commit is on `main` and has passing CI. Confirm that
 the tag and both version fields match. Before the first PyPI upload, verify the package's README, project URLs,
-license metadata, and installed configuration behavior, including `.env` discovery, path defaults, and checkout-only
-self-update detection. Test configuration from an unrelated launch directory separately from the CLI's `--help`
-smoke test, which must work without repository configuration.
+license metadata, and installed configuration behavior, including `.env` discovery and path defaults. Verify that
+self-update detection stays inert when the installed package is not inside a git checkout. Test configuration from an
+unrelated launch directory separately from the CLI's `--help` smoke test, which must work without repository
+configuration.
 
 The release machine needs Poetry 2.5.1 and real Python 3.12, 3.13, and 3.14 interpreters, installed through the
 distribution or built with pyenv. Make them available as `python3.12`, `python3.13`, and `python3.14` on `PATH`.
@@ -285,8 +289,8 @@ Check installation of that exact version from PyPI in fresh environments, with a
 
 After the digest and installation checks pass, attach `constraints.txt` from the retained directory to the draft
 GitHub release for the same tag and publish it. Record its publication date and functionality in the
-[release timeline](docs/release-timeline.md). Operators can use the constraints file with
-`python -m pip install --constraint constraints.txt chipping-orchestrator==X.Y.Z`.
+[release timeline](docs/release-timeline.md). Operators can optionally apply the constraints file through pipx;
+see [package installation, upgrades, and rollback](docs/configuration.md#package-installation-upgrades-and-rollback).
 
 If an upload is interrupted, reload the token and rerun the same publish command with the retained files, without
 `--build` or `--skip-existing`. PyPI accepts identical re-uploads and rejects conflicting contents; skipping that

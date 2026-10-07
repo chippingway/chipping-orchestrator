@@ -26,7 +26,7 @@ base_branch="${base_branch:-main}"
 
 self_update() {
     # A non-base checkout or a non-fast-forward pull must never stop the wrapper:
-    # under the production systemd unit (Restart=always) an exit here degrades
+    # under a development systemd unit (Restart=always) an exit here degrades
     # into a silent crash loop where the orchestrator never actually runs. Warn
     # loudly and keep the existing working tree -- stale-but-running is strictly
     # better than a restart loop, and the journal warning is the operator's

@@ -54,7 +54,7 @@ Top level only. Which module owns what is in
 - `docs/` — architecture, state-machine, workflow, configuration, observability, and security references.
 - `plans/` — human working notes, not specifications (see below).
 - `analytics-db/` — operator-owned local analytics database (see below).
-- `run.sh` — production launcher that auto-restarts after self-modifying merges.
+- `run.sh` — development wrapper that auto-restarts after self-modifying merges.
 - `.env.example` / `.env.example.advanced` — basic and advanced configuration templates.
 
 ## Development

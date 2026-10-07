@@ -212,8 +212,9 @@ label wherever that rename could not run, are in
 
 ## Process model
 
-There is **only one long-lived process**: `python -m orchestrator`. It is wrapped by `run.sh` so the loop can
-self-exit and be restarted with new code.
+There is **only one long-lived process**: `chipping-orchestrator`, the command installed by pipx. A systemd user
+service can supervise it. Developer source checkouts also offer a module launcher and `run.sh` so the loop can
+self-exit and be restarted with new source code; those launch commands are in the [developer guide](development.md).
 
 - **Trigger**: started manually (or by a wrapper). Optional `--once` for a single tick, or
   `--cleanup-terminal-artifacts` for a maintenance-only run: it connects read-only clients (no label bootstrap)
@@ -333,23 +334,25 @@ self-exit and be restarted with new code.
   analytics record (`runtime.artifact_records`) — never a label, a pinned state, or a comment. The operator runbook
   over both is
   [`configuration/operations.md#reclaiming-a-finished-issues-artifacts`](configuration/operations.md#reclaiming-a-finished-issues-artifacts).
-- **Self-restart guard** (`runtime.self_update.self_modifying_merge_happened`): each tick fetches
-  `origin/<ORCHESTRATOR_BASE_BRANCH>` (default `main`); if it advanced past the process's startup SHA *and* the new
-  commits touch `orchestrator/`, the loop
-  exits 0 so the wrapper can re-exec the new code. The branch is decoupled from `BASE_BRANCH` so a target repo with a
-  different default branch does not interfere with self-update detection.
-- **Self-update resilience** (`run.sh self_update`): before each launch — at startup and after every
+- **Self-restart guard** (`runtime.self_update.self_modifying_merge_happened`): each recurring tick with a resolvable
+  startup HEAD fetches `origin/<ORCHESTRATOR_BASE_BRANCH>` (default `main`). If it advanced past the startup SHA *and*
+  the new commits touch `orchestrator/`, the loop exits 0 so the wrapper can re-exec the new code. The branch is
+  decoupled from `BASE_BRANCH` so a target repo with a different default branch does not interfere with self-update
+  detection. The startup HEAD is probed at the package root in every layout, so an installed environment inside an
+  unrelated git checkout can also enable this guard.
+- **Developer checkout self-update resilience** (`run.sh self_update`): before each launch — at startup and after every
   self-modifying-merge restart — the wrapper fast-forwards the orchestrator checkout to
   `origin/<ORCHESTRATOR_BASE_BRANCH>`. It skips the pull and warns to stderr if a non-base branch is checked out, and
   warns and continues (rather than exiting) if the fast-forward fails (diverged base branch, rebase in progress, network
   error); either way it launches the existing working tree. A clean fast-forward still updates the tree before launch,
-  so the self-modifying-merge flow keeps picking up new code. This is deliberate: under the production systemd unit
+  so the self-modifying-merge flow keeps picking up new code. This is deliberate: under a development systemd unit
   (`Restart=always`) exiting on a self-update failure silently crash-loops the service with the orchestrator never
   running, so a stale-but-running process plus a journal warning is preferred — the warning is the operator's signal
   to restore the checkout.
-- **Dependency refresh** (`run.sh refresh_dependencies`): before every Python launch, the wrapper checks the
-  checkout's dependency files against its successful install stamp and refreshes the environment when they differ.
-  The [operator runbook](configuration/operations.md#launcher-dependency-refresh) documents the stamp, timeout and
+- **Developer checkout dependency refresh** (`run.sh refresh_dependencies`): before every Python launch, the wrapper
+  checks the checkout's dependency files against its successful install stamp and refreshes the environment when
+  they differ.
+  The [developer guide](development.md#launcher-dependency-refresh) documents the stamp, timeout and
   child-process caveat, optional-group handling, sync requirements, and retry policy.
 - **Signals**: SIGINT/SIGTERM set a flag and call `scheduler.shutdown(wait=False)` synchronously so the submit path is
   closed mid-tick; the loop then stops at the next tick boundary and drains. The drain terminates in-flight agent and
@@ -970,7 +973,7 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
                                     │ PyGithub (one token per slug)
                                     │
    ┌────────────────────────────────┴─────────────────────────────────────┐
-   │  orchestrator process  (python -m orchestrator)                      │
+   │  orchestrator process  (chipping-orchestrator)                       │
    │  ───────────────────────────────────────────────────                 │
    │   cli.main over orchestrator/runtime/                                │
    │     startup: refuse an ALLOWED_ISSUE_AUTHORS naming nobody (exit 1); │

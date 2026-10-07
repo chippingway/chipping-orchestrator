@@ -17,7 +17,8 @@ handler reads and writes.
 
 | If you want to… | Read |
 |---|---|
-| install and run it | the [quick start](../README.md#quick-start), then [basic setup](configuration.md#basic-setup) |
+| install with pipx | the [quick start](../README.md#quick-start), then [basic setup](configuration.md#basic-setup) |
+| run from source or launch developer analytics tools | the [developer guide](development.md) |
 | understand the design before changing it | [`architecture.md`](architecture.md) |
 | know what a label means, or when it moves | [`state-machine.md`](state-machine.md) |
 | know which agent a stage spawns, under what prompt | [`workflow.md`](workflow.md) |
@@ -53,6 +54,7 @@ Grouped the way the site's navigation groups them.
   [analytics database](observability/analytics-database.md),
   [analytics dashboard](observability/analytics-dashboard.md), [usage parser](observability/usage.md)
 - **Releases** — [release timeline](release-timeline.md)
+- **Developers** — [source checkouts and tools](development.md)
 
 [pollers]: configuration/operations.md#running-more-than-one-poller
 [publishing]: configuration/operations.md#publishing-the-documentation
