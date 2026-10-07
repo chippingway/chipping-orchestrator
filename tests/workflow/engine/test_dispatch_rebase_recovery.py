@@ -20,13 +20,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git import branch_transport
-from orchestrator.git.base_sync import pr as _pr, refresh as _refresh
 from orchestrator.git.verification import probes as _probes
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
     paths as _worktree_paths,
 )
-from orchestrator.workflow.engine import dispatch_guards
+from orchestrator.workflow.engine import base_refresh as _base_refresh, base_rewrite as _base_rewrite, dispatch_guards
 from tests.support.fakes import FakeGitHubClient, FakePR, FakePRRef, make_issue
 from tests.workflow.fixtures import _FAKE_WT, _TEST_SPEC
 
@@ -86,8 +85,8 @@ def _walks(gh: FakeGitHubClient, checkout: Path) -> None:
     ))
     with patch.object(
         branch_transport, "_authed_fetch", return_value=_FETCHED_BRANCH,
-    ), patch.object(_refresh, "_worktree_behind_base", return_value=0):
-        _refresh._sync_worktree_with_base(gh, _TEST_SPEC, checkout, ISSUE)
+    ), patch.object(_base_refresh, "_worktree_behind_base", return_value=0):
+        _base_refresh._sync_worktree_with_base(gh, _TEST_SPEC, checkout, ISSUE)
 
 
 class _InterruptedRebaseCase(unittest.TestCase):
@@ -133,7 +132,7 @@ class _InterruptedRebaseCase(unittest.TestCase):
     def _refreshes_with_an_unreadable_pr(self) -> None:
         """The refresh pass that returns before its recovery can run."""
         with patch.object(self.gh, "get_pr", side_effect=_UNREADABLE_PR):
-            _pr._sync_pr_worktree_to_base(
+            _base_rewrite._sync_pr_worktree_to_base(
                 self.gh, _TEST_SPEC, self.issue,
                 self.gh.read_pinned_state(self.issue), _FAKE_WT, PR_NUMBER, 0,
             )
@@ -144,7 +143,7 @@ class _InterruptedRebaseCase(unittest.TestCase):
             branch_transport, "_authed_target_fetch",
             return_value=_FAILED_BASE_FETCH,
         ):
-            _refresh._refresh_base_and_worktrees(self.gh, _TEST_SPEC)
+            _base_refresh._refresh_base_and_worktrees(self.gh, _TEST_SPEC)
 
     def _strands_twice(self, label) -> MagicMock:
         """Stop two ticks over a missing checkout, handing back its restore."""

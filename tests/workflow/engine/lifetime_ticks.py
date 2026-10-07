@@ -6,8 +6,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from orchestrator.git.base_sync import refresh as _base_refresh
 from orchestrator.workflow.engine import (
+    base_refresh as _base_refresh,
     issue_processing as _issue_processing,
     prompt_context as _prompt_context,
 )

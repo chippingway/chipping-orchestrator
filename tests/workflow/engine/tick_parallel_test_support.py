@@ -26,7 +26,6 @@ FakeGitHubClient = _fakes.FakeGitHubClient
 make_issue = _fakes.make_issue
 
 PROCESS_ISSUE = "_process_issue"
-REFRESH_BASE = "_refresh_base_and_worktrees"
 
 _WORKER_ISSUE_NUMBERS = (1, 2, 3)
 _ORIGINAL_WORKFLOW_LABEL = FakeGitHubClient.workflow_label

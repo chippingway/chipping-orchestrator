@@ -18,9 +18,10 @@ theirs; only the attempt and the branch are handed in, as the attempt pinned
 them before git ran.
 
 Dormant. No route calls these owners yet: the auto-rebase still publishes
-through `publication` and recovers through `replay_recovery`, and the
-workflow-side coordinator that will consume the candidate and finalize the
-landing is what activates them.
+through `publication` and recovers through `replay_recovery`, both reached
+from the workflow's base-rewrite coordinator (`workflow/engine/base_rewrite.py`),
+and that coordinator consuming the candidate and finalizing the landing is what
+activates them.
 """
 from __future__ import annotations
 

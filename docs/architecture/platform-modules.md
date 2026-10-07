@@ -85,18 +85,19 @@ last is held by the loader itself rather than by a check.
   `git/snapshots/mirrors.py`, and the three
   `git/measurement/` owners that log, which all report on the same token, `ls-remote`, fetch, push, and diff
   plumbing),
-  `orchestrator.base_sync` (`git/base_sync/state.py`), `orchestrator.worktree_lifecycle` (the
-  `git/worktrees/` owners that log, plus `runtime/artifacts.py`, `runtime/artifact_schedule.py`, and
-  `runtime/artifact_records.py` above them — when a maintenance pass ran, why it did not (including a window that
-  closed before its pass could start), and the record one candidate's answer could not be written as are facts about
-  the same artifacts the owners under it report on, so an operator filtering for what
+  `orchestrator.base_sync` (`git/base_sync/state.py`, and the workflow's per-tick refresh on
+  `workflow/engine/base_refresh.py`, so one filter follows a refresh into the owners here),
+  `orchestrator.worktree_lifecycle` (the `git/worktrees/` owners that log, plus `runtime/artifacts.py`,
+  `runtime/artifact_schedule.py`, and `runtime/artifact_records.py` above them — when a maintenance pass ran, why it
+  did not (including a window that closed before its pass could start), and the record one candidate's answer could
+  not be written as are facts about the same artifacts the owners under it report on, so an operator filtering for what
   happened to a finished issue's checkout is told about the day the host was too busy to attempt one), and
   `orchestrator.branch_publication` (`git/publication/rewrite.py`). A
   module moved between packages does not take its channel with it, and each of the four names is asserted where
   its owner is tested —
   `tests/git/test_branch_transport.py`, `tests/git/test_credentials.py`, `tests/git/test_ref_discovery.py`,
   and `tests/git/test_ref_transport.py`,
-  `tests/git/base_sync/test_state.py`, `tests/git/worktrees/test_imports.py`,
+  `tests/git/base_sync/test_state.py` and `tests/workflow/test_imports.py`, `tests/git/worktrees/test_imports.py`,
   `tests/runtime/test_artifacts.py`, `tests/runtime/test_artifact_records.py`, and
   `tests/git/publication/test_imports.py`.
 - **Import cost.** `import orchestrator` costs the root module and no owner behind it, and importing a `runtime/`
@@ -544,18 +545,10 @@ orchestrator/
                         stderr captured to a file rather than a pipe nobody drains, so the peak is one chunk
                         however large an agent made the content behind it. Reads the argv prefix and the
                         environment off `commands` rather than restating either
-    base_sync/          the per-tick base fetch and the auto-rebase of every worktree behind it
-      refresh.py        the authenticated base fetch, the walk of the repository's worktrees root that hands
-                        each entry to the selection owner below, the scheduler-active guard that keeps a
-                        worktree out from under a live worker, the issue's writer claim that keeps it out from
-                        under every other writer on the host -- taken behind that guard and before the issue is
-                        read, on the key every dispatch path takes, and held through whichever route follows, so a
-                        refused issue is skipped with nothing read or written and synced on a later tick -- the
-                        dirty-tree refusal a pre-PR rebase owes,
-                        the base-lag probe, and the pre-PR versus PR-aware route -- including the one road a lag
-                        that cannot be counted does not end: over a pinned auto-rebase anchor it is itself the
-                        answer, and the checkout is reset and parked rather than left for a handler the
-                        dispatcher holds back. Nothing below it takes the claim again
+    base_sync/          the auto-rebase of every worktree the workflow's per-tick refresh walks
+                        (`workflow/engine/base_refresh.py`): the selection it asks first, the pre-PR rebase it
+                        runs, and the gates, rebase, publication, and recovery its base-rewrite coordinator
+                        (`workflow/engine/base_rewrite.py`) orders for a pushed branch
       refresh_selection.py
                         which discovered directories name an issue, whether that issue reads at all, and the
                         order the refusals that end a sync before any rewrite are asked in: the hard-skip, the
@@ -587,10 +580,6 @@ orchestrator/
                         park a stage left still owes a standing anchor its recovery; a terminal PR ends an anchored
                         attempt's whole handoff through `terminal_handoff`
       pre_pr.py         the hardened rebase / merge probes and the aborting pre-PR local rebase
-      pr.py             the order a PR-having worktree's gates, rebase, and publication are asked in, a terminal
-                        pull request asked for ahead of any park an anchor stands under, the recovery alone an
-                        anchor a stage's park stands over is answered with, and the same gates in front of the
-                        abort a checkout whose lag cannot be counted takes
       startup.py        the pre-rebase HEAD guard, and the anchor and the attempt's terms persisted before git
                         runs
       attempts.py       the replay and announcement checkpoints, their presence checks, and the whole-record
@@ -1213,10 +1202,10 @@ off a facade:
   after eligibility and the injected guards on `maintenance_guards`. The workflow layer is never imported here.
   `runtime/artifacts.py` schedules the pass, takes the scheduler hold, and injects those guards; through
   `runtime/exclusion.py`, it claims the host against processes no scheduler hold can see.
-- `base_sync/` — `models` and `state` carry only data. On the sync side `refresh` calls `refresh_selection` before
-  `pre_pr` and `pr`, `refresh_selection` asks `frozen` alone, `pr` asks `eligibility`, `startup`, and `publication` in
-    that order, and `guards` ends in `persistence`. On the recovery side `recovery` enters `replay_recovery`,
-  which uses `replay_cleanup` before comparison, then
+- `base_sync/` — `models` and `state` carry only data. On the sync side the workflow's refresh calls
+  `refresh_selection` before `pre_pr` and its base-rewrite coordinator, `refresh_selection` asks `frozen` alone, the
+  coordinator asks `eligibility`, `startup`, and `publication` in that order, and `guards` ends in `persistence`.
+  On the recovery side `recovery` enters `replay_recovery`, which uses `replay_cleanup` before comparison, then
   `replay_refusals` and `replay_evidence` before selecting that shared push. Its refusal owners separate checkout
   rollback, publication identity, and transfer accounting. `recovery_push` coordinates the gate and `persistence`
     finalization, and `transfer_permits` freezes the entry for the permit it re-asks. `attempts` is under both: it
@@ -1231,6 +1220,6 @@ off a facade:
   answers a held anchor through `replay_cleanup` and `replay_publication_parks`. `rewrite_handoffs` carries only data
   as well; `rewrite_facts` reads it through the verification, measurement, and publication probes and the branch
   transport, and `rewrite_transport` publishes it through `rewrite_facts` and the branch transport. No owner in the
-  package calls the three, which stay dormant until the workflow coordinator consumes them. The three
-  keyword-call adapters — the PR sync, the conflict route, and the crash recovery — still take the argument lists
-  their callers spell and normalize each into the typed context entry point beside it.
+  package calls the three, which stay dormant until the workflow coordinator consumes them. The two keyword-call
+  adapters here — the conflict route and the crash recovery — like the PR sync on the workflow's coordinator, still
+  take the argument lists their callers spell and normalize each into the typed context entry point beside it.

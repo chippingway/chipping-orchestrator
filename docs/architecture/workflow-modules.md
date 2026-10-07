@@ -29,10 +29,11 @@ see, and is called out as such.
   bound at import, and `tests/workflow/stages/test_imports.py` that every labelled target lands on a stage
   package here. The late size gate's own refusal is resolved the same way and for the same reason — it lives
   on a stage owner, so the dispatcher imports it when it routes.
-- **Two operator log channels, spelled literally.** The engine, `late_split/`, and stage owners report on
-  `orchestrator.workflow`, and `workflow/transition_guard.py` on `orchestrator.state_machine`. A module moved
-  between packages does not take its channel with it — `tests/workflow/test_imports.py` walks the package and
-  checks every owner that declares a logger.
+- **Operator log channels, spelled literally.** The engine, `late_split/`, and stage owners report on
+  `orchestrator.workflow`, `workflow/transition_guard.py` on `orchestrator.state_machine`, and
+  `engine/base_refresh.py` on `orchestrator.base_sync`, the channel of every git base-sync owner a refresh route runs
+  through. A module moved between packages does not take its channel with it — `tests/workflow/test_imports.py`
+  walks the package and checks every owner that declares a logger.
 - **Nothing sits flat beside the package.** The retired spellings — `orchestrator.state_machine`,
   `orchestrator.workflow_drift`, `orchestrator.workflow_messages`, and the export and dependency manifests — resolve
   to nothing (`tests/workflow/test_imports.py`), and the repo-wide naming rule in
@@ -1441,11 +1442,32 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             cleanup in their defined order; an open PR on a human-closed issue stays available
     terminals.py           select merged, rejected, and human-closed endings from their fresh readings; failed reads
                             leave the decision for a later tick, and the merged-PR path precedes closed-issue rejection
-    tick.py                 one repo's polling pass and the order it drives: the base refresh, the
+    tick.py                 one repo's polling pass and the order it drives: the base refresh below, the
                             community-contribution sweep above, the skill-catalog emission, and the scheduler
                             handoff or in-tick execution behind them -- with the sequential mode of that execution
                             here, since streaming the enumeration rather than materializing it is what keeps a
                             partial one from losing what it already yielded
+    base_refresh.py         the per-tick base refresh the tick opens with: the one authenticated fetch of
+                            `<remote>/<base>`, the walk of the repository's worktrees root that hands each entry to
+                            the git `refresh_selection` owner, the scheduler-active guard that keeps a worktree out
+                            from under a live worker, the issue's writer claim that keeps it out from under every
+                            other writer on the host -- taken behind that guard and before the issue is read, on the
+                            key every dispatch path takes, and held through whichever route follows, so a refused
+                            issue is skipped with nothing read or written and synced on a later tick -- the
+                            dirty-tree refusal a pre-PR rebase owes, the base-lag probe, and the route: the git
+                            `pre_pr` rebase for a branch nobody has pushed yet, the base-rewrite coordinator below
+                            for one a pull request carries -- reached even with no lag, so a pinned anchor's
+                            recovery is never skipped -- and, over a pinned anchor whose lag cannot be counted, that
+                            coordinator's reset and park rather than a handler the dispatcher holds back. One
+                            worktree's failure is logged and the walk goes on. Nothing below it takes the claim
+                            again, and its lines report on `orchestrator.base_sync`
+    base_rewrite.py         the base-rewrite coordinator for a PR-having worktree: the order the git `base_sync`
+                            owners' gates, rebase, and publication are asked in, a terminal pull request asked for
+                            ahead of any park an anchor stands under, the recovery alone an anchor a stage's park
+                            stands over is answered with, and the same gates in front of the abort a checkout whose
+                            lag cannot be counted takes. It writes nothing itself: the publication and the recovery
+                            are delegated whole to `eligibility`, `startup`, `publication`, and `recovery_holds`,
+                            and the keyword adapter binds the refresh's argument list into their typed context
     parallel.py             the other in-tick mode: the bounded pool a `parallel_limit` above 1 runs the pass
                             across, the submission plan the executor is sized from -- which is why this half
                             materializes the enumeration the sequential one streams -- the family bucket folded

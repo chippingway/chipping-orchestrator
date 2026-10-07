@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.git import branch_transport
-from orchestrator.git.base_sync import refresh
+from orchestrator.workflow.engine import base_refresh
 from tests.git.base_sync.gate_reads_support import _gate_base_reads
 
 # The label and pull-request state this tree spells for itself, beside
@@ -278,4 +278,4 @@ class _RefreshBaseRealGitFixture:
             WORKTREES_DIR_ATTR,
             self._tmpdir / WORKTREES_DIR_NAME,
         ):
-            refresh._refresh_base_and_worktrees(self._gh, self._spec)
+            base_refresh._refresh_base_and_worktrees(self._gh, self._spec)

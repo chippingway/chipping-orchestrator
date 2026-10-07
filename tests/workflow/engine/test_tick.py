@@ -11,12 +11,11 @@ from orchestrator.skills import catalog
 from orchestrator.workflow.engine import community, dispatch, parallel, tick
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import tick_parallel_test_support as support
-from tests.workflow.git_owners import seam_patch
+from tests.workflow.engine.dispatch_scheduler_workers import patch_base_refresh
 from tests.workflow.repo_values import _TEST_SPEC
 
 _EXPECTED_PASSES = ("refresh", "sweep", "catalog", "dispatch")
 
-_REFRESH_BASE = "_refresh_base_and_worktrees"
 
 # The two in-tick widths and the owner each one has to reach, read as
 # (`parallel_limit`, the sequential loop ran, the bounded pool ran).
@@ -59,7 +58,7 @@ class TickPassOrderTest(unittest.TestCase):
     def _passes_driven_by(self, scheduler) -> list[str]:
         recorder = _PassRecorder()
         with (
-            seam_patch(_REFRESH_BASE, recorder.pass_named("refresh")),
+            patch_base_refresh(recorder.pass_named("refresh")),
             patch.object(
                 community, "_sweep_community_contribution_prs",
                 recorder.pass_named("sweep"),
@@ -99,7 +98,7 @@ class TickInTickRouteTest(unittest.TestCase):
         sequential = MagicMock()
         bounded = MagicMock()
         with (
-            seam_patch(_REFRESH_BASE),
+            patch_base_refresh(),
             patch.object(tick, "_run_sequential_tick", sequential),
             patch.object(parallel, "_run_parallel_tick", bounded),
         ):
@@ -117,7 +116,7 @@ class TickInvokesSweepTest(unittest.TestCase):
         gh = FakeGitHubClient()
         refresh = MagicMock()
         sweep = MagicMock()
-        with seam_patch(_REFRESH_BASE, refresh), \
+        with patch_base_refresh(refresh), \
              patch.object(community, "_sweep_community_contribution_prs", sweep):
             tick.tick(gh, _TEST_SPEC)
         sweep.assert_called_once_with(gh, _TEST_SPEC)

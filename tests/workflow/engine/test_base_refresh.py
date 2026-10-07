@@ -1,5 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
+"""The workflow's per-tick base refresh: its fetch, its walk, and the gates in front of a route."""
 from __future__ import annotations
 
 import shutil
@@ -9,15 +10,26 @@ from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.base_sync import refresh
+from orchestrator.workflow.engine import base_refresh
 from tests.git.base_sync.sync_test_support import _git_result, _patch_base_sync
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.support.writer_claims import held_elsewhere
+from tests.workflow.engine.refresh_checkouts_support import (
+    AFTER_SHA,
+    ONE_PUBLICATION,
+    ROUND_BEFORE,
+    Checkouts,
+    Walked,
+    observed,
+    pr_of,
+    seed_open_pr,
+)
 
 ISSUE = 7
 SLUG = "acme/widget"
 BASE_BRANCH = "main"
 LABEL_IMPLEMENTING = "workflow:implementing"
+LABEL_VALIDATING = "workflow:validating"
 
 # Multi-remote spec exercised by the per-spec authed-fetch regression.
 PRIVATE_SLUG = "acme/widget-private"
@@ -34,9 +46,19 @@ FETCH_COMMAND = "fetch"
 FREE_ISSUE = 8
 
 
+class _ActiveIn:
+    """A scheduler whose workers are still running the issues named."""
+
+    def __init__(self, *numbers: int) -> None:
+        self.active = set(numbers)
+
+    def is_active(self, _repo: str, issue_number: int) -> bool:
+        return issue_number in self.active
+
+
 class RefreshBaseAndWorktreesTest(unittest.TestCase):
     """Per-tick fetch and worktree discovery. Real-git integration coverage
-    lives in ``test_real_git.py``.
+    lives in ``tests/git/base_sync/test_real_git.py``.
     """
 
     def setUp(self) -> None:
@@ -55,7 +77,7 @@ class RefreshBaseAndWorktreesTest(unittest.TestCase):
         fetch_fail = MagicMock(return_value=_git_result(returncode=1, stderr="boom"))
         sync = MagicMock()
         with _patch_base_sync(target_fetch=fetch_fail, sync=sync):
-            refresh._refresh_base_and_worktrees(self.gh, self.spec)
+            base_refresh._refresh_base_and_worktrees(self.gh, self.spec)
         sync.assert_not_called()
 
     def test_returns_early_without_worktree_root(self) -> None:
@@ -66,7 +88,7 @@ class RefreshBaseAndWorktreesTest(unittest.TestCase):
             worktrees_root=MagicMock(return_value=self.tmpdir / "missing"),
             sync=sync,
         ):
-            refresh._refresh_base_and_worktrees(self.gh, self.spec)
+            base_refresh._refresh_base_and_worktrees(self.gh, self.spec)
         sync.assert_not_called()
 
     def test_iterates_only_issue_dirs(self) -> None:
@@ -87,7 +109,7 @@ class RefreshBaseAndWorktreesTest(unittest.TestCase):
             worktrees_root=MagicMock(return_value=wt_root),
             sync=sync,
         ):
-            refresh._refresh_base_and_worktrees(self.gh, self.spec)
+            base_refresh._refresh_base_and_worktrees(self.gh, self.spec)
 
         called_numbers = sorted(recorded_call.args[3] for recorded_call in sync.call_args_list)
         self.assertEqual(called_numbers, [7, 42])
@@ -104,7 +126,7 @@ class RefreshBaseAndWorktreesTest(unittest.TestCase):
             worktrees_root=MagicMock(return_value=wt_root),
             sync=sync,
         ):
-            refresh._refresh_base_and_worktrees(self.gh, self.spec)
+            base_refresh._refresh_base_and_worktrees(self.gh, self.spec)
         # Both worktrees attempted despite the first raising.
         self.assertEqual(sync.call_count, 2)
 
@@ -126,7 +148,7 @@ class RefreshBaseAndWorktreesTest(unittest.TestCase):
             git=MagicMock(return_value=_git_result(stdout=TWO_BEHIND_STDOUT)),
             rebase=rebase,
         ):
-            refresh._refresh_base_and_worktrees(self.gh, self.spec)
+            base_refresh._refresh_base_and_worktrees(self.gh, self.spec)
 
         self.assertEqual(reads.call_args_list, [call(FREE_ISSUE)])
         rebase.assert_called_once()
@@ -154,7 +176,7 @@ class RefreshBaseAndWorktreesTest(unittest.TestCase):
             git=plain_git,
             worktrees_root=MagicMock(return_value=self.tmpdir / "missing"),
         ):
-            refresh._refresh_base_and_worktrees(self.gh, private_spec)
+            base_refresh._refresh_base_and_worktrees(self.gh, private_spec)
 
         self.assertEqual(
             fetch.call_args_list,
@@ -170,6 +192,58 @@ class RefreshBaseAndWorktreesTest(unittest.TestCase):
                 FETCH_COMMAND,
                 f'plain `_git("fetch", ...)` leaked: {args!r}',
             )
+
+
+class ActiveIssueRefreshTest(unittest.TestCase):
+    """An issue the scheduler's worker is still running is left to that worker."""
+
+    def setUp(self) -> None:
+        self.spec = _config_models.RepoSpec(
+            slug=SLUG, target_root=Path("/tmp/refresh-target"), base_branch=BASE_BRANCH,
+        )
+        self.gh = FakeGitHubClient()
+        for number in (ISSUE, FREE_ISSUE):
+            seed_open_pr(self.gh, number)
+        self.checkouts = Checkouts(self, ISSUE, FREE_ISSUE)
+        self.scheduler = _ActiveIn(ISSUE)
+
+    def test_an_active_issue_waits_for_its_worker(self) -> None:
+        # While the worker runs #7 the walk neither reads it nor rewrites its
+        # pull request, and publishes #8's all the same; the walk after the
+        # worker exits publishes #7 and leaves #8, already carried over, alone.
+        record = self.gh.pinned_data(ISSUE)
+        spied = patch.object(self.gh, "get_issue", wraps=self.gh.get_issue)
+        reads = self.enterContext(spied)
+
+        self._walked()
+
+        self.assertEqual(reads.call_args_list, [call(FREE_ISSUE)])
+        self.assertEqual(self.gh.pinned_data(ISSUE), record)
+        self.assertEqual(observed(self.gh, self.checkouts), Walked(
+            rebased=[FREE_ISSUE],
+            published={FREE_ISSUE: ONE_PUBLICATION},
+            relabelled=[(FREE_ISSUE, LABEL_VALIDATING)],
+            noticed=[pr_of(FREE_ISSUE)],
+            announced={FREE_ISSUE: [AFTER_SHA]},
+            rounds={ISSUE: ROUND_BEFORE, FREE_ISSUE: 0},
+        ))
+
+        self.scheduler.active.clear()
+        self._walked()
+
+        self.assertEqual(observed(self.gh, self.checkouts), Walked(
+            rebased=[FREE_ISSUE, ISSUE],
+            published={FREE_ISSUE: ONE_PUBLICATION, ISSUE: ONE_PUBLICATION},
+            relabelled=[(FREE_ISSUE, LABEL_VALIDATING), (ISSUE, LABEL_VALIDATING)],
+            noticed=[pr_of(FREE_ISSUE), pr_of(ISSUE)],
+            announced={FREE_ISSUE: [AFTER_SHA], ISSUE: [AFTER_SHA]},
+            rounds={ISSUE: 0, FREE_ISSUE: 0},
+        ))
+
+    def _walked(self) -> None:
+        """One refresh over both checkouts, asking the scheduler before each."""
+        with self.checkouts.walked():
+            base_refresh._refresh_base_and_worktrees(self.gh, self.spec, scheduler=self.scheduler)
 
 
 class SyncWorktreeWithBaseTest(unittest.TestCase):
@@ -191,7 +265,7 @@ class SyncWorktreeWithBaseTest(unittest.TestCase):
             dirty=MagicMock(return_value=["a.py"]),
             rebase=rebase,
         ):
-            refresh._sync_worktree_with_base(self.gh, self.spec, self.wt, ISSUE)
+            base_refresh._sync_worktree_with_base(self.gh, self.spec, self.wt, ISSUE)
         rebase.assert_not_called()
 
     def test_skips_when_already_up_to_date(self) -> None:
@@ -202,7 +276,7 @@ class SyncWorktreeWithBaseTest(unittest.TestCase):
             git=git_mock,
             rebase=rebase,
         ):
-            refresh._sync_worktree_with_base(self.gh, self.spec, self.wt, ISSUE)
+            base_refresh._sync_worktree_with_base(self.gh, self.spec, self.wt, ISSUE)
         rebase.assert_not_called()
 
     def test_skips_when_rev_list_fails(self) -> None:
@@ -213,7 +287,7 @@ class SyncWorktreeWithBaseTest(unittest.TestCase):
             git=git_mock,
             rebase=rebase,
         ):
-            refresh._sync_worktree_with_base(self.gh, self.spec, self.wt, ISSUE)
+            base_refresh._sync_worktree_with_base(self.gh, self.spec, self.wt, ISSUE)
         rebase.assert_not_called()
 
     def test_missing_issue_is_swallowed(self) -> None:
@@ -221,7 +295,7 @@ class SyncWorktreeWithBaseTest(unittest.TestCase):
         # must not crash the refresh -- skip silently.
         rebase = MagicMock()
         with _patch_base_sync(rebase=rebase):
-            refresh._sync_worktree_with_base(
+            base_refresh._sync_worktree_with_base(
                 self.gh, self.spec, self.wt, MISSING_ISSUE_NUMBER,
             )
         rebase.assert_not_called()

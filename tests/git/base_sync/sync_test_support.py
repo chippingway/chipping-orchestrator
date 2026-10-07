@@ -10,10 +10,11 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport, commands
-from orchestrator.git.base_sync import pre_pr, refresh
+from orchestrator.git.base_sync import pre_pr
 from orchestrator.git.publication import probes as publication_probes
 from orchestrator.git.verification import probes as verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths
+from orchestrator.workflow.engine import base_refresh
 
 
 def _git_result(
@@ -45,7 +46,7 @@ _BASE_SYNC_TARGETS = MappingProxyType(
         "ahead_behind": (publication_probes, "_branch_divergence"),
         "target_fetch": (branch_transport, "_authed_target_fetch"),
         "worktrees_root": (paths, "_repo_worktrees_root"),
-        "sync": (refresh, "_sync_worktree_with_base"),
+        "sync": (base_refresh, "_sync_worktree_with_base"),
     }
 )
 

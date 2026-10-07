@@ -19,12 +19,12 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git import branch_transport
-from orchestrator.git.base_sync import refresh as _refresh
 from orchestrator.git.worktrees import (
     naming as _worktree_naming,
     paths as _worktree_paths,
 )
 from orchestrator.workflow.engine import (
+    base_refresh as _base_refresh,
     issue_processing as _issue_processing,
     stage_targets as _stage_targets,
     usage as _usage,
@@ -156,7 +156,7 @@ class RestoredCheckoutTest(_LostCheckoutCase):
     def test_the_next_refresh_publishes_the_replay(self) -> None:
         _issue_processing._process_issue(self.gh, self.spec, self.issue)
 
-        _refresh._sync_worktree_with_base(
+        _base_refresh._sync_worktree_with_base(
             self.gh, self.spec, self.checkout, ISSUE,
         )
 
@@ -193,7 +193,7 @@ class WidenedReviewCapTest(_LostCheckoutCase):
 
         _issue_processing._process_issue(self.gh, self.spec, self.issue)
         self.agent.assert_not_called()
-        _refresh._sync_worktree_with_base(
+        _base_refresh._sync_worktree_with_base(
             self.gh, self.spec, self.checkout, ISSUE,
         )
 

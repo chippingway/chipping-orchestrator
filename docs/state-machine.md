@@ -129,7 +129,10 @@ down instead, and takes its own park on the tick after that one clears
 ### Base refresh
 
 Before any issue is dispatched the tick fetches `<remote>/<base>` once and rebases each existing per-issue worktree
-onto it, so a long-lived worktree does not stay anchored to whatever base looked like when it was added. Each worktree
+onto it, so a long-lived worktree does not stay anchored to whatever base looked like when it was added. The refresh
+is the workflow's (`workflow/engine/base_refresh.py`), and so is the order a PR-having worktree's route is taken in
+(`workflow/engine/base_rewrite.py`); the selection, the rebase, and the publication and recovery effects are the git
+`base_sync` owners' that route delegates to. Each worktree
 is synced under its issue's writer claim — the one every dispatch path takes, on the same key — held from before the
 issue is read until its route ends, recovery and settlement included, so an issue another poller on the host is
 dispatching or refreshing is left untouched for the tick and synced on a later one. A pre-PR

@@ -7,8 +7,9 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
-from orchestrator.git.base_sync import recovery_holds, refresh
+from orchestrator.git.base_sync import recovery_holds
 from orchestrator.github.labels import BACKLOG_LABEL, PAUSED_LABEL
+from orchestrator.workflow.engine import base_refresh
 from tests.git.base_sync import base_sync_helpers as fixtures
 from tests.git.base_sync.sync_test_support import _patch_base_sync
 from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
@@ -152,7 +153,7 @@ class RefreshGuardTest(unittest.TestCase):
         }
         patches.update(mocks)
         with _patch_base_sync(**patches):
-            refresh._sync_worktree_with_base(
+            base_refresh._sync_worktree_with_base(
                 gh, fixtures.SPEC, fixtures.WORKTREE, fixtures.ISSUE,
             )
 

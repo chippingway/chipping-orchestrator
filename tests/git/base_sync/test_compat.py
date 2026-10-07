@@ -9,26 +9,20 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from orchestrator.git.base_sync import conflicts, models, pr, recovery
+from orchestrator.git.base_sync import conflicts, models, recovery
 
 _SPEC = "spec"
 _ISSUE = "issue"
 _STATE = "state"
-_SYNC_PR_NUMBER = 31
 _RECOVERY_PR_NUMBER = 41
 _CONFLICT_PR_NUMBER = 51
 
-# Each of the three is still reached by its pre-context argument list -- the
-# refresh drives the PR sync, an eligibility gate the crash recovery, and a
-# failed rebase the conflict route -- so every owner pins the signature it
-# binds and normalizes into the context entrypoint beside it, which is the
-# boundary the patches below intercept.
+# Each of the two is still reached by its pre-context argument list -- an
+# eligibility gate drives the crash recovery, and a failed rebase the conflict
+# route -- so every owner pins the signature it binds and normalizes into the
+# context entrypoint beside it, which is the boundary the patches below
+# intercept.
 _EXPECTED_SIGNATURES = (
-    (
-        pr,
-        "_sync_pr_worktree_to_base",
-        "(gh, spec, issue, state, worktree, pr_number, behind)",
-    ),
     (
         recovery,
         "_recover_pending_auto_base_rebase",
@@ -51,29 +45,6 @@ _EXPECTED_SIGNATURES = (
 
 
 class BaseSyncCompatibilityAdapterTest(unittest.TestCase):
-    def test_sync_accepts_historical_keywords(self) -> None:
-        gh = Mock()
-        gh.workflow_label.return_value = "workflow:validating"
-        state = Mock()
-        state.get.return_value = "pre-rebase"
-        run_sync = Mock()
-        with patch.object(pr, "_sync_pr_worktree_context", run_sync):
-            pr._sync_pr_worktree_to_base(
-                gh=gh,
-                spec=_SPEC,
-                issue=_ISSUE,
-                state=state,
-                worktree=Path("worktree"),
-                pr_number=_SYNC_PR_NUMBER,
-                behind=2,
-            )
-
-        context = run_sync.call_args.args[0]
-        self.assertEqual(context.pr_number, _SYNC_PR_NUMBER)
-        self.assertEqual(context.behind, 2)
-        self.assertEqual(context.label, "workflow:validating")
-        self.assertEqual(context.pending_pre_rebase_sha, "pre-rebase")
-
     def test_recovery_applies_historical_defaults(self) -> None:
         recover = Mock(return_value=True)
         with patch.object(

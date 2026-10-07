@@ -18,7 +18,6 @@ from tests.skills.skills_test_support import (
 )
 
 _TEST_REPO_SLUG = "chippingway/chipping-orchestrator"
-_REFRESH_BASE = "_refresh_base_and_worktrees"
 _TEST_BASE_BRANCH = "main"
 _TEST_REMOTE_NAME = "origin"
 _DECOMPOSE_SKILL = "decompose"
@@ -364,13 +363,13 @@ class TickEmitsRepoSkillCatalogTest(unittest.TestCase):
         # the pass -- and what proves the spec it is handed is the one being
         # polled, which is all the catalog needs to read the right base ref.
         from tests.support.fakes import FakeGitHubClient, make_issue
+        from tests.workflow.engine.dispatch_scheduler_workers import patch_base_refresh
         from tests.workflow.fixtures import _TEST_SPEC
-        from tests.workflow.git_owners import seam_patch
 
         gh = FakeGitHubClient()
         gh.add_issue(make_issue(1, label="workflow:implementing"))
         emit = MagicMock()
-        with seam_patch(_REFRESH_BASE), \
+        with patch_base_refresh(), \
                 patch.object(_issue_processing, "_process_issue"), \
                 patch.object(catalog, "_emit_repo_skill_catalog", emit):
             _engine_tick.tick(gh, _TEST_SPEC)

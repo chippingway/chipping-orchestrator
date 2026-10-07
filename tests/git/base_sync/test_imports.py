@@ -14,8 +14,6 @@ _MODELS_OWNER = "orchestrator.git.base_sync.models"
 
 _PRE_PR_OWNER = "orchestrator.git.base_sync.pre_pr"
 
-_REFRESH_OWNER = "orchestrator.git.base_sync.refresh"
-
 _REFRESH_SELECTION_OWNER = "orchestrator.git.base_sync.refresh_selection"
 
 _STATE_OWNER = "orchestrator.git.base_sync.state"
@@ -35,8 +33,6 @@ _ELIGIBILITY_OWNER = "orchestrator.git.base_sync.eligibility"
 _PUBLICATION_OWNER = "orchestrator.git.base_sync.publication"
 
 _GUARDS_OWNER = "orchestrator.git.base_sync.guards"
-
-_PR_OWNER = "orchestrator.git.base_sync.pr"
 
 _CONFLICTS_OWNER = "orchestrator.git.base_sync.conflicts"
 
@@ -76,10 +72,10 @@ _OWNERS = (
     "orchestrator.git.base_sync.recovery_holds",
     "orchestrator.git.base_sync.recovery_notices",
     "orchestrator.git.base_sync.report_debt",
-    _MODELS_OWNER, _PRE_PR_OWNER, _REFRESH_OWNER, _REFRESH_SELECTION_OWNER,
+    _MODELS_OWNER, _PRE_PR_OWNER, _REFRESH_SELECTION_OWNER,
     _STATE_OWNER, _PERSISTENCE_OWNER, _OUTCOMES_OWNER, _SNAPSHOT_OWNER,
     _RECOVERY_OWNER, _STARTUP_OWNER, _ELIGIBILITY_OWNER, _PUBLICATION_OWNER,
-    _GUARDS_OWNER, _PR_OWNER, _CONFLICTS_OWNER, _FROZEN_OWNER,
+    _GUARDS_OWNER, _CONFLICTS_OWNER, _FROZEN_OWNER,
     _ATTEMPTS_OWNER, _TRANSFERS_OWNER, *_REWRITE_OWNERS,
 )
 
@@ -87,10 +83,14 @@ _MODULES = ("orchestrator.git.base_sync", *_OWNERS)
 
 # The module paths a second import site for these owners would take: the flat
 # spelling itself, and the inventory and resolver hooks one would be built from.
+# The per-tick refresh and the base-rewrite coordinator are the workflow's, so
+# their git spellings would be a shim pointing this layer back up at it.
 _FLAT_MODULES = (
     "orchestrator._base_sync_export_manifest",
     "orchestrator._base_sync_exports",
     "orchestrator.base_sync",
+    "orchestrator.git.base_sync.pr",
+    "orchestrator.git.base_sync.refresh",
 )
 
 # The state owner exists to spell out the pinned-state keys and the label
@@ -156,12 +156,10 @@ _OWNER_ONLY_NAMES = (
     "_publish_auto_rebase",
     "_publishes_the_candidate",
     "_recover_pending_auto_base_rebase",
-    "_refresh_base_and_worktrees",
     "_reset_clear_and_park",
     "_rewritten_by_the_rebase",
     "_route_pr_worktree_to_resolving_conflict",
     "_start_auto_rebase",
-    "_sync_pr_worktree_to_base",
     "log",
 )
 

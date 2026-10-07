@@ -16,7 +16,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.git.base_sync import refresh as _refresh
+from orchestrator.workflow.engine import base_refresh as _base_refresh, base_rewrite as _base_rewrite
 from tests.git.publication import squash_git_support as squash_support
 from tests.git.publication.squash_recovery_support import (
     APPROVED_COMMITS,
@@ -51,8 +51,8 @@ class BaseAdvanceRealGitTest(
         self._advances_the_base()
         rebased = MagicMock()
 
-        with patch.object(_refresh._pr, SYNC_PR_WORKTREE, rebased):
-            _refresh._sync_worktree_with_base(
+        with patch.object(_base_rewrite, SYNC_PR_WORKTREE, rebased):
+            _base_refresh._sync_worktree_with_base(
                 gate.gh, gate.spec, self.work, gate.issue.number,
             )
 
@@ -66,8 +66,8 @@ class BaseAdvanceRealGitTest(
         self._crashes_after_the_commit(gate)
         self._advances_the_base()
 
-        with patch.object(_refresh._pr, SYNC_PR_WORKTREE, MagicMock()):
-            _refresh._sync_worktree_with_base(
+        with patch.object(_base_rewrite, SYNC_PR_WORKTREE, MagicMock()):
+            _base_refresh._sync_worktree_with_base(
                 gate.gh, gate.spec, self.work, gate.issue.number,
             )
         squash_run = self._squashes(self._next_tick(gate))

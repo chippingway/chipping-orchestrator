@@ -8,6 +8,7 @@ import importlib
 import pkgutil
 import unittest
 from importlib.util import find_spec
+from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator import workflow as _workflow
@@ -64,6 +65,8 @@ _ENGINE_OWNERS = (
     "run_ledger_values",
 
     "agent_diagnostics",
+    "base_refresh",
+    "base_rewrite",
     "comments",
     "community",
     "completion_verdicts",
@@ -240,11 +243,16 @@ _STATE_NAMES = ("ControlLabel", "WorkflowLabel")
 
 _GUARD_NAMES = ("IllegalTransition", "guard_transition", "is_allowed_transition")
 
-# The two operator-facing log channels this package reports on. Every engine and
-# stage owner spells the first literally, and the transition guard the second.
+# The operator-facing log channels this package reports on. Every engine and
+# stage owner spells the first literally, and the owners named below the rest:
+# the transition guard its own, and the base refresh the one every git
+# base-sync owner its routes run through reports on.
 _WORKFLOW_CHANNEL = "orchestrator.workflow"
 
-_STATE_CHANNEL = "orchestrator.state_machine"
+_OWNER_CHANNELS = MappingProxyType({
+    "orchestrator.workflow.transition_guard": "orchestrator.state_machine",
+    "orchestrator.workflow.engine.base_refresh": "orchestrator.base_sync",
+})
 
 
 class CleanProcessImportTest(unittest.TestCase):
@@ -320,9 +328,7 @@ class LoggerChannelTest(unittest.TestCase):
     def test_every_owner_reports_on_its_channel(self) -> None:
         for module in self._modules_declaring_a_logger():
             with self.subTest(module=module.__name__):
-                expected = (
-                    _STATE_CHANNEL if module is _transition_guard else _WORKFLOW_CHANNEL
-                )
+                expected = _OWNER_CHANNELS.get(module.__name__, _WORKFLOW_CHANNEL)
                 self.assertEqual(module.log.name, expected)
 
     def _modules_declaring_a_logger(self) -> list:

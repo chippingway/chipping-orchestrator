@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.workflow.engine import issue_processing as _issue_processing, tick
 from tests.workflow.engine import tick_parallel_test_support as support, tick_probe_test_support as probes
-from tests.workflow.git_owners import seam_patch
+from tests.workflow.engine.dispatch_scheduler_workers import patch_base_refresh
 
 
 class TickPerRepoParallelLimitTest(unittest.TestCase):
@@ -31,7 +31,7 @@ class TickPerRepoParallelLimitTest(unittest.TestCase):
         caller_thread = threading.get_ident()
         probe = probes._ConcurrencyProbe()
 
-        with seam_patch(support.REFRESH_BASE), \
+        with patch_base_refresh(), \
              patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=probe):
             tick.tick(gh, support._spec(parallel_limit=1))
 
@@ -49,7 +49,7 @@ class TickPerRepoParallelLimitTest(unittest.TestCase):
         with support._running_thread(
             partial(probe.release_after, 2),
             probe.cleanup,
-        ), seam_patch(support.REFRESH_BASE), patch.object(
+        ), patch_base_refresh(), patch.object(
             _issue_processing,
             support.PROCESS_ISSUE,
             side_effect=probe,
@@ -69,7 +69,7 @@ class TickPerRepoParallelLimitTest(unittest.TestCase):
         support._seed_issues(gh, (1, 2, 3))
         recorder = probes._BarrierProcessRecorder(3)
 
-        with seam_patch(support.REFRESH_BASE), \
+        with patch_base_refresh(), \
              patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=recorder):
             tick.tick(gh, support._spec(parallel_limit=3))
 
@@ -83,7 +83,7 @@ class TickPerRepoParallelLimitTest(unittest.TestCase):
         support._seed_issues(gh, (1, 2, 3))
         recorder = probes._IssueProcessRecorder(failing_issue=2)
 
-        with seam_patch(support.REFRESH_BASE), \
+        with patch_base_refresh(), \
              patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=recorder):
             tick.tick(gh, support._spec(parallel_limit=3))
 
@@ -99,7 +99,7 @@ class TickPerRepoParallelLimitTest(unittest.TestCase):
         refresh = MagicMock()
         recorder = probes._RefreshOrderRecorder(refresh)
 
-        with seam_patch(support.REFRESH_BASE, refresh), \
+        with patch_base_refresh(refresh), \
              patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=recorder):
             tick.tick(gh, support._spec(parallel_limit=2))
 

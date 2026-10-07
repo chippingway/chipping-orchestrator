@@ -7,15 +7,15 @@ every dispatch path takes it on, so another poller's dispatch or refresh holding
 it costs this tick every read, git command, and write the route would have made
 -- and nothing else -- and the sync after it is let go runs the route whole.
 Held by this sync, the claim stays held until the route ends. Real competing
-processes over a real repository are pinned in `test_recovery_refresh_real_git`.
+processes over a real repository are pinned in
+`tests/git/base_sync/test_recovery_refresh_real_git.py`.
 """
 from __future__ import annotations
 
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.git.base_sync import refresh
-from orchestrator.workflow.engine import issue_processing as _issue_processing
+from orchestrator.workflow.engine import base_refresh, issue_processing as _issue_processing
 from tests.git.base_sync import refresh_test_support as support
 from tests.git.base_sync.clean_assertions import (
     _assert_clean_events,
@@ -190,7 +190,7 @@ class _RivalPollers:
         fixture = self._fixture
         reads = MagicMock(wraps=fixture.gh.get_issue)
         with patch.object(fixture.gh, "get_issue", reads):
-            refresh._sync_worktree_with_base(fixture.gh, fixture.spec, fixture.wt, ISSUE)
+            base_refresh._sync_worktree_with_base(fixture.gh, fixture.spec, fixture.wt, ISSUE)
         with _issue_processing._writer_claim(fixture.gh, fixture.spec, ISSUE) as dispatched:
             self.met.append((dispatched, reads.call_count))
         return True

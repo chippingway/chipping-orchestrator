@@ -27,7 +27,6 @@ from tests.workflow.engine.dispatch_scheduler_workers import (
 
 REPO_SLUG = "acme/widget"
 TARGET_ROOT = Path("/tmp/orchestrator-test-target-root")
-REFRESH_BASE = "_refresh_base_and_worktrees"
 FANOUT_START_TIMEOUT_MESSAGE = "implementing fanout #1 did not start"
 POLL_INTERVAL_SECONDS = 0.01
 EVENT_TIMEOUT_SECONDS = 2.0
