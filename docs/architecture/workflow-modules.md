@@ -1089,32 +1089,30 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             would not read back and a standing claim the rewrite cannot extend; asked by both writers,
                             the conflict stage and the base refresh, so their readings cannot differ, and by the
                             dormant workflow finish below
-    rewrite_finish.py       the one finish of a landed automatic PR base rewrite, whichever road reached it -- the
-                            base refresh publishing its own rebase, or a recovery that pushed the replay again or
-                            found it standing, announced or not -- handed the typed landing
-                            (`git/base_sync/rewrite_handoffs.py`) beside the issue it finishes. A landing the pinned
-                            record does not account for -- the remote not shown on it, a rewrite that moved nothing,
-                            a publication a guard refused for anything but the remote already standing on it, no
-                            attempt anchored to the head it replaced, another pull request pinned, a replay record
-                            naming another head, made under other terms, damaged, or never written (one whose terms
-                            stand with no head yet is left to the caller's vouching), a mark naming another head, a
-                            lag against the base that could not be counted, or an attempt a finish already retired
-                            -- makes nothing, leaving the attempt, the label, and the round as they are. Otherwise
-                            the report debt is staged and
-                            measured on the whole announcement write and on the comment as it stands, and one with no
-                            room parks `auto_base_rebase_unrecorded_debt` with the push and the attempt kept. The
-                            announcement is prepared before the notice and the `base_rebased` event go out, and lands
-                            the debt, the reset round, and the mark while the anchor stands; a finish whose mark
-                            already names the head repeats neither and lands only a debt new beside it. The
-                            post-push, pre-route step (`_decides_the_route`) is where a landed head's evidence is
-                            decided, and routes on the base lag alone so far. The retirement -- the attempt cleared,
-                            the round reset, a human's retry spent -- is prepared before the relabel to
-                            `workflow:validating` and lands behind it, and a head the base advanced past again is
-                            retired unrouted for the caller's next rebase. A refused or unconfirmed write stops the
-                            finish with nothing behind it made. It runs under its caller's issue writer claim and
-                            takes none. Dormant: the auto rebase still finishes through `git/base_sync/publication.py`
-                            and `persistence.py` until the workflow's base-rewrite coordinator (`base_rewrite.py`)
-                            calls it
+    rewrite_finish.py       the one finish of a landed automatic PR base rewrite, whichever road reached it -- the base
+                            refresh publishing its own rebase, or a recovery that pushed the replay again or found it
+                            standing, announced or not -- handed the typed landing (`git/base_sync/rewrite_handoffs.py`)
+                            beside the issue it finishes. A landing the pinned record does not account for -- the remote
+                            not shown on it, a rewrite that moved nothing, a publication a guard refused for anything
+                            but the remote already standing on it, no attempt anchored to the head it replaced, another
+                            pull request pinned, a replay record naming another head, made under other terms, damaged,
+                            or never written (one whose terms stand with no head yet is left to the caller's vouching),
+                            a mark naming another head, a lag against the base that could not be counted, or an attempt
+                            a finish already retired -- makes nothing, leaving the attempt, the label, and the round as
+                            they are. Otherwise the report debt is staged and measured on the whole announcement write
+                            and on the comment as it stands, and one with no room parks
+                            `auto_base_rebase_unrecorded_debt` with the push and the attempt kept. The announcement is
+                            prepared before the notice and the `base_rebased` event go out, and lands the debt, the
+                            reset round, and the mark while the anchor stands; a finish whose mark already names the
+                            head repeats neither and lands only a debt new beside it. The post-push, pre-route step
+                            (`_decides_the_route`) is where a landed head's evidence is decided, and routes on the base
+                            lag alone so far. The retirement -- the attempt cleared, the round reset, a human's retry
+                            spent -- is prepared before the relabel to `workflow:validating` and lands behind it, and a
+                            head the base advanced past again is retired unrouted for the caller's next rebase. A
+                            refused or unconfirmed write stops the finish with nothing behind it made. It runs under its
+                            caller's issue writer claim and takes none. Dormant: the auto rebase still finishes through
+                            `git/base_sync/publication.py` and `persistence.py` until the workflow's base-rewrite
+                            coordinator (`base_rewrite.py`) calls it
     rewrite_finish_models.py
                             the finish's input -- the typed landing, the issue, its pinned state and label, the road
                             (`FinishRoad`), the lag the publication's notice reports, and the human reply a recovery
