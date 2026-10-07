@@ -56,7 +56,7 @@ docs = ["mkdocs>=1.6.1"]
 # orchestrator's runtime + tests minimal; install with
 # `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard` before running
 # `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py`.
-dashboard = ["streamlit>=1.61.1", "plotly>=6.9.0"]
+dashboard = ["streamlit>=1.61.1", "plotly>=7.1.0"]
 
 [tool.pytest.ini_options]
 # Surface skip reasons in the run summary by default. The suite carries
