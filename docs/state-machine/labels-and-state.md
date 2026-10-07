@@ -2991,13 +2991,16 @@ The keys that matter for the state machine fall into a few groups:
   vouches for it — the record naming the head, or, for a replay the permit alone published, a permission bound to this
   attempt — and only where the comment accounts for it: a foreign publication, a mark naming another head, a tree not
   provably clean beneath a verdict, a mark beside a permission still outstanding, and a receipt or debt that does not
-  account for the transfer each park with HEAD and the anchor where they stand. An OUTSTANDING permission over a landed
-  head is settled through the leased no-op, entered on the anchor with the permit as its only licence and read back for
-  the rotation, so the exemption, its identity, the receipt, the paid debt, and the settlement proof go down in the push
-  tail's one write; that receipt is leased against the commit itself, and a SETTLED transfer's bound permission is what
-  dates it on a later poll. A settlement whose `late_transfer` record never reached the sinks is reported before any
-  finish, from the proof the comment kept, and the proof is dropped durably behind it, so a later poll reports it
-  again only where that drop did not land. A mark
+  account for the transfer each park with HEAD and the anchor where they stand. A landing the road no longer finds where
+  the recovery's fetch classified it -- the branch moved since that fetch, or the checkout and the branch moved together
+  onto another head before the checkout was read as the candidate -- makes nothing and parks nothing, since every
+  voucher above is about the head the fetch classified, and the next tick classifies what it then finds. An OUTSTANDING
+  permission over a landed head is settled through the leased no-op, entered on the anchor with the permit as its only
+  licence and read back for the rotation, so the exemption, its identity, the receipt, the paid debt, and the settlement
+  proof go down in the push tail's one write; that receipt is leased against the commit itself, and a SETTLED transfer's
+  bound permission is what dates it on a later poll. A settlement whose `late_transfer` record never reached the sinks
+  is reported before any finish, from the proof the comment kept, and the proof is dropped durably behind it, so a later
+  poll reports it again only where that drop did not land. A mark
   naming the head in hand owes only the route and the clearing write — no second notice and no second `base_rebased` —
   spending a released reply, relabelling only where that relabel did not already land, and leaving the route to the
   rebase a base that advanced again still owes. A pull request that merged or closed over an attempt ends its whole
