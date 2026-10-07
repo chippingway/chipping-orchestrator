@@ -45,7 +45,7 @@ optional = true
 optional = true
 
 [dependency-groups]
-dev = ["packaging>=26.2", "pytest>=9.1.1", "pytest-cov>=7.1.0", "ruff>=0.16.3", "wemake-python-styleguide>=1.7.1"]
+dev = ["packaging>=26.3", "pytest>=9.1.1", "pytest-cov>=7.1.0", "ruff>=0.16.3", "wemake-python-styleguide>=1.7.1"]
 # The documentation site is built separately from the runtime and test suite.
 docs = ["mkdocs>=1.6.1"]
 # Streamlit, Plotly, and Streamlit's transitive pandas are only needed
