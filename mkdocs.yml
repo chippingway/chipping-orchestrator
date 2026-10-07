@@ -63,3 +63,5 @@ nav:
       - Analytics dashboard: observability/analytics-dashboard.md
       - Usage parser: observability/usage.md
   - Releases: release-timeline.md
+  - Developers:
+      - Source checkouts and tools: development.md

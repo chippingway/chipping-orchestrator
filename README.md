@@ -45,8 +45,7 @@ See the [state-machine overview][states] for labels and transitions, and the
 ## Requirements
 
 - Linux, Git, and Python 3.12 or newer. CI tests Python 3.12, 3.13, and 3.14; newer versions are not tested.
-- [pipx](https://pipx.pypa.io/stable/installation/) or a dedicated virtual environment for a published package;
-  [Poetry 2.5.1](https://python-poetry.org/docs/#installation) for a source checkout.
+- [pipx](https://pipx.pypa.io/stable/how-to/install-pipx.html) 1.16.0 or newer with a Python 3.12 or newer interpreter.
 - An authenticated CLI for every configured role. Defaults are
   [`claude`](https://docs.anthropic.com/en/docs/claude-code) for decomposition and implementation, and
   [`codex`](https://github.com/openai/codex) for review. Any role can instead use
@@ -59,35 +58,24 @@ Agents run with their approval and sandbox checks disabled, so the host account 
 
 ## Quick start
 
-### Install a published package
-
-Choose a version published on PyPI and replace `X.Y.Z` in the package name and constraints URL below.
-The `--backend pip` flag requires [pipx 1.12.0 or newer](https://pipx.pypa.io/stable/changelog.html).
-For older pip-only versions, omit this flag.
+Install the published package from PyPI:
 
 ```sh
-pipx install --python python3.12 --backend pip \
-  --pip-args="--constraint https://github.com/chippingway/chipping-orchestrator/releases/download/vX.Y.Z/constraints.txt" \
-  "chipping-orchestrator==X.Y.Z"
+pipx install chipping-orchestrator
+pipx ensurepath
 ```
 
-Follow the [package installation and upgrade instructions][installation] to download version-matched `.env` templates
-without cloning and configure `~/.config/chipping-orchestrator/.env`.
-The same guide covers a dedicated venv and returning to a previous version. Upgrades are operator-initiated.
+Open a new terminal after `pipx ensurepath` if the command is not yet on `PATH`. If pipx selects an older Python,
+use `pipx install --python python3.12 chipping-orchestrator` with an installed supported interpreter.
 
-### Run from a source checkout
+The quick start resolves runtime dependencies from PyPI without `poetry.lock`, tested constraints, or a 14-day hold;
+use the [pinned installation procedure][pinned-installation] for the release's tested dependency versions.
 
-Install Poetry with `pipx install poetry==2.5.1`, then clone, install from the lockfile, and copy the basic template
-into the checkout's `.env`:
+Follow the [package setup instructions][installation] to download the installed version's `.env` templates
+and create `~/.config/chipping-orchestrator/.env`. That setup also sets an absolute `LOG_DIR` outside the pipx
+environment so logs survive package upgrades. The orchestrator's own repository does not need to be cloned.
 
-```sh
-git clone https://github.com/chippingway/chipping-orchestrator.git
-cd chipping-orchestrator
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync
-cp .env.example .env
-```
-
-Edit `.env` and set at least:
+Edit `~/.config/chipping-orchestrator/.env` and set at least:
 
 - `REPOS` — the repository to manage, written `owner/name|target_root|base_branch`: its GitHub `owner/name`, the
   absolute path to an existing local clone of it, and the branch its pull requests target. For example:
@@ -106,21 +94,23 @@ Edit `.env` and set at least:
 Nothing from `.env.example.advanced` is needed: it holds optional operational settings and, in a section of their own,
 the developer settings for working on the orchestrator itself.
 
-Store each repository's GitHub token outside the checkout at `~/.config/<owner>/<name>/token`, or export one
+Store each repository's GitHub token at `~/.config/<owner>/<name>/token`, or export one
 `GITHUB_TOKEN` covering every repository in the launch environment. Tokens in `.env` are deliberately ignored. Ensure
 each configured agent is logged in, then run:
 
 ```sh
-./run.sh
+chipping-orchestrator
 ```
 
 On first start, the orchestrator creates its labels and begins polling open issues. Each issue gets its own worktree
 under `wt-orchestrator`, beside the first repository's clone. File a small issue to exercise the workflow; a completed
 change stops at `in_review` for a human to merge.
 
-The [configuration reference][configuration] covers both setups, credentials, agent routing, every setting,
-and advanced examples. The [operations guide][operations] covers run modes, running more
-than one poller on one host, and systemd deployment.
+The [configuration reference][configuration] covers credentials, agent routing, every setting, and advanced
+examples. The [operations guide][operations] covers run modes, upgrades and rollback, running more than one poller
+on one host, and systemd deployment. For unconstrained, unpinned installs, use `pipx upgrade chipping-orchestrator`
+after stopping the poller and reviewing release notes. Constrained installs upgrade by repeating the pinned
+procedure in the operations guide with the new release's constraints. Package upgrades are operator-initiated.
 
 ## Asking the orchestrator a question
 
@@ -160,15 +150,15 @@ effects.
 ## Observability
 
 `orchestrator.log` records process and issue activity, while `analytics.jsonl` records transitions, timing, agent
-outcomes, usage, and cost estimates. Both live under `LOG_DIR`: `<checkout>/logs` by default in a source checkout, or
-`~/.local/state/chipping-orchestrator/logs` after [package setup][installation]. An explicit `ANALYTICS_LOG_PATH` can
-place analytics elsewhere. Optional surfaces add an audit log, a Postgres-backed analytics dashboard, and a
-file-backed trajectory viewer without becoming part of workflow state.
+outcomes, usage, and cost estimates. Both live under `LOG_DIR`, set to `~/.local/state/chipping-orchestrator/logs`
+by [package setup][installation]. An explicit `ANALYTICS_LOG_PATH` can place analytics elsewhere. Optional surfaces
+add an audit log, a Postgres-backed analytics dashboard, and a file-backed trajectory viewer without becoming part
+of workflow state. The dashboards are source-checkout developer tools; their dependencies and launch commands are
+in the [developer guide][development].
 
 ![Analytics page with spend and token usage over time categorized by different dimensions][analytics-image]
 
-See the [observability overview][observability] for every surface and the
-[dashboard quickstart][dashboard-setup] for setup commands.
+See the [observability overview][observability] for every surface.
 
 ## Managing multiple repositories
 
@@ -209,7 +199,8 @@ issue.
 ## Contributing
 
 See [CONTRIBUTING.md][contributing] for writing issues, setting up a development checkout, running checks, and
-submitting pull requests.
+submitting pull requests. Source-checkout installation, direct Python launches, and the development wrapper are
+documented in the [developer guide][development].
 
 ## License
 
@@ -237,6 +228,8 @@ Licensed under the Apache License, Version 2.0. See [LICENSE][license] for the f
 [configuration]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md
 [installation]:
   https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#package-installation-upgrades-and-rollback
+[pinned-installation]:
+  https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration/operations.md#pin-a-release-and-runtime-dependencies
 [operations]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#run-modes
 [question-contract]:
   https://github.com/chippingway/chipping-orchestrator/blob/main/docs/workflow/conversations.md#question-stage
@@ -249,8 +242,7 @@ Licensed under the Apache License, Version 2.0. See [LICENSE][license] for the f
 [controls]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#control-labels
 [delivery]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/state-machine/delivery-stages.md
 [observability]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/observability.md
-[dashboard-setup]:
-  https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#analytics-dashboard-quickstart
+[development]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/development.md
 [repos]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#repos-syntax
 [multiple-repos]:
   https://github.com/chippingway/chipping-orchestrator/blob/main/README.md#managing-multiple-repositories

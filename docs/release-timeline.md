@@ -86,7 +86,7 @@ Published **2026-10-06**. Sources: [release notes][v0.13.0] and [tagged changes]
 - For source deployments, install Poetry `2.5.1`, stop the service, and recreate `.venv/` from `poetry.lock` with
   `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync`. Select `--with docs` and/or `--with dashboard` when needed. Replace
   `uv run` in service units, crontabs, and applicable `VERIFY_COMMANDS`; see the
-  [operator migration procedure](configuration/operations.md#poetry-migration-for-operators).
+  [operator migration procedure](development.md#poetry-migration-for-source-checkouts).
 - Installed packages read `~/.config/chipping-orchestrator/.env` and require `REPOS` entries naming existing local
   clones; `REPO` and `TARGET_REPO_ROOT` remain source-checkout developer settings. Source checkouts keep reading their
   own `.env`. Confirm each target's token at `~/.config/<owner>/<name>/token`, or use an env-only `GITHUB_TOKEN`.
@@ -104,7 +104,7 @@ Published **2026-10-06**. Sources: [release notes][v0.13.0] and [tagged changes]
   IANA timezone; an unset window preserves the daily interval default.
 - Before returning to v0.12.0, stop every v0.13.0 poller and finish outstanding report, verification, reviewer, and
   replacement-split recovery. The earlier binary does not reconcile these new records. Follow the
-  [Poetry rollback procedure](configuration/operations.md#poetry-migration-for-operators) when restoring a source
+  [Poetry rollback procedure](development.md#poetry-migration-for-source-checkouts) when restoring a source
   deployment, and the [late-state drain](configuration/operations.md#rolling-back-to-an-older-orchestrator) when
   returning to a version that predates late-split state.
 

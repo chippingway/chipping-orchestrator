@@ -35,14 +35,16 @@ still lands on the answer.
 One `.env` file is read at startup, chosen by where the running package sits, and a value already in the process
 environment wins over the file:
 
-- **Source checkout** — `.env` at the checkout's root, the file `run.sh` reads `ORCHESTRATOR_BASE_BRANCH` from, and no
+- **Installed package (every layout other than a source checkout)** — reads `~/.config/chipping-orchestrator/.env`,
+  and never a `.env` beside the package in its environment's `site-packages` or in the launch directory.
+- **Developer source checkout** — `.env` at the checkout's root, and no
   other. A checkout without one reads none. The package counts as running from a source checkout when its root —
   the directory holding the `orchestrator/` package, which an editable install leaves inside the checkout — is the
   top of a git checkout, an ordinary clone or a linked worktree, by the same check every
   [target](#developer-fallback-and-target-checks) passes, and carries a `pyproject.toml` naming
   `chipping-orchestrator`. Neither a repository enclosing that root nor the launch directory counts.
-- **Installed package** — every other layout reads `~/.config/chipping-orchestrator/.env`, and never a `.env` beside
-  the package in its environment's `site-packages`.
+
+Source-checkout setup and launch commands are in the [developer guide](development.md).
 
 The file's directory is only where settings come from: it is never a target repository, and the worktree root is
 derived from the targets rather than from it. Both locations refuse the token keys
@@ -50,21 +52,12 @@ derived from the targets rather than from it. Both locations refuse the token ke
 
 ## Basic setup
 
-[`../.env.example`](../.env.example) is everything a first run needs. Copy it to the `.env` your launch form reads
-([above](#where-env-is-read)):
-
-- **Source checkout** — `./run.sh`, `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator`, or
-  `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run chipping-orchestrator` in a clone of this repository. The template
-  goes to the checkout's root:
-
-  ```sh
-  cp .env.example .env
-  ```
-
-- **Installed package** — the `chipping-orchestrator` command of a package installed outside a source checkout. Follow
-  the [package installation instructions](#package-installation-upgrades-and-rollback) to download `.env.example`
-  and `.env.example.advanced` from the chosen release tag without cloning. On first setup, copy the basic
-  template to `~/.config/chipping-orchestrator/.env`; keep an existing file when upgrading or rolling back.
+Install with `pipx install chipping-orchestrator`, then follow the
+[package setup instructions](#package-installation-upgrades-and-rollback) to download `.env.example` and
+`.env.example.advanced` from the installed version's release tag. On first setup, copy the basic template to
+`~/.config/chipping-orchestrator/.env` and set an absolute `LOG_DIR` outside the pipx environment. Keep an existing
+file when upgrading or rolling back. The orchestrator's own repository does not need to be cloned;
+[source setup](development.md#source-checkout-setup) is for developers.
 
 Then edit the copy. `REPOS` names what to manage, one `owner/name|target_root|base_branch` entry per repository
 ([syntax](#repos-syntax)): the repository on GitHub, the absolute path to the top of an existing local clone of it, and
@@ -94,14 +87,16 @@ is set.
 
 ## Package installation, upgrades, and rollback
 
-A published PyPI version can be installed with pipx or a dedicated `python -m venv`, applying that release's
-`constraints.txt` to its runtime dependencies. The
-[operator instructions](configuration/operations.md#package-installation-upgrades-and-rollback) give commands for
-both routes, version-matched template downloads, configuration checks, backups, upgrades, and rollback. Installed
-packages use `~/.config/chipping-orchestrator/.env` and the explicit `REPOS` targets above. Review release notes and
-compare both versions' templates before changing settings: local overrides, changed defaults, and validation rules
-can affect both the upgrade and a later rollback. Package changes are initiated by the operator; the source
-checkout's `run.sh` refresh procedure is a separate deployment route.
+Install the published PyPI package with `pipx install chipping-orchestrator`. For unconstrained, unpinned installs,
+upgrade with `pipx upgrade chipping-orchestrator` after stopping the poller and reviewing release notes. Confirm the
+installed version matches the reviewed release before restarting. Constrained installs upgrade by repeating the
+[pinned procedure](configuration/operations.md#pin-a-release-and-runtime-dependencies) with the new release's
+constraints. The [operator instructions](configuration/operations.md#package-installation-upgrades-and-rollback) cover
+version-matched template downloads, checks, backups, upgrades, rollback, optional runtime constraints, and migration
+from v0.13.0's dedicated venv. Installed packages use `~/.config/chipping-orchestrator/.env` and the explicit `REPOS`
+targets above. Review release notes and compare both versions' templates before changing settings: local overrides,
+changed defaults, and validation rules can affect both the upgrade and a later rollback. Package changes are initiated
+by the operator.
 
 The [v0.13.0 upgrade notes](release-timeline.md#v0130) cover the required author allowlist, installed targets,
 Poetry migration, worktree paths, and the report and verification contracts when upgrading from v0.12.0.
@@ -357,7 +352,7 @@ examples.
   maintenance passes run: the bounded reclamation of the worktrees and branches of issues this orchestrator has
   finished with. With no `TERMINAL_ARTIFACT_CLEANUP_WINDOW` set, the polling loop fits one in *between* passes (never
   inside a tick) once this long has elapsed on its own monotonic clock; a set window replaces this cadence for the
-  polling loop, and `python -m orchestrator --cleanup-terminal-artifacts` runs one on demand regardless of either.
+  polling loop, and `chipping-orchestrator --cleanup-terminal-artifacts` runs one on demand regardless of either.
   Must be `>= 1`: a zero or negative interval would put a host-wide teardown between every pair of polling passes,
   each one holding scheduler admission closed while it proved the host quiet. Nothing is persisted, so a restart
   costs at most one extra pass — a repeated pass reads the host again and reports whatever is already gone as done.
@@ -884,8 +879,10 @@ pages [`observability.md`](observability.md) maps.
 
 ### Analytics dashboard quickstart
 
-The five steps from a JSONL sink to a running Streamlit page — confirm the records, start Postgres, point
-`ANALYTICS_DB_URL` at it, sync, launch — are in
+Analytics sync runs directly from the installed pipx environment; commands and scheduling are in the
+[operator workflow](observability/analytics-database.md#operator-workflow). The Streamlit pages need a source checkout
+and optional dashboard dependencies; setup and launch commands are in the
+[developer guide](development.md#analytics-sync-and-dashboard). The pipeline and its settings are described in
 [`configuration/observability.md#analytics-dashboard-quickstart`](configuration/observability.md#analytics-dashboard-quickstart).
 
 ## Continuous integration
@@ -925,35 +922,29 @@ summarizes itself with, and the one-time repository settings are in
 
 ## Run modes
 
-`./run.sh` for source-checkout production polling, the installed `chipping-orchestrator` command for packaged
-deployments, `python -m orchestrator --once` for a single tick,
-`--cleanup-terminal-artifacts` for a maintenance-only run that reclaims finished issues' artifacts (deleting the
-branches it proved reclaimable, locally and on the remote) without polling and without writing any workflow state —
-the runbook for that pass is
-[`configuration/operations.md#reclaiming-a-finished-issues-artifacts`](configuration/operations.md#reclaiming-a-finished-issues-artifacts) —
-and `--log-level DEBUG` for verbose logs are all in
-[`configuration/operations.md#run-modes`](configuration/operations.md#run-modes).
+The installed `chipping-orchestrator` command polls continuously. Add `--once` for a single tick or `--log-level DEBUG`
+for verbose logs; see [run modes](configuration/operations.md#run-modes). Use `--cleanup-terminal-artifacts` for a
+maintenance-only run that reclaims eligible worktrees and branches, locally and on the remote, without polling or
+writing workflow state; see the
+[cleanup runbook](configuration/operations.md#reclaiming-a-finished-issues-artifacts).
 
 ### Launcher dependency refresh
 
-`run.sh refresh_dependencies` compares the dependency files with `.venv/.poetry-dependencies` before each Python
-launch. A mismatch triggers `poetry install --no-interaction`; success records the new fingerprints, while a failure
-warns, launches the available environment, and retries on the next restart. Its timeout, process isolation,
-and operator sync requirements are in the
-[operator runbook](configuration/operations.md#launcher-dependency-refresh).
+The source wrapper's dependency refresh applies to developer checkouts. Its fingerprints, timeout behavior,
+optional groups, and environment isolation requirements are in the
+[developer guide](development.md#launcher-dependency-refresh). Published packages are upgraded explicitly with pipx.
 
 ## Running under systemd (user service)
 
-The recommended production deployment is a systemd **user** service supervising `run.sh` for a source checkout or
-the installed command for a package deployment. The unit file, the `loginctl enable-linger` that boot-time start
-requires, and the day-to-day `systemctl --user` commands are in
+For persistent operation, use a systemd **user** service supervising the command installed by pipx. The unit file,
+the `loginctl enable-linger` that boot-time start requires, and the day-to-day `systemctl --user` commands are in
 [`configuration/operations.md#running-under-systemd-user-service`](configuration/operations.md#running-under-systemd-user-service).
 
 ## Applying `.env` changes
 
-`.env` is read once, when `python -m orchestrator` starts, so most edits take effect on the next fresh Python start —
-there is no signal to make a running process re-read configuration. Which restart is safe, what each launch style
-needs, and when each individual setting takes effect are in
+`~/.config/chipping-orchestrator/.env` is read once, when `chipping-orchestrator` starts, so most edits take effect
+on the next process start. There is no signal to make a running process re-read configuration. Which restart is safe,
+what each launch style needs, and when each individual setting takes effect are in
 [`configuration/operations.md#applying-env-changes`](configuration/operations.md#applying-env-changes).
 
 ### What survives a restart

@@ -53,6 +53,21 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
   ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)). The wheel and sdist smoke
   installs use separate throwaway environments that resolve the distribution's declared runtime dependencies fresh
   from PyPI and run `chipping-orchestrator --help` outside the checkout. These prove what a package installer receives.
+  The default `pipx install chipping-orchestrator` resolves runtime dependencies within the manifest's ranges from
+  PyPI; it does not use `poetry.lock`, the tested `constraints.txt`, or Poetry's 14-day release-age hold. Use the
+  [constrained package procedure](configuration/operations.md#pin-a-release-and-runtime-dependencies) for the release's
+  tested runtime dependency versions.
+  Operators can opt into [pipx's release-age cooldown](https://pipx.pypa.io/stable/how-to/dependency-cooldown.html):
+  `pipx install --cooldown 14 chipping-orchestrator` on pipx 1.16.0+ holds back index artifacts uploaded in the last
+  14 days; pipx 1.17.0+ also supports `PIPX_COOLDOWN=14`
+  ([changelog](https://pipx.pypa.io/stable/changelog.html)). This policy delays fresh orchestrator releases and
+  security fixes too, so it trades prompt updates for time to detect compromised or broken releases.
+  pipx saves the cooldown and reapplies it to later `pipx upgrade` and `pipx install --force`; `PIPX_COOLDOWN`
+  overrides the saved value for those commands, and explicit `--cooldown` overrides both. `pipx reinstall` always
+  uses the saved window, ignores `PIPX_COOLDOWN`, and has no `--cooldown` option. To deliberately install a fresh
+  release you have reviewed, pass `--cooldown 0` (or a shorter window) on that upgrade or install command. Installs and
+  upgrades save the chosen window, including zero and values from `PIPX_COOLDOWN`; restore your usual window
+  explicitly on the next package change if needed.
   CI accepts unhashed PyPI installs for its tooling: `pipx` pins Poetry and the export plugin's top-level versions,
   while their transitive dependencies resolve fresh. The sdist smoke install also resolves `poetry-core` through
   build isolation within the manifest's version range. These installs are outside the project's hashed lockfile;
@@ -444,8 +459,8 @@ Operator drill checklist (run at least once after setup, then on a recurring cad
 1. Confirm a current clone of the repo exists off the orchestrator host, tracking `main`.
 2. Export open / recently-closed Issues via the GitHub API (`gh issue list --state all --json …`) off-host. The
    pinned-state JSON comment is part of the export.
-3. Verify that re-cloning the repo and re-running `./run.sh` against a fresh `WORKTREES_DIR` recovers in-flight Issues
-   from their labels + pinned comments — the documented restart contract
+3. Verify that restoring target clones and running `chipping-orchestrator` against a fresh `WORKTREES_DIR` recovers
+   in-flight Issues from their labels + pinned comments — the documented restart contract
    ([`configuration.md#what-survives-a-restart`](configuration.md#what-survives-a-restart)).
 4. Confirm each configured repository's `~/.config/<owner>/<repo>/token` (or whatever `ORCHESTRATOR_TOKEN_FILE` points
    at) is backed up out-of-band; the personal access token is not stored in the repo and not recoverable from a code

@@ -170,7 +170,7 @@ or correctness.
 
 ### Trajectory operator workflow
 
-There is no trajectory equivalent of `python -m orchestrator.observability.analytics.sync.cli`: trajectories are
+There is no trajectory equivalent of the analytics sync CLI: trajectories are
 deliberately file-backed only, and the analytics Postgres schema does not ingest their free-text bodies. To browse
 trajectories on another host, mirror `TRAJECTORY_LOG_PATH` as a file and run the dedicated viewer on that host with
 `TRAJECTORY_LOG_PATH` pointing at the mirrored JSONL. Scope the remote path like source code or issue content:
@@ -314,20 +314,48 @@ remote viewer that should show only the retained window, but wrong if the remote
 before the local file is pruned. For an archive, use a different strategy, such as dated snapshots, a never-pruned local
 archive file, or a custom high-water-mark shipper.
 
-Because `prune_trajectory_records()` is not called by the polling loop, drive trajectory retention explicitly when you
-want `TRAJECTORY_RETENTION_DAYS` to affect the file. The value may live in `.env` like the other non-secret knobs; it is
-parsed when the prune process first reads a knob off `observability/analytics/settings.py`, which the entry point
-below resolves inside the call. The cron entry relies on `.env` for both
-`TRAJECTORY_LOG_PATH` and `TRAJECTORY_RETENTION_DAYS`, runs the prune helper, and logs how many records were removed:
+Because `prune_trajectory_records()` is not called by the polling loop, trajectory retention needs an explicit
+maintenance run. The helper ships in the package and reads `TRAJECTORY_LOG_PATH` and `TRAJECTORY_RETENTION_DAYS`
+from `~/.config/chipping-orchestrator/.env` or the process environment when run in the installed pipx environment.
+Poetry and the optional dashboard dependencies are not needed. Run as the service user, with the poller stopped or
+guaranteed not to append trajectories, from outside an orchestrator source checkout:
 
-```cron
-25 0 * * * cd /path/to/chipping-orchestrator && /usr/bin/flock -n -E 75 /tmp/chipping-orchestrator-trajectory.lock /path/to/chipping-orchestrator/.venv/bin/python -c 'from orchestrator.observability.analytics import retention; print(f"trajectory prune removed {retention.prune_trajectory_records()} record(s)")' >> /path/to/chipping-orchestrator/logs/trajectory-prune.cron.log 2>&1
+```sh
+cd "$HOME"
+"$(pipx environment --value PIPX_HOME)/venvs/chipping-orchestrator/bin/python" -c \
+  'from orchestrator.observability.analytics import retention; print(f"trajectory prune removed {retention.prune_trajectory_records()} record(s)")'
 ```
 
-To make the same cron entry use a one-off retention window instead of `.env`, prefix the command with `env
-TRAJECTORY_LOG_PATH=/path/to/chipping-orchestrator/logs/trajectories.jsonl TRAJECTORY_RETENTION_DAYS=30`.
+For a one-off 30-day retention window, put `env TRAJECTORY_RETENTION_DAYS=30` immediately before the Python command;
+the process environment overrides `.env` for that run. Apply the poller's process/service overrides too if they
+select a different trajectory path or retention window.
 
-Only run this prune command while the orchestrator is stopped or otherwise guaranteed not to append trajectories. The
+For scheduled pruning during a window without trajectory appends, replace `/absolute/pipx-home` below with
+`pipx environment --value PIPX_HOME`'s output and `<user>` with the service user. Adjust the external log path if needed
+and create its directory before installing the cron entry:
+
+```sh
+mkdir -p "$HOME/.local/state/chipping-orchestrator/logs"
+```
+
+Cron does not inherit the poller's systemd `Environment=` or `EnvironmentFile=` settings. Copy any service-only
+settings, including `REPOS`, `LOG_DIR`, `TRAJECTORY_LOG_PATH`, and `TRAJECTORY_RETENTION_DAYS`, into the installed
+`.env`, or uncomment and edit the matching assignments below. The command loads the full orchestrator configuration
+at startup, so `REPOS` must name valid local clones even for trajectory pruning. Crontab assignments override `.env`;
+use literal values and absolute paths because they do not expand `$HOME` or other variables.
+
+```cron
+# Optional overrides: uncomment and match the poller's service environment.
+# REPOS=acme/api|/srv/clones/acme-api|main
+# LOG_DIR=/home/<user>/.local/state/chipping-orchestrator/logs
+# TRAJECTORY_LOG_PATH=/absolute/path/trajectory.jsonl
+# TRAJECTORY_RETENTION_DAYS=30
+25 0 * * * cd / && /usr/bin/flock -n -E 75 /tmp/chipping-orchestrator-trajectory.lock /absolute/pipx-home/venvs/chipping-orchestrator/bin/python -c 'from orchestrator.observability.analytics import retention; print(f"trajectory prune removed {retention.prune_trajectory_records()} record(s)")' >> /home/<user>/.local/state/chipping-orchestrator/logs/trajectory-prune.cron.log 2>&1
+```
+
+Rotate the cron log, and stop maintenance jobs as well as the poller before replacing their shared pipx environment.
+
+Only run the prune command while the orchestrator is stopped or guaranteed not to append trajectories. The
 shared `/tmp/chipping-orchestrator-trajectory.lock` serializes operator cron jobs with each other, but not with the live
 orchestrator process: the lock the append and the prune share (minted on
 `observability/analytics/sink.py`) is a process-local `threading.Lock`, not an interprocess file lock. An
@@ -339,9 +367,10 @@ through the same temp-file + `os.replace` path described above; it never touches
 
 ### Trajectory viewer (`orchestrator/apps/trajectory_dashboard.py`)
 
-A deliberately **separate** Streamlit page from the analytics dashboard, launched with
-`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/trajectory_dashboard.py`
-(opt-in `dashboard` group). The two pages stay apart on purpose: the analytics dashboard reads the numeric usage /
+A deliberately **separate** developer Streamlit page from the analytics dashboard, available from a source checkout
+with the optional `dashboard` group. Launch instructions are in the
+[developer guide](../development.md#trajectory-viewer).
+The two pages stay apart on purpose: the analytics dashboard reads the numeric usage /
 cost rollup from Postgres, while the viewer reads the JSONL trajectory file **directly** — the trajectory bodies are
 never in Postgres — so an operator can browse trajectories with nothing but the file on disk (no database, no sync).
 
