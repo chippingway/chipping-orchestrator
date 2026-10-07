@@ -11,11 +11,13 @@ that branch the way a real one would: refused where its lease is not the head
 the pull request stands on, and moving the pull request onto the commit it
 names otherwise.
 
-Two moments a case moves that world in (`races_the_reread`,
-`races_the_barrier`): as the git owner reads the candidate again for its push,
-past the gate's measurement, and as the gate asks whether the publication
-ended, past that reading and immediately before the push. The moves
-themselves are `rewrite_publication_moves`.
+Three moments a case moves that world in (`races_the_reading`,
+`races_the_reread`, `races_the_barrier`): as the checkout is first read as the
+candidate -- for a recovery, past the fetch it classified the branch on -- as
+the git owner reads the candidate again for its push, past the gate's
+measurement, and as the gate asks whether the publication ended, past that
+reading and immediately before the push. The moves themselves are
+`rewrite_publication_moves`.
 """
 from __future__ import annotations
 
@@ -116,6 +118,12 @@ class _Races:
     def __call__(self, *args):
         self._move(self._case)
         return self._asked(*args)
+
+
+def races_the_reading(case, move):
+    """Run `move` over `case` as the checkout is read as the candidate, and at every reading past it."""
+    reading = _Races(case, move, case.world._proved)
+    return patch.object(_measurement_commits, "_prove_candidate_commit", reading)
 
 
 def races_the_reread(case, move):

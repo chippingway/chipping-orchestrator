@@ -6,7 +6,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git.base_sync import (
-    attempts,
     replay_checkout_parks as _replay_checkout_parks,
     replay_cleanup as _replay_cleanup,
     snapshot,
@@ -57,7 +56,7 @@ class UnmovedHeadTest(seed.TransferCase):
                 if granted:
                     seed.granted(self.state)
                 if announced:
-                    attempts._announces(self.context, announced)
+                    _recovery_cases._announced(self.context, announced)
 
                 self.assertTrue(self._answers(shortcut=False))
 

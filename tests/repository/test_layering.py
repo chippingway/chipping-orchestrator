@@ -20,9 +20,10 @@ The direction is read twice, because deferring an import weakens where it
 lands but not whether it should be there. At module scope -- a class body
 included, since that runs on the import too -- nothing may point up at all:
 that is what decides whether a package can be loaded and what it costs. Over
-every scope, the reaches that remain are the ones declared below, each a
-base-sync owner reporting to the issue it runs for through the workflow's
-comment and guard owners. A hop absent from that list fails wherever it is
+every scope, the reaches that remain are the ones declared below, each a git
+owner reporting to the issue it runs for through the workflow's comment and
+guard owners, or reading a record the workflow defines, for a responsibility
+this layer still holds. A hop absent from that list fails wherever it is
 written, and a hop on it fails if it is bound at module scope after all.
 """
 from __future__ import annotations
@@ -72,8 +73,6 @@ _COMMENTS = f"{PACKAGE}.workflow.engine.comments"
 
 _LATE_OVERFLOW = f"{PACKAGE}.workflow.stages.implementing.late_overflow"
 
-_LATE_PUSH = f"{PACKAGE}.workflow.stages.implementing.late_push"
-
 _LATE_RECORDS = f"{PACKAGE}.workflow.stages.implementing.late_records"
 
 _LATE_ENTRY = f"{PACKAGE}.workflow.stages.implementing.late_gate_models._Entered"
@@ -99,56 +98,49 @@ _REWRITE_VALUES = f"{PACKAGE}.workflow.late_split.rewrite_values"
 
 _PUBLICATION = f"{PACKAGE}.git.publication"
 
-# Every upward reach made inside a call, declared per module. A base sync runs
-# under a git-layer owner but reports to the issue it was started for: the
-# notice a rebase or a conflict posts goes out through the workflow's comment
-# owner, the park a failed auto-rebase takes through its guard owner, and the
-# leased no-op that settles a landing a crash recovery finds goes through the
-# size gate's own call, since it is a push onto a pull request the remote
-# already carries; the ordinary publication of a rebase and the recovery's
-# retry of one nothing published are the workflow's, and enter that gate from
-# there. The squash on approval is the same argument without a measurement: it
-# force-pushes onto a pull request the remote already carries, so it is entered
-# on that publication before it rewrites anything and pushes through the gate's
-# own call. All of them sit above this layer, so the import waits for the call
+# Every upward reach made inside a call, declared per module, and each one a
+# responsibility the workflow has not taken over. A base sync runs under a
+# git-layer owner but reports to the issue it was started for: a rebase that
+# really conflicted is handed to its stage with a notice through the
+# workflow's comment owner, and a failed auto-rebase parks through its guard
+# owner. All of them sit above this layer, so the import waits for the call
 # that needs it -- at module scope it would be a cycle, since the workflow
-# imports base sync back.
+# imports base sync back. The publication of a rebase and every finish of what
+# landed -- the ordinary one, the recovery's retry, and a push the recovery
+# found already landed -- are the workflow's own, so nothing here enters the
+# size gate or the finish from below: the debt a landing leaves, its notice,
+# its event, and its route are reached from nowhere in this layer.
+#
+# The squash on approval reaches the stage for the publication it rewrites: it
+# force-pushes onto a pull request the remote already carries, so it is
+# entered on that publication before it rewrites anything and pushes through
+# the gate's own call, and the collapse records and squash proof it reads are
+# the stage's.
 #
 # The rebase is also a rewrite of whatever the branch stood on, so the transfer
-# seam is reached from two places: the owner that assembles the evidence a
-# permit is granted on and classifies how far an interrupted transfer got --
-# which reads the exemption, the permission, and the receipt and debt beside
-# them -- and the reset-and-park tail, which drops the permission its rollback
-# will never spend. The first also ASKS that permit, ahead of the gated push a
-# recovery's retry or settlement makes rather than through it, since the gate
-# answers a refusal with the cumulative reading and a road finishing a
-# publication may not fall back on one; the entry it is asked over is frozen
-# through the same owner every other publication freezes one through.
+# seam is reached from two places: the owners that assemble the evidence a
+# permit is granted on and classify how far an interrupted transfer got --
+# which read the exemption, the permission, and the receipt and debt beside
+# them -- and the reset-and-park tail, which drops the permission and the
+# approval its rollback will never spend. The first also ASKS that permit,
+# ahead of the gated push a recovery's retry or settlement makes rather than
+# through it, since the gate answers a refusal with the cumulative reading and
+# a road finishing a publication may not fall back on one; the entry it is
+# asked over is frozen through the same owner every other publication freezes
+# one through.
 #
 # The record one attempt leaves of its own replay reaches the late domain for
 # one thing only: the shape a recorded commit is held to. Spelled twice, a
 # comment would come to accept what every other reader in the tree refuses.
 #
-# Past a landing the same seams are reached once more: the gate entry a leased
-# no-op is made through, the record a settlement never got to report, and --
-# for a pull request that is over -- the receipt, the debt, the rotation, and
-# the rollback's drop that end an attempt's whole handoff in one write.
-#
-# A landing a recovery routes to review leaves the pull request on a head no
-# developer report is about, so its finish records that as the workflow's
-# report debt before its route -- through the debt's own owner, since the
-# record's shape and its retargeting are that owner's to rule on. The room it
-# needs is measured on the whole announcement write, so the ledger and the
-# widest id a comment is recorded at are read where they are defined, and a
-# refusal for want of room is told from any other where the conflict stage
-# tells it.
+# A pull request that is over ends an attempt's whole handoff in one write --
+# the receipt, the debt, the rotation, and the rollback's drop -- and reports a
+# settlement the sinks never got, which is the terminal handoff's own.
 _CALL_TIME_HOPS = MappingProxyType({
     f"{_BASE_SYNC}.attempt_records": (
         f"{PACKAGE}.workflow.late_split.formats",
     ),
     f"{_BASE_SYNC}.conflicts": (_COMMENTS,),
-    f"{_BASE_SYNC}.landed_recovery": (_LATE_RECORDS, _LATE_TELEMETRY),
-    f"{_BASE_SYNC}.landed_settlement": (_LATE_ENTRY,),
     f"{_BASE_SYNC}.terminal_handoff": (
         f"{PACKAGE}.workflow.stages.implementing.late_approval_state",
         f"{PACKAGE}.workflow.stages.implementing.late_publication_state",
@@ -163,14 +155,6 @@ _CALL_TIME_HOPS = MappingProxyType({
         f"{PACKAGE}.workflow.stages.implementing.late_approval_state",
         _LATE_RECORDS,
         _LATE_TRANSFER,
-    ),
-    f"{_BASE_SYNC}.publication": (_LATE_PUSH, _LATE_RECORDS),
-    f"{_BASE_SYNC}.recovery_notices": (_COMMENTS,),
-    f"{_BASE_SYNC}.report_debt": (
-        _COMMENTS,
-        f"{PACKAGE}.workflow.engine.report_record_values",
-        f"{PACKAGE}.workflow.engine.report_rewrite_debt",
-        f"{PACKAGE}.workflow.engine.report_rewrite_room",
     ),
     f"{_BASE_SYNC}.transfers": (_EXEMPTION, _REWRITES, _REWRITE_VALUES),
     f"{_BASE_SYNC}.transfer_permits": (

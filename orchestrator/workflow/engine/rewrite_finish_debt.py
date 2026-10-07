@@ -28,9 +28,10 @@ orchestrator can show it made, so the finish goes on, and the reviewer road
 refuses the stale report it finds there as it would with no claim at all.
 `report_rewrite_room` is what tells that refusal from one for room.
 
-The text and the measurement are the ones the crash recovery's finish still
-makes through the git owners (`git/base_sync/report_debt.py`), so a landing
-finished on either road owes and parks alike.
+Every landing is finished through this one owner -- the publication of a
+rebase this tick made, the recovery's retry of a replay nothing published,
+and a push the recovery found already landed -- so a landing finished on any
+road owes and parks alike.
 """
 from __future__ import annotations
 

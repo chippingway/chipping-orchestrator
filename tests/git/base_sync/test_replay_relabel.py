@@ -7,7 +7,6 @@ from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git.base_sync import (
-    attempts,
     replay_cleanup as _replay_cleanup,
     snapshot,
 )
@@ -71,7 +70,7 @@ class IneligibleLabelTest(seed.TransferCase):
                 if granted:
                     seed.granted(self.state)
                 if announced:
-                    attempts._announces(self.context, announced)
+                    _recovery_cases._announced(self.context, announced)
 
                 self._assert_stranded(head)
 

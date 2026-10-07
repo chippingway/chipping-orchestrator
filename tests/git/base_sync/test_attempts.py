@@ -91,10 +91,6 @@ _WITH_THE_REPLAY = MappingProxyType({
     **_ANCHOR_AND_TERMS, KEY_REWRITE_SHA: REPLAYED_SHA,
 })
 
-_WITH_THE_MARK = MappingProxyType({
-    **_WITH_THE_REPLAY, KEY_ANNOUNCED_SHA: REPLAYED_SHA,
-})
-
 # Those writes in the order the flow makes them, each beside the moment it is
 # the first one able to answer for its member.
 _WRITERS = (
@@ -109,11 +105,6 @@ _WRITERS = (
         "the head the replay produced",
         lambda context: attempts._records_the_replay(context, REPLAYED_SHA),
         _WITH_THE_REPLAY,
-    ),
-    (
-        "the mark a finish leaves before it routes",
-        lambda context: attempts._announces(context, REPLAYED_SHA),
-        _WITH_THE_MARK,
     ),
 )
 
@@ -382,9 +373,10 @@ class AttemptWriteOrderTest(_SyncWorktreeWithBaseFixture, unittest.TestCase):
         self.assertEqual(observed[RELABEL_SEAM].get(KEY_REWRITE_SHA), AFTER_SHA)
 
     def test_each_write_carries_only_its_own_member(self) -> None:
-        # Three writers, one record: each adds the member it can first answer
-        # for and leaves every other field exactly where it stands, so a crash
-        # under any of them loses only what had not happened yet.
+        # Two writers here and the finish's checkpoint past them, one record:
+        # each adds the member it can first answer for and leaves every other
+        # field exactly where it stands, so a crash under any of them loses
+        # only what had not happened yet.
         context = fixtures._sync_context()
         for described, write, standing in _WRITERS:
             with self.subTest(write=described):

@@ -31,6 +31,9 @@ _REWRITE_RECORD_KEYS = (
 # branch somebody else left by name rather than by counting.
 UNRELATED_FILE = "unrelated.py"
 
+# The path a base advance landing past the replay writes.
+LATER_FILE = "later.py"
+
 
 class VouchedReplayGitFixtureMixin(fixtures.RecoveryGitFixtureMixin):
     """A real replay of the branch, recovered on the record the attempt left."""
@@ -86,6 +89,22 @@ class VouchedReplayGitFixtureMixin(fixtures.RecoveryGitFixtureMixin):
             cwd=self.work,
         )
         self._rewind_tracking_ref()
+
+    def advance_the_base_again(self) -> None:
+        """Land another commit on the base branch from elsewhere, and fetch it here.
+
+        What a sibling pull request merging while the process was down leaves,
+        as the refresh's own base fetch brings it down: the base the replay is
+        counted against is one commit past the one it was replayed onto.
+        """
+        sibling = self.tmpdir / "sibling"
+        fixtures.run_git(
+            "clone", "--branch", fixtures.BASE_BRANCH, str(self.remote), str(sibling),
+            cwd=self.tmpdir,
+        )
+        fixtures.commit(sibling, LATER_FILE, "later\n", "feat: another sibling landed")
+        fixtures.run_git(fixtures.PUSH, fixtures.REMOTE_NAME, fixtures.BASE_BRANCH, cwd=sibling)
+        fixtures.run_git("fetch", fixtures.REMOTE_NAME, fixtures.BASE_BRANCH, cwd=self.work)
 
     def announce_a_finish(self, announced: str) -> None:
         """Leave the checkpoint a finish writes past its notice and event.

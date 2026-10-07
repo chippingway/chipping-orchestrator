@@ -7,10 +7,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.git.base_sync import outcomes, persistence, recovery_notices as _recovery_notices, snapshot
+from orchestrator.git.base_sync import outcomes, persistence, snapshot
 from tests.git.base_sync import base_sync_helpers as fixtures
-
-FINALIZE_HELPER = "_finalize_recovered_rebase"
 
 RESET_HELPER = "_reset_clear_and_park"
 
@@ -21,10 +19,6 @@ SHORT_LOCAL = fixtures.RECOVERED_SHA[:8]
 SHORT_REMOTE = fixtures.REMOTE_SHA[:8]
 
 SHORT_ANCHOR = fixtures.PRE_REBASE_SHA[:8]
-
-ALREADY_PUBLISHED = "already published"
-
-REBASE_AGAIN_PHRASE = "rebasing once more"
 
 DIRTY_FILES = ("scratch.txt", "notes.md")
 
@@ -55,59 +49,6 @@ PARK_CASES = (
         "`--force-with-lease` push",
     ),
 )
-
-
-class RecoveryNoticeTest(unittest.TestCase):
-    """The notice of a landing found already standing names it and where the issue goes next.
-
-    A retry this tick pushed is announced by the workflow's shared finish,
-    whose notices are held there.
-    """
-
-    def test_current_head_promises_the_route(self) -> None:
-        notice = _recovery_notices._already_published_recovery_notice(
-            fixtures._recovery_context(behind=0), fixtures.RECOVERED_SHA,
-        )
-
-        self.assertIn(f"#{fixtures.PR_NUMBER}", notice)
-        self.assertIn(SHORT_LOCAL, notice)
-        self.assertIn(ALREADY_PUBLISHED, notice)
-        self.assertIn(f"`{fixtures.LABEL}` -> `{fixtures.VALIDATING}`", notice)
-        self.assertNotIn(REBASE_AGAIN_PHRASE, notice)
-
-    def test_lagging_head_announces_another_rebase(self) -> None:
-        notice = _recovery_notices._already_published_recovery_notice(
-            fixtures._recovery_context(behind=2), fixtures.RECOVERED_SHA,
-        )
-
-        self.assertIn("2 commit(s)", notice)
-        self.assertIn(REBASE_AGAIN_PHRASE, notice)
-
-
-class AlreadyPublishedRecoveryTest(unittest.TestCase):
-    """A landed push is finalized as a relabel, with nothing pushed again."""
-
-    def test_finalize_carries_the_relabel_only_method(self) -> None:
-        finalize = MagicMock(return_value=True)
-
-        with patch.object(persistence, FINALIZE_HELPER, finalize):
-            finalized = outcomes._finalize_already_published_recovery(
-                fixtures._recovery_context(),
-                fixtures._snapshot(local_head=fixtures.RECOVERED_SHA),
-            )
-
-        self.assertTrue(finalized)
-        self.assertEqual(
-            finalize.call_args.kwargs.get("local_head"),
-            fixtures.RECOVERED_SHA,
-        )
-        self.assertEqual(
-            finalize.call_args.kwargs.get("method"),
-            "crash_recovery_relabel_only",
-        )
-        self.assertIn(
-            ALREADY_PUBLISHED, finalize.call_args.kwargs.get("notice"),
-        )
 
 
 class UnknownComparisonTest(unittest.TestCase):

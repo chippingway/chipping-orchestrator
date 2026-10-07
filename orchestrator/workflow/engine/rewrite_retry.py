@@ -37,8 +37,10 @@ kept:
   the anchor and parks. One that landed with the verdict left behind -- a
   permit that stopped holding inside the gate -- parks with HEAD and the
   anchor where they stand. Every other landing is handed to the one finish
-  every landing gets (`rewrite_finish`), on its recovery road and with the
-  human reply that brought the attempt back, which it spends.
+  every landing gets (`rewrite_finish.finishes_the_recovery`), on its
+  recovery road and with the human reply that brought the attempt back,
+  which it spends -- the same hand a push the recovery finds already landed
+  is finished through (`rewrite_landed`).
 
 Run under the issue writer claim the base refresh (`base_refresh`) takes
 before the issue is read and holds through the route.
@@ -48,7 +50,6 @@ from __future__ import annotations
 from orchestrator.git.base_sync import (
     outcomes as _outcomes,
     recovery_push as _recovery_push,
-    replay_evidence as _replay_evidence,
     replay_transfer_parks as _replay_transfer_parks,
     transfer_evidence as _transfer_evidence,
     transfer_permits as _transfer_permits,
@@ -58,13 +59,12 @@ from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoveryContext,
     _AutoRebaseRecoverySnapshot,
 )
-from orchestrator.git.base_sync.rewrite_handoffs import _LandedRewrite, _RewriteCandidate
+from orchestrator.git.base_sync.rewrite_handoffs import _RewriteCandidate
 from orchestrator.git.base_sync.transfer_values import _Handoff
 from orchestrator.workflow.engine import (
     rewrite_finish as _finish,
     rewrite_publication as _rewrite_publication,
 )
-from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     late_push as _late_push,
@@ -90,7 +90,7 @@ def retries(
     does. False only where the finish left the landed head behind a base that
     has advanced again, and this tick's rebase goes on from it.
     """
-    candidate = _recovery_push._retry_candidate(context, completed)
+    candidate = _recovery_push._recovered_candidate(context, completed)
     dirty = candidate.checkout.status.paths
     if dirty:
         return _outcomes._park_dirty_recovery(context, completed, list(dirty))
@@ -146,26 +146,4 @@ def _publishes(
         return _replay_transfer_parks._park_unfinished_recovery(
             context, completed, _recovery_push._UNROTATED.format(published=completed.head),
         )
-    return _finishes(context, landing)
-
-
-def _finishes(context: _AutoRebaseRecoveryContext, landing: _LandedRewrite) -> bool:
-    """Hand a landed retry to the shared finish; whether the recovery owns the tick.
-
-    The landing is finished on its recovery road, attributed to the label the
-    issue wears, and with the human reply that brought the attempt back for
-    the finish to spend. A finish that found the base advanced past the landed
-    head again retired the attempt without routing, and the rebase this tick
-    goes on with is what moves that head along.
-    """
-    finished = _finish.finalizes(LandedFinish(
-        gh=context.gh,
-        spec=context.spec,
-        issue=context.issue,
-        state=context.state,
-        landed=landing,
-        label=_replay_evidence._recovered_stage(context.label),
-        road=FinishRoad.RECOVERY,
-        retry=context.unparking_consumed_max,
-    ))
-    return finished is not FinishOutcome.CONTINUED
+    return _finish.finishes_the_recovery(context, landing)

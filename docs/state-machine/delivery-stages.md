@@ -1250,8 +1250,8 @@ because there it is the claim that this stage has already rerouted rather than a
   [`_handle_resolving_conflict`](#_handle_resolving_conflict-label-workflowresolving_conflict) records one for every
   head its own push rewrites, and the per-tick base refresh one for every clean auto rebase whose push lands, before
   it clears its attempt or routes to `workflow:validating` (`workflow/engine/rewrite_finish_debt.py`) -- its crash
-  recovery's retry of a replay nothing published included -- and the finish of a landing that recovery finds already
-  standing records the same one (`git/base_sync/report_debt.py`, see [Base refresh](labels-and-state.md#base-refresh)).
+  recovery's retry of a replay nothing published and its finish of a push already landed included (see
+  [Base refresh](labels-and-state.md#base-refresh)).
   An issue without the record passes through reading nothing.
 - **Holds**: `workflow:documenting` and `in_review`, the roads past an approval that would carry a head no report is
   about to the human who merges it. Nothing is written or posted; the claim is left for validating, and the hold is
@@ -2608,8 +2608,9 @@ such pushes and no others:
   through the shared dev-fix seam, are what
   [`workflow:resolving_conflict`'s content updates](#content-updates-onto-the-pull-request-this-stage-already-has)
   are made of;
-- the base-sync auto rebase `workflow/engine/rewrite_publication.publishes`, and its crash recovery's retry of a
-  replay nothing published `workflow/engine/rewrite_retry.retries`, the two callers that hand the gate a transport of
+- the base-sync auto rebase `workflow/engine/rewrite_publication.publishes`, its crash recovery's retry of a
+  replay nothing published `workflow/engine/rewrite_retry.retries`, and that recovery's settlement of a push that
+  already landed `workflow/engine/rewrite_landed.recovers`, the callers that hand the gate a transport of
   their own -- one and the same (`rewrite_publication.CandidatePush`, an `implementing/late_transport.Transport`): the
   git owner reads the checkout and the remote again
   (`git/base_sync/rewrite_transport._refused_before_the_push`), refusing where the checkout, the base, or the remote
@@ -2618,10 +2619,9 @@ such pushes and no others:
   leased to itself (`_proves_the_landing`). The gate asks its ending barrier between that reading and the push,
   whatever the reading answered, so a close or merge landing while the remote is read holds the tick even where the
   reading refused the push, and the proof and settlement after the push are this gate's as for every other caller.
-  Of the auto rebase's own crash recovery, the retry of a push that never went out is the workflow's and enters the
-  gate as the ordinary publication does, and `git/base_sync/landed_settlement._settle_published_recovery`, the leased
-  no-op that receipts one that did, reaches
-  the gate through `base_sync/publication._gated_publication()` so the sync layer keeps its call-time hop upward. The
+  Of the auto rebase's own crash recovery, the retry of a push that never went out and the leased no-op that receipts
+  one that did are both the workflow's, and enter the gate as the ordinary publication does -- the no-op as the proof
+  of a remote already standing on the candidate, which sends nothing. The
   recovery is the one caller that can enter `permit_only`, and it does so for the replay of an
   adjudicated commit: it is finishing a publication rather than deciding one, so the cumulative reading is the wrong
   answer twice over and `late_gate`'s `_permitted_only` asks the permit and nothing else. `late_freeze` keeps such a

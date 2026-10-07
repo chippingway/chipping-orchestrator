@@ -423,8 +423,9 @@ Two paths depending on whether a PR exists:
   order they have always been asked; a replay its crash kept off the pull request is retried by the workflow
   (`workflow/engine/rewrite_retry.py`) exactly as the publication below publishes a clean rebase -- the candidate
   reading, the gate, the exact-candidate push under the anchor's lease, and the finish -- with the transfer permit
-  asked first where a transfer is the only voucher, and a push the recovery finds already landed is still finished by
-  the git owners. A clean
+  asked first where a transfer is the only voucher, and a push the recovery finds already landed is the workflow's
+  too (`workflow/engine/rewrite_landed.py`): observed rather than pushed again, or, for a permission still
+  outstanding, proved by the permit-only leased no-op that settles it, and handed to the same finish. A clean
   rebase is the workflow's own publication (`workflow/engine/rewrite_publication.py`): the git owner reads the
   candidate the rebase left (`git/base_sync/rewrite_facts.py`), the size gate and the transfer permit rule on it, and
   the git owner pushes exactly that candidate (`git/base_sync/rewrite_transport.py`, force-with-lease pinned to the
@@ -526,10 +527,9 @@ its anchor to hold back the handler that finalizes the issue.
 
 A clean rebase whose push LANDS leaves the pull request on a head no developer report is about, and the reviewer
 road refuses the report of the head before it. So the finish stages the report debt that head leaves
-(`developer_report_rewrite_debt`, see [Pinned state](#pinned-state)) -- through
-`workflow/engine/rewrite_finish_debt.py` for a push the tick made itself or the recovery's retry reissued, and
-`git/base_sync/report_debt.py` for one the recovery finds already landed -- the pinned pull request, its branch, the
-anchor the push was leased against, and the head
+(`developer_report_rewrite_debt`, see [Pinned state](#pinned-state)) through
+`workflow/engine/rewrite_finish_debt.py`, whichever road reached the finish -- the pinned pull request, its branch,
+the anchor the push was leased against, and the head
 that landed -- and the debt
 rides the write that records the announcement mark, ahead of the write that clears the attempt and ahead of the
 relabel, so the validating report refresh asks the developer for that head's report with no human reply. The
@@ -559,10 +559,10 @@ recovery back to finish the landed head -- recording the debt first, or parking 
 standing claim the rewrite cannot be carried onto is no such debt, and `workflow/engine/report_rewrite_room.py` is what
 tells the two refusals apart, for the conflict stage as well.
 
-The finish of a head the refresh published itself, or the recovery's retry pushed again, is the workflow's
-(`workflow/engine/rewrite_finish.py`); a landing the recovery finds already standing still finishes through the
-base-sync owners by the same order, until it is handed over too. The finish is
-handed the typed landing (`git/base_sync/rewrite_handoffs.py`) beside the issue it finishes and applies the policy
+Every finish is the workflow's (`workflow/engine/rewrite_finish.py`): of a head the refresh published itself, of one
+the recovery's retry pushed again, and of one the recovery found already standing
+(`workflow/engine/rewrite_landed.py`), so the three share one post-push policy and one evidence decision. The finish
+is handed the typed landing (`git/base_sync/rewrite_handoffs.py`) beside the issue it finishes and applies the policy
 above to the ordinary
 publication, a recovered push, a landing a recovery found standing, and a finish whose mark already names the head
 alike — the same debt measurement and park, notice texts, `base_rebased` payloads, round reset, retirement, retry
@@ -2984,8 +2984,9 @@ The keys that matter for the state machine fall into a few groups:
   `auto_base_rebase_push_failed` where the push, the remote, or an announced publication the remote lost is what
   refused, and `auto_base_rebase_failed` where the pinned comment is; the foreign-publication, the
   unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand.
-  **The post-publication route is live too.** The recovery hands `landed_recovery` every head the pull request
-  already carries, beside how far the transfer got, and eligibility's open-PR gate hands `terminal_handoff` every
+  **The post-publication route is live too.** The recovery hands every head the pull request already carries, beside
+  how far the transfer got, to the workflow's landed road (`workflow/engine/rewrite_landed.py`), which asks
+  `landed_recovery` why it may not finish one, and eligibility's open-PR gate hands `terminal_handoff` every
   anchored attempt whose pull request merged or closed. A landed head is finished only where something the attempt wrote
   vouches for it — the record naming the head, or, for a replay the permit alone published, a permission bound to this
   attempt — and only where the comment accounts for it: a foreign publication, a mark naming another head, a tree not
@@ -4185,7 +4186,7 @@ rather than preserving.
   **Every one of these readings is on a running road.** The publisher's own evidence is what the size gate is handed
   on every exempt rebase, the classification, the re-derivation, and the rollback answer are what the crash recovery
   the refresh enters decides on, and the accounting is what `landed_recovery` holds a rewrite the pull request already
-  carries to before it finishes that road. On the recovery, a checkout the pull request is not standing on is
+  carries to before the workflow finishes that road. On the recovery, a checkout the pull request is not standing on is
   classified off the pair of SHAs the attempt recorded — the anchor the remote must still be on, the replay the
   checkout must still be — and off the handoff above: a *settled* transfer or a whole receipt over a remote that has
   moved is somebody's rollback and parks, an *unvouched* record parks, and a record that disowns the checkout parks.
@@ -4826,8 +4827,9 @@ back as no authorization.
   ahead of every `validating` route.
 - `auto_clean_rebase`, entered from `validating`, `documenting`, `in_review`, or `fixing`: the base refresh's clean
   rebase (`workflow/engine/rewrite_publication.publishes`). Its recovery is the refresh's own crash recovery — the
-  reissued push (`workflow/engine/rewrite_retry.retries`) and the leased no-op, both `permit_only` — and the terminal
-  handoff of a pull request that merged or closed.
+  reissued push (`workflow/engine/rewrite_retry.retries`) and the leased no-op
+  (`workflow/engine/rewrite_landed.recovers`), both `permit_only` — and the terminal handoff of a pull request that
+  merged or closed.
 - `conflict_rebase`, entered from `resolving_conflict`: the clean rebase `conflicts/publication._publish_clean_rebase`
   runs. Its recovery is `conflicts/divergence._push_recovered_commits`, over the `conflict_replay_*` record written
   before the replay.

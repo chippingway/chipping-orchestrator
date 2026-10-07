@@ -3,7 +3,8 @@
 """Ask the publication permit over the recovery's frozen entry.
 
 The workflow's retry of an unpublished replay
-(`workflow/engine/rewrite_retry.py`) and the landed recovery's settlement ask
+(`workflow/engine/rewrite_retry.py`) and its settlement of a landed push whose
+permission is still outstanding (`workflow/engine/rewrite_landed.py`) ask
 before publishing and repeat the same permit-only restriction inside the
 gate. Workflow owners are loaded only inside that call, preserving the Git
 layer's import boundary.

@@ -382,10 +382,10 @@ emission both precede the scheduler / in-tick split so each fires exactly once p
 decides which worktree is synced, under whose claim, and by which route; a PR-having worktree's route is ordered by
 the base-rewrite coordinator beside it (`workflow/engine/base_rewrite.py`), whose ordinary publication of a clean
 rebase is the workflow's own (`workflow/engine/rewrite_publication.py`), and so is the order an interrupted attempt's
-recovery is asked in and the retry of a replay that crash kept off the pull request
-(`workflow/engine/rewrite_recovery.py`, `rewrite_retry.py`). The git `base_sync` owners under them supply the
-selection, the rebase, the candidate and its exact-candidate push, the recovery's readings, refusals, and parks, and
-the finish of a push the recovery finds already landed, which the coordinator still delegates.
+recovery is asked in, the retry of a replay that crash kept off the pull request, and the finish of a push it finds
+already landed (`workflow/engine/rewrite_recovery.py`, `rewrite_retry.py`, `rewrite_landed.py`). The git `base_sync`
+owners under them supply the selection, the rebase, the candidate, its exact-candidate push or the observation of a
+landing, and the recovery's readings, refusals, and parks; every finish of what landed is the workflow's.
 The dispatch behind that split first drops each open `workflow:blocked` / `workflow:umbrella` issue on the ticks
 `DEPENDENCY_POLL_EVERY_N_TICKS` skips — a classification filter taken before any partition, so a skipped dependency
 walk is neither submitted nor handed a worker client — and then folds every remaining family-aware issue
@@ -411,8 +411,8 @@ posted -- the drop, retirement, and park of a handed one, and the recovery's anc
 of a round a reply bought (`review_handoffs.py`, `review_launch_park.py`, `review_resume.py` beside it), and every
 write of an approval's tail -- its verdict's retirement, the squash's own records, the handoff with the evidence it
 carries or invalidates, a failed squash's park, and the handoff's end behind the label (`squash_writes.py` beside
-them) -- are the roads that commit through it so far, and so is the finish of a base rewrite the tick published
-itself (`workflow/engine/rewrite_finish_writes.py`). It derives a candidate
+them) -- are the roads that commit through it so far, and so is the finish of every base rewrite that landed,
+whichever road reached it (`workflow/engine/rewrite_finish_writes.py`). It derives a candidate
 over a fresh reading of the comment its caller captured, refuses with nothing written where that comment or a record
 the decision rests on moved, or where another writer moved a field the caller is changing, measures the whole rendered
 candidate against the comment limit before any dependent effect, and lands through the strict in-place edit on
@@ -861,9 +861,14 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   reads the candidate the attempt left, in the attempt's own terms and over the remote head its fetch verified
   (`git/base_sync/recovery_push.py`), asks the transfer permit first where a transfer is the only voucher -- a refusal
   resets and parks rather than falling through to the cumulative reading -- and publishes and finishes exactly as the
-  ordinary publication does. A push the recovery finds already landed does not cross it yet, so its observation of a
-  landing stays dormant; `base_sync/publication.py` keeps only the gate bridge that road's settlement still reaches
-  the gate through.
+  ordinary publication does. A push the recovery finds already landed (`workflow/engine/rewrite_landed.py`) crosses
+  it too, without a second push: the same candidate is read and held to the head the recovery's fetch classified -- a
+  checkout and branch moved together onto another head since make nothing, for the next tick to classify -- and
+  `git/base_sync/landed_recovery.py` names why the pinned record may not account for the landing -- a foreign mark,
+  a head nothing this attempt vouches for, a checkout not provably clean beneath a verdict, a transfer the receipt
+  and debt do not account for -- and a refusal parks with HEAD and the anchor kept. Past those the landing is
+  observed where the remote stands, or, for a transfer whose permission is still outstanding, proved by the
+  permit-only leased no-op the gate settles that transfer through, and either is handed to the same finish.
 - The finish a landed rewrite still owes sits on the workflow side of that boundary.
   `workflow/engine/rewrite_finish.py` takes the landed record beside the issue it finishes and applies one policy to
   the ordinary publication, a recovered one, and a finish whose announcement is already out: the report debt staged
@@ -875,10 +880,11 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   tick pushed nothing for is announced as one found standing. Every write is a guarded commit, so a refused or
   unconfirmed one stops the finish with nothing behind it made. Its post-push, pre-route step is where the evidence a
   landed head is routed with is decided, on the base lag alone so far. It runs under its caller's issue writer claim.
-  The ordinary publication and the recovery's retry hand their landings there -- the retry's on the recovery road,
-  with the reply that brought the attempt back, and over an attempt from before its replay record existed the push it
-  made is that retry's own. A landing the recovery finds already standing still finishes through
-  `base_sync/persistence.py`, by the same order, until it is moved onto this finish.
+  The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
+  there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
+  (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from
+  before its replay record existed the push a retry made is that retry's own. Nothing in `git/base_sync` announces,
+  routes, stages report debt, or enters the size gate for a landing any more.
 - The bare `HEAD` form is left for the one push that could name no commit at all: a gated push on an install running
   with `DECOMPOSE=off` whose checkout would not prove its own head. The switch keeps candidates out of the
   MEASUREMENT and not out of a push that knows what it is publishing, so the commit is named off the checkout there

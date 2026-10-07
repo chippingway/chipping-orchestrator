@@ -30,8 +30,6 @@ _STARTUP_OWNER = "orchestrator.git.base_sync.startup"
 
 _ELIGIBILITY_OWNER = "orchestrator.git.base_sync.eligibility"
 
-_PUBLICATION_OWNER = "orchestrator.git.base_sync.publication"
-
 _GUARDS_OWNER = "orchestrator.git.base_sync.guards"
 
 _CONFLICTS_OWNER = "orchestrator.git.base_sync.conflicts"
@@ -52,7 +50,6 @@ _REWRITE_OWNERS = (
 
 _OWNERS = (
     "orchestrator.git.base_sync.landed_recovery",
-    "orchestrator.git.base_sync.landed_settlement",
     "orchestrator.git.base_sync.terminal_handoff",
     "orchestrator.git.base_sync.recovery_push",
     "orchestrator.git.base_sync.replay_checkout_parks",
@@ -70,10 +67,9 @@ _OWNERS = (
     "orchestrator.git.base_sync.attempt_records",
     "orchestrator.git.base_sync.recovery_holds",
     "orchestrator.git.base_sync.recovery_notices",
-    "orchestrator.git.base_sync.report_debt",
     _MODELS_OWNER, _PRE_PR_OWNER, _REFRESH_SELECTION_OWNER,
     _STATE_OWNER, _PERSISTENCE_OWNER, _OUTCOMES_OWNER, _SNAPSHOT_OWNER,
-    _RECOVERY_OWNER, _STARTUP_OWNER, _ELIGIBILITY_OWNER, _PUBLICATION_OWNER,
+    _RECOVERY_OWNER, _STARTUP_OWNER, _ELIGIBILITY_OWNER,
     _GUARDS_OWNER, _CONFLICTS_OWNER, _FROZEN_OWNER,
     _ATTEMPTS_OWNER, _TRANSFERS_OWNER, *_REWRITE_OWNERS,
 )
@@ -82,16 +78,21 @@ _MODULES = ("orchestrator.git.base_sync", *_OWNERS)
 
 # The module paths a second import site for these owners would take: the flat
 # spelling itself, and the inventory and resolver hooks one would be built from.
-# The per-tick refresh, the base-rewrite coordinator, and the order a crash
-# recovery is routed in are the workflow's, so their git spellings would be a
-# shim pointing this layer back up at it.
+# The per-tick refresh, the base-rewrite coordinator, the order a crash
+# recovery is routed in, and the finish of a landing -- the gated settlement of
+# one, the bridge to the size gate it crossed, and the report debt it leaves --
+# are the workflow's, so their git spellings would be a shim pointing this
+# layer back up at it.
 _FLAT_MODULES = (
     "orchestrator._base_sync_export_manifest",
     "orchestrator._base_sync_exports",
     "orchestrator.base_sync",
+    "orchestrator.git.base_sync.landed_settlement",
     "orchestrator.git.base_sync.pr",
+    "orchestrator.git.base_sync.publication",
     "orchestrator.git.base_sync.refresh",
     "orchestrator.git.base_sync.replay_recovery",
+    "orchestrator.git.base_sync.report_debt",
 )
 
 # The state owner exists to spell out the pinned-state keys and the label
@@ -130,9 +131,9 @@ _GITHUB_CLIENT_ROOT = "github"
 # direction of the dependency: none may reach the workflow engine and its stage
 # handlers, or an application entrypoint. These prefixes catch that past the
 # label owner the exempt set above allows. The collaborators that do live above
-# this package -- the park guard, the comment poster, and the report debt in
-# the workflow engine -- are reached through call-time imports, which is what
-# keeps them out of this check.
+# this package -- the park guard, the conflict notice's comment poster, and the
+# records and evidence the rollback and the transfer readers ask -- are reached
+# through call-time imports, which is what keeps them out of this check.
 _FORBIDDEN_PREFIXES = (
     "orchestrator.cli",
     "orchestrator.runtime",

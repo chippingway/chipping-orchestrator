@@ -1,38 +1,32 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Persist parks and route recovered rebases through their durable checkpoints.
+"""Persist the parks an auto-rebase attempt ends in, and the rollback behind them.
 
-A successful reset clears abandoned evidence before parking. A finalize stages
-the report debt the landed head leaves -- or parks with the attempt standing
-where the comment has no room for it -- sends its notice and audit event
-through recovery_notices, records the debt with the announcement while its
-anchor still stands, and only then routes and clears the attempt.
+Every refresh-time failure parks for a human the same way
+(`_park_auto_rebase_failure`), and every road that has to put the checkout
+back onto the anchor before it parks goes through one tail
+(`_reset_clear_and_park`), which drops the attempt and the records the reset
+abandoned only where the reset itself landed. The finish of a rewrite that
+landed is the workflow's (`workflow/engine/rewrite_finish.py`), whichever road
+reached it.
 """
 from __future__ import annotations
 
 from github.Issue import Issue
 
 from orchestrator.git import commands
-from orchestrator.git.base_sync import (
-    attempts,
-    recovery_notices as _recovery_notices,
-    report_debt as _report_debt,
-)
+from orchestrator.git.base_sync import attempts
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseRecoveryContext,
 )
 from orchestrator.git.base_sync.state import (
     _AUTO_REBASE_PARK_REASONS,
-    _AWAITING_HUMAN,
     _PARK_REASON,
-    _REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT,
-    _REVIEW_ROUND,
     log,
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.state import WorkflowLabel
 
 
 def _park_auto_rebase_failure(
@@ -179,9 +173,9 @@ def _forgets_the_reset(
     rather than written so the park's own write is what makes the drop
     durable.
     """
-    # Lazily bound for the reason the comment and guard owners are: the size
-    # gate sits in the workflow layer above this package, and binding it at
-    # module load would make every git-side import pay for the stage tree.
+    # Lazily bound for the reason the guard owner is: the size gate sits in
+    # the workflow layer above this package, and binding it at module load
+    # would make every git-side import pay for the stage tree.
     from orchestrator.workflow.stages.implementing import (
         late_approval_reading as _late_approval_reading,
         late_approval_state as _late_approval_state,
@@ -197,146 +191,3 @@ def _forgets_the_reset(
         ),
         reset_sha,
     )
-
-
-def _prepare_recovered_rebase_state(
-    context: _AutoRebaseRecoveryContext,
-) -> None:
-    """Clear the whole attempt and commit any pending human retry.
-
-    The three things every finish on this route owes its own write, staged
-    together so no road can make one of them and forget another. The retry is
-    the one that is easy to lose: a parked attempt is re-entered only because
-    a human replied, and a finish that dropped the record without spending
-    that reply would leave the issue routed to a stage that stands down on the
-    auto-rebase park still flagged beside it, with nothing left to bring the
-    tick back.
-    """
-    if context.unparking_consumed_max is not None:
-        context.state.set(
-            "last_action_comment_id", context.unparking_consumed_max,
-        )
-        context.state.set(_AWAITING_HUMAN, False)
-        context.state.set(_PARK_REASON, None)
-    attempts._clears_the_attempt(context.state)
-    context.state.set(_REVIEW_ROUND, 0)
-
-
-def _route_recovered_rebase(
-    context: _AutoRebaseRecoveryContext,
-    local_head: str,
-    method: str,
-) -> bool:
-    """Persist recovery progress and route only a current head to validation."""
-    if context.behind == 0:
-        log.info(
-            "issue=#%d auto-rebase recovery (%s): recovered head %s is "
-            "current; routing %r -> validating",
-            context.issue.number,
-            method,
-            local_head[:8],
-            context.label,
-        )
-        context.gh.set_workflow_label(context.issue, WorkflowLabel.VALIDATING)
-        context.gh.write_pinned_state(context.issue, context.state)
-        return True
-    context.gh.write_pinned_state(context.issue, context.state)
-    log.info(
-        "issue=#%d auto-rebase recovery (%s): recovered head %s is still "
-        "%d commit(s) behind %s/%s; falling through to the normal rebase "
-        "+ push flow",
-        context.issue.number,
-        method,
-        local_head[:8],
-        context.behind,
-        context.spec.remote_name,
-        context.spec.base_branch,
-    )
-    return False
-
-
-def _write_the_finished_route(
-    context: _AutoRebaseRecoveryContext, local_head: str,
-) -> bool:
-    """Make durable a finish an earlier tick announced and never wrote.
-
-    The one finish that announces nothing. The notice and the `base_rebased`
-    event go out before the mark does, so a mark naming this head says both
-    are already out, and saying them again would put a second of each on the
-    pull request and the stream for one publication.
-
-    What is left is the write every finish makes -- the whole attempt cleared,
-    the round reset, and a human's retry spent, since an announced attempt can
-    have been parked and re-entered on a reply -- and the route, held to the
-    base lag exactly as the ordinary finish is. A relabel that already landed
-    is not made again: writing a label an issue already wears is a transition
-    the graph does not describe and a second `stage_enter` on the stream.
-
-    The report debt the landed head leaves went down with the mark, so staging
-    it again replays it and writes nothing. A mark an earlier build wrote
-    carries no debt beside it, though, and the route below may relabel before
-    its own write: that debt is written first, while the anchor still stands,
-    so no relabel reaches `validating` over a head whose debt is not durable.
-    Where the comment has no room for it, the route parks instead with the
-    mark and the attempt standing, and the reply finishes it.
-    """
-    log.info(
-        "issue=#%d auto-rebase recovery: an earlier tick announced %s and died "
-        "before its own write; finishing the route without announcing it again",
-        context.issue.number, local_head[:8],
-    )
-    unrecorded = _report_debt._records_the_rewrite(
-        context, context.pending_pre_rebase_sha, local_head, announcing=False,
-    )
-    if unrecorded:
-        _park_auto_rebase_failure(
-            context.gh, context.issue, context.state,
-            message=unrecorded, reason=_REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT,
-        )
-        return True
-    _prepare_recovered_rebase_state(context)
-    if context.behind == 0 and context.label == WorkflowLabel.VALIDATING:
-        context.gh.write_pinned_state(context.issue, context.state)
-        return True
-    return _route_recovered_rebase(context, local_head, "crash_recovery_announced")
-
-
-def _finalize_recovered_rebase(
-    context: _AutoRebaseRecoveryContext,
-    *,
-    local_head: str,
-    method: str,
-    notice: str,
-) -> bool:
-    """Finalize a recovered push and route it according to current base lag.
-
-    The announcement comes first and is made durable before anything is
-    cleared, so the window between it and the relabel is one a later tick can
-    tell from an attempt that never got this far. What the clear rides is
-    still the last write, since the anchor is what brings that tick back.
-
-    The report debt the landed head leaves is measured on that announcement
-    write and rides it, so a route to `validating` -- or the rebase the same
-    tick starts from this head when the base has moved again, which carries
-    the debt onto the head it publishes -- never reaches a head whose debt is
-    unrecorded. Where the write has no room for it, nothing is announced: the
-    route parks with the attempt standing, and the reply finishes it. The
-    round is reset ahead of the mark, as the publisher's own finish resets it
-    and as the event already reports it, so the write the room was measured
-    on is the write that goes out.
-    """
-    unrecorded = _report_debt._records_the_rewrite(
-        context, context.pending_pre_rebase_sha, local_head, announcing=True,
-    )
-    if unrecorded:
-        _park_auto_rebase_failure(
-            context.gh, context.issue, context.state,
-            message=unrecorded, reason=_REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT,
-        )
-        return True
-    _recovery_notices._post_recovered_rebase_notice(context, notice)
-    _recovery_notices._emit_recovered_rebase_event(context, local_head, method)
-    context.state.set(_REVIEW_ROUND, 0)
-    attempts._announces(context, local_head)
-    _prepare_recovered_rebase_state(context)
-    return _route_recovered_rebase(context, local_head, method)

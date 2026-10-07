@@ -19,12 +19,13 @@ The ordinary publication is the workflow's own (``rewrite_publication``): the
 candidate the git owner reads, the size and transfer gates it passes before
 any push, the exact-candidate push, and the shared finish of what landed. So
 is the recovery of an attempt an earlier tick left (``rewrite_recovery``): the
-order its classification and refusals are asked in, and the retry of a replay
-the crash kept off the pull request (``rewrite_retry``), which publishes and
-finishes exactly as the ordinary publication does. A push the recovery finds
-already landed is still finished by the git owner of that road. The legacy
-keyword signature is bound here too, because the refresh still passes the
-pre-context argument list this route derives its context from.
+order its classification and refusals are asked in, the retry of a replay the
+crash kept off the pull request (``rewrite_retry``), which publishes and
+finishes exactly as the ordinary publication does, and the finish of a push
+the recovery finds already landed (``rewrite_landed``), which is observed
+rather than pushed again and handed to the same finish. The legacy keyword
+signature is bound here too, because the refresh still passes the pre-context
+argument list this route derives its context from.
 """
 from __future__ import annotations
 

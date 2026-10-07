@@ -1082,14 +1082,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             head it names and pays nothing. `dispatch_guards.py` holds the roads past an approval on
                             any claim and `stages/validating/report_refresh.py` holds the reviewer, obtains that
                             report, and pays it. `stages/conflicts/report_debt.py` records one for every head the
-                            conflict stage's own push rewrites, `rewrite_finish_debt.py` one for each clean auto
-                            rebase of the base refresh whose push lands -- the crash recovery's retry included -- and
-                            `git/base_sync/report_debt.py` the same debt for a landing the recovery finds standing
+                            conflict stage's own push rewrites, and `rewrite_finish_debt.py` one for each clean auto
+                            rebase of the base refresh whose push lands -- the crash recovery's retry and a push it
+                            finds already landed included
     report_rewrite_room.py  whether the debt owner refused a rewrite for nothing but the pinned comment's room -- the
                             one refusal a writer holds on rather than handing the head on -- told from a record that
-                            would not read back and a standing claim the rewrite cannot extend; asked by every
-                            writer -- the conflict stage, the workflow finish below, and the base refresh's finish of
-                            a landing its crash recovery finds standing -- so their readings cannot differ
+                            would not read back and a standing claim the rewrite cannot extend; asked by both
+                            writers -- the conflict stage and the workflow finish below, whichever road reached it --
+                            so their readings cannot differ
     rewrite_finish.py       the one finish of a landed automatic PR base rewrite, whichever road reached it -- the base
                             refresh publishing its own rebase, or a recovery that pushed the replay again or found it
                             standing, announced or not -- handed the typed landing (`git/base_sync/rewrite_handoffs.py`)
@@ -1114,9 +1114,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             head the base advanced past again is retired unrouted for the caller's next rebase. A
                             refused or unconfirmed write stops the finish with nothing behind it made. It runs under its
                             caller's issue writer claim and takes none. The ordinary publication
-                            (`rewrite_publication.py`) and the recovery's retry (`rewrite_retry.py`) hand their
-                            landings here; a landing the recovery finds standing still finishes through
-                            `git/base_sync/persistence.py`, by the same order, until it is moved here
+                            (`rewrite_publication.py`) hands its landing here, and the recovery's retry
+                            (`rewrite_retry.py`) and its finish of a push already landed (`rewrite_landed.py`) hand
+                            theirs through `finishes_the_recovery`, on the recovery road with the reply that brought
+                            the attempt back, so every landing shares one post-push policy and one evidence decision
     rewrite_finish_models.py
                             the finish's input -- the typed landing, the issue, its pinned state and label, the road
                             (`FinishRoad`), the lag the publication's notice reports, and the human reply a recovery
@@ -1543,15 +1544,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             or a lease the remote rejected resets the checkout onto its anchor and parks
                             `auto_base_rebase_push_failed`; one the remote was shown standing on, its answer lost
                             included, is handed to `rewrite_finish.py`. Its transport (`CandidatePush`) is the one
-                            the recovery's retry pushes through too. It runs under the refresh's issue writer claim
+                            the recovery's retry pushes through too, and the one the leased no-op settling a push
+                            already landed proves it through. It runs under the refresh's issue writer claim
     rewrite_recovery.py     the recovery an interrupted attempt is owed, in the order it has always been asked: the
                             decision the coordinator takes ahead of any rebase (a recovery that answered the anchor
                             owns the tick, and a reply it spent is not spent again by the rebase behind it); a label
                             the refresh does not drive cleared or parked, and a checkout still on the anchor cleared
                             or parked, both before any comparison (`git/base_sync/replay_cleanup.py`); the fetch and
                             the remote comparison (`git/base_sync/snapshot.py`) and the transfer the attempt left
-                            (`git/base_sync/transfers.py`); a head the pull request already carries delegated to
-                            `git/base_sync/landed_recovery.py`; and an unpublished one refused for a foreign
+                            (`git/base_sync/transfers.py`); a head the pull request already carries handed to
+                            `rewrite_landed.py`; and an unpublished one refused for a foreign
                             publication, a prior announcement, a rollback, an unvouched transfer, or a checkout the
                             record disowns, in that order (`git/base_sync/replay_refusals.py`), then retried where the
                             record names it over a remote on the anchor or the transfer vouches for a replay its
@@ -1571,6 +1573,22 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             HEAD and the anchor kept; and every other landing handed to `rewrite_finish.py` on its
                             recovery road with the reply that brought the attempt back, a head the base advanced
                             past again leaving this tick's rebase to go on from it
+    rewrite_landed.py       the recovery of a push an interrupted tick already landed, with nothing pushed again or
+                            measured: an attempt made for another publication parked; a checkout read as a candidate
+                            naming any other head than the one the fetch classified -- the one every voucher below
+                            is about -- left with nothing made for the next tick to classify; a landing the git owner
+                            names a reason against (`git/base_sync/landed_recovery.py`) -- a mark naming another
+                            head, a head nothing this attempt vouches for, a checkout not provably clean beneath a
+                            verdict, a transfer the receipt and debt do not account for -- parked with HEAD and the
+                            anchor kept; a settled transfer the sinks never heard of reported once
+                            (`stages/implementing/late_transfer_telemetry.py`); a permission still outstanding settled
+                            by the permit-only leased no-op -- the permit asked before the gate, the candidate proved
+                            at the remote through `rewrite_publication.py`'s transport, and a refusal, a no-op that
+                            did not land, or a rotation the gate did not make parked with HEAD and the anchor kept;
+                            and anything else observed where the remote stands (`git/base_sync/rewrite_transport.py`),
+                            which is how an accepted push whose answer was lost is finished without a second one.
+                            What the proof or the observation found goes to `rewrite_finish.py` on its recovery road,
+                            the mark an earlier finish left keeping its notice and event from being said again
     parallel.py             the other in-tick mode: the bounded pool a `parallel_limit` above 1 runs the pass
                             across, the submission plan the executor is sized from -- which is why this half
                             materializes the enumeration the sequential one streams -- the family bucket folded

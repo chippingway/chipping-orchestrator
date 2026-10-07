@@ -58,10 +58,11 @@ validating stage is where both are asked, and where that report is obtained
 (`stages/validating/report_refresh.py`). The conflict stage records one for
 every head its own push rewrites (`stages/conflicts/report_debt.py`), and the
 base refresh one for each clean auto rebase whose push lands before the
-attempt is cleared or the issue routed: the finish of a rebase the tick
-published itself through `rewrite_finish_debt.py`, and its crash recovery
-through `git/base_sync/report_debt.py`. This owner is the record, its reader,
-its retargeting, and its drop.
+attempt is cleared or the issue routed, through the one finish every landing
+gets (`rewrite_finish_debt.py`) -- of a rebase the tick published itself, of
+a replay its crash recovery pushed again, and of a push that recovery found
+already landed. This owner is the record, its reader, its retargeting, and
+its drop.
 """
 from __future__ import annotations
 

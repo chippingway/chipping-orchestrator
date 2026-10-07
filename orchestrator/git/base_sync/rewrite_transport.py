@@ -37,9 +37,11 @@ announcement, no route, no pinned-state write. The workflow's ordinary
 publication of a clean rebase makes its push here, once the size gate and the
 transfer permit have ruled on the candidate
 (`workflow/engine/rewrite_publication.py`), and so does the crash recovery's
-retry of a replay nothing published (`workflow/engine/rewrite_retry.py`); the
-observation of a landing is dormant until the recovery of one takes it up. See
-`rewrite_handoffs`.
+retry of a replay nothing published (`workflow/engine/rewrite_retry.py`). The
+recovery of a push an interrupted tick already landed
+(`workflow/engine/rewrite_landed.py`) observes it here instead -- or, where
+the transfer it carried is still outstanding, proves it with the leased no-op
+the gate settles that transfer through. See `rewrite_handoffs`.
 """
 from __future__ import annotations
 
@@ -229,7 +231,9 @@ def _observes_the_landing(
 
     For a rewrite an earlier tick may already have published: an accepted
     push whose tick never came back is recovered from this reading, and
-    never from a second push of the same commit.
+    never from a second push of the same commit. The reading is taken afresh
+    rather than carried over from the one the candidate was prepared with, so
+    a remote that moved past the recovery's own fetch is not called landed.
     """
     standing = branch_transport._remote_branch_read(
         spec, worktree, candidate.branch,
