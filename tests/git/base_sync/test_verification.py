@@ -10,7 +10,6 @@ from unittest.mock import MagicMock
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.measurement.models import FrozenCommit
 from tests.git.base_sync.candidate_reads_support import _BehindTheBase
-from tests.git.base_sync.gate_reads_support import _gate_candidates
 from tests.git.base_sync.refresh_scenarios import PUSH_PATCH, REBASE_PATCH, _scenario
 from tests.git.base_sync.refresh_test_support import (
     PR_NUMBER,
@@ -139,12 +138,19 @@ class CrashRecoveryDivergenceUnitTest(
         # The crashed tick's own push landed, so the pull request is already
         # standing on the rebased head the fall-through leases against.
         self._add_pr(head=FakePRRef(sha=REBASED_SHA))
-        scenario = self._fallthrough_scenario(REBASED_SHA)
-        # The rebase behind the relabel-only recovery is the only push here,
-        # and the commit it publishes IS the head the finalize names: one read
-        # of one worktree, so a fixture spelling them apart would model the
-        # race rather than the tick.
-        _gate_candidates(self, NEW_REBASED_SHA)
+        scenario = self._fallthrough_scenario(
+            REBASED_SHA, ahead_behind=_BehindTheBase(_diverged(0, 0), {REBASED_SHA: 2}),
+        )
+        # The rebase behind the relabel-only recovery is the only push here.
+        # Every reading of the checkout before it -- the candidate the landing
+        # is observed on -- is the landed head, and the commit the rebase
+        # publishes IS the head its finish names: one read of one worktree, so
+        # a fixture spelling them apart would model the race rather than the
+        # tick.
+        rebase = scenario[REBASE_PATCH]
+        _patched(self, _measurement_commits, "_prove_candidate_commit", MagicMock(
+            side_effect=lambda *_: FrozenCommit(sha=NEW_REBASED_SHA if rebase.called else REBASED_SHA),
+        ))
 
         scenario.run(self)
 

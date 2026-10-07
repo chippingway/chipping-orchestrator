@@ -46,6 +46,7 @@ _BASE_SYNC_TARGETS = MappingProxyType(
         "hardened": (commands, "_git_hardened"),
         "fetch": (branch_transport, "_authed_fetch"),
         "ahead_behind": (publication_probes, "_branch_divergence"),
+        "remote_read": (branch_transport, "_remote_branch_read"),
         "target_fetch": (branch_transport, "_authed_target_fetch"),
         "worktrees_root": (paths, "_repo_worktrees_root"),
         "sync": (base_refresh, "_sync_worktree_with_base"),

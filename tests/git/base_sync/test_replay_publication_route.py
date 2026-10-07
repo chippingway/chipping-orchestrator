@@ -6,9 +6,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from orchestrator.git.base_sync import (
-    attempts,
-)
 from tests.git.base_sync import (
     recovery_transfer_test_support as _recovery_cases,
     transfers_test_support as seed,
@@ -52,7 +49,7 @@ class PublicationRouteTest(seed.TransferCase):
         ):
             with self.subTest(described):
                 self._fresh()
-                attempts._announces(self.context, announced)
+                _recovery_cases._announced(self.context, announced)
 
                 _recovery_cases._assert_selects(self, _recovery_cases.ANNOUNCED)
 
@@ -62,7 +59,7 @@ class PublicationRouteTest(seed.TransferCase):
         # last step -- and the remote not standing on it is the announced
         # publication the next question refuses.
         self._fresh(label=_recovery_cases._VALIDATING)
-        attempts._announces(self.context, seed.REPLAYED_SHA)
+        _recovery_cases._announced(self.context, seed.REPLAYED_SHA)
 
         _recovery_cases._assert_selects(self, _recovery_cases.ANNOUNCED)
 
@@ -87,6 +84,6 @@ class PublicationRouteTest(seed.TransferCase):
                 if number is not None:
                     self.context = replace(self.context, pr_number=number)
                 if announced:
-                    attempts._announces(self.context, announced)
+                    _recovery_cases._announced(self.context, announced)
 
                 _recovery_cases._assert_selects(self, _recovery_cases.FOREIGN_PUBLICATION)

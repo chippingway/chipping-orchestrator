@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.workflow.engine import base_refresh as _base_refresh
+from tests.git.base_sync.candidate_reads_support import _BehindTheBase
 from tests.git.base_sync.refresh_test_support import (
     AFTER_SHA,
     BEFORE_SHA,
@@ -98,6 +99,22 @@ def _conflict_rebase_scenario() -> _BaseSyncScenario:
     )
 
 
+class _CheckoutPastTheRebase:
+    """The commit a checkout stands on: `landed`, until `rebase` has run and left the gate's candidate."""
+
+    def __init__(self, rebase: MagicMock, landed: str) -> None:
+        self._rebase = rebase
+        self._landed = landed
+
+    def head(self, *_reading) -> str:
+        """The head the checkout reads as."""
+        return AFTER_SHA if self._rebase.called else self._landed
+
+    def proved(self, *_reading) -> FrozenCommit:
+        """The same head, as the size gate's proof answers it."""
+        return FrozenCommit(sha=self.head())
+
+
 def _landed_recovery_scenario(
     landed: str, behind_stdout: str = UP_TO_DATE_STDOUT, *, remote: str = "",
 ):
@@ -105,16 +122,25 @@ def _landed_recovery_scenario(
 
     The checkout and the remote both stand on it -- unless a case names the
     `remote` somebody pushed over it, which carries a commit the checkout does
-    not and lacks the one it does. A rebase this tick starts past the
-    recovery, where the base has moved again, leaves the checkout on the
-    commit the size gate proves it to.
+    not and lacks the one it does. The checkout proves to `landed` and counts
+    it as far behind the base as `behind_stdout` says, which is one reading
+    the refresh and the candidate the recovery finishes both take. A rebase
+    this tick starts past the recovery, where the base has moved again, leaves
+    the checkout on the commit the size gate proves it to, level with the base.
+
+    The remote the recovery observes the landing on is read off the case's
+    pull request (`candidate_reads_support`), so a case puts it on `landed`.
     """
     rebase = MagicMock(return_value=(True, []))
+    checkout = _CheckoutPastTheRebase(rebase, landed)
+    branch = _diverged(1, 1) if remote else _diverged(0, 0)
+    counted = _BehindTheBase(branch, {landed: int(behind_stdout)})
     return _scenario(
         dirty=MagicMock(return_value=[]),
         rebase=rebase,
-        head_sha=MagicMock(side_effect=lambda *_: AFTER_SHA if rebase.called else landed),
-        ahead_behind=MagicMock(return_value=_diverged(1, 1) if remote else _diverged(0, 0)),
+        head_sha=MagicMock(side_effect=checkout.head),
+        proved=MagicMock(side_effect=checkout.proved),
+        ahead_behind=MagicMock(side_effect=counted),
         fetch=MagicMock(return_value=_git_result()),
         push=MagicMock(return_value=True),
         git=MagicMock(return_value=_git_result(stdout=behind_stdout)),

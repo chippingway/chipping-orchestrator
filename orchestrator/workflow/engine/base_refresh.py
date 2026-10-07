@@ -21,10 +21,11 @@ The tick enters here because which issue's worktree may be touched, under
 whose claim, and by which route are the workflow's decisions; the git layer
 under it supplies the fetch, the checkout reads, the rebase, the push of a
 candidate the workflow's publication or recovery retry has ruled on, the
-recovery's readings, refusals, and parks, and the finish of a landing the
-recovery finds already standing, which it still delegates. Its lines report on
-`orchestrator.base_sync`, the channel of every git owner a route runs through,
-so one operator filter follows a refresh from its fetch to its last write.
+observation of a push the recovery finds already landed, and the recovery's
+readings, refusals, and parks. Every finish of what landed is the workflow's.
+Its lines report on `orchestrator.base_sync`, the channel of every git owner a
+route runs through, so one operator filter follows a refresh from its fetch to
+its last write.
 """
 from __future__ import annotations
 

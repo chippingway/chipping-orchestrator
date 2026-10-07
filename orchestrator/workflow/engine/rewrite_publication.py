@@ -116,7 +116,9 @@ class CandidatePush:
     cannot prove standing on it, so every answer it lets through names this
     commit -- the one its receipt is settled for. The retry of a replay an
     interrupted tick never published (`rewrite_retry`) pushes through the same
-    transport, so the two roads cannot come to publish a candidate differently.
+    transport, and the settlement of a push one already landed
+    (`rewrite_landed`) proves it through it, so no two roads can come to
+    publish a candidate differently.
 
     A remote that reading finds already on the candidate is sent nothing, and
     it is not taken on that reading's word either: a foreign push can overtake

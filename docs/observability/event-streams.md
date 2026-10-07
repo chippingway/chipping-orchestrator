@@ -241,10 +241,11 @@ file is the durable record.
   `outcome` (for increments), `sha`.
 - `base_rebased` — once per landed refresh-time rebase of `workflow:validating` / `workflow:documenting` /
   `in_review` / `workflow:fixing`, ahead of the route back to `workflow:validating` (which a head the base has
-  advanced past again does not take; the next rebase goes on from it instead): the workflow's finish
-  (`workflow/engine/rewrite_finish_notices.py`) for the clean rebase `_sync_pr_worktree_to_base` publishes and for
-  the replay a crashed prior tick never published that its recovery pushes again, and the recovery's own finish
-  (`git/base_sync/recovery_notices.py`) for a crashed tick's push it finds already landed;
+  advanced past again does not take; the next rebase goes on from it instead), by the workflow's one finish
+  (`workflow/engine/rewrite_finish_notices.py`) for the clean rebase `_sync_pr_worktree_to_base` publishes, for the
+  replay a crashed prior tick never published that its recovery pushes again, and for a crashed tick's push the
+  recovery finds already landed (`workflow/engine/rewrite_landed.py`) -- never twice for one publication, since the
+  announcement mark beside the attempt keeps a resumed finish from filing it again;
   extras: `pr_number`, `sha` (new head), `method` ∈ {`auto_clean_rebase` for the tick's own push,
   `crash_recovery_pushed` for a push a recovery reissued, `crash_recovery_relabel_only` for a head found already
   standing on the pull request}, `review_round` (post-reset, so 0), `retry_count`; `stage` names the stage the issue

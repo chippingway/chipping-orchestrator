@@ -21,10 +21,11 @@ already standing on it. The lease covers what is left, the moment between that
 reading and the push.
 
 The workflow's ordinary publication of a clean rebase reads a candidate here
-(`workflow/engine/rewrite_publication.py`), and so does its retry of a replay
-an interrupted tick never published (`workflow/engine/rewrite_retry.py`), over
-the remote head the recovery verified (`recovery_push`); see
-`rewrite_handoffs`.
+(`workflow/engine/rewrite_publication.py`), and so do both roads its recovery
+takes an interrupted attempt down -- the retry of a replay nothing published
+(`workflow/engine/rewrite_retry.py`) and the finish of a push that already
+landed (`workflow/engine/rewrite_landed.py`) -- over the remote head the
+recovery verified (`recovery_push`); see `rewrite_handoffs`.
 """
 from __future__ import annotations
 

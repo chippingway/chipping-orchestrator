@@ -39,7 +39,7 @@ from tests.git.base_sync.report_debt_test_support import (
     settles_a_report_of,
     stands_on,
 )
-from tests.support.fakes import FakeGitHubClient
+from tests.support.fakes import FakeGitHubClient, FakePRRef
 
 ISSUE = 7
 
@@ -106,7 +106,9 @@ class CrashRecoverySuccessUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCa
 
     def test_crash_recovery_finishes_landed_push(self) -> None:
         self._seed_pr_issue(**_pending_attempt(REBASED_SHA), review_round=3)
-        self._add_pr()
+        # The dead tick's push landed and its answer never came back: the pull
+        # request already stands on the rebased head the recovery observes.
+        self._add_pr(head=FakePRRef(sha=REBASED_SHA))
         scenario = _scenario(
             dirty=MagicMock(return_value=[]),
             rebase=MagicMock(),

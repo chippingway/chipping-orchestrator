@@ -12,10 +12,9 @@ one a recovery observed, or a publication refused because the remote already
 stood on it, whichever road reached it -- is reported as already published.
 Both recovery notices say whether the base has advanced past that head since,
 in which case another rebase comes first. The texts and the event's payload
-are the ones every finish has always produced, live issues and the analytics
-sink already carry them, so the notice of a landing found already standing is
-spelled here exactly as the git owner that still finishes that road spells
-its own (`git/base_sync/recovery_notices.py`).
+are the ones every finish has always produced, and live issues and the
+analytics sink already carry them, so each road's are spelled here exactly as
+they always have been.
 
 The notice is best effort: a post that fails is logged, and the publication it
 was about is recorded all the same. A post that lands enters the ledger of

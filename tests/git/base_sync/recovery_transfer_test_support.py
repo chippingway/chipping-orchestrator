@@ -42,6 +42,10 @@ UNVOUCHED = "_park_unvouched_recovery"
 
 ANCHOR_KEY = "pending_auto_base_rebase_push_sha"
 
+# The mark a finish leaves between its announcement and the write that clears
+# the attempt.
+ANNOUNCED_KEY = "pending_auto_base_rebase_announced_sha"
+
 FOREIGN_PUBLICATION = "_park_foreign_publication_recovery"
 
 ANNOUNCED = "_park_announced_recovery"
@@ -93,6 +97,12 @@ def _snapshot(
 def _pushed(**answer) -> _push._PushedCandidate:
     """What one gated publication answered, in the shape the retry reads."""
     return _push._PushedCandidate(**answer)
+
+
+def _announced(context, head: str) -> None:
+    """Leave the mark a finish's checkpoint puts down once it has announced `head`, durably."""
+    context.state.set(ANNOUNCED_KEY, head)
+    context.gh.write_pinned_state(context.issue, context.state)
 
 
 def _handled() -> MagicMock:

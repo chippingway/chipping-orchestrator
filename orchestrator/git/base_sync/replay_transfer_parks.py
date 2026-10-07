@@ -5,7 +5,9 @@
 An unlicensed replay returns to the anchor through the guarded rollback.
 A push that already landed keeps its checkout and recovery records for
 reconciliation. These outcomes serve the workflow's retry of an unpublished
-replay (`workflow/engine/rewrite_retry.py`) and the landed recovery.
+replay (`workflow/engine/rewrite_retry.py`) and its recovery of a push already
+landed (`workflow/engine/rewrite_landed.py`), whose reasons the git owner
+names (`landed_recovery`).
 """
 from __future__ import annotations
 

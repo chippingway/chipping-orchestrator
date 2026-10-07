@@ -6,8 +6,10 @@ An attempt an earlier tick anchored and never finished is answered before any
 new rebase of the branch begins, and the workflow's base-rewrite coordinator
 (`base_rewrite`) hands it here (`decides`). What is decided here is the road
 and the order; every fact a road is chosen on is a git owner's, and so is
-every road that ends the attempt without publishing anything -- a clear, or a
-park:
+every road that ends the attempt without publishing or finishing anything --
+a clear, or a park. Both roads that reach a landing -- a retry, and a push
+found already landed -- hand it to the one finish every landing gets
+(`rewrite_finish`):
 
 - A label the refresh does not drive is answered first, with a clear or a
   park and nothing fetched (`git/base_sync/replay_cleanup.py`).
@@ -16,8 +18,9 @@ park:
   which lets this tick's rebase go on, or the rollback's park.
 - The remote head completes the comparison, and how far the transfer beside
   the attempt got is read off the comment (`git/base_sync/transfers.py`).
-- A remote standing on the checkout is a push that already landed, finished by
-  the git owner of that road (`git/base_sync/landed_recovery.py`).
+- A remote standing on the checkout is a push that already landed, and the
+  road that finishes it without pushing again is the workflow's own
+  (`rewrite_landed`).
 - A remote that is not is a replay nothing published, the road this owner
   answers. It is refused for a foreign publication, a finish already
   announced, a rollback, a transfer nobody can vouch for, and a checkout the
@@ -36,7 +39,6 @@ one of its own.
 from __future__ import annotations
 
 from orchestrator.git.base_sync import (
-    landed_recovery as _landed_recovery,
     outcomes as _outcomes,
     recovery as _recovery,
     replay_cleanup as _replay_cleanup,
@@ -53,7 +55,10 @@ from orchestrator.git.base_sync.models import (
 )
 from orchestrator.git.base_sync.state import _AWAITING_HUMAN, _PR_REFRESH_DETOUR_LABELS
 from orchestrator.git.base_sync.transfer_values import _Handoff
-from orchestrator.workflow.engine import rewrite_retry as _rewrite_retry
+from orchestrator.workflow.engine import (
+    rewrite_landed as _rewrite_landed,
+    rewrite_retry as _rewrite_retry,
+)
 
 
 def decides(
@@ -132,7 +137,7 @@ def _routes_the_comparison(
         return True
     carried = _transfers._carried_by(context, completed.head)
     if completed.local_head and completed.local_head == completed.remote_head:
-        return _landed_recovery._finish_published_recovery(context, completed, carried)
+        return _rewrite_landed.recovers(context, completed, carried)
     return _routes_an_unpublished_head(context, completed, carried)
 
 

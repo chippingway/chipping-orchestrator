@@ -56,13 +56,14 @@ Run under the issue writer claim the caller already holds -- the base refresh
 (`base_refresh`) takes it before the issue is read and keeps it through the
 route -- and asks for none of its own, since that very hold would refuse it.
 
-The ordinary publication of a clean rebase (`rewrite_publication`) hands its
-landing here, and so does the recovery's retry of a replay an interrupted tick
-never published (`rewrite_retry`). A landing the recovery finds already
-standing does not yet: the workflow's recovery coordinator
-(`rewrite_recovery`) still delegates it to the git owner of that road, which
-finishes it through `git/base_sync/persistence.py` by the same order, and that
-road handing its landings here is what retires the second spelling.
+Every landing is finished here and nowhere else. The ordinary publication of a
+clean rebase (`rewrite_publication`) hands its landing over on the
+PUBLICATION road; the recovery hands over, on the RECOVERY road
+(`finishes_the_recovery`), both the retry of a replay an interrupted tick
+never published (`rewrite_retry`) and a push the interrupted tick already
+landed (`rewrite_landed`) -- observed where the remote stands, or proved there
+by the leased no-op that settles an outstanding transfer. So all three share
+one post-push policy and one evidence decision.
 """
 from __future__ import annotations
 
@@ -71,8 +72,11 @@ import logging
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
     attempts as _attempts,
+    replay_evidence as _replay_evidence,
     state as _base_sync_state,
 )
+from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
+from orchestrator.git.base_sync.rewrite_handoffs import _LandedRewrite
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     report_rewrite_debt as _rewrite_debt,
@@ -99,6 +103,31 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     if stopped is not None:
         return stopped
     return _routes(finish, _decides_the_route(finish), announced=announced)
+
+
+def finishes_the_recovery(context: _AutoRebaseRecoveryContext, landing: _LandedRewrite) -> bool:
+    """Finish a landing a recovery made or found on the RECOVERY road; whether the recovery owns the tick.
+
+    Attributed to the label the issue wears, which the notice and the event
+    name and an announced finish already on `workflow:validating` is not
+    relabelled from, and handed the human reply that brought the attempt
+    back, which the finish spends. Only a finish that found the base advanced
+    past the landed head again leaves the tick to the caller: it retired the
+    attempt without routing, and the rebase the tick goes on with is what
+    moves that head along. Every other outcome -- a route, a park, a write
+    that did not land, a landing nothing accounts for -- owns it.
+    """
+    finished = finalizes(LandedFinish(
+        gh=context.gh,
+        spec=context.spec,
+        issue=context.issue,
+        state=context.state,
+        landed=landing,
+        label=_replay_evidence._recovered_stage(context.label),
+        road=FinishRoad.RECOVERY,
+        retry=context.unparking_consumed_max,
+    ))
+    return finished is not FinishOutcome.CONTINUED
 
 
 def _finishable(finish: LandedFinish) -> bool:

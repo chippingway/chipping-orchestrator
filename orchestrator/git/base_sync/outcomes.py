@@ -1,13 +1,14 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Complete ordinary crash recovery or park its checkout and push failures.
+"""Park an ordinary crash recovery that cannot go on, its checkout and push failures included.
 
 The workflow's recovery coordinator (`workflow/engine/rewrite_recovery.py`)
 supplies the verified comparison and preserves the order of its decisions,
-and its retry (`workflow/engine/rewrite_retry.py`) takes the dirty and failed
-push parks here. Replay-specific refusal outcomes live with their checkout,
-publication, and transfer owners; recovery notices own the messages posted by
-the finish of a landing found already standing.
+and takes the unclassifiable and diverged parks here; its retry
+(`workflow/engine/rewrite_retry.py`) takes the dirty and failed push parks.
+Replay-specific refusal outcomes live with their checkout, publication, and
+transfer owners, and a recovery that lands or finds its push landed is
+finished by the workflow (`workflow/engine/rewrite_finish.py`).
 """
 from __future__ import annotations
 
@@ -21,21 +22,6 @@ from orchestrator.git.base_sync.state import (
     _REASON_AUTO_BASE_REBASE_PUSH_FAILED,
     log,
 )
-
-
-def _finalize_already_published_recovery(
-    context: _AutoRebaseRecoveryContext,
-    recovery_snapshot: _AutoRebaseRecoverySnapshot,
-) -> bool:
-    """Finalize state after confirming that the interrupted push landed."""
-    return persistence._finalize_recovered_rebase(
-        context,
-        local_head=recovery_snapshot.local_head,
-        method="crash_recovery_relabel_only",
-        notice=_recovery_notices._already_published_recovery_notice(
-            context, recovery_snapshot.local_head,
-        ),
-    )
 
 
 def _reject_unknown_recovery_comparison(

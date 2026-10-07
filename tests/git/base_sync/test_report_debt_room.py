@@ -14,10 +14,11 @@ the limit either way.
 from __future__ import annotations
 
 import unittest
+from functools import partial
 from unittest.mock import MagicMock, patch
 
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
-from tests.git.base_sync.refresh_scenarios import _clean_rebase_scenario, _landed_recovery_scenario
+from tests.git.base_sync.refresh_scenarios import PUSH_PATCH, _clean_rebase_scenario, _landed_recovery_scenario
 from tests.git.base_sync.refresh_test_support import (
     AFTER_SHA,
     BEFORE_SHA,
@@ -193,14 +194,17 @@ class _RoomFixture(_SyncWorktreeWithBaseFixture):
     def _finishes_once_there_is_room(self) -> None:
         """Make room and reply, and hold the tick after to the finish the debt was owed.
 
-        The debt is durable beside the anchor when the reviewer is routed, and
-        the reply is spent with the park it answered.
+        The debt is durable beside the anchor when the reviewer is routed, the
+        reply is spent with the park it answered, and the head the pull
+        request already carries is finished without being pushed again.
         """
         self._pinned().pop(_FILLER)
         stands_on(self.gh, AFTER_SHA)
         self._add_comment(self.gh._next_comment_id(), "made room, please retry", HUMAN_LOGIN)
+        scenario = _landed_recovery_scenario(AFTER_SHA)
 
-        self._assert_within(self._ticks(_landed_recovery_scenario(AFTER_SHA)), True, (0, 0))
+        self._assert_within(self._ticks(scenario), True, (0, 0))
+        scenario[PUSH_PATCH].assert_not_called()
         durable = self.gh.pinned_data(ISSUE)
         self.assertEqual(
             (durable.get(KEY_AWAITING_HUMAN), durable.get(KEY_PARK_REASON), durable.get(KEY_PENDING_PUSH_SHA)),
@@ -261,6 +265,13 @@ class RoomInTheRecoveryTest(_RoomFixture, unittest.TestCase):
 
     def test_a_recovery_holds_until_there_is_room(self) -> None:
         for road, left, announced, finished in (
+            # The push landed and its answer was lost before anything was said:
+            # the landing is held with nothing said, and the reply's finish
+            # says it once.
+            (
+                "lost before its announcement",
+                partial(self._reported, **_pending_attempt(AFTER_SHA)), (0, 0), (1, 1),
+            ),
             # The push landed and the tick died before its mark, having said so
             # once; the finish that the reply brings says it again.
             ("lost before its mark", self._lost_before_the_mark, (1, 1), (2, 2)),
@@ -272,11 +283,11 @@ class RoomInTheRecoveryTest(_RoomFixture, unittest.TestCase):
                 left()
                 stands_on(self.gh, AFTER_SHA)
                 self._leaves(_debt_room(self.gh) - 1)
+                scenario = _landed_recovery_scenario(AFTER_SHA)
 
-                widest = self._ticks(_landed_recovery_scenario(AFTER_SHA))[0]
-
-                self.assertLessEqual(widest, MAX_PINNED_BODY)
+                self.assertLessEqual(self._ticks(scenario)[0], MAX_PINNED_BODY)
                 self._assert_held(announced)
+                scenario[PUSH_PATCH].assert_not_called()
                 self._finishes_once_there_is_room()
                 self.assertEqual(_announced(self.gh), finished)
 

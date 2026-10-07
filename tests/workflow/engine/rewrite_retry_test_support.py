@@ -149,10 +149,10 @@ class RetryCase(ObservedCloseCase, base._SyncWorktreeWithBaseFixture, unittest.T
         self._fresh()
 
     def _fresh(self, **state) -> None:
-        """Seed the interrupted attempt afresh, over a world where nothing has moved."""
+        """Seed the interrupted attempt afresh, over a world where nothing has moved; `state` overrides any field."""
         self._fresh_process()
         self.gh = base.FakeGitHubClient()
-        self._seed_pr_issue(review_round=3, **base._pending_attempt(REPLAY), **state)
+        self._seed_pr_issue(**{"review_round": 3, **base._pending_attempt(REPLAY), **state})
         self.world = world.RewriteWorld(self)
         self.git = RecoveryGit(self)
 

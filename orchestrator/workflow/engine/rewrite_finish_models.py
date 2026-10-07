@@ -13,9 +13,10 @@ policy (`rewrite_finish`); what they differ in is only what they say about it.
 
 Data and the issue it is about, nothing to call back into. The ordinary
 publication of a clean rebase (`rewrite_publication`) hands one over on the
-PUBLICATION road, and the recovery's retry of a replay an interrupted tick
-never published (`rewrite_retry`) on the RECOVERY road; a landing the recovery
-finds already standing is still finished by the git owners.
+PUBLICATION road; the recovery hands over on the RECOVERY road both its retry
+of a replay an interrupted tick never published (`rewrite_retry`) and a push
+it found already landed (`rewrite_landed`), through
+`rewrite_finish.finishes_the_recovery`.
 """
 from __future__ import annotations
 

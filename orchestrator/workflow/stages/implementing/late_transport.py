@@ -4,8 +4,9 @@
 
 Every gated push onto a pull request the remote already carries is made by
 `late_push`, and every one but the base-sync auto rebase's and its crash
-recovery's retry goes through the branch transport there. Those two are the
-git owner's publication of the exact candidate it read
+recovery's -- the retry of a replay, and the leased no-op that settles a push
+already landed -- goes through the branch transport there. Those are the git
+owner's publication of the exact candidate it read
 (`git/base_sync/rewrite_transport.py`), which reads the
 checkout and the remote again before it pushes -- requests a pull request
 merged or closed in, or a poll latching a close, can overtake. So a transport

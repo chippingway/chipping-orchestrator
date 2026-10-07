@@ -22,30 +22,26 @@ last is held by the loader itself rather than by a check.
   `state.py`, `label_reading.py`, `transitions.py`, and `transition_guard.py`. They read and write the label vocabulary
   through those owners, which load no engine or stages. The check matches module boundaries, so a sibling cannot
   inherit this permission by wearing the same prefix.
-- **Over every scope, declared per module.** A base sync runs in the git layer but reports to the
-  issue it was started for: `base_sync/conflicts.py` and `base_sync/recovery_notices.py`
-  reach `workflow/engine/comments.py`; `persistence` reaches `workflow/engine/guards.py` and
-  `workflow/stages/implementing/late_approval_reading.py` and `late_approval_state.py`, to read and drop the debt
-  the size gate recorded when a refused push sends the branch back to where it started;
+- **Over every scope, declared per module.** Each remaining reach is a responsibility the workflow has not taken
+  over. A base sync runs in the git layer but reports to the issue it was started for: `base_sync/conflicts.py`
+  reaches `workflow/engine/comments.py` for the notice a conflicted rebase is handed to its stage with;
+  `persistence` reaches `workflow/engine/guards.py` for the park every failure takes and
+  `workflow/stages/implementing/late_approval_reading.py`, `late_approval_state.py`, `late_records.py`, and
+  `late_transfer.py`, to read and drop the debt and the permission a rollback abandons when a refused push sends the
+  branch back to where it started; `base_sync/terminal_handoff.py` ends an attempt a closed pull request strands;
   `base_sync/attempt_records.py` reaches `workflow/late_split/formats.py`, for the
   shape a recorded commit is held to, which spelled twice would let a pinned comment accept what every other reader
-  refuses; `base_sync/report_debt.py` reaches `workflow/engine/report_rewrite_debt.py` to stage the report debt a
-  recovered rebase leaves, since the record's shape and its retargeting are that owner's to rule on, and
-  `report_rewrite_room.py` to tell a refusal for want of room from any other, and `comments.py` and
-  `report_record_values.py` to measure the announcement write it rides; the base-sync transfer owners read the
-  higher-layer records only inside their calls:
+  refuses; the base-sync transfer owners read the higher-layer records only inside their calls:
   `transfers.py` reads `workflow/late_split/exemption_reading.py`, `rewrite_reading.py`, and `rewrite_values.py`;
   `transfer_values.py` reads the phase value, `transfer_evidence.py` reads the exemption and rewrite value,
   `transfer_attempts.py` reads the exemption, and `transfer_publication.py` reads
   `workflow/stages/implementing/late_approval_reading.py` and `late_publication_state.py` for the debt and
   receipt and rejects debts belonging to another attempt. `transfer_permits.py` loads the publication permit and
   frozen entry through `late_overflow.py`, `late_records.py`, `late_transfer.py`, and `late_gate_models.py`.
-  Base-sync `publication` reads
-  `workflow/stages/implementing/late_push.py` and `late_records.py` — the gated push the leased no-op that settles a
-  landed recovery goes through; the ordinary publication of a rebase and the crash recovery's retry of an unpublished
-  replay enter that gate from the workflow (`workflow/engine/rewrite_publication.py`, `rewrite_retry.py`), so nothing
-  in this package reaches up for either. `landed_settlement` loads the frozen `_Entered` value from
-  `late_gate_models.py` inside that call.
+  Nothing in `base_sync` enters the size gate, stages report debt, or announces or routes a landing: the ordinary
+  publication of a rebase, the crash recovery's retry of an unpublished replay, and its settlement and finish of a
+  push already landed enter the gate and the finish from the workflow (`workflow/engine/rewrite_publication.py`,
+  `rewrite_retry.py`, `rewrite_landed.py`, `rewrite_finish.py`), so no git owner reaches up for either.
   `publication/rewrite.py` reaches `late_rewrite.py` to enter a squash on its existing publication and publish through
   the size gate. Its reset and push steps also load
   `late_collapse_state.py` and `late_squash_proof.py`; `publication/resume.py` reads both, and `squash.py` and
@@ -548,9 +544,10 @@ orchestrator/
                         environment off `commands` rather than restating either
     base_sync/          the auto-rebase of every worktree the workflow's per-tick refresh walks
                         (`workflow/engine/base_refresh.py`): the selection it asks first, the pre-PR rebase it
-                        runs, and the gates, rebase, candidate, push, and recovery its base-rewrite coordinator
-                        (`workflow/engine/base_rewrite.py`) and the workflow's publication and recovery beside it
-                        (`workflow/engine/rewrite_publication.py`, `rewrite_recovery.py`, `rewrite_retry.py`) order
+                        runs, and the gates, rebase, candidate, push or observation, and recovery readings and
+                        parks its base-rewrite coordinator (`workflow/engine/base_rewrite.py`) and the workflow's
+                        publication, recovery, and finish beside it (`workflow/engine/rewrite_publication.py`,
+                        `rewrite_recovery.py`, `rewrite_retry.py`, `rewrite_landed.py`, `rewrite_finish.py`) order
                         for a pushed branch
       refresh_selection.py
                         which discovered directories name an issue, whether that issue reads at all, and the
@@ -586,30 +583,24 @@ orchestrator/
       pre_pr.py         the hardened rebase / merge probes and the aborting pre-PR local rebase
       startup.py        the pre-rebase HEAD guard, and the anchor and the attempt's terms persisted before git
                         runs
-      attempts.py       the replay and announcement checkpoints, their presence checks, and the whole-record
-                        clear that ends an auto-rebase attempt. The workflow's publication records its replay here
-                        and the recovery its announcement, while the anchor still stands and before relabeling;
-                        the workflow's finish lands the same mark through its own guarded checkpoint
+      attempts.py       the replay checkpoint, the announcement mark's presence checks, and the whole-record clear
+                        that ends an auto-rebase attempt. The workflow's publication records its replay here; the
+                        workflow's finish of every landing puts the mark down through its own guarded checkpoint,
+                        while the anchor still stands and before relabeling, and reads it back here
       attempt_records.py
                           validate interrupted replay terms and head as absent, declared, recorded, or damaged,
   sharing the replay
                         field group with the lifecycle clear. Commit validation uses the late domain's format
                         reader through a call-time import
-      publication.py    the gate bridges a landed recovery's settlement still crosses to the size gate in the
-                        workflow layer: the gated push and the subject constructor beside it, reached through
-                        call-time imports by `landed_settlement`. The ordinary publication of a clean rebase -- its
-                        candidate, the gate it passes before any push, the exact-candidate push, and its finish --
-                        is the workflow's (`workflow/engine/rewrite_publication.py`), and so is the crash
-                        recovery's retry of an unpublished replay (`workflow/engine/rewrite_retry.py`)
       rewrite_handoffs.py
                         the frozen, data-only handoffs an automatic PR base rewrite crosses the git boundary as:
                         the candidate -- original and rewritten heads and their trees, the branch, the base and
                         remote readings, the worktree status, and the attempt's anchor, pull request, and stage --
                         and the landed record of one lease-pinned publication of it, an uncertain answer included.
                         Neither carries a GitHub client, an issue, pinned state, or a callback. The workflow's
-                        ordinary publication of a clean rebase and its retry of a replay a crash kept off the pull
-                        request read, publish, and finish through them; a landing the recovery finds already
-                        standing does not cross them yet
+                        ordinary publication of a clean rebase, its retry of a replay a crash kept off the pull
+                        request, and its recovery of a push already landed read, publish or observe, and finish
+                        through them
       rewrite_facts.py  reads a candidate off the checkout and the remote -- or carries a remote reading its caller
                         already decided on, the head a recovery's fetch verified -- and reads both again before a
                         push: a head that left the candidate, a tree dirtied or made unreadable, a base ref rewound
@@ -624,8 +615,9 @@ orchestrator/
                         standing on is read again too, and a landing the fresh reading shows is proved, where a
                         caller asks, by a push leased to the candidate itself that sends nothing. A push git answered
                         with a failure is classified by reading the remote again -- elsewhere is a rejection, on the
-                        candidate or unreadable is uncertain; observing a landing reads the remote and pushes
-                        nothing, and stays dormant until the recovery of a landed push takes it up
+                        candidate or unreadable is uncertain; observing a landing reads the remote afresh and
+                        pushes nothing, which is how the workflow's recovery of a push already landed
+                        (`workflow/engine/rewrite_landed.py`) finishes an accepted push whose answer was lost
       transfer_values.py
                         the bounded transfer handoff vocabulary and settled-phase reading, loaded lazily from the
                         workflow record when needed
@@ -644,8 +636,9 @@ orchestrator/
                         transfer reading passes over settled history when deciding whether an attempt can be cleared
       transfer_permits.py
                         freeze the current publication entry and ask its transfer permit ahead of the workflow's
-                        retry of a recovered replay or the leased no-op that receipts a landed one; both require
-                        the same permit again inside the publication gate
+                        retry of a recovered replay or the leased no-op that receipts a landed one
+                        (`workflow/engine/rewrite_retry.py`, `rewrite_landed.py`); both require the same permit
+                        again inside the publication gate
       conflicts.py      the counter, notice, event, and relabel a genuinely conflicted rebase is handed to its stage
                         with
       guards.py         the no-op completion and the unreadable-HEAD, dirty-tree, and failed-push refusals the
@@ -657,20 +650,18 @@ orchestrator/
                         anchor, and the attempt record read off the comment, for the workflow's recovery
                         coordinator (`workflow/engine/rewrite_recovery.py`) and the ineligible-label road in
                         `eligibility`
-      recovery_push.py  the git half of the workflow's retry (`workflow/engine/rewrite_retry.py`): the candidate it
-                        publishes, read in the attempt's own terms -- the anchor as the lease, the recorded
-                        publication and stage (the tick's own for an attempt from before that record) -- over the
-                        remote head the recovery's fetch verified, and the reason a landing that left the verdict
-                        behind may not be finished. No workflow import
+      recovery_push.py  the git half of the workflow's two recovery roads (`workflow/engine/rewrite_retry.py`,
+                        `rewrite_landed.py`): the candidate an interrupted attempt left, read in its own terms --
+                        the anchor as the lease, the recorded publication and stage (the tick's own for an attempt
+                        from before that record) -- over the remote head the recovery's fetch verified, and the
+                        reason a landing that left the verdict behind may not be finished. No workflow import
       landed_recovery.py
-                        the route for a head the pull request already carries: a foreign publication, a
-                        foreign mark, a landing nothing of the attempt's vouches for, a tree not provably clean under
-                        a verdict, and an unaccounted transfer park without a reset; past them a lost settlement
-                        record is reported, best effort, from the proof it kept, and an announced route is only
-                        written, an outstanding permission is settled, and anything else takes the ordinary finish
-      landed_settlement.py
-                        the permitted, leased no-op that receipts an outstanding permission over a landed rewrite and
-                        reads the rotation back; every unsettled outcome parks with HEAD and the anchor kept
+                        why a head the pull request already carries may not be finished, for the workflow's
+                        recovery of it (`workflow/engine/rewrite_landed.py`) to park on: a foreign mark, a landing
+                        nothing of the attempt's vouches for, a tree not provably clean under a verdict -- read off
+                        the candidate's own status reading -- and a transfer the receipt and debt do not account
+                        for, plus the two ways the leased no-op settling an outstanding permission fails to. Reasons
+                        only: nothing here parks, pushes, announces, or routes, and no workflow import
       terminal_handoff.py
                         the end of an attempt whose PR merged or closed: the attempt and its debt dropped, a
                         shipped rewrite's permission settled with its receipt, any other dropped on the rollback's
@@ -682,8 +673,7 @@ orchestrator/
                         grant-vouched window before a replay head was recorded and the finish's own relabel
       replay_refusals.py the ordered preflight before a replay retry: foreign publication, announcement,
                         rollback, unvouched transfer, and unclaimed checkout. Every refusal stays ahead of publication
-      outcomes.py       ordinary recovery's already-published, unknown-comparison, diverged, dirty, and failed-push
-                        answers; the notice of a landing found already standing is formatted by recovery_notices
+      outcomes.py       ordinary recovery's unknown-comparison, diverged, dirty, and failed-push parks
       replay_transfer_parks.py
                         permit and transfer refusals: reset an unlicensed replay through the guarded rollback, or
                         retain a push that landed without the verdict's rotation for human reconciliation
@@ -700,27 +690,13 @@ orchestrator/
                         claim the reconciliation answers freezes the refresh out -- with a missing checkout
                         restored where the refresh drives the label and the ineligible answer taken where it does
                         not
-      persistence.py    the parks, the reset-and-park tail -- which drops the whole attempt and the debt it
+      persistence.py    the parks and the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the
-                        approved commit -- and the recovery finalization that orders the report debt the landed
-                        head leaves (or the park where it does not fit), notice delivery, the durable announcement
-                        checkpoint the debt rides, routing, and the final state write, beside the write that
-                        finishes an announced route without announcing it again, which writes that debt ahead of
-                        its relabel where a mark an earlier build left carries
-                        none
+                        approved commit. The finish of a landing -- its report debt, notice, event, announcement
+                        mark, and route -- is the workflow's (`workflow/engine/rewrite_finish.py`)
       recovery_notices.py
-                        format and deliver the successful recovery notices and audit event before the announcement
-                        checkpoint; a failed comment is reported while the recovered publication can still be recorded
-      report_debt.py    the report debt a landed rebase leaves its pull request -- the pinned pull request, its
-                        branch, the anchor the push was leased against, and the head that landed -- staged through
-                        the workflow's `report_rewrite_debt` owner by a call-time import, for the recovery's
-                        announcement write to make durable before the attempt is cleared or the issue routed. Its
-                        room is measured on that whole write -- the notice's ledger entry, the reset round, and the
-                        mark beside it -- and on the comment as it stands, and a proved debt that does not fit
-                        either answers the notice its caller parks
-                        with, `auto_base_rebase_unrecorded_debt`, before anything is announced. A standing claim the
-                        landed head does not follow is refused there and left standing, and the route goes on
+                        how a recovery's park notices name the commits they are about
       models.py         the frozen contexts, requests, snapshots, and decisions
       state.py          the pinned-state keys, park reasons, refresh detour labels, and the shared logger
     publication/        what a branch becomes before review reads it
@@ -1217,24 +1193,26 @@ off a facade:
   which reads its candidate through `rewrite_facts`, pushes it through `rewrite_transport`, records its replay through
   `attempts`, and ends an attempt it refuses through `guards`, which ends in `persistence`.
   On the recovery side the workflow's recovery coordinator resumes the attempt in the context `recovery` binds, and
-  asks `replay_cleanup` before comparison, `snapshot` and `transfers` for the comparison, `landed_recovery` for a head
-  already published, and `replay_refusals` and `replay_evidence` before its retry. Those refusal owners separate
-  checkout rollback, publication identity, and transfer accounting. The workflow's retry reads its candidate through
-  `recovery_push`, asks `transfer_evidence` and `transfer_permits` before the gate -- the latter freezes the entry for
-  the permit it re-asks -- and takes its parks from `outcomes` and `replay_transfer_parks`. `attempts` is under both:
-  it owns the record one rebase attempt leaves of itself, and every owner
+  asks `replay_cleanup` before comparison, `snapshot` and `transfers` for the comparison, and `replay_refusals` and
+  `replay_evidence` before its retry. Those refusal owners separate checkout rollback, publication identity, and
+  transfer accounting. The workflow's retry reads its candidate through `recovery_push`, asks `transfer_evidence`
+  and `transfer_permits` before the gate -- the latter freezes the entry for the permit it re-asks -- and takes its
+  parks from `outcomes` and `replay_transfer_parks`. Its recovery of a head already published reads the same
+  candidate, asks `replay_evidence` and `landed_recovery` why the landing may not be finished and parks through
+  `replay_publication_parks` and `replay_transfer_parks`, asks `transfer_permits` ahead of the leased no-op an
+  outstanding permission is settled through, and observes anything else through `rewrite_transport`. `attempts` is
+  under both: it owns the record one rebase attempt leaves of itself, and every owner
   that writes a member of that record or ends it calls through it rather than spelling a key of its own.
-  `attempt_records` owns interrupted-replay validation; `recovery_notices` delivers the notice and audit event in
-  the order `persistence` coordinates with its checkpoint and routing, and `persistence` stages the report debt a
-  landed head the recovery found leaves through `report_debt` ahead of that checkpoint. `transfer_evidence` assembles
+  `attempt_records` owns interrupted-replay validation, and `recovery_notices` names the commits a recovery's parks
+  are about. Every finish of a landing -- the report debt, the notice and audit event, the announcement mark, and the
+  route -- is the workflow's (`workflow/engine/rewrite_finish.py`). `transfer_evidence` assembles
   the rewrite the publisher or recovery hands to the size gate. `transfers` classifies the interrupted permission
   through `transfer_attempts` and `transfer_publication`, using the bounded handoff values in `transfer_values`.
   `recovery_holds` reads the refusals the dispatch hold releases for off `refresh_selection` and `frozen`, and
   answers a held anchor through `replay_cleanup` and `replay_publication_parks`. `rewrite_handoffs` carries only data
   as well; `rewrite_facts` reads it through the verification, measurement, and publication probes and the branch
-  transport, and `rewrite_transport` publishes it through `rewrite_facts` and the branch transport. Only
-  `recovery_push` calls one of the three, to read a retry's candidate: the workflow's publication and retry read and
-  publish through them, and the observation stays dormant until the recovery of a landed push takes it up.
-  `publication` is only the bridge `landed_settlement` reaches the size gate through. The keyword-call adapter here
+  transport, and `rewrite_transport` publishes or observes it through `rewrite_facts` and the branch transport. Only
+  `recovery_push` calls one of the three, to read a recovery's candidate: the workflow's publication, retry, and
+  recovery of a landed push read, publish, and observe through them. The keyword-call adapter here
   — the conflict route — like the PR sync on the workflow's coordinator, still takes the argument list its caller
   spells and normalizes it into the typed context entry point beside it.

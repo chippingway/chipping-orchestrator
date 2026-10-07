@@ -23,10 +23,10 @@ permit, has exactly that candidate published, and hands the landed record to
 its finish (`workflow/engine/rewrite_publication.py`,
 `workflow/engine/rewrite_finish.py`). So does the crash recovery's retry of a
 replay an interrupted tick never published (`workflow/engine/rewrite_retry.py`),
-which reads its candidate through `recovery_push`. A landing an earlier tick
-left is still finished through `landed_recovery` and `persistence`, reached
-from the workflow's recovery coordinator (`workflow/engine/rewrite_recovery.py`),
-and the observation of one stays dormant until that road is taken over too.
+which reads its candidate through `recovery_push`, and so does its recovery of
+a push an interrupted tick already landed (`workflow/engine/rewrite_landed.py`):
+the same candidate, with the landing observed where the remote stands rather
+than published again.
 """
 from __future__ import annotations
 

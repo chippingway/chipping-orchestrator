@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """The order the workflow routes an interrupted rebase in, and what its decision leaves the tick.
 
-Every road the recovery can take ends on a git owner -- a clear, a park, the
-landed finish -- or on the workflow's own retry, so each is watched on the
-owner that defines it and the cases pin which one a reading selects, and
-which readings are never taken on the way there.
+Every road the recovery can take ends on a git owner -- a clear, or a park --
+or on one of the workflow's own: the retry, or the finish of a push already
+landed. Each is watched on the owner that defines it, and the cases pin which
+one a reading selects, and which readings are never taken on the way there.
 """
 from __future__ import annotations
 
@@ -16,13 +16,16 @@ from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git.base_sync import (
-    landed_recovery as _landed_recovery,
     outcomes,
     replay_publication_parks as _replay_publication_parks,
     snapshot,
 )
 from orchestrator.git.verification import probes as _probes
-from orchestrator.workflow.engine import rewrite_recovery as _rewrite_recovery, rewrite_retry as _rewrite_retry
+from orchestrator.workflow.engine import (
+    rewrite_landed as _rewrite_landed,
+    rewrite_recovery as _rewrite_recovery,
+    rewrite_retry as _rewrite_retry,
+)
 from tests.git.base_sync import base_sync_helpers as fixtures
 from tests.git.base_sync.refresh_test_support import MOVED_CHECKOUT_SHA
 
@@ -31,7 +34,7 @@ COMPLETE_SNAPSHOT = "_complete_recovery_snapshot"
 CLEAR_INELIGIBLE = "_clear_ineligible_recovery"
 CLEAR_UNCHANGED = "_clear_unchanged_recovery"
 STRANDED = "_park_stranded_recovery"
-LANDED = "_finish_published_recovery"
+LANDED = "recovers"
 UNKNOWN_COMPARISON = "_reject_unknown_recovery_comparison"
 DIVERGED = "_park_diverged_recovery"
 RETRY = "retries"
@@ -42,7 +45,7 @@ RETRY_COMMENT_ID = 200
 # Every answer a completed comparison can resolve into, and the owner it is
 # selected on.
 ANSWERS = (
-    (_landed_recovery, LANDED),
+    (_rewrite_landed, LANDED),
     (outcomes, UNKNOWN_COMPARISON),
     (outcomes, DIVERGED),
     (_rewrite_retry, RETRY),

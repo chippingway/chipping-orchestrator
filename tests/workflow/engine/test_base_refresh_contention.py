@@ -29,6 +29,7 @@ from tests.git.base_sync.refresh_scenarios import (
     _landed_recovery_scenario,
     _scenario,
 )
+from tests.git.base_sync.report_debt_test_support import stands_on
 from tests.git.base_sync.sync_test_support import _git_result
 from tests.support.writer_claims import claimable, held_elsewhere, unusable_namespace
 
@@ -117,6 +118,7 @@ class HeldRouteTest(_ContendedSyncCase):
         # The landing an interrupted attempt left is finished by the refresh
         # that holds the issue, and by no refresh after it.
         self._seed_pr_issue(**support._pending_attempt(support.REBASED_SHA), review_round=3)
+        stands_on(self.gh, support.REBASED_SHA)
         scenario = _landed_recovery_scenario(support.REBASED_SHA)
 
         self._held_then_released(scenario)
