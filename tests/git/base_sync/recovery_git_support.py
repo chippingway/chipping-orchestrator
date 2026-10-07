@@ -28,8 +28,8 @@ from unittest import mock
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport
-from orchestrator.git.base_sync import attempt_records as _attempt_records, recovery
-from tests.git.base_sync.gate_reads_support import _gate_base_reads
+from tests.git.base_sync.gate_reads_support import _gate_base_reads, _remote_on_disk
+from tests.git.base_sync.recovery_entry_support import resumed
 from tests.support.fakes import (
     FakeGitHubClient,
     FakePR,
@@ -315,26 +315,17 @@ class RecoveryGitFixtureMixin:
         self.enterContext(
             mock.patch.object(branch_transport, PUSH_BRANCH, self.push),
         )
+        # A retry publishes the candidate read against the remote's own answer
+        # for its branch, so that reading goes to the bare remote as well.
+        _remote_on_disk(self, SLUG, self.remote)
 
-    def recover(self) -> bool:
-        """Run the recovery the way the refresh flow enters it.
+    def recover(self, label: str = LABEL) -> bool:
+        """Run the recovery the way the workflow's coordinator enters it; whether it owned the tick.
 
-        The attempt record goes in read off the comment, as the eligibility
-        gate hands it over, since a landed head is finished only where that
-        record vouches for it.
+        The attempt record is read off the comment, since a landed head is
+        finished only where that record vouches for it.
         """
-        state = self.gh.read_pinned_state(self.issue)
-        return recovery._recover_pending_auto_base_rebase(
-            self.gh,
-            self.spec,
-            self.issue,
-            state,
-            self.work,
-            pr_number=PR_NUMBER,
-            label=LABEL,
-            pending_pre_rebase_sha=self.anchor,
-            pending_rewrite=_attempt_records._pending_rewrite(state),
-        )
+        return not resumed(self, label).should_continue
 
     def publish_recovered_head(self) -> None:
         """Land the rewritten head the way the interrupted push would have.

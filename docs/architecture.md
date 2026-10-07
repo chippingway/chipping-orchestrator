@@ -381,9 +381,11 @@ refresh runs first because every step after it reads what that fetch left behind
 emission both precede the scheduler / in-tick split so each fires exactly once per tick on either path. The refresh
 decides which worktree is synced, under whose claim, and by which route; a PR-having worktree's route is ordered by
 the base-rewrite coordinator beside it (`workflow/engine/base_rewrite.py`), whose ordinary publication of a clean
-rebase is the workflow's own (`workflow/engine/rewrite_publication.py`). The git `base_sync` owners under them supply
-the selection, the rebase, the candidate and its exact-candidate push, and the crash-recovery effects the coordinator
-still delegates.
+rebase is the workflow's own (`workflow/engine/rewrite_publication.py`), and so is the order an interrupted attempt's
+recovery is asked in and the retry of a replay that crash kept off the pull request
+(`workflow/engine/rewrite_recovery.py`, `rewrite_retry.py`). The git `base_sync` owners under them supply the
+selection, the rebase, the candidate and its exact-candidate push, the recovery's readings, refusals, and parks, and
+the finish of a push the recovery finds already landed, which the coordinator still delegates.
 The dispatch behind that split first drops each open `workflow:blocked` / `workflow:umbrella` issue on the ticks
 `DEPENDENCY_POLL_EVERY_N_TICKS` skips — a classification filter taken before any partition, so a skipped dependency
 walk is neither submitted nor handed a worker client — and then folds every remaining family-aware issue
@@ -855,8 +857,13 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   that reading, and a push git answered with a failure is classified by reading the remote again: one the remote is
   shown standing on is finished as the publication it was, and anything else the publication sent nothing for or
   could not show landed resets the checkout onto its anchor and parks `auto_base_rebase_push_failed`. The crash
-  recovery does not cross this boundary yet, so its observation of a landing stays dormant;
-  `base_sync/publication.py` keeps only the gate bridges that recovery's push still reaches the gate through.
+  recovery's retry of a replay nothing published (`workflow/engine/rewrite_retry.py`) crosses the same boundary: it
+  reads the candidate the attempt left, in the attempt's own terms and over the remote head its fetch verified
+  (`git/base_sync/recovery_push.py`), asks the transfer permit first where a transfer is the only voucher -- a refusal
+  resets and parks rather than falling through to the cumulative reading -- and publishes and finishes exactly as the
+  ordinary publication does. A push the recovery finds already landed does not cross it yet, so its observation of a
+  landing stays dormant; `base_sync/publication.py` keeps only the gate bridge that road's settlement still reaches
+  the gate through.
 - The finish a landed rewrite still owes sits on the workflow side of that boundary.
   `workflow/engine/rewrite_finish.py` takes the landed record beside the issue it finishes and applies one policy to
   the ordinary publication, a recovered one, and a finish whose announcement is already out: the report debt staged
@@ -868,7 +875,9 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   tick pushed nothing for is announced as one found standing. Every write is a guarded commit, so a refused or
   unconfirmed one stops the finish with nothing behind it made. Its post-push, pre-route step is where the evidence a
   landed head is routed with is decided, on the base lag alone so far. It runs under its caller's issue writer claim.
-  The ordinary publication hands its landing there; the crash recovery still finishes through
+  The ordinary publication and the recovery's retry hand their landings there -- the retry's on the recovery road,
+  with the reply that brought the attempt back, and over an attempt from before its replay record existed the push it
+  made is that retry's own. A landing the recovery finds already standing still finishes through
   `base_sync/persistence.py`, by the same order, until it is moved onto this finish.
 - The bare `HEAD` form is left for the one push that could name no commit at all: a gated push on an install running
   with `DECOMPOSE=off` whose checkout would not prove its own head. The switch keeps candidates out of the

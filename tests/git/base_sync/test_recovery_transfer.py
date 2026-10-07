@@ -6,10 +6,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git import commands as _commands
-from orchestrator.git.base_sync import (
-    replay_recovery as _replay_recovery,
-    transfers,
-)
+from orchestrator.git.base_sync import transfers
+from orchestrator.workflow.engine import rewrite_recovery as _rewrite_recovery
 from tests.git.base_sync import (
     base_sync_helpers as fixtures,
     recovery_transfer_test_support as _recovery_cases,
@@ -34,7 +32,7 @@ class RefusedResetRetentionTest(seed.TransferCase):
                 )
             )),
         ):
-            _replay_recovery._route_an_unpublished_head(
+            _rewrite_recovery._routes_an_unpublished_head(
                 self.context, _recovery_cases._snapshot(),
                 transfers._carried_by(self.context, seed.REPLAYED_SHA),
             )

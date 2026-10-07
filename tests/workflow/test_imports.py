@@ -119,6 +119,8 @@ _ENGINE_OWNERS = (
     "rewrite_finish_writes",
     "rewrite_finish",
     "rewrite_publication",
+    "rewrite_recovery",
+    "rewrite_retry",
     "review_findings",
     "review_findings_fences",
     "run_budget",

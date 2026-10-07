@@ -4,7 +4,8 @@
 
 Publication identity, an existing announcement, rollback, transfer integrity,
 and checkout ownership are checked in that order. This preflight serves the
-replay coordinator and keeps every refusal ahead of the shared push.
+workflow's recovery coordinator (`workflow/engine/rewrite_recovery.py`) and
+keeps every refusal ahead of the retry it publishes.
 """
 from __future__ import annotations
 

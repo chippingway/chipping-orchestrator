@@ -21,8 +21,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git import branch_transport
-from orchestrator.git.base_sync import persistence, recovery_push as _recovery_push
-from orchestrator.git.verification import status as _worktree_status
+from orchestrator.workflow.engine import rewrite_finish as _finish, rewrite_retry as _rewrite_retry
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.git.base_sync import (
     base_sync_helpers as fixtures,
     refresh_test_support as support,
@@ -40,8 +40,6 @@ from tests.git.base_sync.refresh_scenarios import (
 ISSUE = 7
 
 PUSH_BRANCH = "_push_branch"
-DIRTY_FILES = "_worktree_dirty_files"
-FINALIZE_HELPER = "_finalize_recovered_rebase"
 
 LABEL_VALIDATING = "workflow:validating"
 LABEL_DECOMPOSING = "workflow:decomposing"
@@ -70,8 +68,8 @@ class SwitchedOffRecoveryPushTest(unittest.TestCase):
     """The recovery half: a commit an interrupted tick left unpushed.
 
     Its own class because the seam is reached without a refresh running at
-    all -- the recovery owns the tick -- and what it needs seeded is the
-    comparison it found rather than a worktree behind its base.
+    all -- the workflow's retry owns the tick -- and what it needs seeded is
+    the comparison the recovery found rather than a worktree behind its base.
     """
 
     def setUp(self) -> None:
@@ -82,8 +80,9 @@ class SwitchedOffRecoveryPushTest(unittest.TestCase):
         push = MagicMock(return_value=True)
 
         with _gate_switched_off(counted), self._push_patches(push):
-            pushed = _recovery_push._retry_recovery_push(
-                fixtures._recovery_context(), fixtures._snapshot(ahead=1),
+            pushed = _rewrite_retry.retries(
+                fixtures._recovery_context(),
+                fixtures._snapshot(remote_head=fixtures.PRE_REBASE_SHA, ahead=1),
             )
 
         self.assertTrue(pushed)
@@ -92,13 +91,9 @@ class SwitchedOffRecoveryPushTest(unittest.TestCase):
 
     @contextlib.contextmanager
     def _push_patches(self, push):
-        """A clean checkout, a watched push, and a finalize that is a no-op."""
-        with patch.object(
-            _worktree_status, DIRTY_FILES, MagicMock(return_value=[]),
-        ), patch.object(branch_transport, PUSH_BRANCH, push), patch.object(
-            persistence,
-            FINALIZE_HELPER,
-            MagicMock(return_value=True),
+        """A watched push, and a finish that is a no-op."""
+        with patch.object(branch_transport, PUSH_BRANCH, push), patch.object(
+            _finish, "finalizes", MagicMock(return_value=FinishOutcome.ROUTED),
         ):
             yield
 

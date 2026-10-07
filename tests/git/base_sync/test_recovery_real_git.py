@@ -41,6 +41,12 @@ class _InterruptedRebaseCases:
         self.assertEqual(self._remote_head(), self.recovered)
         self.assertEqual(fixtures.head_sha(self.work), self.recovered)
         self._assert_routed_to_validating("crash_recovery_pushed")
+        # The finish retired the anchor, so the tick after it has nothing to
+        # recover: it pushes nothing and says nothing again.
+        self.assertFalse(self.recover())
+        self.assertEqual(self.push.leases, [self.anchor])
+        self.assertEqual(len(self.rebase_events()), 1)
+        self.assertEqual(len(self.gh.posted_pr_comments), 1)
 
     def test_landed_push_is_finalized_once(self) -> None:
         self.publish_recovered_head()
@@ -85,9 +91,10 @@ class _InterruptedRebaseCases:
         return fixtures.head_sha(self.remote, fixtures.BRANCH_REF)
 
     def _assert_routed_to_validating(self, method: str) -> None:
-        self.assertIn(
-            (fixtures.ISSUE, fixtures.VALIDATING), self.gh.label_history,
+        self.assertEqual(
+            self.gh.label_history, [(fixtures.ISSUE, fixtures.VALIDATING)],
         )
+        self.assertEqual(len(self.gh.posted_pr_comments), 1)
         published = self.gh.pinned_data(fixtures.ISSUE)
         self.assertIsNone(published.get(fixtures.KEY_PENDING_PUSH_SHA))
         self.assertEqual(
@@ -108,6 +115,7 @@ class _InterruptedRebaseCases:
         self.assertIsNone(published.get(fixtures.KEY_PENDING_PUSH_SHA))
         self.assertEqual(self.gh.label_history, [])
         self.assertEqual(self.rebase_events(), [])
+        self.assertEqual(self.gh.posted_pr_comments, [])
 
 
 class RecoveryRealGitTest(

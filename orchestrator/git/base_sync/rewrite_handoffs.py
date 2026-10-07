@@ -21,11 +21,12 @@ The ordinary publication of a clean rebase crosses here: the workflow reads
 the candidate the rebase left, rules on it with the size gate and the transfer
 permit, has exactly that candidate published, and hands the landed record to
 its finish (`workflow/engine/rewrite_publication.py`,
-`workflow/engine/rewrite_finish.py`). A crash recovery does not yet: it still
-recovers through `replay_recovery` and `persistence`, reached from the
-workflow's base-rewrite coordinator (`workflow/engine/base_rewrite.py`), and
-the observation of a landing an earlier tick left stays dormant until it takes
-that road over.
+`workflow/engine/rewrite_finish.py`). So does the crash recovery's retry of a
+replay an interrupted tick never published (`workflow/engine/rewrite_retry.py`),
+which reads its candidate through `recovery_push`. A landing an earlier tick
+left is still finished through `landed_recovery` and `persistence`, reached
+from the workflow's recovery coordinator (`workflow/engine/rewrite_recovery.py`),
+and the observation of one stays dormant until that road is taken over too.
 """
 from __future__ import annotations
 

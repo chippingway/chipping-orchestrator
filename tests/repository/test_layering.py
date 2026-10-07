@@ -103,11 +103,11 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # under a git-layer owner but reports to the issue it was started for: the
 # notice a rebase or a conflict posts goes out through the workflow's comment
 # owner, the park a failed auto-rebase takes through its guard owner, and the
-# push a crash recovery reissues for a rebase is measured by the size gate
-# first, since a base that moved changes what the branch adds to it and a pull
-# request may not be grown past the ceiling by a refresh either; the ordinary
-# publication of a rebase is the workflow's, and enters that gate from there.
-# The squash on approval is the same argument without a measurement: it
+# leased no-op that settles a landing a crash recovery finds goes through the
+# size gate's own call, since it is a push onto a pull request the remote
+# already carries; the ordinary publication of a rebase and the recovery's
+# retry of one nothing published are the workflow's, and enter that gate from
+# there. The squash on approval is the same argument without a measurement: it
 # force-pushes onto a pull request the remote already carries, so it is entered
 # on that publication before it rewrites anything and pushes through the gate's
 # own call. All of them sit above this layer, so the import waits for the call
@@ -120,10 +120,10 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # which reads the exemption, the permission, and the receipt and debt beside
 # them -- and the reset-and-park tail, which drops the permission its rollback
 # will never spend. The first also ASKS that permit, ahead of the gated push a
-# recovery makes rather than through it, since the gate answers a refusal with
-# the cumulative reading and a road finishing a publication may not fall back
-# on one; the entry it is asked over is frozen through the same owner every
-# other publication freezes one through.
+# recovery's retry or settlement makes rather than through it, since the gate
+# answers a refusal with the cumulative reading and a road finishing a
+# publication may not fall back on one; the entry it is asked over is frozen
+# through the same owner every other publication freezes one through.
 #
 # The record one attempt leaves of its own replay reaches the late domain for
 # one thing only: the shape a recorded commit is held to. Spelled twice, a
@@ -165,7 +165,6 @@ _CALL_TIME_HOPS = MappingProxyType({
         _LATE_TRANSFER,
     ),
     f"{_BASE_SYNC}.publication": (_LATE_PUSH, _LATE_RECORDS),
-    f"{_BASE_SYNC}.recovery_push": (_LATE_ENTRY,),
     f"{_BASE_SYNC}.recovery_notices": (_COMMENTS,),
     f"{_BASE_SYNC}.report_debt": (
         _COMMENTS,

@@ -10,11 +10,15 @@ from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator import config
-from orchestrator.git.base_sync import eligibility, recovery, terminal_handoff as _terminal_handoff
+from orchestrator.git.base_sync import (
+    eligibility,
+    replay_cleanup as _replay_cleanup,
+    terminal_handoff as _terminal_handoff,
+)
 from orchestrator.git.verification import status as _worktree_status
 from tests.git.base_sync import base_sync_helpers as fixtures
 
-RECOVER = "_recover_pending_auto_base_rebase"
+RECOVER = "_answers_an_ineligible_label"
 
 DIRTY_FILES = "_worktree_dirty_files"
 
@@ -49,14 +53,14 @@ TERMINAL_PR_STATES = ((True, "closed"), (False, "closed"))
 _OWNERS = MappingProxyType(
     {
         DIRTY_FILES: _worktree_status,
-        RECOVER: recovery,
+        RECOVER: _replay_cleanup,
     },
 )
 
 
-def _handled(recovered: bool = True) -> MagicMock:
-    """A crash-recovery stub reporting whether it owns the tick."""
-    return MagicMock(return_value=recovered)
+def _handled() -> MagicMock:
+    """A recovery-road stub reporting that it answered the anchor."""
+    return MagicMock(return_value=True)
 
 
 @contextlib.contextmanager
@@ -99,14 +103,11 @@ class LabelEligibilityTest(unittest.TestCase):
             )
 
         # The issue left the detour carrying a recovery target, and no later
-        # tick reaches this branch again -- so the anchor is resolved here.
-        self.assertEqual(
-            recover.call_args.kwargs.get("pending_pre_rebase_sha"),
-            fixtures.PRE_REBASE_SHA,
-        )
-        self.assertEqual(
-            recover.call_args.kwargs.get("label"), IGNORED_LABEL,
-        )
+        # tick reaches this branch again -- so the anchor is resolved here, on
+        # the road that fetches and publishes nothing.
+        resumed = recover.call_args.args[0]
+        self.assertEqual(resumed.pending_pre_rebase_sha, fixtures.PRE_REBASE_SHA)
+        self.assertEqual(resumed.label, IGNORED_LABEL)
 
     def test_ignored_label_skips_recovery(self) -> None:
         recover = _handled()
@@ -271,68 +272,6 @@ class OpenPrTest(unittest.TestCase):
         return fixtures._sync_context(
             pending_auto_base_rebase_push_sha=fixtures.PRE_REBASE_SHA,
             pending_pre_rebase_sha=fixtures.PRE_REBASE_SHA,
-        )
-
-
-class RecoveryDecisionTest(unittest.TestCase):
-    """Crash recovery runs first, and only an unspent retry survives it."""
-
-    def test_no_anchor_keeps_the_reported_retry(self) -> None:
-        recover = _handled()
-
-        with _patched(**{RECOVER: recover}):
-            decision = eligibility._auto_rebase_recovery_decision(
-                fixtures._sync_context(), RETRY_COMMENT_ID,
-            )
-
-        recover.assert_not_called()
-        self.assertTrue(decision.should_continue)
-        self.assertEqual(decision.consumed_comment_id, RETRY_COMMENT_ID)
-
-    def test_finished_recovery_owns_the_tick(self) -> None:
-        recover = _handled()
-
-        with _patched(**{RECOVER: recover}):
-            decision = eligibility._auto_rebase_recovery_decision(
-                self._anchored_context(), RETRY_COMMENT_ID,
-            )
-
-        self.assertFalse(decision.should_continue)
-        # Recovery is the side that can publish the rewrite, so the retry it
-        # was handed is what it unparks with.
-        self.assertEqual(
-            recover.call_args.kwargs.get("unparking_consumed_max"),
-            RETRY_COMMENT_ID,
-        )
-        self.assertEqual(
-            recover.call_args.kwargs.get("behind"), fixtures.BEHIND_BY,
-        )
-
-    def test_released_park_drops_a_spent_retry(self) -> None:
-        # Recovery cleared the park itself, so the reply it consumed must not
-        # be re-consumed by the rebase this tick continues into.
-        with _patched(**{RECOVER: _handled(recovered=False)}):
-            decision = eligibility._auto_rebase_recovery_decision(
-                self._anchored_context(), RETRY_COMMENT_ID,
-            )
-
-        self.assertTrue(decision.should_continue)
-        self.assertIsNone(decision.consumed_comment_id)
-
-    def test_surviving_park_keeps_its_retry(self) -> None:
-        with _patched(**{RECOVER: _handled(recovered=False)}):
-            decision = eligibility._auto_rebase_recovery_decision(
-                self._anchored_context(awaiting_human=True),
-                RETRY_COMMENT_ID,
-            )
-
-        self.assertTrue(decision.should_continue)
-        self.assertEqual(decision.consumed_comment_id, RETRY_COMMENT_ID)
-
-    def _anchored_context(self, **state_fields):
-        return fixtures._sync_context(
-            pending_pre_rebase_sha=fixtures.PRE_REBASE_SHA,
-            **state_fields,
         )
 
 

@@ -1,6 +1,12 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
 """Comparisons, terminal mocks, and common values for replay recovery tests.
+
+The road an unpublished checkout takes is chosen by the workflow's recovery
+coordinator (`workflow/engine/rewrite_recovery.py`) over the git owners'
+readings, so `_assert_selects` routes a comparison through it and every
+terminal it can reach -- the git owners' refusals and parks, and the
+workflow's own retry -- is watched on the owner that defines it.
 """
 from __future__ import annotations
 
@@ -10,15 +16,17 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.git.base_sync import (
     outcomes,
-    recovery_push as _recovery_push,
     replay_checkout_parks as _replay_checkout_parks,
     replay_publication_parks as _replay_publication_parks,
-    replay_recovery as _replay_recovery,
     replay_transfer_parks as _replay_transfer_parks,
     transfers,
 )
 from orchestrator.git.measurement.models import FrozenCommit, MeasurementFailure
 from orchestrator.git.verification import status as _worktree_status
+from orchestrator.workflow.engine import (
+    rewrite_recovery as _rewrite_recovery,
+    rewrite_retry as _rewrite_retry,
+)
 from orchestrator.workflow.stages.implementing import (
     late_push as _push,
 )
@@ -28,7 +36,7 @@ from tests.git.base_sync import (
     transfers_test_support as seed,
 )
 
-RETRY_PUSH = "_retry_recovery_push"
+RETRY_PUSH = "retries"
 
 UNVOUCHED = "_park_unvouched_recovery"
 
@@ -49,7 +57,7 @@ _ANSWERS = MappingProxyType({
     "_park_unrecorded_recovery": _replay_checkout_parks,
     "_park_diverged_recovery": outcomes,
     "_reject_unknown_recovery_comparison": outcomes,
-    RETRY_PUSH: _recovery_push,
+    RETRY_PUSH: _rewrite_retry,
 })
 
 # The one label this route's own finish writes, and one the base refresh does
@@ -107,7 +115,7 @@ def _assert_selects(case, answer: str, completed=None) -> MagicMock:
     selected = {}
     completed = completed or _snapshot()
     with _every_answer(selected):
-        case.assertTrue(_replay_recovery._route_an_unpublished_head(
+        case.assertTrue(_rewrite_recovery._routes_an_unpublished_head(
             case.context, completed,
             transfers._carried_by(case.context, completed.head),
         ))

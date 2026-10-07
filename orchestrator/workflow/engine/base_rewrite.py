@@ -17,12 +17,14 @@ have already routed themselves to ``conflicts`` or to a park.
 
 The ordinary publication is the workflow's own (``rewrite_publication``): the
 candidate the git owner reads, the size and transfer gates it passes before
-any push, the exact-candidate push, and the shared finish of what landed. The
-recovery of an attempt an earlier tick left is still the git owners' effect,
-delegated whole through ``eligibility``: what is decided here for it is only
-whether and when it is reached. The legacy keyword signature is bound here
-too, because the refresh still passes the pre-context argument list this route
-derives its context from.
+any push, the exact-candidate push, and the shared finish of what landed. So
+is the recovery of an attempt an earlier tick left (``rewrite_recovery``): the
+order its classification and refusals are asked in, and the retry of a replay
+the crash kept off the pull request (``rewrite_retry``), which publishes and
+finishes exactly as the ordinary publication does. A push the recovery finds
+already landed is still finished by the git owner of that road. The legacy
+keyword signature is bound here too, because the refresh still passes the
+pre-context argument list this route derives its context from.
 """
 from __future__ import annotations
 
@@ -41,7 +43,10 @@ from orchestrator.git.base_sync.models import (
     _AutoRebaseRequest,
 )
 from orchestrator.git.base_sync.state import _PENDING_PUSH_SHA
-from orchestrator.workflow.engine import rewrite_publication as _rewrite_publication
+from orchestrator.workflow.engine import (
+    rewrite_publication as _rewrite_publication,
+    rewrite_recovery as _rewrite_recovery,
+)
 
 _SYNC_PR_SIGNATURE = inspect.Signature((
     inspect.Parameter("gh", inspect.Parameter.POSITIONAL_OR_KEYWORD),
@@ -58,9 +63,7 @@ def _publish_auto_rebase_from_pr(
     context: _AutoRebaseContext, pr: PullRequest, consumed_comment_id: int | None,
 ) -> None:
     """Complete the recovery / rebase / publish phase for an opened PR."""
-    recovery = eligibility._auto_rebase_recovery_decision(
-        context, consumed_comment_id,
-    )
+    recovery = _rewrite_recovery.decides(context, consumed_comment_id)
     if not recovery.should_continue:
         return
     if not eligibility._normal_auto_rebase_can_start(context):
@@ -111,7 +114,7 @@ def _answers_an_anchor_under_a_park(context: _AutoRebaseContext) -> None:
     if eligibility._open_auto_rebase_pr(context) is None:
         return
     if eligibility._answers_only_the_anchor(context):
-        eligibility._auto_rebase_recovery_decision(context, None)
+        _rewrite_recovery.decides(context, None)
 
 
 def _sync_unreadable_pr_worktree(request: _AutoRebaseRequest) -> None:

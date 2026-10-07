@@ -29,7 +29,7 @@ from orchestrator.workflow.engine import (
     stage_targets as _stage_targets,
     usage as _usage,
 )
-from tests.git.base_sync.gate_reads_support import _gate_base_reads
+from tests.git.base_sync.gate_reads_support import _gate_base_reads, _remote_on_disk
 from tests.git.base_sync.recovery_git_support import (
     _local_fetch,
     _LocalLeasePush,
@@ -86,6 +86,9 @@ class _LostCheckoutCase(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
         _gate_base_reads(self)
+        # The replay is published as the candidate read against the remote's
+        # own answer for its branch, so that reading goes to the bare remote.
+        _remote_on_disk(self, self.spec.slug, self.spec.target_root.parent / "remote.git")
 
     def _rebases_and_loses_the_checkout(self) -> None:
         """Publish the branch, replay it onto an advanced base, lose the tree.

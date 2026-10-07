@@ -12,6 +12,7 @@ from tests.git.base_sync.anchor_assertions import (
     _assert_not_called,
     _assert_parked_without_anchor,
 )
+from tests.git.base_sync.candidate_reads_support import _checkout_carries
 from tests.git.base_sync.gate_reads_support import _gate_candidates
 from tests.git.base_sync.refresh_scenarios import (
     PUSH_PATCH,
@@ -148,6 +149,9 @@ class CrashRecoveryAnchorUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCas
             pending_auto_base_rebase_push_sha=BEFORE_SHA,
         )
         self._add_pr()
+        # The retry decides on the candidate it reads, whose status names the
+        # leftovers the push would otherwise carry.
+        _checkout_carries(self, "scratch.py")
         scenario = _scenario(
             dirty=MagicMock(return_value=["scratch.py"]),
             rebase=MagicMock(),

@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Ask the publication permit over the recovery's frozen entry.
 
-The replay recovery asks before publishing and repeats the same
-permit-only restriction inside the gate. Workflow owners are loaded only
-inside that call, preserving the Git layer's import boundary.
+The workflow's retry of an unpublished replay
+(`workflow/engine/rewrite_retry.py`) and the landed recovery's settlement ask
+before publishing and repeat the same permit-only restriction inside the
+gate. Workflow owners are loaded only inside that call, preserving the Git
+layer's import boundary.
 """
 from __future__ import annotations
 

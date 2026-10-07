@@ -1,16 +1,18 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The gated publication a crash recovery's push still reaches from this layer.
+"""The gated publication a landed recovery's settlement still reaches from this layer.
 
 The ordinary publication of a clean rebase is the workflow's
 (`workflow/engine/rewrite_publication.py`): it reads the candidate, enters the
 size gate and the transfer permit on it before any push, publishes exactly
-that candidate, and hands what landed to the shared finish. What stays here is
-the bridge two recovery roads of this package still cross to the same gate --
-the push a recovery reissues (`recovery_push`) and the leased no-op that
-settles a landing whose receipt never went down (`landed_settlement`) -- each
-handed the gate's own call and the subject constructor beside it, so a
-recovery is measured, pinned, and settled exactly as the publication is.
+that candidate, and hands what landed to the shared finish; so does the
+retry of a replay a crash kept off the pull request
+(`workflow/engine/rewrite_retry.py`). What stays here is the bridge the one
+recovery road left in this package still crosses to the same gate -- the
+leased no-op that settles a landing whose receipt never went down
+(`landed_settlement`) -- handed the gate's own call and the subject
+constructor beside it, so that settlement is measured, pinned, and settled
+exactly as the publication is.
 
 Both sit in the workflow layer above this package, so they are bound where
 they are used rather than at module load: binding them here would make every
@@ -21,11 +23,12 @@ from __future__ import annotations
 
 
 def _gated_publication():
-    """The size gate a recovery's push passes, imported where it is used.
+    """The size gate a recovery's settlement passes, imported where it is used.
 
-    A rebase onto a base that has moved changes what the branch adds to it, so
-    the pull request can cross the ceiling with nobody having written a line --
-    and a push a recovery reissues for that rebase is no exception.
+    The leased no-op that settles a landing is a push onto a pull request the
+    remote already carries, and every such push goes through the one gate, so
+    the receipt, the debt it pays, and the rotation it carries are settled
+    exactly as any publication's are.
     """
     from orchestrator.workflow.stages.implementing import late_push
     return late_push

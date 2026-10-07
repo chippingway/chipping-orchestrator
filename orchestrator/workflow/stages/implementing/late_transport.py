@@ -3,9 +3,10 @@
 """The push a caller may hand a gated publication in place of the branch push.
 
 Every gated push onto a pull request the remote already carries is made by
-`late_push`, and every one but the base-sync auto rebase's goes through the
-branch transport there. That one is the git owner's publication of the exact
-candidate it read (`git/base_sync/rewrite_transport.py`), and it reads the
+`late_push`, and every one but the base-sync auto rebase's and its crash
+recovery's retry goes through the branch transport there. Those two are the
+git owner's publication of the exact candidate it read
+(`git/base_sync/rewrite_transport.py`), which reads the
 checkout and the remote again before it pushes -- requests a pull request
 merged or closed in, or a poll latching a close, can overtake. So a transport
 is two steps (`Transport`): the reading, and the push. `late_push` asks

@@ -4,7 +4,9 @@
 
 Persistence coordinates their order with the durable announcement checkpoint
 and subsequent routing. A comment failure is reported without preventing the
-recovered publication from being recorded.
+recovered publication from being recorded. Only a landing the recovery found
+already standing is announced from here; a retry the workflow pushed is
+announced by its shared finish (`workflow/engine/rewrite_finish_notices.py`).
 """
 from __future__ import annotations
 
@@ -84,29 +86,5 @@ def _already_published_recovery_notice(
         notice
         + f" Base advanced again by {context.behind} commit(s)"
         " since the interrupted rebase; rebasing once more before "
-        f"routing to `{WorkflowLabel.VALIDATING}`."
-    )
-
-
-def _pushed_recovery_notice(
-    context: _AutoRebaseRecoveryContext,
-    local_head: str,
-) -> str:
-    """Format the notice for a recovery push reissued this tick."""
-    short_head = local_head[:8]
-    notice = (
-        f":mag: Recovered an interrupted auto-rebase for PR "
-        f"#{context.pr_number}; pushed the recovered head "
-        f"`{short_head}`."
-    )
-    if context.behind == 0:
-        return (
-            f"{notice} Routing `{context.label}` -> "
-            f"`{WorkflowLabel.VALIDATING}`."
-        )
-    return (
-        notice
-        + f" Base advanced again by {context.behind} commit(s) "
-        "since the interrupted rebase; rebasing once more before "
         f"routing to `{WorkflowLabel.VALIDATING}`."
     )

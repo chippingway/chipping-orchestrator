@@ -80,7 +80,7 @@ def publishes(context: _AutoRebaseContext, anchor: str) -> None:
     candidate = _prepared(context, anchor)
     if not _gateable(context, candidate):
         return
-    push = _CandidatePush(candidate)
+    push = CandidatePush(candidate)
     published = _late_push._publishes(
         _late_records._gate(context.gh, context.spec, context.issue, context.state, context.worktree),
         candidate.branch,
@@ -106,7 +106,7 @@ def publishes(context: _AutoRebaseContext, anchor: str) -> None:
 
 
 @dataclass
-class _CandidatePush:
+class CandidatePush:
     """The push a gated publication of one candidate makes, and what it came to.
 
     The git owner's publication of exactly `candidate`, leased to the anchor
@@ -114,7 +114,9 @@ class _CandidatePush:
     the checkout and the remote read again as the push will find them, then
     the push. The gate was entered on that candidate and refuses a checkout it
     cannot prove standing on it, so every answer it lets through names this
-    commit -- the one its receipt is settled for.
+    commit -- the one its receipt is settled for. The retry of a replay an
+    interrupted tick never published (`rewrite_retry`) pushes through the same
+    transport, so the two roads cannot come to publish a candidate differently.
 
     A remote that reading finds already on the candidate is sent nothing, and
     it is not taken on that reading's word either: a foreign push can overtake
