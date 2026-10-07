@@ -24,7 +24,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from orchestrator.git.base_sync import refresh
+from orchestrator.workflow.engine import base_refresh
 from tests.git.base_sync.sync_test_support import _patch_base_sync
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import (
@@ -172,7 +172,7 @@ class _SkipCase:
             rebase=rebase_mock,
             head_sha=MagicMock(return_value=head),
         ):
-            refresh._sync_worktree_with_base(
+            base_refresh._sync_worktree_with_base(
                 gh,
                 _TEST_SPEC,
                 Path(f"{_WORKTREE_ROOT}{issue_number}"),

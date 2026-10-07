@@ -21,11 +21,10 @@ from orchestrator.runtime.state import RuntimeState
 from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.workflow.engine import tick as _engine_tick
 from tests.runtime import polling_test_support as _support
-from tests.workflow.git_owners import seam_patch
+from tests.workflow.engine.dispatch_scheduler_workers import patch_base_refresh
 
 _RETENTION_OWNER = "orchestrator.observability.analytics.retention"
 _PRUNE_ATTR = "prune_with_retention_logging"
-_REFRESH_BASE = "_refresh_base_and_worktrees"
 _DISPATCH_CAP = 4
 
 
@@ -70,7 +69,7 @@ class DispatchContext:
         for _repo_spec, github_client in self.clients:
             github_client.list_pollable_issues.return_value = iter([])
         with (
-            seam_patch(_REFRESH_BASE),
+            patch_base_refresh(),
             patched_prune(),
             mock.patch.object(self.scheduler, "reap") as reap,
         ):

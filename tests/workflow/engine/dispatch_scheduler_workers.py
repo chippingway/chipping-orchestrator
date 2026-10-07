@@ -6,8 +6,9 @@ import threading
 import time
 from functools import partial
 from pathlib import Path
+from unittest.mock import patch
 
-from tests.workflow.git_owners import seam_patch
+from orchestrator.workflow.engine import base_refresh as _base_refresh
 
 REPO_SLUG = "acme/widget"
 TARGET_ROOT = Path("/tmp/orchestrator-test-target-root")
@@ -21,9 +22,10 @@ DEFERRED_ISSUE_NUMBERS = (10, 11, 12)
 FAMILY_ISSUE_NUMBER = 42
 RELABELLED_FANOUT_ISSUE_NUMBER = 50
 
-# Neutralize the tick's opening pass on the owner that defines it, which is all
-# a scheduling test wants from a base refresh it never asserts on.
-patch_base_refresh = partial(seam_patch, REFRESH_BASE)
+# Neutralize the tick's opening pass, or install the replacement handed in, on
+# the workflow owner that defines it: the tick names it there, so a mock left
+# on any other module would let the real fetch and walk run.
+patch_base_refresh = partial(patch.object, _base_refresh, REFRESH_BASE)
 
 
 def _wait_for_first_started(

@@ -7,35 +7,44 @@ worktree that survived the previous tick, and what runs here is the sequence
 that fetch starts: an in-flight scheduler claim keeps a worktree out from
 under the worker still holding it, the issue's host-local writer claim keeps
 it out from under every other poller on the host and every other holder in
-this process, the `refresh_selection` owner beside this one answers whether
-the issue behind a discovered directory lets its branch be touched at all, a
-dirty pre-PR tree is left alone, and the lag against base says whether there
-is anything to carry over.
+this process, the git `refresh_selection` owner answers whether the issue
+behind a discovered directory lets its branch be touched at all, a dirty
+pre-PR tree is left alone, and the lag against base says whether there is
+anything to carry over.
 What survives is routed by whether pinned state already carries a PR --
-`pre_pr` rebases the local branch nobody has pushed yet, while the PR-aware
-coordinator has to keep the pushed head and the reviewer's SHA in step. The
-writer claim is held across whichever of those routes is taken, to its end.
+the git `pre_pr` owner rebases the local branch nobody has pushed yet, while
+the base-rewrite coordinator beside this one has to keep the pushed head and
+the reviewer's SHA in step. The writer claim is held across whichever of those
+routes is taken, to its end.
+
+The tick enters here because which issue's worktree may be touched, under
+whose claim, and by which route are the workflow's decisions; the git layer
+under it supplies the fetch, the checkout reads, the rebase, and the
+publication and recovery effects each route delegates to. Its lines report on
+`orchestrator.base_sync`, the channel of every git owner a route runs through,
+so one operator filter follows a refresh from its fetch to its last write.
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport as _branch_transport, commands as _commands
 from orchestrator.git.base_sync import (
-    pr as _pr,
+    models as _base_sync_models,
     pre_pr as _pre_pr,
     refresh_selection as _selection,
-    state as _state,
+    state as _base_sync_state,
 )
-from orchestrator.git.base_sync.models import _AutoRebaseRequest
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import paths as _paths
 from orchestrator.github import client as _client
 from orchestrator.scheduler import writer_claims as _writer_claims
 from orchestrator.scheduler.service import IssueScheduler
+from orchestrator.workflow.engine import base_rewrite as _base_rewrite
 
-log = _state.log
+log = logging.getLogger("orchestrator.base_sync")
 
 
 def _worktree_behind_base(
@@ -104,7 +113,7 @@ def _sync_claimed_worktree(
     """Route one worktree whose issue's writer claim this refresh holds.
 
     Pre-PR worktrees are rebased locally when clean. PR worktrees always
-    reach the PR-aware coordinator so a pinned crash-recovery anchor is
+    reach the base-rewrite coordinator so a pinned crash-recovery anchor is
     honored even when local HEAD already contains the latest base.
 
     A lag that cannot be counted at all ends the sync, with one exception: a
@@ -112,7 +121,7 @@ def _sync_claimed_worktree(
     interrupted attempt left names a commit nothing here can read, so no
     comparison of what it did can be trusted -- and ending the sync would
     leave the anchor for a handler the dispatcher holds back while it stands.
-    So it is reset and parked on the PR-aware coordinator's own gates instead.
+    So it is reset and parked on the coordinator's own gates instead.
     """
     issue = _selection._base_sync_issue(gh, issue_number)
     if issue is None:
@@ -134,14 +143,14 @@ def _sync_claimed_worktree(
 
     behind = _worktree_behind_base(spec, worktree, issue_number)
     if behind is None:
-        if pr_number is not None and state.get(_state._PENDING_PUSH_SHA):
+        if pr_number is not None and state.get(_base_sync_state._PENDING_PUSH_SHA):
             # No lag to route on, so the request carries none.
-            _pr._sync_unreadable_pr_worktree(_AutoRebaseRequest(
+            _base_rewrite._sync_unreadable_pr_worktree(_base_sync_models._AutoRebaseRequest(
                 gh, spec, issue, state, worktree, int(pr_number), 0,
             ))
         return
     if pr_number is not None:
-        _pr._sync_pr_worktree_to_base(
+        _base_rewrite._sync_pr_worktree_to_base(
             gh, spec, issue, state, worktree, int(pr_number), behind,
         )
         return

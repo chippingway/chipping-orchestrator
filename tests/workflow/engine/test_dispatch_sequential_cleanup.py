@@ -29,8 +29,8 @@ from orchestrator.workflow.late_split import (
 )
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.support.writer_claims import claimable
+from tests.workflow.engine.dispatch_scheduler_workers import patch_base_refresh
 from tests.workflow.fixtures import _TEST_SPEC, LABEL_UMBRELLA
-from tests.workflow.git_owners import seam_patch
 
 _OWNER_NUMBER = 41
 
@@ -47,7 +47,6 @@ _CANDIDATE_SHA = "c0ffee0000000000000000000000000000000001"
 
 _OWNER_REF = "refs/orchestrator/late-split/issue-41/cycle-3/gen-1"
 
-_REFRESH_BASE = "_refresh_base_and_worktrees"
 
 # The handler an OPEN issue on this label reaches, which is the one a stale
 # reading would send a closed owner to.
@@ -178,7 +177,7 @@ class SequentialTickRefetchTest(unittest.TestCase):
             _OWNER_NUMBER, label=LABEL_UMBRELLA, closed=polled_closed,
         )
         with (
-            seam_patch(_REFRESH_BASE, Mock()),
+            patch_base_refresh(Mock()),
             patch.object(catalog, "_emit_repo_skill_catalog", Mock()),
         ):
             tick.tick(_PolledOneReadingBehind(github, polled), _TEST_SPEC)

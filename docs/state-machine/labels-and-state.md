@@ -392,7 +392,8 @@ they do on the eagerly built parent client that enumerates the tick.
 
 ### Base refresh
 
-Before any issue is dispatched the tick runs `_refresh_base_and_worktrees(gh, spec)`: a single
+Before any issue is dispatched the tick runs `_refresh_base_and_worktrees(gh, spec)` on the workflow's refresh owner
+(`workflow/engine/base_refresh.py`): a single
 `git fetch <spec.remote_name> <spec.base_branch>` in `spec.target_root`, then per-issue dispatch on each existing
 worktree under `<WORKTREES_DIR>/<owner>__<name>/issue-*`. The remote name defaults to `origin` and is overridable per
 `REPOS` row. Per-stage `_ensure_*_worktree` helpers only fetch on (re)creation, so without this refresh long-lived
@@ -412,13 +413,16 @@ too, the answer a standing anchor is owed, runs there under the dispatch claim t
 
 Two paths depending on whether a PR exists:
 
-- **Pre-PR worktrees** get a clean-tree `git rebase <remote>/<base>` directly — no remote to push, so the local branch
-  stays linear without publishing a rewrite.
+- **Pre-PR worktrees** get a clean-tree `git rebase <remote>/<base>` directly, on the git `base_sync/pre_pr.py`
+  route — no remote to push, so the local branch stays linear without publishing a rewrite.
 - **PR-having worktrees** in `workflow:validating` / `workflow:documenting` / `in_review` / `workflow:fixing` go
-  through `_sync_pr_worktree_to_base`. A clean rebase pushes (force-with-lease pinned to the pre-rebase SHA so a
-  foreign update rejects rather than being clobbered), resets `review_round`, posts a PR notice, records the report
-  the landed head is owed, and relabels to `workflow:validating` so the reviewer re-runs against the rewritten head.
-  Only when the rebase actually leaves conflicted files does the helper relabel to `workflow:resolving_conflict`.
+  through `_sync_pr_worktree_to_base`, the workflow's base-rewrite coordinator (`workflow/engine/base_rewrite.py`),
+  which orders the git `base_sync` gates, rebase, publication, and recovery and delegates each effect to its owner —
+  reached even when the checkout is no longer behind base, so a pinned anchor's recovery is still answered. A clean
+  rebase pushes (force-with-lease pinned to the pre-rebase SHA so a foreign update rejects rather than being
+  clobbered), resets `review_round`, posts a PR notice, records the report the landed head is owed, and relabels to
+  `workflow:validating` so the reviewer re-runs against the rewritten head. Only when the rebase actually leaves
+  conflicted files does the helper relabel to `workflow:resolving_conflict`.
 
 The `question` and `discussion` labels skip both paths unconditionally (`_issue_skips_base_sync`) — the question
 handler tears down its own worktree, the discussion stage keeps its checkout across every round exit, and merging

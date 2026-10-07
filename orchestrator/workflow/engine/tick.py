@@ -27,8 +27,8 @@ which materializes because its executor has to be sized. Both wrap each issue
 in its own try/except, so one raising handler never stops the rest.
 
 Every collaborator is named on the owner that defines it, the three passes
-above included: `_refresh_base_and_worktrees` on `git/base_sync/refresh.py`,
-the sweep on `community.py` beside this one, the catalog emission on
+above included: `_refresh_base_and_worktrees` on `base_refresh.py` beside
+this one, the sweep on `community.py`, the catalog emission on
 `orchestrator/skills/catalog.py`, and the bounded-pool execution on
 `parallel.py`. A mock aimed at one of them lands on that owner; one left
 anywhere else would let the real pass run. The line an isolated per-issue
@@ -42,12 +42,12 @@ import logging
 import threading
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.base_sync import refresh as _base_refresh
 from orchestrator.github.client import GitHubClient
 from orchestrator.scheduler import claim_notes as _claim_notes
 from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.skills import catalog as _catalog
 from orchestrator.workflow.engine import (
+    base_refresh as _base_refresh,
     community as _community,
     dispatch as _dispatch,
     dispatch_workers as _dispatch_workers,

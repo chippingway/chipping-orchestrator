@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.base_sync import refresh as _base_refresh
+from orchestrator.workflow.engine import base_refresh as _base_refresh
 from tests.git.base_sync.sync_test_support import (
     _diverged,
     _git_result,

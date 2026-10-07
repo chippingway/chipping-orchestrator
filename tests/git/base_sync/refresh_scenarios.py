@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from unittest.mock import MagicMock
 
-from orchestrator.git.base_sync import refresh as _base_refresh
+from orchestrator.workflow.engine import base_refresh as _base_refresh
 from tests.git.base_sync.refresh_test_support import (
     AFTER_SHA,
     BEFORE_SHA,

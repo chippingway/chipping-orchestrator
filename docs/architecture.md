@@ -373,12 +373,15 @@ sized to the repo count. A single long-lived `IssueScheduler` (global cap `MAX_P
 `MAX_PARALLEL_ISSUES_PER_REPO`) is shared across all `tick` calls, so those caps bound the whole deployment rather
 than one repo's thread.
 
-One repo's pass is owned by `workflow/engine/tick.py` — the base refresh, the community-contribution PR sweep
-(`workflow/engine/community.py`), the skill-catalog emission, and then either the scheduler handoff or the in-tick
-execution, in that order. That last step is the sequential loop on `tick.py` itself at `parallel_limit=1`, and the
-bounded thread pool on `workflow/engine/parallel.py` beside it at any higher limit. The refresh runs first because
-every step after it reads what that fetch left behind, and the sweep and the catalog emission both precede the
-scheduler / in-tick split so each fires exactly once per tick on either path.
+One repo's pass is owned by `workflow/engine/tick.py` — the base refresh (`workflow/engine/base_refresh.py`), the
+community-contribution PR sweep (`workflow/engine/community.py`), the skill-catalog emission, and then either the
+scheduler handoff or the in-tick execution, in that order. That last step is the sequential loop on `tick.py` itself
+at `parallel_limit=1`, and the bounded thread pool on `workflow/engine/parallel.py` beside it at any higher limit. The
+refresh runs first because every step after it reads what that fetch left behind, and the sweep and the catalog
+emission both precede the scheduler / in-tick split so each fires exactly once per tick on either path. The refresh
+decides which worktree is synced, under whose claim, and by which route; a PR-having worktree's route is ordered by
+the base-rewrite coordinator beside it (`workflow/engine/base_rewrite.py`), and the git `base_sync` owners under both
+supply the selection, the rebase, and the publication and recovery effects each route delegates to.
 The dispatch behind that split first drops each open `workflow:blocked` / `workflow:umbrella` issue on the ticks
 `DEPENDENCY_POLL_EVERY_N_TICKS` skips — a classification filter taken before any partition, so a skipped dependency
 walk is neither submitted nor handed a worker client — and then folds every remaining family-aware issue
@@ -823,8 +826,9 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   rewrite, and the base-sync auto rebase and its crash recovery. Each of them refuses a moved REMOTE as well — the
   rewrite, the conflict publications, and the base-sync rebases pin `force_with_lease` to the SHA they observed
   before the rewrite, and the rest are pinned to the head the gate's own entry froze.
-- A typed boundary for the base-sync push sits beside it, dormant until the workflow coordinator that will own the
-  publication calls it. `git/base_sync/rewrite_handoffs.py` defines the frozen, data-only candidate and landed records
+- A typed boundary for the base-sync push sits beside it, dormant until the workflow's base-rewrite coordinator
+  (`workflow/engine/base_rewrite.py`), which still delegates the publication to the git owner, calls it.
+  `git/base_sync/rewrite_handoffs.py` defines the frozen, data-only candidate and landed records
   — the original and rewritten heads and trees, the branch, the base and remote readings, the worktree status, the
   attempt's anchor, pull request, and stage, and the lease-pinned push's outcome, an uncertain answer included — with
   no GitHub client, issue, pinned state, or callback in them. `rewrite_facts.py` reads a candidate and
@@ -875,8 +879,8 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
   ([`configuration.md#developer-fallback-and-target-checks`](configuration.md#developer-fallback-and-target-checks)).
 - **`workflow.engine.tick.tick(gh, spec)`** — function call. Trigger: each loop iteration. Cadence: once per tick per
   configured `RepoSpec`; multi-repo fans out across a `ThreadPoolExecutor`, single-repo stays in-thread.
-- **`_refresh_base_and_worktrees(gh, spec)`** — function call. Trigger: start of each `workflow.engine.tick.tick`.
-  Cadence: once
+- **`_refresh_base_and_worktrees(gh, spec)`** (`workflow/engine/base_refresh.py`) — function call. Trigger: start of
+  each `workflow.engine.tick.tick`. Cadence: once
   per tick per repo: one `git fetch <spec.remote_name> <spec.base_branch>`, then per-worktree dispatch — a pre-PR
   worktree rebases locally, and a PR-having one behind base is rebased and pushed in the refresh itself, each under the
   issue's writer claim.

@@ -84,7 +84,7 @@ with contextlib.ExitStack() as claims:
 # to let go before that read fails. A refresh that read nothing says so and
 # exits.
 REFRESHING_POLLER = f"""{_ANOTHER_POLLER}
-from orchestrator.git.base_sync import refresh
+from orchestrator.workflow.engine import base_refresh
 
 read = []
 
@@ -98,7 +98,7 @@ def get_issue(number):
 
 gh.get_issue = get_issue
 for number in numbers:
-    refresh._sync_worktree_with_base(gh, spec, Path.cwd(), number)
+    base_refresh._sync_worktree_with_base(gh, spec, Path.cwd(), number)
 if not read:
     print("{UNTOUCHED}", flush=True)
 """

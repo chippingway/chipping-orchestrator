@@ -17,7 +17,8 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport
-from orchestrator.git.base_sync import recovery_holds, refresh
+from orchestrator.git.base_sync import recovery_holds
+from orchestrator.workflow.engine import base_refresh
 from tests.git.base_sync import recovery_git_support as fixtures
 from tests.git.base_sync.vouched_replay_git_support import (
     VouchedReplayGitFixtureMixin,
@@ -74,7 +75,7 @@ class RefreshRecoveryRealGitTest(VouchedReplayGitFixtureMixin, unittest.TestCase
             branch_transport, "_authed_target_fetch",
             return_value=_FAILED_BASE_FETCH,
         ):
-            refresh._refresh_base_and_worktrees(self.gh, self.spec)
+            base_refresh._refresh_base_and_worktrees(self.gh, self.spec)
 
         self.assertFalse(
             self.gh.pinned_data(fixtures.ISSUE).get(fixtures.KEY_AWAITING_HUMAN),
@@ -121,7 +122,7 @@ class RefreshRecoveryRealGitTest(VouchedReplayGitFixtureMixin, unittest.TestCase
         """One refresh pass over this checkout, onto `label` where one is named."""
         if label is not None:
             self.gh.set_workflow_label(self.issue, label)
-        refresh._sync_worktree_with_base(
+        base_refresh._sync_worktree_with_base(
             self.gh, self.spec, self.work, fixtures.ISSUE,
         )
 
@@ -191,7 +192,7 @@ class ContendedRecoveryRealGitTest(VouchedReplayGitFixtureMixin, unittest.TestCa
 
     def _syncs(self) -> None:
         """One refresh pass over this checkout."""
-        refresh._sync_worktree_with_base(
+        base_refresh._sync_worktree_with_base(
             self.gh, self.spec, self.work, fixtures.ISSUE,
         )
 

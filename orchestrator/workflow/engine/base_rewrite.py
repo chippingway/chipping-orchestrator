@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """The refresh-time route a PR-having worktree takes back to merge-ready.
 
-This owner holds no git and no GitHub write of its own; what it owns is the
-order the four owners below it are called in, and that order is the contract.
+This is the workflow's base-rewrite coordinator, entered from the per-tick
+refresh beside it under the issue's writer claim that refresh holds. It holds
+no git and no GitHub write of its own; what it owns is the order the four git
+`base_sync` owners below it are called in, and that order is the contract.
 Every gate in ``eligibility`` is asked before ``startup`` is allowed to move
 HEAD, because each of them is a reason the worktree must be left exactly as
 the last tick published it. Crash recovery is settled before a new rebase is
@@ -11,9 +13,11 @@ begun, so an anchor an earlier tick pinned is never rewritten out from under
 the comparison that would have resolved it. Only then does ``startup`` anchor
 and run the rebase, and only a rebase that returns a known pre-rebase SHA
 reaches ``publication`` -- the failure paths have already routed themselves to
-``conflicts`` or to a park. The legacy keyword signature is bound here too,
-because the refresh still passes the pre-context argument list this route
-derives its context from.
+``conflicts`` or to a park. The publication and the recovery are still those
+owners' effects, delegated whole: what is decided here is only whether and
+when each is reached. The legacy keyword signature is bound here too, because
+the refresh still passes the pre-context argument list this route derives its
+context from.
 """
 from __future__ import annotations
 
