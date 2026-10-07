@@ -407,7 +407,8 @@ posted -- the drop, retirement, and park of a handed one, and the recovery's anc
 of a round a reply bought (`review_handoffs.py`, `review_launch_park.py`, `review_resume.py` beside it), and every
 write of an approval's tail -- its verdict's retirement, the squash's own records, the handoff with the evidence it
 carries or invalidates, a failed squash's park, and the handoff's end behind the label (`squash_writes.py` beside
-them) -- are the roads that commit through it so far. It derives a candidate
+them) -- are the roads that commit through it so far, and a landed base rewrite's finish is built on it while no
+route calls it yet (`workflow/engine/rewrite_finish_writes.py`). It derives a candidate
 over a fresh reading of the comment its caller captured, refuses with nothing written where that comment or a record
 the decision rests on moved, or where another writer moved a field the caller is changing, measures the whole rendered
 candidate against the comment limit before any dependent effect, and lands through the strict in-place edit on
@@ -839,6 +840,16 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   for the same frozen candidate. A base that only advanced still publishes. The lease refuses a remote moved after
   that reading, and a push git answered with a failure is classified by reading the remote again. Nothing calls them
   yet; the auto rebase still publishes through `base_sync/publication.py`.
+- The finish a landed rewrite still owes sits on the workflow side of that boundary, dormant as well.
+  `workflow/engine/rewrite_finish.py` takes the landed record beside the issue it finishes and applies one policy to
+  the ordinary publication, a recovered one, and a finish whose announcement is already out: the report debt staged
+  and measured on the whole announcement write, a debt with no room parked `auto_base_rebase_unrecorded_debt` with the
+  attempt kept, the notice and the `base_rebased` event said once behind the announcement mark, the round reset, a
+  human's retry spent, and the route to `workflow:validating` taken only for a head the base has not advanced past
+  again. Every write is a guarded commit, so a refused or unconfirmed one stops the finish with nothing behind it
+  made. Its post-push, pre-route step is where the evidence a landed head is routed with is decided, on the base lag
+  alone so far. It runs under its caller's issue writer claim. Nothing calls it yet; the auto rebase still finishes
+  through `base_sync/publication.py` and its recovery through `base_sync/persistence.py`.
 - The bare `HEAD` form is left for the one push that could name no commit at all: a gated push on an install running
   with `DECOMPOSE=off` whose checkout would not prove its own head. The switch keeps candidates out of the
   MEASUREMENT and not out of a push that knows what it is publishing, so the commit is named off the checkout there

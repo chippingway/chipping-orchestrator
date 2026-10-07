@@ -73,7 +73,9 @@ declaring its own fields and the records it was decided on
 the drop, retirement, and park of a handed one, the recovery's writes over a
 verdict an earlier tick left waiting (`stages/validating/review_handoffs.py`,
 `review_launch_park.py`, `review_resume.py`), and every write of an approval's
-tail, its squash's own included (`stages/validating/squash_writes.py`).
+tail, its squash's own included (`stages/validating/squash_writes.py`). A
+landed base rewrite's finish is declared over them too
+(`rewrite_finish_writes`), dormant until a route calls it.
 """
 from __future__ import annotations
 
@@ -175,7 +177,7 @@ class ReportCommit:
         )
 
     def prepares(
-        self, staged: PinnedState, write: ReportWrite, *, notice: bool = False,
+        self, staged: PinnedState, write: ReportWrite, *, notice: bool = False, ledger_entry: bool = False,
     ) -> _models.CommitOutcome:
         """`staged` laid over the fresh comment and measured, written nowhere.
 
@@ -194,6 +196,11 @@ class ReportCommit:
         there, which the merge keeps once and the measurement then misses. A
         record that would not fit with them is one whose notice is never
         posted. A refusal withholds the tick's state, as one `lands` meets does.
+
+        `ledger_entry` is a write behind a comment that enters the ledger and
+        moves no watermark -- a notice on the pull request rather than the
+        issue thread -- so only that entry is reserved, over the merged ledger
+        alike.
         """
         reserved = PinnedState(
             comment_id=staged.comment_id,
@@ -202,7 +209,7 @@ class ReportCommit:
         )
         if notice:
             reserved.set(_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, _record_values.MAX_RECORDED_NUMBER)
-        guard, kept = self._guarded(reserved, write, notice=notice)
+        guard, kept = self._guarded(reserved, write, notice=notice or ledger_entry)
         prepared = _commit.prepare(self.gh, self.issue, guard, reserved.data, kept)
         self.withholds(prepared)
         return prepared
@@ -277,8 +284,8 @@ class ReportCommit:
         """The guard `staged` is committed under, and the fields whose two moves it keeps.
 
         A state nothing was read into stands for its own reading, so on it
-        the tick has staged nothing of its own. `notice` is a park's
-        preparation, which reserves the ledger entry its notice adds.
+        the tick has staged nothing of its own. `notice` is the preparation of
+        a write behind a notice, which reserves the ledger entry posting it adds.
         """
         synced = (
             self.state.data if self.state.synced is None

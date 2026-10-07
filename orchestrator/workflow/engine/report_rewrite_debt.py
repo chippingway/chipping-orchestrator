@@ -59,8 +59,9 @@ validating stage is where both are asked, and where that report is obtained
 every head its own push rewrites (`stages/conflicts/report_debt.py`), and the
 base refresh one for each clean auto rebase whose push lands, its crash
 recovery included, before the attempt is cleared or the issue routed
-(`git/base_sync/report_debt.py`). This owner is the record, its reader, its
-retargeting, and its drop.
+(`git/base_sync/report_debt.py`); the workflow finish built to take that over
+stages the same debt (`rewrite_finish_debt.py`), dormant until a route calls
+it. This owner is the record, its reader, its retargeting, and its drop.
 """
 from __future__ import annotations
 

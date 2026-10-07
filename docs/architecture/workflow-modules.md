@@ -412,7 +412,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its verdict's retirement, the squash's own records, the handoff with the evidence it
                             carries or invalidates, the failed squash's park, what it posted where its records
                             moved, and the handoff's end behind the label (`stages/validating/squash_writes.py`) --
-                            commit so far, while every other road still writes its whole state: a candidate derived
+                            commit so far, with a landed base rewrite's dormant finish (`rewrite_finish_writes.py`)
+                            built on it too, while every other road still writes its whole state: a candidate derived
                             over a fresh reading of the
                             captured comment rather than written from the caller's state. A
                             write the caller did not declare refuses before anything is read; an unreadable,
@@ -454,7 +455,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             lands on or nowhere. A write with an effect to make first is PREPARED before it
                             (`prepares`): a settlement before its report is posted, and a park before its notice
                             with the ledger entry and the watermark that notice writes reserved at their widest, the
-                            entry under an id the merged ledger the candidate carries does not already hold. Only
+                            entry under an id the merged ledger the candidate carries does not already hold -- or
+                            the entry alone, for a notice on the pull request that moves no watermark. Only
                             what lands is laid over the
                             tick's state; a refusal, or an edit sent and never confirmed, WITHHOLDS that state
                             (`withholds`, `PinnedState.withheld`), so no whole-state write later in the tick puts
@@ -468,7 +470,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`stages/validating/review_writes.py`), and so do a change request's handoff and the
                             recovery of one an earlier tick left waiting (`stages/validating/review_handoffs.py`,
                             `review_launch_park.py`, `review_resume.py`) and every write of an approval's tail
-                            (`stages/validating/squash_writes.py`)
+                            (`stages/validating/squash_writes.py`), and the dormant finish of a landed base rewrite
+                            declares its writes over it (`rewrite_finish_writes.py`)
     report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
                             `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
                             report ready for publication, and a report asserted to be on the pull request at a URL
@@ -1079,11 +1082,63 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             any claim and `stages/validating/report_refresh.py` holds the reviewer, obtains that
                             report, and pays it. `stages/conflicts/report_debt.py` records one for every head the
                             conflict stage's own push rewrites, and `git/base_sync/report_debt.py` one for each clean
-                            auto rebase of the base refresh whose push lands, crash recovery included
+                            auto rebase of the base refresh whose push lands, crash recovery included;
+                            `rewrite_finish_debt.py` stages the same debt for the dormant workflow finish below
     report_rewrite_room.py  whether the debt owner refused a rewrite for nothing but the pinned comment's room -- the
                             one refusal a writer holds on rather than handing the head on -- told from a record that
                             would not read back and a standing claim the rewrite cannot extend; asked by both writers,
-                            the conflict stage and the base refresh, so their readings cannot differ
+                            the conflict stage and the base refresh, so their readings cannot differ, and by the
+                            dormant workflow finish below
+    rewrite_finish.py       the one finish of a landed automatic PR base rewrite, whichever road reached it -- the
+                            base refresh publishing its own rebase, or a recovery that pushed the replay again or
+                            found it standing, announced or not -- handed the typed landing
+                            (`git/base_sync/rewrite_handoffs.py`) beside the issue it finishes. A landing the pinned
+                            record does not account for -- the remote not shown on it, a rewrite that moved nothing,
+                            a publication a guard refused for anything but the remote already standing on it, no
+                            attempt anchored to the head it replaced, another pull request pinned, a replay record
+                            naming another head, made under other terms, damaged, or never written (one whose terms
+                            stand with no head yet is left to the caller's vouching), a mark naming another head, a
+                            lag against the base that could not be counted, or an attempt a finish already retired
+                            -- makes nothing, leaving the attempt, the label, and the round as they are. Otherwise
+                            the report debt is staged and
+                            measured on the whole announcement write and on the comment as it stands, and one with no
+                            room parks `auto_base_rebase_unrecorded_debt` with the push and the attempt kept. The
+                            announcement is prepared before the notice and the `base_rebased` event go out, and lands
+                            the debt, the reset round, and the mark while the anchor stands; a finish whose mark
+                            already names the head repeats neither and lands only a debt new beside it. The
+                            post-push, pre-route step (`_decides_the_route`) is where a landed head's evidence is
+                            decided, and routes on the base lag alone so far. The retirement -- the attempt cleared,
+                            the round reset, a human's retry spent -- is prepared before the relabel to
+                            `workflow:validating` and lands behind it, and a head the base advanced past again is
+                            retired unrouted for the caller's next rebase. A refused or unconfirmed write stops the
+                            finish with nothing behind it made. It runs under its caller's issue writer claim and
+                            takes none. Dormant: the auto rebase still finishes through `git/base_sync/publication.py`
+                            and `persistence.py` until the workflow's base-rewrite coordinator (`base_rewrite.py`)
+                            calls it
+    rewrite_finish_models.py
+                            the finish's input -- the typed landing, the issue, its pinned state and label, the road
+                            (`FinishRoad`), the lag the publication's notice reports, and the human reply a recovery
+                            spends, with whether this tick's own push is what the remote was shown standing on --
+                            an observation, a publication refused over a remote already on the replay, and a push
+                            whose remote could not be read after are not -- and what it came to (`FinishOutcome`):
+                            routed, continued to another rebase, parked, refused, unconfirmed, or unfinishable
+    rewrite_finish_debt.py  the debt a landed rewrite leaves, staged only where both the announcement write it rides
+                            -- the notice's ledger entry reserved at the widest id, the reset round, and the mark --
+                            and the comment as it stands have room for it, a refusal for anything but room leaving a
+                            standing claim as it is; and the park notice of a debt with no room
+    rewrite_finish_notices.py
+                            the pull-request notice and the `base_rebased` event a finish announces with, spelled as
+                            the auto rebase and its recovery spell them -- the publication's, a recovery that pushed
+                            again, and a head this tick sent nothing for, on either road, as one found standing,
+                            each recovery notice saying where a base advanced again sends the landed head -- and the
+                            method the event files for each
+    rewrite_finish_writes.py
+                            the guarded commits the finish writes through, under the tick-state guard
+                            (`report_commits.py`) and decided on the publication's pinned fields as well: the
+                            checkpoint, decided on the attempt, the report records and claim, the park's flags, and
+                            the round, and prepared with its notice's ledger entry reserved over the fresh ledger;
+                            the retirement, decided on the attempt, the park's flags, the round, and the claim; and
+                            the debt park, decided on what the checkpoint is and prepared before its notice is posted
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in. The greeting anchors both
                             `pickup_comment_id` and `last_action_comment_id`, the floor the park ending the first
