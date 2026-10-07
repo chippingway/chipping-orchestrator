@@ -11,9 +11,10 @@ and the road that reached it: the ordinary publication of a rebase this tick
 made, or the recovery of one an earlier tick left. The two roads are one
 policy (`rewrite_finish`); what they differ in is only what they say about it.
 
-Data and the issue it is about, nothing to call back into. Dormant with the
-finalizer: nothing hands one over until the workflow's base-rewrite
-coordinator (`base_rewrite`) takes the publication over.
+Data and the issue it is about, nothing to call back into. The ordinary
+publication of a clean rebase (`rewrite_publication`) hands one over on the
+PUBLICATION road; nothing hands one over on the RECOVERY road until the crash
+recovery takes its finish over from the git owners.
 """
 from __future__ import annotations
 

@@ -17,12 +17,15 @@ the push is made by `rewrite_transport`, so every reading here is one of
 theirs; only the attempt and the branch are handed in, as the attempt pinned
 them before git ran.
 
-Dormant. No route calls these owners yet: the auto-rebase still publishes
-through `publication` and recovers through `replay_recovery`, both reached
-from the workflow's base-rewrite coordinator (`workflow/engine/base_rewrite.py`),
-and that coordinator consuming the candidate is what activates them. The finish
-a landed record is handed to is built on the workflow side
-(`workflow/engine/rewrite_finish.py`), dormant with them.
+The ordinary publication of a clean rebase crosses here: the workflow reads
+the candidate the rebase left, rules on it with the size gate and the transfer
+permit, has exactly that candidate published, and hands the landed record to
+its finish (`workflow/engine/rewrite_publication.py`,
+`workflow/engine/rewrite_finish.py`). A crash recovery does not yet: it still
+recovers through `replay_recovery` and `persistence`, reached from the
+workflow's base-rewrite coordinator (`workflow/engine/base_rewrite.py`), and
+the observation of a landing an earlier tick left stays dormant until it takes
+that road over.
 """
 from __future__ import annotations
 
@@ -60,7 +63,9 @@ class _RewriteRefusal(StrEnum):
 class _PushOutcome(StrEnum):
     """What one publication of a candidate came to, as far as anyone can say.
 
-    `REFUSED` sent nothing: a guard stopped it first. `ACCEPTED` is git
+    `REFUSED` sent nothing: a guard stopped it first -- for a remote already
+    on the candidate, one the caller may have proved still there with a push
+    leased to the candidate itself, which has nothing to send. `ACCEPTED` is git
     answering that the leased update landed. The other two are a push git
     answered with a failure, told apart by reading the remote again:
     `REJECTED` found the branch somewhere other than the candidate, so nothing

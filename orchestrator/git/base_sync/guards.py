@@ -2,9 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """The refusals that stand between a finished rebase and its force-push.
 
-Each one answers the same question with "not this branch, not this tick":
-the rebased HEAD cannot be read, the rewrite moved nothing, the tree came
-back with uncommitted edits, or the lease push was rejected. Three of them
+The workflow's publication of a clean rebase decides which of them its
+candidate earns (`workflow/engine/rewrite_publication.py`); each is spelled
+here because what it writes and resets is this package's. Each one answers the
+same question with "not this branch, not this tick": the rebased HEAD cannot
+be read, the rewrite moved nothing, the tree came back with uncommitted edits,
+or the publication was refused or its lease rejected. Three of them
 end in the shared reset-and-park tail, because the pre-rebase SHA is the
 head the remote PR still carries -- publishing past any of them would leave
 the reviewer voting on a tree the PR does not have, and parking is what
@@ -106,7 +109,13 @@ def _park_failed_auto_rebase_push(
     before_sha: str,
     branch: str,
 ) -> None:
-    """Reset and park after a force-with-lease rejection or push failure."""
+    """Reset and park after a publication that pushed nothing that landed.
+
+    A candidate the git owner refused for what moved since it was read, a
+    force-with-lease rejection, and a push failure whose remote could not be
+    read again all leave the pull request on the anchor as far as anyone can
+    show, so each takes the same rollback.
+    """
     spec = context.spec
     before_short = (before_sha or "")[:8]
     persistence._reset_clear_and_park(

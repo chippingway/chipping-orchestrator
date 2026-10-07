@@ -56,11 +56,11 @@ Run under the issue writer claim the caller already holds -- the base refresh
 (`base_refresh`) takes it before the issue is read and keeps it through the
 route -- and asks for none of its own, since that very hold would refuse it.
 
-Dormant. No route calls this owner yet: the workflow's base-rewrite
-coordinator (`base_rewrite`) still delegates the finish to
-`git/base_sync/publication.py` and its recovery to
-`git/base_sync/persistence.py`, and that coordinator handing its landings here
-is what activates it.
+The ordinary publication of a clean rebase (`rewrite_publication`) hands its
+landing here. The crash recovery does not yet: the workflow's base-rewrite
+coordinator (`base_rewrite`) still delegates it to the git owners, which
+finish a landing it left through `git/base_sync/persistence.py` by the same
+order, and the recovery handing its landings here is what retires that road.
 """
 from __future__ import annotations
 

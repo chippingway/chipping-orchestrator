@@ -28,6 +28,14 @@ down with the receipt that says the remote has it -- `late_rotation` owns
 which of those the comment owes, this owner owns the write they ride, and
 `late_transfer_telemetry` is asked past that write for the one record a move
 that really landed leaves.
+
+The push itself is the one step a caller may hand in (`late_transport`), and
+only the base-sync auto rebase does: its publication is the git owner's push of
+the exact candidate it prepared (`git/base_sync/rewrite_transport.py`), which
+reads the checkout and the remote again first. The ending barrier is asked
+between that reading and the push, so it is still the last question before
+anything is sent; the measurement, the permit, the proof, and the settlement
+are this owner's whichever transport carried the push.
 """
 from __future__ import annotations
 
@@ -46,6 +54,7 @@ from orchestrator.workflow.stages.implementing import (
     late_rotation as _rotation,
     late_transfer_telemetry as _transfer_telemetry,
 )
+from orchestrator.workflow.stages.implementing.late_transport import Transport
 from orchestrator.workflow.stages.implementing.state import _APPROVED_LEASE, _APPROVED_SHA
 
 log = logging.getLogger("orchestrator.workflow")
@@ -78,6 +87,8 @@ def _publishes(
     gate: _late_gate_models._Gate,
     branch: str,
     entered: _late_gate_models._Entered = _late_gate_models._UNENTERED,
+    *,
+    transport: Transport | None = None,
 ) -> _PushedCandidate:
     """Measure this candidate, push what it earned, and spend what it paid.
 
@@ -102,6 +113,12 @@ def _publishes(
     `entered.reconciling` says no developer ran on this tick, which is what
     tells a checkout that moved from a resumed developer's fresh commit -- the
     rebase and recovery seams are all of that kind.
+
+    `transport` replaces the push and nothing else. It is handed the answer
+    the gate gave, reads what its push is decided on, and makes the push that
+    answer licenses or refuses it; the ending barrier is asked between its
+    reading and its push, and the proof and the settlement after the push,
+    exactly as they are around the branch push every other caller makes.
 
     The caller's terms are applied to the subject once, here, so every step
     below is about the same one. The answer half replaces them again on its
@@ -145,9 +162,16 @@ def _publishes(
     if published.held:
         return _PushedCandidate(held=True, refused=published.refused)
     published = _repinned(published)
+    # A transport's own reading spends requests too, so the barrier waits for
+    # it: asked ahead of it, an ending landing during that reading would be
+    # answered one push too late. It is asked whatever that reading answered,
+    # since a publication that ended is held for its cleanup rather than
+    # parked as a push that failed.
+    ready = transport is None or transport.reads(gate, branch, published)
     if _publication_gate._publication_ended(gate):
         return _PushedCandidate(held=True)
-    if not _pushed(gate, branch, published):
+    push = _pushed if transport is None else transport.pushes
+    if not (ready and push(gate, branch, published)):
         return _PushedCandidate()
     # The proof comes first and its answer rides the settlement's own write,
     # so no window exists in which the branch is published and the record

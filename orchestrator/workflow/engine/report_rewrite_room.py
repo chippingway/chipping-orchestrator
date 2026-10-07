@@ -11,9 +11,9 @@ holds the report it finds to it. A proved rewrite the comment has no ROOM for
 is a debt the writer owes and could not write down, and handing its head on
 without it is the very road the debt exists to close, so the writer holds
 instead. Every writer that has to tell the two apart -- the conflict stage,
-the base refresh, and the workflow finish of a landed base rewrite built to
-take that refresh's finish over (`rewrite_finish_debt`), dormant until a route
-calls it -- asks here, so the reading cannot come to differ between them.
+the workflow finish of a landed base rewrite (`rewrite_finish_debt`), and the
+base refresh's crash recovery, which still finishes through the git owners --
+asks here, so the reading cannot come to differ between them.
 """
 from __future__ import annotations
 

@@ -75,7 +75,8 @@ verdict an earlier tick left waiting (`stages/validating/review_handoffs.py`,
 `review_launch_park.py`, `review_resume.py`), and every write of an approval's
 tail, its squash's own included (`stages/validating/squash_writes.py`). A
 landed base rewrite's finish is declared over them too
-(`rewrite_finish_writes`), dormant until a route calls it.
+(`rewrite_finish_writes`), which the ordinary publication of a clean rebase
+lands through.
 """
 from __future__ import annotations
 

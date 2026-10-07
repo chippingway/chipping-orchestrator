@@ -12,7 +12,7 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.git import branch_transport
 from orchestrator.workflow.engine import base_refresh
-from tests.git.base_sync.gate_reads_support import _gate_base_reads
+from tests.git.base_sync.gate_reads_support import _gate_base_reads, _remote_on_disk
 
 # The label and pull-request state this tree spells for itself, beside
 # the fixture literals every other base-sync case reads them from.
@@ -181,10 +181,10 @@ class _FixtureBuilder:
         )
         fixture._gh = FakeGitHubClient()
         fixture._gh.add_issue(make_issue(7, label=LABEL_IMPLEMENTING))
-        # The rebased head is measured before it is pushed, and this fixture
-        # has no token to read a remote base with -- the reading gets its
-        # ordinary answers so the test stays about the git side of the
-        # refresh.
+        # The rebased head is measured before it is pushed, and the base that
+        # measurement freezes is answered rather than read, so the test stays
+        # about the git side of the refresh; the branch reading the candidate
+        # is published on goes to the bare remote below.
         _gate_base_reads(fixture)
         fixture._fetch_patch = patch.object(
             branch_transport,
@@ -193,6 +193,7 @@ class _FixtureBuilder:
         )
         fixture._fetch_patch.start()
         fixture.addCleanup(fixture._fetch_patch.stop)
+        _remote_on_disk(fixture, REPO_SLUG, fixture._remote)
 
 
 class _RefreshBaseRealGitFixture:

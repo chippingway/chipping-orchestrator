@@ -12,7 +12,6 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.git.base_sync import attempts
 from tests.git.base_sync.refresh_scenarios import (
     PUSH_PATCH,
     REBASE_PATCH,
@@ -212,7 +211,9 @@ class _InterruptedFinishFixture(_SyncWorktreeWithBaseFixture):
         self.assertEqual(self.gh.workflow_label(self.gh._issues[ISSUE]), LABEL_VALIDATING)
 
     def _crashes_before_the_mark(self):
-        return patch.object(attempts, "_announces", MagicMock(side_effect=RuntimeError(DIED)))
+        # The mark lands through the guarded edit of the pinned comment, the
+        # first the finish makes past its notice and its event.
+        return patch.object(self.gh, "edit_pinned_state", MagicMock(side_effect=RuntimeError(DIED)))
 
     def _crashes_at_the_relabel(self):
         return patch.object(self.gh, "set_workflow_label", MagicMock(side_effect=RuntimeError(DIED)))

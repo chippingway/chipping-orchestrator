@@ -7,6 +7,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
+from tests.git.base_sync.candidate_reads_support import _checkout_carries
 from tests.git.base_sync.refresh_scenarios import PUSH_PATCH, _scenario
 from tests.git.base_sync.refresh_test_support import (
     AFTER_SHA,
@@ -37,8 +38,9 @@ class RebaseFailureRoutingUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCa
     def test_dirty_after_rebase_resets_and_parks(self) -> None:
         self._seed_pr_issue()
         self._add_pr()
+        _checkout_carries(self, "scratch.py")
         scenario = _scenario(
-            dirty=MagicMock(side_effect=[[], ["scratch.py"]]),
+            dirty=MagicMock(return_value=[]),
             rebase=MagicMock(return_value=(True, [])),
             push=MagicMock(),
             head_sha=MagicMock(side_effect=[BEFORE_SHA, AFTER_SHA]),

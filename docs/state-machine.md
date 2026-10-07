@@ -130,9 +130,10 @@ down instead, and takes its own park on the tick after that one clears
 
 Before any issue is dispatched the tick fetches `<remote>/<base>` once and rebases each existing per-issue worktree
 onto it, so a long-lived worktree does not stay anchored to whatever base looked like when it was added. The refresh
-is the workflow's (`workflow/engine/base_refresh.py`), and so is the order a PR-having worktree's route is taken in
-(`workflow/engine/base_rewrite.py`); the selection, the rebase, and the publication and recovery effects are the git
-`base_sync` owners' that route delegates to. Each worktree
+is the workflow's (`workflow/engine/base_refresh.py`), and so are the order a PR-having worktree's route is taken in
+(`workflow/engine/base_rewrite.py`) and the ordinary publication of a clean rebase
+(`workflow/engine/rewrite_publication.py`); the selection, the rebase, the candidate and its exact-candidate push,
+and the crash-recovery effects are the git `base_sync` owners' that route delegates to. Each worktree
 is synced under its issue's writer claim — the one every dispatch path takes, on the same key — held from before the
 issue is read until its route ends, recovery and settlement included, so an issue another poller on the host is
 dispatching or refreshing is left untouched for the tick and synced on a later one. A pre-PR
@@ -140,10 +141,13 @@ worktree rebases locally; a PR-having one in `workflow:validating` / `workflow:d
 `workflow:fixing` pushes the clean rebase with a pinned `--force-with-lease`, resets `review_round`, records the report
 the landed head is owed (`developer_report_rewrite_debt`) ahead of the write that clears its attempt, and relabels to
 `workflow:validating`, reaching `workflow:resolving_conflict` only when the rebase actually leaves conflicted files.
-That push goes through the size gate, and where the branch was standing on the commit an authorized settlement
-accepted the refresh hands the gate the same rewrite evidence a squash does, so a replay that contributes what a human
-already ruled on carries the exemption — and the operator authorization that made it a bypass — over instead of being
-adjudicated again. A transfer of an exemption nothing authorizes is refused, since moving one would hand the rewritten
+That push goes through the size gate before it is made, and the push itself publishes exactly the candidate the
+rebase left, leased to the head it replaced: a checkout, base, or remote that moved since the candidate was read, or a
+lease the remote rejects, pushes nothing and resets the checkout onto that head. Where the branch was standing on the
+commit an authorized settlement accepted the refresh hands the gate the same rewrite evidence a squash does, so a
+replay that contributes what a human already ruled on carries the exemption — and the operator authorization that
+made it a bypass — over instead of being adjudicated again; where the permit refuses, the replay is measured like any
+other candidate. A transfer of an exemption nothing authorizes is refused, since moving one would hand the rewritten
 commit a permission the accepted one never had. A process lost anywhere in that rebase comes back to the record the
 attempt pinned, and the recovery finishes it on the permit alone — reissuing a push that never went out, receipting one
 that landed through a leased no-op — so the replay is never measured or adjudicated again. Every road that finishes a
@@ -151,13 +155,13 @@ landed head, the recovered ones included, makes that report debt durable before 
 carry one debt onto the latest head a push landed; a no-op, a refused push, a reset, or a pull request somebody else
 moved records none and leaves a standing debt as it is. A landed head whose debt the pinned comment has no room for —
 measured on the whole announcement write it rides and on the comment as it stands — is neither announced nor
-routed: it parks with the attempt standing until room is made and a human replies. A workflow-owned finish for those
-landed heads (`workflow/engine/rewrite_finish.py`) is built over guarded commits and dormant, called by no route
-yet. The `question` and `discussion` labels — and the parks and
-in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto rebase's anchor, of the
-records and parks that freeze a branch only the late size-gate claims keep the refresh away, so its recovery answers
-the anchor ahead of any stage handler. The failure modes, their durable `park_reason` tokens, and the refresh-owned
-retry are in
+routed: it parks with the attempt standing until room is made and a human replies. A head the refresh published
+itself is finished by the workflow-owned finish (`workflow/engine/rewrite_finish.py`) over guarded commits; a crash
+recovery still finishes through the git owners by the same order. The `question` and `discussion` labels — and the
+parks and in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto rebase's
+anchor, of the records and parks that freeze a branch only the late size-gate claims keep the refresh away, so its
+recovery answers the anchor ahead of any stage handler. The failure modes, their durable `park_reason` tokens, and the
+refresh-owned retry are in
 [`state-machine/labels-and-state.md#base-refresh`](state-machine/labels-and-state.md#base-refresh).
 
 ### Pollable issues and finalization

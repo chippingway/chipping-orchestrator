@@ -53,6 +53,13 @@ _SINCE_PREPARED = (
     (_CLONE, ("update-ref", _BASE_REF, f"{_BASE_REF}~1"), _RewriteRefusal.MOVED_BASE),
 )
 
+# What a candidate already standing on the remote is still refused on: the base
+# it was read over, rewound or gone.
+_BASE_SINCE_LANDED = (
+    (("update-ref", _BASE_REF, f"{_BASE_REF}~1"), _RewriteRefusal.MOVED_BASE),
+    (("update-ref", "-d", _BASE_REF), _RewriteRefusal.UNREADABLE_BASE),
+)
+
 
 def _publishes(
     repository: RewriteRepository, candidate: _RewriteCandidate,
@@ -155,6 +162,39 @@ class PublicationTest(_PreparedRewrite):
                 )
         push.assert_not_called()
 
+    def test_an_overtaken_landing_is_not_claimed(self) -> None:
+        # The push landed and somebody pushed over it since. A candidate
+        # prepared while the remote still showed the replay is read again
+        # rather than answered as published off that reading, and the proof
+        # leased to the replay, which held while the branch stood there, is
+        # refused at the remote; their push is kept either way.
+        self._publishes()
+        standing = self.repository.prepared()
+        proved = rewrite_transport._proves_the_landing(
+            self.repository.spec, self.repository.worktree, self.candidate,
+        )
+        foreign = self.repository.pushes_a_foreign_commit()
+
+        again = _publishes(self.repository, standing)
+        overtaken = rewrite_transport._proves_the_landing(
+            self.repository.spec, self.repository.worktree, self.candidate,
+        )
+
+        self.assertEqual(standing.refusal, _RewriteRefusal.PUBLISHED)
+        self.assertEqual(
+            (proved.outcome, proved.refusal, proved.landed),
+            (_PushOutcome.REFUSED, _RewriteRefusal.PUBLISHED, True),
+        )
+        self.assertEqual(
+            (again.outcome, again.refusal, again.remote.sha),
+            (_PushOutcome.REFUSED, _RewriteRefusal.MOVED_REMOTE, foreign),
+        )
+        self.assertEqual(
+            (overtaken.outcome, overtaken.landed, overtaken.remote.sha),
+            (_PushOutcome.REJECTED, False, foreign),
+        )
+        self.assertEqual(pull_request_head(self.repository), foreign)
+
     def test_a_remote_moved_since_sends_nothing(self) -> None:
         foreign = self.repository.pushes_a_foreign_commit()
 
@@ -221,6 +261,22 @@ class UncertainResponseTest(_PreparedRewrite):
         )
 
 
+    def test_a_lost_proof_is_still_found_standing(self) -> None:
+        # The proof had nothing to send, so an answer git lost is settled by
+        # the remote alone and never reads as a push this tick made.
+        self._publishes()
+
+        with patch.object(branch_transport, PUSH_BRANCH, MagicMock(return_value=False)):
+            proved = rewrite_transport._proves_the_landing(
+                self.repository.spec, self.repository.worktree, self.candidate,
+            )
+
+        self.assertEqual(
+            (proved.outcome, proved.refusal, proved.landed),
+            (_PushOutcome.REFUSED, _RewriteRefusal.PUBLISHED, True),
+        )
+
+
 class ChangedSincePreparedTest(unittest.TestCase):
     """A checkout that changed between the reading and the push sends nothing."""
 
@@ -232,6 +288,21 @@ class ChangedSincePreparedTest(unittest.TestCase):
                     (landed.outcome, landed.refusal), (_PushOutcome.REFUSED, refusal),
                 )
                 self.assertEqual(pull_request_head(repository), repository.anchor)
+
+    def test_a_landing_still_needs_its_base(self) -> None:
+        # A candidate prepared over a remote already on it claims a landing,
+        # and that claim excuses none of the readings a push is refused on.
+        for argv, refusal in _BASE_SINCE_LANDED:
+            with self.subTest(change=argv[1]):
+                repository = rewrite_repository(self)
+                _publishes(repository, repository.prepared())
+                standing = repository.prepared()
+                repository.git(*argv, cwd=repository.clone)
+
+                landed = _publishes(repository, standing)
+
+                self.assertEqual(standing.refusal, _RewriteRefusal.PUBLISHED)
+                self.assertEqual((landed.outcome, landed.refusal), (_PushOutcome.REFUSED, refusal))
 
     def _changed_then_published(
         self, place: str, argv: tuple[str, ...],

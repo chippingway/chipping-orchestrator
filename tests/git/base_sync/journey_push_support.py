@@ -20,12 +20,12 @@ from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git import branch_transport as _branch_transport
-from orchestrator.git.base_sync import (
-    attempts as _attempts,
-    pre_pr as _pre_pr,
-    publication as _base_publication,
+from orchestrator.git.base_sync import attempts as _attempts, pre_pr as _pre_pr
+from orchestrator.workflow.engine import rewrite_finish_notices as _finish_notices
+from orchestrator.workflow.stages.implementing import (
+    late_push as _late_push,
+    late_transfer_telemetry as _transfer_telemetry,
 )
-from orchestrator.workflow.stages.implementing import late_transfer_telemetry as _transfer_telemetry
 from tests.git.base_sync.real_git_test_support import PR_NUMBER, _LocalBranchPusher
 
 PUSH_BRANCH = "_push_branch"
@@ -53,11 +53,10 @@ AFTER_THE_RELABEL = "after the relabel"
 _MODULE_SEAMS = MappingProxyType({
     BEFORE_THE_REBASE: (_pre_pr, "_rebase_base_into_worktree"),
     BEFORE_THE_RECORD: (_attempts, "_records_the_replay"),
-    AFTER_THE_RECORD: (_base_publication, "_gated_publication"),
+    AFTER_THE_RECORD: (_late_push, "_publishes"),
     BEFORE_THE_PUSH: (_branch_transport, PUSH_BRANCH),
     BEFORE_THE_REPORT: (_transfer_telemetry, "_reports_the_transfer"),
-    BEFORE_THE_NOTICE: (_base_publication, "_post_auto_rebase_notice"),
-    BEFORE_THE_MARK: (_attempts, "_announces"),
+    BEFORE_THE_NOTICE: (_finish_notices, "announces"),
 })
 
 
@@ -109,6 +108,9 @@ def crash_at(github, window: str = ""):
     seams = {
         **_MODULE_SEAMS,
         BEFORE_THE_RECEIPT: (_branch_transport, PUSH_BRANCH, _LandsThenDies(github)),
+        # The mark lands through the guarded edit of the pinned comment, the
+        # first the finish makes past its notice and its event.
+        BEFORE_THE_MARK: (github, "edit_pinned_state"),
         AT_THE_RELABEL: (github, SET_LABEL),
         AFTER_THE_RELABEL: (
             github, SET_LABEL, _DiesAfterTheRelabel(github.set_workflow_label),
