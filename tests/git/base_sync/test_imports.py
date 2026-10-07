@@ -153,7 +153,6 @@ _OWNER_ONLY_NAMES = (
     "_issue_skips_base_sync",
     "_park_dirty_recovery",
     "_pending_rewrite",
-    "_publish_auto_rebase",
     "_publishes_the_candidate",
     "_recover_pending_auto_base_rebase",
     "_reset_clear_and_park",

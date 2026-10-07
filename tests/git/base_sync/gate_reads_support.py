@@ -25,6 +25,8 @@ from orchestrator.git.measurement.models import (
     _BaseObject,
 )
 from orchestrator.git.verification import status as _worktree_status
+from tests.git.auth_session_test_support import _SESSIONS
+from tests.git.base_sync.candidate_reads_support import _candidate_reads
 from tests.git.base_sync.refresh_test_support import (
     GATE_BASE_SHA,
     GATE_CANDIDATE_SHA,
@@ -78,6 +80,9 @@ def _gate_reads(test_case) -> None:
     about the gate itself seeds what it is about. The pull request those reads
     are taken against is seeded beside the issue that has one, so a test whose
     premise is that `gh.get_pr` fails can still say so.
+
+    The rebase is handed to the gate as the candidate the git owner read, so
+    the readings that candidate is prepared on get their ordinary answers too.
     """
     _patched(test_case, _worktree_status, "_worktree_status", MagicMock(
         return_value=_worktree_status._WorktreeStatus(readable=True),
@@ -87,6 +92,7 @@ def _gate_reads(test_case) -> None:
         MagicMock(return_value=FrozenCommit(sha=GATE_CANDIDATE_SHA)),
     )
     _gate_base_reads(test_case)
+    _candidate_reads(test_case)
 
 
 def _gate_base_reads(test_case) -> None:
@@ -112,6 +118,17 @@ def _gate_base_reads(test_case) -> None:
             additions=1,
         ),
     ))
+
+
+def _remote_on_disk(test_case, slug: str, remote) -> None:
+    """Point the authenticated transport at the bare repository a real fixture's remote IS.
+
+    The rebased head is published as the candidate read against the remote's
+    own answer for its branch, which goes through that transport; pointed at
+    the repository on disk, the reading and the lease it is compared with are
+    real rather than answered.
+    """
+    test_case.enterContext(_SESSIONS.registered(slug, str(remote)))
 
 
 class _AdvancingCandidate:

@@ -380,8 +380,10 @@ at `parallel_limit=1`, and the bounded thread pool on `workflow/engine/parallel.
 refresh runs first because every step after it reads what that fetch left behind, and the sweep and the catalog
 emission both precede the scheduler / in-tick split so each fires exactly once per tick on either path. The refresh
 decides which worktree is synced, under whose claim, and by which route; a PR-having worktree's route is ordered by
-the base-rewrite coordinator beside it (`workflow/engine/base_rewrite.py`), and the git `base_sync` owners under both
-supply the selection, the rebase, and the publication and recovery effects each route delegates to.
+the base-rewrite coordinator beside it (`workflow/engine/base_rewrite.py`), whose ordinary publication of a clean
+rebase is the workflow's own (`workflow/engine/rewrite_publication.py`). The git `base_sync` owners under them supply
+the selection, the rebase, the candidate and its exact-candidate push, and the crash-recovery effects the coordinator
+still delegates.
 The dispatch behind that split first drops each open `workflow:blocked` / `workflow:umbrella` issue on the ticks
 `DEPENDENCY_POLL_EVERY_N_TICKS` skips — a classification filter taken before any partition, so a skipped dependency
 walk is neither submitted nor handed a worker client — and then folds every remaining family-aware issue
@@ -407,8 +409,8 @@ posted -- the drop, retirement, and park of a handed one, and the recovery's anc
 of a round a reply bought (`review_handoffs.py`, `review_launch_park.py`, `review_resume.py` beside it), and every
 write of an approval's tail -- its verdict's retirement, the squash's own records, the handoff with the evidence it
 carries or invalidates, a failed squash's park, and the handoff's end behind the label (`squash_writes.py` beside
-them) -- are the roads that commit through it so far, and a landed base rewrite's finish is built on it while no
-route calls it yet (`workflow/engine/rewrite_finish_writes.py`). It derives a candidate
+them) -- are the roads that commit through it so far, and so is the finish of a base rewrite the tick published
+itself (`workflow/engine/rewrite_finish_writes.py`). It derives a candidate
 over a fresh reading of the comment its caller captured, refuses with nothing written where that comment or a record
 the decision rests on moved, or where another writer moved a field the caller is changing, measures the whole rendered
 candidate against the comment limit before any dependent effect, and lands through the strict in-place edit on
@@ -827,9 +829,15 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   rewrite, and the base-sync auto rebase and its crash recovery. Each of them refuses a moved REMOTE as well — the
   rewrite, the conflict publications, and the base-sync rebases pin `force_with_lease` to the SHA they observed
   before the rewrite, and the rest are pinned to the head the gate's own entry froze.
-- A typed boundary for the base-sync push sits beside it, dormant until the workflow's base-rewrite coordinator
-  (`workflow/engine/base_rewrite.py`), which still delegates the publication to the git owner, calls it.
-  `git/base_sync/rewrite_handoffs.py` defines the frozen, data-only candidate and landed records
+- A typed boundary carries the base-sync auto rebase's push. The workflow's ordinary publication of a clean rebase
+  (`workflow/engine/rewrite_publication.py`) reads the candidate through it, has the size gate and the transfer permit
+  rule on that candidate before any push, and hands the git owner exactly that candidate to publish through the gate's
+  two-step transport seam (`stages/implementing/late_transport.py`): the git owner's fresh reading, then the push,
+  with the gate's ending barrier between them, asked whatever the reading answered, so a close or merge landing
+  during that reading holds the tick rather than letting a push or a rollback through.
+  `late_push.py` keeps the receipt, the debt it settles, the exemption's rotation, and the post-push checkout proof
+  the gate's own. `git/base_sync/rewrite_handoffs.py` defines the frozen,
+  data-only candidate and landed records
   — the original and rewritten heads and trees, the branch, the base and remote readings, the worktree status, the
   attempt's anchor, pull request, and stage, and the lease-pinned push's outcome, an uncertain answer included — with
   no GitHub client, issue, pinned state, or callback in them. `rewrite_facts.py` reads a candidate and
@@ -837,10 +845,19 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   remote, read again, refuse nothing. A head that left the candidate, a tree dirtied or made unreadable, a base ref
   rewound so it no longer contains the tip the replay sits over, or a remote off the anchor refuses before anything is
   sent; a remote already on the candidate is one of those, so a publication that landed is never pushed again, even
-  for the same frozen candidate. A base that only advanced still publishes. The lease refuses a remote moved after
-  that reading, and a push git answered with a failure is classified by reading the remote again. Nothing calls them
-  yet; the auto rebase still publishes through `base_sync/publication.py`.
-- The finish a landed rewrite still owes sits on the workflow side of that boundary, dormant as well.
+  for the same frozen candidate. That claim of a landing is read afresh too, never answered off the reading a
+  candidate was prepared with, and it excuses none of the other refusals: a head, tree, or base that fails the fresh
+  reading refuses the candidate as it would any other. Before a finish is built on it the workflow proves it at the
+  remote with a push of
+  the candidate leased to itself, which has nothing to send and which git refuses once somebody has pushed over it; an
+  answer that proof lost is settled by reading the remote, and a landing still standing there is announced as found,
+  never as a push this tick made. A base that only advanced still publishes. The lease refuses a remote moved after
+  that reading, and a push git answered with a failure is classified by reading the remote again: one the remote is
+  shown standing on is finished as the publication it was, and anything else the publication sent nothing for or
+  could not show landed resets the checkout onto its anchor and parks `auto_base_rebase_push_failed`. The crash
+  recovery does not cross this boundary yet, so its observation of a landing stays dormant;
+  `base_sync/publication.py` keeps only the gate bridges that recovery's push still reaches the gate through.
+- The finish a landed rewrite still owes sits on the workflow side of that boundary.
   `workflow/engine/rewrite_finish.py` takes the landed record beside the issue it finishes and applies one policy to
   the ordinary publication, a recovered one, and a finish whose announcement is already out: the report debt staged
   and measured on the whole announcement write, a debt with no room parked `auto_base_rebase_unrecorded_debt` with the
@@ -851,8 +868,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   tick pushed nothing for is announced as one found standing. Every write is a guarded commit, so a refused or
   unconfirmed one stops the finish with nothing behind it made. Its post-push, pre-route step is where the evidence a
   landed head is routed with is decided, on the base lag alone so far. It runs under its caller's issue writer claim.
-  Nothing calls it yet; the base-rewrite coordinator still delegates the finish to `base_sync/publication.py` and its
-  recovery to `base_sync/persistence.py`.
+  The ordinary publication hands its landing there; the crash recovery still finishes through
+  `base_sync/persistence.py`, by the same order, until it is moved onto this finish.
 - The bare `HEAD` form is left for the one push that could name no commit at all: a gated push on an install running
   with `DECOMPOSE=off` whose checkout would not prove its own head. The switch keeps candidates out of the
   MEASUREMENT and not out of a push that knows what it is publishing, so the commit is named off the checkout there

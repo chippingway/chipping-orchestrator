@@ -33,25 +33,29 @@ head its replay produced, the mark a finish leaves of its own announcement, and
 the reading that tells a record nobody wrote from one something took apart --
 lives in ``attempts``, beside the clear every step that ends an attempt goes
 through, because the write that makes a member and the step that drops it are
-several roads over one record. What a finished rebase is force-published with lives in
-``publication``, the refusals that keep it from being published at all live in
-``guards``, and the relabel, notice, and audit event a rebase that really
-conflicted is handed to its stage with live in ``conflicts``. The typed,
-data-only handoffs an automatic PR base rewrite crosses the git boundary as
-live in ``rewrite_handoffs``, read off the checkout and the remote by
-``rewrite_facts`` and published or observed by ``rewrite_transport``; all
-three are dormant, called by nothing until the workflow's base-rewrite
-coordinator takes the publication over. Every base-sync
-name is defined on one of these owners, and callers import the owner they need
-directly, so this initializer binds nothing and importing ``state`` or
-``pre_pr`` never drags the PyGithub types ``models``, ``refresh_selection``,
-and ``startup`` annotate their fields with in.
+several roads over one record. The typed, data-only handoffs an automatic PR
+base rewrite crosses the git boundary as live in ``rewrite_handoffs``, read off
+the checkout and the remote by ``rewrite_facts`` and published or observed by
+``rewrite_transport``: the workflow's ordinary publication of a clean rebase
+(``workflow/engine/rewrite_publication``) reads its candidate and pushes it
+through the first two, and the observation stays dormant until the recovery
+takes it up. The refusals and parks that publication ends an attempt with live
+in ``guards``, the gate bridges a crash recovery's push still crosses to the
+size gate live in ``publication``, and the relabel, notice, and audit event a
+rebase that really conflicted is handed to its stage with live in
+``conflicts``. Every base-sync name is defined on one of these owners, and
+callers import the owner they need directly, so this initializer binds nothing
+and importing ``state`` or ``pre_pr`` never drags the PyGithub types
+``models``, ``refresh_selection``, and ``startup`` annotate their fields with
+in.
 
 No facade of this domain's own sits beside the package, and nothing above it
 republishes these names either, so each answers on the owner that defines it:
 the workflow's refresh names ``refresh_selection`` and ``pre_pr``, its
-base-rewrite coordinator names ``eligibility``, ``startup``, ``publication``,
-and ``recovery_holds``, the conflicts owners name ``pre_pr``, and every
+base-rewrite coordinator names ``eligibility``, ``startup``, and
+``recovery_holds``, its ordinary publication names ``attempts``, ``guards``,
+``rewrite_facts``, ``rewrite_transport``, and ``transfer_evidence``, the
+conflicts owners name ``pre_pr``, and every
 stage that must leave an auto-rebase park alone names ``state``, so a mock
 lands there. ``state`` names its logger ``orchestrator.base_sync``
 rather than after this package, because that is the name operator log filters

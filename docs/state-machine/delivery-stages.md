@@ -1249,8 +1249,9 @@ because there it is the claim that this stage has already rerouted rather than a
   `workflow/engine/report_rewrite_debt.py`.
   [`_handle_resolving_conflict`](#_handle_resolving_conflict-label-workflowresolving_conflict) records one for every
   head its own push rewrites, and the per-tick base refresh one for every clean auto rebase whose push lands, before
-  it clears its attempt or routes to `workflow:validating`, its crash recovery recording the same one on every road
-  that finishes a landed head (`git/base_sync/report_debt.py`, see [Base refresh](labels-and-state.md#base-refresh)).
+  it clears its attempt or routes to `workflow:validating` (`workflow/engine/rewrite_finish_debt.py`), its crash
+  recovery recording the same one on every road that finishes a landed head (`git/base_sync/report_debt.py`, see
+  [Base refresh](labels-and-state.md#base-refresh)).
   An issue without the record passes through reading nothing.
 - **Holds**: `workflow:documenting` and `in_review`, the roads past an approval that would carry a head no report is
   about to the human who merges it. Nothing is written or posted; the claim is left for validating, and the hold is
@@ -2607,11 +2608,19 @@ such pushes and no others:
   through the shared dev-fix seam, are what
   [`workflow:resolving_conflict`'s content updates](#content-updates-onto-the-pull-request-this-stage-already-has)
   are made of;
-- the base-sync auto rebase `git/base_sync/publication._publish_auto_rebase` and the two roads of its own crash
-  recovery — `git/base_sync/recovery_push._retry_recovery_push` for a push that never went out, and
-  `git/base_sync/landed_settlement._settle_published_recovery` for the leased no-op that receipts one that did — all
-  of which reach the gate through `base_sync/publication._gated_publication()` so the sync layer keeps its call-time
-  hop upward. The recovery is the one caller that can enter `permit_only`, and it does so for the replay of an
+- the base-sync auto rebase `workflow/engine/rewrite_publication.publishes`, the one caller that hands the gate a
+  transport of its own (`implementing/late_transport.Transport`): the git owner reads the checkout and the remote again
+  (`git/base_sync/rewrite_transport._refused_before_the_push`), refusing where the checkout, the base, or the remote
+  moved since the candidate was read, and then pushes exactly that candidate leased to the head it replaced
+  (`_pushes_the_candidate`) -- or, for a remote already standing on it, proves that with a push of the candidate
+  leased to itself (`_proves_the_landing`). The gate asks its ending barrier between that reading and the push,
+  whatever the reading answered, so a close or merge landing while the remote is read holds the tick even where the
+  reading refused the push, and the proof and settlement after the push are this gate's as for every other caller.
+  The two roads of the auto rebase's own crash recovery — `git/base_sync/recovery_push._retry_recovery_push` for a
+  push that never went out, and `git/base_sync/landed_settlement._settle_published_recovery` for the leased no-op
+  that receipts one that did — reach
+  the gate through `base_sync/publication._gated_publication()` so the sync layer keeps its call-time hop upward. The
+  recovery is the one caller that can enter `permit_only`, and it does so for the replay of an
   adjudicated commit: it is finishing a publication rather than deciding one, so the cumulative reading is the wrong
   answer twice over and `late_gate`'s `_permitted_only` asks the permit and nothing else. `late_freeze` keeps such a
   caller inside the gate whatever `DECOMPOSE` says, since the permit is asked over the entry only the gate freezes. A

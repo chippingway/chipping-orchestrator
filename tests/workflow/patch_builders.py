@@ -11,7 +11,14 @@ from orchestrator.git.verification.models import VerifyResult
 from tests.workflow import patch_models as _support, patch_publication as _patch_publication
 from tests.workflow.patch_measurement import _measurement_mocks
 from tests.workflow.patch_models import _WorkflowRunContext
-from tests.workflow.patch_readings import _AnchorAnswers, _ForkPoints, _HeadReadings, _RemoteTipAnswers, _TreeReadings
+from tests.workflow.patch_readings import (
+    _AnchorAnswers,
+    _ForkPoints,
+    _HeadReadings,
+    _RemoteBranchReads,
+    _RemoteTipAnswers,
+    _TreeReadings,
+)
 from tests.workflow.repo_values import _FAKE_WT
 
 
@@ -99,6 +106,9 @@ def _publication_mocks(context: _WorkflowRunContext) -> dict[str, object]:
         ),
         "_remote_branch_tip": MagicMock(
             side_effect=_RemoteTipAnswers(context),
+        ),
+        "_remote_branch_read": MagicMock(
+            side_effect=_RemoteBranchReads(context),
         ),
         # The base a round pins is the remote's answer plus the object behind
         # it, so the presence probe and the fetch that would supply it are

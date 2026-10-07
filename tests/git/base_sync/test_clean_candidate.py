@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """The commit a published rebase pushes is the one it then finalizes.
 
-The refresh reads the post-rebase head for itself, and the size gate proves
-the checkout's head again before it measures. Between the two reads the
-worktree is writable, so what the push carries and what the notice, the audit
-event, and the `validating` route name have to be one decision -- otherwise a
-commit landing in that window reaches the pull request while the tail
-finalizes the head this owner read.
+The candidate is read off the checkout once the rebase returns, and the size
+gate proves the checkout's head again before it measures. Between the two
+reads the worktree is writable, so what the push carries and what the notice,
+the audit event, and the `validating` route name have to be one decision --
+otherwise a commit landing in that window reaches the pull request while the
+finish names the head the candidate was read on.
 """
 
 from __future__ import annotations
@@ -58,13 +58,13 @@ class CleanRebaseCandidateUnitTest(
 
     def test_a_checkout_that_moved_refuses_the_push(self) -> None:
         # Unbound, the gate measures and publishes whatever landed in that
-        # window while the finalize behind it stamps the SHA this owner read
-        # -- so the pull request carries one commit and the event names
-        # another.
+        # window while the finish behind it stamps the SHA the candidate was
+        # read on -- so the pull request carries one commit and the event
+        # names another.
         self._seed_pr_issue(review_round=3)
         self._add_pr()
         scenario = _clean_rebase_scenario(THREE_BEHIND_STDOUT)
-        _gate_candidates(self, MOVED_CHECKOUT_SHA)
+        _gate_candidates(self, AFTER_SHA, MOVED_CHECKOUT_SHA)
 
         scenario.run(self)
 

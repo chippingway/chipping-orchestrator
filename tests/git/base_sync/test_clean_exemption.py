@@ -161,13 +161,19 @@ class MeasuredRebaseTest(_CleanRebaseCase, unittest.TestCase):
 
     def test_a_changed_contribution_is_measured(self) -> None:
         # A base advance that moved what the branch adds to it produces a
-        # contribution nobody adjudicated, so the cumulative gate reads it.
+        # contribution nobody adjudicated, so the permit refuses it and the
+        # cumulative gate reads it -- and a count under the ceiling publishes
+        # the replay, leased to its anchor, and routes it to review.
         adjudicated(self)
         self.reading.digests[(REPLAYED_BASE_SHA, _support.AFTER_SHA)] = CHANGED_DIGEST
 
-        self._rebases()
+        scenario = self._rebases()
 
         self._assert_measured()
+        pushed = scenario[PUSH_PATCH].call_args.kwargs
+        self.assertEqual(pushed[REVISION], _support.AFTER_SHA)
+        self.assertEqual(pushed[LEASE], _support.BEFORE_SHA)
+        self.assertIn((_support.ISSUE, _support.LABEL_VALIDATING), self.gh.label_history)
 
     def test_a_legacy_exemption_claims_nothing(self) -> None:
         # A comment with no semantic record has no accepted pair to name, so

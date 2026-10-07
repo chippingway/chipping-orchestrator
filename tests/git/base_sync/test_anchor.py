@@ -12,6 +12,7 @@ from tests.git.base_sync.anchor_assertions import (
     _assert_not_called,
     _assert_parked_without_anchor,
 )
+from tests.git.base_sync.gate_reads_support import _gate_candidates
 from tests.git.base_sync.refresh_scenarios import (
     PUSH_PATCH,
     REBASE_PATCH,
@@ -120,11 +121,12 @@ class CrashRecoveryAnchorUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCas
     def test_unreadable_post_head_resets_and_parks(self) -> None:
         self._seed_pr_issue()
         self._add_pr()
+        _gate_candidates(self, "")
         scenario = _scenario(
             dirty=MagicMock(return_value=[]),
             rebase=MagicMock(return_value=(True, [])),
             push=MagicMock(),
-            head_sha=MagicMock(side_effect=[BEFORE_SHA, ""]),
+            head_sha=MagicMock(return_value=BEFORE_SHA),
             git=MagicMock(
                 return_value=_git_result(stdout=TWO_BEHIND_STDOUT),
             ),

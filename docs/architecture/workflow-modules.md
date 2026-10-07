@@ -412,8 +412,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its verdict's retirement, the squash's own records, the handoff with the evidence it
                             carries or invalidates, the failed squash's park, what it posted where its records
                             moved, and the handoff's end behind the label (`stages/validating/squash_writes.py`) --
-                            commit so far, with a landed base rewrite's dormant finish (`rewrite_finish_writes.py`)
-                            built on it too, while every other road still writes its whole state: a candidate derived
+                            commit so far, with the finish of a base rewrite the tick published itself
+                            (`rewrite_finish_writes.py`) landing through it too, while every other road still writes
+                            its whole state: a candidate derived
                             over a fresh reading of the
                             captured comment rather than written from the caller's state. A
                             write the caller did not declare refuses before anything is read; an unreadable,
@@ -470,7 +471,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`stages/validating/review_writes.py`), and so do a change request's handoff and the
                             recovery of one an earlier tick left waiting (`stages/validating/review_handoffs.py`,
                             `review_launch_park.py`, `review_resume.py`) and every write of an approval's tail
-                            (`stages/validating/squash_writes.py`), and the dormant finish of a landed base rewrite
+                            (`stages/validating/squash_writes.py`), and the finish of a landed base rewrite
                             declares its writes over it (`rewrite_finish_writes.py`)
     report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
                             `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
@@ -1081,14 +1082,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             head it names and pays nothing. `dispatch_guards.py` holds the roads past an approval on
                             any claim and `stages/validating/report_refresh.py` holds the reviewer, obtains that
                             report, and pays it. `stages/conflicts/report_debt.py` records one for every head the
-                            conflict stage's own push rewrites, and `git/base_sync/report_debt.py` one for each clean
-                            auto rebase of the base refresh whose push lands, crash recovery included;
-                            `rewrite_finish_debt.py` stages the same debt for the dormant workflow finish below
+                            conflict stage's own push rewrites, `rewrite_finish_debt.py` one for each clean auto
+                            rebase of the base refresh whose push lands, and `git/base_sync/report_debt.py` the same
+                            debt for a landing the crash recovery finishes
     report_rewrite_room.py  whether the debt owner refused a rewrite for nothing but the pinned comment's room -- the
                             one refusal a writer holds on rather than handing the head on -- told from a record that
-                            would not read back and a standing claim the rewrite cannot extend; asked by both writers,
-                            the conflict stage and the base refresh, so their readings cannot differ, and by the
-                            dormant workflow finish below
+                            would not read back and a standing claim the rewrite cannot extend; asked by every
+                            writer -- the conflict stage, the workflow finish below, and the base refresh's crash
+                            recovery -- so their readings cannot differ
     rewrite_finish.py       the one finish of a landed automatic PR base rewrite, whichever road reached it -- the base
                             refresh publishing its own rebase, or a recovery that pushed the replay again or found it
                             standing, announced or not -- handed the typed landing (`git/base_sync/rewrite_handoffs.py`)
@@ -1110,9 +1111,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             spent -- is prepared before the relabel to `workflow:validating` and lands behind it, and a
                             head the base advanced past again is retired unrouted for the caller's next rebase. A
                             refused or unconfirmed write stops the finish with nothing behind it made. It runs under its
-                            caller's issue writer claim and takes none. Dormant: the auto rebase still finishes through
-                            `git/base_sync/publication.py` and `persistence.py` until the workflow's base-rewrite
-                            coordinator (`base_rewrite.py`) calls it
+                            caller's issue writer claim and takes none. The ordinary publication
+                            (`rewrite_publication.py`) hands its landings here; the crash recovery still finishes
+                            through `git/base_sync/persistence.py`, by the same order, until it is moved here
     rewrite_finish_models.py
                             the finish's input -- the typed landing, the issue, its pinned state and label, the road
                             (`FinishRoad`), the lag the publication's notice reports, and the human reply a recovery
@@ -1126,7 +1127,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             standing claim as it is; and the park notice of a debt with no room
     rewrite_finish_notices.py
                             the pull-request notice and the `base_rebased` event a finish announces with, spelled as
-                            the auto rebase and its recovery spell them -- the publication's, a recovery that pushed
+                            every finish has spelled them -- the publication's, a recovery that pushed
                             again, and a head this tick sent nothing for, on either road, as one found standing,
                             each recovery notice saying where a base advanced again sends the landed head -- and the
                             method the event files for each
@@ -1515,12 +1516,31 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             worktree's failure is logged and the walk goes on. Nothing below it takes the claim
                             again, and its lines report on `orchestrator.base_sync`
     base_rewrite.py         the base-rewrite coordinator for a PR-having worktree: the order the git `base_sync`
-                            owners' gates, rebase, and publication are asked in, a terminal pull request asked for
-                            ahead of any park an anchor stands under, the recovery alone an anchor a stage's park
-                            stands over is answered with, and the same gates in front of the abort a checkout whose
-                            lag cannot be counted takes. It writes nothing itself: the publication and the recovery
-                            are delegated whole to `eligibility`, `startup`, `publication`, and `recovery_holds`,
-                            and the keyword adapter binds the refresh's argument list into their typed context
+                            owners' gates and rebase and the publication below are asked in, a terminal pull request
+                            asked for ahead of any park an anchor stands under, the recovery alone an anchor a
+                            stage's park stands over is answered with, and the same gates in front of the abort a
+                            checkout whose lag cannot be counted takes. It writes nothing itself: a clean rebase is
+                            handed to `rewrite_publication.py`, the recovery is still delegated whole to
+                            `eligibility` and `recovery_holds`, and the keyword adapter binds the refresh's argument
+                            list into their typed context
+    rewrite_publication.py  the ordinary publication of a clean rebase, from the candidate the git owner reads
+                            (`git/base_sync/rewrite_facts.py`) to the shared finish: an unreadable head reset and
+                            parked and a rebase that moved nothing cleared, both before the replay is recorded; a
+                            checkout git names uncommitted paths in reset, cleaned, and parked; the size gate and
+                            the transfer permit asked before any push (`stages/implementing/late_push.py`), a permit
+                            refusal measured cumulatively and `DECOMPOSE=off` publishing unmeasured as on every other
+                            road; and the push the gate licenses made as the git owner's publication of exactly that
+                            candidate under its anchor's lease (`git/base_sync/rewrite_transport.py`), handed to the
+                            gate as its two-step transport (`stages/implementing/late_transport.py`) -- the fresh
+                            reading, then the push, with the gate's ending barrier between them -- so the receipt,
+                            the debt it settles, the exemption's rotation, and the post-push checkout proof stay the
+                            gate's. A remote that reading finds already on the candidate is proved there by a push
+                            leased to the candidate itself, never taken on a reading's word. A publication refused
+                            for what moved since the reading -- the checkout, the base, the remote, or its answer --
+                            or a lease the remote rejected resets the checkout onto its anchor and parks
+                            `auto_base_rebase_push_failed`; one the remote was shown standing on, its answer lost
+                            included, is handed to `rewrite_finish.py`. It runs under the refresh's issue writer
+                            claim
     parallel.py             the other in-tick mode: the bounded pool a `parallel_limit` above 1 runs the pass
                             across, the submission plan the executor is sized from -- which is why this half
                             materializes the enumeration the sequential one streams -- the family bucket folded
@@ -3158,7 +3178,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             asked whether or not anything else is owed, so a comment whose receipt already names the
                             commit still gets the move if the write that should have carried it was lost -- and
                             `late_transfer_telemetry` is asked past that write, so a move that really landed is the
-                            only one reported
+                            only one reported. The push is the one step a caller may hand in, and only the base
+                            refresh's publication does (`engine/rewrite_publication.py`), as a transport that reads
+                            before it pushes (`late_transport.py`): the barrier is asked between that reading and the
+                            push, so it is still the last question before anything is sent, and the proof and
+                            settlement after the push are unchanged
+      late_transport.py     the two-step push a caller may hand `late_push` in place of the branch push -- the reading
+                            it is decided on, then the push -- typed as a protocol so the ending barrier sits between
+                            them; only the base refresh's publication hands one in
       late_accepted.py      the push an adjudication already accepted, taken with no measurement -- a verdict read
                             this exact diff and said it ships as one change -- but still named against the commit
                             that was DECIDED, still pinned to the head the reading was taken over, made only

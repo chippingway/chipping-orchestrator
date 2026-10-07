@@ -20,8 +20,9 @@ landed -- or landed and lost its answer -- only a fresh reading shows the branch
 already standing on it. The lease covers what is left, the moment between that
 reading and the push.
 
-Dormant: nothing calls this owner until the workflow's base-rewrite
-coordinator takes the publication over; see `rewrite_handoffs`.
+The workflow's ordinary publication of a clean rebase is what reads a
+candidate here (`workflow/engine/rewrite_publication.py`); see
+`rewrite_handoffs`.
 """
 from __future__ import annotations
 
@@ -138,13 +139,16 @@ def _moved_since(
     or a base made unreadable since, and a remote that is no longer on the
     anchor -- on the candidate itself where an earlier push of it landed, which
     is refused rather than sent again. Last the base, which may move on its own
-    -- see `_base_moved`.
+    -- see `_base_moved` -- and which a remote already on the candidate does
+    not excuse: that is a claim of a landing, and a landing over a base that
+    no longer carries the replay's tip is no publication to stand on either.
     """
     if now.rewritten_head != candidate.rewritten_head:
         return _RewriteRefusal.MOVED_CHECKOUT if now.rewritten_head else _RewriteRefusal.UNREADABLE_HEAD
-    if now.refusal is not None:
-        return now.refusal
-    return _base_moved(worktree, candidate.checkout.base.tip, now.checkout.base.tip)
+    standing = now.refusal
+    if standing not in {None, _RewriteRefusal.PUBLISHED}:
+        return standing
+    return _base_moved(worktree, candidate.checkout.base.tip, now.checkout.base.tip) or standing
 
 
 def _base_moved(

@@ -103,14 +103,16 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # under a git-layer owner but reports to the issue it was started for: the
 # notice a rebase or a conflict posts goes out through the workflow's comment
 # owner, the park a failed auto-rebase takes through its guard owner, and the
-# rebase it is about to force-push is measured by the size gate first, since a
-# base that moved changes what the branch adds to it and a pull request may
-# not be grown past the ceiling by a refresh either. The squash on approval is
-# the same argument without a measurement: it force-pushes onto a pull request
-# the remote already carries, so it is entered on that publication before it
-# rewrites anything and pushes through the gate's own call. All of them sit
-# above this layer, so the import waits for the call that needs it -- at
-# module scope it would be a cycle, since the workflow imports base sync back.
+# push a crash recovery reissues for a rebase is measured by the size gate
+# first, since a base that moved changes what the branch adds to it and a pull
+# request may not be grown past the ceiling by a refresh either; the ordinary
+# publication of a rebase is the workflow's, and enters that gate from there.
+# The squash on approval is the same argument without a measurement: it
+# force-pushes onto a pull request the remote already carries, so it is entered
+# on that publication before it rewrites anything and pushes through the gate's
+# own call. All of them sit above this layer, so the import waits for the call
+# that needs it -- at module scope it would be a cycle, since the workflow
+# imports base sync back.
 #
 # The rebase is also a rewrite of whatever the branch stood on, so the transfer
 # seam is reached from two places: the owner that assembles the evidence a
@@ -132,8 +134,8 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # for a pull request that is over -- the receipt, the debt, the rotation, and
 # the rollback's drop that end an attempt's whole handoff in one write.
 #
-# A landing that is routed to review leaves the pull request on a head no
-# developer report is about, so the finish records that as the workflow's
+# A landing a recovery routes to review leaves the pull request on a head no
+# developer report is about, so its finish records that as the workflow's
 # report debt before its route -- through the debt's own owner, since the
 # record's shape and its retargeting are that owner's to rule on. The room it
 # needs is measured on the whole announcement write, so the ledger and the
@@ -162,9 +164,7 @@ _CALL_TIME_HOPS = MappingProxyType({
         _LATE_RECORDS,
         _LATE_TRANSFER,
     ),
-    f"{_BASE_SYNC}.publication": (
-        _COMMENTS, _LATE_PUSH, _LATE_RECORDS, _LATE_ENTRY,
-    ),
+    f"{_BASE_SYNC}.publication": (_LATE_PUSH, _LATE_RECORDS),
     f"{_BASE_SYNC}.recovery_push": (_LATE_ENTRY,),
     f"{_BASE_SYNC}.recovery_notices": (_COMMENTS,),
     f"{_BASE_SYNC}.report_debt": (

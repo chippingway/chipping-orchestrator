@@ -9,6 +9,7 @@ from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git.base_sync import attempt_records as _attempt_records, attempts, startup
+from orchestrator.git.measurement import additions as _measurement
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.state import WorkflowLabel
 from tests.git.base_sync import base_sync_helpers as fixtures
@@ -58,7 +59,11 @@ NOT_A_SHA = "the-head-it-left"
 # this workflow never makes, so a record naming it is not an attempt.
 UNPUBLISHED_STAGE = str(WorkflowLabel.IMPLEMENTING)
 
-DIRTY_PATCH = "dirty"
+# The size gate's count, the first step past the record that can hand the
+# issue to an adjudication with the replay standing.
+COUNT_SEAM = "count"
+
+COUNT_SEAM_NAME = "_count_added_lines"
 
 # The client call the refresh's own finish makes between its announcement and
 # its last write, read here for the comment standing at that moment.
@@ -67,10 +72,10 @@ SET_LABEL = "set_workflow_label"
 RELABEL_SEAM = "relabel"
 
 # What each patched git seam answers once it has read the comment: a rebase
-# that left no conflicts, and a worktree with nothing uncommitted in it. The
-# relabel is not here -- it is read through rather than replaced, so the route
-# it makes and the event it files stay part of the flow under test.
-_SEAM_ANSWERS = MappingProxyType({REBASE_PATCH: (True, []), DIRTY_PATCH: []})
+# that left no conflicts. The count and the relabel are not here -- they are
+# read through rather than replaced, so the measurement the gate takes, the
+# route it allows, and the event it files stay part of the flow under test.
+_SEAM_ANSWERS = MappingProxyType({REBASE_PATCH: (True, [])})
 
 
 # The whole record after each of the three writes that make it, spelled at
@@ -348,12 +353,10 @@ class AttemptWriteOrderTest(_SyncWorktreeWithBaseFixture, unittest.TestCase):
         )
         self.assertIsNone(observed[REBASE_PATCH].get(KEY_REWRITE_SHA))
 
-    def test_the_replay_is_durable_by_the_dirty_check(
-        self,
-    ) -> None:
+    def test_the_replay_is_durable_by_the_measurement(self) -> None:
         observed = self._run_rebase()
 
-        self.assertEqual(observed[DIRTY_PATCH].get(KEY_REWRITE_SHA), AFTER_SHA)
+        self.assertEqual(observed[COUNT_SEAM].get(KEY_REWRITE_SHA), AFTER_SHA)
 
     def test_a_finished_route_leaves_no_member(self) -> None:
         self._run_rebase()
@@ -406,8 +409,16 @@ class AttemptWriteOrderTest(_SyncWorktreeWithBaseFixture, unittest.TestCase):
                 original=getattr(self.gh, SET_LABEL),
             ),
         ))
+        self.enterContext(patch.object(
+            _measurement,
+            COUNT_SEAM_NAME,
+            _SeamReader(
+                self.gh, observed, COUNT_SEAM,
+                original=getattr(_measurement, COUNT_SEAM_NAME),
+            ),
+        ))
         _scenario(
-            dirty=MagicMock(side_effect=self._observes(observed, DIRTY_PATCH)),
+            dirty=MagicMock(return_value=[]),
             **{
                 REBASE_PATCH: MagicMock(
                     side_effect=self._observes(observed, REBASE_PATCH),

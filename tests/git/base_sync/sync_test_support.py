@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from orchestrator.git import branch_transport, commands
 from orchestrator.git.base_sync import pre_pr
+from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.publication import probes as publication_probes
 from orchestrator.git.verification import probes as verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths
@@ -40,6 +41,7 @@ _BASE_SYNC_TARGETS = MappingProxyType(
         "rebase": (pre_pr, "_rebase_base_into_worktree"),
         "push": (branch_transport, "_push_branch"),
         "head_sha": (verification_probes, "_head_sha"),
+        "proved": (_measurement_commits, "_prove_candidate_commit"),
         "git": (commands, "_git"),
         "hardened": (commands, "_git_hardened"),
         "fetch": (branch_transport, "_authed_fetch"),

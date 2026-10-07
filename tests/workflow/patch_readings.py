@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from orchestrator.git.ref_transport import _RefRead
 from orchestrator.git.verification.status import _WorktreeStatus
 from tests.workflow.patch_models import _WorkflowRunContext
 from tests.workflow.repo_values import (
@@ -115,3 +116,22 @@ class _RemoteTipAnswers:
         if branch == spec.base_branch:
             return self._context.remote_base_tip
         return self._context.remote_branch_tip
+
+
+class _RemoteBranchReads:
+    """Answer the authenticated remote-branch read, which an automatic base rewrite is prepared and pushed on.
+
+    The base is the tip the remote names for it. A pull request branch is
+    where the fetch finds it -- the head the fake pull request stands on by
+    default, since in production the remote's own answer and the ref its fetch
+    leaves are one fact -- which is the lease a rewrite candidate is pushed
+    against.
+    """
+
+    def __init__(self, context: _WorkflowRunContext) -> None:
+        self._context = context
+
+    def __call__(self, spec, worktree, branch: str) -> _RefRead:
+        if branch == spec.base_branch:
+            return _RefRead(sha=self._context.remote_base_tip)
+        return _RefRead(sha=self._context.fetched_branch_tip)

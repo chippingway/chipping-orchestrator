@@ -86,6 +86,7 @@ _OWNERS = (
     "late_rotation",
     "late_transfer",
     "late_transfer_telemetry",
+    "late_transport",
     "late_verdict",
     "models",
     "parked_replies",

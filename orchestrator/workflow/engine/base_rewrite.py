@@ -4,20 +4,25 @@
 
 This is the workflow's base-rewrite coordinator, entered from the per-tick
 refresh beside it under the issue's writer claim that refresh holds. It holds
-no git and no GitHub write of its own; what it owns is the order the four git
-`base_sync` owners below it are called in, and that order is the contract.
-Every gate in ``eligibility`` is asked before ``startup`` is allowed to move
-HEAD, because each of them is a reason the worktree must be left exactly as
-the last tick published it. Crash recovery is settled before a new rebase is
-begun, so an anchor an earlier tick pinned is never rewritten out from under
-the comparison that would have resolved it. Only then does ``startup`` anchor
-and run the rebase, and only a rebase that returns a known pre-rebase SHA
-reaches ``publication`` -- the failure paths have already routed themselves to
-``conflicts`` or to a park. The publication and the recovery are still those
-owners' effects, delegated whole: what is decided here is only whether and
-when each is reached. The legacy keyword signature is bound here too, because
-the refresh still passes the pre-context argument list this route derives its
-context from.
+no git and no GitHub write of its own; what it owns is the order the git
+`base_sync` owners below it and the publication beside it are called in, and
+that order is the contract. Every gate in ``eligibility`` is asked before
+``startup`` is allowed to move HEAD, because each of them is a reason the
+worktree must be left exactly as the last tick published it. Crash recovery is
+settled before a new rebase is begun, so an anchor an earlier tick pinned is
+never rewritten out from under the comparison that would have resolved it.
+Only then does ``startup`` anchor and run the rebase, and only a rebase that
+returns a known pre-rebase SHA reaches the publication -- the failure paths
+have already routed themselves to ``conflicts`` or to a park.
+
+The ordinary publication is the workflow's own (``rewrite_publication``): the
+candidate the git owner reads, the size and transfer gates it passes before
+any push, the exact-candidate push, and the shared finish of what landed. The
+recovery of an attempt an earlier tick left is still the git owners' effect,
+delegated whole through ``eligibility``: what is decided here for it is only
+whether and when it is reached. The legacy keyword signature is bound here
+too, because the refresh still passes the pre-context argument list this route
+derives its context from.
 """
 from __future__ import annotations
 
@@ -28,7 +33,6 @@ from github.PullRequest import PullRequest
 
 from orchestrator.git.base_sync import (
     eligibility,
-    publication,
     recovery_holds,
     startup,
 )
@@ -37,6 +41,7 @@ from orchestrator.git.base_sync.models import (
     _AutoRebaseRequest,
 )
 from orchestrator.git.base_sync.state import _PENDING_PUSH_SHA
+from orchestrator.workflow.engine import rewrite_publication as _rewrite_publication
 
 _SYNC_PR_SIGNATURE = inspect.Signature((
     inspect.Parameter("gh", inspect.Parameter.POSITIONAL_OR_KEYWORD),
@@ -67,7 +72,7 @@ def _publish_auto_rebase_from_pr(
     if before_sha is None:
         return
 
-    publication._publish_auto_rebase(context, before_sha)
+    _rewrite_publication.publishes(context, before_sha)
 
 
 def _sync_pr_worktree_context(context: _AutoRebaseContext) -> None:

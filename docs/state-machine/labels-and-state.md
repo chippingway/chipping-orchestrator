@@ -417,12 +417,15 @@ Two paths depending on whether a PR exists:
   route — no remote to push, so the local branch stays linear without publishing a rewrite.
 - **PR-having worktrees** in `workflow:validating` / `workflow:documenting` / `in_review` / `workflow:fixing` go
   through `_sync_pr_worktree_to_base`, the workflow's base-rewrite coordinator (`workflow/engine/base_rewrite.py`),
-  which orders the git `base_sync` gates, rebase, publication, and recovery and delegates each effect to its owner —
+  which orders the git `base_sync` gates, rebase, and recovery and delegates the recovery's effects to their owners —
   reached even when the checkout is no longer behind base, so a pinned anchor's recovery is still answered. A clean
-  rebase pushes (force-with-lease pinned to the pre-rebase SHA so a foreign update rejects rather than being
-  clobbered), resets `review_round`, posts a PR notice, records the report the landed head is owed, and relabels to
-  `workflow:validating` so the reviewer re-runs against the rewritten head. Only when the rebase actually leaves
-  conflicted files does the helper relabel to `workflow:resolving_conflict`.
+  rebase is the workflow's own publication (`workflow/engine/rewrite_publication.py`): the git owner reads the
+  candidate the rebase left (`git/base_sync/rewrite_facts.py`), the size gate and the transfer permit rule on it, and
+  the git owner pushes exactly that candidate (`git/base_sync/rewrite_transport.py`, force-with-lease pinned to the
+  pre-rebase SHA so a foreign update rejects rather than being clobbered). A landed push is finished by
+  `workflow/engine/rewrite_finish.py`: it resets `review_round`, posts a PR notice, records the report the landed head
+  is owed, and relabels to `workflow:validating` so the reviewer re-runs against the rewritten head. Only when the
+  rebase actually leaves conflicted files does the helper relabel to `workflow:resolving_conflict`.
 
 The `question` and `discussion` labels skip both paths unconditionally (`_issue_skips_base_sync`) — the question
 handler tears down its own worktree, the discussion stage keeps its checkout across every round exit, and merging
@@ -494,9 +497,16 @@ the pull request and pre-rebase anchor the push is made against — and the tran
 the replay. A base advance that CHANGED what the branch adds to it fingerprints differently, so the permit refuses
 and the ordinary cumulative gate measures the replay exactly as it always did.
 
-Refresh-only failure modes — push rejected (`auto_base_rebase_push_failed`), rebase failed without conflicted files
-(`auto_base_rebase_failed`), dirty-after-clean-rebase (`auto_base_rebase_dirty`) — reset HEAD back to the pre-rebase
-SHA and park awaiting human with a durable `park_reason`; a landed push whose report debt the pinned comment has no
+Refresh-only failure modes — push rejected or refused (`auto_base_rebase_push_failed`), rebase failed without
+conflicted files (`auto_base_rebase_failed`), dirty-after-clean-rebase (`auto_base_rebase_dirty`) — reset HEAD back to
+the pre-rebase SHA and park awaiting human with a durable `park_reason`. A push is refused, with nothing sent, where the
+checkout, the base ref, or the remote branch moved since the candidate was read, or the remote could not be read; a
+remote already standing on the candidate excuses none of those refusals, and is proved there by a push leased to the
+candidate itself before anything is finished -- announced as found standing even where that proof's answer was lost --
+and refused like any other move where somebody pushed over it. A push whose answer was lost is classified by reading the
+remote again, and one the remote is shown standing on is finished rather than rolled back. A pull request merged or
+closed, or a close a poll latched, while the remote is read holds the tick whatever that reading found: nothing is
+pushed, reset, parked, or announced. A landed push whose report debt the pinned comment has no
 room for (`auto_base_rebase_unrecorded_debt`, below) parks the same way with nothing reset, since the pull request
 already carries the head. Recovery is refresh-only and gated on a fresh human
 issue-thread comment past `last_action_comment_id`; the actual `awaiting_human` / `park_reason` clear is deferred to the
@@ -510,8 +520,10 @@ its anchor to hold back the handler that finalizes the issue.
 
 A clean rebase whose push LANDS leaves the pull request on a head no developer report is about, and the reviewer
 road refuses the report of the head before it. So the finish stages the report debt that head leaves
-(`developer_report_rewrite_debt`, see [Pinned state](#pinned-state)) through `git/base_sync/report_debt.py` -- the
-pinned pull request, its branch, the anchor the push was leased against, and the head that landed -- and the debt
+(`developer_report_rewrite_debt`, see [Pinned state](#pinned-state)) -- through
+`workflow/engine/rewrite_finish_debt.py` for a push the tick made itself and `git/base_sync/report_debt.py` for one
+the recovery finishes -- the pinned pull request, its branch, the anchor the push was leased against, and the head
+that landed -- and the debt
 rides the write that records the announcement mark, ahead of the write that clears the attempt and ahead of the
 relabel, so the validating report refresh asks the developer for that head's report with no human reply. The
 recovery records the same debt on every road that finishes a landed head: the push it reissues, the landed push it
@@ -540,9 +552,10 @@ recovery back to finish the landed head -- recording the debt first, or parking 
 standing claim the rewrite cannot be carried onto is no such debt, and `workflow/engine/report_rewrite_room.py` is what
 tells the two refusals apart, for the conflict stage as well.
 
-A workflow-owned finish of a landed head is built beside all of this and is **dormant**: nothing calls
-`workflow/engine/rewrite_finish.py` yet, so every behavior above is still the base-sync owners'. It is handed the typed
-landing (`git/base_sync/rewrite_handoffs.py`) beside the issue it finishes and applies the policy above to the ordinary
+The finish of a head the refresh published itself is the workflow's (`workflow/engine/rewrite_finish.py`); the
+recovery still finishes through the base-sync owners by the same order, until it is handed over too. The finish is
+handed the typed landing (`git/base_sync/rewrite_handoffs.py`) beside the issue it finishes and applies the policy
+above to the ordinary
 publication, a recovered push, a landing a recovery found standing, and a finish whose mark already names the head
 alike — the same debt measurement and park, notice texts, `base_rebased` payloads, round reset, retirement, retry
 spend, and route by the base lag. Each of its writes is a guarded commit (see [Pinned state](#pinned-state)) decided on
@@ -687,17 +700,16 @@ place, or as a new comment where none is named or the named one is gone. A **gua
 (`workflow/engine/pinned_commit.py`, which the verification-evidence publication and settlement, the evidence
 reconciliation's retirements, `validating`'s invalidation of an unanswered carry, the developer report's writes, a
 reviewer round's launch, return, verdict, and park writes, a change request's handoff and its recovery's writes, and
-every write of an approval's tail commit through, and which a landed base rewrite's finish is built on while no
-route calls it yet) is never written from its caller's state. It
-is captured from the reading the caller decided on — the comment's id, every field as the comment's JSON spells it, the
-prerequisite fields the decision rests on, an absent one included, and the fields the caller owns — and derived over a
-fresh reading: each field the caller's staged state changed, every one of which it has to own, is laid over that
-reading; a transformation the caller's domain supplies decides its own owned field over the fresh value, so a total, a
-ledger, or a watermark both roads moved keeps both moves — or answers that the two will not join, which is refused as an
-owned conflict; and every other field, unknown ones included, is kept as the fresh reading carries it. Fields are
-compared as the JSON spells them, keys sorted, so `null` is not an absent field, `true` is not `1`, and `1.0` is not
-`1`, at any depth. The fresh reading can be taken alone too (`reread`), for a caller with requests of its own to make
-over the comment it captured before it stages anything.
+every write of an approval's tail commit through, and which the finish of a base rewrite the base refresh published
+itself lands through) is never written from its caller's state. It is captured from the reading the caller decided on —
+the comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent
+one included, and the fields the caller owns — and derived over a fresh reading: each field the caller's staged state
+changed, every one of which it has to own, is laid over that reading; a transformation the caller's domain supplies
+decides its own owned field over the fresh value, so a total, a ledger, or a watermark both roads moved keeps both moves
+— or answers that the two will not join, which is refused as an owned conflict; and every other field, unknown ones
+included, is kept as the fresh reading carries it. Fields are compared as the JSON spells them, keys sorted, so `null`
+is not an absent field, `true` is not `1`, and `1.0` is not `1`, at any depth. The fresh reading can be taken alone too
+(`reread`), for a caller with requests of its own to make over the comment it captured before it stages anything.
 
 It refuses — writing nothing, and touching nothing the caller holds — where the comment will not read, will not parse,
 or is not the one captured (replaced, deleted, or never pinned: the strict edit never creates one); where a prerequisite
@@ -4802,7 +4814,7 @@ back as no authorization.
   collapses and its merge base before the reset. Its recovery is the recorded collapse (`late_collapse_*`), answered
   ahead of every `validating` route.
 - `auto_clean_rebase`, entered from `validating`, `documenting`, `in_review`, or `fixing`: the base refresh's clean
-  rebase (`git/base_sync/publication._publish_auto_rebase`). Its recovery is the refresh's own crash recovery — the
+  rebase (`workflow/engine/rewrite_publication.publishes`). Its recovery is the refresh's own crash recovery — the
   reissued push and the leased no-op, both `permit_only` — and the terminal handoff of a pull request that merged or
   closed.
 - `conflict_rebase`, entered from `resolving_conflict`: the clean rebase `conflicts/publication._publish_clean_rebase`

@@ -3,8 +3,10 @@
 """Persist and end the lifecycle of one auto-rebase attempt.
 
 Replay and announcement checkpoints each land in the crash window they close.
-Both publication and recovery use these writers, and every completion clears
-the whole attempt. attempt_records validates interrupted replay evidence and
+The workflow's publication of a clean rebase records its replay here and the
+recovery announces here; the workflow's finish puts the same mark down through
+its own guarded checkpoint and reads it back here. Every completion clears the
+whole attempt. attempt_records validates interrupted replay evidence and
 defines the field group that the clear includes.
 """
 from __future__ import annotations
@@ -99,17 +101,18 @@ def _announces(
     again puts a second `base_rebased` on the stream and a second notice on
     the pull request for one publication that happened once.
 
-    Made by BOTH finishes, because both leave that window: the publisher's own
-    tail announces a rebase it just pushed and the recovery's announces one an
-    earlier tick left, and neither is distinguishable afterwards from an
-    attempt that never got that far.
+    Made here by the recovery's finish, which announces a landing an earlier
+    tick left; the workflow's finish of a rebase this tick published leaves
+    the same window and lands the same mark through its guarded checkpoint
+    (`workflow/engine/rewrite_finish.py`). Neither is distinguishable
+    afterwards from an attempt that never got that far.
 
     Written while the anchor is still pinned, and that is deliberate: the
     anchor is what brings the tick that reads this back at all, so this write
     may say only that the announcement was made and must leave every other
     field of the attempt exactly where it is. The clear rides the finish's own
     last write, which is what keeps the anchor standing until every road is
-    behind it. The report debt both finishes stage for the head they published
+    behind it. The report debt the recovery stages for the head it finishes
     (`report_debt`) rides this write instead: it is no field of the attempt,
     and it has to be durable before the route.
     """

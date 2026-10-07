@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from unittest.mock import MagicMock
 
+from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.workflow.engine import base_refresh as _base_refresh
 from tests.git.base_sync.refresh_test_support import (
     AFTER_SHA,
@@ -74,6 +75,7 @@ def _noop_rebase_scenario() -> _BaseSyncScenario:
             PUSH_PATCH: MagicMock(return_value=True),
         },
         head_sha=MagicMock(return_value=BEFORE_SHA),
+        proved=MagicMock(return_value=FrozenCommit(sha=BEFORE_SHA)),
         git=MagicMock(return_value=_git_result(stdout=TWO_BEHIND_STDOUT)),
         hardened=MagicMock(return_value=_git_result()),
     )

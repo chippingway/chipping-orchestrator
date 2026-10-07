@@ -82,6 +82,7 @@ GIT_SEAM_OWNERS = MappingProxyType({
     "_push_branch": _branch_transport,
     "_rebase_base_into_worktree": _base_sync_pre_pr,
     "_rebase_in_progress": _base_sync_pre_pr,
+    "_remote_branch_read": _branch_transport,
     "_remote_branch_tip": _branch_transport,
     "_remove_issue_worktree": _worktree_cleanup,
     "_resolve_branch_name": _naming,

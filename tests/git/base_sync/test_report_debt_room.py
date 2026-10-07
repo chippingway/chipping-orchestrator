@@ -16,7 +16,6 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.git.base_sync import attempts
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from tests.git.base_sync.refresh_scenarios import _clean_rebase_scenario, _landed_recovery_scenario
 from tests.git.base_sync.refresh_test_support import (
@@ -107,16 +106,22 @@ def _debt_room(github) -> int:
 
 
 class _Writes:
-    """A pinned-state writer that remembers the widest comment it was asked to write."""
+    """A pinned-state writer that remembers the widest comment it was asked to write, whole or as a guarded edit."""
 
     def __init__(self, github) -> None:
         self._write = github.write_pinned_state
+        self._edit = github._send_pinned_edit
         self.widest = 0
 
     def __call__(self, issue, state):
         """Measure the comment this write renders, then write it."""
         self.widest = max(self.widest, len(pinned_state_body(state.data)))
         return self._write(issue, state)
+
+    def edits(self, issue, body: str):
+        """Measure the comment a guarded edit sends, then send it."""
+        self.widest = max(self.widest, len(body))
+        return self._edit(issue, body)
 
 
 class _RoomFixture(_SyncWorktreeWithBaseFixture):
@@ -151,8 +156,8 @@ class _RoomFixture(_SyncWorktreeWithBaseFixture):
         writes = _Writes(self.gh)
         relabel = DurableAtTheRelabel(self.gh)
         with patch.object(self.gh, "write_pinned_state", writes), patch.object(
-            self.gh, "set_workflow_label", relabel,
-        ):
+            self.gh, "_send_pinned_edit", writes.edits,
+        ), patch.object(self.gh, "set_workflow_label", relabel):
             scenario.run(self)
         return writes.widest, relabel.seen
 
@@ -305,9 +310,11 @@ class RoomInTheRecoveryTest(_RoomFixture, unittest.TestCase):
         return widest - (MAX_PINNED_BODY - _AMPLE)
 
     def _lost_before_the_mark(self, **state) -> None:
+        # The mark lands through the guarded edit of the pinned comment, the
+        # first the finish makes past its notice and its event.
         self._reported(**state)
         with patch.object(
-            attempts, "_announces", MagicMock(side_effect=RuntimeError(DIED)),
+            self.gh, "edit_pinned_state", MagicMock(side_effect=RuntimeError(DIED)),
         ), self.assertRaises(RuntimeError):
             _clean_rebase_scenario().run(self)
 
