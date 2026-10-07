@@ -64,8 +64,9 @@ tail -- the retirement of its verdict, the squash's own records, the handoff
 behind a published squash with the evidence it carries or invalidates, the
 park a failed squash takes, the record of what it posted where the records it
 holds moved, and the end of the handoff behind its label
-(`stages/validating/squash_writes.py`). Every other road still rewrites the
-whole record.
+(`stages/validating/squash_writes.py`). So does a landed base rewrite's
+finish (`rewrite_finish_writes`), though nothing calls it yet. Every other
+road still rewrites the whole record.
 
 The report's commits are captured over the reading a tick last synced with the
 comment (`PinnedState.synced`), so what the tick staged since is told from what

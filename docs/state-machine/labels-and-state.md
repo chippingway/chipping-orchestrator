@@ -540,6 +540,29 @@ recovery back to finish the landed head -- recording the debt first, or parking 
 standing claim the rewrite cannot be carried onto is no such debt, and `workflow/engine/report_rewrite_room.py` is what
 tells the two refusals apart, for the conflict stage as well.
 
+A workflow-owned finish of a landed head is built beside all of this and is **dormant**: nothing calls
+`workflow/engine/rewrite_finish.py` yet, so every behavior above is still the base-sync owners'. It is handed the typed
+landing (`git/base_sync/rewrite_handoffs.py`) beside the issue it finishes and applies the policy above to the ordinary
+publication, a recovered push, a landing a recovery found standing, and a finish whose mark already names the head
+alike — the same debt measurement and park, notice texts, `base_rebased` payloads, round reset, retirement, retry
+spend, and route by the base lag. Each of its writes is a guarded commit (see [Pinned state](#pinned-state)) decided on
+the attempt, the report records and claim, the park's flags, the round, and the publication's pinned fields: the
+announcement is prepared over the fresh comment before the notice is posted — its notice's ledger entry reserved over
+the ledger that comment carries — the park before its notice, and the retirement before the relabel, so a write
+another road's move refuses — or one nobody confirmed — stops the finish with nothing behind it made, and the
+next finish picks up from the mark or the anchor it left. A landing the record does not account for — a rewrite that
+moved nothing, a publication a guard refused for anything but the remote already standing on it, a replay record
+(`pending_auto_base_rebase_rewrite_*`) naming another head, made under other terms, damaged, or never written, a lag
+against the base that could not be counted, and a finish already retired included — makes nothing, leaving the
+attempt, the label, and the round as they are. A record whose terms stand with no head yet is the window before the
+rebase recorded its replay, left to the recovery's vouching ahead of the hand-over; a publication refused because the
+remote already stands on the replay sent nothing, and is announced on either road as a push found standing. A
+refusal for room alone over a comment that still reads as the tick read it — a debt park that cannot fit included —
+leaves the tick's state to be written, since that comment is only full; every other refusal, and an edit nobody
+confirmed, withholds it. It takes no writer claim of its own: the caller's claim, held through the route, covers it.
+Between the checkpoint and the route sits the post-push, pre-route step where the evidence a landed head
+is routed with is decided; it routes on the base lag alone so far.
+
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
 a PR the next handler would finalize; an attempt still anchored to a PR that merged or closed has its whole handoff
@@ -664,7 +687,8 @@ place, or as a new comment where none is named or the named one is gone. A **gua
 (`workflow/engine/pinned_commit.py`, which the verification-evidence publication and settlement, the evidence
 reconciliation's retirements, `validating`'s invalidation of an unanswered carry, the developer report's writes, a
 reviewer round's launch, return, verdict, and park writes, a change request's handoff and its recovery's writes, and
-every write of an approval's tail commit through) is never written from its caller's state. It
+every write of an approval's tail commit through, and which a landed base rewrite's finish is built on while no
+route calls it yet) is never written from its caller's state. It
 is captured from the reading the caller decided on — the comment's id, every field as the comment's JSON spells it, the
 prerequisite fields the decision rests on, an absent one included, and the fields the caller owns — and derived over a
 fresh reading: each field the caller's staged state changed, every one of which it has to own, is laid over that

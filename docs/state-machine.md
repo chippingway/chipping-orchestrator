@@ -151,8 +151,9 @@ landed head, the recovered ones included, makes that report debt durable before 
 carry one debt onto the latest head a push landed; a no-op, a refused push, a reset, or a pull request somebody else
 moved records none and leaves a standing debt as it is. A landed head whose debt the pinned comment has no room for —
 measured on the whole announcement write it rides and on the comment as it stands — is neither announced nor
-routed: it parks with the attempt standing until room is made and a human replies. The `question` and `discussion`
-labels — and the parks and
+routed: it parks with the attempt standing until room is made and a human replies. A workflow-owned finish for those
+landed heads (`workflow/engine/rewrite_finish.py`) is built over guarded commits and dormant, called by no route
+yet. The `question` and `discussion` labels — and the parks and
 in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto rebase's anchor, of the
 records and parks that freeze a branch only the late size-gate claims keep the refresh away, so its recovery answers
 the anchor ahead of any stage handler. The failure modes, their durable `park_reason` tokens, and the refresh-owned

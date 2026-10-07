@@ -20,8 +20,9 @@ them before git ran.
 Dormant. No route calls these owners yet: the auto-rebase still publishes
 through `publication` and recovers through `replay_recovery`, both reached
 from the workflow's base-rewrite coordinator (`workflow/engine/base_rewrite.py`),
-and that coordinator consuming the candidate and finalizing the landing is what
-activates them.
+and that coordinator consuming the candidate is what activates them. The finish
+a landed record is handed to is built on the workflow side
+(`workflow/engine/rewrite_finish.py`), dormant with them.
 """
 from __future__ import annotations
 
