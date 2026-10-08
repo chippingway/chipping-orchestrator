@@ -10,6 +10,9 @@ the operator's end-to-end guide — install, configure, run, and the labels you 
 explains why the system is shaped this way, which module owns what, what every setting does, and what each stage
 handler reads and writes.
 
+[![Ask ChatGPT][ask-chatgpt-badge]][ask-chatgpt]
+[![Ask Claude][ask-claude-badge]][ask-claude]
+
 ## Where to start
 
 | If you want to… | Read |
@@ -53,3 +56,12 @@ Grouped the way the site's navigation groups them.
 
 [pollers]: configuration/operations.md#running-more-than-one-poller
 [publishing]: configuration/operations.md#publishing-the-documentation
+
+[ask-chatgpt-badge]:
+  https://raw.githubusercontent.com/chippingway/chipping-orchestrator/main/.github/docs-theme/img/ask-chatgpt.svg
+[ask-chatgpt]:
+  https://chatgpt.com/?q=Read+https%3A%2F%2Fchippingway.github.io%2Fchipping-orchestrator%2C+I+want+to+ask+questions+about+it.&hints=search
+[ask-claude-badge]:
+  https://raw.githubusercontent.com/chippingway/chipping-orchestrator/main/.github/docs-theme/img/ask-claude.svg
+[ask-claude]:
+  https://claude.ai/new?q=Read+https%3A%2F%2Fchippingway.github.io%2Fchipping-orchestrator%2C+I+want+to+ask+questions+about+it.

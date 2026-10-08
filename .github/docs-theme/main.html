@@ -6,6 +6,7 @@
 {{ super() }}
 <meta name="google-site-verification" content="HVQJ87USLsE2-lQqSdE-bQLI2n_moGVl_D4QFyc-Y30" />
 <meta name="msvalidate.01" content="315D232BAAC7F85AE24926BB4B72B62E" />
+<link rel="stylesheet" href="{{ 'css/ai-assistants.css'|url }}" />
 {% endblock %}
 
 {#-
@@ -59,9 +60,26 @@ left to the site name.
 them. -#}
 {%- block next_prev %}{%- endblock %}
 
-{#- The repository, as an icon; there is no per-page edit link. Its name shows in the collapsed menu, as the theme
-toggle's label does. -#}
+{#- AI prompt buttons and the repository icon share this block so they sit together among the top bar's right-hand
+actions. There is no per-page edit link. The repository name shows in the collapsed menu, as the theme toggle's label
+does. -#}
 {%- block repo %}
+                        {%- set ai_prompt = 'Read ' ~ config.site_url.rstrip('/')
+                            ~ ', I want to ask questions about it.' %}
+                        <li class="nav-item ai-chat-links">
+                            <a class="ai-chat-button"
+                               href="https://chatgpt.com/?{{ {'q': ai_prompt, 'hints': 'search'}|urlencode|e }}"
+                               target="_blank" rel="noopener noreferrer"
+                               aria-label="Ask ChatGPT about chipping-orchestrator (opens in a new tab)">
+                                <img src="{{ 'img/ask-chatgpt.svg'|url }}" alt="Ask ChatGPT" width="154" height="32" />
+                            </a>
+                            <a class="ai-chat-button"
+                               href="https://claude.ai/new?{{ {'q': ai_prompt}|urlencode|e }}"
+                               target="_blank" rel="noopener noreferrer"
+                               aria-label="Ask Claude about chipping-orchestrator (opens in a new tab)">
+                                <img src="{{ 'img/ask-claude.svg'|url }}" alt="Ask Claude" width="140" height="32" />
+                            </a>
+                        </li>
                       {%- if config.repo_url %}
                         <li class="nav-item">
                             <a href="{{ config.repo_url }}" class="nav-link" title="{{ config.repo_name }}">

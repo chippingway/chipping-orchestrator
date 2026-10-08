@@ -25,7 +25,7 @@ page's `description` front matter into its one description meta tag, escaped,
 ahead of the homepage's `site_description` fallback. Sample sites built through
 them hold the templates to that, and to the bundled theme's head, footer, complete scripts,
 modals, and search entries apart from the Google Search Console and Bing Webmaster
-Tools verification tags. `test_docs_navigation.py` holds the navigation to its own rules.
+Tools verification tags and the AI-button stylesheet. `test_docs_navigation.py` holds the navigation to its own rules.
 """
 from __future__ import annotations
 
@@ -246,7 +246,7 @@ class DocumentationWebsiteTest(unittest.TestCase):
                 self.assertEqual(_site_support.SitePage(site / page).descriptions, descriptions)
 
     def test_undescribed_pages_match_bundled_theme(self) -> None:
-        """Undescribed pages retain bundled metadata, footer, scripts, modals, and search, plus verification tags."""
+        """Undescribed pages retain bundled markup, plus verification tags and the AI-button stylesheet."""
         expected = _theme_support.rendering(self._sample_site(_SAMPLE, theme=None))
         site = self._sample_site(_SAMPLE)
         self.assertEqual(_site_support.SitePage(site / _HOMEPAGE).descriptions, [_site_support.SAMPLE_DESCRIPTION])
@@ -256,6 +256,7 @@ class DocumentationWebsiteTest(unittest.TestCase):
             expected[page]["head"].extend((
                 ("meta", _GOOGLE_SITE_VERIFICATION),
                 ("meta", _BING_SITE_VERIFICATION),
+                _theme_support.ai_button_stylesheet(expected[page]["head"]),
             ))
         self.assertEqual(_theme_support.rendering(site), expected)
         markup = (site / _HOMEPAGE).read_text(encoding=_ENCODING)

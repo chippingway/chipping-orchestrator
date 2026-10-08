@@ -13,6 +13,9 @@ human to make the final merge decision.
 Workflow state lives on the issue itself, so progress stays visible on GitHub and survives process restarts without a
 separate queue or workflow database.
 
+[![Ask ChatGPT][ask-chatgpt-badge]][ask-chatgpt]
+[![Ask Claude][ask-claude-badge]][ask-claude]
+
 ## When to use it
 
 - **Use it when:** you work solo or on a small team, have an authenticated `codex`, `claude`, or `agy` CLI, and want
@@ -218,6 +221,15 @@ Licensed under the Apache License, Version 2.0. See [LICENSE][license] for the f
 [scorecard-link]: https://scorecard.dev/viewer/?uri=github.com/chippingway/chipping-orchestrator
 [best-practices-badge]: https://www.bestpractices.dev/projects/14235/badge
 [best-practices-link]: https://www.bestpractices.dev/projects/14235
+
+[ask-chatgpt-badge]:
+  https://raw.githubusercontent.com/chippingway/chipping-orchestrator/main/.github/docs-theme/img/ask-chatgpt.svg
+[ask-chatgpt]:
+  https://chatgpt.com/?q=Read+https%3A%2F%2Fchippingway.github.io%2Fchipping-orchestrator%2C+I+want+to+ask+questions+about+it.&hints=search
+[ask-claude-badge]:
+  https://raw.githubusercontent.com/chippingway/chipping-orchestrator/main/.github/docs-theme/img/ask-claude.svg
+[ask-claude]:
+  https://claude.ai/new?q=Read+https%3A%2F%2Fchippingway.github.io%2Fchipping-orchestrator%2C+I+want+to+ask+questions+about+it.
 
 [states]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/state-machine.md
 [workflow]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/workflow.md

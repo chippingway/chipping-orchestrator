@@ -629,8 +629,10 @@ not its place in `nav:`, so moving a page between groups changes no address. The
 [`../../.github/docs-theme/`](../../.github/docs-theme/) render that list over the bundled `mkdocs` theme:
 
 - The top bar names each top-level entry once, as a plain link rather than a dropdown. A section links to its first
-  page, which makes that page the section's landing page, so an area's overview goes first. Search, a link to the
-  repository, and the light / dark / auto theme menu sit on the right.
+  page, which makes that page the section's landing page, so an area's overview goes first. Search, buttons to ask
+  ChatGPT or Claude about the project, a link to the repository, and the light / dark / auto theme menu sit on the
+  right. The AI buttons open a new tab with a prompt pointing to the documentation homepage from `site_url`.
+  Below a viewport width of 1200px, the top bar collapses into a menu so both AI buttons fit.
 - The sidebar lists the pages of the current page's top-level section above that page's own headings. A subsection
   there is a link to its first page, and opens onto its own pages only while it holds the current one.
 - Previous and next links sit under the page, where the theme's `n` and `p` keyboard shortcuts find them.
@@ -664,7 +666,8 @@ the homepage the page's own description takes precedence over `site_description`
 [`../../mkdocs.yml`](../../mkdocs.yml), which remains the homepage's fallback; any other page without front matter emits
 no description. The rest of that block is the theme's own, so every page keeps the canonical URL and the rest of the
 head metadata the bundled theme gives it; a page without front matter has the bundled head plus the two verification
-tags described in [GitHub Pages setup](#github-pages-setup), with the same search entry as under that theme.
+tags described in [GitHub Pages setup](#github-pages-setup) and the AI-button stylesheet, with the same search entry
+as under that theme.
 `tests/repository/test_docs_site.py` builds sample sites through the template to hold each of those rules, and checks
 that `mkdocs.yml` names the template directory. GitHub's file view shows front matter as a table above the page.
 
