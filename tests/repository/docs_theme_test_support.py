@@ -10,9 +10,21 @@ from pathlib import Path
 from tests.repository import docs_site_test_support as _site_support
 
 _ENCODING = "utf-8"
+_HREF = "href"
+_Attributes = dict[str, str | None]
+_Tag = tuple[str, _Attributes]
 _SEARCH_INDEX = "search/search_index.json"
 _FOOTER = re.compile(r"<footer\b[^>]*>.*?</footer\b[^>]*>", re.DOTALL | re.IGNORECASE)
 _SCRIPTS = re.compile(r"<script\b[^>]*>.*?</script\b[^>]*>", re.DOTALL | re.IGNORECASE)
+
+
+def ai_button_stylesheet(head: list[_Tag]) -> _Tag:
+    """The custom stylesheet beside a page's bundled theme styles, including nested and 404 paths."""
+    stylesheet = next(
+        attributes[_HREF] or "" for tag, attributes in head
+        if tag == "link" and (attributes.get(_HREF) or "").endswith("css/base.css")
+    )
+    return "link", {"rel": "stylesheet", _HREF: stylesheet.replace("base.css", "ai-assistants.css")}
 
 
 def rendering(site: Path) -> dict[str, object]:
