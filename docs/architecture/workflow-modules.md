@@ -1090,6 +1090,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             would not read back and a standing claim the rewrite cannot extend; asked by both
                             writers -- the conflict stage and the workflow finish below, whichever road reached it --
                             so their readings cannot differ
+    report_squash_lineage.py the dormant proof that a settled report's approved commit is the one this orchestrator's
+                            approval squash rewrote into the head a rewrite debt replaced. It reads the squash's own
+                            evidence carry -- owed, current, or from history, never asking whether that evidence is
+                            current -- and holds it exactly to the settled report, the debt, the pinned pull request,
+                            and the head it stands on, then reads both commits' trees again in the checkout
+                            (`verification_world.tree_of`). PROVED, DEFER for no proof, or HOLD for a tree nobody
+                            could read; it writes nothing, and nothing consults it yet
     rewrite_finish.py       the one finish of a landed automatic PR base rewrite, whichever road reached it -- the base
                             refresh publishing its own rebase, or a recovery that pushed the replay again or found it
                             standing, announced or not -- handed the typed landing (`git/base_sync/rewrite_handoffs.py`)
