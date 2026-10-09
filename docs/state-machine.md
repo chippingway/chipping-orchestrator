@@ -162,6 +162,10 @@ routed: it parks with the attempt standing until room is made and a human replie
 refresh published itself, one its recovery's retry pushed again, and one its recovery found already standing,
 observed rather than pushed a second time -- is finished by the one workflow-owned finish
 (`workflow/engine/rewrite_finish.py`) over guarded commits, with one post-push evidence decision ahead of its route.
+A replay the size gate hands to an adjudication instead can be handed to the late generation adjudicating it
+(`workflow/engine/rewrite_takeover.py`, dormant until a caller is wired in): proved off the pinned record to describe
+the same candidate, pull request, anchor, and stage, the generation records `late_auto_rebase_replay_sha` in the one
+guarded write that retires the attempt, and anything less leaves the attempt standing for its recovery.
 The `question` and `discussion` labels — and the
 parks and in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto rebase's
 anchor, of the records and parks that freeze a branch only the late size-gate claims keep the refresh away, so its
@@ -216,7 +220,8 @@ reviewer off while it resumes the developer for a fresh report of that head, wit
 once a published report of it, still intact where it settled and written against the current requirements, pays it.
 `workflow:resolving_conflict` records one for every head its own push rewrites, off the code-publication receipt that
 push left, and the base refresh one for each clean auto rebase whose push lands, its crash recovery included, before
-the attempt is cleared or the issue routed to `workflow:validating`
+the attempt is cleared or the issue routed to `workflow:validating`. The authorized settlement of a replay a late
+generation took over records one for the push it makes, before its label resumes the source stage
 ([rewritten-head report debt](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)).
 A settled report of the approved commit an approval's squash replaced is of neither head a claim names, so the hold
 neither pays nor refreshes it. A dormant proof (`workflow/engine/report_squash_lineage.py`) answers whether that

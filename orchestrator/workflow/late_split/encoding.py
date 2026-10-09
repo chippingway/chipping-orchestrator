@@ -126,11 +126,14 @@ def _publication_fields(publication: PublicationContext) -> dict[str, Any]:
     the flag goes down only while it is set and the three fields beside it
     only while they hold something. That is what keeps a pre-publication entry
     and a record written without this group the same pinned comment, rather
-    than two spellings a later reader would have to tell apart.
+    than two spellings a later reader would have to tell apart. A taken-over
+    replay is written the same way, so a generation that took none over is the
+    comment a binary without the field writes.
     """
     return {
         _keys.POST_PUBLICATION: publication.post_publication or None,
         _keys.SOURCE_STAGE: _wire(publication.source_stage),
         _keys.PUBLISHED_PR_NUMBER: publication.published_pr_number,
         _keys.PUBLISHED_SHA: publication.published_sha or None,
+        _keys.AUTO_REBASE_REPLAY_SHA: publication.replay_sha or None,
     }

@@ -867,9 +867,11 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    label runs -- validating above all, whose
                                    report hold pays the debt. Recorded by
                                    resolving_conflict for each head its own
-                                   push rewrites, and by a clean auto rebase
+                                   push rewrites, by a clean auto rebase
                                    of the base refresh for the head its push
-                                   lands
+                                   lands, and by the authorized settlement of
+                                   a replay a late generation took over from
+                                   its auto rebase, for the push it makes
      no workflow label, a      ─► nothing, logged once a tick. Pickup GREETS
        pinned comment already      an issue and mints its pinned comment, so a
        on the issue, and no        second greeting writes a second one every

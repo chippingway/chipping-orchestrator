@@ -61,11 +61,16 @@ base refresh one for each clean auto rebase whose push lands before the
 attempt is cleared or the issue routed, through the one finish every landing
 gets (`rewrite_finish_debt.py`) -- of a rebase the tick published itself, of
 a replay its crash recovery pushed again, and of a push that recovery found
-already landed. A settled report of the commit an approval's squash replaced
-is of neither head, so it pays nothing and is owed nothing here; whether this
-orchestrator's own squash links it to the head the debt replaced is a dormant
-proof beside this owner (`report_squash_lineage.py`) that nothing consults yet.
-This owner is the record, its reader, its retargeting, and its drop.
+already landed. A replay the size gate handed to an adjudication instead is
+taken over by the late generation with its attempt retired
+(`rewrite_takeover.py`), and the authorized settlement that publishes it
+records the same debt before it hands the head back to its stage
+(`stages/decomposition/late_replay_debt.py`). A settled report of the commit
+an approval's squash replaced is of neither head, so it pays nothing and is
+owed nothing here; whether this orchestrator's own squash links it to the
+head the debt replaced is a dormant proof beside this owner
+(`report_squash_lineage.py`) that nothing consults yet. This owner is the
+record, its reader, its retargeting, and its drop.
 """
 from __future__ import annotations
 

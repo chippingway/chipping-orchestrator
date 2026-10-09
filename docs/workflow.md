@@ -132,7 +132,8 @@ human-feedback round `in_review` routes to `workflow:fixing`: the report is reco
 with the requirements revision the run was handed, bound once the code is out (or at once, for a report alone, which
 spends the round a pushed fix spends because the next reviewer reads it), and the reviewer waits until the pull
 request carries it. So does the report refresh `workflow:validating` runs for a head this orchestrator's own push
-rewrote -- a rebase, a conflict resolution, or commits an earlier tick left unpushed (a claimed
+rewrote -- a rebase, a conflict resolution, or commits an earlier tick left unpushed, and an auto-rebase replay a late
+adjudication took over, once its authorized settlement publishes it (a claimed
 `developer_report_rewrite_debt`): before any reviewer, the claim is cleared at once where a published report of that
 exact head, still intact and written against the current requirements, has already settled, and otherwise the
 developer is asked with no human reply for a fresh `REPORT: READY` report of that head, recorded and settled the same

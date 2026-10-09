@@ -559,6 +559,23 @@ recovery back to finish the landed head -- recording the debt first, or parking 
 standing claim the rewrite cannot be carried onto is no such debt, and `workflow/engine/report_rewrite_room.py` is what
 tells the two refusals apart, for the conflict stage as well.
 
+A clean rebase whose candidate the size gate hands to an adjudication instead of pushing leaves two owners over one
+unpublished replay: the attempt's anchor, and the live late generation whose candidate that replay is.
+`workflow/engine/rewrite_takeover.py` is the handoff between them, dormant in this build since nothing calls it yet.
+It proves off the pinned record alone, never off the checkout, that the attempt reads back whole with no announcement
+mark, that the generation is one late adjudication would itself act on for this issue -- it passes the late domain's
+record gate, freezes both its candidate and its base, and names this issue as `late_current_issue` -- and is live,
+measured past its ceiling, with a whole publication group, and that the two name the same candidate, pull request,
+anchor (the generation's `late_published_sha`), and stage. One guarded write, decided on both records as they were read,
+then records the takeover (`late_auto_rebase_replay_sha`, see [Late generation state](#late-generation-state)) and
+retires the whole attempt through the same clear every ending uses, so the attempt is never gone without the generation
+carrying the replay; the frozen pair, the measurement, the publication group, and every other field stay as the comment
+spells them, and a repeated handoff finds the attempt gone and writes nothing; a write sent and never confirmed answers
+UNCONFIRMED, since only the comment read again says whether it landed. Evidence short of that is answered INCOMPLETE and
+evidence of other work UNRELATED, and both leave the attempt standing for the recovery that answers it. Ownership
+licenses no push: the replay is published only by the settlement of an authorized `single`, leased to the head the
+generation froze, which records the report debt that push leaves before it resumes the source stage.
+
 Every finish is the workflow's (`workflow/engine/rewrite_finish.py`): of a head the refresh published itself, of one
 the recovery's retry pushed again, and of one the recovery found already standing
 (`workflow/engine/rewrite_landed.py`), so the three share one post-push policy and one evidence decision. The finish
@@ -1459,6 +1476,15 @@ The keys that matter for the state machine fall into a few groups:
   is. Its room is measured on the whole announcement write the debt rides and on the comment as it stands, and a
   proved debt that does not fit either parks `auto_base_rebase_unrecorded_debt` before anything is announced or
   routed, with the attempt left standing for the recovery a reply brings back.
+
+  A replay the size gate handed to an adjudication, and the late generation took over with its attempt retired, records
+  the same claim once the authorized settlement publishes it (`stages/decomposition/late_replay_debt.py`): proved by
+  that ownership and by the code-publication receipt naming the replay over `late_published_sha` on
+  `late_published_pr_number`, in a write of its own before the label hands the head back to `late_source_stage`. A
+  retry after the push landed records it again from the same ownership with no second push, and a proved claim with no
+  room parks `late_pr_unreconciled` with the push kept and the generation live, so a later tick records it once room
+  is made -- or, where the comment has no room for that park either, posts and writes nothing and leaves the same
+  ownership and receipt for the next tick to ask again from.
 - **HITL park.** `awaiting_human`, `last_action_comment_id`, `park_reason`. `_park_awaiting_human` (on the same
   `workflow/engine/guards.py` owner as the two run refusals) sets
   `awaiting_human=True` and clears `park_reason` to `None`; a handler that needs the reason to survive into the next
@@ -2968,10 +2994,12 @@ The keys that matter for the state machine fall into a few groups:
   replay, so a value naming any other head — or naming no commit — is a mark something took apart rather than an
   answer a reader may give as "nothing was announced".
   The whole group is dropped by the one write that ends an attempt — the reset that puts the branch back, the no-op
-  that moved nothing, the relabel that takes the issue out of the refresh's reach, and the finalize that publishes all
-  go through the same clear — so no road can leave a member behind. That clear is held to the reset LANDING wherever
-  one is made: a reset that failed abandoned nothing, and the comment is then the only account of where the checkout
-  may be standing, so nothing is dropped and the next tick still has an anchor to come back with.
+  that moved nothing, the relabel that takes the issue out of the refresh's reach, the finalize that publishes, and
+  the handoff of an unpublished replay to the late generation adjudicating it (which stages
+  `late_auto_rebase_replay_sha` in that same write) all go through the same clear — so no road can leave a member
+  behind. That clear is held to the reset LANDING wherever one is made: a reset that failed abandoned nothing, and the
+  comment is then the only account of where the checkout may be standing, so nothing is dropped and the next tick
+  still has an anchor to come back with.
   **The whole record is live: every write, the clear, and the readings.** The terms and the anchor go down before
   `git rebase`, the replay goes down before the dirty check, both finishes mark what they announced, and every ending
   drops the group; the three answers and the presence test on the mark are what the workflow's recovery decides on.
@@ -3754,6 +3782,17 @@ rather than preserving.
   `PublicationContext.enter` refuses to record one that cannot name all three. A restart's fresh cycle keeps
   none of the group and needs none: what it puts the issue back into is `decomposing` or `implementing`, which is a
   pre-publication attempt again.
+- **Taken-over auto-rebase replay.** `late_auto_rebase_replay_sha` names the unpublished replay of
+  `late_published_sha` an auto rebase made and this generation took over from the attempt that made it
+  (`workflow/engine/rewrite_takeover.py`, see [Base refresh](#base-refresh)). It rides the publication group as
+  provenance rather than as a fourth term: written only by that handoff, as its own key in the one write that retires
+  the attempt, and answered (`PublicationContext.replayed_as`) only while the group is whole and the value is this
+  generation's own `late_candidate_sha` -- so a later candidate frozen into the same cycle, a value that is not a whole
+  commit id, and a record from before the key existed are no takeover. It licenses no push and no route: an authorized
+  `single` publishes the replay exactly as it publishes any post-publication candidate, leased to
+  `late_published_sha`, and what the field adds is the report debt that push leaves (`developer_report_rewrite_debt`),
+  recorded before the label. Additive and written only while set, it is inside the generation's own key group, so the
+  retirement that ends the cycle drops it.
 - **External-resource ledgers.** `late_resources` holds one `{kind, target, state}` entry per obligation the remote is
   owed — kind `snapshot_ref` / `branch` / `plan_pr` / `child`, state `pending` / `retained` / `reclaiming` /
   `reconciled` / `failed`

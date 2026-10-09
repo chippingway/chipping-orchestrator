@@ -7,9 +7,11 @@ The workflow's publication of a clean rebase records its replay here, and the
 workflow's finish -- of a publication, of the recovery's retry, or of a push
 the recovery found already landed -- puts the announcement mark down through
 its own guarded checkpoint (`workflow/engine/rewrite_finish.py`) and reads it
-back here. Every completion clears the whole attempt. attempt_records
-validates interrupted replay evidence and defines the field group that the
-clear includes.
+back here. Every completion clears the whole attempt, and so does the
+handoff of an unpublished replay to the late generation adjudicating it
+(`workflow/engine/rewrite_takeover.py`), in the write that has the generation
+take the replay over. attempt_records validates interrupted replay evidence
+and defines the field group that the clear includes.
 """
 from __future__ import annotations
 

@@ -24,7 +24,9 @@ The one key this owner touches that is not the generation's own is the
 retirement correlation a write with an IDENTITY supersedes, spelled on the
 `endings` owner beside this one. The `restart` owner moves the pending restart
 marker rather than this one: the marker is a pinned field, but minting and
-validating an identity is its own contract.
+validating an identity is its own contract. The one late key staged on its own
+rather than through a whole write is the auto-rebase replay a generation takes
+over, so the takeover leaves every field it was proved against as written.
 """
 from __future__ import annotations
 
@@ -120,6 +122,9 @@ def read_late_generation(state: PinnedState) -> LateGeneration:
             published_sha=_payloads.as_hex(
                 state.get(_keys.PUBLISHED_SHA), _formats.COMMIT_LENGTHS,
             ) or "",
+            replay_sha=_payloads.as_hex(
+                state.get(_keys.AUTO_REBASE_REPLAY_SHA), _formats.COMMIT_LENGTHS,
+            ) or "",
         ),
         obligations=_ledgers.read_obligations(
             state.get(_keys.RESOURCES), state.get(_keys.CONSUMERS),
@@ -172,6 +177,22 @@ def write_late_generation(
         _endings.clear_retired_cycle(state)
     for key, written in _encoding.written_fields(generation).items():
         state.set(key, written)
+
+
+def record_replay_takeover(state: PinnedState, replay_sha: str) -> None:
+    """Stage the auto-rebase replay this issue's generation takes over, touching no other late field.
+
+    One key rather than the whole record rewritten from a reading: the
+    takeover is proved against the generation as the comment carries it, and
+    a rewrite would normalize every field beside it -- the frozen pair and the
+    measurement among them -- to what this binary could type. Held to a whole
+    commit id like every other late SHA. The caller writes.
+    """
+    if not _formats.is_hex_of(replay_sha, _formats.COMMIT_LENGTHS):
+        raise _formats.InvalidLateValue(
+            f"a taken-over replay is not a commit ({type(replay_sha).__name__})",
+        )
+    state.set(_keys.AUTO_REBASE_REPLAY_SHA, replay_sha)
 
 
 def clear_late_generation(state: PinnedState) -> None:

@@ -1251,7 +1251,8 @@ because there it is the claim that this stage has already rerouted rather than a
   head its own push rewrites, and the per-tick base refresh one for every clean auto rebase whose push lands, before
   it clears its attempt or routes to `workflow:validating` (`workflow/engine/rewrite_finish_debt.py`) -- its crash
   recovery's retry of a replay nothing published and its finish of a push already landed included (see
-  [Base refresh](labels-and-state.md#base-refresh)).
+  [Base refresh](labels-and-state.md#base-refresh)). The authorized settlement of a replay a late generation took over
+  from its auto rebase records one for the push it makes, before its label (`late_replay_debt.py`).
   An issue without the record passes through reading nothing.
 - **Holds**: `workflow:documenting` and `in_review`, the roads past an approval that would carry a head no report is
   about to the human who merges it. Nothing is written or posted; the claim is left for validating, and the hold is
@@ -3126,6 +3127,25 @@ otherwise agree on everything below. Then the **branch**, compared against the o
 itself and pushes, since the number and the branch are separate fields on one pinned comment and a pull request open
 anywhere else is one the push would never touch. And last the **head**, which has to be the one the entry froze.
 Every refusal leaves the verdict, the exemption, the approval and the record exactly as they stand.
+
+**An authorized settlement of a taken-over auto-rebase replay records the report debt its push leaves.** A generation
+whose `late_auto_rebase_replay_sha` names its own candidate took that candidate over from the auto rebase that made it
+(`workflow/engine/rewrite_takeover.py`, see [labels-and-state.md](labels-and-state.md#late-generation-state)), and
+the ownership licenses nothing on its own: the replay is published only on this road, under the operator's
+authorization of that exact commit, through the same five checks and the same push leased to `late_published_sha`,
+so a pull request somebody pushed to refuses it here or at the lease and records nothing. What the ownership adds is
+the report the replay leaves owed, since no developer report is about a head this orchestrator rebased: once the push
+lands, or a retry finds it landed, `late_replay_debt.py` records `developer_report_rewrite_debt` -- the frozen pull
+request, the branch pushed, `late_published_sha` as the head replaced, and the replay -- proved by the
+code-publication receipt naming exactly that push, in a write of its own before the label hands the head back to
+`late_source_stage`, where the claim is held and paid as every orchestrator rewrite's is (see
+[the rewritten-head report debt](#the-rewritten-head-report-debt-every-dispatch)).
+The ownership stays on the generation until the retirement drops it, so a retry after a landed push records the same
+claim without pushing again; a proved claim with no room on the pinned comment parks `late_pr_unreconciled` with the
+push kept and the generation live, and the next tick records it once room is made. That park is measured first -- its
+flags, and the ledger entry and watermark its notice adds, at the widest id -- since it grows the same full comment;
+where it does not fit either, nothing is posted or written, and the comment as it stands, the receipt and the
+generation's ownership on it, is what the next tick asks again from.
 
 The entry is what a call taken past publication has and one taken before it does not, and all three of its facts are
 frozen before any effect because a later tick could re-derive none of them: the **stage** the gate is taking the issue

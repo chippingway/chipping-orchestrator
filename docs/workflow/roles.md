@@ -1235,6 +1235,10 @@ its head in *this* repository rather than in a fork carrying the same ref names,
 resolves and pushes, and standing on the head the entry froze. Each of those parks the same way, and none of them
 drops what it could not confirm
 ([`../state-machine/delivery-stages.md`](../state-machine/delivery-stages.md#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr)).
+Where the candidate is an auto-rebase replay the generation took over from its attempt
+(`late_auto_rebase_replay_sha`), the settlement's push is a head this orchestrator rebased rather than one a developer
+reported on, so it records the report debt that push leaves (`late_replay_debt.py`) before its label resumes the
+source stage, as every orchestrator rewrite of a pull request's head does.
 
 Two things the reconciliation deliberately does not do. It creates **no snapshot** — a snapshot exists so children
 can be cut from a candidate about to be superseded, and an accepted candidate supersedes nothing, so preserving a

@@ -373,7 +373,8 @@ reached for the markers and missed, an `ACK:` line beside a report block include
 
 The **rewritten-head report refresh** acts on one on `workflow:validating`, where a recorded
 `developer_report_rewrite_debt` says this orchestrator's own push moved the pull request onto a head no settled report
-is about -- a rebase, a conflict resolution, or commits an earlier tick left unpushed
+is about -- a rebase, a conflict resolution, or commits an earlier tick left unpushed, and an auto-rebase replay the
+authorized settlement of a late adjudication published after the generation took it over
 ([`_handle_validating`](../state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating) step 3,
 `workflow/stages/validating/report_refresh.py`). A published report of that head that already settled, still intact
 and written against the current requirements, pays the claim and the reviewer runs. Otherwise, before any reviewer

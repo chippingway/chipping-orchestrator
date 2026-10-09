@@ -586,7 +586,9 @@ orchestrator/
       attempts.py       the replay checkpoint, the announcement mark's presence checks, and the whole-record clear
                         that ends an auto-rebase attempt. The workflow's publication records its replay here; the
                         workflow's finish of every landing puts the mark down through its own guarded checkpoint,
-                        while the anchor still stands and before relabeling, and reads it back here
+                        while the anchor still stands and before relabeling, and reads it back here; the
+                        workflow's handoff of an unpublished replay to a late generation
+                        (`workflow/engine/rewrite_takeover.py`) retires the whole record through the same clear
       attempt_records.py
                           validate interrupted replay terms and head as absent, declared, recorded, or damaged,
   sharing the replay
