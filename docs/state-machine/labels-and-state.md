@@ -1430,6 +1430,13 @@ The keys that matter for the state machine fall into a few groups:
   a run that brings none parks with `developer_report_owed` so a reply's report pays it instead. Otherwise it holds
   nothing, leaving the reviewer road to refuse the stale report as it would with no claim.
 
+  A settled report of the approved commit an approval's squash replaced is of neither head, so that hold leaves it to
+  the reviewer road too. Whether this orchestrator's squash links it to `previous_head` is answered by a dormant
+  read-only proof nothing consults yet (`workflow/engine/report_squash_lineage.py`,
+  [approval-squash lineage](delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)), from the squash's own
+  evidence carry: the claim's fields, their meanings, and its retargeting are unchanged, and
+  `developer_report_current` keeps the commit it was written about.
+
   `workflow:resolving_conflict` records the claim for every head its own push rewrites -- a clean rebase, a
   resolution the dev finished one with, and a recovered push (`stages/conflicts/report_debt.py`) -- and reads it
   off the code-publication receipt that push left: `implementing_published_lease` is `previous_head` and
