@@ -163,9 +163,11 @@ refresh published itself, one its recovery's retry pushed again, and one its rec
 observed rather than pushed a second time -- is finished by the one workflow-owned finish
 (`workflow/engine/rewrite_finish.py`) over guarded commits, with one post-push evidence decision ahead of its route.
 A replay the size gate hands to an adjudication instead can be handed to the late generation adjudicating it
-(`workflow/engine/rewrite_takeover.py`, dormant until a caller is wired in): proved off the pinned record to describe
-the same candidate, pull request, anchor, and stage, the generation records `late_auto_rebase_replay_sha` in the one
-guarded write that retires the attempt, and anything less leaves the attempt standing for its recovery.
+(`workflow/engine/rewrite_takeover.py`, dormant until a caller is wired in): where the pinned record proves a whole
+attempt and a live generation late adjudication would itself accept for this issue, describing the same candidate,
+pull request, anchor, and stage, the generation records `late_auto_rebase_replay_sha` in the one guarded write that
+retires the attempt, and anything less leaves the attempt standing for its recovery. That ownership licenses no push:
+the replay publishes only through an authorized `single`'s settlement, which records the report debt its push leaves.
 The `question` and `discussion` labels — and the
 parks and in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto rebase's
 anchor, of the records and parks that freeze a branch only the late size-gate claims keep the refresh away, so its
