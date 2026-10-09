@@ -1263,6 +1263,22 @@ because there it is the claim that this stage has already rerouted rather than a
   never recorded.
 - **Why it sits here**: behind the auto-rebase anchor readings, since a replay no recovery has published is no head a
   debt can name yet, and ahead of the handler it keeps off.
+- **Approval-squash lineage (dormant)**: a settled report of the approved commit an approval's squash replaced is of
+  neither head the claim names, so the report hold neither pays nor refreshes it. `lineage_verdict`
+  (`workflow/engine/report_squash_lineage.py`) proves whether this orchestrator squashed that commit into the head the
+  claim replaced, and nothing consults it yet. It is PROVED only where the claim reads whole and names the pinned
+  pull request, the head it stands on, and the settled report's pull request and branch, and a recorded evidence
+  carry -- which only the approval squash writes
+  ([evidence transaction](#the-verification-evidence-transaction-every-dispatch)) -- is of that settled report
+  exactly: the commit it is about, its pull request, revision, digest, and requirements, on the same repository and
+  branch, onto the claim's `previous_head`. The carry is read owed, current, or from history
+  whatever retired it, since the question is what the squash did rather than whether its evidence is current, and
+  both commits read again in the checkout (`verification_world.tree_of`) have to be the tree it recorded. Equal trees
+  alone, ancestry, and the `late_collapse_*` recovery fields prove nothing; so does a claim, report, or carry that
+  disagrees on any member, or a commit read as another tree, each DEFERRING. A checkout not on this host or a commit
+  git would not read HOLDS for the consumer to interpret. It writes nothing: `developer_report_current` keeps the
+  commit it was written about, and the claim keeps its fields, its actual replaced head, and its retargeting, so a
+  claim a later base advance retargeted still proves for the latest head it names.
 
 ## The seed hold (every dispatch, ahead of the reuse guard)
 - **Trigger**: `_pinned_state_refuses` (`workflow/engine/dispatch_guards.py`) on any issue this orchestrator opened
@@ -3745,8 +3761,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        then the tick holds with nothing run. Every refresh tick ends
        there, a settled one included: the next tick finds the debt paid.
      - **Held for nothing.** Anything else -- a claim nobody can read, another pull request or branch, a head
-       somebody pushed over the rewrite, a settled report of neither head -- holds nothing, so the subject
-       resolution in step 5 refuses the stale report as it would with no claim.
+       somebody pushed over the rewrite, a settled report of neither head -- one of the approved commit before an
+       approval squash included, which only the dormant
+       [approval-squash lineage](#the-rewritten-head-report-debt-every-dispatch) proof links to the claim -- holds
+       nothing, so the subject resolution in step 5 refuses the stale report as it would with no claim.
   4. A reviewer verdict an earlier tick persisted and never disposed of (`review_returned_verdict`) is finished ahead of
      the cap and the spawn (`review_resume.resumes_a_returned_verdict`), running no reviewer, folding no usage, and
      spending no round: one not yet handed through a run rebuilt of its round over the subject resolved again, in a
