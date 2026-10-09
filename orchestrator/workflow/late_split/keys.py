@@ -49,6 +49,7 @@ POST_PUBLICATION = "late_post_publication"
 SOURCE_STAGE = "late_source_stage"
 PUBLISHED_PR_NUMBER = "late_published_pr_number"
 PUBLISHED_SHA = "late_published_sha"
+AUTO_REBASE_REPLAY_SHA = "late_auto_rebase_replay_sha"
 RESOURCES = "late_resources"
 CONSUMERS = "late_consumers"
 SPLIT_CHILDREN = "late_split_children"
@@ -90,6 +91,7 @@ LATE_STATE_KEYS = (
     SOURCE_STAGE,
     PUBLISHED_PR_NUMBER,
     PUBLISHED_SHA,
+    AUTO_REBASE_REPLAY_SHA,
     RESOURCES,
     CONSUMERS,
     SPLIT_CHILDREN,

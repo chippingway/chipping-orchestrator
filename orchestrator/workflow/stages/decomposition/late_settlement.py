@@ -40,10 +40,11 @@ follows is that settlement.
 This owner keeps the ORDER of it while the steps themselves are owned beside
 it: `late_reconcile` takes the hold off and settles which pull request the
 issue records, `late_verdict_push` makes the push a candidate measured past
-publication earns, and `late_handback` hands the label on and retires the
-cycle. Nothing in this mode makes the decision the road starts from -- a
-verdict is not one -- which is why the road is entered from a human's command
-and from nothing else.
+publication earns, `late_replay_debt` records the report debt that push
+leaves where the candidate is an auto-rebase replay the generation took over,
+and `late_handback` hands the label on and retires the cycle. Nothing in this
+mode makes the decision the road starts from -- a verdict is not one -- which
+is why the road is entered from a human's command and from nothing else.
 
 The settlement writes an EXEMPTION: a durable record that this exact commit
 has been adjudicated, or the gate would measure the same candidate past the

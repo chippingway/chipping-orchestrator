@@ -4,7 +4,10 @@
 
 The shape reader distinguishes an absent record, an in-flight attempt, and
 damaged evidence. The attempts owner uses this same field group when clearing
-a completed or abandoned attempt, while every wire key stays in state.
+a completed or abandoned attempt, while every wire key stays in state. The
+handoff of an unpublished replay to a late generation
+(`workflow/engine/rewrite_takeover.py`) hands over only a record this reader
+reads back whole.
 """
 from __future__ import annotations
 

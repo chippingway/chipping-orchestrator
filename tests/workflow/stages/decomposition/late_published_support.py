@@ -9,6 +9,8 @@ publication group, and the pull request it names.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.publication import PublicationContext
 from tests.support.fakes import (
@@ -27,16 +29,21 @@ from tests.workflow.stages.decomposition.late_test_support import (
 
 
 def published_generation(
-    *, stage: str = PUBLISHED_SOURCE_STAGE, **overrides,
+    *, stage: str = PUBLISHED_SOURCE_STAGE, replay_sha: str = "", **overrides,
 ) -> LateGeneration:
-    """The same oversized generation, entered on a pull request that exists."""
+    """The same oversized generation, entered on a pull request that exists.
+
+    `replay_sha` is the auto-rebase replay the generation took over, where a
+    case says it took one over.
+    """
+    entered = PublicationContext.enter(
+        stage=stage,
+        pr_number=PUBLISHED_PR_NUMBER,
+        published_sha=PUBLISHED_HEAD_SHA,
+    )
     return late_generation(**{
         **overrides,
-        "publication": PublicationContext.enter(
-            stage=stage,
-            pr_number=PUBLISHED_PR_NUMBER,
-            published_sha=PUBLISHED_HEAD_SHA,
-        ),
+        "publication": replace(entered, replay_sha=replay_sha),
     })
 
 

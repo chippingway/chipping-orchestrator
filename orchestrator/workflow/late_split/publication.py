@@ -7,6 +7,12 @@ validates all three before claiming a publication; a pinned read may retain
 an incomplete group, whose predicate refuses to treat it as usable context.
 Keeping that distinction preserves an operator's damaged record for the
 reconciliation that must park it rather than infer a different publication.
+
+The replay a generation took over from an auto rebase rides the group too, as
+provenance rather than as a fourth term: it says the candidate is this
+orchestrator's own clean rebase of the published head, so its publication
+leaves the pull request owing a report, and it is ignored wherever it does not
+name the candidate it sits beside.
 """
 from __future__ import annotations
 
@@ -25,6 +31,22 @@ class PublicationContext:
     source_stage: WorkflowLabel | None = None
     published_pr_number: int | None = None
     published_sha: str = ""
+    # The unpublished replay of `published_sha` an auto rebase made and this
+    # generation took over (`workflow/engine/rewrite_takeover.py`), written in
+    # the write that retired the attempt which made it. Empty on every entry
+    # the gate freezes, and on every record written before the field existed.
+    replay_sha: str = ""
+
+    def replayed_as(self, candidate_sha: str) -> bool:
+        """Whether `candidate_sha` is the auto-rebase replay this whole group took over.
+
+        Bound to the exact commit, so a later candidate frozen into the same
+        group -- a revision committed over the replay -- is not taken for the
+        orchestrator's own rewrite of the published head.
+        """
+        if not (self.is_complete and candidate_sha):
+            return False
+        return self.replay_sha == candidate_sha
 
     @property
     def is_complete(self) -> bool:

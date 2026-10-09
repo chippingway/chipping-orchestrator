@@ -154,6 +154,13 @@ class LateGeneration:
     asked what it is rather than merely whether it is there -- only the five
     states that publish onto a pull request the remote already carries name
     an entry anything may be reconciled from.
+
+    The group's `replay_sha` is the one member that is not about the entry:
+    it says the candidate is the unpublished replay of the published head an
+    auto rebase made and this generation took over from the attempt that made
+    it. `publication.replayed_as` asks it of this record's own candidate,
+    which is what owes the settlement's push the report debt every
+    orchestrator rewrite of a pull request's head leaves.
     """
 
     cycle_id: int = 0

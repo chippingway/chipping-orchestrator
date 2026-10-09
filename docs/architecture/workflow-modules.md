@@ -1082,14 +1082,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             head it names and pays nothing. `dispatch_guards.py` holds the roads past an approval on
                             any claim and `stages/validating/report_refresh.py` holds the reviewer, obtains that
                             report, and pays it. `stages/conflicts/report_debt.py` records one for every head the
-                            conflict stage's own push rewrites, and `rewrite_finish_debt.py` one for each clean auto
+                            conflict stage's own push rewrites, `rewrite_finish_debt.py` one for each clean auto
                             rebase of the base refresh whose push lands -- the crash recovery's retry and a push it
-                            finds already landed included
+                            finds already landed included -- and `stages/decomposition/late_replay_debt.py` one for
+                            the replay a late generation took over, once its authorized settlement publishes it
     report_rewrite_room.py  whether the debt owner refused a rewrite for nothing but the pinned comment's room -- the
                             one refusal a writer holds on rather than handing the head on -- told from a record that
-                            would not read back and a standing claim the rewrite cannot extend; asked by both
-                            writers -- the conflict stage and the workflow finish below, whichever road reached it --
-                            so their readings cannot differ
+                            would not read back and a standing claim the rewrite cannot extend; asked by every
+                            writer -- the conflict stage, the workflow finish below, whichever road reached it, and
+                            the late settlement of a taken-over replay -- so their readings cannot differ
     report_squash_lineage.py the dormant proof that a settled report's approved commit is the one this orchestrator's
                             approval squash rewrote into the head a rewrite debt replaced. It reads the squash's own
                             evidence carry -- owed, current, or from history, never asking whether that evidence is
@@ -1596,6 +1597,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             which is how an accepted push whose answer was lost is finished without a second one.
                             What the proof or the observation found goes to `rewrite_finish.py` on its recovery road,
                             the mark an earlier finish left keeping its notice and event from being said again
+    rewrite_takeover.py     the handoff of an unpublished replay the size gate handed to an adjudication, from the
+                            attempt to the live late generation adjudicating it (`takes_over`), proved off the pinned
+                            record alone: the attempt read back whole (`git/base_sync/attempt_records.py`) with no
+                            announcement mark; a generation late adjudication would itself act on for this issue --
+                            through the late domain's record gate (`late_split/validation.py`), both frozen commits,
+                            and the issue it names -- live and measured past its ceiling, with a whole publication
+                            group; and the two agreeing on the candidate, the pull request, the anchor the
+                            generation froze as the published head, and the stage. Evidence short of that is
+                            INCOMPLETE and evidence of other work UNRELATED, both left standing; a proved pair lands
+                            in one guarded write (`report_commits.py`) decided on the attempt and the generation --
+                            `late_auto_rebase_replay_sha` staged and the whole attempt retired, every other field as
+                            the comment spells it -- and a repeated handoff answers OWNED and writes nothing. A write
+                            never confirmed is UNCONFIRMED, landed or not until the comment is read again. Dormant:
+                            nothing calls it yet, and ownership licenses no push
     parallel.py             the other in-tick mode: the bounded pool a `parallel_limit` above 1 runs the pass
                             across, the submission plan the executor is sized from -- which is why this half
                             materializes the enumeration the sequential one streams -- the family bucket folded
@@ -1628,7 +1643,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     obligations.py          resource kinds, states, and entries, with frozen resource and consumer ledgers; keyed
                             updates are idempotent, and opaque ledgers refuse updates that a write would discard
     publication.py          frozen publication context with validated entry and a fail-closed completeness predicate;
-                            the marker, source stage, pull request number, and head are one reconciliation claim
+                            the marker, source stage, pull request number, and head are one reconciliation claim, and
+                            the auto-rebase replay a generation took over rides beside them as provenance, answered
+                            only for the exact candidate it names (`replayed_as`)
     identity.py             the monotonic cycle and generation identities, the child depth the bound still allows,
                             the two local content fingerprints a scope edit and a trusted answer are told apart by,
                             and the bounded name-free print one ledger entry is reported under
@@ -1652,8 +1669,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     state.py                the round trip over the generation's own group, which leaves a legacy comment untouched
                             and an unreadable obligation intact: the fail-closed read, the write that drops every key
                             first and supersedes the retirement correlation on an identity, the clear defined as
-                            that group and nothing else, and the all-or-nothing read and write of the hold's route
-                            bookkeeping
+                            that group and nothing else, the all-or-nothing read and write of the hold's route
+                            bookkeeping, and the one key a replay takeover stages alone (`record_replay_takeover`),
+                            leaving every field it was proved against as written
     spends.py               the vocabulary that bounds a restored spend: every field a route may close, paired with
                             what that field may be set TO, since what comes back is applied to the pinned comment
                             and then read by the owner that knows what it is -- the rounds, the cleared bookmarks
@@ -2322,9 +2340,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             since every stage the label hands the issue to works from it and one carrying loose
                             edits or an unmeasured descendant would reach a review, a squash, and a merge with
                             nobody having read it
+      late_replay_debt.py   the report debt that push leaves where the candidate is an auto-rebase replay the
+                            generation took over (`workflow/engine/rewrite_takeover.py`): proved by that ownership
+                            and the code-publication receipt naming the replay over the frozen head on the frozen
+                            pull request, recorded through `workflow/engine/report_rewrite_debt.py` -- retargeting a
+                            standing claim as every rewrite does -- in a write of its own before the label, and
+                            re-derived by a retry after a landed push without a second one; a proved claim with no
+                            room parks `late_pr_unreconciled` with the push kept and the generation live, the park
+                            measured first -- its flags, and its notice's ledger entry and watermark at the widest
+                            id -- and nothing posted or written where it does not fit either
       late_handback.py      the effects a settled decision licenses, in the order a crash in them is safe in:
-                            the push, the label handed to the stage the record names rather than to implementing
-                            -- a pre-publication candidate goes back to the ordinary publication -- the accepted
+                            the push, the report debt a taken-over replay's push leaves, the label handed to the
+                            stage the record names rather than to implementing -- a pre-publication candidate goes
+                            back to the ordinary publication -- the accepted
                             notice, worded on the operator whose authorization is the only road here and quoting
                             the decomposer's rationale off the record through `late_notice`'s fencing, with a
                             display-only stand-in where the record holds none a reader can use, and the

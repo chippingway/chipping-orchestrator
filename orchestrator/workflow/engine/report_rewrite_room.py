@@ -10,9 +10,11 @@ proved this orchestrator's, so the writer hands it on and the reviewer road
 holds the report it finds to it. A proved rewrite the comment has no ROOM for
 is a debt the writer owes and could not write down, and handing its head on
 without it is the very road the debt exists to close, so the writer holds
-instead. Both writers that have to tell the two apart -- the conflict stage
-and the workflow finish every landed base rewrite gets
-(`rewrite_finish_debt`), whichever road reached it -- ask here, so the reading
+instead. Every writer that has to tell the two apart -- the conflict stage,
+the workflow finish every landed base rewrite gets (`rewrite_finish_debt`),
+whichever road reached it, and the late settlement that publishes an
+auto-rebase replay its generation took over
+(`stages/decomposition/late_replay_debt.py`) -- asks here, so the reading
 cannot come to differ between them.
 """
 from __future__ import annotations

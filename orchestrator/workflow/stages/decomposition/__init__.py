@@ -64,7 +64,9 @@ one is acted on in -- `late_reconcile` takes the hold off and settles which
 pull request the issue records, `late_proof` decides whether the publication a
 candidate was measured against is still standing somewhere the verdict may act
 on, `late_verdict_push` makes the push only this tick still holds the evidence
-for, and `late_handback` hands the label on and retires the cycle --
+for, `late_replay_debt` records the report debt that push leaves where the
+candidate is an auto-rebase replay the generation took over, and
+`late_handback` hands the label on and retires the cycle --
 `late_retry_cap` owns the same spent-budget park on this mode's road -- the
 gate its one spawn is charged to, and the hold that keeps a park nothing
 supersedes ahead of the evidence probe, the pull-request hold, and the content

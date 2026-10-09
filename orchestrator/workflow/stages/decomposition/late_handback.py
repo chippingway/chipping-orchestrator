@@ -7,10 +7,12 @@ crash-ordered sequence rather than one long one: what is durable before this
 owner runs is the DECISION -- the exemption, and the commit a push is still
 owed for beside it -- and what runs here are the effects that decision buys.
 
-The push comes first, made where the verdict was measured. Then the label,
-handed to the stage the record names rather than to `implementing`, because a
-generation entered on the published side names the one stage whose completion
-the candidate still owes. Only after that is the generation cleared: a
+The push comes first, made where the verdict was measured. A candidate that is
+an auto-rebase replay the generation took over owes the report debt that push
+leaves (`late_replay_debt`), recorded before anything hands the head on. Then
+the label, handed to the stage the record names rather than to `implementing`,
+because a generation entered on the published side names the one stage whose
+completion the candidate still owes. Only after that is the generation cleared: a
 `decomposing` issue with no generation on it is one the INITIAL decomposer
 would pick up and re-decompose, and an issue back on its own stage with a live
 generation is one the relabel guard puts back and the settlement re-runs.
@@ -47,6 +49,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
     late_owner as _late_owner,
     late_park_state as _late_park_state,
+    late_replay_debt as _late_replay_debt,
     late_run_reading as _late_run_reading,
     late_verdict_push as _late_verdict_push,
 )
@@ -92,6 +95,8 @@ def _continued(context: _LateContext) -> _LateDisposition | None:
     decision, and what this call does is the effects the decision licenses.
     """
     if not _late_verdict_push._pushed_where_it_was_measured(context):
+        return _LateDisposition.PARKED
+    if not _late_replay_debt._records_the_replay_debt(context):
         return _LateDisposition.PARKED
     stopped = _late_owner._latch_stops(context)
     if stopped is not None:
