@@ -226,10 +226,12 @@ def _decides_the_route(finish: LandedFinish) -> FinishOutcome:
     The post-push, pre-route step, and the one place the evidence a landed
     head is routed with is decided: asked once the push has landed and the
     debt and announcement are durable, and before anything moves the label or
-    retires the attempt. No evidence is produced or asked for a landed head in
-    this build, so the route is the base lag's alone, as every finish has
-    always decided it: `workflow:validating` for a head the base has not
-    advanced past, and the caller's next rebase for one it has.
+    retires the attempt. The evidence policy for this step is built and
+    dormant (`rewrite_evidence.decides`): nothing asks it yet, so no evidence
+    is produced or asked for a landed head in this build, and the route is the
+    base lag's alone, as every finish has always decided it:
+    `workflow:validating` for a head the base has not advanced past, and the
+    caller's next rebase for one it has.
     """
     if finish.behind:
         return FinishOutcome.CONTINUED

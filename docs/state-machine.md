@@ -165,7 +165,8 @@ no room for — measured on the whole announcement write it rides and on the com
 announced nor routed: it parks with the attempt standing until room is made and a human replies. Every landed head --
 one the refresh published itself, one its recovery's retry pushed again, and one its recovery found already standing,
 observed rather than pushed a second time -- is finished by the one workflow-owned finish
-(`workflow/engine/rewrite_finish.py`) over guarded commits, with one post-push evidence decision ahead of its route.
+(`workflow/engine/rewrite_finish.py`) over guarded commits, with one post-push evidence decision ahead of its route,
+whose policy (`workflow/engine/rewrite_evidence.py`) is built and dormant: nothing asks it yet.
 A replay the size gate hands to an adjudication instead is handed to the late generation adjudicating it
 (`workflow/engine/rewrite_takeover.py`) by the publication and by the recovery's retry alike, and a park the gate takes
 keeps the attempt for its recovery: where the pinned record proves a whole attempt and a live generation late

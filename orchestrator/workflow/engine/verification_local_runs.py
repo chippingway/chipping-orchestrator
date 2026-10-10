@@ -36,7 +36,10 @@ The one producer is the approval squash (`stages/validating/squash_evidence.py`)
 where the squash published another head, the run its verify gate made on the
 approved head is bound here against the evidence that approval rests on, and
 carried onto the new head. A run on an approval whose squash rewrote nothing
-stays the gate it was, and binds nothing.
+stays the gate it was, and binds nothing. The evidence policy of a landed
+automatic base rewrite (`rewrite_evidence`) binds its fresh run of the
+rewritten head here too, against a review of that very head; it is dormant,
+so nothing it binds is recorded yet.
 """
 from __future__ import annotations
 
