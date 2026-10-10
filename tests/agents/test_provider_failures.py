@@ -1,15 +1,16 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Provider-refusal verdict owner tests: the transient one and the wider one."""
+"""Provider-refusal verdict owner tests: the transient one, the wider one, and Codex's usage limit."""
 
 from __future__ import annotations
 
 import json
 import unittest
+from typing import Any
 
 from orchestrator.agents import provider_failures as _provider_failures
 from orchestrator.agents.models import AgentResult
-from tests.agents import agent_test_values as _agent_cases
+from tests.agents import agent_test_values as _agent_cases, codex_stream_cases as _streams
 
 
 def _claude_result_event(result_text: str, **result_fields) -> str:
@@ -34,6 +35,14 @@ def _agent_result(
         stdout=stdout,
         stderr="",
     )
+
+
+def _codex_verdict(
+    message: str, *, exit_code: int = 1, **error_fields: Any,
+) -> _provider_failures.CodexUsageLimitFailure | None:
+    """The usage-limit verdict on a Codex run whose closing turn failed with `message`."""
+    stdout = _streams.codex_jsonl(_streams.turn_failed(message, **error_fields))
+    return _provider_failures.codex_usage_limit_failure(_agent_result(exit_code=exit_code, stdout=stdout))
 
 
 # `(result text, is_error, exit code, transient?)`.
@@ -182,3 +191,111 @@ class ProviderRefusalTest(unittest.TestCase):
         )
         self.assertTrue(_provider_failures.is_provider_refusal(flagged))
         self.assertFalse(_provider_failures.is_transient_provider_failure(flagged))
+
+
+class CodexUsageLimitFailureTest(unittest.TestCase):
+    """A Codex turn the account's usage limit stopped writes no final message,
+    so the verdict is read off stdout: the code on the closing turn's error
+    where the CLI printed one, the provider's opening words beside a non-zero
+    exit where it did not, and nothing a turn that completed said.
+    """
+
+    def test_captured_failure_is_a_usage_limit_stop(self) -> None:
+        stopped = _agent_result(exit_code=1, stdout=_streams.CAPTURED_LIMIT_STDOUT)
+        failure = _provider_failures.codex_usage_limit_failure(stopped)
+        self.assertEqual(
+            failure,
+            _provider_failures.CodexUsageLimitFailure(_streams.CAPTURED_LIMIT_MESSAGE),
+        )
+        self.assertEqual(failure.reset_time, _streams.CAPTURED_RESET)
+        # Both refusal verdicts read the final message, which this stop leaves
+        # empty, so the usage-limit verdict is the one that names it.
+        self.assertFalse(_provider_failures.is_transient_provider_failure(stopped))
+        self.assertFalse(_provider_failures.is_provider_refusal(stopped))
+
+    def test_the_usage_limit_code_settles_it(self) -> None:
+        # Even on a message no fallback would match, and on a clean exit: only
+        # the provider's prose needs a failed exit to back it.
+        for message in ("Quota exhausted.", _streams.ROLLOUT_LIMIT_MESSAGE):
+            with self.subTest(message=message):
+                self.assertEqual(
+                    _codex_verdict(message, exit_code=0, codex_error_info=_streams.USAGE_LIMIT_CODE),
+                    _provider_failures.CodexUsageLimitFailure(message),
+                )
+        # Any other code keeps the limit's own words from deciding.
+        other_codes = (
+            "rate_limit_exceeded",
+            "server_overloaded",
+            {"http_connection_failed": {"http_status_code": 429}},
+        )
+        for error_info in other_codes:
+            with self.subTest(error_info=error_info):
+                self.assertIsNone(
+                    _codex_verdict(_streams.ROLLOUT_LIMIT_MESSAGE, codex_error_info=error_info),
+                )
+
+    def test_codeless_limit_needs_opening_and_exit(self) -> None:
+        plain_limit = "  You've hit your usage limit."
+        self.assertEqual(_codex_verdict(plain_limit), _provider_failures.CodexUsageLimitFailure(plain_limit))
+        self.assertIsNone(_codex_verdict(_streams.ROLLOUT_LIMIT_MESSAGE, exit_code=0))
+        # A limit quoted inside another error, and an unrelated error.
+        left_alone = (
+            f"unexpected status 400: {_streams.ROLLOUT_LIMIT_MESSAGE}",
+            "stream disconnected before completion",
+        )
+        for message in left_alone:
+            with self.subTest(message=message):
+                self.assertIsNone(_codex_verdict(message))
+
+    def test_reset_time_is_kept_as_phrased(self) -> None:
+        # `(provider message, reset read)`: the reset closes the message or one
+        # of its sentences, and a message that names none has none.
+        reset_cases = (
+            (_streams.ROLLOUT_LIMIT_MESSAGE, _streams.ROLLOUT_RESET),
+            (
+                (
+                    "You've hit your usage limit for gpt-5. Switch to another model now, "
+                    "or Try again at Oct 17th, 2026 1:36 AM. Then rerun the review."
+                ),
+                "Oct 17th, 2026 1:36 AM",
+            ),
+            ("You've hit your usage limit.", None),
+        )
+        for message, reset_time in reset_cases:
+            with self.subTest(message=message):
+                self.assertEqual(_provider_failures.CodexUsageLimitFailure(message).reset_time, reset_time)
+
+    def test_a_run_that_did_not_end_on_the_limit(self) -> None:
+        limit = _streams.ROLLOUT_LIMIT_MESSAGE
+        # Each exits non-zero with the limit's words in its last message or its
+        # stream, so only the turn it closed on keeps it from being a stop.
+        not_stopped = (
+            # A completed turn quoting the provider's words back.
+            _agent_result(
+                limit,
+                exit_code=1,
+                stdout=_streams.codex_jsonl(_streams.agent_message(limit), _streams.turn_completed()),
+            ),
+            # A stop set aside by a later turn the stream never closed.
+            *(
+                _agent_result(exit_code=1, stdout=stdout)
+                for stdout in _streams.LIMIT_THEN_UNFINISHED_TURN_STDOUTS
+            ),
+            # A coded mid-turn error the turn completed past.
+            _agent_result(
+                exit_code=1,
+                stdout=_streams.codex_jsonl(
+                    _streams.stream_error(limit, codex_error_info=_streams.USAGE_LIMIT_CODE),
+                    _streams.turn_completed(),
+                ),
+            ),
+            # A Claude run, whose stream carries no Codex turn at all.
+            _agent_result(
+                limit,
+                exit_code=1,
+                stdout=_claude_result_event(limit, **{_agent_cases._IS_ERROR_FIELD: True}),
+            ),
+        )
+        for agent_result in not_stopped:
+            with self.subTest(stdout=agent_result.stdout):
+                self.assertIsNone(_provider_failures.codex_usage_limit_failure(agent_result))

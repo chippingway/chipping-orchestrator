@@ -443,12 +443,24 @@ orchestrator/
                         any CLI's event tree, so a resume is issued against what the run actually reported
     sessions.py         Claude final-message JSONL parsing, including the terminal result event the final
                         message is taken from, published whole for the reader of the flags beside it
+    codex_events.py     Codex `exec --json` terminal-turn parsing: the error the `turn.failed` closing the last
+                        turn the stream started carried -- its message, and the `codex_error_info` code in
+                        either serialized shape when the CLI printed one -- read off stdout, since a failed
+                        turn leaves the `-o` file empty. A last turn that completed or never closed, its
+                        closing line undecodable included, reports no failure, mid-turn `error` events never
+                        decide, and lines that are not JSON objects are skipped wherever they sit
     provider_failures.py
                         the transient-provider verdict every stage that reads a final message as the agent's
                         own asks first: the backend's `is_error` flag where the run gave one, and the
-                        server-refusal message prefix beside a non-zero exit where it did not; and the wider
+                        server-refusal message prefix beside a non-zero exit where it did not; the wider
                         verdict of any provider refusal, 4xx included, for a caller settling whether a run got
-                        to its prompt at all, where the prefix alone decides when no flag was given
+                        to its prompt at all, where the prefix alone decides when no flag was given; and the
+                        Codex usage-limit stop, returned as a `CodexUsageLimitFailure` diagnostic carrying
+                        the provider message verbatim (unredacted and unbounded, for its consumer to redact
+                        and bound) and the reset time as phrased: a `usage_limit_exceeded` code on the
+                        closing turn's error decides it, any other code rules it out, and a code-less error
+                        falls back to the provider's opening words only beside a non-zero exit. No workflow
+                        stage asks it yet
     process_groups.py   what a child started into its own process group costs to tear down, apart from any
                         record of which ones are in flight: the bounded drain that reports a pipe a descendant
                         still holds open rather than blocking on it, the `killpg(_, 0)` probe that answers

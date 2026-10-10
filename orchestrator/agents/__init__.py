@@ -5,8 +5,10 @@
 Result and option models live in the ``models`` owner, credential filtering /
 injected git identity in the ``environment`` owner, the backend-agnostic
 session-id walk in the ``session_ids`` owner, Claude final-message parsing in
-the ``sessions`` owner, the transient-provider verdict read off that output in
-the ``provider_failures`` owner, the shared process registry and the runs
+the ``sessions`` owner, Codex terminal-turn parsing in the ``codex_events``
+owner, the provider verdicts read off that output -- transient refusal, any
+refusal, and Codex's usage-limit stop with its diagnostic -- in the
+``provider_failures`` owner, the shared process registry and the runs
 spawned into it in the ``processes`` owner, the group drain, liveness probe,
 and signal escalation those teardowns spend in the ``process_groups`` owner,
 and shared dispatch -- backend selection, result assembly, and spawn logging --

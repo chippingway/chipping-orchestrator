@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Codex backend command, environment, resume, interruption, last-message."""
+"""Codex backend command, environment, resume, interruption, last-message, failed-turn stream."""
 
 from __future__ import annotations
 
@@ -9,9 +9,17 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.agents import environment as _environment, models as _models
+from orchestrator.agents import (
+    environment as _environment,
+    models as _models,
+    provider_failures as _provider_failures,
+)
 from orchestrator.agents.backends import codex as _codex
-from tests.agents import agent_test_support as _support, agent_test_values as _agent_cases
+from tests.agents import (
+    agent_test_support as _support,
+    agent_test_values as _agent_cases,
+    codex_stream_cases as _streams,
+)
 
 _LAST_MESSAGE_PATH = Path("/tmp/codex-last-message-doesnt-matter.txt")
 
@@ -288,6 +296,22 @@ class CodexLastMessageTest(unittest.TestCase):
         spent_path = self._spent_scratch_path()
         self.assertFalse(spent_path.exists())
         self.assertEqual(_codex.read_last_message(spent_path), "")
+
+    def test_failed_turn_stream_survives_empty_file(self) -> None:
+        # A turn the usage limit stopped writes nothing to the file, so the
+        # stream on stdout is the only record of why, and the result keeps it
+        # whole for the provider verdict read off it.
+        with patch(
+            _agent_cases._POPEN_TARGET,
+            return_value=_support.completed(stdout=_streams.CAPTURED_LIMIT_STDOUT, returncode=1),
+        ):
+            agent_result = _codex.run_codex(_agent_cases._PROMPT, _agent_cases._CWD)
+        self.assertEqual(agent_result.last_message, "")
+        self.assertEqual(agent_result.stdout, _streams.CAPTURED_LIMIT_STDOUT)
+        self.assertEqual(
+            _provider_failures.codex_usage_limit_failure(agent_result),
+            _provider_failures.CodexUsageLimitFailure(_streams.CAPTURED_LIMIT_MESSAGE),
+        )
 
     def _spent_scratch_path(self) -> Path:
         # Returning from inside the block runs the context manager's cleanup,
