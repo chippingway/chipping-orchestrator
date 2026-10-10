@@ -5,13 +5,19 @@
 from __future__ import annotations
 
 import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.runtime import self_update
+from tests.config import config_test_support as _config_support
+from tests.support.git import _run_git
 
 _GIT_ATTR = "git"
+_REPO_ROOT_ATTR = "REPO_ROOT"
+_RUN_ATTR = "run"
 _BASE_BRANCH_ATTR = "ORCHESTRATOR_BASE_BRANCH"
 _BASE_BRANCH = "main"
 _BASE_REF = f"origin/{_BASE_BRANCH}"
@@ -82,16 +88,46 @@ class GitProbeTest(unittest.TestCase):
             )
 
     def test_head_sha_none_when_it_does_not_resolve(self) -> None:
-        for answer, expected in (
-            (_completed(f"{_START_SHA}\n"), _START_SHA),
-            (_completed(returncode=_UNRESOLVED_REVISION), None),
+        with tempfile.TemporaryDirectory() as td, patch.object(
+            config,
+            _REPO_ROOT_ATTR,
+            _config_support.make_checkout(Path(td)),
         ):
-            with self.subTest(returncode=answer.returncode), patch.object(
-                self_update,
-                _GIT_ATTR,
-                FakeGit({_HEAD_COMMAND: answer}),
+            for answer, expected in (
+                (_completed(f"{_START_SHA}\n"), _START_SHA),
+                (_completed(returncode=_UNRESOLVED_REVISION), None),
             ):
-                self.assertEqual(self_update.own_head_sha(), expected)
+                with self.subTest(returncode=answer.returncode), patch.object(
+                    self_update,
+                    _GIT_ATTR,
+                    FakeGit({_HEAD_COMMAND: answer}),
+                ):
+                    self.assertEqual(self_update.own_head_sha(), expected)
+
+
+class InstalledPackageTest(unittest.TestCase):
+    """An installed package has no restart baseline, whatever encloses it.
+
+    Its root is an environment's `site-packages`, from which git would
+    discover any repository around it -- a home directory kept as a dotfiles
+    repository, or a target clone the environment was created in -- and
+    answer with that repository's HEAD. No git runs for the guard there, so
+    the loop never fetches from that repository or exits for its commits.
+    """
+
+    def test_enclosing_repository_lends_no_head(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            enclosing = Path(td)
+            _run_git("init", "-q", "-b", _BASE_BRANCH, cwd=enclosing)
+            _run_git("commit", "-q", "--allow-empty", "-m", "init", cwd=enclosing)
+            site_packages = enclosing / "venv" / "lib" / "python3.12" / "site-packages"
+            site_packages.mkdir(parents=True)
+            with (
+                patch.object(config, _REPO_ROOT_ATTR, site_packages),
+                patch.object(subprocess, _RUN_ATTR, wraps=subprocess.run) as ran,
+            ):
+                self.assertIsNone(self_update.own_head_sha())
+                ran.assert_not_called()
 
 
 class SelfModifyingMergeTest(unittest.TestCase):

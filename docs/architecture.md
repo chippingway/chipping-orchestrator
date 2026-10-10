@@ -338,8 +338,11 @@ self-exit and be restarted with new source code; those launch commands are in th
   startup HEAD fetches `origin/<ORCHESTRATOR_BASE_BRANCH>` (default `main`). If it advanced past the startup SHA *and*
   the new commits touch `orchestrator/`, the loop exits 0 so the wrapper can re-exec the new code. The branch is
   decoupled from `BASE_BRANCH` so a target repo with a different default branch does not interfere with self-update
-  detection. The startup HEAD is probed at the package root in every layout, so an installed environment inside an
-  unrelated git checkout can also enable this guard.
+  detection. The guard runs only in the orchestrator's own source checkout — an ordinary clone, a linked worktree, or
+  an editable install — as `config.layout.is_source_checkout` proves it at the package root itself. An installed
+  package has no startup HEAD, even inside an enclosing git repository, so it runs no git for this guard, never
+  fetches, and never exits for a self-modifying merge; its version changes only through an explicit pipx upgrade or
+  reinstall.
 - **Developer checkout self-update resilience** (`run.sh self_update`): before each launch — at startup and after every
   self-modifying-merge restart — the wrapper fast-forwards the orchestrator checkout to
   `origin/<ORCHESTRATOR_BASE_BRANCH>`. It skips the pull and warns to stderr if a non-base branch is checked out, and
@@ -959,7 +962,7 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
 - **`git push`** — subprocess. Trigger: after dev produces clean commits, or after a discussion round commits the
   confirmed plan and the branch reads as exactly that one file. Cadence: per fix; per discussion, once the humans
   have confirmed the design.
-- **self-restart check** — git fetch + diff. Trigger: start of each tick. Cadence: every tick.
+- **self-restart check** — git fetch + diff, source checkout only. Trigger: start of each tick. Cadence: every tick.
 
 ## Architecture schema
 

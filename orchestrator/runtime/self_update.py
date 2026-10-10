@@ -2,6 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Git probes for detecting self-modifying upstream merges.
 
+They run only in the orchestrator's own source checkout -- an ordinary clone,
+a linked worktree, or an editable install of either, the checkout `run.sh`
+relaunches on new code -- as `config.layout.is_source_checkout` proves it at
+`REPO_ROOT` itself. An installed package's root is an environment's
+`site-packages`, where git would discover whatever repository happens to
+enclose it, so an installed package gets no restart baseline: it never runs
+these probes, never fetches, and never exits for a merge. Its version changes
+only through an explicit upgrade or reinstall.
+
 The base branch probed here is the orchestrator's own
 (`ORCHESTRATOR_BASE_BRANCH`), not the target repository's, so a target whose
 default branch differs never reads as the orchestrator having been updated.
@@ -13,6 +22,7 @@ from __future__ import annotations
 import subprocess
 
 from orchestrator import config
+from orchestrator.config import layout as _config_layout
 
 _RUNTIME_SOURCE_PREFIX = "orchestrator/"
 
@@ -29,7 +39,14 @@ def git(*args: str) -> subprocess.CompletedProcess:
 
 
 def own_head_sha() -> str | None:
-    """Return the orchestrator checkout's HEAD when resolvable."""
+    """Return the orchestrator source checkout's HEAD when resolvable.
+
+    Outside a source checkout no HEAD is asked for, so an enclosing
+    repository's never stands in, and the ``None`` returned there keeps the
+    loop from probing for a merge at all.
+    """
+    if not _config_layout.is_source_checkout(config.REPO_ROOT):
+        return None
     head_revision = git("rev-parse", "HEAD")
     return (
         head_revision.stdout.strip()

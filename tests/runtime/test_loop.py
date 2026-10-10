@@ -89,9 +89,11 @@ class DrivePollingTest(unittest.TestCase):
 
 
 class PollingLoopTest(unittest.TestCase):
-    """The loop polls until the run is stopped, and exits 0 the moment the
-    checkout it runs from moves under it so the wrapper relaunches the new
-    code rather than polling on with stale handlers.
+    """The loop polls until the run is stopped, and, when it runs from the
+    orchestrator's own source checkout, exits 0 the moment that checkout moves
+    under it so the wrapper relaunches the new code rather than polling on with
+    stale handlers. An installed package has no HEAD to compare against, so it
+    polls until the run is stopped.
     """
 
     def test_polls_until_the_run_stops(self) -> None:
@@ -126,9 +128,10 @@ class PollingLoopTest(unittest.TestCase):
             run_tick.assert_not_called()
 
     def test_unresolvable_head_keeps_polling(self) -> None:
-        # A checkout whose HEAD does not resolve (no `.git`, a detached
-        # worktree) has no baseline to compare against, so the restart probe
-        # must not run at all rather than compare against nothing.
+        # An installed package has no baseline to compare against, and
+        # neither has a source checkout whose HEAD does not resolve, so the
+        # restart probe must not run at all rather than compare against
+        # nothing.
         state = RuntimeState()
         with (
             patch.object(self_update, _HEAD_SHA_ATTR, return_value=None),

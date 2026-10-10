@@ -23,7 +23,7 @@ precedence over it -- ``artifact_records`` is the one bounded record
 each of those candidates is reported to the analytics sink as, ``exclusion`` is
 how that claim reaches the
 processes this one cannot see -- the only coordination here that is not between
-threads -- ``self_update`` answers whether the checkout
+threads -- ``self_update`` answers whether the source checkout
 the process runs from has moved, and ``shutdown`` owns the signal handler, the
 watchdog behind it, and the forced exit it ends at.
 

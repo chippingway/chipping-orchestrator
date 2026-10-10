@@ -421,10 +421,13 @@ def default_repo_specs() -> list[RepoSpec]:
 
 
 # Base branch of the orchestrator's *own* repo (REPO_ROOT). Used only by the
-# self-update path: `_self_modifying_merge_happened` watches `origin/<this>`
-# for new commits under `orchestrator/`, and `run.sh` fast-forwards to it on
-# every restart. Decoupled from BASE_BRANCH so the target repo can have a
-# different default branch (e.g. `master`) without breaking self-update.
+# self-update path, and only when REPO_ROOT is the orchestrator's own source
+# checkout (`layout.is_source_checkout`): there
+# `self_update.self_modifying_merge_happened` watches `origin/<this>` for new
+# commits under `orchestrator/`, and `run.sh` fast-forwards to it on every
+# restart. An installed package never fetches it. Decoupled from BASE_BRANCH
+# so the target repo can have a different default branch (e.g. `master`)
+# without breaking self-update.
 ORCHESTRATOR_BASE_BRANCH: str = _RESOLVED["ORCHESTRATOR_BASE_BRANCH"]
 
 # Quiet window after the most recent PR/issue comment before resuming the dev
