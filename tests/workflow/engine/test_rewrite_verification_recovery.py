@@ -6,17 +6,23 @@ A tick that died after its push landed -- before the configured command ran,
 or behind a run that completed and was never recorded -- captured nothing, so
 the recovery proves the landing again and decides its evidence afresh: the
 command runs once more on the rebased head, and what it printed is recorded
-before the route. A run the evidence write captured before the tick died is
-routed exactly as recorded with no second run, unless something it was bound
-to moved since -- the requirements, the report and review subject, the
-configuration, or the base -- which abandons it, with nothing run again and the
-fresh reviewer owing the evidence. Something moving while the recovery's own
-run is under way leaves that run eligible for nothing. No recovery pushes the
-landed head again, repeats its announcement, or launches a developer.
+before the route -- unless the base was rewound under the head, which runs
+nothing. A run the evidence write captured before the tick died is routed
+exactly as recorded with no second run, unless something it was bound to moved
+since -- the requirements, the report and review subject, the configuration,
+or the base -- which abandons it, with nothing run again and the fresh reviewer
+owing the evidence; once abandoned it is never run again, even by a recovery
+whose own route that abandonment stopped short of. A review that moves while
+the recovery proves the run routes nothing. Something moving while the
+recovery's own run is under way leaves that run eligible for nothing, and a
+base that advances meanwhile holds the head unrouted for the next recovery to
+rebase. No recovery pushes the landed head again, repeats its announcement, or
+launches a developer.
 """
 from __future__ import annotations
 
 import unittest
+from functools import partial
 
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
@@ -24,6 +30,7 @@ from tests.workflow.engine import (
     rewrite_verification_recovery_support as support,
     verification_report_fixture as _report,
 )
+from tests.workflow.interleaving import _RacesPastTheStep
 
 _EDITED_BODY = "Also cover a moved base."
 
@@ -40,6 +47,17 @@ def _settles_a_later_report(case: support.VerificationRecoveryCase, head: str) -
     case.gh.write_pinned_state(case.issue, case.state)
 
 
+def _settles_once_read(case: support.VerificationRecoveryCase, head: str, reread) -> None:
+    """Put `reread` back on `case`'s client, then settle report 3 of `head` and hand a reviewer it."""
+    case.gh.reread_report_location = reread
+    _settles_a_later_report(case, head)
+
+
+def _rewinds_the_base(case: support.VerificationRecoveryCase, _head: str) -> None:
+    """Force the remote's base back onto the commit the anchor was made over, dropping what it advanced by."""
+    case._git("update-ref", "refs/heads/main", f"{case.anchor}^", cwd=case._remote)
+
+
 def _puts_the_remote_back(case: support.VerificationRecoveryCase) -> None:
     """Move the pull request's remote branch back onto the head the rebase replaced."""
     case._git("update-ref", f"refs/heads/{git_support.BRANCH}", case.anchor, cwd=case._remote)
@@ -50,6 +68,7 @@ _MOVED_BEFORE = (
     ("the issue body was edited", lambda case, _head: setattr(case.issue, "body", _EDITED_BODY)),
     ("a later report was settled and reviewed", _settles_a_later_report),
     ("another command was configured", lambda case, _head: case.configures("echo another")),
+    ("the base was rewound under the head", _rewinds_the_base),
 )
 
 # What another road does while the recovery's own run of the command is under way.
@@ -73,17 +92,31 @@ class MissingRecordRecoveryTest(support.VerificationRecoveryCase, unittest.TestC
                 self.setUp()
                 head = self.lands_a_reviewed_rebase()
                 self.dies_verifying(head, completed=completed)
-                anchored = readings.pinned(self)[readings.KEY_PENDING_PUSH]
-                self.assertEqual(
-                    (self.runs(), readings.pinned_records(self)[0], anchored),
-                    (ran, None, self.anchor),
-                )
+                self.assert_held(None)
+                self.assertEqual(self.runs(), ran)
 
                 self.recovers()
 
                 self._assert_recorded_a_run_of(head)
                 self.assertEqual(self.runs(), ran + 1)
                 self.assert_recovered(head)
+
+    def test_a_rewound_base_runs_nothing(self) -> None:
+        # The base is rewound under the landed head before the recovery, so
+        # the head carries commits over it beyond its own replay: nothing
+        # runs and nothing is recorded, and the head goes to the fresh
+        # reviewer, which owes the evidence.
+        head = self.lands_a_reviewed_rebase()
+        self.dies_verifying(head, completed=False)
+        _rewinds_the_base(self, head)
+
+        self.recovers()
+
+        self.assertEqual(
+            (readings.pinned_records(self), self.runs()),
+            (git_support.nothing_recorded(self), 0),
+        )
+        self.assert_recovered(head)
 
     def _assert_recorded_a_run_of(self, head: str) -> None:
         """The command's run on `head` pending, executed here and recorded as it printed, beside nothing current."""
@@ -154,10 +187,42 @@ class CapturedRunRecoveryTest(support.VerificationRecoveryCase, unittest.TestCas
             (readings.ROUTED, readings.RETIRED),
         )
 
+    def test_an_abandoned_run_is_not_run_again(self) -> None:
+        # The recovery abandons the captured run for a moved configuration
+        # and dies at its relabel, behind that durable abandonment. The next
+        # recovery finds the run retired in history: it runs nothing again
+        # and routes the head to the fresh reviewer.
+        head, captured = self._captures()
+        self.configures("echo another")
+        self.dies_routing(self.recovers)
+        self._assert_abandoned(captured)
+
+        self.recovers()
+
+        self._assert_abandoned(captured)
+        self.assert_recovered(head)
+
+    def test_a_review_moved_mid_proof_routes_nothing(self) -> None:
+        # A later report settles and is reviewed while the recovery re-reads
+        # the one the captured run is bound to: the run proves over what the
+        # tick read, but the route is decided on the records the comment
+        # still carries, so nothing is routed or retired. The next recovery
+        # proves the run against the later review and abandons it.
+        head, captured = self._captures()
+        reread = self.gh.reread_report_location
+        self.gh.reread_report_location = _RacesPastTheStep(reread, partial(_settles_once_read, self, head, reread))
+
+        self.recovers()
+
+        self.assert_held(captured)
+        self.recovers()
+        self._assert_abandoned(captured)
+        self.assert_recovered(head)
+
     def _captures(self) -> tuple:
         """Land a reviewed rebase whose finish records its run and dies at the relabel; the head, and that run."""
         head = self.lands_a_reviewed_rebase()
-        self.dies_routing(head)
+        self.dies_routing(partial(self.finishes, head))
         self.assertEqual(self.runs(), 1)
         return head, readings.pinned_records(self)[0]
 
@@ -189,6 +254,32 @@ class MovedDuringRecoveryTest(support.VerificationRecoveryCase, unittest.TestCas
                     (git_support.nothing_recorded(self), 1),
                 )
                 self.assert_recovered(head)
+
+    def test_a_base_moved_during_the_rerun_holds(self) -> None:
+        # The base advances while the recovery's run is under way: the head is
+        # no longer level with it, so the run is recorded nowhere and the head
+        # is not routed. The next recovery counts the head against the moved
+        # base and continues it to the tick's rebase, which publishes and
+        # routes the next head with nothing run, since no reviewer was handed it.
+        head = self.lands_a_reviewed_rebase()
+        self.dies_verifying(head, completed=False)
+
+        with self.assertLogs("orchestrator.workflow", "INFO") as logged:
+            self.recovers(during=support.advances_the_base_again)
+            self.assertIn(support.decided_moved(head), str(logged.output))
+
+        self.assert_held(None)
+        self.recovers()
+        rebased = git_support.remote_head(self)
+        recorded = readings.pinned_records(self)
+        self.assertEqual(
+            (recorded, self.runs(), readings.relabels(self)),
+            (git_support.nothing_recorded(self), 1, readings.ROUTED),
+        )
+        self.assertEqual(
+            (support.announced(self), self.pushes.call_count, self.developer.call_count),
+            ([head, rebased], 1, 0),
+        )
 
 
 if __name__ == "__main__":

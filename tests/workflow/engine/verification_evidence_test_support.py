@@ -152,6 +152,7 @@ class VerificationEvidenceCase:
             seams.enter_context(seam_patch("_branch_divergence", self.world.divergence))
             seams.enter_context(seam_patch("_commit_present", self.world.commit_present))
             seams.enter_context(seam_patch("_tree_sha", self.world.tree_sha))
+            seams.enter_context(seam_patch("_standing_on_the_remote_base", self.world.standing))
             yield
 
     def moves_the_head(self, head: str) -> None:

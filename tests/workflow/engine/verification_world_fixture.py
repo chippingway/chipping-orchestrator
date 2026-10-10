@@ -3,7 +3,8 @@
 """The git world one piece of verification evidence is proved against.
 
 The fetch result and the divergence say what the ref the pull request is built
-from looks like; `trees` says which commits this repository reads and the full
+from looks like, and `base` where a landed rewrite's head stands against the
+base it was counted against; `trees` says which commits this repository reads and the full
 tree each carries, so a commit missing from it is one git could not read; and
 `tags` says which ids are annotated tags and the commit each points at. The
 tags are answered as git answers them: `^{tree}` peels one to its commit's
@@ -16,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
 from orchestrator.git.publication.probes import _BranchDivergence
 from tests.workflow.engine import verification_record_test_support as _record_support
 from tests.workflow.engine.report_checkout_fixture import Fetched
@@ -62,6 +64,7 @@ class EvidenceWorld:
         TESTED_SHA: TESTED_TREE, SQUASHED_SHA: TESTED_TREE, REBASED_SHA: REBASED_TREE,
     })
     tags: dict[str, str] = field(default_factory=lambda: {TAG_SHA: SQUASHED_SHA})
+    base: _BaseStanding = _BaseStanding.STANDING
 
     def fetch(self, *_args, **_kw) -> Fetched:
         """What `_authed_fetch` hands back in this world."""
@@ -70,6 +73,10 @@ class EvidenceWorld:
     def divergence(self, *_args, **_kw) -> _BranchDivergence:
         """What `_branch_divergence` reads in this world."""
         return self.remote
+
+    def standing(self, *_args) -> _BaseStanding:
+        """Where a landed head stands against its base in this world (`_standing_on_the_remote_base`)."""
+        return self.base
 
     def commit_present(self, _worktree, revision: str, *_rest, peeled: bool = True) -> bool:
         """Whether `revision` reads as a commit here -- peeled through a tag, unless not."""

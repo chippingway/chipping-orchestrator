@@ -58,11 +58,15 @@ move refuses stops the finish there with nothing behind it made:
   with the attempt standing. The finish that completes it runs the commands
   again only where no run was captured, and takes what this one recorded
   only once it proves again: a captured transaction something moved under
-  since is abandoned, with nothing run again.
+  since -- the base included -- is abandoned, with nothing run again then or
+  after. The evidence is held to the base the head was counted against
+  around any run, so a base that moved meanwhile holds the route too.
 - The write that retires the attempt is prepared before the relabel to
   `workflow:validating`, then lands behind it -- the anchor is what brings a
   tick lost between them back, to the mark this finish left and the evidence
-  it recorded. An issue already on `workflow:validating` under its own mark
+  it recorded. It is decided on every record the evidence is bound through,
+  so a report or review another road moved after the evidence was decided
+  refuses the route rather than riding it. An issue already on `workflow:validating` under its own mark
   is not relabelled again.
 
 Run under the issue writer claim the caller already holds -- the base refresh

@@ -53,11 +53,14 @@ makes nothing, and the next tick classifies whatever it then finds.
 The evidence decision resumes where the dead tick left it
 (`rewrite_finish_evidence`). A tick that died before its evidence write
 landed -- before the configured commands ran, or behind a run that completed
--- captured nothing, so the commands run again on the landed head. A run or
-carry it captured is never made again: it is routed with its own transcript
-and provenance once its binding proves again, and abandoned, with nothing
-run, where the requirements, the report or review subject, the configuration,
-the heads, or the base moved since. Nothing on this road launches a developer.
+-- captured nothing, so the commands run again on the landed head, unless
+the base was rewound under it. A run or carry it captured is never made
+again, abandoned or not: it is routed with its own transcript and provenance
+once its binding and the head's standing on the base prove again, and
+abandoned, with nothing run, where the requirements, the report or review
+subject, the configuration, the heads, or the base moved since. A base that
+moves after the head was counted holds the route for the next tick, which
+counts the head again. Nothing on this road launches a developer.
 
 Run under the issue writer claim the base refresh (`base_refresh`) takes
 before the issue is read and holds through the route.

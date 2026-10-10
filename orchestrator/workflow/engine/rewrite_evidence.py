@@ -45,7 +45,10 @@ on the publication that report was settled to, moved to the rewritten head.
 The whole binding is proved before anything runs, so a subject still about
 the head the rewrite replaced -- the refresh not yet settled, or no reviewer
 handed it -- runs nothing. A pull request or report nobody could read is
-reported in the proof's own verdict, so its HOLD reaches the caller.
+reported in the proof's own verdict, so its HOLD reaches the caller. Nor does
+a head that no longer stands on the base it was counted against
+(`rewrite_base_standing`): a remote base moved since HOLDS, and a base rewound
+under the head so that it carries commits beyond the anchor's replay DEFERS.
 
 After the run its own record is held to the binding planned for it: the
 commit and tree the runner read as its baseline, and the context it minted,
@@ -59,8 +62,11 @@ when the tick began -- and the whole binding proved again over them: the pull
 request still on the rewritten head, the remote branch and the checkout
 standing there, the configuration still the one the commands ran under, the
 review subject and the settled report still the ones bound, and the issue's
-requirements unchanged. Anything that moved, or that nobody could read again,
-makes the result MOVED, eligible for nothing. Only then is it
+requirements unchanged -- and last the remote's base still on the tip the
+head was counted against. Anything that moved, or that nobody could read
+again, makes the result MOVED, eligible for nothing; a base that moved, like
+a reading nobody could take, HOLDS it, so the head is neither recorded nor
+routed and the next tick counts it against the base again. Only then is it
 classified: a run `verification_local_runs` binds is FRESH, carrying exactly
 the commands, exit statuses, and outputs that ran; a passing run that binds
 nothing records nothing and leaves the evidence to the reviewer; and every
@@ -87,6 +93,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.rewrite_base_standing import standing_refusal
 from orchestrator.workflow.engine.rewrite_evidence_models import RewriteEvidence, RewriteEvidenceRoute
 from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
 
@@ -192,13 +199,17 @@ def _verified(reading: _proof.ProofReading, finish: LandedFinish, invalidates: b
     """A fresh run of the configured commands on the rewritten head, and what it came to.
 
     The configuration is read once, so the binding proved before the run is
-    minted under exactly the commands and timeout the runner is handed.
+    minted under exactly the commands and timeout the runner is handed. A
+    head that no longer stands on the base it was counted against runs
+    nothing (`rewrite_base_standing.standing_refusal`).
     """
     configured = (tuple(config.VERIFY_COMMANDS), config.VERIFY_TIMEOUT)
     planned = _planned(reading.state, finish, configured)
     found = planned
     if isinstance(planned, _records.EvidenceBinding):
         found = _proof.binding_verdict(reading, planned)
+    if found.proved:
+        found = standing_refusal(finish) or found
     if not found.proved:
         return RewriteEvidence(RewriteEvidenceRoute.REVIEWER, invalidates, refusal=found)
     run = _verify_runner._run_verify_commands(
@@ -251,8 +262,9 @@ def _ran(
     nothing about the rewritten head, a failure included, and the readings
     behind it cannot tell. Then `planned` is proved again over the issue and
     its pinned comment read afresh, so a failure on a head nobody stands on
-    any more is no failure of the rewritten head either. Where the baseline
-    is `planned`'s, so is the binding a passing run earns.
+    any more is no failure of the rewritten head either, and last the base the
+    head was counted against, which a run can outlast. Where the baseline is
+    `planned`'s, so is the binding a passing run earns.
     """
     bound = _local_runs.local_run_evidence(run, planned.target)
     baseline = (run.commit, run.tree_identity, run.context_revision)
@@ -260,6 +272,8 @@ def _ran(
         found = _proved_again(finish, planned)
     else:
         found = _ELSEWHERE
+    if found.proved:
+        found = standing_refusal(finish) or found
     if not found.proved:
         return RewriteEvidence(RewriteEvidenceRoute.MOVED, invalidates, refusal=found, run=run)
     if bound is not None:

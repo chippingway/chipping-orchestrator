@@ -32,7 +32,8 @@ requires of the pinned comment is staged here and lands in one guarded commit
 
 The route is held instead -- nothing relabelled or retired, the attempt left
 standing for a later tick's recovery to finish -- for a decision short of a
-reading nobody could take (HELD), an invalidation the comment has no room for
+reading nobody could take, a base that moved after the head was counted
+against it among them (HELD), an invalidation the comment has no room for
 (HELD), an evidence write refused or never confirmed (REFUSED, UNCONFIRMED),
 and a failure notice whose publication nobody could confirm (HELD). The
 standing anchor holds every handler meanwhile, so no reviewer is handed the
@@ -47,11 +48,13 @@ the decision itself, taken again with no second run and published only where
 the pull request does not carry it yet. A transaction it recorded for the
 landed head is a captured run or carry, never made again: proved again over
 what this finish reads (`rewrite_finish_captured`), it is routed exactly as
-recorded, or -- something it is bound to moved since -- abandoned into history
-in the same write, with nothing run again and the fresh reviewer owing the
-evidence. A head the base advanced past again is decided nothing for
-(`continues`): a transaction recorded for it is abandoned before the attempt
-retires, since the next rebase replaces that head.
+recorded, or -- something it is bound to moved since, the base included --
+abandoned into history in the same write, with nothing run again and the
+fresh reviewer owing the evidence; and once abandoned it is still a run this
+landing captured, so the finish after one that stopped short of its route
+decides nothing afresh either. A head the base advanced past again is decided
+nothing for (`continues`): a transaction recorded for it is abandoned before
+the attempt retires, since the next rebase replaces that head.
 
 Whether the current evidence has to be invalidated is asked as the write is
 staged, on every road, rather than taken from a decision read before its
@@ -94,11 +97,13 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     current evidence is owed now: the failure notice it recorded published,
     and the transaction it recorded proved again first -- routed as it was
     captured, or abandoned where something moved under it
-    (`rewrite_finish_captured`).
+    (`rewrite_finish_captured`). One it recorded and a later finish already
+    abandoned is still a run this landing captured: nothing is decided or
+    run afresh, and the fresh reviewer owes the evidence.
     """
     failure = _failures.recorded(finish.state, finish.head)
     captured = _captured.recorded(finish)
-    if failure is None and captured is None:
+    if failure is None and captured is None and not _captured.retired(finish):
         return _decides(finish)
     staged = _writes.staging(finish)
     if not _invalidates(finish, staged):

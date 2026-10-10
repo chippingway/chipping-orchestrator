@@ -59,8 +59,9 @@ class FinishOutcome(StrEnum):
     land -- refused with nothing written, or sent and never confirmed -- and
     nothing that depends on it was made. HELD is an evidence decision that
     could not be taken or made good -- a reading nobody could take, the
-    recorded decision of an earlier finish included, an invalidation or an
-    abandonment the pinned comment has no room for, or a failure notice
+    recorded decision of an earlier finish included, a base that moved after
+    the head was counted against it, an invalidation or an abandonment the
+    pinned comment has no room for, or a failure notice
     nobody could confirm the pull request carries -- so nothing was routed
     and the attempt stands for a later tick to finish. UNFINISHABLE is a landing the
     pinned record does not account for, and nothing at all was made for it.

@@ -619,8 +619,9 @@ orchestrator/
                         the frozen, data-only handoffs an automatic PR base rewrite crosses the git boundary as:
                         the candidate -- original and rewritten heads and their trees, the branch, the base and
                         remote readings, the worktree status, and the attempt's anchor, pull request, and stage --
-                        and the landed record of one lease-pinned publication of it, an uncertain answer included.
-                        Neither carries a GitHub client, an issue, pinned state, or a callback. The workflow's
+                        and the landed record of one lease-pinned publication of it, an uncertain answer included;
+                        and where a landed head stands against the base it was counted against (`_BaseStanding`).
+                        None carries a GitHub client, an issue, pinned state, or a callback. The workflow's
                         ordinary publication of a clean rebase, its retry of a replay a crash kept off the pull
                         request, and its recovery of a push already landed read, publish or observe, and finish
                         through them
@@ -629,7 +630,11 @@ orchestrator/
                         push: a head that left the candidate, a tree dirtied or made unreadable, a base ref rewound
                         so it no longer contains the tip the replay sits over, or a remote off the anchor --
                         already on the candidate included, which excuses none of the others -- refuses, while a
-                        base that only advanced does not
+                        base that only advanced does not. For a landed head it also answers whether the head
+                        still stands on its base (`_standing_on_the_remote_base`): the remote's base still on the
+                        tip the head was counted against, read without a fetch, and the head carrying over it no
+                        more than a rebase of the anchor onto it replays -- standing, moved, dropped by a base
+                        rewound under it, or unread
       rewrite_transport.py
                         publishes exactly the candidate's rewritten head, leased to its original one, through the
                         branch transport once that fresh reading refuses nothing, so a publication that landed is

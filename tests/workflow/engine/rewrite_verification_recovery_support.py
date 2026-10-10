@@ -9,7 +9,8 @@ so the evidence policy runs the configured command on that head. The
 publication's finish is handed the landing, and the process dies at a step
 (`ProcessDied`, which nothing on the finish's road catches): in the verify
 runner before any command ran, behind a run that completed, or at the relabel
-behind the evidence write that captured the run.
+behind the evidence write that captured the run -- or a recovery dies at its
+own relabel, behind the write that abandoned that run.
 
 What it left is recovered by the whole per-tick base refresh (`recovers`): the
 anchor read, the branch fetched, the push observed where the remote stands,
@@ -19,6 +20,7 @@ time and no developer was launched.
 """
 from __future__ import annotations
 
+import contextlib
 from functools import partial
 from typing import NoReturn
 from unittest.mock import Mock, patch
@@ -79,13 +81,18 @@ class VerificationRecoveryCase(git_support.RealGitFinishCase):
         with seam_patch("_run_verify_commands", died), self.assertRaises(ProcessDied):
             self.finishes(head)
 
-    def dies_routing(self, head: str) -> None:
-        """Publish `head`'s finish and die at its relabel, behind the evidence write that captured its run."""
+    def dies_routing(self, finishing) -> None:
+        """Run `finishing` -- a finish, or a whole recovery -- dying at its relabel, behind every write before it.
+
+        A death inside the base refresh is one more failed issue sync to it,
+        logged and gone past, exactly as nothing behind it runs.
+        """
         relabel = self.gh.set_workflow_label
         self.gh.set_workflow_label = dies
-        with self.assertRaises(ProcessDied):
-            self.finishes(head)
+        with contextlib.suppress(ProcessDied):
+            finishing()
         self.gh.set_workflow_label = relabel
+        self.assertEqual(readings.relabels(self), ())
 
     def recovers(self, during=None) -> None:
         """One whole per-tick base refresh, `during` done to this case behind any run of the commands it makes."""
@@ -96,6 +103,15 @@ class VerificationRecoveryCase(git_support.RealGitFinishCase):
             seam_patch("_run_verify_commands", verify),
         ):
             self._refresh()
+
+    def assert_held(self, pending) -> None:
+        """Nothing routed and the attempt still pinned on its anchor, `pending` the transaction the comment carries."""
+        held = readings.pinned(self)
+        standing = (readings.records(held)[0], held[readings.KEY_PENDING_PUSH])
+        self.assertEqual(
+            (*standing, readings.relabels(self)),
+            (pending, self.anchor, ()),
+        )
 
     def assert_recovered(self, head: str) -> None:
         """`head` routed once with its attempt retired and announced once, nothing pushed and no developer launched."""

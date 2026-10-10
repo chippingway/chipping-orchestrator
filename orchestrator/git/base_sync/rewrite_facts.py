@@ -20,6 +20,12 @@ landed -- or landed and lost its answer -- only a fresh reading shows the branch
 already standing on it. The lease covers what is left, the moment between that
 reading and the push.
 
+Once a candidate has landed, the evidence its head is routed with is held to
+the base it was counted against: whether the remote's base is still on that
+tip, and whether the head over it is the anchor's replay and nothing more
+(`_standing_on_the_remote_base`), a base advanced, rewound, or repointed since
+being no ground a verification of the head may be recorded or routed on.
+
 The workflow's ordinary publication of a clean rebase reads a candidate here
 (`workflow/engine/rewrite_publication.py`), and so do both roads its recovery
 takes an interrupted attempt down -- the retry of a replay nothing published
@@ -33,8 +39,9 @@ from dataclasses import replace
 from pathlib import Path
 
 from orchestrator.config import models as _config_models
-from orchestrator.git import branch_transport, ref_transport
+from orchestrator.git import branch_transport, commands, ref_transport
 from orchestrator.git.base_sync.rewrite_handoffs import (
+    _BaseStanding,
     _CheckoutReading,
     _RewriteAttempt,
     _RewriteCandidate,
@@ -89,6 +96,48 @@ def _standing_on_the_base(
     return _publication_probes._branch_divergence(
         spec, worktree, spec.base_branch, head,
     )
+
+
+def _standing_on_the_remote_base(
+    spec: _config_models.RepoSpec, worktree: Path, candidate: _RewriteCandidate,
+) -> _BaseStanding:
+    """Whether `candidate`'s head still stands where its reading counted it against the base.
+
+    Asked of a landing whose push is already out, by the evidence policy
+    before it records or routes anything over it (`workflow/engine/
+    rewrite_base_standing.py`), so a base that moved after the head was
+    counted -- while its commands ran, or between the tick that made a
+    decision and the recovery taking it -- is told apart from one that did
+    not. The remote is asked rather than the local ref: that ref is the
+    reading the candidate was counted from, and only the remote says the
+    base has gone elsewhere since. Nothing is fetched, so the shared ref every
+    other worktree counts from is left as the tick's own fetch set it.
+
+    A base still on that tip can have been rewound to it before the reading
+    was taken -- by the recovery's own fetch, say -- and then the head carries
+    the commits the base dropped beside its replay. A rebase onto the tip
+    replays exactly the anchor's commits the tip lacks by patch, merges left
+    out, which is how `git rebase` itself picks them; a head carrying more over
+    the tip than that is no replay onto it.
+    """
+    counted = candidate.checkout.base
+    anchor = candidate.attempt.anchor
+    if not (counted.readable and anchor):
+        return _BaseStanding.UNREAD
+    remote = branch_transport._remote_branch_read(spec, worktree, spec.base_branch).sha
+    if remote is None:
+        return _BaseStanding.UNREAD
+    if remote != counted.tip:
+        return _BaseStanding.MOVED
+    replayed = commands._git_hardened(
+        "rev-list", "--count", "--cherry-pick", "--right-only", "--no-merges",
+        f"{counted.tip}...{anchor}", "--",
+        cwd=worktree,
+    )
+    count = (replayed.stdout or "").strip()
+    if replayed.returncode != 0 or not count.isdigit():
+        return _BaseStanding.UNREAD
+    return _BaseStanding.DROPPED if counted.ahead > int(count) else _BaseStanding.STANDING
 
 
 def _prepares_the_candidate(

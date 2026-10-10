@@ -33,7 +33,13 @@ report, a review subject, or an evidence record another road moved while the
 commands ran refuses it.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
-park's flags, the round, and the claim the checkpoint made durable. `PARK`
+park's flags, the round, the claim the checkpoint made durable, and every
+record the evidence is bound through -- so the head is routed only with
+evidence decided over the records the comment still carries, a transaction
+an earlier finish recorded and the evidence step left unchanged included: a
+report, review subject, or evidence record another road moved since refuses
+the route rather than letting it carry a decision about a review nobody is
+handed any more. `PARK`
 records the park a debt with no
 room takes, decided on what the checkpoint would have been -- the round
 included, since how wide it is decides which of the two writes the debt was
@@ -102,7 +108,7 @@ FINISH = _commits.ReportWrite(
     owned=_ATTEMPT | _PARK_FLAGS | {
         _ROUND, _prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, FAILED_VERIFICATION,
     },
-    decided_on=_ATTEMPT | _PARK_FLAGS | {_ROUND, _rewrite_debt.REWRITE_DEBT},
+    decided_on=frozenset(_durable._BOUND_RECORDS) | _ATTEMPT | _PARK_FLAGS | {_ROUND, _rewrite_debt.REWRITE_DEBT},
 )
 
 PARK = _commits.ReportWrite(

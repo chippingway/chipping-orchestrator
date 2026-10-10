@@ -41,6 +41,25 @@ from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.workflow.state import WorkflowLabel
 
 
+class _BaseStanding(StrEnum):
+    """Whether a landed candidate's head still stands where it was counted against the base.
+
+    STANDING is the remote's base still on the tip the head was counted
+    against, and the head carrying nothing over it but the anchor's own
+    commits a rebase onto that tip replays. MOVED is a remote base somewhere
+    else since -- advanced, rewound, or repointed -- which a later tick's
+    fetch counts the head against again. DROPPED is a base on that tip that no
+    longer carries what the replay was made onto: the head carries commits
+    over it beyond the anchor's own, which a rewound base dropped. UNREAD is a
+    reading that did not happen.
+    """
+
+    STANDING = "standing"
+    MOVED = "moved"
+    DROPPED = "dropped"
+    UNREAD = "unread"
+
+
 class _RewriteRefusal(StrEnum):
     """Why a candidate may not be published, named rather than swallowed.
 

@@ -689,10 +689,12 @@ evidence write refused or unconfirmed holds the route with the attempt standing,
 landed to finish under its own mark, launching no developer. A tick that died before its evidence write landed --
 before the configured commands ran, or behind a run that completed -- captured nothing, and that recovery runs them
 again; a failure notice an earlier finish recorded is published once with nothing run again, and a transaction it
-recorded is routed exactly as recorded only once its binding proves again, abandoned into history with nothing run
-again where the heads, the requirements, the report or review subject, or the configuration moved since -- and
-abandoned too where the base advanced past the head it is about. The invalidation a moved context now owes lands
-before the route either way
+recorded is routed exactly as recorded only once its binding and the head's standing on the base prove again,
+abandoned into history with nothing run again -- then or by any later finish -- where the heads, the requirements, the
+report or review subject, or the configuration moved since, or the base was rewound under the head, and abandoned too
+where the base advanced past the head it is about. A base that moves after the head was counted against it holds the
+route, and the retirement behind it is decided on every record the evidence is bound through, so a review moved
+meanwhile refuses it. The invalidation a moved context now owes lands before the route either way
 ([base-rewrite evidence, recovered](delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
