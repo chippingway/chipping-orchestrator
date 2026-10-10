@@ -14,19 +14,28 @@ the pinned fields the publication is resolved from
 (`ReportWrite.on_the_publication`), and keeping every other field -- unknown
 ones included -- as the fresh reading carries it.
 
-Three writes, and each lists what it has to land exactly among the records it
+Four writes, and each lists what it has to land exactly among the records it
 is decided on as well as among its own, since a field staged as it was read is
 no move of the write's and would otherwise be left to whatever another road
 did with it. `CHECKPOINT` makes the report debt durable and, on a finish that
 announces, the reset round and the announcement mark beside it, the notice's
 ledger entry reserved over the fresh ledger and kept beside it; it is decided
 on the attempt being finished, the report records and claim the debt was
-staged over, the park's flags, and the round. `FINISH` retires the attempt,
-resets the round, and spends a human's retry, decided on the attempt, the
+staged over, the park's flags, and the round. `EVIDENCE` makes the landed
+head's evidence decision durable ahead of its route
+(`rewrite_finish_evidence`): the current evidence retired into history, the
+transaction a fresh or carried result is recorded as, with the revision floor
+it raises, and the notice a failed run is owed (`rewrite_finish_failures`) --
+decided on the attempt, the debt, and every record the evidence is bound
+through (`verification_durable`), so a report, a review subject, or an
+evidence record another road moved while the commands ran refuses it.
+`FINISH` retires the attempt, resets the round, spends a human's retry, and
+clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, and the claim the checkpoint made durable. `PARK`
-records the park a debt with no room takes, decided on what the checkpoint
-would have been -- the round included, since how wide it is decides which of
-the two writes the debt was measured on had no room.
+records the park a debt with no
+room takes, decided on what the checkpoint would have been -- the round
+included, since how wide it is decides which of the two writes the debt was
+measured on had no room.
 
 Anything but a commit that landed stops the finish there (`lands`,
 `prepares`), and nothing that depends on the write is made: a refusal writes
@@ -51,7 +60,10 @@ from orchestrator.workflow.engine import (
     report_commits as _commits,
     report_rewrite_debt as _rewrite_debt,
     rewrite_finish_debt as _debt,
+    verification_durable as _durable,
+    verification_records as _evidence_records,
 )
+from orchestrator.workflow.engine.rewrite_finish_failures import FAILED_VERIFICATION
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
@@ -71,8 +83,21 @@ CHECKPOINT = _commits.ReportWrite(
     decided_on=_CLAIM | _ATTEMPT | _PARK_FLAGS | {_ROUND},
 )
 
+EVIDENCE = _commits.ReportWrite(
+    owned=frozenset((
+        _evidence_records.PENDING_EVIDENCE,
+        _evidence_records.CURRENT_EVIDENCE,
+        _evidence_records.EVIDENCE_HISTORY,
+        _evidence_records.REVISION_FLOOR,
+        FAILED_VERIFICATION,
+    )),
+    decided_on=frozenset(_durable._BOUND_RECORDS) | _ATTEMPT | {_rewrite_debt.REWRITE_DEBT},
+)
+
 FINISH = _commits.ReportWrite(
-    owned=_ATTEMPT | _PARK_FLAGS | {_ROUND, _prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID},
+    owned=_ATTEMPT | _PARK_FLAGS | {
+        _ROUND, _prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, FAILED_VERIFICATION,
+    },
     decided_on=_ATTEMPT | _PARK_FLAGS | {_ROUND, _rewrite_debt.REWRITE_DEBT},
 )
 
@@ -99,7 +124,10 @@ def retirement(finish: LandedFinish) -> PinnedState:
     The whole attempt retired, the round reset, and the human reply a recovery
     re-entered on spent with the park it answered: a finish that dropped the
     attempt without spending that reply would leave the park flagged beside a
-    route nothing brings back.
+    route nothing brings back. A failure notice recorded for the landed head
+    is cleared with it, since the route behind it is taken only once the pull
+    request carries that notice, and a head continued to another rebase owes
+    none.
     """
     staged = staging(finish)
     if finish.retry is not None:
@@ -108,6 +136,8 @@ def retirement(finish: LandedFinish) -> PinnedState:
         staged.set(_base_sync_state._PARK_REASON, None)
     _attempts._clears_the_attempt(staged)
     staged.set(_ROUND, 0)
+    if staged.carries(FAILED_VERIFICATION):
+        staged.set(FAILED_VERIFICATION, None)
     return staged
 
 

@@ -44,11 +44,13 @@ current evidence reads it here first (`verification_proof`). Current evidence
 is invalidated here (`retire_current_evidence`) by the approval squash's carry
 owner (`stages/validating/squash_evidence.py`), where it proves the evidence no
 longer answers for the pull request: a carry refused, a settled carry the
-relabel's retry no longer proves, or one whose handoff that retry drops. The
-dormant evidence decision of a landed automatic base rewrite stages the same
-retirement where the rewrite moved the full tree or the verification context
-(`rewrite_evidence_models.RewriteEvidence.stages`), for a caller nothing has
-wired yet.
+relabel's retry no longer proves, or one whose handoff that retry drops. A
+landed automatic base rewrite's finish retires it the same way where the
+rewrite moved the full tree or the verification context
+(`rewrite_finish_evidence`, the invalidation its evidence decision implies:
+`rewrite_evidence_models.RewriteEvidence.stages`), asked again as its write is
+staged -- behind any commands run, and of a decision an earlier finish
+recorded -- and lands that before the head is routed.
 """
 from __future__ import annotations
 

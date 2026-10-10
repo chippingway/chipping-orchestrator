@@ -44,13 +44,23 @@ move refuses stops the finish there with nothing behind it made:
   round, and the mark while the anchor still stands. A finish whose mark
   already names this head repeats neither: it lands only a debt that is new
   beside it -- one an earlier build's mark never carried -- before its route.
-- The route is decided (`_decides_the_route`), and the write that retires the
-  attempt is prepared before the relabel to `workflow:validating`, then lands
-  behind it -- the anchor is what brings a tick lost between them back, to
-  the mark this finish left. A head the base has advanced past again is not
-  routed: its retirement lands, and the caller's ordinary rebase goes on from
-  it. An issue already on `workflow:validating` under its own mark is not
-  relabelled again.
+- The route is decided (`_decides_the_route`). A head the base has advanced
+  past again is not routed: its retirement lands, and the caller's ordinary
+  rebase goes on from it. Any other head's evidence is decided and made
+  durable first (`rewrite_finish_evidence`): the current evidence the rewrite
+  moved past invalidated into history, and a fresh or carried result recorded
+  as a pending transaction, in a guarded commit that lands before anything
+  routes -- or nothing recorded, the fresh reviewer owing the evidence, a
+  failed run's notice recorded and put on the pull request once. A decision
+  nobody could take, an invalidation with no room, an evidence write that did
+  not land, or a failure notice nobody could confirm published holds the
+  route with the attempt standing, and the finish that completes it reuses
+  what this one recorded.
+- The write that retires the attempt is prepared before the relabel to
+  `workflow:validating`, then lands behind it -- the anchor is what brings a
+  tick lost between them back, to the mark this finish left and the evidence
+  it recorded. An issue already on `workflow:validating` under its own mark
+  is not relabelled again.
 
 Run under the issue writer claim the caller already holds -- the base refresh
 (`base_refresh`) takes it before the issue is read and keeps it through the
@@ -63,7 +73,10 @@ PUBLICATION road; the recovery hands over, on the RECOVERY road
 never published (`rewrite_retry`) and a push the interrupted tick already
 landed (`rewrite_landed`) -- observed where the remote stands, or proved there
 by the leased no-op that settles an outstanding transfer. So all three share
-one post-push policy and one evidence decision.
+one post-push policy and one evidence decision, and a finish one tick could
+not complete -- a write refused or unconfirmed, an evidence decision held --
+is completed by the recovery of a push already landed, from what the pinned
+record says it made.
 """
 from __future__ import annotations
 
@@ -81,6 +94,7 @@ from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     report_rewrite_debt as _rewrite_debt,
     rewrite_finish_debt as _debt,
+    rewrite_finish_evidence as _evidence,
     rewrite_finish_notices as _notices,
     rewrite_finish_writes as _writes,
 )
@@ -88,6 +102,9 @@ from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, Fi
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
+
+# The routes a decided head is taken on; any other decision is where the finish stopped.
+_HEADED = frozenset((FinishOutcome.ROUTED, FinishOutcome.CONTINUED))
 
 
 def finalizes(finish: LandedFinish) -> FinishOutcome:
@@ -102,7 +119,10 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     stopped = _checkpoints(finish, announced=announced)
     if stopped is not None:
         return stopped
-    return _routes(finish, _decides_the_route(finish), announced=announced)
+    headed = _decides_the_route(finish)
+    if headed not in _HEADED:
+        return headed
+    return _routes(finish, headed, announced=announced)
 
 
 def finishes_the_recovery(context: _AutoRebaseRecoveryContext, landing: _LandedRewrite) -> bool:
@@ -221,21 +241,21 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
 
 
 def _decides_the_route(finish: LandedFinish) -> FinishOutcome:
-    """Where the landed head goes once its checkpoint is durable: ROUTED, or CONTINUED to another rebase.
+    """Where the landed head goes once its checkpoint is durable: ROUTED, CONTINUED, or where its evidence stopped it.
 
     The post-push, pre-route step, and the one place the evidence a landed
     head is routed with is decided: asked once the push has landed and the
     debt and announcement are durable, and before anything moves the label or
-    retires the attempt. The evidence policy for this step is built and
-    dormant (`rewrite_evidence.decides`): nothing asks it yet, so no evidence
-    is produced or asked for a landed head in this build, and the route is the
-    base lag's alone, as every finish has always decided it:
-    `workflow:validating` for a head the base has not advanced past, and the
-    caller's next rebase for one it has.
+    retires the attempt. A head the base has advanced past is CONTINUED to the
+    caller's next rebase with no evidence decided, since that rebase replaces
+    it and the head it lands is decided then. Every other head is ROUTED to
+    `workflow:validating` only once the evidence it is routed with is durable
+    (`rewrite_finish_evidence.settles`); a decision or write that stopped short
+    of that is the outcome instead, and nothing routes.
     """
     if finish.behind:
         return FinishOutcome.CONTINUED
-    return FinishOutcome.ROUTED
+    return _evidence.settles(finish) or FinishOutcome.ROUTED
 
 
 def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> FinishOutcome:

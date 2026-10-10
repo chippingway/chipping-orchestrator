@@ -39,7 +39,8 @@ it is made here, in the order the auto rebase has always kept:
   or remote, a rejected lease -- resets the checkout onto the anchor and parks
   for a human. One that landed is handed to the one finish every landing gets
   (`rewrite_finish`), which owns the report debt, the notice and the event, the
-  route, and the attempt's retirement.
+  evidence the landed head is routed with, the route, and the attempt's
+  retirement.
 
 Run under the issue writer claim the base refresh (`base_refresh`) takes
 before the issue is read and holds through the route; the finish asks for none

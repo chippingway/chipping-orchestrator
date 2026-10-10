@@ -995,7 +995,7 @@ orchestrator/
       runner.py         the commit and tree a run verifies, read before any command and refused when unreadable or
                         when the worktree is not proven clean; the stripped child environment, the fail-fast
                         command sequencing, and the result that records the run -- for the validating approval
-                        gate, and for the dormant base-rewrite evidence policy (`workflow/engine/rewrite_evidence.py`)
+                        gate, and for the base-rewrite evidence policy (`workflow/engine/rewrite_evidence.py`)
     worktrees/          the per-issue checkouts an agent runs in, the read-only inventory of which issues they
                         and the branches beside them name, the classification of which of those may be
                         reclaimed, and the bounded pass that spends one of those classifications

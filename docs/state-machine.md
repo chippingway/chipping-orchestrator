@@ -165,8 +165,13 @@ no room for — measured on the whole announcement write it rides and on the com
 announced nor routed: it parks with the attempt standing until room is made and a human replies. Every landed head --
 one the refresh published itself, one its recovery's retry pushed again, and one its recovery found already standing,
 observed rather than pushed a second time -- is finished by the one workflow-owned finish
-(`workflow/engine/rewrite_finish.py`) over guarded commits, with one post-push evidence decision ahead of its route,
-whose policy (`workflow/engine/rewrite_evidence.py`) is built and dormant: nothing asks it yet.
+(`workflow/engine/rewrite_finish.py`) over guarded commits, with one post-push evidence decision ahead of its route
+(`workflow/engine/rewrite_evidence.py`), made durable before the relabel (`workflow/engine/rewrite_finish_evidence.py`):
+evidence the rewrite moved past is invalidated into history, and a fresh run of the configured commands or a proved
+carry is recorded for the dispatcher to publish, or the fresh reviewer owes the evidence -- a failed run's notice
+recorded and put on the pull request once (`auto_base_rebase_failed_verification`). A decision nobody could take, an
+evidence write that did not land or fit, or a failure notice nobody could confirm published holds the route with the
+attempt standing.
 A replay the size gate hands to an adjudication instead is handed to the late generation adjudicating it
 (`workflow/engine/rewrite_takeover.py`) by the publication and by the recovery's retry alike, and a park the gate takes
 keeps the attempt for its recovery: where the pinned record proves a whole attempt and a live generation late
@@ -223,12 +228,13 @@ Beside it sits the additive `verification_evidence_*` group -- the pending evide
 pull request carries now, a bounded history of retired evidence, the receipt of the last one settled, and the highest
 revision spent -- which the dispatcher reconciles directly behind the report, publishing an artifact only once the
 pull request, trees, review subject, configuration, and requirements are proved, and carrying evidence to another
-head only on an equal full tree under the same context. Its live producers are two: the returned-verdict disposition
-records the transaction a reviewer's declared commands were minted as in the write that persists the verdict, and
-neither verdict is acted on until it settles; and the approval's squash records a carry onto the head it published --
-of the passing run its own verify gate made on the approved head, or else of the evidence that approval rests on --
-the tested commit unchanged, the new head an equivalent-tree target, holding the move to `workflow:documenting` until
-it settles
+head only on an equal full tree under the same context. Its live producers are three: the returned-verdict
+disposition records the transaction a reviewer's declared commands were minted as in the write that persists the
+verdict, and neither verdict is acted on until it settles; the approval's squash records a carry onto the head it
+published -- of the passing run its own verify gate made on the approved head, or else of the evidence that approval
+rests on -- the tested commit unchanged, the new head an equivalent-tree target, holding the move to
+`workflow:documenting` until it settles; and a landed automatic base rewrite records a fresh run of its rewritten head,
+or a carry onto it, before its route, bound to the settled report and the review of that head
 ([evidence transaction](state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 The additive `developer_report_rewrite_debt` claim is the report a rewrite of the pull request's head leaves owed --
 the pull request, its branch, the head the rewrite replaced, and the exact head it published. While any claim stands,

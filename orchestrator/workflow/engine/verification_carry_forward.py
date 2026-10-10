@@ -49,7 +49,7 @@ orchestrator-executed evidence (`verification_local_runs`), proved over the
 same context, head, approved review, trees, and pull request -- everything
 but an artifact, which a run never published has none of to re-read.
 
-The dormant evidence policy of a landed automatic base rewrite
+The evidence policy of a landed automatic base rewrite
 (`rewrite_evidence`) asks the generic decision and takes only its first way:
 a review recorded about the rewritten head. An approval of the head the
 rebase replaced is never carried across it, since the rewritten head's report

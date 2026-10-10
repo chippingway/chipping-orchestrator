@@ -4,8 +4,12 @@
 
 A carry is a transaction carrying a run onto a head it did not run on
 (`verification_carry_forward`): its tested commit is another than the head it
-answers for. Only an approval's squash records one, and it answers for that
-head only on that approval's word. So nothing a later route does makes it
+answers for. Two roads record one. An approval's squash carries onto the head
+it published, and that carry answers for the head only on that approval's
+word. A landed automatic base rewrite's finish carries onto its rewritten
+head (`rewrite_finish_evidence`), answering for the review of that head it is
+bound to, and was recorded for no approval: the one it takes is only an
+approval of exactly that review. Either way nothing a later route does makes it
 answer again once anything short of a reading nobody could take has refused
 it -- its proof ahead of the post, the source it copied its transcript from,
 the reading of its own artifact under its receipt, or the proof and both

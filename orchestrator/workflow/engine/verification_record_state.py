@@ -45,15 +45,17 @@ settlement's own guarded commit and prepared over the comment as it stands
 (`verification_publishing`), since writes landing between the two ticks can
 spend the room a record was accepted with.
 
-Two live roads mint and record a transaction. A returned reviewer's: its
+Three live roads mint and record a transaction. A returned reviewer's: its
 claim reader mints one from the commands it declared, and its verdict record
 stages it (`stages/validating/review_claims.py`, `review_verdicts.py`) in the
-write that persists the verdict. And an approval's squash: the carry of the
+write that persists the verdict. An approval's squash: the carry of the
 evidence the approval rests on onto the head it published, minted from the
 source artifact's transcript -- naming that source, which the carry is held
 to until it settles -- and staged in the write settling the squash's
-handoff (`stages/validating/squash_evidence.py`). The dispatcher reconciles
-whatever a producer records (`verification_records`).
+handoff (`stages/validating/squash_evidence.py`). And a landed automatic base
+rewrite's finish: a fresh run of the rewritten head, or a carry onto it,
+staged in the write that lands ahead of its route (`rewrite_finish_evidence`).
+The dispatcher reconciles whatever a producer records (`verification_records`).
 """
 from __future__ import annotations
 
