@@ -25,6 +25,7 @@ _OWNERS = (
     "agy_events",
     "agy_summary",
     "claude_rows",
+    "claude_settlement",
     "claude_summary",
     "codex_rows",
     "codex_summary",

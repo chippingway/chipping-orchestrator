@@ -1,6 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Claude usage-frame decoding and last-frame selection."""
+"""Claude usage-frame decoding: the usage block each frame carries, and the message it belongs to.
+
+Every `assistant` frame repeats the usage its message's `message_start` event opened with, so its output count is the
+one at the start of the message. Two other frames carry final counts: the `message_delta` stream event that closes a
+lead-thread message, naming it through its wrapper's `api_message_id`, and a subagent's hand-back, the lead thread's
+`tool_result` whose `tool_use_result.usage` is the usage of the message that closed the subagent. Which count a
+message keeps is settled on `claude_settlement`.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +20,11 @@ from orchestrator.observability.usage import (
 )
 
 ClaudeUsageRow = tuple[int, str, protocol.TokenBucket]
+
+_STREAM_EVENT = "stream_event"
+_MESSAGE_DELTA = "message_delta"
+_TOOL_USE_RESULT = "tool_use_result"
+_MESSAGE_CONTENT: protocol.ModelPath = (protocol.MESSAGE, "content")
 
 
 def claude_usage_record(usage: dict[str, Any]) -> protocol.TokenBucket:
@@ -77,29 +89,57 @@ def claude_result_usage_row(
     return index, model_names.claude_model_name(event), claude_usage_record(usage)
 
 
-def claude_usage_records(
-    events: list[dict[str, Any]],
-) -> list[ClaudeUsageRow]:
-    by_id: dict[str, ClaudeUsageRow] = {}
-    for index, event in enumerate(events):
-        identified = claude_assistant_usage_row(index, event)
-        if identified is not None:
-            by_id[identified[0]] = identified[1]
-    if by_id:
-        return sorted_claude_usage_rows(by_id)
-    return claude_result_usage_records(events)
+def claude_message_delta_output(event: dict[str, Any]) -> tuple[str, int] | None:
+    """The id of the message a `message_delta` stream event closes, and the final output count it closes it with."""
+    if event.get(protocol.TYPE) != _STREAM_EVENT:
+        return None
+    stream_event = event.get("event")
+    if not isinstance(stream_event, dict) or stream_event.get(protocol.TYPE) != _MESSAGE_DELTA:
+        return None
+    usage = stream_event.get(protocol.USAGE)
+    final_output = usage.get(protocol.OUTPUT_TOKENS) if isinstance(usage, dict) else None
+    message_id = event.get("api_message_id")
+    if final_output is None or not message_id:
+        return None
+    return str(message_id), event_stream.token_count(final_output)
 
 
-def sorted_claude_usage_rows(
-    by_id: dict[str, ClaudeUsageRow],
-) -> list[ClaudeUsageRow]:
-    usage_rows = list(by_id.values())
-    usage_rows.sort(key=claude_usage_row_index)
-    return usage_rows
+def claude_handback_usage_row(
+    index: int,
+    event: dict[str, Any],
+) -> tuple[str, ClaudeUsageRow] | None:
+    """The invocation a subagent hand-back answers, and the usage of the message that closed the subagent.
+
+    A resumed subagent returns under the agent id it had before, so a hand-back is told apart by the call it
+    answers; a frame naming no call stands on its own.
+    """
+    if event.get(protocol.TYPE) != "user":
+        return None
+    handback = event.get(_TOOL_USE_RESULT)
+    if not isinstance(handback, dict):
+        return None
+    usage = handback.get(protocol.USAGE)
+    agent_id = handback.get("agentId")
+    if not isinstance(usage, dict) or not agent_id:
+        return None
+    model = model_names.nonempty_string(handback.get("resolvedModel")) or protocol.UNKNOWN
+    invocation = claude_tool_result_id(event) or str(index)
+    return invocation, (index, model, claude_usage_record(usage))
 
 
-def claude_usage_row_index(usage_row: ClaudeUsageRow) -> int:
-    return usage_row[0]
+def claude_tool_result_id(event: dict[str, Any]) -> str | None:
+    """The `tool_use_id` of a frame's lone `tool_result` block: the invocation it returns from."""
+    message_blocks = model_names.nested_value(event, _MESSAGE_CONTENT)
+    if not isinstance(message_blocks, list):
+        return None
+    result_ids = [
+        block.get("tool_use_id")
+        for block in message_blocks
+        if isinstance(block, dict) and block.get(protocol.TYPE) == "tool_result"
+    ]
+    if len(result_ids) != 1:
+        return None
+    return model_names.nonempty_string(result_ids[0])
 
 
 def claude_result_usage_records(

@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 from tests.observability.usage import usage_jsonl_helpers as _jsonl, usage_test_values as _usage_cases
 
+STREAM_EVENT = "stream_event"
+
 
 @dataclass(frozen=True)
 class ClaudeUsagePayload:
@@ -50,6 +52,17 @@ def assistant(
     if usage is not None:
         message[_usage_cases.USAGE_FIELD] = usage
     return {_usage_cases.TYPE_FIELD: "assistant", "message": message}
+
+
+def message_delta(api_message_id: str | None = None, **usage_fields: int) -> dict:
+    """The `stream_event` frame that closes a message, naming it the way the CLI's wrapper does."""
+    frame = {
+        _usage_cases.TYPE_FIELD: STREAM_EVENT,
+        "event": {_usage_cases.TYPE_FIELD: "message_delta", _usage_cases.USAGE_FIELD: usage_fields},
+    }
+    if api_message_id is not None:
+        frame["api_message_id"] = api_message_id
+    return frame
 
 
 def system_init(**fields: object) -> dict:

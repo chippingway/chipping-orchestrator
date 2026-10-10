@@ -22,7 +22,8 @@ Each dispatches across Codex, Claude, and Antigravity. The six result types come
 `SourceItem` / `TurnUsage` from `trajectory_models.py`. Provider payload handling is split behind them: `protocol.py`
 holds the JSONL vocabulary and `event_stream.py` the resilient line decoder, `prices.py` the first-party price tables
 and `model_names.py` the nested model-name lookup, `claude_rows.py` / `claude_summary.py` and `codex_rows.py` /
-`codex_summary.py` the per-provider frame decoding and run summary, `shell_segments.py` / `skill_commands.py` /
+`codex_summary.py` the per-provider frame decoding and run summary, with `claude_settlement.py` settling each Claude
+message's final output count between the two, `shell_segments.py` / `skill_commands.py` /
 `skills_claude.py` / `skills_codex.py` the skill-evidence classification, and `trajectory_claude_blocks.py` /
 `trajectory_claude_stream.py` / `trajectory_claude_turns.py` plus `trajectory_codex.py` and the per-item-type
 `trajectory_codex_items.py` under it the timeline reconstruction. Antigravity's envelopes, tool lifecycles, and
@@ -32,12 +33,45 @@ trajectory classifier reuses the same event decoder, pricing path, and skill evi
 cost-precedence contracts are defined once. Tests intercept parsers on the module their caller imports. The package
 initializer re-exports the public parsers and result types; callers name the defining owner so patches reach it.
 
-**Provider parsing.** `parse_claude_usage(stdout)` consumes claude `--output-format stream-json` events,
-groups assistant frames by `message.id` so the final-frame usage wins (claude streams partial counts on intermediate
-frames), and sums per-model. `parse_codex_usage(stdout, fallback_model=None)` consumes codex `--json` events and treats
+**Provider parsing.** `parse_claude_usage(stdout)` consumes claude `--output-format stream-json` events, reads one
+usage row per API message by grouping its `assistant` frames on `message.id`, and sums per-model. Every one of those
+frames repeats the usage the message's `message_start` event opened with, so the output count it carries is the one at
+the start of the message. The final count, thinking included, is only on the `message_delta` stream event that closes
+the message, whose `stream_event` wrapper names it through `api_message_id`; that event settles the message's output
+count. Input, cache-read, and cache-write counts are the same on every frame and stay the ones the `assistant` frames
+carry. A subagent prints no stream events. The message that closes it prints no frame at all: its usage rides on the
+lead thread's `tool_result` for the call that launched the subagent, as `tool_use_result.usage`, and that hand-back
+adds a row carrying the message's output count alone, since the run's input and cache counts are its frames'. A
+hand-back counts once per call it answers — the `tool_use_id` of its `tool_result` — since a resumed subagent returns
+under the agent id it had before. The final count of any earlier subagent message is printed nowhere: the `result`
+frame's `modelUsage` reports only the model's total, and what it holds beyond every output count the stream printed
+settles that message only when it is the model's sole message no `message_delta` closed, and only when the model's
+`modelUsage` input and cache counts equal the ones the stream printed, hand-backs included. Two or more such messages
+share a total no frame divides, so each keeps its start count, as a subagent's message does whenever `modelUsage`
+also covers usage no frame of the stream printed. A stream with no `message_delta` at all — printed without
+`--include-partial-messages`, which the Claude backend always passes — settles nothing: every message keeps the count
+its last frame carries, and neither hand-backs nor `modelUsage` are read. On the captures the run's output equals the
+CLI's `modelUsage` total: 358 on the main run, and 450 on the subagent run, whose lead thread alone reports 314. A
+stream with no `assistant` usage falls back to the `result` frame's `usage`. The sanitized Claude Code 2.1.295
+captures this accounting is pinned to, and the frame-by-frame evidence behind it, are in
+[`usage_claude_stream_capture.py`](../../tests/observability/usage/usage_claude_stream_capture.py).
+`parse_codex_usage(stdout, fallback_model=None)` consumes codex `--json` events and treats
 usage as cumulative across the session: the *last* non-zero usage record is the authoritative total.
 `parse_agent_usage(backend, stdout, fallback_model=None)` dispatches by backend string the same way
 `agents.runner.run_agent` does.
+
+**Claude output counts recorded before the correction.** The parser kept the last `assistant` frame's output count,
+the one at the start of each message: 31 output tokens on the main capture, where the CLI reports 358, and 92 on the
+subagent capture against 450. The correction is unreleased: v0.13.0 and every earlier release record the start
+counts. It lands with [pull request #2199](https://github.com/chippingway/chipping-orchestrator/pull/2199), and a
+source checkout is corrected exactly when its history contains that change; the version string is no boundary, since
+a checkout taken after the v0.13.0 tag, corrected or not, still reports `0.13.0`. Nor is a record, which carries no
+orchestrator version: records are corrected from when a host started running a corrected checkout. Records already
+written keep their values: `output_tokens` on `agent_exit` and `agent_trajectory`
+lines, the analytics database rows synced from them, and the pinned `issue_total_tokens` an issue accumulated, along
+with `issue_total_cost_usd` where a run's cost was `estimated` from the undercount. Nothing backfills them, and an
+issue in flight across the upgrade mixes both in its counters. The correction leaves input and cache counts, and a
+CLI-reported `cost_usd`, unchanged.
 
 For `agy`, token totals come from the completed `step_update` events in this invocation, deduplicated by step index.
 The terminal result's usage and turn counts include earlier conversation turns on a resume, so they are not added
@@ -159,9 +193,15 @@ assign each a 0-based `turn` index — stamped onto the `assistant_message` / `t
 `TurnUsage` per turn: `model`, `input_tokens` / `output_tokens`, `cache_read_tokens` / `cache_write_tokens` (the 5m + 1h
 cache-creation buckets summed), and an always-*estimated* `cost_usd` / `cost_source` (`"estimated"`, or
 `"unknown-price"` with `cost_usd=None` for an unpriced SKU — a reported `total_cost_usd` is a run-level figure and
-never reaches a turn). The per-turn estimate reuses the same `claude_estimate_cost` price path on
-`observability/usage/prices.py` as the run aggregate, so the per-turn figures stay in lock-step with
-`parse_claude_usage`'s run totals. `parse_codex_trajectory(stdout)` normalizes each
+never reaches a turn). A turn's `output_tokens` is settled exactly as in the run parser above — its message's final
+count where the stream shows one, the start count its frames carry where it does not — while its input and cache
+counts are the frames'. Where hand-backs are read, a subagent's closing message, which printed no frame and so stamped
+no step, becomes a turn of its own numbered after every turn the steps carry, holding the hand-back's output count
+alone; the turns the frames gave keep their indices. Both builders settle their rows through
+`claude_settlement.ClaudeSettlement`, and the per-turn estimate reuses the same `claude_estimate_cost` price path on
+`observability/usage/prices.py` as the run aggregate. Unless the run totals fall back to the `result` frame, the
+per-turn token counts therefore sum to `parse_claude_usage`'s run totals and the per-turn estimates to its estimated
+cost. `parse_codex_trajectory(stdout)` normalizes each
 operational item codex reports into one `tool_call` and, when the stream actually carried an outcome, one
 `tool_result` beneath it, and each `agent_message` item into one `assistant_message` turn (its `text`). Codex emits
 several frames per item — `item.started`, any `item.updated`, then `item.completed` — so every item is correlated by

@@ -3,8 +3,6 @@
 """Where a captured Claude stream-json run keeps each token count."""
 
 import unittest
-from collections.abc import Iterable
-from dataclasses import astuple
 
 from orchestrator.observability.usage import event_stream
 from tests.observability.usage import (
@@ -88,11 +86,6 @@ def _handback_counts(stdout: str) -> list[_capture.TokenCounts]:
     ]
 
 
-def _summed(token_counts: Iterable[_capture.TokenCounts]) -> _capture.TokenCounts:
-    columns = zip(*(astuple(counted) for counted in token_counts), strict=True)
-    return _capture.TokenCounts(*(sum(column) for column in columns))
-
-
 class ClaudeStreamAccountingTest(unittest.TestCase):
     """The counts `usage_claude_stream_capture` documents are the ones its raw lines carry.
 
@@ -151,13 +144,13 @@ class ClaudeStreamAccountingTest(unittest.TestCase):
         )
         self.assertEqual(_handback_counts(_capture.SUBAGENT_RUN_STDOUT), [_capture.SUBAGENT_RUN_HANDBACK])
         self.assertEqual(
-            _summed(message.final for message in _capture.MAIN_RUN_MESSAGES),
+            _capture.summed(message.final for message in _capture.MAIN_RUN_MESSAGES),
             _capture.MAIN_RUN_TOTALS,
         )
         lead_finals = [message.final for message in _capture.SUBAGENT_RUN_LEAD_MESSAGES]
-        self.assertEqual(_summed(lead_finals), _capture.SUBAGENT_RUN_LEAD_TOTALS)
+        self.assertEqual(_capture.summed(lead_finals), _capture.SUBAGENT_RUN_LEAD_TOTALS)
         subagent_finals = [message.final for message in _capture.SUBAGENT_RUN_SUBAGENT_MESSAGES]
         self.assertEqual(
-            _summed([*lead_finals, *subagent_finals, _capture.SUBAGENT_RUN_HANDBACK]),
+            _capture.summed([*lead_finals, *subagent_finals, _capture.SUBAGENT_RUN_HANDBACK]),
             _capture.SUBAGENT_RUN_MODEL_TOTALS,
         )

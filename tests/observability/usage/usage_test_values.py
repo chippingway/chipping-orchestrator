@@ -19,6 +19,7 @@ VERIFY = "verify"
 DEVELOP_ONLY = (DEVELOP,)
 DEVELOP_TRIGGER_COUNTS = MappingProxyType({DEVELOP: 1})
 ESTIMATED_COST_SOURCE = "estimated"
+REPORTED_COST_SOURCE = "reported"
 UNKNOWN_COST_SOURCE = "unknown-price"
 GPT_FIVE_FIVE = "gpt-5.5"
 READ_TOOL = "Read"
