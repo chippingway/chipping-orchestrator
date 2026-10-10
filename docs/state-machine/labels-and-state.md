@@ -694,8 +694,9 @@ again -- then or by any later finish -- where the heads, the requirements, the r
 configuration moved since, or the base is no longer the tip its replay was recorded as made onto or no tip was
 recorded, and abandoned too where the base advanced past the head it is about. Every route then ends in one last word
 read behind every request it made -- the remote branch the head landed on, the base, and the requirements over the
-network, then the checkout's own head and the configuration -- so a landing or a base that moved holds the route and
-anything else a recorded transaction is bound to abandons it unrun, while the retirement behind the route is decided
+network, then the checkout's own head and the configuration -- so a landing or a base that moved holds the route, and
+whatever moved abandons a recorded transaction unrun, even one the base later comes back under; only a reading nobody
+could take keeps it. The retirement behind the route is decided
 on every record the evidence is bound through, so a review moved meanwhile refuses it. The invalidation a moved
 context now owes lands before the route either way
 ([base-rewrite evidence, recovered](delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).

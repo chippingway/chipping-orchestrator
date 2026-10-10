@@ -39,10 +39,14 @@ reading is the git owner's
 the attempt recorded its replay as made onto
 (`git/base_sync/attempt_records._recorded_onto`):
 
-- A remote base gone elsewhere since the head was counted, or a reading nobody
-  could take, HOLDS. Nothing is routed and the attempt stands: the next
-  tick's fetch counts the head again, and a head the base advanced past is
-  continued to the next rebase, which replaces it.
+- A remote base gone elsewhere since the head was counted (`BASE_MOVED`), or
+  a reading nobody could take, HOLDS. Nothing is routed and the attempt
+  stands: the next tick's fetch counts the head again, and a head the base
+  advanced past is continued to the next rebase, which replaces it. A base
+  read elsewhere is movement established, as a landing off its head is, so
+  the last word's caller abandons a transaction the route would carry besides
+  (`rewrite_finish_captured.stands_before_the_route`); an unread base proves
+  no movement and leaves it to be proved again.
 - A counted base that is not the recorded tip -- rewound or repointed under
   the head after the rebase -- DEFERS, and so does an attempt that recorded no
   tip at all, since nothing then proves which base the head was replayed
@@ -107,10 +111,15 @@ _Heard = tuple[
     str | None, _evidence_models.ReportEvidence | None, _evidence_models.ReportEvidence | None,
 ]
 
+# A remote base read somewhere else than the tip the head was counted against:
+# movement established, as a landing off its head is, rather than a reading
+# nobody could take.
+BASE_MOVED = _evidence_models.ReportEvidence(
+    _HOLD, "the base moved after the rebased head was counted against it",
+)
+
 _REFUSALS = MappingProxyType({
-    _BaseStanding.MOVED: _evidence_models.ReportEvidence(
-        _HOLD, "the base moved after the rebased head was counted against it",
-    ),
+    _BaseStanding.MOVED: BASE_MOVED,
     _BaseStanding.UNREAD: _evidence_models.ReportEvidence(
         _HOLD, "the base the rebased head was counted against could not be read again",
     ),

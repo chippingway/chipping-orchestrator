@@ -1190,8 +1190,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `stands_before_the_route`, the last word behind every request
                             (`rewrite_evidence_proof.last_word`): a landing that moved, or a base gone elsewhere or
                             unreadable, holds the route, and a transaction the route would carry is abandoned unrun,
-                            in its own evidence write, where its binding is refused there or the landing moved. It
-                            stages what the proof decides, and the evidence step's write lands it
+                            in its own evidence write, wherever movement is established there -- its binding refused,
+                            the landing moved, or the base read elsewhere -- so no later route takes it once the base
+                            is back; only an unread base keeps it. It stages what the proof decides, and the evidence
+                            step's write lands it
     rewrite_finish_failures.py
                             the notice a landed head's failed verification is owed, kept on the pinned comment
                             (`auto_base_rebase_failed_verification`: the head and the notice's whole text) from the

@@ -39,8 +39,9 @@ a fresh decision's once written -- ends in the last word behind every request
 made for it (`stands_before_the_route`, over
 `rewrite_evidence_proof.last_word`): a landing that moved, or a base gone
 elsewhere or unreadable, holds the route, and a transaction the route would
-carry is abandoned, unrun, where its binding is refused there or the landing
-moved under it.
+carry is abandoned, unrun, wherever movement is established there -- its
+binding refused, the landing moved, or the base read elsewhere -- so no later
+route takes it even once the base or the landing is back where it was.
 
 A head the base advanced past again is not routed at all: the caller's next
 rebase replaces it. A record made for it is abandoned the same way
@@ -66,12 +67,16 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING, last_word, proves_again
+from orchestrator.workflow.engine.rewrite_evidence_proof import BASE_MOVED, LEFT_THE_LANDING, last_word, proves_again
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
 
 _ADVANCED = "the base advanced past the head it was recorded for"
+
+# The holds the last word establishes movement with: a landing off its head,
+# and a base read somewhere else than the tip the head was counted against.
+_MOVEMENT = (LEFT_THE_LANDING, BASE_MOVED)
 
 
 def recorded(finish: LandedFinish, *, logged: bool = True) -> _records.PendingEvidence | None:
@@ -147,20 +152,22 @@ def stands_before_the_route(finish: LandedFinish, *, landing: bool = True) -> Fi
     recorded decision or ran the configured commands, `landing` False sparing
     only a fresh decision that ran nothing and recorded nothing. A landing
     that moved, or a base gone elsewhere or unreadable, holds the route with
-    the attempt standing, so the next tick classifies the branch
-    and counts the head again. A transaction the last word refuses is
-    abandoned first, in its own evidence write, where the refusal is its
-    binding's -- requirements, configuration, or a base no longer the tip its
-    replay was made onto -- or the landing's, which no later route can take it
-    over; a base that is only gone elsewhere keeps it, for the next tick's
-    continued rebase to set aside. Nothing runs again.
+    the attempt standing, so the next tick classifies the branch and counts
+    the head again. A transaction the last word refuses is abandoned first, in
+    its own evidence write, wherever the refusal establishes that something
+    moved under it: its binding's -- requirements, configuration, or a base no
+    longer the tip its replay was made onto -- the landing's, or a base read
+    somewhere else since the head was counted. A decision something moved
+    under is no decision any later route may take, even one finding the base
+    back where it was. Only a reading nobody could take keeps the transaction
+    for the next tick to prove again. Nothing runs again.
     """
     pending = recorded(finish, logged=False)
     binding = None if pending is None else pending.binding
     refused = last_word(finish, binding, landing=landing or binding is not None)
     if refused is None:
         return None
-    if pending is not None and (refused is LEFT_THE_LANDING or not refused.holds):
+    if pending is not None and (refused in _MOVEMENT or not refused.holds):
         staged = _writes.staging(finish)
         if not _abandons(finish, staged, pending, refused.refusal):
             return FinishOutcome.HELD

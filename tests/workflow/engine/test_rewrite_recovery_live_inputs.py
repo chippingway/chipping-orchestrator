@@ -3,14 +3,14 @@
 """A captured run's recovery, while what it is proved against moves: the issue, and the base its replay sits on.
 
 The recovery proves a captured run again over the issue and pinned comment
-read afresh, the heads, the requirements, and the configuration read once more
-behind the proof's own requests, and only then the head's standing on the base
-tip its replay was recorded as made onto. A base that moves while the proof's
-requests are answered holds the route, and the next recovery continues the
-head to another rebase; an issue edited, a checkout committed, or a
-configuration changed meanwhile -- or while the last word behind the proof
-reads the base again -- abandons the run, and a checkout that moved holds the
-route besides. A failure notice an earlier finish recorded, and a run a
+read afresh, and then takes the last word behind every request: the landing,
+the head's standing on the base tip its replay was recorded as made onto, the
+requirements, and the configuration, read once more. A base that moves while
+the proof's requests are answered abandons the run and holds the route, and
+once the base is back the next recovery routes the head with nothing run or
+recorded; an issue edited, a checkout committed, or a configuration changed
+meanwhile -- or while the last word reads the base again -- abandons the run
+too, and a checkout that moved holds the route besides. A failure notice an earlier finish recorded, and a run a
 recovery already abandoned, are held the same way to the base and the landing
 behind the requests made for them. A base rewound under the head is told by
 the tip the attempt recorded, not by counting what the head carries over it --
@@ -102,26 +102,25 @@ def _commits(case: support.VerificationRecoveryCase, cwd, name: str, text: str) 
 class LiveInputsRecoveryTest(support.VerificationRecoveryCase, unittest.TestCase):
     """A captured run is held, abandoned, or routed on what its issue and base read as once its proof is behind it."""
 
-    def test_a_base_moved_mid_proof_holds(self) -> None:
+    def test_a_base_moved_mid_proof_abandons(self) -> None:
         # The base advances while the recovery re-reads the settled report
-        # the captured run is bound to: the run proves, but the head no
-        # longer stands where it was counted, so nothing is routed. The next
-        # recovery counts it behind the base, abandons the run unrun, and
-        # the tick's rebase publishes and routes the next head.
+        # the captured run is bound to: the run proves, but the last word
+        # reads the base elsewhere, so the run is abandoned unrun and nothing
+        # is routed. The base is then put back on the tip the replay was made
+        # onto: the next recovery finds the abandoned run, runs nothing again,
+        # and routes the head with nothing recorded, pushed, or announced.
         head, captured = _captures(self)
+        onto = self._git("rev-parse", f"refs/heads/{_MAIN}", cwd=self._remote).strip()
         _races(self.gh, _REREAD, partial(support.advances_the_base_again, self))
 
         self.recovers()
 
-        self.assert_held(captured)
-        self.recovers()
-        rebased = git_support.remote_head(self)
+        self.assert_held(None)
         self._assert_abandoned(captured)
-        self.assertEqual(readings.relabels(self), readings.ROUTED)
-        self.assertEqual(
-            (support.announced(self), self.pushes.call_count, self.developer.call_count),
-            ([head, rebased], 1, 0),
-        )
+        self._git("update-ref", f"refs/heads/{_MAIN}", onto, cwd=self._remote)
+        self.recovers()
+        self._assert_abandoned(captured)
+        self.assert_recovered(head)
 
     def test_a_move_around_the_proof_abandons(self) -> None:
         # The issue -- a snapshot, as a fetched issue is -- the configuration,

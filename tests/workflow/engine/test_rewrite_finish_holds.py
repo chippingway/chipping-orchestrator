@@ -96,8 +96,14 @@ _SILENT_ROUTES = (
     ("a changed tree with nothing configured", REBASED, ()),
 )
 
-# A base gone elsewhere since the head was counted, and one nobody could read.
-_HOLDING = tuple(product(_SILENT_ROUTES, (_BaseStanding.MOVED, _BaseStanding.UNREAD)))
+# A base gone elsewhere since the head was counted, and one nobody could read,
+# beside whether the route's recorded carry stands behind the hold: a base read
+# elsewhere is movement established, which abandons it, and an unread one is
+# not.
+_HOLDING = tuple(
+    (route, standing, standing is _BaseStanding.UNREAD and route[1] == SQUASHED)
+    for route, standing in product(_SILENT_ROUTES, (_BaseStanding.MOVED, _BaseStanding.UNREAD))
+)
 
 # A base that is not the tip the replay was recorded as made onto, and an
 # attempt that recorded none.
@@ -319,19 +325,23 @@ class BaseStandingTest(unittest.TestCase, finish_support.RewriteFinishCase):
 
     def test_a_moved_base_holds_a_silent_route(self) -> None:
         # Neither route runs anything, yet a base gone elsewhere since the
-        # head was counted holds both behind the decision's write: nothing
-        # routed or retired, for the next tick to count the head again.
-        for (route, head, commands), standing in _HOLDING:
-            with self.subTest(route=route, standing=standing):
-                self._lands(head, commands, standing)
+        # head was counted, or one nobody could read, holds both behind the
+        # decision's write: nothing routed or retired, for the next tick to
+        # count the head again. A carry the base was read moving under is
+        # abandoned besides; an unread base leaves it to be proved again.
+        for route, standing, keeps in _HOLDING:
+            with self.subTest(route=route[0], standing=standing):
+                self._lands(route[1], route[2], standing)
 
-                self.assertEqual(self.finishes(head, FOUND), FinishOutcome.HELD)
+                self.assertEqual(self.finishes(route[1], FOUND), FinishOutcome.HELD)
 
-                anchored = readings.pinned(self)[readings.KEY_PENDING_PUSH]
+                held = readings.pinned(self)
+                carried = readings.records(held)[0] is not None
                 self.assertEqual(
-                    (anchored, readings.relabels(self), self.handed),
-                    (support.TESTED_SHA, (), []),
+                    (held[readings.KEY_PENDING_PUSH], carried, self.handed),
+                    (support.TESTED_SHA, keeps, []),
                 )
+                self.assertEqual(readings.relabels(self), ())
 
     def test_a_base_off_its_tip_records_nothing(self) -> None:
         # A base the head was not replayed onto, or no recorded tip, records
