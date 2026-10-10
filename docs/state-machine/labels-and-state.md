@@ -694,10 +694,12 @@ again -- then or by any later finish -- where the heads, the requirements, the r
 configuration moved since, or the base is no longer the tip its replay was recorded as made onto or no tip was
 recorded, and abandoned too where the base advanced past the head it is about. Every route then ends in one last word
 read behind every request it made -- the remote branch the head landed on, the base, and the requirements over the
-network, then the checkout's own head and the configuration -- so a landing or a base that moved holds the route, and
-whatever moved abandons a recorded transaction unrun, even one the base later comes back under; only a reading nobody
-could take keeps it. The retirement behind the route is decided
-on every record the evidence is bound through, so a review moved meanwhile refuses it. The invalidation a moved
+network, then the checkout's own head and the configuration, every reading taken so none masks another -- so a
+landing or a base that moved holds the route, and whatever any reading shows moved abandons a recorded transaction
+unrun, even one the base later comes back under and even beside a reading nobody could take, which only holds. A
+comment with no room for the abandonment takes a write that only shrinks it instead: the transaction dropped and
+the attempt's recorded base tip blanked, so no later reading proves a base for it. The retirement behind the route is
+decided on every record the evidence is bound through, so a review moved meanwhile refuses it. The invalidation a moved
 context now owes lands before the route either way
 ([base-rewrite evidence, recovered](delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 
@@ -3145,7 +3147,10 @@ The keys that matter for the state machine fall into a few groups:
   with is held to it (`workflow/engine/rewrite_evidence_proof.py`): a head counted level with a base says nothing
   about which base, and one rewound or repointed under the head after the rebase leaves it level with a commit it was
   never replayed onto, so the base it is counted against has to be this very tip -- and an attempt naming none, or a
-  value that is not a whole commit id, proves no base at all.
+  value that is not a whole commit id, proves no base at all. That is also how a refusal outlives a comment with no
+  room to record it: where movement under a recorded transaction is read and the comment cannot take the entry
+  abandoning it, the finish drops the transaction and blanks this member in a write that only shrinks the comment, so
+  every later reading of the base proves nothing and no finish of the attempt runs or routes over it again.
   `pending_auto_base_rebase_announced_sha` is the last member and covers the last window a finish has: everything a
   finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out before the
   relabel, and the write that clears this record goes out after it, so the head it has already said it published is

@@ -110,11 +110,9 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     staged = _writes.staging(finish)
     if not _invalidates(finish, staged):
         return FinishOutcome.HELD
-    stopped = None if captured is None else _captured.proved_again(finish, staged, captured)
-    if stopped is not None:
-        return stopped
+    proof = None if captured is None else _captured.proved_again(finish, captured)
     stopped = _lands(finish, staged) or _failures.publishes(finish, failure)
-    return stopped or _captured.stands_before_the_route(finish)
+    return stopped or _captured.stands_before_the_route(finish, proof=proof)
 
 
 def continues(finish: LandedFinish) -> FinishOutcome | None:

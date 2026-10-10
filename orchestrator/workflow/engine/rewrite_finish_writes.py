@@ -27,7 +27,8 @@ head's evidence decision durable ahead of its route
 transaction a fresh or carried result is recorded as, with the revision floor
 it raises, and the notice a failed run is owed (`rewrite_finish_failures`) --
 or a transaction an earlier finish recorded abandoned, with the approval a
-carry takes (`rewrite_finish_captured`) -- decided on the attempt, the debt,
+carry takes -- or, with no room for that, dropped and the attempt's recorded
+base tip blanked (`rewrite_finish_captured`) -- decided on the attempt, the debt,
 and every record the evidence is bound through (`verification_durable`), so a
 report, a review subject, or an evidence record another road moved while the
 commands ran refuses it.
@@ -100,6 +101,7 @@ EVIDENCE = _commits.ReportWrite(
         _evidence_records.REVISION_FLOOR,
         FAILED_VERIFICATION,
         *ABANDONS,
+        _base_sync_state._PENDING_REWRITE_BASE,
     )),
     decided_on=frozenset(_durable._BOUND_RECORDS) | _ATTEMPT | {_rewrite_debt.REWRITE_DEBT},
 )

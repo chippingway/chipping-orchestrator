@@ -20,11 +20,14 @@ left to request, which reads everything that moves again in one fixed order:
 the network first -- the remote branch the head landed on, the base, and the
 issue's requirements over the issue fetched once more -- and then the readings
 no request answers, behind every one that did: the checkout's own head and the
-configuration. Its verdicts come in the same order. A remote branch or a
-checkout off the landed head (`LEFT_THE_LANDING`) HOLDS: the landing the route
-would finish is no longer the one in front of it, and the next tick's recovery
-classifies the branch afresh. Requirements or a configuration that moved DEFER,
-refusing the transaction the route would carry. The remote branch and the
+configuration. Every reading is taken, and none masks another: the last word
+answers with the first that establishes movement and the first that holds the
+route, side by side, so a reading nobody could take never hides one that read
+something move. A remote branch or a checkout off the landed head
+(`LEFT_THE_LANDING`) both holds the route -- the landing it would finish is no
+longer the one in front of it, and the next tick's recovery classifies the
+branch afresh -- and establishes movement; requirements or a configuration that
+moved DEFER, establishing movement under the transaction the route would carry. The remote branch and the
 checkout are read only for a route that carries or follows a recorded decision
 or ran the configured commands; one that ran nothing and recorded nothing has
 nothing the landing could have moved under.
@@ -118,6 +121,13 @@ BASE_MOVED = _evidence_models.ReportEvidence(
     _HOLD, "the base moved after the rebased head was counted against it",
 )
 
+# The holds that read movement rather than a reading that did not happen.
+_MOVEMENT = (LEFT_THE_LANDING, BASE_MOVED)
+
+# What the last word comes to: the first reading of movement, and the first
+# reading that holds the route.
+Word = tuple[_evidence_models.ReportEvidence | None, _evidence_models.ReportEvidence | None]
+
 _REFUSALS = MappingProxyType({
     _BaseStanding.MOVED: BASE_MOVED,
     _BaseStanding.UNREAD: _evidence_models.ReportEvidence(
@@ -162,17 +172,35 @@ def standing_refusal(finish: LandedFinish) -> _evidence_models.ReportEvidence | 
 
 
 def last_word(
-    finish: LandedFinish, binding: _records.EvidenceBinding | None = None, *, landing: bool = True,
-) -> _evidence_models.ReportEvidence | None:
-    """Why `finish`'s landed head may not route with what its evidence step left, read behind every request; or None.
+    finish: LandedFinish,
+    binding: _records.EvidenceBinding | None = None,
+    *,
+    landing: bool = True,
+    earlier: _evidence_models.ReportEvidence | None = None,
+) -> Word:
+    """What everything that moves under `finish`'s route reads as now, behind every request: `(moved, held)`.
 
     `binding` is the transaction the route would carry, None where it carries
     none, and `landing` whether the remote branch and the checkout are read
-    again too -- for a route that carries or follows a recorded decision. The
-    network is read first and the local readings last (`_answers_locally`),
-    so nothing read before a request is taken on trust behind it.
+    again too -- for a route that carries or follows a recorded decision.
+    `earlier` is a verdict the caller already read the transaction with -- a
+    proof of it again -- which is sorted first, beside the rest. The network
+    is read first and the local readings last (`_answers_locally`), so
+    nothing read before a request is taken on trust behind it.
+
+    Every reading is taken and none masks another. `moved` is the first that
+    establishes that something the route rests on moved -- every refusal that
+    defers, and the two holds that read movement, a landing off its head and
+    a base read elsewhere (`_MOVEMENT`) -- and a transaction the route would
+    carry can never be taken again after it. `held` is the first that holds
+    the route: a reading nobody could take, or one of those two. Either is
+    None where no reading says so.
     """
-    return _answers_locally(finish, binding, _hears(finish, binding, landing), landing)
+    answered = _answers_locally(finish, binding, _hears(finish, binding, landing), landing)
+    found = [refused for refused in (earlier, *answered) if refused and not refused.proved]
+    movements = (refused for refused in found if not refused.holds or refused in _MOVEMENT)
+    holds = (refused for refused in found if refused.holds)
+    return next(movements, None), next(holds, None)
 
 
 def _hears(finish: LandedFinish, binding: _records.EvidenceBinding | None, landing: bool) -> _Heard:
@@ -192,18 +220,16 @@ def _hears(finish: LandedFinish, binding: _records.EvidenceBinding | None, landi
 
 def _answers_locally(
     finish: LandedFinish, binding: _records.EvidenceBinding | None, heard: _Heard, landing: bool,
-) -> _evidence_models.ReportEvidence | None:
+) -> tuple[_evidence_models.ReportEvidence | None, ...]:
     """The readings no request answers, behind every one that did -- the checkout's own head, the configuration.
 
-    Then the verdicts in their order: the landing, the base, the
-    requirements, the configuration.
+    Then every verdict in its order, None for each reading that refused
+    nothing: the landing, the base, the requirements, the configuration.
     """
     remote, base, asked = heard
     landed = _landing_refusal(finish, remote) if landing else None
-    refused = landed or base or asked
-    if refused is None and binding is not None and binding.context_revision != _proof.configured_context_revision():
-        return _RECONFIGURED
-    return refused
+    reconfigured = binding is not None and binding.context_revision != _proof.configured_context_revision()
+    return landed, base, asked, _RECONFIGURED if reconfigured else None
 
 
 def _landing_refusal(finish: LandedFinish, remote: str | None) -> _evidence_models.ReportEvidence | None:

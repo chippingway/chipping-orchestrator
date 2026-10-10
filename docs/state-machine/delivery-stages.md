@@ -1333,16 +1333,22 @@ because there it is the claim that this stage has already rerouted rather than a
   (`rewrite_finish_captured.stands_before_the_route`, over `rewrite_evidence_proof.last_word`) -- which reads everything
   that moves again in one fixed order: the network first, the remote branch the head landed on, the base, and the
   requirements over the issue fetched once more, and then what no request answers, the checkout's own head and the
-  configuration. A remote branch or checkout off the landed head, or a base gone elsewhere or unreadable, holds the
-  route; moved requirements or configuration, or a base no longer the recorded tip, refuse the transaction the route
-  would carry, and the head goes to the fresh reviewer. Wherever movement is established -- those refusals, a landing
-  that moved, or a base read elsewhere -- the transaction is abandoned unrun in its own evidence write, so no later
-  route takes it, not even once the base is back on the recorded tip; only a base nobody could read leaves it to be
-  proved again. The landing is read for every route that carries or follows a recorded decision or ran the configured
-  commands; a fresh decision that ran and recorded nothing is held to the base alone. Two remote readings cannot be
-  taken at one instant, and the route's own writes behind the last word are not read past: what moves there is guarded
-  by the retirement's prerequisites and proved again by the reconciliation before anything settles; the recovery of the
-  push already landed finishes it on a later tick under its own mark, with no second notice or event (next bullet).
+  configuration. Every reading is taken and none masks another: the first that establishes movement and the first that
+  holds the route are answered side by side, so a reading nobody could take never hides one that read something move. A
+  remote branch or checkout off the landed head, or a base gone elsewhere or unreadable, holds the route; moved
+  requirements or configuration, or a base no longer the recorded tip, refuse the transaction the route would carry, and
+  the head goes to the fresh reviewer. Wherever any reading establishes movement -- the captured transaction's own proof
+  refusing it, those refusals, a landing that moved, or a base read elsewhere -- the transaction is abandoned unrun in
+  its own evidence write, so no later route takes it, not even once everything is back where it was; only readings
+  nobody could take leave it to be proved again. A comment with no room for the abandonment takes a write that only
+  shrinks it instead: the transaction is dropped -- nothing was posted under it while the anchor stood, and the revision
+  floor keeps its revision -- and the attempt's recorded base tip is blanked, so every later reading of the base proves
+  nothing and no finish of the attempt runs the commands again or routes over it. The landing is read for every route
+  that carries or follows a recorded decision or ran the configured commands; a fresh decision that ran and recorded
+  nothing is held to the base alone. Two remote readings cannot be taken at one instant, and the route's own writes
+  behind the last word are not read past: what moves there is guarded by the retirement's prerequisites and proved again
+  by the reconciliation before anything settles; the recovery of the push already landed finishes it on a later tick
+  under its own mark, with no second notice or event (next bullet).
 - **Base-rewrite evidence, recovered**: a tick that died behind an accepted rewrite push leaves the attempt standing,
   and the recovery of the push already landed (`workflow/engine/rewrite_landed.py`) proves the landing again -- the
   attempt's record naming the head, the remote and the checkout agreeing on it, the transfer accounted for -- and hands
@@ -1360,18 +1366,19 @@ because there it is the claim that this stage has already rerouted rather than a
   report or review subject recorded, the configuration changed, the base no longer the recorded tip or no tip recorded
   -- it is abandoned into history in the evidence write before the route, nothing runs again, and the fresh reviewer
   owes the evidence; a landing that moved, or a remote base that moved since the head was counted, abandons it as well
-  and holds the route besides, while a reading nobody could take, or an abandonment the comment has no room for, holds
-  the route with the transaction kept. An abandoned transaction stays in the evidence history with its whole binding, so
-  a finish whose route that abandonment stopped short of is followed by one that decides nothing afresh and runs nothing
-  again. A transaction proved over the tick's reading is routed only while the comment still carries every record it is
-  bound through, since the retirement behind the route is decided on them: a report or review subject another road
-  recorded while the proof ran refuses the route, and the next recovery proves the transaction against it. A head the
-  base advanced past again is not routed: a transaction recorded for it is abandoned in the evidence write before the
-  attempt retires (a failure notice recorded for it is cleared by that retirement), and the tick's rebase goes on to a
-  head decided afresh. Whether the current evidence has to be invalidated is asked afresh on every resumed finish, since
-  the configuration can move between the two, and anything that moves while the recovery's own run is under way makes
-  that run **moved**, as on the publication. Publishing and settling the recorded transaction behind the route is the
-  reconciliation's above.
+  and holds the route besides -- even beside a reading nobody could take, which on its own holds the route with the
+  transaction kept. With no room for the abandonment, the transaction is dropped and the attempt's recorded base tip
+  blanked instead, so it is refused for good. An abandoned transaction stays in the evidence history with its whole
+  binding, so a finish whose route that abandonment stopped short of is followed by one that decides nothing afresh and
+  runs nothing again. A transaction proved over the tick's reading is routed only while the comment still carries every
+  record it is bound through, since the retirement behind the route is decided on them: a report or review subject
+  another road recorded while the proof ran refuses the route, and the next recovery proves the transaction against it.
+  A head the base advanced past again is not routed: a transaction recorded for it is abandoned in the evidence write
+  before the attempt retires (a failure notice recorded for it is cleared by that retirement), and the tick's rebase
+  goes on to a head decided afresh. Whether the current evidence has to be invalidated is asked afresh on every resumed
+  finish, since the configuration can move between the two, and anything that moves while the recovery's own run is
+  under way makes that run **moved**, as on the publication. Publishing and settling the recorded transaction behind the
+  route is the reconciliation's above.
 
 ## The rewritten-head report debt (every dispatch)
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims
