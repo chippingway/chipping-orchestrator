@@ -673,7 +673,10 @@ refusal for room alone over a comment that still reads as the tick read it — a
 leaves the tick's state to be written, since that comment is only full; every other refusal, and an edit nobody
 confirmed, withholds it. It takes no writer claim of its own: the caller's claim, held through the route, covers it.
 Between the checkpoint and the route sits the post-push, pre-route step where the evidence a landed head
-is routed with is decided; it routes on the base lag alone so far.
+is routed with is decided; it routes on the base lag alone so far. Its policy is built and dormant
+(`workflow/engine/rewrite_evidence.py`, the
+[base-rewrite evidence](delivery-stages.md#the-verification-evidence-transaction-every-dispatch) bullet): it writes
+nothing, and nothing asks it yet.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel

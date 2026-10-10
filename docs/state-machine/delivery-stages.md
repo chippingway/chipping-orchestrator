@@ -1265,6 +1265,32 @@ because there it is the claim that this stage has already rerouted rather than a
   comes back as the proof's own verdict: a pull request or artifact nobody could read HOLDS, and every other refusal --
   an unreadable tree included -- defers. The one stage that asks is the approval squash
   ([`_handle_validating`](#_handle_validating-label-workflowvalidating)).
+- **Base-rewrite evidence (dormant)**: `decides` (`workflow/engine/rewrite_evidence.py`) is the evidence policy for the
+  head a landed automatic base rewrite publishes, built for the finish's post-push, pre-route step and asked by nothing
+  yet: the finish still routes on the base lag alone, and nothing it decides is recorded, published, or routed on. It
+  writes nothing; the one staging its decision implies is the invalidation below (`RewriteEvidence.stages`). Where the
+  tree the rewrite replaced, the tree it published, and the tree the current evidence tested all read as one under the
+  configured context, it asks the carry-forward decision above and takes it only for a review subject recorded about
+  the rewritten head, its whole binding proved -- the settled report re-read, the requirements, the branch and the
+  checkout -- so the carry names the tested commit and tree and the source it copied (**carried**). An approval of the
+  replaced head is never carried across a base rewrite: the rewritten head's report refresh is what its reviewer is
+  handed. A moved tree or context invalidates the current evidence into history instead, whole, and asks for a fresh
+  result of the configured `VERIFY_COMMANDS`, run through the verify runner on the issue's checkout -- but only over a
+  binding proved before anything runs: `review_subject` about the rewritten head and the settled report's publication
+  moved to it. An empty configuration, or no such binding (the report refresh unsettled, no reviewer handed it, the
+  report edited where it settled), runs nothing and records nothing, and the fresh reviewer owes the evidence
+  (**reviewer**); it is never read as a pass. Behind the run, the commit, tree, and context the runner recorded as its
+  baseline have to be the rewritten head, the tree the landing read for it, and the configuration proved before it
+  ran: a checkout that stood elsewhere as the run began, or a baseline the runner never read, makes even a failure
+  **moved**. Then the issue is fetched again -- the one the finish holds
+  keeps the title and body the tick read -- and its pinned comment read afresh, and the whole binding proved again
+  over them: a pull request, remote branch, or checkout that moved, a changed configuration, a review subject or
+  settled report replaced, a title or body edited on GitHub while the commands ran, or an issue or comment nobody
+  could read again makes the result **moved**, eligible for nothing whatever it said. Otherwise a run that binds
+  (`verification_local_runs.py`) is **fresh**, orchestrator-executed evidence of the rewritten head carrying exactly
+  its commands, exit statuses, and outputs; a
+  passing run whose transcript no artifact can carry records nothing and leaves the evidence to the reviewer; and
+  every other run is **failed**, returned whole so the failing command and its output stay actionable.
 
 ## The rewritten-head report debt (every dispatch)
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims

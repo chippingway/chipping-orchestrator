@@ -20,5 +20,6 @@ republishes these names either, so each answers on the owner that defines it
 and a test intercepting one targets that owner -- ``probes`` for the stage
 leaves that compare a HEAD watermark, refuse a dirty tree, or ask which paths a
 branch's commits change against base, ``runner`` for the validating approval
-gate that spends the verify run.
+gate that spends the verify run and for the dormant base-rewrite evidence
+policy's fresh run of a rewritten head.
 """
