@@ -20,15 +20,17 @@ and the checkout still on the head, the configuration it was recorded under,
 the review subject and settled report it answers for, and the issue's
 requirements. A record something moved under since is a decision no route may
 take, so it is abandoned into history (`verification_carries.abandons`, a
-carry's approval with it) in the evidence write ahead of the route, and the
+carry's approval with it) in its own write ahead of the route, and the
 head goes to the fresh reviewer, which owes the evidence: no rerun, since the
 run was captured, and no carry made again. A reading nobody could take holds
 the route, and so does an abandonment the pinned comment has no room for. A
 record that proves is held once more to the last word behind every request
-(below), and then routed only while the comment still carries every record it
-is bound through: the retirement behind the route is decided on them
-(`rewrite_finish_writes.FINISH`), so a review that moved while the proof ran
-refuses the route, and the next finish proves the record against it.
+(below), which reads the review and report records again and abandons it where
+they moved while the proof ran, and then routed only while the comment still
+carries every record it is bound through: the retirement behind the route is
+decided on them (`rewrite_finish_writes.FINISH`), so a review that moved after
+the last word refuses the route, and the next finish proves the record against
+it.
 
 An abandoned record stays this landing's captured run (`retired`): it is in
 the evidence history with its whole binding, so a finish whose route the
@@ -41,9 +43,12 @@ made for it (`stands_before_the_route`, over
 `rewrite_evidence_proof.last_word`): a landing that moved, or a base gone
 elsewhere or unreadable, holds the route, and a transaction the route would
 carry is abandoned, unrun, wherever any reading there establishes movement --
-its binding refused, the landing moved, or the base read elsewhere -- however
-the readings beside it came out, so no later route takes it even once
-everything is back where it was. Where the comment has no room for the
+its binding refused, the review and report records the comment carries moved,
+the landing moved, or the base read elsewhere -- however the readings beside it
+came out, so no later route takes it even once everything is back where it
+was. That write (`rewrite_finish_writes.ABANDONMENT`) is decided only on the
+attempt and on what it retires, so a review or report record that moved -- the
+movement itself -- never refuses it. Where the comment has no room for the
 abandonment, the transaction is dropped instead and the base tip its replay
 was recorded as made onto blanked with it, in a write that only shrinks the
 comment (`_abandoned`): every later reading of the base proves nothing, so no
@@ -58,8 +63,10 @@ failed run recorded for it is cleared by that retirement
 
 Only a record about the landed head is read here: while the attempt stands the
 anchor holds every other road, so nothing but a finish of this landing records
-evidence for that head. Staged on the caller's copy; the caller's evidence
-write (`rewrite_finish_writes.EVIDENCE`) lands it.
+evidence for that head; a recovery that reads the landing moved before any
+finish is reached abandons it through the same last word
+(`rewrite_landing_moved`). A record set aside is staged on the caller's copy,
+and the caller's evidence write (`rewrite_finish_writes.EVIDENCE`) lands it.
 """
 from __future__ import annotations
 
@@ -157,7 +164,7 @@ def stands_before_the_route(
     Every reading is taken, and none masks another. Any that establishes
     movement -- a refusal of the transaction's binding, a landing off its
     head, a base read elsewhere -- abandons the transaction the route would
-    carry, in its own evidence write (`_abandoned`): a decision something
+    carry, in its own write (`_abandoned`): a decision something
     moved under is no decision any later route may take, even one finding
     everything back where it was. Any reading nobody could take, a landing
     that moved, or a base gone elsewhere holds the route with the attempt
@@ -194,7 +201,7 @@ def sets_aside(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | Non
 
 
 def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str) -> FinishOutcome | None:
-    """Abandon `pending` in its own evidence write, or refuse it for good where that has no room; None to go on.
+    """Abandon `pending` in its own write, or refuse it for good where that has no room; None to go on.
 
     A comment with no room for the abandonment's history entry still takes a
     write that only shrinks it, and that write refuses the transaction for
@@ -216,7 +223,7 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
         staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
     stopped = None
     if staged.data != finish.state.data:
-        stopped = _writes.lands(finish, staged, _writes.EVIDENCE)
+        stopped = _writes.lands(finish, staged, _writes.ABANDONMENT)
     if stopped is None and not fits:
         return FinishOutcome.HELD
     return stopped

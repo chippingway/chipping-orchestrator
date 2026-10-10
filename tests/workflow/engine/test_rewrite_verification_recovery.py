@@ -13,7 +13,7 @@ since -- the requirements, the report and review subject, the configuration,
 or the base -- which abandons it, with nothing run again and the fresh reviewer
 owing the evidence; once abandoned it is never run again, even by a recovery
 whose own route that abandonment stopped short of. A review that moves while
-the recovery proves the run routes nothing. Something moving while the
+the recovery proves the run abandons it the same way. Something moving while the
 recovery's own run is under way leaves that run eligible for nothing -- a landing
 that moved holds the route too -- and a
 base that advances meanwhile holds the head unrouted for the next recovery to
@@ -205,20 +205,19 @@ class CapturedRunRecoveryTest(support.VerificationRecoveryCase, unittest.TestCas
         self._assert_abandoned(captured)
         self.assert_recovered(head)
 
-    def test_a_review_moved_mid_proof_routes_nothing(self) -> None:
+    def test_a_review_moved_mid_proof_abandons(self) -> None:
         # A later report settles and is reviewed while the recovery re-reads
         # the one the captured run is bound to: the run proves over what the
-        # tick read, but the route is decided on the records the comment
-        # still carries, so nothing is routed or retired. The next recovery
-        # proves the run against the later review and abandons it.
+        # tick read, but the last word reads the review records again and
+        # finds the later review, so the run is abandoned unrun -- in a write
+        # that moved review does not refuse -- and the head goes to the fresh
+        # reviewer.
         head, captured = self._captures()
         reread = self.gh.reread_report_location
         self.gh.reread_report_location = _RacesPastTheStep(reread, partial(_settles_once_read, self, head, reread))
 
         self.recovers()
 
-        self.assert_held(captured)
-        self.recovers()
         self._assert_abandoned(captured)
         self.assert_recovered(head)
 

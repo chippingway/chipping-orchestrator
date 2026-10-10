@@ -9,7 +9,11 @@ world afresh rather than off the tick's own reading (`proves_again`): the issue
 is fetched again, since the one a finish holds carries the title and body read
 when the tick began, and the pinned comment is read again, and the whole proof
 (`verification_proof.binding_verdict`) is taken over them. An issue or a
-pinned comment nobody could read again HOLDS.
+pinned comment nobody could read again HOLDS. The proof reads the pull request
+first and stops at a reading nobody could take, so a proof that holds is
+answered beside the review and report records the comment it read carries
+(`verification_proof.recorded_verdict`): a subject or settled report that
+moved is movement, whatever went unanswered.
 
 That proof makes requests of its own -- the pull request, the branch fetch,
 the settled report re-read -- and so does the finish behind it: the evidence
@@ -17,12 +21,14 @@ write, a failure notice's conversation read and post. Anything read before one
 of them can have moved while it was answered. So every route the evidence
 step takes ends in one last word (`last_word`), asked once nothing else is
 left to request, which reads everything that moves again in one fixed order:
-the network first -- the remote branch the head landed on, the base, and the
-issue's requirements over the issue fetched once more -- and then the readings
-no request answers, behind every one that did: the checkout's own head and the
-configuration. The remote branch and the checkout are two readings, the
-checkout read whatever the remote's came to. Every reading is taken, and none
-masks another: the last word
+the network first -- the remote branch the head landed on, the base, and,
+over the issue and pinned comment fetched once more, the issue's requirements
+and the review and report records the transaction is bound to -- and then the
+readings no request answers, behind every one that did: the checkout's own
+head and the configuration. The remote branch and the checkout are two
+readings, the checkout read whatever the remote's came to, and the records are
+compared on their own, whatever the proof before them could read. Every
+reading is taken, and none masks another: the last word
 answers with the first that establishes movement and the first that holds the
 route, side by side, so a reading nobody could take never hides one that read
 something move. A remote branch or a checkout read off the landed head
@@ -30,8 +36,9 @@ something move. A remote branch or a checkout read off the landed head
 longer the one in front of it, and the next tick's recovery classifies the
 branch afresh -- and establishes movement; a remote branch nobody could read,
 or a checkout whose head would not prove, only HOLDS, leaving a transaction to
-be proved again. Requirements or a configuration that
-moved DEFER, establishing movement under the transaction the route would carry. The remote branch and the
+be proved again. Requirements, review or report records, or a configuration
+that moved DEFER, establishing movement under the transaction the route would
+carry. The remote branch and the
 checkout are read only for a route that carries or follows a recorded decision
 or ran the configured commands; one that ran nothing and recorded nothing has
 nothing the landing could have moved under.
@@ -80,6 +87,7 @@ from orchestrator.git import branch_transport
 from orchestrator.git.base_sync import attempt_records as _attempt_records, rewrite_facts as _rewrite_facts
 from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
 from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
     verification_proof as _proof,
@@ -97,6 +105,8 @@ _DEFER = _evidence_models.ReportEvidenceVerdict.DEFER
 _UNREAD = _evidence_models.ReportEvidence(
     _HOLD, "the issue or its pinned comment could not be read again to prove the evidence",
 )
+
+_UNREADABLE = "issue=#%d could not read %s again to prove the evidence of %s"
 
 _RECONFIGURED = _evidence_models.ReportEvidence(
     _DEFER, "the verification configuration moved while the evidence was proved again",
@@ -116,10 +126,11 @@ LEFT_THE_LANDING = _evidence_models.ReportEvidence(
     _HOLD, "the checkout or the remote branch is no longer on the rebased head",
 )
 
-# What the last word's requests heard: the remote branch's head, the base's
-# refusal, and the requirements' refusal.
+# What the last word's requests heard: the remote branch's head, then the
+# base's refusal and what the issue and its pinned comment, read again, refuse.
 _Heard = tuple[
-    str | None, _evidence_models.ReportEvidence | None, _evidence_models.ReportEvidence | None,
+    str | None,
+    tuple[_evidence_models.ReportEvidence | None, ...],
 ]
 
 # A remote base read somewhere else than the tip the head was counted against:
@@ -151,21 +162,24 @@ _REFUSALS = MappingProxyType({
 
 
 def proves_again(finish: LandedFinish, binding: _records.EvidenceBinding) -> _evidence_models.ReportEvidence:
-    """The whole proof of `binding` over the issue and pinned comment read afresh, or the HOLD nobody could read."""
-    issue = _fetches(finish)
-    if issue is None:
+    """The whole proof of `binding` over the issue and pinned comment read afresh, or the HOLD nobody could read.
+
+    A proof that holds on a reading nobody could take stopped there, so the
+    records the pinned comment carries are asked beside it
+    (`verification_proof.recorded_verdict`), and a refusal of theirs -- a
+    review subject or settled report that moved -- is the answer instead:
+    movement those records establish is never hidden behind a request that
+    went unanswered.
+    """
+    read = _reads_again(finish)
+    if read is None:
         return _UNREAD
-    try:
-        state = finish.gh.read_pinned_state(issue)
-    except Exception:
-        log.exception(
-            "issue=#%d could not read its pinned comment again to prove the evidence of %s",
-            finish.issue.number, finish.head,
-        )
-        return _UNREAD
-    if not state.parsed:
-        return _UNREAD
-    return _proof.binding_verdict(_proof.ProofReading(finish.gh, finish.spec, issue, state), binding)
+    issue, state = read
+    reading = _proof.ProofReading(finish.gh, finish.spec, issue, state)
+    found = _proof.binding_verdict(reading, binding)
+    if not found.holds:
+        return found
+    return _proof.recorded_verdict(state, binding) or found
 
 
 def standing_refusal(finish: LandedFinish) -> _evidence_models.ReportEvidence | None:
@@ -212,18 +226,32 @@ def last_word(
 
 
 def _hears(finish: LandedFinish, binding: _records.EvidenceBinding | None, landing: bool) -> _Heard:
-    """Every request the last word makes, in its order: the remote branch, the base, and the requirements."""
+    """Every request the last word makes, in its order: the remote branch, the base, and the issue and its comment.
+
+    The issue and its pinned comment are read again for a transaction the
+    route would carry, and both are asked of it: the requirements over the
+    issue, and the review and report records over the comment
+    (`verification_proof.recorded_verdict`), whatever any other reading came to.
+    """
     remote = None
     if landing:
-        worktree = _worktree_paths._worktree_path(finish.spec, finish.issue.number)
-        remote = branch_transport._remote_branch_read(finish.spec, worktree, finish.landed.candidate.branch).sha
+        remote = branch_transport._remote_branch_read(
+            finish.spec,
+            _worktree_paths._worktree_path(finish.spec, finish.issue.number),
+            finish.landed.candidate.branch,
+        ).sha
     base = standing_refusal(finish)
     if binding is None:
-        return remote, base, None
-    issue = _fetches(finish)
-    if issue is None:
-        return remote, base, _UNREAD
-    return remote, base, requirements_verdict(issue, finish.state, binding.target.publication.requirements_revision)
+        return remote, (base,)
+    read = _reads_again(finish)
+    if read is None:
+        return remote, (base, _UNREAD)
+    issue, state = read
+    return remote, (
+        base,
+        requirements_verdict(issue, state, binding.target.publication.requirements_revision),
+        _proof.recorded_verdict(state, binding),
+    )
 
 
 def _answers_locally(
@@ -232,13 +260,13 @@ def _answers_locally(
     """The readings no request answers, behind every one that did -- the checkout's own head, the configuration.
 
     Then every verdict in its order, None for each reading that refused
-    nothing: the remote branch, the checkout, the base, the requirements, the
-    configuration.
+    nothing: the remote branch, the checkout, the base, the requirements and
+    the records, the configuration.
     """
-    remote, base, asked = heard
+    remote, asked = heard
     landed = _landing_refusals(finish, remote) if landing else (None, None)
     reconfigured = binding is not None and binding.context_revision != _proof.configured_context_revision()
-    return *landed, base, asked, _RECONFIGURED if reconfigured else None
+    return *landed, *asked, _RECONFIGURED if reconfigured else None
 
 
 def _landing_refusals(
@@ -266,12 +294,16 @@ def _landing_refusals(
     return branch, None if checkout == finish.head else LEFT_THE_LANDING
 
 
-def _fetches(finish: LandedFinish) -> Issue | None:
-    """The issue as GitHub carries it now, or None where it would not read."""
+def _reads_again(finish: LandedFinish) -> tuple[Issue, PinnedState] | None:
+    """The issue as GitHub carries it now and its pinned comment read over it, or None where either would not read."""
     try:
-        return finish.gh.get_issue(finish.issue.number)
+        issue = finish.gh.get_issue(finish.issue.number)
     except Exception:
-        log.exception(
-            "issue=#%d could not be read again to prove the evidence of %s", finish.issue.number, finish.head,
-        )
+        log.exception(_UNREADABLE, finish.issue.number, "the issue", finish.head)
         return None
+    try:
+        state = finish.gh.read_pinned_state(issue)
+    except Exception:
+        log.exception(_UNREADABLE, finish.issue.number, "its pinned comment", finish.head)
+        return None
+    return (issue, state) if state.parsed else None

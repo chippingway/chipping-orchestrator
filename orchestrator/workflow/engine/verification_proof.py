@@ -31,6 +31,11 @@ carries on. ENDED retires. PROVED carries the pull request it was proved
 against, since a publication made against another reading would reopen the
 window this evidence exists to close.
 
+`recorded_verdict` is the part of that proof the pinned comment answers with
+no request at all -- the recorded subject, and the settled report it has to
+name -- for a caller whose whole proof stopped at a reading nobody could take
+and that still has to hear what those records say moved.
+
 `configured_context_revision` is the context both witnesses are held to: the
 configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, minted by the verify
 runner's own model. A reviewer runs what it runs, but what the repository
@@ -51,6 +56,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
     report_publication_evidence as _publication,
+    report_settlement_state as _report_settlement,
     verification_current as _current,
     verification_records as _records,
     verification_settlement_state as _settlement,
@@ -101,6 +107,33 @@ def rest_verdict(
             reading.issue, reading.state, binding.target.publication.requirements_revision,
         )
     return found if refused is None else refused
+
+
+def recorded_verdict(
+    state: PinnedState, binding: _records.EvidenceBinding,
+) -> _evidence_models.ReportEvidence | None:
+    """Refuse `binding` on the review and report records `state` carries alone, or None.
+
+    Each refusal is one the whole proof makes too, taken with no request at
+    all: the recorded subject (`verification_subject.subject_verdict`), and
+    the settled report the comment records, whose revision and digest that
+    subject has to name. So a caller whose proof stopped at a reading nobody
+    could take -- the pull request, the branch fetch, the report re-read --
+    still hears what the records it holds say moved. A comment recording no
+    readable settled report says nothing here, and the whole proof answers
+    for it.
+    """
+    refused = _subject.subject_verdict(state, binding)
+    current = _report_settlement.read_current_report(state)
+    if refused is not None or current is None:
+        return refused
+    target = binding.target
+    if target.subject_identity == (target.publication.pr_number, current.report_revision, current.content_revision):
+        return None
+    return _evidence_models.ReportEvidence(
+        _evidence_models.ReportEvidenceVerdict.DEFER,
+        "the review subject is not about the report this issue records as settled",
+    )
 
 
 def binding_verdict(

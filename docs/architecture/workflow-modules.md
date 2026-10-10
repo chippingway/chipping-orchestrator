@@ -1180,7 +1180,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             carry -- read back and proved again before a later finish routes with it, its whole
                             binding over the issue and pinned comment read afresh (`rewrite_evidence_proof.py`): one
                             something moved under is abandoned into history (`verification_carries.py`, a carry's
-                            approval with it) in the evidence write, with nothing run again and the fresh reviewer
+                            approval with it) in its own write, with nothing run again and the fresh reviewer
                             owing the evidence, and a reading nobody could take holds the route. One recorded for a
                             head the base advanced past is abandoned the same way
                             (`sets_aside`), and one once abandoned is still a run the landing captured (`retired`,
@@ -1190,10 +1190,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `stands_before_the_route`, the last word behind every request
                             (`rewrite_evidence_proof.last_word`): a landing that moved, or a base gone elsewhere or
                             unreadable, holds the route, and a transaction the route would carry is abandoned unrun,
-                            in its own evidence write, wherever any reading establishes movement there -- the proof
-                            refusing it, the binding's inputs moved, the landing moved, or the base read elsewhere --
-                            however the readings beside it came out, so no later route takes it once everything is
-                            back; only readings nobody could take keep it. With no room for the abandonment it is
+                            in its own write (`rewrite_finish_writes.ABANDONMENT`, which no moved review or report
+                            record refuses), wherever any reading establishes movement there -- the proof refusing it,
+                            the binding's inputs or its review and report records moved, the landing moved, or the
+                            base read elsewhere -- however the readings beside it came out, so no later route takes it
+                            once everything is back; only readings nobody could take keep it. With no room for the
+                            abandonment it is
                             dropped instead and the attempt's recorded base tip blanked, in a write that only shrinks
                             the comment (`_abandoned`), so every later reading of the base proves nothing and no
                             finish of the landing runs or routes over it
@@ -1219,7 +1221,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the evidence write, owning the four evidence records' pending, current, and history, the
                             revision floor, a failed run's notice, and the approval an abandoned carry takes
                             (`verification_carries.ABANDONS`), decided on the attempt, the claim, and every
-                            record the evidence is bound through (`verification_durable.py`); the retirement, clearing
+                            record the evidence is bound through (`verification_durable.py`); the abandonment of a
+                            transaction something moved under, owning what the abandonment retires and the recorded
+                            base tip, decided only on the attempt and on those records, so the review or report that
+                            moved -- the movement itself -- never refuses it; the retirement, clearing
                             that notice beside the attempt, decided on the attempt, the park's flags, the round, the
                             claim, and every record the evidence is bound through, so a report or review moved after
                             the evidence was decided -- a captured record proved over the tick's reading included --
@@ -1258,16 +1263,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a landed head's evidence proved again, and the last word on its route. `proves_again`
                             reads the issue and pinned comment afresh and takes the whole proof
                             (`verification_proof.binding_verdict`), an issue or comment that would not read holding.
+                            A proof that holds on a reading nobody could take is answered beside the review and report
+                            records the comment it read carries (`verification_proof.recorded_verdict`).
                             `last_word` reads everything that moves again once nothing else is left to request, the
-                            network first -- the remote branch the head landed on, the base, the requirements over
-                            the issue fetched once more -- and then the checkout's own head and the configuration,
+                            network first -- the remote branch the head landed on, the base, and, over the issue and
+                            pinned comment fetched once more, the requirements and those review and report records,
+                            compared on their own -- and then the checkout's own head and the configuration,
                             which no request answers, the checkout read whatever the remote's reading came to --
                             every reading taken, the first that establishes movement and
                             the first that holds answered side by side, so an unread reading masks no movement: a
                             remote branch or checkout read off the head, or a base read elsewhere, both holds and
                             establishes movement, a remote branch nobody could read, a checkout head that would not
-                            prove, or an unreadable base or issue only holds, and moved requirements or
-                            configuration, or a base no longer the recorded tip, DEFER. The landing is read only for
+                            prove, or an unreadable base, issue, or comment only holds, and moved requirements,
+                            records, or configuration, or a base no longer the recorded tip, DEFER. The landing is
+                            read only for
                             a route that carries or follows a recorded decision or ran the configured commands.
                             `standing_refusal` puts the
                             git owner's base reading (`git/base_sync/rewrite_facts.py`), over the base tip the attempt
@@ -1431,7 +1440,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the report transaction's verdict vocabulary; `binding_verdict` is both halves in one call,
                             which the settlement takes again over the comment it re-read, and which the base-rewrite
                             evidence policy (`rewrite_evidence.py`) takes over a carry, and over a run's
-                            binding before the run and behind it. `current_evidence_verdict`
+                            binding before the run and behind it. `recorded_verdict` is the part the pinned comment
+                            answers with no request -- the recorded subject and the settled report it names -- for the
+                            rewrite evidence's proof (`rewrite_evidence_proof.py`) where its whole proof held.
+                            `current_evidence_verdict`
                             is for a reader about to rely on the current record: the pull request, then its
                             publication (`verification_current.py` -- the latest record, its handoff, its artifact),
                             then the same proof. Its readers are the reviewer's hand-off of current evidence
@@ -1712,7 +1724,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             record disowns, in that order (`git/base_sync/replay_refusals.py`), then retried where the
                             record names it over a remote on the anchor or the transfer vouches for a replay its
                             record never named, and otherwise read off the counts -- zeros over unequal heads and a
-                            remote with commits of its own park, a strictly-ahead branch is retried
+                            remote with commits of its own park, a strictly-ahead branch is retried. Before any road a
+                            snapshot it read chooses, a verification transaction captured for the head the attempt
+                            announced is abandoned unless the remote and the checkout both read on that head
+                            (`rewrite_landing_moved.py`)
     rewrite_retry.py        the retry of a replay the crash kept off the pull request, from the candidate the git
                             owner reads in the attempt's own terms (`git/base_sync/recovery_push.py`) to the shared
                             finish: a checkout git names uncommitted paths in reset, cleaned, and parked; the
@@ -1738,7 +1753,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is about -- left with nothing made for the next tick to classify, save that a transaction
                             an earlier finish captured for the fetched head is abandoned on the way out where the
                             checkout read another head, that movement handed to the finish's last word
-                            (`rewrite_finish_captured.py`) so a checkout back on the head by then keeps nothing, and
+                            (`rewrite_landing_moved.py`) so a checkout back on the head by then keeps nothing, and
                             kept for another proof where the checkout's head would not prove; a landing the git owner
                             names a reason against (`git/base_sync/landed_recovery.py`) -- a mark naming another
                             head, a head nothing this attempt vouches for, a checkout not provably clean beneath a
@@ -1757,6 +1772,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its evidence decision resumed where the dead tick left it: the configured commands run
                             again only where no run was captured, a captured one is routed once it proves again or
                             abandoned where anything moved, and no developer is launched
+    rewrite_landing_moved.py
+                            the abandonment of a verification transaction a landed rewrite's finish captured, wherever
+                            its recovery reads the landing moved: asked by `rewrite_recovery.py` of every snapshot it
+                            reads (`abandons_off_the_landing`), before the road that snapshot chooses -- an unmoved
+                            checkout back on the anchor, a remote not on the checkout, or both on another head, each
+                            clearing, resetting, or parking the attempt without the transaction's route -- and by
+                            `rewrite_landed.py` for a checkout or remote it reads leaving the head (`abandons`). Only
+                            a transaction about the head the attempt announced is read, and it is handed to the
+                            finish's last word with the movement already read (`rewrite_finish_captured.py`), so heads
+                            put back by then keep nothing; a snapshot nobody could take abandons nothing here
     rewrite_takeover.py     the handoff of an unpublished replay the size gate handed to an adjudication, from the
                             attempt to the live late generation adjudicating it (`takes_over`), proved off the pinned
                             record alone: the attempt read back whole (`git/base_sync/attempt_records.py`) with no

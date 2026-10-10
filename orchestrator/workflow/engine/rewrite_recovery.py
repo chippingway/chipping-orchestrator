@@ -16,6 +16,12 @@ found already landed -- hand it to the one finish every landing gets
 - The branch is fetched and the checkout read (`git/base_sync/snapshot.py`).
   A checkout still standing on the anchor is the unstarted attempt's clear,
   which lets this tick's rebase go on, or the rollback's park.
+- Before any road a snapshot it read chooses is taken, a verification
+  transaction an earlier finish captured for the head it announced is
+  abandoned unless the remote and the checkout both read on that head
+  (`rewrite_landing_moved`): every other road clears, resets, or parks the
+  attempt without taking that transaction's route, and the landing it was
+  captured for has moved under it.
 - The remote head completes the comparison, and how far the transfer beside
   the attempt got is read off the comment (`git/base_sync/transfers.py`).
 - A remote standing on the checkout is a push that already landed, and the
@@ -57,6 +63,7 @@ from orchestrator.git.base_sync.state import _AWAITING_HUMAN, _PR_REFRESH_DETOUR
 from orchestrator.git.base_sync.transfer_values import _Handoff
 from orchestrator.workflow.engine import (
     rewrite_landed as _rewrite_landed,
+    rewrite_landing_moved as _landing_moved,
     rewrite_retry as _rewrite_retry,
 )
 
@@ -101,6 +108,7 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     if observed is None:
         return True
     if observed.local_head and observed.local_head == context.pending_pre_rebase_sha:
+        _landing_moved.abandons_off_the_landing(context, observed)
         return _replay_cleanup._finish_an_unmoved_head(context, observed)
     return _routes_the_comparison(context, observed)
 
@@ -135,6 +143,7 @@ def _routes_the_comparison(
     completed = _snapshot._complete_recovery_snapshot(context, observed)
     if completed is None:
         return True
+    _landing_moved.abandons_off_the_landing(context, completed)
     carried = _transfers._carried_by(context, completed.head)
     if completed.local_head and completed.local_head == completed.remote_head:
         return _rewrite_landed.recovers(context, completed, carried)

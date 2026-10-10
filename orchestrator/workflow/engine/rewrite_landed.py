@@ -20,8 +20,11 @@ decision is made here, in the order the recovery has always kept:
   moved since, or a head that no longer reads -- makes nothing, and the next
   tick classifies what it then finds; a transaction an earlier finish
   captured for the fetched head is abandoned first where the checkout reads
-  another head, since that move is movement under it, and kept for the next
-  proof where its head would not read at all.
+  another head (`rewrite_landing_moved`), since that move is movement under
+  it, and kept for the next proof where its head would not read at all. A
+  snapshot that read either head off the landing never reaches this road:
+  the coordinator (`rewrite_recovery`) abandons the transaction before the
+  road it does take.
 - A landing the record does not account for parks the same way: a mark
   naming another head, a head nothing this attempt wrote vouches for, a
   checkout not provably clean beneath a verdict, a transfer the receipt and
@@ -73,7 +76,6 @@ before the issue is read and holds through the route.
 from __future__ import annotations
 
 import logging
-from dataclasses import replace
 
 from orchestrator.git.base_sync import (
     landed_recovery as _landed_recovery,
@@ -89,16 +91,13 @@ from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoveryContext,
     _AutoRebaseRecoverySnapshot,
 )
-from orchestrator.git.base_sync.rewrite_handoffs import _LandedRewrite, _PushOutcome, _RewriteCandidate
+from orchestrator.git.base_sync.rewrite_handoffs import _RewriteCandidate
 from orchestrator.git.base_sync.transfer_values import _Handoff
-from orchestrator.git.ref_transport import _RefRead
 from orchestrator.workflow.engine import (
-    rewrite_evidence_proof as _evidence_proof,
     rewrite_finish as _finish,
-    rewrite_finish_captured as _captured,
+    rewrite_landing_moved as _landing_moved,
     rewrite_publication as _rewrite_publication,
 )
-from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad, LandedFinish
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     late_push as _late_push,
@@ -153,7 +152,7 @@ def _left_the_fetched_head(
     a move is no fact about this attempt -- and the next tick's own fetch
     classifies the branch as it then finds it. What an earlier finish
     captured for the fetched head is the one exception
-    (`_abandons_what_it_captured`): a checkout read on another head is
+    (`rewrite_landing_moved.abandons`): a checkout read on another head is
     movement under it. One whose head could not be proved read nothing
     move, so the transaction waits for the next tick to prove it again.
     """
@@ -166,7 +165,7 @@ def _left_the_fetched_head(
             "finished (it now reads %.8s); finishing nothing until a later tick classifies it again",
             context.issue.number, completed.head, context.pr_number, reads,
         )
-        _abandons_what_it_captured(context, completed, candidate)
+        _landing_moved.abandons(context, completed, candidate)
     else:
         log.warning(
             "issue=#%d the checkout's head could not be proved against %.8s, the head PR #%d was fetched standing "
@@ -174,41 +173,6 @@ def _left_the_fetched_head(
             context.issue.number, completed.head, context.pr_number,
         )
     return True
-
-
-def _abandons_what_it_captured(
-    context: _AutoRebaseRecoveryContext,
-    completed: _AutoRebaseRecoverySnapshot,
-    candidate: _RewriteCandidate,
-) -> None:
-    """Abandon a transaction an earlier finish recorded for the fetched head the landing was read leaving.
-
-    The checkout or the remote branch read off that head is movement under
-    the decision, which no later route may take, even one finding both back
-    on it -- and they may be back by the time anything reads them again. So
-    the landing is handed, as the fetch found it, to the last word every
-    route of the evidence step ends in
-    (`rewrite_finish_captured.stands_before_the_route`) with that movement
-    already read (`rewrite_evidence_proof.LEFT_THE_LANDING`), however its own
-    readings come out: it abandons the transaction unrun -- or, with no room
-    for that, refuses it for good -- before the recovery leaves. Nothing is
-    routed either way, and nothing is read or written where no transaction is
-    recorded for the head.
-    """
-    fetched = replace(candidate, checkout=replace(candidate.checkout, head=completed.head))
-    finish = LandedFinish(
-        gh=context.gh,
-        spec=context.spec,
-        issue=context.issue,
-        state=context.state,
-        landed=_LandedRewrite(
-            candidate=fetched, outcome=_PushOutcome.OBSERVED, remote=_RefRead(sha=completed.remote_head),
-        ),
-        label=_replay_evidence._recovered_stage(context.label),
-        road=FinishRoad.RECOVERY,
-    )
-    if _captured.recorded(finish, logged=False) is not None:
-        _captured.stands_before_the_route(finish, proof=_evidence_proof.LEFT_THE_LANDING)
 
 
 def _finishes_the_observation(
@@ -221,14 +185,14 @@ def _finishes_the_observation(
     A remote read anywhere but the landed head -- another commit, or no
     branch at all -- is a landing the finish refuses, and movement under a
     transaction an earlier finish captured for that head, which is abandoned
-    first (`_abandons_what_it_captured`) so that no later route takes it,
+    first (`rewrite_landing_moved.abandons`) so that no later route takes it,
     even one finding the branch back on the head. A remote nobody could read
     established nothing: the finish refuses the landing all the same, and the
     transaction waits for the next tick to prove it again.
     """
     landing = _rewrite_transport._observes_the_landing(context.spec, context.worktree, candidate)
     if landing.remote.sha is not None and not landing.landed:
-        _abandons_what_it_captured(context, completed, candidate)
+        _landing_moved.abandons(context, completed, candidate)
     return _finish.finishes_the_recovery(context, landing)
 
 

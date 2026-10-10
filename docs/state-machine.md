@@ -175,7 +175,8 @@ attempt standing, and so does a base that moved after the head was counted again
 (`workflow/engine/rewrite_evidence_proof.py`). The recovery resumes that decision with no developer launched: the
 commands run again only where no completed run was captured, and a captured one is routed only once it proves again
 (`workflow/engine/rewrite_finish_captured.py`), abandoned with nothing run -- then or after -- where something it is
-bound to, or the base, moved since.
+bound to, the base, or the landing moved since, the landing read moving by the recovery's first snapshot included
+(`workflow/engine/rewrite_landing_moved.py`).
 A replay the size gate hands to an adjudication instead is handed to the late generation adjudicating it
 (`workflow/engine/rewrite_takeover.py`) by the publication and by the recovery's retry alike, and a park the gate takes
 keeps the attempt for its recovery: where the pinned record proves a whole attempt and a live generation late

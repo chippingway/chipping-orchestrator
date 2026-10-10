@@ -14,7 +14,7 @@ the pinned fields the publication is resolved from
 (`ReportWrite.on_the_publication`), and keeping every other field -- unknown
 ones included -- as the fresh reading carries it.
 
-Four writes, and each lists what it has to land exactly among the records it
+Five writes, and each lists what it has to land exactly among the records it
 is decided on as well as among its own, since a field staged as it was read is
 no move of the write's and would otherwise be left to whatever another road
 did with it. `CHECKPOINT` makes the report debt durable and, on a finish that
@@ -26,12 +26,18 @@ head's evidence decision durable ahead of its route
 (`rewrite_finish_evidence`): the current evidence retired into history, the
 transaction a fresh or carried result is recorded as, with the revision floor
 it raises, and the notice a failed run is owed (`rewrite_finish_failures`) --
-or a transaction an earlier finish recorded abandoned, with the approval a
-carry takes -- or, with no room for that, dropped and the attempt's recorded
-base tip blanked (`rewrite_finish_captured`) -- decided on the attempt, the debt,
-and every record the evidence is bound through (`verification_durable`), so a
-report, a review subject, or an evidence record another road moved while the
-commands ran refuses it.
+or a transaction recorded for a head the base advanced past abandoned, with the
+approval a carry takes (`rewrite_finish_captured.sets_aside`) -- decided on the
+attempt, the debt, and every record the evidence is bound through
+(`verification_durable`), so a report, a review subject, or an evidence record
+another road moved while the commands ran refuses it. `ABANDONMENT` abandons a
+transaction an earlier finish recorded once something is read moving under it,
+with the approval a carry takes -- or, with no room for that, drops it and
+blanks the attempt's recorded base tip (`rewrite_finish_captured`). It is
+decided only on the attempt and on what it retires -- the transaction, the
+history it enters, a carry's approval -- since a report or review subject that
+moved is the very movement it answers: refused for that, the transaction would
+stand to be routed once the record moved back.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, the claim the checkpoint made durable, and every
@@ -104,6 +110,15 @@ EVIDENCE = _commits.ReportWrite(
         _base_sync_state._PENDING_REWRITE_BASE,
     )),
     decided_on=frozenset(_durable._BOUND_RECORDS) | _ATTEMPT | {_rewrite_debt.REWRITE_DEBT},
+)
+
+# An abandonment is made because something moved, so no move among the records
+# the transaction is bound through refuses it: it is decided only on the attempt
+# and on what it retires, and every other record lands as the fresh comment
+# carries it.
+ABANDONMENT = _commits.ReportWrite(
+    owned=frozenset((*ABANDONS, _base_sync_state._PENDING_REWRITE_BASE)),
+    decided_on=frozenset(ABANDONS) | _ATTEMPT,
 )
 
 FINISH = _commits.ReportWrite(
