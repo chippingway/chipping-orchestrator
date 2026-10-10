@@ -136,7 +136,9 @@ is the workflow's (`workflow/engine/base_refresh.py`), and so are the order a PR
 of a replay its crash kept off the pull request and the finish of a push it finds already landed
 (`workflow/engine/rewrite_recovery.py`, `rewrite_retry.py`, `rewrite_landed.py`); the selection, the rebase, the
 candidate and its exact-candidate push or observation, and the recovery's readings, refusals, and parks are the git
-`base_sync` owners' that route delegates to. Each worktree
+`base_sync` owners' that route delegates to. A branch is left where it is while a record somebody wrote ahead of
+the thing it describes stands -- a developer report recorded or bound and not yet settled among them, since a
+rebase in that window would hand the report a head it never described. Each worktree
 is synced under its issue's writer claim — the one every dispatch path takes, on the same key — held from before the
 issue is read until its route ends, recovery and settlement included, so an issue another poller on the host is
 dispatching or refreshing is left untouched for the tick and synced on a later one. A pre-PR
@@ -292,7 +294,11 @@ fingerprint of the read its own prompt was built from, whether that prompt is th
 the frozen batch of the reply continuing it — and no reviewer
 runs until the pull request carries it. `in_review` runs the same contract on its own drift resume, recording the
 report under its own route ahead of the size gate and publishing a report with no commit onto the head the pull
-request carries; the issue then goes back to `workflow:validating`, which is where that reviewer waits. A late
+request carries; the issue then goes back to `workflow:validating`, which is where that reviewer waits. So does
+`workflow:resolving_conflict`: the report its body-edit resume returns — over a rebase that session ran, or with no
+commit at all — is recorded under that route before the push, bound to the head the push left once the round is
+counted, and settled before `workflow:validating` spawns a reviewer, and a reply to a park that left the report owed
+is answered on the same road rather than as a conflict resolution. A late
 adjudication on `workflow:decomposing` runs no check of its own, but every reply it acts on records the baseline off
 the one reading it acted on — short of an edit in that reading nobody has answered yet, or guidance a park's notice
 withheld that nothing the answer runs has read — so the umbrella a late split hands the issue to meets guidance a
@@ -554,7 +560,14 @@ conflicted rebase resumes the dev; a diverged branch parks unless the worktree i
 unpushed rebase, or one this stage's own replay record accounts for. Every push that rewrites the head — a clean
 rebase, a resolution, a recovered push — records `developer_report_rewrite_debt` off the code-publication receipt
 before the relabel, so `workflow:validating` obtains a report of the new head before any reviewer runs; a no-op rebase
-records none. `MAX_CONFLICT_ROUNDS` caps it. Full flow: [`state-machine/delivery-stages.md`][resolving-conflict].
+records none. A body edit mid-rebase resumes the dev on the edited issue and is held to the developer report
+contract: the report that session returns is recorded before its push, published once for the head it leaves — or
+for the head the pull request already carries, where it committed nothing — and settled before review. The
+publication goes down beside that report, so a developer's own rebase a crash cut short, or a reply finishing it,
+is force-published without a final-docs pass vouching for the head; a report still unsettled is settled before
+any rebase rewrites the head it is about; and a pushed round is counted ahead of its relabel, so a move that never
+landed is made by the next tick without counting the round twice.
+`MAX_CONFLICT_ROUNDS` caps it. Full flow: [`state-machine/delivery-stages.md`][resolving-conflict].
 
 ### `_handle_question` (label `question`)
 

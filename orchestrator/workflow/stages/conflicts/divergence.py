@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Diverged-worktree admission and commit-pinned recovery publication.
 
-Only an orchestrator-produced stale head or this stage's recorded replay
-licenses a force-push over divergence. Recovery carries its original lease
+Only an orchestrator-produced stale head, this stage's recorded replay, or the
+publication a body edit's resume recorded with its report licenses a
+force-push over divergence. Recovery carries its original lease
 through the size gate, and settles the conflict round only after the push
 lands and the checkout has caught up with the base. A landed recovery owes the
 report debt of the head it published even where the rebase behind it owns the
@@ -43,12 +44,13 @@ def _guard_diverged_worktree(
     """Decide the fate of a worktree behind the remote PR head.
 
     When `behind > 0` the worktree is normally stale or diverged and we refuse
-    the force-push, park, and return a parked decision. Two exceptions yield a
-    lease pinned to the validated head instead, so the recovered-push router
+    the force-push, park, and return a parked decision. Three exceptions yield
+    a lease pinned to the validated head instead, so the recovered-push router
     can force-publish: a worktree already rebased onto base and ahead of a
-    stale orchestrator-produced PR head, and one whose divergence this stage's
-    own replay record accounts for. Every other case (including `behind == 0`)
-    returns an unparked decision with no lease.
+    stale orchestrator-produced PR head, one whose divergence this stage's own
+    replay record accounts for, and one a body edit's resume recorded as the
+    publication its report still owes. Every other case (including
+    `behind == 0`) returns an unparked decision with no lease.
 
     A REPLAY is why the second exists. A rebase moves the branch off the head
     it replayed, so the pull request stops being an ancestor and the checkout
@@ -108,6 +110,18 @@ def _guard_diverged_worktree(
         )
         # The pre-rebase head, which is the head the record names and the head
         # the pull request is standing on -- one commit, proved to be both.
+        return _models._DivergeDecision(parked=False, publish_lease=pr.head.sha)
+
+    # The third, a rebase the DEVELOPER ran answering a body edit, whose
+    # publication went down with the report it returned. Same proof, same
+    # lease: the head the record names is the one the pull request stands on.
+    if _evidence._resumes_the_publication(ctx, sync.worktree, pr):
+        log.info(
+            "issue=#%d resolving_conflict: worktree carries the publication a "
+            "body edit's resume recorded over PR head `%s`; force-publishing "
+            "instead of parking",
+            ctx.issue.number, pr.head.sha[:8],
+        )
         return _models._DivergeDecision(parked=False, publish_lease=pr.head.sha)
 
     _park_diverged_worktree(ctx, pr, sync)
@@ -219,7 +233,9 @@ def _push_recovered_commits(
     # flip) for the combined push+rebase round.
     still_behind = _still_behind_base(wt, _base_ref(ctx.spec))
     recovered_sha = _verification_probes._head_sha(wt)
-    if _recovery_guards._parked_unnameable_push(ctx, sync, recovered_sha):
+    if _recovery_guards._parked_unnameable_push(
+        ctx, sync, recovered_sha,
+    ) or _recovery_guards._parked_undescribed_push(ctx, recovered_sha):
         return True
     published = _late_push._publishes(
         _late_records._gate(ctx.gh, ctx.spec, ctx.issue, ctx.state, wt),

@@ -44,6 +44,17 @@ ISSUE = 7
 KEY_APPROVED_SHA = "late_approved_sha"
 KEY_APPROVED_LEASE = "late_approved_lease"
 
+# The head a counted conflict round handed to `validating`.
+KEY_HANDED_CLAIM = "conflict_handed_sha"
+
+# The publication record a body edit's resume left beside a report since
+# settled: the head its push replaced, the commit it sent, and the pull request.
+PREVIOUS_EPISODE_RECORD = (
+    ("conflict_resume_from_sha", CONFLICT_PR_HEAD_SHA),
+    ("conflict_resume_to_sha", CONFLICT_PR_HEAD_SHA),
+    ("conflict_resume_pr_number", 42),
+)
+
 # The reset a rollback makes, and the exit code a refused one reports.
 _HARD_RESET = ("reset", "--hard")
 _GIT_FAILED = 128
@@ -103,7 +114,12 @@ class CleanRebaseRoutingUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCase
         _assert_clean_events(self, self)
 
     def test_conflict_rebase_routes_to_resolution(self) -> None:
-        self._seed_pr_issue()
+        # A head an earlier episode's counted round handed on, its claim left
+        # by a write that never landed, is that episode's: the route opening
+        # this one drops it, or the conflict it hands over would be read as
+        # that move still owed. So is the publication record a body edit's
+        # resume left there beside a report since settled.
+        self._seed_pr_issue(**{KEY_HANDED_CLAIM: CONFLICT_PR_HEAD_SHA, **dict(PREVIOUS_EPISODE_RECORD)})
         self._add_pr(head=FakePRRef(sha=CONFLICT_PR_HEAD_SHA))
         scenario = _conflict_rebase_scenario()
 
@@ -111,6 +127,12 @@ class CleanRebaseRoutingUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCase
 
         _assert_conflict_publication(self, self, scenario)
         _assert_conflict_state_event(self, self)
+        pinned = self.gh.pinned_data(ISSUE)
+        dropped = (KEY_HANDED_CLAIM, *dict(PREVIOUS_EPISODE_RECORD))
+        self.assertEqual(
+            {key: pinned.get(key) for key in dropped},
+            dict.fromkeys(dropped),
+        )
 
     def test_validating_rebase_stays_validating(self) -> None:
         self._seed_pr_issue(label=LABEL_VALIDATING)

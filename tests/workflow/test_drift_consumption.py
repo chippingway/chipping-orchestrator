@@ -40,6 +40,9 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.support.publication import LandingPush
+from tests.workflow import published_reports as _published_reports
+from tests.workflow.drift_reports import reported
 from tests.workflow.fixtures import (
     DEFAULT_PR_HEAD_SHA,
     LABEL_FIXING,
@@ -50,6 +53,7 @@ from tests.workflow.fixtures import (
     _issue_branch,
     _PatchedWorkflowMixin,
 )
+from tests.workflow.repo_values import EXISTING_CHECKOUT
 from tests.workflow.stages.fixing.prompt_expectations import (
     only_prompt,
     pr_feedback_prompt,
@@ -209,15 +213,28 @@ class _RebasedUnderAnEdit(_PatchedWorkflowMixin):
         return only_prompt(self._run_resolving_conflict(
             self.github,
             self.issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message="rebased"),
+            run_agent=_agent(session_id=DEV_SESSION, last_message=reported()),
             has_new_commits=True,
             dirty_files=(),
-            push_branch=True,
+            # The resume ends on its report, which settles over the head it is
+            # about: the push moves the pull request and its branch there as
+            # GitHub does, and the checkout that report describes is one this
+            # host holds.
+            push_branch=LandingPush(self.github, PR_NUMBER),
+            fetched_branch_tip=RESOLVED_SHA,
+            issue_checkout=EXISTING_CHECKOUT,
             head_shas=[BEFORE_SHA, RESOLVED_SHA],
         ))
 
     def _moves_to_review(self) -> dict:
-        """A human's manual move onto `in_review`, and the tick it earns."""
+        """A human's manual move onto `in_review`, and the tick it earns.
+
+        Over an approval of the report the resume settled, which is what a
+        review of that head would have left: without one, `in_review` hands
+        the issue straight back rather than acting on a report nobody
+        reviewed, and the crossing below never happens.
+        """
+        _published_reports.approves_the_report(self.github, self.issue)
         self.github.apply_foreign_label(self.issue, LABEL_IN_REVIEW)
         return self._run_in_review(
             self.github, self.issue, run_agent=_agent(session_id=DEV_SESSION),

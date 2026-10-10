@@ -211,9 +211,12 @@ _NOTHING_ADDED = (
 
 # The roads that record a report for work an open pull request already carries.
 # The fix loop is one of them: it runs under its own label, and the pull
-# request the round is about was open before the round began.
+# request the round is about was open before the round began. So is the body
+# edit `resolving_conflict` resumes the developer on, over the pull request it
+# is rebasing.
 _UNDER_REVIEW = frozenset((
     WorkflowLabel.VALIDATING, WorkflowLabel.IN_REVIEW, WorkflowLabel.FIXING,
+    WorkflowLabel.RESOLVING_CONFLICT,
 ))
 
 # The refusals that are not a contract violation: no process produced the

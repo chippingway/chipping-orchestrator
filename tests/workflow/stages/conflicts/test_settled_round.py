@@ -25,6 +25,7 @@ from orchestrator.git.measurement.models import (
     FrozenCommit,
     MeasurementFailure,
 )
+from tests.workflow.drift_reports import reported
 from tests.workflow.patch_models import _agent
 from tests.workflow.stages.conflicts import round_record_support as _round_records
 from tests.workflow.stages.conflicts.conflicts_test_support import (
@@ -466,8 +467,11 @@ class ResolvingConflictBodyEditRoundTest(
                 head_shas=[BEFORE_HEAD, MERGED_HEAD],
                 push_branch=True,
                 added_lines=PAST_THE_CEILING,
+                # Ending on its report, which goes onto the comment ahead of
+                # the gate: a body edit's commit publishes with one or not at
+                # all, held candidate included.
                 run_agent_result=_agent(
-                    session_id="dev-sess", last_message="resolved the edit",
+                    session_id="dev-sess", last_message=reported(),
                 ),
             )[0]
 

@@ -6,13 +6,12 @@ A held resolution records its outcome and exact head for a later tick.
 Recovery proves that head before incrementing the round, clearing its park
 and receipt, and moving the issue to validation. A round that rewrote the
 pull request's head records the report debt it leaves first, on the tick that
-pushed and on the one a crash sent back to finish it alike.
+pushed and on the one a crash sent back to finish it alike. The count is
+made durable ahead of the relabel (`handoff`), so a move a crash cut short is
+made by the next tick without the round being counted twice.
 """
 from __future__ import annotations
 
-import logging
-
-from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import usage as _usage
 from orchestrator.workflow.late_split import (
@@ -20,22 +19,16 @@ from orchestrator.workflow.late_split import (
     payloads as _payloads,
 )
 from orchestrator.workflow.stages.conflicts import (
+    handoff as _handoff,
     models as _models,
     parks as _conflict_parks,
     report_debt as _report_debt,
+    resume_records as _resume_records,
     state as _state,
 )
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
 )
-from orchestrator.workflow.state import WorkflowLabel
-
-log = logging.getLogger("orchestrator.workflow")
-
-
-# The revision a checkout's own head is named by.
-_HEAD = "HEAD"
-
 
 # What the three rounds that REWRITE the pull request's head are recorded as,
 # in the audit event and in the receipt a hold leaves for the tick that
@@ -45,7 +38,8 @@ _HEAD = "HEAD"
 # about -- the conflict prompt asks for none, and nothing on the recovery road
 # can say whether the commits it finds ever had one -- so each owes the report
 # debt. A body edit's round is not one: its commit is the developer's own
-# answer to the change, and the report owed for it is the reviewer road's.
+# answer to the change, and the report describing it is the one its resume
+# returned, recorded ahead of the push (`resume_reports`).
 _BASE_REBASED_CLEAN = "base_rebased_clean"
 
 _AGENT_RESOLVED = "agent_resolved"
@@ -97,8 +91,13 @@ def _hand_resolved_round_to_validating(
 
     Resets `review_round` (rebasing rewrites SHAs, so validation must
     re-approve the rebased branch), bumps `conflict_round`, stamps
-    `last_conflict_resolved_at`, emits the `conflict_round` audit event, flips
-    the label, and persists pinned state. Shared by every pushed-diff exit --
+    `last_conflict_resolved_at`, persists pinned state, emits the
+    `conflict_round` audit event, and flips the label -- in that order,
+    through `handoff`, so the count is durable before the move it pays for
+    and the event that reports it, a move that did not land is made by the
+    next tick rather than counted again, and a count write that did not land
+    leaves nothing reported for the tick that counts it again to repeat.
+    Shared by every pushed-diff exit --
     recovered push, clean base rebase, agent resolution, and the drift resume
     -- and by the settled round a hold or a crash left for a later tick.
     Docs do not run here: the single docs pass is deferred to the post-approval
@@ -116,6 +115,7 @@ def _hand_resolved_round_to_validating(
         return
     _counts_the_round(ctx, conflict_round)
     _conflict_parks._left_unparked(ctx)
+    _handoff._writes_the_count(ctx, sha)
     _emit_conflict_round_incremented(
         ctx,
         pr_number=int(pr_number),
@@ -123,8 +123,7 @@ def _hand_resolved_round_to_validating(
         outcome=outcome,
         sha=sha,
     )
-    ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
-    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+    _handoff._moves_on(ctx)
 
 
 def _settles_the_held_round(outcome: str, sha: str | None):
@@ -235,8 +234,14 @@ def _finished_settled_round(
     object id is not one a checkout can be compared to, and a head this host
     cannot peel is not one anything may be compared against -- both leave the
     receipt exactly where it is for a tick that can prove it.
+
+    A round already counted whose move to `validating` never landed is asked
+    first of all: it owes the label and nothing else, so nothing behind it may
+    count it again or start a new attempt over the head it handed on.
     """
-    if not _report_debt._records_the_owed_preamble(ctx, sync.fetched_tip):
+    if _handoff._makes_the_owed_move(ctx, sync) or not _report_debt._records_the_owed_preamble(
+        ctx, sync.fetched_tip,
+    ):
         return True
     outcome, settled = _settled_round_owed(ctx.state)
     if not outcome or pr_number is None:
@@ -246,32 +251,12 @@ def _finished_settled_round(
     # request carries, which is the head the handoff would hand a reviewer.
     if sync.ahead > 0 or sync.behind > 0:
         return False
-    if not _standing_on(ctx, sync.worktree, settled):
+    if not _handoff._standing_on(ctx, sync.worktree, settled):
         return False
     _hand_resolved_round_to_validating(
         ctx, conflict_round, pr_number, outcome=outcome, sha=settled,
     )
     return True
-
-
-def _standing_on(
-    ctx: _models._ConflictContext, worktree, settled: str,
-) -> bool:
-    """Whether this checkout is the commit a settled receipt names.
-
-    Proved rather than read, because everything past it is a claim about one
-    object id: a revision this host cannot peel is not a head that matches
-    anything, and a host that never had the commit answers exactly that.
-    """
-    proved = _measurement_commits._prove_candidate_commit(worktree, _HEAD)
-    if proved.is_frozen and proved.sha == settled:
-        return True
-    log.error(
-        "issue=#%d stands on %s rather than the settled resolution %s; "
-        "leaving the receipt for a tick that can prove it",
-        ctx.issue.number, proved.sha or "an unreadable head", settled,
-    )
-    return False
 
 
 def _counts_the_round(ctx: _models._ConflictContext, conflict_round: int) -> None:
@@ -284,10 +269,15 @@ def _counts_the_round(ctx: _models._ConflictContext, conflict_round: int) -> Non
     The receipt is dropped here, by the tail rather than by the reader above,
     so a recovered-commit push that publishes a held resolution on its own --
     reaching the tail under its own outcome -- leaves nothing behind for a
-    later tick to finish a second time.
+    later tick to finish a second time. So is the publication a body edit's
+    resume recorded with its report (`resume_records`), whichever road pushed
+    it -- unless that report is still unbound. Then the record stays, since it
+    is what refuses a commit the checkout gains before the binding, should the
+    relabel behind this write not land.
     """
     ctx.state.set(_state._REVIEW_ROUND, 0)
     ctx.state.set(_state._CONFLICT_ROUND, conflict_round + 1)
     ctx.state.set("last_conflict_resolved_at", _usage._now_iso())
     ctx.state.set(_state._SETTLED_OUTCOME, None)
     ctx.state.set(_state._SETTLED_SHA, None)
+    _resume_records._forgets_the_candidate(ctx.state)

@@ -111,6 +111,10 @@ def _publishable_dev_fix(
     None is every no-publish reading: a checkout that could not name its head
     at all, and one whose head is exactly what the run started on with nothing
     of that run's stranded on the branch unpushed.
+
+    A head the CALLER names is the head the push replaces, and this proof is
+    not asked at all (`_replaced_head`); a candidate standing on that head
+    publishes nothing over it.
     """
     if run.agent_result.unfinished_steps:
         return None
@@ -119,12 +123,40 @@ def _publishable_dev_fix(
         after_sha = _verification_probes._head_sha(run.worktree)
     if not after_sha:
         return None
-    published = _stranded._stranded_evidence(
-        spec, run.worktree, state, issue,
-    ).stranded
-    if after_sha == run.before_sha and not published:
+    published = _replaced_head(spec, issue, state, run, after_sha)
+    if not published and (after_sha == run.before_sha or run.published_head):
         return None
     return _replace(run, after_sha=after_sha, published_head=published)
+
+
+def _replaced_head(
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    run: _models._DevFixRun,
+    after_sha: str,
+) -> str:
+    """The head the candidate's push replaces, or "" where nothing names one.
+
+    A head the CALLER names is that head, and nothing read afterwards replaces
+    it. It is one that caller read before the run and proved a force-push may
+    replace -- the head the conflict stage's body-edit resume began at, in
+    sync with its remote, or the pull request's head ahead of a reply over a
+    branch its divergence guard admitted. Proved again here, a remote somebody
+    moved while the agent was out reads as the tip the candidate is stranded
+    on wherever the candidate still descends from it, and the push would be
+    leased to the newer head and overwrite it; named, the gate compares the
+    caller's head with the one the pull request stands on and refuses. It is
+    also the one shape this proof cannot read: a rebase leaves the branch ahead
+    of the head it replaced and behind it, which reads here as a remote that
+    moved. A candidate standing ON the named head has nothing to publish over
+    it, and answers "".
+
+    Otherwise the remote tip is proved, as the publishable fix above says.
+    """
+    if run.published_head:
+        return "" if run.published_head == after_sha else run.published_head
+    return _stranded._stranded_evidence(spec, run.worktree, state, issue).stranded
 
 
 def _publish_dev_fix(

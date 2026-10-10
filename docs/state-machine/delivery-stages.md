@@ -269,13 +269,14 @@ Result routing in `_post_user_content_change_result`:
 - a clean pushed fix hands straight back to `workflow:validating` from every stage that runs the drift resume; from
   `workflow:implementing` the drift path publishes through the shared committed-work seam, so the size gate measures
   the resumed commit before `_on_commits` opens/pushes the PR;
-- on `workflow:validating` and `in_review`, where the caller names what its resume was `handed`, a commit this run
-  made is held to the developer report contract (`validating/drift_reports.py`): the report is recorded as
-  `developer_report_delivery` BEFORE the size gate reads the candidate, under that stage's route and the
-  requirements revision that caller handed it — on both stages the fingerprint of the read its own prompt was built
-  from, which is also the baseline that read's settlement writes — never the baseline as it stands when publication
-  succeeds. Once the push lands the caller writes
-  its own bookkeeping — on `in_review` the relabel too —
+- on `workflow:validating`, `in_review` and `workflow:resolving_conflict`, where the caller names what its resume was
+  `handed`, a commit this run made is held to the developer report contract (`validating/drift_reports.py`): the
+  report is recorded as `developer_report_delivery` BEFORE the size gate reads the candidate, under that stage's route
+  and the requirements revision that caller handed it — on all three the fingerprint of the read its own prompt was
+  built from, which is also the baseline that read's settlement writes — never the baseline as it stands when
+  publication succeeds. Once the push lands the caller writes
+  its own bookkeeping — on `in_review` the relabel too, on `workflow:resolving_conflict` the counted round and its
+  relabel —
   and only then binds the report to the publication the code-publication receipt names, settling through the
   [reconciliation](#the-developer-report-transaction-every-dispatch) on the same tick
   (`validating/report_settlement.py`). The pull request, its description, and the issue are all read again by number
@@ -298,7 +299,7 @@ Result routing in `_post_user_content_change_result`:
   undescribed-work flag goes down for it, so the reply keeps its own road as an ack or a question while the review
   hold behind it asks a human for the report. Which run left the commit decides nothing; a reply that IS a report
   publishes it, since a report written over the branch as it stands describes it too;
-- on those same two stages a no-commit reply ending on a report outcome is `"reported"`: the report is recorded and,
+- on those same three stages a no-commit reply ending on a report outcome is `"reported"`: the report is recorded and,
   behind the caller's bookkeeping, bound to the head the pull request already carries, needing no commit, and routed
   as an ack is. The tree is proved clean first, as every publication's is: a report over loose work describes
   something the pull request does not carry and could never settle, so the run parks on the tree with nothing
@@ -325,8 +326,16 @@ Per-stage specifics:
   the watermark carry afterwards may advance over them. The carry is handed that record rather than the read behind
   it, since the bounded half delivered less than it read.
 - For **`workflow:resolving_conflict`** drift, ONLY the "pushed" outcome relabels back to `workflow:validating` (with
-  `review_round=0`, `conflict_round` bumped). Ack and parked outcomes stay on `workflow:resolving_conflict` — the
-  rebase work is still unfinished. Three outcomes short-circuit BEFORE `_post_user_content_change_result` and return
+  `review_round=0`, `conflict_round` bumped). Ack, "reported", and parked outcomes stay on
+  `workflow:resolving_conflict` — the rebase work is still unfinished, and the next tick finds the branch on its base,
+  or rebases it, and hands it on. The resume is `handed` this stage's route and the revision its frozen record
+  fingerprints (`conflicts/resume_reports.py`), so what the session returns is the report the pull request gets —
+  recorded ahead of the gate, bound to the head the push left once the round is counted and relabelled, or to the
+  head the pull request already carries for a report alone — and see
+  [_handle_resolving_conflict](#_handle_resolving_conflict-label-workflowresolving_conflict) for the recovery of
+  each window between the record and its settlement. A park this road takes writes no `requirements_drift_open`:
+  its reply is this stage's own road, which reads the report the issue owes for itself.
+  Three outcomes short-circuit BEFORE `_post_user_content_change_result` and return
   WITHOUT writing pinned state, in this order: a launch the run circuit turned away
   (`_ignore_if_never_invoked` — the refusal it recorded where it was decided is the whole of what the tick says, and
   a disposition reached anyway would park in the name of a process that never started), an `interrupted` resume
@@ -903,7 +912,8 @@ because there it is the claim that this stage has already rerouted rather than a
   (`_handle_implementing` below). The fix loop on an open pull request binds its report on the tick its push lands, or
   at once for a report alone, and completes it by calling this very reconciliation there rather
   than posting on a proof of its own — a requirements-drift resume (the
-  [user-content drift](#user-content-drift-detection) routing) and a reviewer-requested round on either side of a park
+  [user-content drift](#user-content-drift-detection) routing, `workflow:resolving_conflict`'s included) and a
+  reviewer-requested round on either side of a park
   (`_handle_validating`'s `changes_requested` arc and `_handle_fixing` step 9) both do, with
   `_handle_validating`'s report hold behind them for a delivery a later push carried. The rewritten-head report
   refresh that hold runs (`_handle_validating` step 3) does the same with the report alone it asks the developer for,
@@ -5054,22 +5064,25 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      recovered push is what pays it and they share the one receipt slot. The body edit is asked first, because it
      changes what
      "resolved" means and the reply may answer a question the edit has already overtaken; a pushed answer hands back
-     to `workflow:validating`, and a bare acknowledgement stays here without parking so a harmless clarification does
-     not stall the rebase. The reply
-     path uses the same `_post_conflict_resolution_result` helper as the fresh path, and a bare `/orchestrator
+     to `workflow:validating`, and a bare acknowledgement — or a report with no commit — stays here without parking
+     so a harmless clarification does not stall the rebase. The body edit's resume is held to the developer report
+     contract (see *A body edit's report reaches the pull request with it* below). The reply
+     path uses the same `_post_conflict_resolution_result` helper as the fresh path — except over a park that left
+     a report owed, which it answers as the rest of the body edit's road — and a bare `/orchestrator
      continue` on it is intercepted like `validating`'s: a session-failure park (`agent_silent` / `agent_timeout` /
      `agent_execution_failed`) retries the dev on the neutral `_CONTINUE_RETRY_PROMPT` instead of the literal command,
      a park needing a real answer refuses, and an auto-rebase park is left to the refresh retry-unpark
      (`_continue_command_action` / `_refuse_parked_continue`). A park left by a *reading* rather than a question is
      not answered here at all — see the transient-park note below.
   5. Ensure the PR worktree, refresh the refs, and read the divergence (steps 6–8 below). The **cap check** comes
-     after all of it, immediately in front of the rebase in step 10: what `MAX_CONFLICT_ROUNDS` refuses is another
-     *attempt*, and everything step 8 does is work already done that this stage still owes an effect for — a round a
-     settlement published, commits an earlier tick never pushed, a human whose edit or reply is waiting. Refused with
-     the attempts, none of those ends the loop; they strand, since nothing else pays a receipt, publishes a stranded
-     commit, or answers a person. Once step 8 is through and `conflict_round >= MAX_CONFLICT_ROUNDS`, park. Escape:
-     (a) operator relabels off `workflow:resolving_conflict`, or (b) a new issue comment unparks via the resume
-     branch, which step 8 reaches before the cap.
+     after all of it, immediately in front of the rebase in step 10 and behind the settlement of a report this issue
+     still owes: what `MAX_CONFLICT_ROUNDS` refuses is another *attempt*, and everything step 8 does is work already
+     done that this stage still owes an effect for — a round a settlement published, commits an earlier tick never
+     pushed, a report a resume saved, a human whose edit or reply is waiting. Refused with the attempts, none of
+     those ends the loop; they strand, since nothing else pays a receipt, publishes a stranded commit, settles a
+     saved report, or answers a person. Once step 8 is through and `conflict_round >= MAX_CONFLICT_ROUNDS`, park.
+     Escape: (a) operator relabels off `workflow:resolving_conflict`, or (b) a new issue comment unparks via the
+     resume branch, which step 8 reaches before the cap.
   6. Ensure the PR worktree via `_ensure_pr_worktree` (restores from `<remote>/<branch>` when THIS tick's fetch of it
      landed, NOT base — `_ensure_worktree` would discard the PR's commits — and never from a remote-tracking ref a
      failed fetch left behind, which resolves perfectly well while naming whatever was last seen; and from
@@ -5096,7 +5109,13 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        force-publish instead of parking. PR heads from earlier in the lifecycle (the initial implementing push, an
        intermediate fixing push) are not currently recorded anywhere in pinned state, so the exception declines those by
        design. If either guard fails (not on base, or an unrecognized head that might carry a direct push), keep the
-       `diverged_branch` park.
+       `diverged_branch` park. Two RECORDS license the same force-push without either guard: this stage's own replay
+       record (see the `conflict_replay_*` group), and the publication a body edit's resume recorded beside the report
+       it returned (`conflict_resume_*`, `conflicts/resume_records.py`) while the issue still owes that report. Each
+       names the head it replaced, the commit it produced, and the pull request; a remote still standing on that head
+       and a checkout on that commit is a branch whose dropped commits are exactly the ones that rewrite replaced. So
+       a developer's own rebase, cut short by a crash before its push or parked for the report it left out, is
+       published without a final-docs pass having vouched for the head.
      - `ahead > 0` (recovered unpushed commits, or the already-rebased fall-through above) → dirty-tree check, then
        push the recovered work and flip to `workflow:validating` with `review_round=0`, `conflict_round += 1`. The
        push is **pinned to the tip this comparison was taken against**, read from the same `<remote>/<branch>` ref the
@@ -5123,6 +5142,18 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        the gate that head as `conflict_preamble_sha`, so the debt survives a crash before its own write and a hold the
        adjudication publishes later.
      - `(0, 0)` → fall through.
+
+     Behind the body edit's resume, and ahead of the reply wait, the recovered push, and the cap, a developer report
+     a resume saved about the head the pull request carries is settled (`rebase._settles_the_saved_report`,
+     through the hold of step 10) over a checkout not ahead of its remote. A report-only result whose binding a
+     crash cut short is owed whatever this stage waits on next: behind the cap it would park `conflict_cap` over it,
+     and behind a human's park it would wait on a reply nobody was asked for, with the base refresh frozen on its
+     records. It waits for an edit, though: once the requirements move past it the reconciliation defers it for
+     good, and held in front of the edit it would hold the resume whose report replaces it. That resume leaves it
+     where it is until the replacement is recorded over it, so a question or an `ACK:` leaves it to the hold, which
+     parks it for the requirements it no longer answers. A report the issue is parked `report_undeliverable` for is
+     left to the reply that replaces it, and one whose `conflict_resume_*` record names a commit the pull request
+     does not carry is left to the roads that refuse it, so neither turns a standing park into the report's.
   9. Read the **pre-rebase HEAD**, and park `unreadable_head` when nothing could. It is not bookkeeping: it is the
      head both exits of this round lease their force-push against, and the size gate reads "no head" as a caller that
      established none — pinning the push to whatever the pull request is standing on when *it* looks, which is after
@@ -5133,7 +5164,13 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      so the edit is still there for the next tick to detect.
   10. Refresh `<remote>/<base>` and run `git rebase <remote>/<base>` under `_git_hardened` (drops global / system
       config, disables hooks / fsmonitor / credential helpers / commit signing / autostash — the agent owns the
-      worktree and could otherwise plant a hook to execute attacker code mid-rebase).
+      worktree and could otherwise plant a hook to execute attacker code mid-rebase). A developer report this issue
+      recorded and has not settled is settled FIRST (`resume_reports._holds_the_rewrite`, through the same hold
+      `workflow:validating` takes ahead of its reviewer): a report binds to whatever the code-publication receipt
+      names when it settles, so one left for after the rebase would be bound to the head the rebase left and handed
+      to a reviewer as that head's account. While it cannot settle nothing is rebased; where it never can, the hold
+      parks for a human under `report_undeliverable`. The cap is asked behind it (`rebase._capped`), so a counter
+      that has spent every round settles what it owes before it parks.
   11. **Clean rebase succeeded**: a PROVED clean tree first — a status read that established nothing names no
       paths, exactly as a tree with nothing in it does, so only a reading that happened AND named nothing gets past
       it, and either failure parks `dirty_worktree`. Then the post-rebase HEAD, proved rather than assumed: one that
@@ -5161,7 +5198,8 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
       write happens until the label is removed.
 - **Output**: label moved to `workflow:validating` (any pushed resolution OR no-op rebase), OR
   `workflow:decomposing` (a content update the size gate held), OR no label change (drift
-  ACK / `_on_question` park: rebase still unfinished), OR `done` / `rejected` (terminal), OR a HITL park.
+  ACK / drift report with no commit / `_on_question` park: rebase still unfinished), OR `done` / `rejected`
+  (terminal), OR a HITL park.
 
 The rebase path deliberately rewrites the PR branch to keep history linear after other issue PRs land. Every pushed
 rebase resets `review_round`, so the reviewer must re-approve the rewritten head before the in_review ready-ping gate
@@ -5194,7 +5232,23 @@ measurement exists to prevent.
   `conflict_round` audit event all live on the pushed-round tail (`_hand_resolved_round_to_validating`), so a held
   candidate and a failed push each leave the counter alone — spending one for a push that never happened brings
   `MAX_CONFLICT_ROUNDS` forward by a round nobody ran. The single exception is the no-op flip, which counts a round
-  *because* nothing was published; see below.
+  *because* nothing was published; see below. The count is durable BEFORE the label moves (`conflicts/handoff.py`):
+  the tail writes it with `conflict_handed_sha`, the head it hands on, then emits the `conflict_round` event, then
+  relabels, then drops that claim in a write of its own. The event follows the write, so a count write that never
+  landed has reported nothing and the tick that counts the round again behind the push's receipt emits it once; a
+  process ending between the write and the event loses the event rather than duplicating it. Moved first, a write
+  lost behind the relabel would leave `workflow:validating` holding the head
+  with the round uncounted and the old `review_round` -- and nothing there reads a conflict receipt. Written first, a
+  relabel that never landed leaves the claim on `workflow:resolving_conflict`, and the next tick, finding the branch
+  in sync and standing on that head, makes the move ahead of every receipt, resume, and rebase without counting
+  again; a claim about any other head is dropped, and a head nothing could prove holds the tick with the claim kept
+  — read as no claim, the branch would be resolved again, counting the round a second time through the no-op flip or
+  parking it at the `MAX_CONFLICT_ROUNDS` that round reached. A drop lost behind a landed relabel leaves the claim on
+  `workflow:validating`, whose handler retires it in a write of its own before anything else: the move has been made
+  by then. Left standing, it would outlive the review, the approval, and the docs pass, and the next conflict episode
+  over that same head would read it as the move still owed and hand the head back to review with nothing rebased.
+  The base refresh that routes an issue into a new episode drops it in the same write, for an issue it routes there
+  before `workflow:validating` ever ran.
 - **A rewrite owes its report.** A clean rebase, a resolution the dev finished one with, and a recovered push each
   leave the pull request on a head no developer report is about -- the conflict prompt asks for none, and nothing on
   the recovery road can say whether the commits it finds ever had one -- so each records
@@ -5231,7 +5285,98 @@ measurement exists to prevent.
   failed record nothing, since no head of this stage's reached the pull request; a held one's debt is recorded by
   the settled round, or the preamble head, the tick after its publication reads. A body edit's round
   (`drift_resolved`) records none either: its commit is the developer's own answer to the edit, not a rewrite of the
-  head.
+  head, and the report describing it is the one its resume returned (below).
+- **A body edit's report reaches the pull request with it.** The body-edit resume names what it was `handed` —
+  `workflow:resolving_conflict` as the route and the requirements revision its frozen record fingerprints — so the
+  shared drift disposition holds it to the report contract the review stages' drift resumes are held to
+  (`conflicts/resume_reports.py`). A rebase the session ran itself, a change the edit asked for, or both: the report
+  it returned is recorded as `developer_report_delivery` before the size gate reads the candidate, and once the push
+  lands the round is counted and relabelled through the shared tail, and only then is the report bound to the head
+  the code-publication receipt names and settled through the
+  [reconciliation](#the-developer-report-transaction-every-dispatch). So the reviewer `workflow:validating` spawns
+  next is handed that report, settled for the rewritten head: no `report_undeliverable` park over a report about the
+  head the rebase replaced, no human reply, and no developer run to write the report again. A run that commits
+  nothing and reports is `"reported"` — the report goes onto the head the pull request already carries, which a
+  rebase already published, nothing is pushed, no round is spent, and the issue stays here as on an `ACK:` until
+  the next tick's no-op flip or rebase hands it on. A finished run that committed with no usable report, a report no
+  record can carry, and a commit an incomplete run left all publish nothing and park under `report_undeliverable`,
+  as on the review stages. The reply that answers such a park — or a `push_failed` park behind a recorded report —
+  is the rest of the same road rather than a conflict resolution: `_resume_awaiting_human` asks whether the issue
+  owes a report before the run, and where it does the reply's run goes through the same disposition and publishes
+  the commit the first run left under the report the reply wrote -- unless the run left the rebase mid-flight, which
+  parks `rebase_in_progress` as the resolution funnel does, recording no report and pushing nothing, as the body
+  edit's own resume does too. A timeout reads ahead of that, as in the funnel: the run parks `agent_timeout`, which
+  `/orchestrator continue` retries rather than refusing. The reply's publication is leased against the head the
+  pull request stood on before the run, which the divergence guard ahead of the resume admitted, so a rebase past
+  that head goes out even where the reply commits nothing more: the shared stranded-commit proof reads such a
+  branch as a remote that moved, so a lease its caller names is never asked of that proof
+  (`validating/dev_fix._replaced_head`). The body edit's resume names the head it began at the same way. A pull
+  request somebody pushes to while either run is out is therefore refused by the size gate rather than adopted as
+  the head the push replaces, even where the candidate still descends from it. A run that commits
+  nothing and reports — the body edit's or a reply's — writes the head the pull request carries as both ends of the
+  `conflict_resume_*` record in the write that saves its report, over the record of an earlier candidate. The
+  record holds whatever report is unbound to its head, and nothing retires it while one is — not the settlement of
+  an older transaction beside a newer report of the same head — so a crash before its binding leaves the
+  report to settle on that head, and a checkout that gains a commit meanwhile parks `report_undeliverable` as any
+  head the record does not name does, with nothing pushed or bound, for the reply that reports the branch as it
+  stands. A crash after the binding and before the post leaves a transaction held to the head it was bound to, and
+  a recovered push of a commit gained since would leave it a head it can never settle on, so that push waits for
+  the transaction to settle through the review hold's settling half, which parks `report_undeliverable` where the
+  checkout has moved off that head. A run that reports over a head nothing could read records nothing at all: no
+  record could hold that report to a commit, so the issue parks `report_undeliverable` with the run's work marked
+  undescribed, the recovered push refuses to carry out whatever the checkout holds by the next tick, and the reply's
+  report is the one published. A report written with a tool step still running is no finished run either: it parks
+  `agent_execution_failed`, as the question road parks such a run that reports nothing, and nothing is recorded,
+  pushed, or published, over the head the run began on or a commit it left. An `ACK:` saves no report and leaves the
+  record, and the earlier report parked. The reply's run is
+  resumed on the frozen drift prompt, as the edit's own resume was: the issue and its conversation -- the reply among
+  it, and a body changed while the branch was ahead -- quoted off one read whose record stamps the report and is
+  settled once the run is back, so no later drift check reads the reply or that body as an edit nobody answered.
+  That read keeps every reply past the watermark whole, the excerpt bounding only the context ahead of them, and the
+  replies are marked read by its settlement rather than ahead of the read: a reply the bound cut would otherwise be
+  marked read without ever reaching the developer. A
+  rotated or poisoned session's fresh spawn is re-grounded on that same frozen text, so the stamp is what the run was
+  given however it was launched. A bare `/orchestrator continue` that retries such a run's session failure — a
+  timeout behind the reply, the report still owed — keeps the retry it is on every other park: the commands it
+  consumes come out of that one read by id, out of the conversation it quotes, its record, and the re-grounding text
+  alike, and `_CONTINUE_RETRY_PROMPT` leads the drift prompt in their place, so the developer is never handed the
+  command as the last thing a human said. The bare command never moved the requirements fingerprint, so the stamp is
+  the same with it gone. This orchestrator's own notices are no reply: a bounded park cannot carry the
+  watermark over a human comment that landed ahead of it, so its notice can stand above the watermark, and the
+  reply road drops it by the id ledger rather than resuming a developer nobody asked for. The resolution funnel reads no
+  report, so taken down it the commit would go out undescribed and the report would be parked as a question. A reply
+  that only acknowledges the edit answers the park without writing the report, so the debt stands with the flags
+  down: the recovered push then refuses the commit it would carry out undescribed and parks `report_undeliverable`
+  again, so nothing reaches the pull request, and no round is counted, until a usable report exists.
+  A park that owes no report — a question, a timeout —
+  keeps the resolution road and writes no `requirements_drift_open`, since nothing on this stage reads that claim.
+  The crash windows between the record and the settlement are recovered as follows. Past the record and before the
+  push, the commit is ahead of the remote or, rebased, diverged from it, and the recorded report is durable beside
+  the settled baseline and the `conflict_resume_*` publication: the next tick's recovered push publishes it -- over
+  a divergence, under the lease that record licenses, and never a head other than the commit it names: a checkout
+  that moved on, or was put back on the head the push would have replaced, parks `report_undeliverable` with nothing
+  pushed or bound and the record kept, for the reply that reports the branch as it stands -- and records the
+  rewrite's report debt under the
+  `recovered_push` outcome, and `workflow:validating`'s report hold binds the saved report to that head and settles
+  it, which pays the debt, before any reviewer runs. Where the base moved again in the meantime the recovered push
+  lands still behind it, and the rebase behind that push waits for the saved report to settle about the recovered
+  commit (step 10): the head the rebase or the resolution behind it leaves is then owed a fresh report, which
+  `workflow:validating` asks the developer for with nobody involved. Past the count and before the binding, the issue
+  is on `workflow:validating` with the report recorded and unbound, and the per-tick base refresh runs ahead of the
+  hold that binds it: the refresh leaves the branch where it is while `developer_report_delivery` or
+  `developer_report_pending` stands, so the hold binds the report to the head it describes, and the refresh rebases
+  on a later tick, leaving that head's own debt for `workflow:validating` to refresh. Where the relabel itself was
+  lost, the round is counted and the issue is still here with the report unbound: the counting tail leaves the
+  `conflict_resume_*` record standing while that report is unbound, so a commit the checkout gains meanwhile is
+  refused as any head the record does not name is — `report_undeliverable`, nothing pushed, bound, or counted
+  again — rather than recovered and handed the report. Past the push, the gate's own
+  write left the
+  `drift_resolved`
+  settled round: the next tick finishes it through `_finished_settled_round`, and the hold, or the transaction's own
+  reconciliation where the binding had landed, settles the report off its receipt. Past the count, see *A round is
+  counted only after a push* above. In none of these does a later tick post the report twice, launch another
+  developer, charge another run, or count the round again; a window the gate's own pre-push approval covers is the
+  publication reconciliation's, ahead of the handler.
 - **A hold ends the tick here.** The commit stays on the branch, the issue is on `workflow:decomposing`, and neither
   the hand back to `workflow:validating` nor the rebase behind a held recovered push is this tick's to make. What the
   round would have been is written inside the gate's own durable write, ahead of the relabel, as
@@ -5251,15 +5396,16 @@ measurement exists to prevent.
   it. Nothing is lost by waiting: a standing receipt says this stage's last resolution is already on the pull request,
   so there is no in-flight resolution for the dev to reconsider. A receipt that cannot name both ends is no receipt —
   `_settled_round_owed` declines it, and the ordinary road clears it by reaching a tail of its own.
-- **The cap guards the rebase, and nothing above it.** `MAX_CONFLICT_ROUNDS` refuses another *attempt* — the rebase
-  and the dev run behind it — so it is asked once the reconciliation is done and immediately in front of
-  `_rebase_and_dispose`. Everything the reconciliation does is work already done that this stage still owes an effect
-  for, and refusing those does not end the loop, it strands them: nothing else pays a receipt, publishes a commit an
-  earlier tick made, or answers a person. A body edit on a spent counter is still resolved, so a hold there records a
-  receipt at the ceiling; and where that receipt sits on an *ahead* branch, the recovered push is the only road that
-  pays it. Counting it takes `conflict_round` one past the ceiling, which is correct: the round was spent on a push
-  that really landed, and the cap fires on the next attempt. Whichever tail finally pays a round also clears the park
-  it ran under, so `workflow:validating` is never handed an issue that reads as waiting on somebody.
+- **The cap guards the rebase, and nothing above it.** `MAX_CONFLICT_ROUNDS` refuses another *attempt* — the rebase and
+  the dev run behind it — so it is asked once the reconciliation is done, inside `_rebase_and_dispose` behind the
+  settlement of a saved report and immediately in front of the rebase. Everything the reconciliation does is work
+  already done that this stage still owes an effect for, and refusing those does not end the loop, it strands them:
+  nothing else pays a receipt, publishes a commit an earlier tick made, settles a saved report, or answers a person. A
+  body edit on a spent counter is still resolved, so a hold there records a receipt at the ceiling; and where that
+  receipt sits on an *ahead* branch, the recovered push is the only road that pays it. Counting it takes
+  `conflict_round` one past the ceiling, which is correct: the round was spent on a push that really landed, and the cap
+  fires on the next attempt. Whichever tail finally pays a round also clears the park it ran under, so
+  `workflow:validating` is never handed an issue that reads as waiting on somebody.
 - **A tree nobody read is not a clean one.** A `git status` that established nothing names no paths, and so does a
   tree with nothing in it — so every probe reporting the paths alone answers the same for both, and taken as clean a
   checkout carrying uncommitted edits is published as a commit that silently omits them. The size gate proves the

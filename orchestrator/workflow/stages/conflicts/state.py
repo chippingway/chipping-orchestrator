@@ -23,6 +23,18 @@ step it describes. The preamble head is the settled pair's counterpart for a
 push that finishes no round: what that push's own write leaves for the report
 debt of the head it published.
 
+The resume group is the replay group's counterpart for a body edit's resume: the
+head its publication replaces, the commit it sends, and the pull request it goes
+onto, written with the report that resume returned and before anything pushes.
+The rebase the developer may have run itself diverges the branch exactly as a
+replay does, and a crash before the push leaves that shape with nothing else
+saying whose commits the force-push would drop.
+
+The handed head is the tail's own: what a counted round handed to `validating`,
+written in the write that counts it, ahead of the relabel, and dropped by the
+write behind it -- so a relabel that never landed is made by the next tick
+without the round being counted twice.
+
 One slot, one round. A resume that commits while a receipt is still outstanding
 would write its own over it -- pushed, the owed round is cleared without ever
 being counted; held, the gate writes over it -- so every road that starts one
@@ -111,3 +123,22 @@ _SETTLED_SHA = "conflict_settled_sha"
 # request once the push lands, and a crash before the debt's own write, or an
 # adjudication that publishes it later, leaves nothing else naming it.
 _PREAMBLE_SHA = "conflict_preamble_sha"
+
+# The publication a body edit's resume (or the reply that finishes it) owes,
+# written with the report it returned: the head the push replaces, the commit it
+# sends, and the pull request it goes onto. Read only while that report is
+# unbound, dropped by the tail that counts the round where no report is, and
+# by the base refresh that opens the next episode; inert anywhere the pull
+# request and the checkout no longer stand on exactly these two commits. A
+# report with no commit names the head the pull request carries as both.
+_RESUME_FROM_SHA = "conflict_resume_from_sha"
+
+_RESUME_TO_SHA = "conflict_resume_to_sha"
+
+_RESUME_PR_NUMBER = "conflict_resume_pr_number"
+
+_RESUME_KEYS = (_RESUME_FROM_SHA, _RESUME_TO_SHA, _RESUME_PR_NUMBER)
+
+# The head a counted round handed to `validating`, standing only between the
+# write that counts it and the write behind the relabel.
+_HANDED_SHA = "conflict_handed_sha"

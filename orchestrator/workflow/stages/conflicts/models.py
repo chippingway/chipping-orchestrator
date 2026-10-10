@@ -22,6 +22,9 @@ below leases against that SHA rather than whatever `ls-remote` reports later.
 worktree it actually ran in (the resume may have re-created it), the result,
 whether an operator paused mid-run, and -- on the body-edit road -- the record
 of exactly what its prompt quoted.
+
+`_ParkedReply` is what a trusted reply to a parked rebase resumes the
+developer on, and which of its comments a retry spent as a command.
 """
 from __future__ import annotations
 
@@ -87,14 +90,36 @@ class _ConflictResumeRun:
     requirements revision the read they came from fingerprints to. It rides
     the run because it may not be re-derived after it: the thread moves while
     an agent is out, and a mark taken off the one it comes back to crosses
-    replies nobody delivered. None on the two roads that freeze no record: the
-    fresh conflict quotes no conversation at all, and a park's reply is
-    consumed by the road that read it.
+    replies nobody delivered. The reply that finishes a report-owed park is
+    resumed on the same frozen prompt and carries the same record. None on the
+    roads that freeze no record: the fresh conflict quotes no conversation at
+    all, and any other park's reply is consumed by the road that read it.
     """
     worktree: Path
     dev_result: AgentResult
     paused: bool
     delivered: _delivery.PromptDeliverySnapshot | None = None
+
+
+@dataclass(frozen=True)
+class _ParkedReply:
+    """The prompt a reply to a parked rebase resumes the developer on.
+
+    `followup` is what the resolution road hands over: the replies quoted, or
+    the neutral retry prompt where a bare `/orchestrator continue` retries a
+    session failure. `through` is the last comment the batch holds, which the
+    resolution road marks read before its run. `retried` names the commands
+    that retry consumed, and is empty for every other reply. A park that left
+    this issue owing a report resumes on the frozen drift prompt instead,
+    which quotes every reply whole and is what marks them read once the run
+    is back; that read leaves the retry's commands out of what it quotes,
+    records and re-grounds a fresh spawn with, since the developer has no
+    context for the command, and the retry prompt leads in its place.
+    """
+
+    followup: str
+    through: int
+    retried: frozenset = frozenset()
 
 
 @dataclass(frozen=True)

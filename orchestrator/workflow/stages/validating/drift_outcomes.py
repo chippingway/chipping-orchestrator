@@ -34,7 +34,12 @@ beside the park, for the resume on the other side of it to read, and comes off
 the moment an outcome answers the edit -- with the fresh review budget a
 hand-back recorded for a publication that has now happened. It is written for a
 caller that named what its resume was handed, since only such a caller holds
-the reply to the report contract on the far side of the park.
+the reply to the report contract on the far side of the park -- and only on the
+two review routes, whose park `validating` answers. A park `resolving_conflict`
+takes is answered by that stage's own reply road, which reads the report the
+issue owes for itself and carries a question or a timeout that owes none back
+into the resolution it interrupted; a claim written there is one nothing would
+read or clear until some later, unrelated park on `validating`.
 """
 from __future__ import annotations
 
@@ -56,8 +61,13 @@ from orchestrator.workflow.stages.validating import (
     models as _models,
     state as _state,
 )
+from orchestrator.workflow.state import WorkflowLabel
 
 _AWAITING_HUMAN = "awaiting_human"
+
+# The routes whose park `validating` answers as the rest of the drift resume
+# that took it -- its own, and `in_review`'s, which hands the park back there.
+_CONTINUED_PAST_A_PARK = frozenset((WorkflowLabel.VALIDATING, WorkflowLabel.IN_REVIEW))
 
 
 def _post_drift_ack(
@@ -94,7 +104,7 @@ def _dispose_user_content_change_result(
         return _state._OUTCOME_PARKED
     outcome = _reads_the_finished_resume(gh, spec, issue, state, run)
     if run.handed is not None:
-        _records_an_open_drift(state, outcome)
+        _records_an_open_drift(state, outcome, run.handed.route)
     return outcome
 
 
@@ -115,7 +125,7 @@ def _reads_the_finished_resume(
     return _publishes_the_fix(gh, spec, issue, state, publishable)
 
 
-def _records_an_open_drift(state: PinnedState, outcome: str) -> None:
+def _records_an_open_drift(state: PinnedState, outcome: str, route: WorkflowLabel) -> None:
     """Record whether the edit that earned this resume is still unanswered.
 
     A park is what leaves it unanswered -- a question, a timeout, a tree
@@ -129,6 +139,8 @@ def _records_an_open_drift(state: PinnedState, outcome: str) -> None:
     for. A candidate the size gate held parks nobody: the issue is the
     adjudication's, which publishes that commit itself, so the edit is
     answered by that publication rather than by a reply nobody is waiting for.
+    And only on a `route` whose park `validating` answers: a park the rebase
+    loop takes is answered by that loop, which reads no such claim.
 
     Every other outcome answers the edit, and the fresh review budget a
     hand-back recorded goes with it -- but only once the publication that
@@ -140,7 +152,8 @@ def _records_an_open_drift(state: PinnedState, outcome: str) -> None:
     would spend nothing for an edit nobody is answering any more.
     """
     if outcome == _state._OUTCOME_PARKED and state.get(_AWAITING_HUMAN):
-        state.set(_state._OPEN_DRIFT, True)
+        if route in _CONTINUED_PAST_A_PARK:
+            state.set(_state._OPEN_DRIFT, True)
         return
     answered = [_state._OPEN_DRIFT]
     if not _drift_reports._owes_an_unrecorded_report(state):

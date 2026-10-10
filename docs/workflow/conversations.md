@@ -316,12 +316,15 @@ Where the contract is carried:
   publication, and the receipt restriction are restated; and the outcome is the one the task below the preamble
   describes — that preamble also precedes tasks that close on markers of their own. Its conversation block is the
   caller's FROZEN, classified thread read wherever the caller holds one — the awaiting-human resumes and the explicit
-  `/orchestrator continue` retries (less the commands they consume) take it from `implementing/resume_batch.py` — so
-  the preamble and the record of what the prompt delivered come off one reading and one filter. A caller with no
-  frozen read gets the read `_build_dev_spawn_prompt` takes for itself.
+  `/orchestrator continue` retries (less the commands they consume) take it from `implementing/resume_batch.py`, and
+  the conflict stage's reply to a park that owes a report takes the frozen drift read its prompt is cut from, less a
+  retry's commands too and with every reply past the watermark kept whole, its replies marked read by that read's
+  record rather than ahead of it — so the preamble and the record of what the prompt delivered come off one reading
+  and one filter. A caller with no frozen read gets the read `_build_dev_spawn_prompt` takes for itself.
 - **Absent** from the documentation, review, and conflict-resolution prompts, which close on markers of their own, and
   from the conflict stage's own reply resume and bare-continue retry, which stays on the plain
-  `_CONTINUE_RETRY_PROMPT`.
+  `_CONTINUE_RETRY_PROMPT` — except over a park that left a report owed, where the reply resumes on the drift prompt
+  whole and a retry puts `_CONTINUE_RETRY_PROMPT` ahead of it.
 
 `report_outcomes._report_outcome_of_run` reads an outcome only out of a run that completed: a run never invoked,
 interrupted, timed out, refused by its provider, or exited nonzero is refused before its message is read. On a
@@ -341,10 +344,12 @@ reads one out of the run the disposition is publishing and records it before the
 There a no-commit reply ending on a report outcome publishes the commits already on the branch where the issue still
 owes a report it could not deliver, and is read as any other no-commit reply everywhere else.
 
-The **requirements-drift resume on an open pull request** acts on one too, on `workflow:validating` and `in_review`
+The **requirements-drift resume on an open pull request** acts on one too, on `workflow:validating`, `in_review` and
+`workflow:resolving_conflict`
 ([user-content drift](../state-machine/delivery-stages.md#user-content-drift-detection)). A commit the resume made
-has its report recorded before the size gate, under the requirements revision its own route handed it — on both
-stages the one the prompt-delivery record fingerprints, which is the read that prompt was built from
+— a rebase the session ran included — has its report recorded before the size gate, under the requirements revision
+its own route handed it — on all three the one the prompt-delivery record fingerprints, which is the read that prompt
+was built from
 and the baseline its settlement writes — and
 bound and settled once the push lands and the stage's own bookkeeping is written; one with no usable report parks
 rather than being pushed, and stays unpublished until a reply brings the report. A no-commit reply ending on a report
@@ -533,6 +538,8 @@ division of labour between the developer and the orchestrator never changes.
     alone;
   - a requirements-drift resume on `in_review` resets the review budget, since the approval was of requirements that
     are gone, and its publication spends nothing of the fresh one;
+  - a requirements-drift resume on `workflow:resolving_conflict` counts one `conflict_round` and resets the review
+    budget for a commit, as every pushed round of that stage does, and spends nothing for a report alone;
   - the automated `CHANGES_REQUESTED` round, direct or resumed after a park, spends one round — at the push's
     receipt for a commit, at the settlement for a report alone — and has no `ACK:` completion: an `ACK:` there parks
     for a human with the replay anchor intact;

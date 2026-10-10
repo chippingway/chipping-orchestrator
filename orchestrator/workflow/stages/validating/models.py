@@ -172,6 +172,12 @@ class _DevFixRun:
     # in hand either way, and a lease named from that head would describe a
     # commit the pull request has never carried -- so every tick over such a
     # branch parks unmeasured and the accumulated code never goes out.
+    #
+    # A caller may name it too, where its own reading already proved the head
+    # a force-push may replace -- `resolving_conflict`'s body edit and the
+    # reply over a branch the divergence guard admitted. Named, it is the
+    # lease, and no proof taken after the run replaces it: a remote somebody
+    # moved meanwhile is refused by the gate rather than adopted.
     published_head: str = ""
     # What the caller froze about the run, where the run is one this
     # disposition holds to the report contract. Named, the report is recorded
@@ -179,10 +185,13 @@ class _DevFixRun:
     # nothing about a report.
     #
     # Every road that resumes a developer over an OPEN pull request names it:
-    # the requirements-drift resume, the awaiting-human resume behind it, and
-    # both halves of the reviewer-requested fix round -- the direct one the
-    # `changes_requested` arc runs inline, and the resume the fixing handler
-    # makes on the far side of a park.
+    # the requirements-drift resume -- `resolving_conflict`'s body edit
+    # included -- the awaiting-human resume behind it, and both halves of the
+    # reviewer-requested fix round -- the direct one the `changes_requested`
+    # arc runs inline, and the resume the fixing handler makes on the far side
+    # of a park. On `resolving_conflict` the reply behind a body edit's park
+    # names it only where that park left a report owed; any other reply there
+    # is the conflict resolution it interrupted.
     #
     # It carries the route, and then whatever that road could not leave
     # anywhere else. The requirements revision is the one the RUN was handed:

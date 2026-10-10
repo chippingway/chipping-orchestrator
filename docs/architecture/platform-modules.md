@@ -647,7 +647,8 @@ orchestrator/
                         (`workflow/engine/rewrite_retry.py`, `rewrite_landed.py`); both require the same permit
                         again inside the publication gate
       conflicts.py      the counter, notice, event, and relabel a genuinely conflicted rebase is handed to its stage
-                        with
+                        with, dropping the handed head an earlier episode's counted round left claimed and the
+                        publication record a body edit's resume left beside a report since settled
       guards.py         the no-op completion and the unreadable-HEAD, dirty-tree, and failed-push refusals the
                         workflow's publication ends an attempt with -- the last also for a candidate the git owner
                         refused for what moved since it was read

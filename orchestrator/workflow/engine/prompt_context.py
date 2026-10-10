@@ -40,6 +40,9 @@ _EXCERPT_CHARS = 4000
 # which is every one but the conversation rebuild in the discussion stage.
 _NO_RETAINED_IDS: frozenset = frozenset()
 
+# The default for every read a caller has answered no comment of as a control.
+_NOTHING_LEFT_OUT: frozenset = frozenset()
+
 
 def _build_tracked_repos_context(
     current: _config_models.RepoSpec, specs: list[_config_models.RepoSpec]
@@ -201,6 +204,8 @@ def _delivered_thread(
     issue: Issue,
     state: PinnedState,
     max_chars: int = _EXCERPT_CHARS,
+    *,
+    answering: frozenset | None = None,
 ) -> prompt_delivery.PromptDeliverySnapshot:
     """One read of an issue thread: the text a prompt quotes, and its record.
 
@@ -225,12 +230,38 @@ def _delivered_thread(
     omission: a baseline stopping short of the drop would re-open the same
     prompt, bounded the same way, every poll, while the watermark left below
     it keeps the dropped context deliverable by the road that owns it.
+
+    `answering` is set where the read answers a parked reply batch, to the
+    comments that batch spent as controls rather than as words -- the bare
+    `/orchestrator continue` a retry consumed. They come out of the read by id,
+    so neither the text nor its record names them: quoted, they would hand an
+    agent a command it has no context for as the last thing a human said, and
+    the fingerprint never counted a bare command, so it reads the same with
+    them gone. Every other comment past the issue watermark is kept WHOLE,
+    whatever the bound, since what such a read delivers is what the batch is
+    consumed by: cut, a reply would hold the watermark below it, and the next
+    tick would resume the developer over that same reply on a prompt bounded
+    the same way. Only the context ahead of the batch is bounded.
     """
     ours = _comments._orchestrator_ids(state)
-    read = gh.comments_after(issue, None, state_comment_id=state.comment_id)
+    read = [
+        seen
+        for seen in gh.comments_after(issue, None, state_comment_id=state.comment_id)
+        if seen.id not in (answering or _NOTHING_LEFT_OUT)
+    ]
+    bound = max_chars
+    if answering is not None:
+        cursor = state.get(prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID)
+        replies = [
+            seen for seen in read
+            if not isinstance(cursor, int) or seen.id > cursor
+        ]
+        bound = max(bound, len(_thread_delivery(
+            replies, None, retained_ids=frozenset(ours), state_comment_id=state.comment_id,
+        ).rendered_text))
     return _thread_delivery(
         read,
-        max_chars,
+        bound,
         retained_ids=frozenset(ours),
         state=state,
         state_comment_id=state.comment_id,
