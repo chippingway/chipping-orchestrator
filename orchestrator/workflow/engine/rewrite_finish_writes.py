@@ -26,9 +26,11 @@ head's evidence decision durable ahead of its route
 (`rewrite_finish_evidence`): the current evidence retired into history, the
 transaction a fresh or carried result is recorded as, with the revision floor
 it raises, and the notice a failed run is owed (`rewrite_finish_failures`) --
-decided on the attempt, the debt, and every record the evidence is bound
-through (`verification_durable`), so a report, a review subject, or an
-evidence record another road moved while the commands ran refuses it.
+or a transaction an earlier finish recorded abandoned, with the approval a
+carry takes (`rewrite_finish_captured`) -- decided on the attempt, the debt,
+and every record the evidence is bound through (`verification_durable`), so a
+report, a review subject, or an evidence record another road moved while the
+commands ran refuses it.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, and the claim the checkpoint made durable. `PARK`
@@ -65,6 +67,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.rewrite_finish_failures import FAILED_VERIFICATION
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
+from orchestrator.workflow.engine.verification_carries import ABANDONS
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -90,6 +93,7 @@ EVIDENCE = _commits.ReportWrite(
         _evidence_records.EVIDENCE_HISTORY,
         _evidence_records.REVISION_FLOOR,
         FAILED_VERIFICATION,
+        *ABANDONS,
     )),
     decided_on=frozenset(_durable._BOUND_RECORDS) | _ATTEMPT | {_rewrite_debt.REWRITE_DEBT},
 )

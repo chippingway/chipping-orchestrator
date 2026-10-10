@@ -1320,12 +1320,27 @@ because there it is the claim that this stage has already rerouted rather than a
   retired and the anchor holding every handler, for a decision short of a reading nobody could take, an invalidation
   the comment has no room for, or a failure notice whose pull request would not read or whose post raised (`HELD`),
   and for an evidence write refused or never confirmed (`REFUSED`, `UNCONFIRMED`); the recovery of the push already
-  landed finishes it on a later tick under its own mark, with no second notice or event. A transaction an earlier
-  finish recorded for the landed head, or a failure notice it recorded, is that finish's decision, taken again with no
-  second run, revision, or artifact -- the recorded notice found where a lost answer landed it, or posted once -- and
-  only whether the current evidence has to be invalidated is asked afresh, since the configuration can move between
-  the two finishes: an exact tree's carry reused under a moved context invalidates the evidence it carried before the
-  route, the carry left for the reconciliation to refuse.
+  landed finishes it on a later tick under its own mark, with no second notice or event (next bullet).
+- **Base-rewrite evidence, recovered**: a tick that died behind an accepted rewrite push leaves the attempt standing,
+  and the recovery of the push already landed (`workflow/engine/rewrite_landed.py`) proves the landing again -- the
+  attempt's record naming the head, the remote and the checkout agreeing on it, the transfer accounted for -- and hands
+  it to the same finish. Nothing is pushed a second time, no notice, event, or round reset is repeated under the
+  attempt's own mark, no developer is launched, and the evidence decision resumes where the dead tick left it. A tick
+  that died before its evidence write landed -- before the configured commands ran, or behind a run that completed and
+  was never recorded -- captured nothing, so the decision is taken afresh and the commands run again where the policy
+  runs them. A failure notice the dead tick recorded is that decision, published once with nothing run again. A
+  transaction it recorded for the landed head is a captured run or carry (`workflow/engine/rewrite_finish_captured.py`)
+  and is never made again: its whole binding is proved again over what the recovery reads, and it is routed exactly as
+  recorded, transcript and tested and source provenance unchanged. Where something it is bound to moved since -- the
+  pull request, branch, or checkout off the head, the requirements edited, a later report or review subject recorded,
+  the configuration changed -- it is abandoned into history in the evidence write before the route, nothing runs again,
+  and the fresh reviewer owes the evidence; a reading nobody could take, or an abandonment the comment has no room for,
+  holds the route. A head the base advanced past again is not routed: a transaction recorded for it is abandoned in the
+  evidence write before the attempt retires (a failure notice recorded for it is cleared by that retirement), and the
+  tick's rebase goes on to a head decided afresh. Whether the current evidence has to be invalidated is asked afresh on
+  every resumed finish, since the configuration can move between the two, and anything that moves while the recovery's
+  own run is under way makes that run **moved**, as on the publication. Publishing and settling the recorded transaction
+  behind the route is the reconciliation's above.
 
 ## The rewritten-head report debt (every dispatch)
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims

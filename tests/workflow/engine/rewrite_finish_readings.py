@@ -39,6 +39,9 @@ ROUTED = (WorkflowLabel.VALIDATING,)
 # Why settled evidence a rewrite moved past retired, as history spells it.
 INVALIDATED = "invalidated"
 
+# Why a recorded transaction that will never settle retired, as history spells it.
+ABANDONED = "abandoned"
+
 # How the announcement of a landing and the notice of a failed run open.
 _FINISH_NOTICES = (":mag:", ":x:")
 

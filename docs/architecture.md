@@ -899,7 +899,9 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   -- or nothing recorded, and the fresh reviewer owes the evidence, a failed run's notice recorded first and put on the
   pull request once (`workflow/engine/rewrite_finish_failures.py`). A decision nobody could take, an evidence write
   that did not land or fit, or a failure notice nobody could confirm published holds the route with the attempt
-  standing, and the finish that completes it reuses what was recorded. It runs under its caller's issue writer claim.
+  standing. The finish that completes it runs the commands again only where no run was captured, and routes a
+  captured one only once it proves again, abandoning it with nothing run where something it is bound to -- or the
+  base -- moved since (`workflow/engine/rewrite_finish_captured.py`). It runs under its caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

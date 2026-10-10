@@ -1130,9 +1130,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reset round, and the mark while the anchor stands; a finish whose mark already names the
                             head repeats neither and lands only a debt new beside it. The post-push, pre-route step
                             (`_decides_the_route`) is where a landed head's evidence is decided: a head the base
-                            advanced past again is retired unrouted for the caller's next rebase, and every other one
-                            is routed only once its evidence step (`rewrite_finish_evidence.py`) has landed what the
-                            decision requires, or stops the finish where it could not. The retirement -- the attempt
+                            advanced past again is retired unrouted for the caller's next rebase, a transaction an
+                            earlier finish recorded for it abandoned first, and every other one is routed only once
+                            its evidence step (`rewrite_finish_evidence.py`) has landed what the decision requires,
+                            or stops the finish where it could not. The retirement -- the attempt
                             cleared, the round reset, a human's retry spent -- is prepared before the relabel to
                             `workflow:validating` and lands behind it. A refused or unconfirmed write, or an evidence
                             decision held, stops the finish with nothing behind it made. It runs under its
@@ -1148,8 +1149,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             an observation, a publication refused over a remote already on the replay, and a push
                             whose remote could not be read after are not -- and what it came to (`FinishOutcome`):
                             routed, continued to another rebase, parked, refused, unconfirmed, held over an evidence
-                            decision nobody could take, an invalidation with no room, or a failure notice nobody
-                            could confirm published, or unfinishable
+                            decision nobody could take -- an earlier finish's recorded one included -- an
+                            invalidation or abandonment with no room, or a failure notice nobody could confirm
+                            published, or unfinishable
     rewrite_finish_debt.py  the debt a landed rewrite leaves, staged only where both the announcement write it rides
                             -- the notice's ledger entry reserved at the widest id, the reset round, and the mark --
                             and the comment as it stands have room for it, a refusal for anything but room leaving a
@@ -1162,13 +1164,28 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             dispatcher's reconciliation (`verification_transaction.py`) publishes and settles once the
                             attempt is retired, and a FAILED run's notice, recorded and then published once
                             (`rewrite_finish_failures.py`). A result the comment cannot record is recorded nowhere, and
-                            the head goes to the fresh reviewer, as for a REVIEWER or MOVED decision. A transaction or
-                            failure notice an earlier finish of the landing recorded for the head is reused with no
-                            second run or revision. On either road the invalidation is asked as the write is staged
+                            the head goes to the fresh reviewer, as for a REVIEWER or MOVED decision. A finish that
+                            died before that write landed captured nothing, and the next decides afresh; a failure
+                            notice an earlier finish of the landing recorded is published once with no second run,
+                            and a transaction it recorded for the head is proved again before it is routed
+                            (`rewrite_finish_captured.py`). A head the base advanced past is decided nothing for
+                            (`continues`), a transaction recorded for it abandoned in the same write before the
+                            attempt retires. On either road the invalidation is asked as the write is staged
                             (`rewrite_evidence.invalidates_current`), behind any commands run, so a configuration
                             moved during the run or between finishes is answered. A decision short of a reading nobody
                             could take, an invalidation with no room, or a failure notice nobody could confirm
                             published holds the route (`HELD`)
+    rewrite_finish_captured.py
+                            the transaction an earlier finish of a landing recorded for its head -- a captured run or
+                            carry -- read back and proved again before a later finish routes with it: its whole
+                            binding (`verification_proof.binding_verdict`) over what that finish reads, so it is
+                            routed exactly as recorded, transcript and provenance unchanged, or -- the pull request,
+                            branch, or checkout off the head, the requirements, report, review subject, or
+                            configuration moved -- abandoned into history (`verification_carries.py`, a carry's
+                            approval with it) in the evidence write, with nothing run again and the fresh reviewer
+                            owing the evidence. A reading nobody could take, or an abandonment with no room, holds
+                            the route; one recorded for a head the base advanced past is abandoned the same way
+                            (`sets_aside`). It stages what it decides, and the evidence step's write lands it
     rewrite_finish_failures.py
                             the notice a landed head's failed verification is owed, kept on the pinned comment
                             (`auto_base_rebase_failed_verification`: the head and the notice's whole text) from the
@@ -1189,7 +1206,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             checkpoint, decided on the attempt, the report records and claim, the park's flags, and
                             the round, and prepared with its notice's ledger entry reserved over the fresh ledger;
                             the evidence write, owning the four evidence records' pending, current, and history, the
-                            revision floor, and a failed run's notice, decided on the attempt, the claim, and every
+                            revision floor, a failed run's notice, and the approval an abandoned carry takes
+                            (`verification_carries.ABANDONS`), decided on the attempt, the claim, and every
                             record the evidence is bound through (`verification_durable.py`); the retirement, clearing
                             that notice beside the attempt, decided on the attempt, the park's flags, the round, and
                             the claim; and the debt park, decided on what the checkpoint is and prepared before its
@@ -1406,7 +1424,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             under it refuses it with nothing written and the carry owed, while every field it does not
                             own is kept as written; asked on every refusal of the carry short of an unread reading,
                             ahead of the post and at the publication lookup (`abandons_afresh`, which the reconciliation
-                            abandons every transaction that will never settle through too), and at the settlement, where
+                            abandons every transaction that will never settle through too, and whose staging alone,
+                            `abandons`, a landed base rewrite's finish takes in its own evidence write for a
+                            transaction an earlier finish recorded and `rewrite_finish_captured.py` no longer
+                            proves), and at the settlement, where
                             that commit records the artifact's ledger entry as well, and only while the comment read
                             behind its proof still carries every bound record as the tick read it. Which
                             approval a run was recorded for -- the very subject it answers for
@@ -1688,7 +1709,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and anything else observed where the remote stands (`git/base_sync/rewrite_transport.py`),
                             which is how an accepted push whose answer was lost is finished without a second one.
                             What the proof or the observation found goes to `rewrite_finish.py` on its recovery road,
-                            the mark an earlier finish left keeping its notice and event from being said again
+                            the mark an earlier finish left keeping its notice and event from being said again, and
+                            its evidence decision resumed where the dead tick left it: the configured commands run
+                            again only where no run was captured, a captured one is routed once it proves again or
+                            abandoned where anything moved, and no developer is launched
     rewrite_takeover.py     the handoff of an unpublished replay the size gate handed to an adjudication, from the
                             attempt to the live late generation adjudicating it (`takes_over`), proved off the pinned
                             record alone: the attempt read back whole (`git/base_sync/attempt_records.py`) with no

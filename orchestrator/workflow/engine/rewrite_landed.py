@@ -50,6 +50,15 @@ so that finish repeats neither and finishes only the route. One that finds
 the remote no longer on the head, or a base it cannot count the head against,
 makes nothing, and the next tick classifies whatever it then finds.
 
+The evidence decision resumes where the dead tick left it
+(`rewrite_finish_evidence`). A tick that died before its evidence write
+landed -- before the configured commands ran, or behind a run that completed
+-- captured nothing, so the commands run again on the landed head. A run or
+carry it captured is never made again: it is routed with its own transcript
+and provenance once its binding proves again, and abandoned, with nothing
+run, where the requirements, the report or review subject, the configuration,
+the heads, or the base moved since. Nothing on this road launches a developer.
+
 Run under the issue writer claim the base refresh (`base_refresh`) takes
 before the issue is read and holds through the route.
 """

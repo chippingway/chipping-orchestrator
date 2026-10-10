@@ -686,8 +686,14 @@ notice recorded in the same write (`auto_base_rebase_failed_verification`) and p
 the route -- something moved under it, or the comment cannot record it: the fresh reviewer owes the evidence. A
 decision nobody could take, an invalidation with no room, a failure notice whose post nobody could confirm, or an
 evidence write refused or unconfirmed holds the route with the attempt standing, for the recovery of the push already
-landed to finish under its own mark: a transaction or failure notice an earlier finish recorded is reused rather than
-made again, with the invalidation a moved context now owes landed before the route.
+landed to finish under its own mark, launching no developer. A tick that died before its evidence write landed --
+before the configured commands ran, or behind a run that completed -- captured nothing, and that recovery runs them
+again; a failure notice an earlier finish recorded is published once with nothing run again, and a transaction it
+recorded is routed exactly as recorded only once its binding proves again, abandoned into history with nothing run
+again where the heads, the requirements, the report or review subject, or the configuration moved since -- and
+abandoned too where the base advanced past the head it is about. The invalidation a moved context now owes lands
+before the route either way
+([base-rewrite evidence, recovered](delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel

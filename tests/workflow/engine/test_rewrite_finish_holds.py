@@ -10,7 +10,8 @@ hold the route instead: nothing relabelled, the attempt standing. The next
 finish -- the recovery of the push it finds standing -- decides over the
 comment as it then reads, and repeats neither the announcement nor a record
 an earlier finish already made, while still invalidating evidence a context
-moved since then no longer lets stand.
+moved since then no longer lets stand -- and abandoning a recorded carry that
+moved context refuses, with nothing run again.
 """
 from __future__ import annotations
 
@@ -195,12 +196,40 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
             (1, recorded[0].revision, 1),
         )
 
-    def test_a_reused_carry_is_invalidated_once_owed(self) -> None:
+    def test_an_unprovable_record_holds_the_route(self) -> None:
+        # The evidence write lands and its answer is lost. The next finish
+        # cannot re-read the settled report the captured run is bound to, so
+        # it holds the route with the record standing and nothing run. Once
+        # the report reads, the finish after it routes the record as captured.
+        self.attempts(REBASED)
+        self.rewrites(REBASED)
+        self.during = moves.loses_answers
+        self.assertEqual(self.finishes(REBASED), FinishOutcome.UNCONFIRMED)
+        self.gh.pinned_failures.lost.clear()
+        recorded = readings.pinned_records(self)
+        unreadable = self.gh.report_failures.unreadable
+
+        unreadable.add(support.PR_NUMBER)
+        held = self.finishes(REBASED, FOUND)
+        unreadable.clear()
+
+        self.assertEqual(
+            (held, readings.pinned_records(self), readings.relabels(self)),
+            (FinishOutcome.HELD, recorded, ()),
+        )
+        self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.ROUTED)
+        self.assertEqual(
+            (self.at_the_relabel(), len(self.handed)),
+            (recorded, 1),
+        )
+
+    def test_a_moved_context_abandons_the_carry(self) -> None:
         # The exact tree's carry is recorded and the settled evidence left
         # current, and the retirement behind the relabel is refused. The
-        # configuration moves before the next finish, which reuses the carry
-        # -- no run, no second revision -- but invalidates the settled
-        # evidence the moved context no longer lets stand, before it routes.
+        # configuration moves before the next finish, which proves the carry
+        # again and finds it refused: the carry is abandoned and the settled
+        # evidence the moved context no longer lets stand invalidated, both
+        # before the route, with nothing run and the reviewer owing evidence.
         self.attempts(SQUASHED)
         self.rewrites(SQUASHED)
         relabel = self.gh.set_workflow_label
@@ -213,7 +242,10 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
         self.assertEqual(current.receipt, self.source.receipt)
         with patch.object(config, "VERIFY_COMMANDS", (support.SUITE, rewrite_support.LINT)):
             self.assertEqual(self.finishes(SQUASHED, FOUND), FinishOutcome.ROUTED)
-        self.assertEqual(readings.pinned_records(self), (carried, None, self.invalidated()))
+        self.assertEqual(
+            readings.records(self.durable[-1]),
+            (None, None, (*self.invalidated(), (carried.receipt, readings.ABANDONED))),
+        )
         self.assertEqual(
             (self.handed, readings.attempt(readings.pinned(self))),
             ([], readings.RETIRED),
