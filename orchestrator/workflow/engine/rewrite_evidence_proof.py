@@ -10,11 +10,14 @@ is fetched again, since the one a finish holds carries the title and body read
 when the tick began, and the pinned comment is read again. The whole proof
 (`verification_proof.binding_verdict`) then makes requests of its own -- the
 pull request, the branch fetch, the settled report re-read at its location --
-and its requirements reading is taken from the issue fetched before them, so
-an issue edited while they were answered would pass. The issue is fetched once
-more behind the proof and its requirements read again
-(`verification_subject.requirements_verdict`). An issue or a pinned comment
-nobody could read again HOLDS.
+and every input it read ahead of the last of them could have moved while they
+were answered: a checkout committed past the head, a branch pushed elsewhere,
+an issue edited, a configuration changed. So each is read again behind the
+proof (`_behind_the_proof`): the remote branch and the checkout against the
+head (`verification_world.world_verdict`), the issue fetched once more for
+its requirements (`verification_subject.requirements_verdict`), and last the
+configuration, which no request reads. An issue or a pinned comment nobody
+could read again HOLDS.
 
 The base is the other input (`standing_refusal`). The finish counts the landed
 head against the base as its tick fetched it, and routes a head the base has
@@ -55,6 +58,7 @@ from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
     verification_proof as _proof,
     verification_records as _records,
+    verification_world as _world,
 )
 from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
 from orchestrator.workflow.engine.verification_subject import requirements_verdict
@@ -67,6 +71,10 @@ _DEFER = _evidence_models.ReportEvidenceVerdict.DEFER
 
 _UNREAD = _evidence_models.ReportEvidence(
     _HOLD, "the issue or its pinned comment could not be read again to prove the evidence",
+)
+
+_RECONFIGURED = _evidence_models.ReportEvidence(
+    _DEFER, "the verification configuration moved while the evidence was proved again",
 )
 
 _REFUSALS = MappingProxyType({
@@ -86,7 +94,7 @@ _REFUSALS = MappingProxyType({
 
 
 def proves_again(finish: LandedFinish, binding: _records.EvidenceBinding) -> _evidence_models.ReportEvidence:
-    """The whole proof of `binding` over the issue and pinned comment read afresh, requirements read again behind it."""
+    """The whole proof of `binding` over the issue and pinned comment read afresh, what moves read again behind it."""
     reread = _rereads(finish)
     if reread is None:
         return _UNREAD
@@ -94,10 +102,7 @@ def proves_again(finish: LandedFinish, binding: _records.EvidenceBinding) -> _ev
     found = _proof.binding_verdict(reading, binding)
     if not found.proved:
         return found
-    behind = _fetches(finish)
-    if behind is None:
-        return _UNREAD
-    return requirements_verdict(behind, reading.state, binding.target.publication.requirements_revision) or found
+    return _behind_the_proof(finish, reading.state, binding) or found
 
 
 def standing_refusal(finish: LandedFinish) -> _evidence_models.ReportEvidence | None:
@@ -109,6 +114,26 @@ def standing_refusal(finish: LandedFinish) -> _evidence_models.ReportEvidence | 
         _attempt_records._recorded_onto(finish.state),
     )
     return _REFUSALS.get(standing)
+
+
+def _behind_the_proof(
+    finish: LandedFinish, state: PinnedState, binding: _records.EvidenceBinding,
+) -> _evidence_models.ReportEvidence | None:
+    """Why an input the proof read ahead of its own requests moved while they were answered, or None.
+
+    The heads first -- the remote branch and the checkout, whose fetch is a
+    request of its own -- then the requirements over the issue fetched once
+    more, and last the configuration, which costs no request at all.
+    """
+    issue = _fetches(finish)
+    if issue is None:
+        return _UNREAD
+    refused = _world.world_verdict(finish.spec, issue, binding)
+    if refused is None:
+        refused = requirements_verdict(issue, state, binding.target.publication.requirements_revision)
+    if refused is None and binding.context_revision != _proof.configured_context_revision():
+        return _RECONFIGURED
+    return refused
 
 
 def _rereads(finish: LandedFinish) -> tuple[Issue, PinnedState] | None:

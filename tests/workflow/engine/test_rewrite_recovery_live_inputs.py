@@ -3,11 +3,14 @@
 """A captured run's recovery, while what it is proved against moves: the issue, and the base its replay sits on.
 
 The recovery proves a captured run again over the issue and pinned comment
-read afresh, the requirements read once more behind the proof's own requests,
-and only then the head's standing on the base tip its replay was recorded as
-made onto. A base that moves while the proof's requests are answered holds the
-route, and the next recovery continues the head to another rebase; an issue
-edited meanwhile abandons the run. A base rewound under the head is told by
+read afresh, the heads, the requirements, and the configuration read once more
+behind the proof's own requests, and only then the head's standing on the base
+tip its replay was recorded as made onto. A base that moves while the proof's
+requests are answered holds the route, and the next recovery continues the
+head to another rebase; an issue edited, a checkout committed, or a
+configuration changed meanwhile abandons the run. A failure notice an earlier
+finish recorded, and a run a recovery already abandoned, are held to the base
+the same way behind the requests made for them. A base rewound under the head is told by
 the tip the attempt recorded, not by counting what the head carries over it --
 so a rebase that dropped commits the base had already taken is no cover for
 it -- and an attempt that recorded no tip proves nothing. None of them runs the
@@ -18,7 +21,9 @@ from __future__ import annotations
 import unittest
 from copy import copy
 from functools import partial
+from unittest.mock import patch
 
+from orchestrator.git import branch_transport
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
@@ -32,6 +37,23 @@ _MAIN = "main"
 
 _QUIET = "--quiet"
 
+_REREAD = "reread_report_location"
+
+_REMOTE_READ = "_remote_branch_read"
+
+_STRAY_COMMIT = (
+    "-c", "user.name=stray", "-c", "user.email=stray@example.invalid",
+    "commit", _QUIET, "--allow-empty", "-m", "stray",
+)
+
+# What moves while the recovery re-reads the settled report a captured run is
+# bound to, each read ahead of that request by the proof.
+_MID_PROOF_MOVES = (
+    ("the issue body was edited", lambda case: setattr(case.issue, "body", _EDITED_BODY)),
+    ("another command was configured", lambda case: case.configures("echo another")),
+    ("the checkout committed past the head", lambda case: case._git(*_STRAY_COMMIT, cwd=case._wt)),
+)
+
 
 def _captures(case: support.VerificationRecoveryCase) -> tuple:
     """Land a reviewed rebase whose finish records its run and dies at the relabel; the head, and that run."""
@@ -41,10 +63,22 @@ def _captures(case: support.VerificationRecoveryCase) -> tuple:
     return head, readings.pinned_records(case)[0]
 
 
-def _once_read(case: support.VerificationRecoveryCase, reread, move) -> None:
-    """Put `reread` back on `case`'s client, then make `move` -- after the first settled report re-read only."""
-    case.gh.reread_report_location = reread
+def _once(owner, step: str, original, move) -> None:
+    """Put `original` back as `owner`'s `step`, then make `move` -- so it races that step's first call only."""
+    setattr(owner, step, original)
     move()
+
+
+def _races(owner, step: str, move) -> None:
+    """Have `move` happen once, just after `owner`'s `step` first answers."""
+    original = getattr(owner, step)
+    racer = _RacesPastTheStep(original, partial(_once, owner, step, original, move))
+    setattr(owner, step, racer)
+
+
+def _snapshot(case: support.VerificationRecoveryCase, _number: int):
+    """`case`'s issue as a fetch hands it over: a copy that no later edit reaches."""
+    return copy(case.issue)
 
 
 def _commits(case: support.VerificationRecoveryCase, cwd, name: str, text: str) -> None:
@@ -64,7 +98,7 @@ class LiveInputsRecoveryTest(support.VerificationRecoveryCase, unittest.TestCase
         # recovery counts it behind the base, abandons the run unrun, and
         # the tick's rebase publishes and routes the next head.
         head, captured = _captures(self)
-        self._races_the_proof(partial(support.advances_the_base_again, self))
+        _races(self.gh, _REREAD, partial(support.advances_the_base_again, self))
 
         self.recovers()
 
@@ -78,19 +112,23 @@ class LiveInputsRecoveryTest(support.VerificationRecoveryCase, unittest.TestCase
             ([head, rebased], 1, 0),
         )
 
-    def test_an_issue_edited_mid_proof_abandons(self) -> None:
-        # The issue's body is edited while the recovery re-reads the settled
-        # report, and the issue read ahead of the proof is a snapshot that
-        # cannot show it: the requirements read again behind the proof do,
-        # so the run is abandoned unrun and the head goes to the reviewer.
-        head, captured = _captures(self)
-        self.gh.get_issue = lambda _number: copy(self.issue)
-        self._races_the_proof(partial(setattr, self.issue, "body", _EDITED_BODY))
+    def test_a_move_mid_proof_abandons(self) -> None:
+        # The proof read the issue -- a snapshot, as a fetched issue is --
+        # the configuration, and the checkout ahead of re-reading the settled
+        # report, and one of them moves while that request is answered. Read
+        # again behind the proof, it refuses the run, which is abandoned
+        # unrun, and the head goes to the reviewer.
+        for moved, moves_it in _MID_PROOF_MOVES:
+            with self.subTest(moved=moved):
+                self.setUp()
+                head, captured = _captures(self)
+                self.gh.get_issue = partial(_snapshot, self)
+                _races(self.gh, _REREAD, partial(moves_it, self))
 
-        self.recovers()
+                self.recovers()
 
-        self._assert_abandoned(captured)
-        self.assert_recovered(head)
+                self._assert_abandoned(captured)
+                self.assert_recovered(head)
 
     def test_a_rewind_past_dropped_commits_abandons(self) -> None:
         # Two topic commits were already in one upstream commit, so the
@@ -124,11 +162,6 @@ class LiveInputsRecoveryTest(support.VerificationRecoveryCase, unittest.TestCase
         self._assert_abandoned(captured)
         self.assert_recovered(head)
 
-    def _races_the_proof(self, move) -> None:
-        """Have `move` happen once, just after the recovery first re-reads a settled report."""
-        reread = self.gh.reread_report_location
-        self.gh.reread_report_location = _RacesPastTheStep(reread, partial(_once_read, self, reread, move))
-
     def _carries_two_upstream_commits(self) -> None:
         """Push two topic commits as the anchor, then a base commit carrying the feature and the first of them."""
         _commits(self, self._wt, "already.py", "already\n")
@@ -148,6 +181,64 @@ class LiveInputsRecoveryTest(support.VerificationRecoveryCase, unittest.TestCase
         self.assertEqual(
             (readings.pinned_records(self), self.runs()),
             ((None, None, retired), 1),
+        )
+
+
+class RecordedDecisionBaseTest(support.VerificationRecoveryCase, unittest.TestCase):
+    """A failure notice or an abandoned run an earlier finish recorded is held to the base, and never run again."""
+
+    def test_a_failure_notice_waits_on_the_base(self) -> None:
+        # The run failed: its notice is recorded and on the pull request, and
+        # the tick died at the relabel. The base advances while the recovery
+        # reads the conversation for that notice: nothing is posted, run, or
+        # routed again, and the next recovery continues the head to a rebase.
+        self.configures("echo 'test_rebased failed' && exit 3")
+        head = self.lands_a_reviewed_rebase()
+        self.dies_routing(partial(self.finishes, head))
+        failed = readings.failure(readings.pinned(self))
+        _races(self.gh, "pr_conversation_thread", partial(support.advances_the_base_again, self))
+
+        self.recovers()
+
+        self.assert_held(None)
+        recorded = readings.failure(readings.pinned(self))
+        self.assertEqual(
+            (recorded, self.runs(), len(readings.notices(self))),
+            (failed, 1, 2),
+        )
+        self._assert_continued(head)
+
+    def test_an_abandoned_run_waits_on_the_base(self) -> None:
+        # A recovery abandoned the captured run for a moved configuration and
+        # died at its relabel. The base advances once the next recovery has
+        # counted the head and is reading where the remote has the branch:
+        # nothing is run or routed, and the recovery after that continues
+        # the head to a rebase.
+        head, captured = _captures(self)
+        self.configures("echo another")
+        self.dies_routing(self.recovers)
+        self.enterContext(patch.object(branch_transport, _REMOTE_READ, branch_transport._remote_branch_read))
+        _races(branch_transport, _REMOTE_READ, partial(support.advances_the_base_again, self))
+
+        self.recovers()
+
+        self.assert_held(None)
+        retired = readings.pinned_records(self)[2]
+        self.assertEqual(retired[-1], (captured.receipt, readings.ABANDONED))
+        self._assert_continued(head)
+
+    def _assert_continued(self, head: str) -> None:
+        """The next recovery rebases `head` once more and routes what it publishes, with nothing run again."""
+        self.recovers()
+        rebased = git_support.remote_head(self)
+        attempt = readings.attempt(readings.pinned(self))
+        self.assertEqual(
+            (self.runs(), readings.relabels(self), attempt),
+            (1, readings.ROUTED, readings.RETIRED),
+        )
+        self.assertEqual(
+            (support.announced(self), self.pushes.call_count, self.developer.call_count),
+            ([head, rebased], 1, 0),
         )
 
 

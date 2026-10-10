@@ -8,12 +8,14 @@ it is posted, and the route waits for the pull request to carry it: a post
 GitHub refused, or one whose answer was lost, holds the route with the record
 standing, and so does an evidence write nobody confirmed. The next finish --
 the recovery of the push it finds standing -- runs nothing again: it finds the
-notice where a lost answer left it, or posts the one it recorded, once.
+notice where a lost answer left it, or posts the one it recorded, once, and
+routes only on a base it can still read where the head was counted against it.
 """
 from __future__ import annotations
 
 import unittest
 
+from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
     rewrite_evidence_test_support as rewrite_support,
@@ -26,6 +28,15 @@ from tests.workflow.engine import (
 REBASED = support.REBASED_SHA
 
 FOUND = finish_support.FOUND
+
+# Where the base stands as a later finish takes up a recorded failure, and what
+# that finish comes to: gone elsewhere or unread holds, and a base the head was
+# not replayed onto routes, since this route records nothing anyway.
+_STANDINGS = (
+    (_BaseStanding.MOVED, FinishOutcome.HELD),
+    (_BaseStanding.UNREAD, FinishOutcome.HELD),
+    (_BaseStanding.DROPPED, FinishOutcome.ROUTED),
+)
 
 
 class FailureNoticeTest(unittest.TestCase, finish_support.RewriteFinishCase):
@@ -67,6 +78,26 @@ class FailureNoticeTest(unittest.TestCase, finish_support.RewriteFinishCase):
         self.gh.pinned_failures.lost.clear()
         self._assert_held_with_the_record(posted=0)
         self._assert_routed_once()
+
+    def test_a_recorded_failure_waits_on_the_base(self) -> None:
+        # The notice lands and its answer is lost, so nothing routes. Each
+        # later finish finds the notice where it landed and runs nothing
+        # again, and is held to the base before it routes.
+        posts = moves.FailingPosts(self, lands=True)
+        self.assertEqual(self.finishes(REBASED), FinishOutcome.HELD)
+        posts.failing = False
+
+        for standing, outcome in _STANDINGS:
+            with self.subTest(standing=standing):
+                self.world.base = standing
+
+                self.assertEqual(self.finishes(REBASED, FOUND), outcome)
+
+        noticed = len(readings.notices(self))
+        self.assertEqual(
+            (len(self.handed), noticed, readings.relabels(self)),
+            (1, 2, readings.ROUTED),
+        )
 
     def _assert_held_with_the_record(self, *, posted: int) -> None:
         """Nothing routed or retired, the invalidation and the failure's notice recorded, `posted` notices out."""

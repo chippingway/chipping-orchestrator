@@ -99,7 +99,10 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     captured, or abandoned where something moved under it
     (`rewrite_finish_captured`). One it recorded and a later finish already
     abandoned is still a run this landing captured: nothing is decided or
-    run afresh, and the fresh reviewer owes the evidence.
+    run afresh, and the fresh reviewer owes the evidence. A failure notice or
+    an abandoned transaction is held to the base behind every request made
+    for it (`rewrite_finish_captured.stands_on_the_base`), as a transaction
+    proved again is.
     """
     failure = _failures.recorded(finish.state, finish.head)
     captured = _captured.recorded(finish)
@@ -111,7 +114,10 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     stopped = None if captured is None else _captured.proved_again(finish, staged, captured)
     if stopped is not None:
         return stopped
-    return _lands(finish, staged) or _failures.publishes(finish, failure)
+    published = _lands(finish, staged) or _failures.publishes(finish, failure)
+    if published is not None or captured is not None:
+        return published
+    return _captured.stands_on_the_base(finish)
 
 
 def continues(finish: LandedFinish) -> FinishOutcome | None:
