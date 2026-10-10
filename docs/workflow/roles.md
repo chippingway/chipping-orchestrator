@@ -2512,6 +2512,13 @@ reviewer's to answer. See
 [`../configuration.md#local-verification-gate`](../configuration.md#local-verification-gate) for the env-var
 reference.
 
+The same commands also run outside this gate, through the same runner, on a head an automatic base rebase published,
+where no current evidence carries onto it and a reviewer was already handed a report of that head. That run gates
+nothing: a pass is recorded as orchestrator-executed evidence of the rebased head before it is routed to
+`workflow:validating`, and a failure parks nothing -- its notice is posted on the pull request and the fresh reviewer
+verifies the head itself (see
+[base-rewrite evidence](../state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
+
 [workflow-labels]: ../state-machine/labels-and-state.md#workflow-labels
 [review-subject]: ../state-machine/labels-and-state.md#pinned-state
 [late-run]: ../state-machine/labels-and-state.md#the-late-run
