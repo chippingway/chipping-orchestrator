@@ -24,8 +24,10 @@ rewrite moves the head under a report about the old one, which the rewritten
 head's report refresh answers before any reviewer is handed it. Its whole
 binding is then proved (`verification_proof.binding_verdict`) -- the settled
 report re-read at its location, the requirements, the branch and the checkout
--- and what it licenses keeps the tested commit and tree and names the source
-it copied: explicit provenance, never a run relabelled.
+-- and the head held to the base tip its replay was made onto, as a run is
+before it starts (below), and what it licenses keeps the tested commit and
+tree and names the source it copied: explicit provenance, never a run
+relabelled.
 
 A rewrite that moved the full tree or the context -- or one whose trees
 nobody read -- invalidates the current evidence instead: it no longer answers
@@ -141,7 +143,7 @@ def decides(finish: LandedFinish) -> RewriteEvidence:
     invalidates = invalidates_current(finish)
     carried = None
     if _settlement.read_current_evidence(finish.state) is not None and not invalidates:
-        carried = _carried(reading, finish.head)
+        carried = _carried(reading, finish)
     decided = carried or _verified(reading, finish, invalidates)
     log.info(
         "issue=#%d decided %s evidence for the base rewrite's head %.8s, "
@@ -172,18 +174,24 @@ def invalidates_current(finish: LandedFinish) -> bool:
     return not (context and candidate.checkout.tree and len(trees) == 1)
 
 
-def _carried(reading: _proof.ProofReading, head: str) -> RewriteEvidence | None:
-    """The current evidence carried onto `head`, or None where no carry is proved.
+def _carried(reading: _proof.ProofReading, finish: LandedFinish) -> RewriteEvidence | None:
+    """The current evidence carried onto `finish`'s head, or None where no carry is proved.
 
-    The carry-forward decision answers only for a review subject about
-    `head` or the approval's unchanged one; the second is refused here, and
-    the first proved whole.
+    The carry-forward decision answers only for a review subject about the
+    head or the approval's unchanged one; the second is refused here, and the
+    first proved whole -- and held, as a run is before it starts, to the base
+    tip the head's replay was made onto (`rewrite_evidence_proof.standing_refusal`),
+    so a head whose base proves nothing, its recorded tip blanked by a
+    transaction refused for good among them, is carried nothing again.
     """
+    head = finish.head
     decided = _carry_forward.carry_forward_decision(reading, head)
     if not isinstance(decided, _carry_forward.CarryForward):
         return None
     about = _review_subjects.ReviewSubject.commit_recorded_in(decided.subject)
     found = _proof.binding_verdict(reading, decided.binding) if about == head else _PRECEDING
+    if found.proved:
+        found = standing_refusal(finish) or found
     if found.proved:
         return RewriteEvidence(RewriteEvidenceRoute.CARRIED, carry=decided)
     log.info(

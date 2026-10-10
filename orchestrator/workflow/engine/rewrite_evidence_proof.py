@@ -19,8 +19,11 @@ That proof makes requests of its own -- the pull request, the branch fetch,
 the settled report re-read -- and so does the finish behind it: the evidence
 write, a failure notice's conversation read and post. Anything read before one
 of them can have moved while it was answered. So every route the evidence
-step takes ends in one last word (`last_word`), asked once nothing else is
-left to request, which reads everything that moves again in one fixed order:
+step takes that carries or follows a recorded decision -- a hold for want of
+room behind a captured transaction included -- ends in one last word
+(`last_word`), asked once nothing else is left to request; only a fresh
+decision held before anything is written, which recorded nothing, ends
+without it. The last word reads everything that moves again in one fixed order:
 the network first -- the remote branch the head landed on, the base, and,
 over the issue and pinned comment fetched once more, the issue's requirements
 and the review and report records the transaction is bound to -- and then the
@@ -43,8 +46,10 @@ checkout are read only for a route that carries or follows a recorded decision
 or ran the configured commands; one that ran nothing and recorded nothing has
 nothing the landing could have moved under.
 
-The base is read through `standing_refusal`, also before a run starts so no
-command runs on a head already off its base. The finish counts the landed head
+The base is read through `standing_refusal`, also before a run starts or a
+carry is recorded, so no command runs on a head already off its base and no
+carry is made for one -- one whose recorded tip a refusal for good blanked
+among them. The finish counts the landed head
 against the base as its tick fetched it, and routes a head the base has
 advanced past to another rebase instead of to review (`rewrite_finish`), but
 evidence decided for the head rests on the base as much as on the head. The

@@ -21,7 +21,10 @@ found already landed -- hand it to the one finish every landing gets
   abandoned unless the remote and the checkout both read on that head
   (`rewrite_landing_moved`): every other road clears, resets, or parks the
   attempt without taking that transaction's route, and the landing it was
-  captured for has moved under it.
+  captured for has moved under it. A snapshot nobody could take ends in the
+  git owner's abort, which resets the checkout onto the anchor and clears the
+  attempt; where that reset landed, the transaction is abandoned behind it,
+  since the recovery's own reset moved the checkout off the head.
 - The remote head completes the comparison, and how far the transfer beside
   the attempt got is read off the comment (`git/base_sync/transfers.py`).
 - A remote standing on the checkout is a push that already landed, and the
@@ -104,8 +107,10 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     """
     if context.label not in _PR_REFRESH_DETOUR_LABELS:
         return _replay_cleanup._answers_an_ineligible_label(context)
+    announced = _landing_moved.announced(context)
     observed = _snapshot._fetch_recovery_snapshot(context)
     if observed is None:
+        _landing_moved.abandons_behind_the_reset(context, announced)
         return True
     if observed.local_head and observed.local_head == context.pending_pre_rebase_sha:
         _landing_moved.abandons_off_the_landing(context, observed)
@@ -140,8 +145,10 @@ def _routes_the_comparison(
     heads the attempt itself recorded: the anchor the remote must still be
     standing on, and the replay the checkout must still be.
     """
+    announced = _landing_moved.announced(context)
     completed = _snapshot._complete_recovery_snapshot(context, observed)
     if completed is None:
+        _landing_moved.abandons_behind_the_reset(context, announced)
         return True
     _landing_moved.abandons_off_the_landing(context, completed)
     carried = _transfers._carried_by(context, completed.head)

@@ -8,15 +8,22 @@ back onto the anchor, the checkout reset onto it, or both moved on together to
 another head. Each snapshot sends the recovery down a road that never takes the
 run's route -- the park that resets and clears an announced attempt, the
 rollback of an undone one, the park of a landing its announcement does not
-name -- and the run is abandoned before it. So once both heads are put back,
-the dispatcher's reconciliation has nothing left to settle. Nothing runs,
-pushes, or announces again, and no developer is launched.
+name -- and the run is abandoned before it. A snapshot nobody could take -- a
+fetch that failed, a remote head that would not resolve -- ends in the abort
+that resets the checkout onto the anchor and clears the attempt, and once that
+reset lands the run is abandoned behind it; a reset that failed moved nothing,
+and keeps it. So once both heads are put back, the dispatcher's reconciliation
+has nothing left to settle. Nothing runs, pushes, or announces again, and no
+developer is launched.
 """
 from __future__ import annotations
 
+import subprocess
 import unittest
 from functools import partial
+from unittest.mock import patch
 
+from orchestrator.git import branch_transport, commands
 from orchestrator.workflow.engine import verification_transaction
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
@@ -64,6 +71,26 @@ _MOVES = (
 )
 
 
+# A snapshot nobody could take: the fetch failing, or the fetched remote head not
+# resolving -- each beside the git seam it fails at and the calls it fails.
+_UNREAD_SNAPSHOTS = (
+    ("the fetch failed", branch_transport, "_authed_fetch", lambda _called: True),
+    (
+        "the remote head did not resolve",
+        commands,
+        "_git_hardened",
+        lambda called: called[0] == "rev-parse" and "refs/remotes/" in str(called),
+    ),
+)
+
+
+def _refuses(original, refused, *called, **options):
+    """Answer `original`, save a call `refused` names, which fails as git does."""
+    if refused(called):
+        return subprocess.CompletedProcess(called, 1, "", "refused")
+    return original(*called, **options)
+
+
 def _reconciles(case: support.VerificationRecoveryCase) -> None:
     """Run the dispatcher's reconciliation of `case`'s recorded evidence, over the comment as it stands."""
     verification_transaction._reconciles_pending_evidence(
@@ -93,6 +120,53 @@ class SnapshotMoveRecoveryTest(support.VerificationRecoveryCase, unittest.TestCa
                 self._assert_abandoned(captured)
                 said = (support.announced(self), self.pushes.call_count, self.developer.call_count)
                 self.assertEqual(said, ([head], 0, 0))
+
+    def test_an_unread_snapshot_reset_abandons(self) -> None:
+        # The snapshot could not be taken, so the abort resets the checkout
+        # onto the anchor and clears the attempt: the recovery's own reset is
+        # movement, and the run is abandoned behind it. Put back on the
+        # landed head, the reconciliation finds nothing pending.
+        for unread, *failing in _UNREAD_SNAPSHOTS:
+            with self.subTest(unread=unread):
+                head, captured = self._recovers_unread(*failing)
+
+                self._assert_abandoned(captured)
+                self.assertEqual(
+                    (self._wt_head(), readings.pinned(self)[readings.KEY_PENDING_PUSH]),
+                    (self.anchor, None),
+                )
+                _puts_the_checkout_on(self, head)
+                _reconciles(self)
+                self._assert_abandoned(captured)
+
+    def test_a_failed_reset_keeps_the_run(self) -> None:
+        # The fetch failed and the abort's reset failed too: the checkout and
+        # the attempt stand where they were, nothing was read moving, and the
+        # run is kept for the next proof.
+        head, captured = _captures(self)
+        unread = partial(_refuses, branch_transport._authed_fetch, lambda _called: True)
+        unreset = partial(_refuses, commands._git_hardened, lambda called: called[0] == "reset")
+        with (
+            patch.object(branch_transport, "_authed_fetch", side_effect=unread),
+            patch.object(commands, "_git_hardened", side_effect=unreset),
+        ):
+            self.recovers()
+
+        self.assertEqual(self._wt_head(), head)
+        self.assert_held(captured)
+        self.assertEqual(self.runs(), 1)
+
+    def _recovers_unread(self, owner, seam: str, refused) -> tuple:
+        """A fresh case's captured run, recovered with `owner`'s `seam` failing the calls `refused` names.
+
+        The head and the run.
+        """
+        self.setUp()
+        head, captured = _captures(self)
+        failing = partial(_refuses, getattr(owner, seam), refused)
+        with patch.object(owner, seam, side_effect=failing):
+            self.recovers()
+        return head, captured
 
     def _assert_abandoned(self, captured) -> None:
         """Nothing pending or current, the settled evidence invalidated and `captured` abandoned, and no second run."""

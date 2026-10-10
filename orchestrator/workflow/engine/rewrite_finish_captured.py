@@ -37,22 +37,25 @@ the evidence history with its whole binding, so a finish whose route the
 abandonment stopped short of is followed by one that still decides nothing
 afresh and runs nothing again.
 
-Every route the evidence step takes -- these, a recorded failure notice's, and
-a fresh decision's once written -- ends in the last word behind every request
-made for it (`stands_before_the_route`, over
-`rewrite_evidence_proof.last_word`): a landing that moved, or a base gone
-elsewhere or unreadable, holds the route, and a transaction the route would
-carry is abandoned, unrun, wherever any reading there establishes movement --
-its binding refused, the review and report records the comment carries moved,
-the landing moved, or the base read elsewhere -- however the readings beside it
-came out, so no later route takes it even once everything is back where it
-was. That write (`rewrite_finish_writes.ABANDONMENT`) is decided only on the
-attempt and on what it retires, so a review or report record that moved -- the
-movement itself -- never refuses it. Where the comment has no room for the
+Every route the evidence step takes that carries or follows a recorded
+decision -- these, a recorded failure notice's, and a fresh decision's once
+written, a hold for want of room to invalidate the current evidence included --
+ends in the last word behind every request made for it
+(`stands_before_the_route`, over `rewrite_evidence_proof.last_word`). Only a
+fresh decision held before anything is written, which recorded nothing, ends
+without it. A landing that moved, or a base gone elsewhere or unreadable, holds
+the route, and a transaction the route would carry is abandoned, unrun,
+wherever any reading there establishes movement -- its binding refused, the
+review and report records the comment carries moved, the landing moved, or the
+base read elsewhere -- however the readings beside it came out, so no later
+route takes it even once everything is back where it was. The abandonment is
+staged on the comment read afresh and committed guarded by that reading
+(`_abandoned`), so a review, report, or approval another road wrote meanwhile
+neither refuses it nor is written over. Where the comment has no room for the
 abandonment, the transaction is dropped instead and the base tip its replay
 was recorded as made onto blanked with it, in a write that only shrinks the
-comment (`_abandoned`): every later reading of the base proves nothing, so no
-finish of this landing runs the commands again or routes over it.
+comment: every later reading of the base proves nothing, so no finish of this
+landing runs or carries the evidence again or routes over it.
 
 A head the base advanced past again is not routed at all: the caller's next
 rebase replaces it. A record made for it is abandoned the same way
@@ -72,11 +75,11 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.git.base_sync import state as _base_sync_state
+from orchestrator.git.base_sync import attempts as _attempts, state as _base_sync_state
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    rewrite_finish_writes as _writes,
     verification_carries as _carries,
+    verification_durable as _durable,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
@@ -88,6 +91,10 @@ from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, La
 log = logging.getLogger("orchestrator.workflow")
 
 _ADVANCED = "the base advanced past the head it was recorded for"
+
+# What an abandonment writes: the transaction, the history it enters, a carry's
+# approval, and -- with no room for the entry -- the recorded base tip.
+_ABANDONED = (*_carries.ABANDONS, _base_sync_state._PENDING_REWRITE_BASE)
 
 
 def recorded(finish: LandedFinish, *, logged: bool = True) -> _records.PendingEvidence | None:
@@ -132,9 +139,9 @@ def proved_again(finish: LandedFinish, pending: _records.PendingEvidence) -> Rep
 
     The binding is proved over the issue and pinned comment read afresh
     (`rewrite_evidence_proof.proves_again`), and the verdict is handed to the
-    last word every route of the evidence step takes
-    (`stands_before_the_route`), behind whatever is written first, which reads
-    it beside everything else that moves.
+    last word the evidence step ends in (`stands_before_the_route`), behind
+    whatever is written first -- or, with no room to write it, behind nothing
+    -- which reads it beside everything else that moves.
     """
     found = proves_again(finish, pending.binding)
     if not found.proved:
@@ -203,6 +210,16 @@ def sets_aside(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | Non
 def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str) -> FinishOutcome | None:
     """Abandon `pending` in its own write, or refuse it for good where that has no room; None to go on.
 
+    Staged on the pinned comment read afresh (`verification_durable`) rather
+    than on the tick's copy, and committed guarded by that reading: whatever
+    another road wrote meanwhile -- a review subject, a report, an approval of
+    its own -- is the movement this answers or none of its business, so it
+    neither refuses the abandonment nor is written over. Only a carry's own
+    approval goes with it (`verification_carries.abandons`), and only while
+    the comment still carries that approval; a comment that will not read
+    again, or no longer records `pending`, abandons nothing and holds the
+    route.
+
     A comment with no room for the abandonment's history entry still takes a
     write that only shrinks it, and that write refuses the transaction for
     good with the records it already carries. The transaction is dropped with
@@ -212,21 +229,30 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
     onto (`pending_auto_base_rebase_rewrite_base`) is blanked with it. Every
     later reading of the base then proves nothing
     (`rewrite_evidence_proof.standing_refusal`, UNPROVEN), so no finish of
-    this landing runs the commands again or routes a transaction over it,
-    however the base, the landing, or the issue reads by then. The route is
-    held behind that write.
+    this landing runs or carries the evidence again or routes a transaction
+    over it, however the base, the landing, or the issue reads by then. The
+    route is held behind that write.
     """
-    staged = _writes.staging(finish)
-    fits = _abandons(finish, staged, pending, why)
-    if not fits:
-        staged.set(_records.PENDING_EVIDENCE, None)
-        staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
-    stopped = None
-    if staged.data != finish.state.data:
-        stopped = _writes.lands(finish, staged, _writes.ABANDONMENT)
-    if stopped is None and not fits:
+    durable, _moved = _durable.durable_comment(finish.gh, finish.issue, finish.state)
+    if durable is None or _record_state.read_pending_evidence(durable) != pending:
+        log.warning(
+            "issue=#%d holding the route of %.8s: the pinned comment read again no longer records verification "
+            "evidence revision %d to abandon (%s)",
+            finish.issue.number, finish.head, pending.revision, why,
+        )
         return FinishOutcome.HELD
-    return stopped
+    guard = _durable.guarded(durable, _ABANDONED, _attempts._ATTEMPT_KEYS)
+    fits = _abandons(finish, durable, pending, why)
+    if not fits:
+        durable.set(_records.PENDING_EVIDENCE, None)
+        durable.set(_base_sync_state._PENDING_REWRITE_BASE, None)
+    refused = _durable.lands(finish.gh, finish.issue, finish.state, guard, durable)
+    if refused is not None:
+        log.warning(
+            "issue=#%d holding the route of %.8s: abandoning verification evidence revision %d did not land (%s)",
+            finish.issue.number, finish.head, pending.revision, refused.refusal,
+        )
+    return None if fits and refused is None else FinishOutcome.HELD
 
 
 def _abandons(finish: LandedFinish, staged: PinnedState, pending: _records.PendingEvidence, why: str) -> bool:
