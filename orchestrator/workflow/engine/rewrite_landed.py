@@ -54,7 +54,7 @@ The evidence decision resumes where the dead tick left it
 (`rewrite_finish_evidence`). A tick that died before its evidence write
 landed -- before the configured commands ran, or behind a run that completed
 -- captured nothing, so the commands run again on the landed head, unless
-the base was rewound under it. A run or carry it captured is never made
+the base is no longer the tip its replay was recorded as made onto. A run or carry it captured is never made
 again, abandoned or not: it is routed with its own transcript and provenance
 once its binding and the head's standing on the base prove again, and
 abandoned, with nothing run, where the requirements, the report or review

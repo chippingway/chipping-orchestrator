@@ -13,13 +13,15 @@ record landed -- before its commands ran, or after they completed -- captured
 nothing, and the policy decides afresh, running them again where it runs them.
 
 What a record continues on is proved again first (`proved_again`), over the
-issue and pinned comment this finish reads: the head's standing on the base it
-was counted against (`rewrite_base_standing`), then its whole binding
-(`verification_proof.binding_verdict`) -- the pull request, the remote branch
-and the checkout still on the head, the configuration it was recorded under,
-the review subject and settled report it answers for, and the issue's
-requirements. A record something moved under since -- a base rewound under
-the head included -- is a decision no route may take, so it is abandoned into
+issue and pinned comment read afresh: its whole binding
+(`rewrite_evidence_proof`) -- the pull request, the remote branch and the
+checkout still on the head, the configuration it was recorded under, the
+review subject and settled report it answers for, and the issue's
+requirements, read once more behind the proof's own requests -- and then the
+head's standing on the base tip its replay was made onto
+(`rewrite_evidence_proof.standing_refusal`). A record something moved under since -- a base
+rewound or repointed under the head, or no recorded tip to hold it to,
+included -- is a decision no route may take, so it is abandoned into
 history (`verification_carries.abandons`, a carry's approval with it) in the
 evidence write ahead of the route, and the head goes to the fresh reviewer,
 which owes the evidence: no rerun, since the run was captured, and no carry
@@ -55,12 +57,11 @@ import logging
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     verification_carries as _carries,
-    verification_proof as _proof,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.rewrite_base_standing import standing_refusal
+from orchestrator.workflow.engine.rewrite_evidence_proof import proves_again, standing_refusal
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
@@ -109,15 +110,19 @@ def proved_again(
 ) -> FinishOutcome | None:
     """Prove `pending` again over what `finish` reads; None to route the head, its abandonment staged where refused.
 
-    The head's standing on the base it was counted against is asked first
-    (`rewrite_base_standing`), then the binding. PROVED routes the record as
-    it was captured. A reading nobody could take -- a base that moved since
-    the head was counted included -- holds the route, as does a refusal whose
-    abandonment `staged` has no room for; any other refusal abandons it, and
-    the fresh reviewer owes the evidence.
+    The binding is proved over the issue and pinned comment read afresh, the
+    requirements read once more behind the proof's own requests
+    (`rewrite_evidence_proof`), and only then the head's standing on the base
+    its replay was made onto (`rewrite_evidence_proof.standing_refusal`), so a base or an issue
+    that moved while those requests were answered is seen. PROVED routes the
+    record as it was captured. A reading nobody could take -- a base gone
+    elsewhere since the head was counted included -- holds the route, as does
+    a refusal whose abandonment `staged` has no room for; any other refusal
+    abandons it, and the fresh reviewer owes the evidence.
     """
-    reading = _proof.ProofReading(finish.gh, finish.spec, finish.issue, finish.state)
-    found = standing_refusal(finish) or _proof.binding_verdict(reading, pending.binding)
+    found = proves_again(finish, pending.binding)
+    if found.proved:
+        found = standing_refusal(finish) or found
     if found.proved:
         return None
     if found.holds:

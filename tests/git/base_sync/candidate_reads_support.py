@@ -75,12 +75,16 @@ class _PullRequestBranches:
     client a case swaps in and the pushes it lands are what the next reading
     finds. A case with no client, or no pull request on the branch, finds the
     branch on the head every pull request here stands on before its rebase.
+    The base branch is on the tip every divergence double here counts a head
+    against, where the rebase left it.
     """
 
     def __init__(self, test_case) -> None:
         self._case = test_case
 
-    def __call__(self, _spec, _worktree, branch) -> _RefRead:
+    def __call__(self, spec, _worktree, branch) -> _RefRead:
+        if branch == spec.base_branch:
+            return _RefRead(sha=GATE_BASE_SHA)
         pulls = getattr(getattr(self._case, "gh", None), "pulls", {})
         heads = [pull.head.sha for pull in pulls.values() if pull.head_branch == branch]
         return _RefRead(sha=heads[0] if heads else CONFLICT_PR_HEAD_SHA)

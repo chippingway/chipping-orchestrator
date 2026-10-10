@@ -17,9 +17,11 @@ from __future__ import annotations
 
 import unittest
 from functools import partial
+from itertools import product
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
 from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
@@ -71,6 +73,21 @@ _MOVES = (
     ("the issue body was edited", lambda case: setattr(case.issue, "body", "Also cover a moved base.")),
     *_CONTEXT_MOVES,
 )
+
+
+# Routes that run no command: the exact tree's carry, and a changed tree with
+# nothing configured.
+_SILENT_ROUTES = (
+    ("an exact tree's carry", SQUASHED, (support.SUITE,)),
+    ("a changed tree with nothing configured", REBASED, ()),
+)
+
+# A base gone elsewhere since the head was counted, and one nobody could read.
+_HOLDING = tuple(product(_SILENT_ROUTES, (_BaseStanding.MOVED, _BaseStanding.UNREAD)))
+
+# A base that is not the tip the replay was recorded as made onto, and an
+# attempt that recorded none.
+_REFUSING = tuple(product(_SILENT_ROUTES, (_BaseStanding.DROPPED, _BaseStanding.UNPROVEN)))
 
 
 class MovedDuringVerificationTest(unittest.TestCase, finish_support.RewriteFinishCase):
@@ -277,6 +294,51 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
             (pending.binding.tested_sha, retired, len(self.handed)),
             (REBASED, self.invalidated(), 3),
         )
+
+
+class BaseStandingTest(unittest.TestCase, finish_support.RewriteFinishCase):
+    """A recovered landing's evidence is held to the base its head was replayed onto on routes that run nothing too."""
+
+    def setUp(self) -> None:
+        finish_support.RewriteFinishCase.setUp(self)
+
+    def test_a_moved_base_holds_a_silent_route(self) -> None:
+        # Neither route runs anything, yet a base gone elsewhere since the
+        # head was counted holds both: nothing recorded, nothing routed.
+        for (route, head, commands), standing in _HOLDING:
+            with self.subTest(route=route, standing=standing):
+                self._lands(head, commands, standing)
+                recorded = readings.pinned_records(self)
+
+                self.assertEqual(self.finishes(head, FOUND), FinishOutcome.HELD)
+
+                self.assertEqual(
+                    (readings.pinned_records(self), readings.relabels(self), self.handed),
+                    (recorded, (), []),
+                )
+
+    def test_a_base_off_its_tip_records_nothing(self) -> None:
+        # A base the head was not replayed onto, or no recorded tip, records
+        # neither the carry nor anything else, and the head goes to the
+        # fresh reviewer.
+        for (route, head, commands), standing in _REFUSING:
+            with self.subTest(route=route, standing=standing):
+                self._lands(head, commands, standing)
+
+                self.assertEqual(self.finishes(head, FOUND), FinishOutcome.ROUTED)
+
+                self.assertEqual(
+                    (self.at_the_relabel()[0], self.handed),
+                    (None, []),
+                )
+
+    def _lands(self, head: str, commands: tuple, standing: _BaseStanding) -> None:
+        """A fresh case whose rewrite onto `head` landed under `commands`, its base standing as `standing` says."""
+        self.setUp()
+        self.attempts(head)
+        self.rewrites(head)
+        self.world.base = standing
+        self.enterContext(patch.object(config, "VERIFY_COMMANDS", commands))
 
 
 if __name__ == "__main__":

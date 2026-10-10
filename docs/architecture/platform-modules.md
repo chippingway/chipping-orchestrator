@@ -604,7 +604,8 @@ orchestrator/
                         runs -- the write that spends the reply a park of the refresh's let the rebase start on, and
                         carries the retry the workflow staged read from it (`workflow/engine/rewrite_replies.py`)
       attempts.py       the replay checkpoint, the announcement mark's presence checks, and the whole-record clear
-                        that ends an auto-rebase attempt. The workflow's publication records its replay here; the
+                        that ends an auto-rebase attempt. The workflow's publication records its replay here, with
+                        the base tip it was made onto beside it (`pending_auto_base_rebase_rewrite_base`); the
                         workflow's finish of every landing puts the mark down through its own guarded checkpoint,
                         while the anchor still stands and before relabeling, and reads it back here; the
                         workflow's handoff of an unpublished replay to a late generation
@@ -613,8 +614,9 @@ orchestrator/
       attempt_records.py
                           validate interrupted replay terms and head as absent, declared, recorded, or damaged,
   sharing the replay
-                        field group with the lifecycle clear. Commit validation uses the late domain's format
-                        reader through a call-time import
+                        field group with the lifecycle clear, and read the base tip the replay was made onto
+                        apart from that group (`_recorded_onto`), "" where an attempt names none. Commit validation
+                        uses the late domain's format reader through a call-time import
       rewrite_handoffs.py
                         the frozen, data-only handoffs an automatic PR base rewrite crosses the git boundary as:
                         the candidate -- original and rewritten heads and their trees, the branch, the base and
@@ -631,10 +633,11 @@ orchestrator/
                         so it no longer contains the tip the replay sits over, or a remote off the anchor --
                         already on the candidate included, which excuses none of the others -- refuses, while a
                         base that only advanced does not. For a landed head it also answers whether the head
-                        still stands on its base (`_standing_on_the_remote_base`): the remote's base still on the
-                        tip the head was counted against, read without a fetch, and the head carrying over it no
-                        more than a rebase of the anchor onto it replays -- standing, moved, dropped by a base
-                        rewound under it, or unread
+                        still stands on its base (`_standing_on_the_remote_base`), by identity: the base it was
+                        counted against has to be the tip the attempt recorded its replay as made onto, and the
+                        remote's base, read without a fetch, still there -- standing, moved since it was counted,
+                        dropped by a base rewound or repointed under it, unproven where no tip was recorded, or
+                        unread
       rewrite_transport.py
                         publishes exactly the candidate's rewritten head, leased to its original one, through the
                         branch transport once that fresh reading refuses nothing, so a publication that landed is

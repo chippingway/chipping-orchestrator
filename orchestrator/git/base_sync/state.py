@@ -69,6 +69,14 @@ _PENDING_REWRITE_STAGE = "pending_auto_base_rebase_rewrite_stage"
 # work leave, and all of them satisfy the same lease.
 _PENDING_REWRITE_SHA = "pending_auto_base_rebase_rewrite_sha"
 
+# The base tip that replay was made onto, recorded in the same write as the
+# replay's head and from the same reading. A head counted level with its base
+# says nothing about WHICH base: one rewound or repointed under it after the
+# rebase leaves it level with a commit it was never replayed onto, and only
+# the tip the rebase actually used tells the two apart. Additive: an attempt
+# recorded before it existed carries none, which proves nothing.
+_PENDING_REWRITE_BASE = "pending_auto_base_rebase_rewrite_base"
+
 # The head a finish has already said it published. Written after the notice and
 # the audit event and before the relabel, which is the one window a finish
 # cannot otherwise be recovered across: everything it announces goes out before

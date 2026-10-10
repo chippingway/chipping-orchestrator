@@ -1284,26 +1284,28 @@ because there it is the claim that this stage has already rerouted rather than a
   never carried across a base rewrite: the rewritten head's report refresh is what its reviewer is handed. A moved tree
   or context invalidates the current evidence into history instead, whole, and asks for a fresh result of the configured
   `VERIFY_COMMANDS`, run through the verify runner on the issue's checkout -- but only over a binding proved before
-  anything runs: `review_subject` about the rewritten head and the settled report's publication moved to it -- and over
-  the landed head still standing on the base it was counted against (`workflow/engine/rewrite_base_standing.py`, reading
-  the remote's base without a fetch and counting the head over it against what a rebase of the anchor onto it replays).
-  An empty configuration, or no such binding (the report refresh unsettled, no reviewer handed it, the report edited
-  where it settled), runs nothing and records nothing, and the fresh reviewer owes the evidence (**reviewer**); it is
-  never read as a pass. So does a base rewound under the head, which then carries commits beyond the anchor's replay; a
-  remote base that moved since the head was counted holds the route instead, for the next tick to count the head again.
-  Behind the run, the commit, tree, and context the runner recorded as its baseline have to be the rewritten head, the
-  tree the landing read for it, and the configuration proved before it ran: a checkout that stood elsewhere as the run
-  began, or a baseline the runner never read, makes even a failure **moved**. Then the issue is fetched again -- the one
-  the finish holds keeps the title and body the tick read -- and its pinned comment read afresh, and the whole binding
-  proved again over them: a pull request, remote branch, or checkout that moved, a changed configuration, a review
-  subject or settled report replaced, a title or body edited on GitHub while the commands ran, or an issue or comment
-  nobody could read again makes the result **moved**, eligible for nothing whatever it said -- and so does a base read
-  again behind the run that is no longer where the head was counted against it, which holds the route as well: nothing
-  is recorded or routed, and the next tick continues a head the base advanced past to another rebase. Otherwise a run
-  that binds (`verification_local_runs.py`) is **fresh**, orchestrator-executed evidence of the rewritten head carrying
-  exactly its commands, exit statuses, and outputs; a passing run whose transcript no artifact can carry records nothing
-  and leaves the evidence to the reviewer; and every other run is **failed**, returned whole so the failing command and
-  its output stay actionable.
+  anything runs: `review_subject` about the rewritten head and the settled report's publication moved to it. An empty
+  configuration, or no such binding (the report refresh unsettled, no reviewer handed it, the report edited where it
+  settled), runs nothing and records nothing, and the fresh reviewer owes the evidence (**reviewer**); it is never read
+  as a pass. Behind the run, the commit, tree, and context the runner recorded as its baseline have to be the rewritten
+  head, the tree the landing read for it, and the configuration proved before it ran: a checkout that stood elsewhere as
+  the run began, or a baseline the runner never read, makes even a failure **moved**. Then the issue is fetched again --
+  the one the finish holds keeps the title and body the tick read -- and its pinned comment read afresh, the whole
+  binding proved again over them, and the issue fetched once more behind the proof's own requests for its requirements
+  (`workflow/engine/rewrite_evidence_proof.py`): a pull request, remote branch, or checkout that moved, a changed
+  configuration, a review subject or settled report replaced, a title or body edited on GitHub while the commands or the
+  proof's requests ran, or an issue or comment nobody could read again makes the result **moved**, eligible for nothing
+  whatever it said. Otherwise a run that binds (`verification_local_runs.py`) is **fresh**, orchestrator-executed
+  evidence of the rewritten head carrying exactly its commands, exit statuses, and outputs; a passing run whose
+  transcript no artifact can carry records nothing and leaves the evidence to the reviewer; and every other run is
+  **failed**, returned whole so the failing command and its output stay actionable. Every decision -- a carry, a route
+  that runs nothing, and a run's, the last also before its commands start -- is held last to the base tip the attempt
+  recorded its replay as made onto (`pending_auto_base_rebase_rewrite_base`), by identity rather than by counting
+  commits: the base the head was counted against has to be that very tip, and the remote's base, read without a fetch,
+  still there. A base rewound or repointed under the head, or an attempt that recorded no tip, records nothing and runs
+  nothing, and the fresh reviewer owes the evidence; a remote base gone elsewhere since the head was counted -- while
+  commands ran or a proof's requests were answered -- holds the route, nothing recorded or routed, and the next tick
+  continues a head the base advanced past to another rebase.
 - **Base-rewrite evidence, made durable**: the finish's evidence step (`workflow/engine/rewrite_finish_evidence.py`)
   lands what that decision requires in one guarded commit (`rewrite_finish_writes.EVIDENCE`) after the announcement and
   before the relabel to `workflow:validating` or the attempt's retirement, decided on the attempt, the debt, and every
@@ -1337,23 +1339,25 @@ because there it is the claim that this stage has already rerouted rather than a
   was never recorded -- captured nothing, so the decision is taken afresh and the commands run again where the policy
   runs them, held to the base as above. A failure notice the dead tick recorded is that decision, published once with
   nothing run again. A transaction it recorded for the landed head is a captured run or carry
-  (`workflow/engine/rewrite_finish_captured.py`) and is never made again: the head's standing on the base and the
-  transaction's whole binding are proved again over what the recovery reads, and it is routed exactly as recorded,
-  transcript and tested and source provenance unchanged. Where something it is bound to moved since -- the pull request,
-  branch, or checkout off the head, the requirements edited, a later report or review subject recorded, the
-  configuration changed, the base rewound under the head -- it is abandoned into history in the evidence write before
-  the route, nothing runs again, and the fresh reviewer owes the evidence; a reading nobody could take, a remote base
-  that moved since the head was counted, or an abandonment the comment has no room for holds the route. An abandoned
-  transaction stays in the evidence history with its whole binding, so a finish whose route that abandonment stopped
-  short of is followed by one that decides nothing afresh and runs nothing again. A transaction proved over the tick's
-  reading is routed only while the comment still carries every record it is bound through, since the retirement behind
-  the route is decided on them: a report or review subject another road recorded while the proof ran refuses the route,
-  and the next recovery proves the transaction against it. A head the base advanced past again is not routed: a
-  transaction recorded for it is abandoned in the evidence write before the attempt retires (a failure notice recorded
-  for it is cleared by that retirement), and the tick's rebase goes on to a head decided afresh. Whether the current
-  evidence has to be invalidated is asked afresh on every resumed finish, since the configuration can move between the
-  two, and anything that moves while the recovery's own run is under way makes that run **moved**, as on the
-  publication. Publishing and settling the recorded transaction behind the route is the reconciliation's above.
+  (`workflow/engine/rewrite_finish_captured.py`) and is never made again: the transaction's whole binding is proved
+  again over the issue and pinned comment read afresh, the requirements read once more behind the proof's own requests,
+  and then the head's standing on the recorded base tip, and it is routed exactly as recorded, transcript and tested and
+  source provenance unchanged. Where something it is bound to moved since -- the pull request, branch, or checkout off
+  the head, the requirements edited, a later report or review subject recorded, the configuration changed, the base no
+  longer the recorded tip or no tip recorded -- it is abandoned into history in the evidence write before the route,
+  nothing runs again, and the fresh reviewer owes the evidence; a reading nobody could take, a remote base that moved
+  since the head was counted, even while the proof's own requests ran, or an abandonment the comment has no room for
+  holds the route. An abandoned transaction stays in the evidence history with its whole binding, so a finish whose
+  route that abandonment stopped short of is followed by one that decides nothing afresh and runs nothing again. A
+  transaction proved over the tick's reading is routed only while the comment still carries every record it is bound
+  through, since the retirement behind the route is decided on them: a report or review subject another road recorded
+  while the proof ran refuses the route, and the next recovery proves the transaction against it. A head the base
+  advanced past again is not routed: a transaction recorded for it is abandoned in the evidence write before the attempt
+  retires (a failure notice recorded for it is cleared by that retirement), and the tick's rebase goes on to a head
+  decided afresh. Whether the current evidence has to be invalidated is asked afresh on every resumed finish, since the
+  configuration can move between the two, and anything that moves while the recovery's own run is under way makes that
+  run **moved**, as on the publication. Publishing and settling the recorded transaction behind the route is the
+  reconciliation's above.
 
 ## The rewritten-head report debt (every dispatch)
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims

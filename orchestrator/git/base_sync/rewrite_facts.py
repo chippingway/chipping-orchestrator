@@ -21,8 +21,8 @@ already standing on it. The lease covers what is left, the moment between that
 reading and the push.
 
 Once a candidate has landed, the evidence its head is routed with is held to
-the base it was counted against: whether the remote's base is still on that
-tip, and whether the head over it is the anchor's replay and nothing more
+the base tip its replay was recorded as made onto: whether the base it was
+counted against is that tip, and whether the remote's base is still there
 (`_standing_on_the_remote_base`), a base advanced, rewound, or repointed since
 being no ground a verification of the head may be recorded or routed on.
 
@@ -39,7 +39,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from orchestrator.config import models as _config_models
-from orchestrator.git import branch_transport, commands, ref_transport
+from orchestrator.git import branch_transport, ref_transport
 from orchestrator.git.base_sync.rewrite_handoffs import (
     _BaseStanding,
     _CheckoutReading,
@@ -99,45 +99,33 @@ def _standing_on_the_base(
 
 
 def _standing_on_the_remote_base(
-    spec: _config_models.RepoSpec, worktree: Path, candidate: _RewriteCandidate,
+    spec: _config_models.RepoSpec, worktree: Path, candidate: _RewriteCandidate, onto: str,
 ) -> _BaseStanding:
-    """Whether `candidate`'s head still stands where its reading counted it against the base.
+    """Whether `candidate`'s head still stands on `onto`, the base tip its attempt recorded the replay made onto.
 
     Asked of a landing whose push is already out, by the evidence policy
-    before it records or routes anything over it (`workflow/engine/
-    rewrite_base_standing.py`), so a base that moved after the head was
-    counted -- while its commands ran, or between the tick that made a
-    decision and the recovery taking it -- is told apart from one that did
-    not. The remote is asked rather than the local ref: that ref is the
-    reading the candidate was counted from, and only the remote says the
-    base has gone elsewhere since. Nothing is fetched, so the shared ref every
-    other worktree counts from is left as the tick's own fetch set it.
-
-    A base still on that tip can have been rewound to it before the reading
-    was taken -- by the recovery's own fetch, say -- and then the head carries
-    the commits the base dropped beside its replay. A rebase onto the tip
-    replays exactly the anchor's commits the tip lacks by patch, merges left
-    out, which is how `git rebase` itself picks them; a head carrying more over
-    the tip than that is no replay onto it.
+    before it records or routes anything over it
+    (`workflow/engine/rewrite_evidence_proof.py`). Proved by identity rather than inferred from
+    counts: the base the head was counted against has to BE the tip the
+    rebase used, since a base rewound or repointed under the head leaves it
+    level with a commit it was never replayed onto, whatever the commits over
+    it look like. Then the remote is asked, without a fetch, whether its base
+    is still there -- only it can say the base went elsewhere after the head
+    was counted, while commands ran or a proof's requests were answered -- so
+    the shared ref every other worktree counts from is left as the tick's own
+    fetch set it. An attempt that recorded no tip proves nothing.
     """
     counted = candidate.checkout.base
-    anchor = candidate.attempt.anchor
-    if not (counted.readable and anchor):
+    if not counted.readable:
         return _BaseStanding.UNREAD
+    if not onto:
+        return _BaseStanding.UNPROVEN
+    if counted.tip != onto:
+        return _BaseStanding.DROPPED
     remote = branch_transport._remote_branch_read(spec, worktree, spec.base_branch).sha
     if remote is None:
         return _BaseStanding.UNREAD
-    if remote != counted.tip:
-        return _BaseStanding.MOVED
-    replayed = commands._git_hardened(
-        "rev-list", "--count", "--cherry-pick", "--right-only", "--no-merges",
-        f"{counted.tip}...{anchor}", "--",
-        cwd=worktree,
-    )
-    count = (replayed.stdout or "").strip()
-    if replayed.returncode != 0 or not count.isdigit():
-        return _BaseStanding.UNREAD
-    return _BaseStanding.DROPPED if counted.ahead > int(count) else _BaseStanding.STANDING
+    return _BaseStanding.STANDING if remote == onto else _BaseStanding.MOVED
 
 
 def _prepares_the_candidate(

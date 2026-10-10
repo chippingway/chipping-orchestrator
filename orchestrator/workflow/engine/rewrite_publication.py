@@ -198,7 +198,7 @@ def _gateable(context: _AutoRebaseContext, candidate: _RewriteCandidate) -> bool
     if refusal is _RewriteRefusal.UNMOVED:
         _guards._finish_noop_auto_rebase(context)
         return False
-    _attempts._records_the_replay(context, candidate.rewritten_head)
+    _attempts._records_the_replay(context, candidate.rewritten_head, candidate.checkout.base.tip)
     dirty = candidate.checkout.status.paths
     if dirty:
         _guards._park_dirty_auto_rebase(context, anchor, list(dirty))

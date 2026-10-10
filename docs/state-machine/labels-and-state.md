@@ -689,10 +689,12 @@ evidence write refused or unconfirmed holds the route with the attempt standing,
 landed to finish under its own mark, launching no developer. A tick that died before its evidence write landed --
 before the configured commands ran, or behind a run that completed -- captured nothing, and that recovery runs them
 again; a failure notice an earlier finish recorded is published once with nothing run again, and a transaction it
-recorded is routed exactly as recorded only once its binding and the head's standing on the base prove again,
-abandoned into history with nothing run again -- then or by any later finish -- where the heads, the requirements, the
-report or review subject, or the configuration moved since, or the base was rewound under the head, and abandoned too
-where the base advanced past the head it is about. A base that moves after the head was counted against it holds the
+recorded is routed exactly as recorded only once its binding, the requirements read again behind the proof, and the
+head's standing on the base tip its replay was recorded as made onto prove again, abandoned into history with nothing
+run again -- then or by any later finish -- where the heads, the requirements, the report or review subject, or the
+configuration moved since, or the base is no longer that tip or no tip was recorded, and abandoned too where the base
+advanced past the head it is about. Every evidence decision is held to that tip once its requests are behind it, a
+carry and a route that runs nothing included: a base that moves after the head was counted against it holds the
 route, and the retirement behind it is decided on every record the evidence is bound through, so a review moved
 meanwhile refuses it. The invalidation a moved context now owes lands before the route either way
 ([base-rewrite evidence, recovered](delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
@@ -3135,6 +3137,13 @@ The keys that matter for the state machine fall into a few groups:
   as either one it resembles, exactly the state nobody can vouch for would take a road reserved for one that can.
   Because the write that ends an attempt blanks these fields rather than removing them, a group of nulls is the record
   nobody wrote and a member carrying something beside one that does not is the record something took apart.
+  `pending_auto_base_rebase_rewrite_base` — the base tip that replay was made onto, written in the same write as its
+  head and from the same reading, and blanked with the rest of the attempt. It sits outside the group above: an
+  attempt recorded before it existed is still whole, and simply names no base. The evidence a landed head is routed
+  with is held to it (`workflow/engine/rewrite_evidence_proof.py`): a head counted level with a base says nothing
+  about which base, and one rewound or repointed under the head after the rebase leaves it level with a commit it was
+  never replayed onto, so the base it is counted against has to be this very tip -- and an attempt naming none, or a
+  value that is not a whole commit id, proves no base at all.
   `pending_auto_base_rebase_announced_sha` is the last member and covers the last window a finish has: everything a
   finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out before the
   relabel, and the write that clears this record goes out after it, so the head it has already said it published is

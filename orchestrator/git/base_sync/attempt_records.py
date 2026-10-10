@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Read the replay identity an interrupted auto-rebase attempt recorded.
+"""Read the replay identity an interrupted auto-rebase attempt recorded, and the base it was made onto.
 
 The shape reader distinguishes an absent record, an in-flight attempt, and
 damaged evidence. The attempts owner uses this same field group when clearing
@@ -15,6 +15,7 @@ from orchestrator.git.base_sync.models import (
     _PendingRewrite,
 )
 from orchestrator.git.base_sync.state import (
+    _PENDING_REWRITE_BASE,
     _PENDING_REWRITE_PR,
     _PENDING_REWRITE_SHA,
     _PENDING_REWRITE_STAGE,
@@ -71,6 +72,19 @@ def _pending_rewrite(state: PinnedState) -> _PendingRewrite:
     if not _formats.is_hex_of(recorded, _formats.COMMIT_LENGTHS):
         return _PendingRewrite(damaged=True)
     return _PendingRewrite(sha=recorded, pr_number=number, stage=stage)
+
+
+def _recorded_onto(state: PinnedState) -> str:
+    """The base tip the attempt's replay was recorded as made onto, or "" for none readable.
+
+    Kept apart from the record `_pending_rewrite` reads whole, since an
+    attempt recorded before this member existed is still a whole attempt: it
+    simply names no base, and a caller that needs one has nothing to prove
+    with. A value that is not a whole commit id is read the same way.
+    """
+    from orchestrator.workflow.late_split import formats as _formats
+    recorded = state.get(_PENDING_REWRITE_BASE)
+    return recorded if _formats.is_hex_of(recorded, _formats.COMMIT_LENGTHS) else ""
 
 
 def _claims_a_record(state: PinnedState) -> bool:

@@ -172,7 +172,7 @@ carry is recorded for the dispatcher to publish, or the fresh reviewer owes the 
 recorded and put on the pull request once (`auto_base_rebase_failed_verification`). A decision nobody could take, an
 evidence write that did not land or fit, or a failure notice nobody could confirm published holds the route with the
 attempt standing, and so does a base that moved after the head was counted against it
-(`workflow/engine/rewrite_base_standing.py`). The recovery resumes that decision with no developer launched: the
+(`workflow/engine/rewrite_evidence_proof.py`). The recovery resumes that decision with no developer launched: the
 commands run again only where no completed run was captured, and a captured one is routed only once it proves again
 (`workflow/engine/rewrite_finish_captured.py`), abandoned with nothing run -- then or after -- where something it is
 bound to, or the base, moved since.

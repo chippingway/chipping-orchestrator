@@ -900,7 +900,7 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   pull request once (`workflow/engine/rewrite_finish_failures.py`). A decision nobody could take, an evidence write
   that did not land or fit, or a failure notice nobody could confirm published holds the route with the attempt
   standing, as does a base that moved after the head was counted against it
-  (`workflow/engine/rewrite_base_standing.py`). The finish that completes it runs the commands again only where no run
+  (`workflow/engine/rewrite_evidence_proof.py`). The finish that completes it runs the commands again only where no run
   was captured, and routes a captured one only once it proves again, abandoning it with nothing run, then or after,
   where something it is bound to -- or the base -- moved since (`workflow/engine/rewrite_finish_captured.py`). It runs
   under its caller's issue writer claim.

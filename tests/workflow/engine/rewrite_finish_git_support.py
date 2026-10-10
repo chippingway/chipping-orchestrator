@@ -96,6 +96,16 @@ def advances_the_base(case, *, net: bool = True) -> None:
     case._git("push", _QUIET, _ORIGIN, "main", cwd=work)
 
 
+def pins_the_attempt(case, head: str) -> None:
+    """Pin the attempt `case`'s rebase onto `head` made, the base tip read off the ref that rebase used."""
+    case.state = case.gh.read_pinned_state(case.issue)
+    onto = case._git("rev-parse", f"refs/remotes/{_ORIGIN}/main", cwd=case._wt).strip()
+    attempted = finish_support.attempt_record(case.anchor, head, PR_NUMBER, REVIEWING, onto)
+    for key, recorded in attempted.items():
+        case.state.set(key, recorded)
+    case.gh.write_pinned_state(case.issue, case.state)
+
+
 class RealGitFinishCase(_RefreshBaseRealGitFixture):
     """Issue #7 in review over PR #42, its head's evidence settled, on a real checkout and remote."""
 
@@ -148,15 +158,13 @@ class RealGitFinishCase(_RefreshBaseRealGitFixture):
     def finishes(self, head: str, road: FinishRoad = FinishRoad.PUBLICATION) -> FinishOutcome:
         """Finish the landing onto `head` that `road` reached, its candidate read out of the checkout by git.
 
-        The publication pins the attempt it made first, and saw its push
-        accepted; a recovery finds that attempt pinned and observes the push
-        standing. Either way the remote is the reading the candidate carries.
+        The publication pins the attempt it made first -- the base tip its
+        replay was made onto read off the ref the rebase used -- and saw its
+        push accepted; a recovery finds that attempt pinned and observes the
+        push standing. Either way the remote is the reading the candidate carries.
         """
         if road is FinishRoad.PUBLICATION:
-            self.state = self.gh.read_pinned_state(self.issue)
-            for key, attempted in finish_support.attempt_record(self.anchor, head, PR_NUMBER, REVIEWING).items():
-                self.state.set(key, attempted)
-            self.gh.write_pinned_state(self.issue, self.state)
+            pins_the_attempt(self, head)
         attempt = _RewriteAttempt(anchor=self.anchor, pr_number=PR_NUMBER, stage=REVIEWING)
         candidate = _rewrite_facts._prepares_the_candidate(self._spec, self._wt, attempt, BRANCH)
         outcome = _PushOutcome.ACCEPTED if road is FinishRoad.PUBLICATION else _PushOutcome.OBSERVED
