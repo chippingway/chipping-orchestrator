@@ -14,7 +14,8 @@ or the base -- which abandons it, with nothing run again and the fresh reviewer
 owing the evidence; once abandoned it is never run again, even by a recovery
 whose own route that abandonment stopped short of. A review that moves while
 the recovery proves the run routes nothing. Something moving while the
-recovery's own run is under way leaves that run eligible for nothing, and a
+recovery's own run is under way leaves that run eligible for nothing -- a landing
+that moved holds the route too -- and a
 base that advances meanwhile holds the head unrouted for the next recovery to
 rebase. No recovery pushes the landed head again, repeats its announcement, or
 launches a developer.
@@ -72,11 +73,13 @@ _MOVED_BEFORE = (
 )
 
 # What another road does while the recovery's own run of the command is under way.
+# Beside each, whether the head still routes once the run is refused: a landing
+# that moved holds it for the next tick instead.
 _MOVED_DURING = (
-    ("the checkout committed past the remote", lambda case: case._git(*_STRAY_COMMIT, cwd=case._wt)),
-    ("the remote branch was put back on the anchor", _puts_the_remote_back),
-    ("the issue body was edited", lambda case: setattr(case.issue, "body", _EDITED_BODY)),
-    ("another command was configured", lambda case: case.configures("echo another")),
+    ("the checkout committed past the remote", lambda case: case._git(*_STRAY_COMMIT, cwd=case._wt), False),
+    ("the remote branch was put back on the anchor", _puts_the_remote_back, False),
+    ("the issue body was edited", lambda case: setattr(case.issue, "body", _EDITED_BODY), True),
+    ("another command was configured", lambda case: case.configures("echo another"), True),
 )
 
 
@@ -239,7 +242,10 @@ class MovedDuringRecoveryTest(support.VerificationRecoveryCase, unittest.TestCas
     """A recovery's own run something moved under is recorded nowhere, and the fresh reviewer owes the evidence."""
 
     def test_a_move_during_the_rerun_records_nothing(self) -> None:
-        for moved, moves_it in _MOVED_DURING:
+        # Whatever moved, the run is recorded nowhere. A landing that moved
+        # under it -- the checkout or the remote branch off the head -- holds
+        # the route as well, with nothing pushed or announced again.
+        for moved, moves_it, routes in _MOVED_DURING:
             with self.subTest(moved=moved):
                 self.setUp()
                 head = self.lands_a_reviewed_rebase()
@@ -253,7 +259,10 @@ class MovedDuringRecoveryTest(support.VerificationRecoveryCase, unittest.TestCas
                     (readings.pinned_records(self), self.runs()),
                     (git_support.nothing_recorded(self), 1),
                 )
-                self.assert_recovered(head)
+                if routes:
+                    self.assert_recovered(head)
+                else:
+                    self.assert_held(None)
 
     def test_a_base_moved_during_the_rerun_holds(self) -> None:
         # The base advances while the recovery's run is under way: the head is

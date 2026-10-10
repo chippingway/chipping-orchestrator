@@ -688,16 +688,16 @@ decision nobody could take, an invalidation with no room, a failure notice whose
 evidence write refused or unconfirmed holds the route with the attempt standing, for the recovery of the push already
 landed to finish under its own mark, launching no developer. A tick that died before its evidence write landed --
 before the configured commands ran, or behind a run that completed -- captured nothing, and that recovery runs them
-again; a failure notice an earlier finish recorded is published once with nothing run again, held to the base behind
-that publication, and a transaction it recorded is routed exactly as recorded only once its binding -- the heads, the
-requirements, and the configuration read again behind the proof's own requests -- and the head's standing on the base
-tip its replay was recorded as made onto prove again, abandoned into history with nothing
-run again -- then or by any later finish -- where the heads, the requirements, the report or review subject, or the
-configuration moved since, or the base is no longer that tip or no tip was recorded, and abandoned too where the base
-advanced past the head it is about. Every evidence decision is held to that tip once its requests are behind it, a
-carry and a route that runs nothing included: a base that moves after the head was counted against it holds the
-route, and the retirement behind it is decided on every record the evidence is bound through, so a review moved
-meanwhile refuses it. The invalidation a moved context now owes lands before the route either way
+again; a failure notice an earlier finish recorded is published once with nothing run again, and a transaction it
+recorded is routed exactly as recorded only once its binding proves again, abandoned into history with nothing run
+again -- then or by any later finish -- where the heads, the requirements, the report or review subject, or the
+configuration moved since, or the base is no longer the tip its replay was recorded as made onto or no tip was
+recorded, and abandoned too where the base advanced past the head it is about. Every route then ends in one last word
+read behind every request it made -- the remote branch the head landed on, the base, and the requirements over the
+network, then the checkout's own head and the configuration -- so a landing or a base that moved holds the route and
+anything else a recorded transaction is bound to abandons it unrun, while the retirement behind the route is decided
+on every record the evidence is bound through, so a review moved meanwhile refuses it. The invalidation a moved
+context now owes lands before the route either way
 ([base-rewrite evidence, recovered](delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances

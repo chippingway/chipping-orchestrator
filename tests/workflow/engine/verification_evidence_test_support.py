@@ -146,13 +146,20 @@ class VerificationEvidenceCase:
     @contextlib.contextmanager
     def seams(self):
         """The git readings the proof takes, answered from `self.world`."""
+        world = self.world
+        answers = (
+            ("_worktree_path", lambda *_args: world.path),
+            ("_authed_fetch", world.fetch),
+            ("_branch_divergence", world.divergence),
+            ("_commit_present", world.commit_present),
+            ("_tree_sha", world.tree_sha),
+            ("_standing_on_the_remote_base", world.standing),
+            ("_remote_branch_read", lambda *args: _world.remote_read(world, *args)),
+            ("_reads_the_checkout", lambda *args: _world.checkout_of(world, *args)),
+        )
         with contextlib.ExitStack() as seams:
-            seams.enter_context(seam_patch("_worktree_path", lambda *_args: self.world.path))
-            seams.enter_context(seam_patch("_authed_fetch", self.world.fetch))
-            seams.enter_context(seam_patch("_branch_divergence", self.world.divergence))
-            seams.enter_context(seam_patch("_commit_present", self.world.commit_present))
-            seams.enter_context(seam_patch("_tree_sha", self.world.tree_sha))
-            seams.enter_context(seam_patch("_standing_on_the_remote_base", self.world.standing))
+            for seam, answer in answers:
+                seams.enter_context(seam_patch(seam, answer))
             yield
 
     def moves_the_head(self, head: str) -> None:

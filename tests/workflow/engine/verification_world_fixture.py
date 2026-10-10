@@ -3,8 +3,9 @@
 """The git world one piece of verification evidence is proved against.
 
 The fetch result and the divergence say what the ref the pull request is built
-from looks like, and `base` where a landed rewrite's head stands against the
-base it was counted against; `trees` says which commits this repository reads and the full
+from looks like -- the checkout on the branch's head, or a commit past it where
+it is ahead -- and `base` where a landed rewrite's head stands against the base
+it was counted against; `trees` says which commits this repository reads and the full
 tree each carries, so a commit missing from it is one git could not read; and
 `tags` says which ids are annotated tags and the commit each points at. The
 tags are answered as git answers them: `^{tree}` peels one to its commit's
@@ -17,8 +18,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
+from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding, _CheckoutReading
 from orchestrator.git.publication.probes import _BranchDivergence
+from orchestrator.git.ref_transport import _RefRead
+from orchestrator.git.verification.status import _WorktreeStatus
 from tests.workflow.engine import verification_record_test_support as _record_support
 from tests.workflow.engine.report_checkout_fixture import Fetched
 
@@ -41,6 +44,9 @@ REBASED_TREE = "d670460b4b4aece5915caf5c68d12f560a9fe3e4"
 # An annotated tag object pointing at the squash: peeled, it reads as the
 # tested tree, and it is not a commit.
 TAG_SHA = "c3499c2729730a7f807efb8676a92dcb6f8a3f8f"
+
+# A commit the checkout made past the head its remote branch stands on.
+STRAY_SHA = "5742a7c0" * 5
 
 
 def standing_on(head: str) -> _BranchDivergence:
@@ -90,3 +96,19 @@ class EvidenceWorld:
         """Make `commit` an annotated tag of the squash rather than a commit."""
         self.trees.pop(commit)
         self.tags[commit] = SQUASHED_SHA
+
+
+def remote_read(world: EvidenceWorld, *_args) -> _RefRead:
+    """What `_remote_branch_read` answers for the pull request's branch in `world`."""
+    return _RefRead(sha=world.remote.tip)
+
+
+def checkout_of(world: EvidenceWorld, *_args) -> _CheckoutReading:
+    """What `_reads_the_checkout` reads in `world`: the remote branch's head, or a commit past it the checkout made."""
+    head = STRAY_SHA if world.remote.ahead else world.remote.tip
+    return _CheckoutReading(
+        head=head,
+        tree=world.trees.get(head, ""),
+        status=_WorktreeStatus(readable=True),
+        base=world.remote,
+    )

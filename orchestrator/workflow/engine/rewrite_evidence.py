@@ -47,8 +47,9 @@ the head the rewrite replaced -- the refresh not yet settled, or no reviewer
 handed it -- runs nothing. A pull request or report nobody could read is
 reported in the proof's own verdict, so its HOLD reaches the caller. Nor does
 a head that no longer stands on the base tip its replay was made onto
-(`rewrite_evidence_proof.standing_refusal`): a remote base moved since it was counted HOLDS, and
-a base rewound or repointed under it, or no recorded tip to hold it to, DEFERS.
+(`rewrite_evidence_proof.standing_refusal`): a remote base moved since it was
+counted HOLDS, and a base rewound or repointed under it, or no recorded tip to
+hold it to, DEFERS.
 
 After the run its own record is held to the binding planned for it: the
 commit and tree the runner read as its baseline, and the context it minted,
@@ -57,24 +58,21 @@ configuration proved before it ran. A checkout that stood elsewhere as the run
 began -- and back by the time anything is read again -- or a baseline the
 runner never read is a run of something else, whatever it passed or failed.
 Then the issue and its pinned comment are read afresh and the whole binding
-proved again over them (`rewrite_evidence_proof`): the pull request still on
-the rewritten head, the remote branch and the checkout standing there, the
-configuration still the one the commands ran under, the review subject and
-the settled report still the ones bound, and the issue's requirements
-unchanged -- read once more behind the proof's own requests. Anything that
-moved, or that nobody could read again, makes the result MOVED, eligible for
-nothing. Only then is it classified: a run `verification_local_runs` binds is
+proved again over them (`rewrite_evidence_proof.proves_again`): the pull
+request still on the rewritten head, the remote branch and the checkout
+standing there, the configuration still the one the commands ran under, the
+review subject and the settled report still the ones bound, and the issue's
+requirements unchanged. Anything that moved, or that nobody could read again,
+makes the result MOVED, eligible for nothing. Only then is it classified: a run `verification_local_runs` binds is
 FRESH, carrying exactly the commands, exit statuses, and outputs that ran; a
 passing run that binds nothing records nothing and leaves the evidence to the
 reviewer; and every other run is FAILED, the run kept whole so its failing
 command and output stay actionable.
 
-Every decision -- a carry, a route that runs nothing, and a run's -- is held to
-the base last, once every request it made is behind it (`_held_to_the_base`):
-a head no longer on the tip its replay was made onto records nothing, and a
-base gone elsewhere since the head was counted HOLDS the route, so the head is
-neither recorded nor routed and the next tick counts it against the base
-again.
+Every decision -- a carry, a route that runs nothing, and a run's -- is held,
+once it is written, to the last word the finish's evidence step takes behind
+all its requests (`rewrite_finish_captured.stands_before_the_route`): the
+landing, the base, the requirements, and the configuration read once more.
 """
 from __future__ import annotations
 
@@ -135,15 +133,16 @@ def decides(finish: LandedFinish) -> RewriteEvidence:
     before anything routes it. A carry where the rewrite is proved equivalent
     to what the current evidence tested, and otherwise a fresh run of the
     configured commands, or the reviewer's responsibility where none can be
-    bound -- whichever it is, held to the base the head was replayed onto
-    once every request it made is behind it (`_held_to_the_base`).
+    bound. The base the head was replayed onto, and everything else that can
+    move, is held to once the decision is written
+    (`rewrite_finish_captured.stands_before_the_route`).
     """
     reading = _proof.ProofReading(finish.gh, finish.spec, finish.issue, finish.state)
     invalidates = invalidates_current(finish)
     carried = None
     if _settlement.read_current_evidence(finish.state) is not None and not invalidates:
         carried = _carried(reading, finish.head)
-    decided = _held_to_the_base(finish, carried or _verified(reading, finish, invalidates))
+    decided = carried or _verified(reading, finish, invalidates)
     log.info(
         "issue=#%d decided %s evidence for the base rewrite's head %.8s, "
         "invalidating the current evidence: %s; %s",
@@ -192,26 +191,6 @@ def _carried(reading: _proof.ProofReading, head: str) -> RewriteEvidence | None:
         reading.issue.number, head, found.refusal,
     )
     return None
-
-
-def _held_to_the_base(finish: LandedFinish, decided: RewriteEvidence) -> RewriteEvidence:
-    """`decided`, or what it comes to where the landed head no longer stands on the base its replay was made onto.
-
-    Asked on every route -- a carry, a route that runs nothing, and a run --
-    behind the requests the decision made, since the base can move while
-    they are answered (`rewrite_evidence_proof.standing_refusal`). A head off its base records
-    nothing: a decision with a run is MOVED and one without is the
-    reviewer's, refused in the base's own verdict, so a base gone elsewhere
-    since the head was counted HOLDS the route. A decision already held is
-    left as it is.
-    """
-    if decided.refusal is not None and decided.refusal.holds:
-        return decided
-    refused = standing_refusal(finish)
-    if refused is None:
-        return decided
-    route = RewriteEvidenceRoute.REVIEWER if decided.run is None else RewriteEvidenceRoute.MOVED
-    return RewriteEvidence(route, decided.invalidates, refusal=refused, run=decided.run)
 
 
 def _verified(reading: _proof.ProofReading, finish: LandedFinish, invalidates: bool) -> RewriteEvidence:
@@ -282,8 +261,9 @@ def _ran(
     behind it cannot tell. Then `planned` is proved again over the issue and
     its pinned comment read afresh (`rewrite_evidence_proof`), so a failure
     on a head nobody stands on any more is no failure of the rewritten head
-    either. Where the baseline is `planned`'s, so is the binding a passing
-    run earns.
+    either, and the base the head stands on read again, so a run the base
+    moved under is recorded as nothing at all. Where the baseline is
+    `planned`'s, so is the binding a passing run earns.
     """
     bound = _local_runs.local_run_evidence(run, planned.target)
     baseline = (run.commit, run.tree_identity, run.context_revision)
@@ -291,6 +271,8 @@ def _ran(
         found = proves_again(finish, planned)
     else:
         found = _ELSEWHERE
+    if found.proved:
+        found = standing_refusal(finish) or found
     if not found.proved:
         return RewriteEvidence(RewriteEvidenceRoute.MOVED, invalidates, refusal=found, run=run)
     if bound is not None:

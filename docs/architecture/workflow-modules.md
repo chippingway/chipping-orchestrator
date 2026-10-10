@@ -1177,23 +1177,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             published holds the route (`HELD`)
     rewrite_finish_captured.py
                             the transaction an earlier finish of a landing recorded for its head -- a captured run or
-                            carry -- read back and proved again before a later finish routes with it: its whole
-                            binding over the issue and pinned comment read afresh, the heads, the requirements, and
-                            the configuration read once more behind the proof's own requests, and then the head's
-                            standing on the base tip its replay was recorded as made onto, which outranks the proof
-                            (`rewrite_evidence_proof.py`), so it is routed exactly as
-                            recorded, transcript and provenance unchanged, or -- the pull request, branch, or
-                            checkout off the head, the requirements, report, review subject, or configuration moved,
-                            the base no longer that tip or no tip recorded -- abandoned into history
-                            (`verification_carries.py`, a carry's approval with it) in the evidence write, with
-                            nothing run again and the fresh reviewer owing the evidence. A reading nobody could take
-                            -- a base gone elsewhere since the head was counted included -- or an abandonment with no
-                            room, holds the route; one recorded for a head the base
-                            advanced past is abandoned the same way (`sets_aside`). A record once abandoned is still a
-                            run the landing captured (`retired`, read off the evidence history), so a later finish
-                            decides nothing afresh and runs nothing again; that route, and a recorded failure notice's,
-                            is held to the base behind the requests made for it (`stands_on_the_base`). It stages what
-                            it decides, and the evidence step's write lands it
+                            carry -- read back and proved again before a later finish routes with it, its whole
+                            binding over the issue and pinned comment read afresh (`rewrite_evidence_proof.py`): one
+                            something moved under is abandoned into history (`verification_carries.py`, a carry's
+                            approval with it) in the evidence write, with nothing run again and the fresh reviewer
+                            owing the evidence, and a reading nobody could take, or an abandonment with no room,
+                            holds the route. One recorded for a head the base advanced past is abandoned the same way
+                            (`sets_aside`), and one once abandoned is still a run the landing captured (`retired`,
+                            read off the evidence history), so a later finish decides nothing afresh and runs nothing
+                            again. Every route of the evidence step -- a fresh decision once written, a captured
+                            record proved again, a recorded failure notice published, an abandoned record -- ends in
+                            `stands_before_the_route`, the last word behind every request
+                            (`rewrite_evidence_proof.last_word`): a landing that moved, or a base gone elsewhere or
+                            unreadable, holds the route, and a transaction the route would carry is abandoned unrun,
+                            in its own evidence write, where its binding is refused there or the landing moved. It
+                            stages what the proof decides, and the evidence step's write lands it
     rewrite_finish_failures.py
                             the notice a landed head's failed verification is owed, kept on the pinned comment
                             (`auto_base_rebase_failed_verification`: the head and the notice's whole text) from the
@@ -1243,29 +1241,28 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             something else and MOVED, a failure included; then the issue is fetched again -- the one the
                             finish holds keeps the title and body the tick read -- and its pinned comment read afresh,
                             and the whole binding proved again over them -- the pull request, the remote branch and the
-                            checkout, the configuration, the review subject, the settled report, and the requirements,
-                            read once more behind the proof's own requests (`rewrite_evidence_proof.py`) -- so
-                            anything that moved or would not read is MOVED; then a run
+                            checkout, the configuration, the review subject, the settled report, and the requirements
+                            (`rewrite_evidence_proof.py`) -- so anything that moved or would not read is MOVED; then
+                            a run
                             `verification_local_runs.py` binds is FRESH with exactly its commands, statuses, and
                             outputs, a passing run that binds nothing is REVIEWER, and any other is FAILED with the run
-                            kept whole. Every decision -- a carry, a route that runs nothing, and a run's -- is held
-                            to the base last (`_held_to_the_base`): a head off the recorded tip records nothing, and
-                            a base gone elsewhere since the head was counted holds the route
+                            kept whole -- the base read again behind the run first, so a run the base moved under
+                            records nothing. Every decision is then held, once written, to the last word the
+                            finish's evidence step takes (`rewrite_finish_captured.py`)
     rewrite_evidence_proof.py
-                            a landed head's evidence proved again over the inputs that move under it. `proves_again`
-                            reads the issue and pinned comment afresh, takes the whole proof
-                            (`verification_proof.binding_verdict`), and reads again behind the proof's own requests
-                            what it read ahead of them -- the remote branch and the checkout
-                            (`verification_world.py`), the requirements over the issue fetched once more, and last the
-                            configuration -- an issue or comment that would not read holding. `standing_refusal`
-                            puts the git owner's base reading (`git/base_sync/rewrite_facts.py`), over the base tip the
-                            attempt recorded its replay as made onto (`git/base_sync/attempt_records.py`), in the
-                            proof's own verdicts: a remote base gone elsewhere since the head was counted, or a
-                            reading nobody could take, HOLDS -- the next tick counts the head again, and one the base
-                            advanced past is continued to another rebase -- while a counted base that is not the
-                            recorded tip, or no recorded tip, DEFERS for good. Asked by the evidence policy
-                            (`rewrite_evidence.py`) and of a captured decision a recovery takes up
-                            (`rewrite_finish_captured.py`)
+                            a landed head's evidence proved again, and the last word on its route. `proves_again`
+                            reads the issue and pinned comment afresh and takes the whole proof
+                            (`verification_proof.binding_verdict`), an issue or comment that would not read holding.
+                            `last_word` reads everything that moves again once nothing else is left to request, the
+                            network first -- the remote branch the head landed on, the base, the requirements over
+                            the issue fetched once more -- and then the checkout's own head and the configuration,
+                            which no request answers: a remote branch or checkout off the head, or a base gone
+                            elsewhere or unreadable, HOLDS, and moved requirements or configuration, or a base no
+                            longer the recorded tip, DEFER. The landing is read only for a route that carries or
+                            follows a recorded decision or ran the configured commands. `standing_refusal` puts the
+                            git owner's base reading (`git/base_sync/rewrite_facts.py`), over the base tip the attempt
+                            recorded its replay as made onto (`git/base_sync/attempt_records.py`), in the proof's own
+                            verdicts, and is also asked before a run starts (`rewrite_evidence.py`)
     rewrite_evidence_models.py
                             the policy's decision (`RewriteEvidence`): its route (`RewriteEvidenceRoute`: fresh,
                             carried, reviewer, failed, or moved), whether the current evidence is invalidated, the

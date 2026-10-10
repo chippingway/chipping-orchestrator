@@ -14,34 +14,33 @@ nothing, and the policy decides afresh, running them again where it runs them.
 
 What a record continues on is proved again first (`proved_again`), over the
 issue and pinned comment read afresh: its whole binding
-(`rewrite_evidence_proof`) -- the pull request, the remote branch and the
-checkout still on the head, the configuration it was recorded under, the
-review subject and settled report it answers for, and the issue's
-requirements, with the heads, the requirements, and the configuration read
-once more behind the proof's own requests -- and then the head's standing on
-the base tip its replay was made onto
-(`rewrite_evidence_proof.standing_refusal`), which outranks what the proof
-found. A record something moved under since -- a base rewound or repointed
-under the head, or no recorded tip to hold it to, included -- is a decision
-no route may take, so it is abandoned into
-history (`verification_carries.abandons`, a carry's approval with it) in the
-evidence write ahead of the route, and the head goes to the fresh reviewer,
-which owes the evidence: no rerun, since the run was captured, and no carry
-made again. A reading nobody could take holds the route -- a base that moved
-since the head was counted included, which the next tick counts again -- and
-so does an abandonment the pinned comment has no room for. A record proved
-over the tick's reading is routed only while the comment still carries every
-record it is bound through: the retirement behind the route is decided on
-them (`rewrite_finish_writes.FINISH`), so a review that moved while the proof
-ran refuses the route, and the next finish proves the record against it.
+(`rewrite_evidence_proof.proves_again`) -- the pull request, the remote branch
+and the checkout still on the head, the configuration it was recorded under,
+the review subject and settled report it answers for, and the issue's
+requirements. A record something moved under since is a decision no route may
+take, so it is abandoned into history (`verification_carries.abandons`, a
+carry's approval with it) in the evidence write ahead of the route, and the
+head goes to the fresh reviewer, which owes the evidence: no rerun, since the
+run was captured, and no carry made again. A reading nobody could take holds
+the route, and so does an abandonment the pinned comment has no room for. A
+record that proves is held once more to the last word behind every request
+(below), and then routed only while the comment still carries every record it
+is bound through: the retirement behind the route is decided on them
+(`rewrite_finish_writes.FINISH`), so a review that moved while the proof ran
+refuses the route, and the next finish proves the record against it.
 
 An abandoned record stays this landing's captured run (`retired`): it is in
 the evidence history with its whole binding, so a finish whose route the
 abandonment stopped short of is followed by one that still decides nothing
-afresh and runs nothing again. Such a route, like one behind a failure notice
-an earlier finish recorded, has nothing left to prove but the base, and is
-held to it behind the requests made for it (`stands_on_the_base`): a base gone
-elsewhere since the head was counted, or one nobody could read, holds it.
+afresh and runs nothing again.
+
+Every route the evidence step takes -- these, a recorded failure notice's, and
+a fresh decision's once written -- ends in the last word behind every request
+made for it (`stands_before_the_route`, over
+`rewrite_evidence_proof.last_word`): a landing that moved, or a base gone
+elsewhere or unreadable, holds the route, and a transaction the route would
+carry is abandoned, unrun, where its binding is refused there or the landing
+moved under it.
 
 A head the base advanced past again is not routed at all: the caller's next
 rebase replaces it. A record made for it is abandoned the same way
@@ -61,12 +60,13 @@ import logging
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    rewrite_finish_writes as _writes,
     verification_carries as _carries,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.rewrite_evidence_proof import proves_again, standing_refusal
+from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING, last_word, proves_again
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
@@ -74,15 +74,16 @@ log = logging.getLogger("orchestrator.workflow")
 _ADVANCED = "the base advanced past the head it was recorded for"
 
 
-def recorded(finish: LandedFinish) -> _records.PendingEvidence | None:
-    """The transaction an earlier finish of this landing recorded for its head, or None; logged where there is one."""
+def recorded(finish: LandedFinish, *, logged: bool = True) -> _records.PendingEvidence | None:
+    """The transaction a finish of this landing recorded for its head, or None; logged where there is one."""
     pending = _record_state.read_pending_evidence(finish.state)
     if pending is None or pending.binding.target.target_head != finish.head:
         return None
-    log.info(
-        "issue=#%d finds verification evidence revision %d an earlier finish recorded for %.8s",
-        finish.issue.number, pending.revision, finish.head,
-    )
+    if logged:
+        log.info(
+            "issue=#%d finds verification evidence revision %d an earlier finish recorded for %.8s",
+            finish.issue.number, pending.revision, finish.head,
+        )
     return pending
 
 
@@ -113,22 +114,16 @@ def retired(finish: LandedFinish) -> bool:
 def proved_again(
     finish: LandedFinish, staged: PinnedState, pending: _records.PendingEvidence,
 ) -> FinishOutcome | None:
-    """Prove `pending` again over what `finish` reads; None to route the head, its abandonment staged where refused.
+    """Prove `pending` again over what `finish` reads; None to go on, its abandonment staged where refused.
 
-    The binding is proved over the issue and pinned comment read afresh, the
-    heads, the requirements, and the configuration read once more behind the
-    proof's own requests (`rewrite_evidence_proof.proves_again`), and only
-    then the head's standing on the base its replay was made onto
-    (`rewrite_evidence_proof.standing_refusal`), which outranks what the
-    proof found: a base that moved while those requests were answered holds
-    even a record the proof refused, so the next tick continues the head to
-    another rebase. PROVED routes the record as it was captured. A reading
-    nobody could take holds the route, as does a refusal whose abandonment
-    `staged` has no room for; any other refusal abandons it, and the fresh
-    reviewer owes the evidence.
+    The binding is proved over the issue and pinned comment read afresh
+    (`rewrite_evidence_proof.proves_again`). A reading nobody could take holds
+    the route, as does a refusal whose abandonment `staged` has no room for;
+    any other refusal abandons it, and the fresh reviewer owes the evidence. A
+    record that proves goes on to the last word every route of the evidence
+    step takes (`stands_before_the_route`), behind whatever is written first.
     """
-    proved = proves_again(finish, pending.binding)
-    found = standing_refusal(finish) or proved
+    found = proves_again(finish, pending.binding)
     if found.proved:
         return None
     if found.holds:
@@ -140,24 +135,42 @@ def proved_again(
     return None if _abandons(finish, staged, pending, found.refusal) else FinishOutcome.HELD
 
 
-def stands_on_the_base(finish: LandedFinish) -> FinishOutcome | None:
-    """HELD where a captured decision with no transaction to prove may not route on the base as it reads now; else None.
+def stands_before_the_route(finish: LandedFinish, *, landing: bool = True) -> FinishOutcome | None:
+    """The last word on `finish`'s route, behind every request its evidence step made; None to route.
 
-    A failure notice an earlier finish recorded, or a transaction it already
-    abandoned, leaves nothing to prove again but the base, which is asked
-    behind every request the finish made for it -- the notice's conversation
-    read and its post included (`rewrite_evidence_proof.standing_refusal`). A
-    base gone elsewhere since the head was counted, or one nobody could read,
-    holds the route with the attempt standing, so the next tick counts the
-    head again; nothing runs again either way. A base no longer the tip the
-    replay was made onto records nothing on this route anyway, which goes on
-    to the fresh reviewer.
+    Asked on every route the step takes -- a fresh or carried decision once
+    its write and any failure notice are behind it, a captured transaction
+    proved again, a recorded failure notice published, an abandoned
+    transaction -- over the transaction the route would carry, where one is
+    still recorded for the head (`rewrite_evidence_proof.last_word`). The
+    landing itself is read again for every route that carries or follows a
+    recorded decision or ran the configured commands, `landing` False sparing
+    only a fresh decision that ran nothing and recorded nothing. A landing
+    that moved, or a base gone elsewhere or unreadable, holds the route with
+    the attempt standing, so the next tick classifies the branch
+    and counts the head again. A transaction the last word refuses is
+    abandoned first, in its own evidence write, where the refusal is its
+    binding's -- requirements, configuration, or a base no longer the tip its
+    replay was made onto -- or the landing's, which no later route can take it
+    over; a base that is only gone elsewhere keeps it, for the next tick's
+    continued rebase to set aside. Nothing runs again.
     """
-    refused = standing_refusal(finish)
-    if refused is None or not refused.holds:
+    pending = recorded(finish, logged=False)
+    binding = None if pending is None else pending.binding
+    refused = last_word(finish, binding, landing=landing or binding is not None)
+    if refused is None:
+        return None
+    if pending is not None and (refused is LEFT_THE_LANDING or not refused.holds):
+        staged = _writes.staging(finish)
+        if not _abandons(finish, staged, pending, refused.refusal):
+            return FinishOutcome.HELD
+        stopped = _writes.lands(finish, staged, _writes.EVIDENCE)
+        if stopped is not None:
+            return stopped
+    if not refused.holds:
         return None
     log.warning(
-        "issue=#%d holding the route of %.8s behind the decision an earlier finish recorded: %s",
+        "issue=#%d holding the route of %.8s behind its evidence step: %s",
         finish.issue.number, finish.head, refused.refusal,
     )
     return FinishOutcome.HELD

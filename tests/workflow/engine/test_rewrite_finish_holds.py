@@ -3,7 +3,8 @@
 """A landed base rewrite whose evidence something moved under, or whose evidence write did not land.
 
 A result whose head, checkout, requirements, or configuration moved while the
-commands ran is recorded nowhere, and the head goes to the fresh reviewer. A
+commands ran is recorded nowhere: a landing that moved holds the route, and
+anything else sends the head to the fresh reviewer. A
 review recorded meanwhile, a pinned comment that would not read again, an
 evidence write whose answer was lost, and one the comment had no room for each
 hold the route instead: nothing relabelled, the attempt standing. The next
@@ -66,12 +67,25 @@ _CONTEXT_MOVES = (
 )
 
 # What another road does while the rebased head's commands run, which leaves
-# the result eligible for nothing.
+# the result eligible for nothing, beside what the finish comes to: a landing
+# that moved holds the route, and anything else lets it go on to the reviewer.
 _MOVES = (
-    ("the checkout committed past the remote", lambda case: setattr(case.world, "remote", _AHEAD)),
-    ("a push moved the pull request and the branch", lambda case: case.moves_the_head(support.SQUASHED_SHA)),
-    ("the issue body was edited", lambda case: setattr(case.issue, "body", "Also cover a moved base.")),
-    *_CONTEXT_MOVES,
+    (
+        "the checkout committed past the remote",
+        lambda case: setattr(case.world, "remote", _AHEAD),
+        FinishOutcome.HELD,
+    ),
+    (
+        "a push moved the pull request and the branch",
+        lambda case: case.moves_the_head(support.SQUASHED_SHA),
+        FinishOutcome.HELD,
+    ),
+    (
+        "the issue body was edited",
+        lambda case: setattr(case.issue, "body", "Also cover a moved base."),
+        FinishOutcome.ROUTED,
+    ),
+    *((moved, moves_it, FinishOutcome.ROUTED) for moved, moves_it in _CONTEXT_MOVES),
 )
 
 
@@ -98,16 +112,17 @@ class MovedDuringVerificationTest(unittest.TestCase, finish_support.RewriteFinis
 
     def test_a_moved_result_is_refused(self) -> None:
         # Passing or failing, the run is no evidence of the rebased head:
-        # nothing is recorded or posted as a failure, and the head goes to the
-        # fresh reviewer with the replaced head's evidence invalidated.
-        for moved, moves_it in _MOVES:
+        # nothing is recorded or posted as a failure, and the replaced head's
+        # evidence is invalidated. The head goes to the fresh reviewer, unless
+        # the landing itself moved, which holds it for the next tick.
+        for moved, moves_it, outcome in _MOVES:
             for exit_status in (0, rewrite_support.FAILED_EXIT):
                 with self.subTest(moved=moved, exit_status=exit_status):
                     self._runs_under(moves_it, exit_status)
 
-                    self.assertEqual(self.finishes(REBASED), FinishOutcome.ROUTED)
+                    self.assertEqual(self.finishes(REBASED), outcome)
 
-                    self.assertEqual(self.at_the_relabel(), (None, None, self.invalidated()))
+                    self.assertEqual(readings.pinned_records(self), (None, None, self.invalidated()))
                     self.assertEqual(len(readings.notices(self)), 1)
 
     def test_a_context_moved_meanwhile_invalidates(self) -> None:
@@ -304,17 +319,18 @@ class BaseStandingTest(unittest.TestCase, finish_support.RewriteFinishCase):
 
     def test_a_moved_base_holds_a_silent_route(self) -> None:
         # Neither route runs anything, yet a base gone elsewhere since the
-        # head was counted holds both: nothing recorded, nothing routed.
+        # head was counted holds both behind the decision's write: nothing
+        # routed or retired, for the next tick to count the head again.
         for (route, head, commands), standing in _HOLDING:
             with self.subTest(route=route, standing=standing):
                 self._lands(head, commands, standing)
-                recorded = readings.pinned_records(self)
 
                 self.assertEqual(self.finishes(head, FOUND), FinishOutcome.HELD)
 
+                anchored = readings.pinned(self)[readings.KEY_PENDING_PUSH]
                 self.assertEqual(
-                    (readings.pinned_records(self), readings.relabels(self), self.handed),
-                    (recorded, (), []),
+                    (anchored, readings.relabels(self), self.handed),
+                    (support.TESTED_SHA, (), []),
                 )
 
     def test_a_base_off_its_tip_records_nothing(self) -> None:

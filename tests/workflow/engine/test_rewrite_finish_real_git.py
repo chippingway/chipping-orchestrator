@@ -126,14 +126,15 @@ class VerifiedRewriteRealGitTest(git_support.RealGitFinishCase, unittest.TestCas
     def test_a_move_during_the_run_records_nothing(self) -> None:
         # A command that commits moves the checkout past the remote; one that
         # puts the remote branch back moves the pull request's branch off the
-        # head. Either way the run is of nothing the head can be routed with.
+        # head. Either way the run is of nothing the head can be routed with,
+        # and the landing it was made for no longer stands: the route holds.
         for moved, command in (("the checkout", _commits), ("the remote", _puts_the_remote_back)):
             with self.subTest(moved=moved):
                 self.setUp()
                 head = self._reviewed_rebase(command(self))
 
                 with self.assertLogs("orchestrator.workflow", "INFO") as logged:
-                    self.assertEqual(self.finishes(head), ROUTED)
+                    self.assertEqual(self.finishes(head), FinishOutcome.HELD)
                     self.assertIn(_decided_moved(head), str(logged.output))
 
                 self.assertEqual(readings.pinned_records(self), git_support.nothing_recorded(self))

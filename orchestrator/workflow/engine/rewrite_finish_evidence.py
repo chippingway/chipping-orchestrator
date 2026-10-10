@@ -99,10 +99,9 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     captured, or abandoned where something moved under it
     (`rewrite_finish_captured`). One it recorded and a later finish already
     abandoned is still a run this landing captured: nothing is decided or
-    run afresh, and the fresh reviewer owes the evidence. A failure notice or
-    an abandoned transaction is held to the base behind every request made
-    for it (`rewrite_finish_captured.stands_on_the_base`), as a transaction
-    proved again is.
+    run afresh, and the fresh reviewer owes the evidence. Every route, this
+    and the one a fresh decision takes alike, ends in the last word behind
+    every request made for it (`rewrite_finish_captured.stands_before_the_route`).
     """
     failure = _failures.recorded(finish.state, finish.head)
     captured = _captured.recorded(finish)
@@ -114,10 +113,8 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     stopped = None if captured is None else _captured.proved_again(finish, staged, captured)
     if stopped is not None:
         return stopped
-    published = _lands(finish, staged) or _failures.publishes(finish, failure)
-    if published is not None or captured is not None:
-        return published
-    return _captured.stands_on_the_base(finish)
+    stopped = _lands(finish, staged) or _failures.publishes(finish, failure)
+    return stopped or _captured.stands_before_the_route(finish)
 
 
 def continues(finish: LandedFinish) -> FinishOutcome | None:
@@ -149,7 +146,8 @@ def _decides(finish: LandedFinish) -> FinishOutcome | None:
     if decided.route is RewriteEvidenceRoute.FAILED:
         notice = _notices.failure(finish, decided.run)
         _failures.records(staged, finish.head, notice)
-    return _lands(finish, staged) or _failures.publishes(finish, notice)
+    stopped = _lands(finish, staged) or _failures.publishes(finish, notice)
+    return stopped or _captured.stands_before_the_route(finish, landing=decided.run is not None)
 
 
 def _invalidates(finish: LandedFinish, staged: PinnedState) -> bool:
