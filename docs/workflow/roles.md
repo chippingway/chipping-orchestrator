@@ -79,7 +79,9 @@ per-stage behavior is in
   moved past are refused rather than handed over — save that a report of the head this orchestrator's own rewrite
   replaced (a rebase, a conflict resolution, or commits an earlier tick left unpushed), where a recorded
   `developer_report_rewrite_debt` explains exactly that gap, holds the reviewer while the developer is resumed for a
-  fresh report of the rewritten head, which is the report handed over once it settles. A report that changes on an
+  fresh report of the rewritten head, which is the report handed over once it settles. So does a report of the
+  approved commit this orchestrator's approval squash collapsed into that replaced head, once the squash's recorded
+  lineage proves it. A report that changes on an
   unchanged head is a new subject, so it always reaches a fresh reviewer — one settling before the spawn holds the
   round, and one settling while a reviewer is out, while its approval
   is verified or squashed, or while `in_review` decides its ready ping voids what that approval would have earned, and

@@ -13,16 +13,16 @@ Most of them end by being SPENT: the step that consumes the record drops it,
 so the freeze lasts exactly as long as the question it belongs to -- the terms
 a squash records before it rewrites the branch among them, dropped by whatever
 finishes or undoes that collapse, and a developer report recorded and not yet
-settled, dropped by the binding and settlement that publish it. Three do not, and they are the reason this
-is an owner rather than a tuple. An
-exemption and a publication record are invalidated by the head moving off them
-rather than by any write, so what answers for those is the checkout itself --
-and, since neither is ever dropped, how long the STAGE that reads them keeps
-the issue, which the `refresh_selection` owner asks beside this one. And two
-PARKS freeze a branch with no record the list can find: a size reading nobody
-could take, whenever the refusal came before a commit could be named, and an
-implementer timeout, whose watermark is a commit that has not been made yet.
-Both are answered by the reason the park carries.
+settled, dropped by the binding and settlement that publish it. Three do not,
+and they are the reason this is an owner rather than a tuple. An exemption and
+a publication record are invalidated by the head moving off them rather than
+by any write, so what answers for those is the checkout itself -- and, since
+neither is ever dropped, how long the STAGE that reads them keeps the issue,
+which the `refresh_selection` owner asks beside this one. And two PARKS freeze
+a branch with no record the list can find: a size reading nobody could take,
+whenever the refusal came before a commit could be named, and an implementer
+timeout, whose watermark is a commit that has not been made yet. Both are
+answered by the reason the park carries.
 """
 from __future__ import annotations
 

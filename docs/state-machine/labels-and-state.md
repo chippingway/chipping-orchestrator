@@ -489,8 +489,9 @@ Beside a pinned anchor the rest of those freezes are set aside as well, and only
 group, and an approval not leased to the anchor — keep the refresh away. The anchor is this refresh's own interrupted
 work, and while it stands the dispatcher holds every stage handler back (`recovery_holds._recovery_holds_dispatch`,
 see [Pinned state](#pinned-state)): a `question_*` / `discussion_*` park, the two discussion records,
-`read_only_baseline_sha`, the `late_collapse_*` group, `late_measurement_failed`, and `agent_timeout` are each ended
-by a handler that hold keeps back, so a freeze on any of them as well would leave neither side able to move. None of
+`read_only_baseline_sha`, the `late_collapse_*` group, a developer report recorded and not yet settled,
+`late_measurement_failed`, and `agent_timeout` are each ended by a handler, or the report reconciliation, that hold
+keeps back, so a freeze on any of them as well would leave neither side able to move. None of
 them is holding a branch still against a rebase any more — the anchor says one already ran — so the recovery reaches
 the checkout, pushes the replay its record names or puts the branch back on the anchor and asks a human, and leaves
 each record for its owner. The `question` and `discussion` labels themselves are still skipped, and an anchor under

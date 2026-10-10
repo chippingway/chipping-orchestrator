@@ -46,14 +46,14 @@ rather than answered with a report the pull request would never settle.
 
 Either refresh runs only over a world frozen first. The code-publication
 receipt has to be sound as a whole and name the rewritten head, since the
-report is bound to the publication it names and the reconciliation that
-settles it only holds, with nobody told, over a receipt group it cannot read.
-And the checkout has to stand on that head, clean, since the report describes
-what it holds: the one the resume will run in, inspected where it stands and
-recreated only where it is gone, because the recreation reclaims an existing
-directory with no commits past the base, loose work and all. A reading nobody could take holds; a
-definite refusal parks for a human under `report_undeliverable`, as the hold
-does, before any agent runs. What the run leaves is read by
+report is bound to the publication it names and the reconciliation that settles
+it only holds, with nobody told, over a receipt group it cannot read. And the
+checkout has to stand on that head, clean, since the report describes what it
+holds: the one the resume will run in, inspected where it stands and recreated
+only where it is gone, because the recreation reclaims an existing directory
+with no commits past the base, loose work and all. A reading nobody could take
+holds; a definite refusal parks for a human under `report_undeliverable`, as
+the hold does, before any agent runs. What the run leaves is read by
 `report_refresh_outcomes`, over the same world read again.
 
 A run nothing launched, one a shutdown interrupted, and one a live pause
