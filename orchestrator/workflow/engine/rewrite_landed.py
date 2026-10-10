@@ -19,8 +19,9 @@ decision is made here, in the order the recovery has always kept:
   that head. A candidate naming any other -- the checkout and the branch both
   moved since, or a head that no longer reads -- makes nothing, and the next
   tick classifies what it then finds; a transaction an earlier finish
-  captured for the fetched head is abandoned first, since that move is
-  movement under it.
+  captured for the fetched head is abandoned first where the checkout reads
+  another head, since that move is movement under it, and kept for the next
+  proof where its head would not read at all.
 - A landing the record does not account for parks the same way: a mark
   naming another head, a head nothing this attempt wrote vouches for, a
   checkout not provably clean beneath a verdict, a transfer the receipt and
@@ -41,7 +42,9 @@ decision is made here, in the order the recovery has always kept:
   what the gate left.
 - Anything else is observed (`git/base_sync/rewrite_transport.py`): the remote
   read as it stands, with no push at all, which is how an accepted push whose
-  answer was lost is finished without a second one.
+  answer was lost is finished without a second one. A remote read off the
+  landed head abandons a transaction captured for it first, as a checkout
+  that left the head does; one nobody could read keeps it.
 
 What the proof or the observation found is handed to the one finish every
 landing gets (`rewrite_finish.finishes_the_recovery`): the debt and the room
@@ -90,6 +93,7 @@ from orchestrator.git.base_sync.rewrite_handoffs import _LandedRewrite, _PushOut
 from orchestrator.git.base_sync.transfer_values import _Handoff
 from orchestrator.git.ref_transport import _RefRead
 from orchestrator.workflow.engine import (
+    rewrite_evidence_proof as _evidence_proof,
     rewrite_finish as _finish,
     rewrite_finish_captured as _captured,
     rewrite_publication as _rewrite_publication,
@@ -131,8 +135,7 @@ def recovers(
     _transfer_telemetry._reports_a_settled_transfer(_gate(context))
     if carried == _Handoff.OUTSTANDING:
         return _settles(context, completed, candidate)
-    landing = _rewrite_transport._observes_the_landing(context.spec, context.worktree, candidate)
-    return _finish.finishes_the_recovery(context, landing)
+    return _finishes_the_observation(context, completed, candidate)
 
 
 def _left_the_fetched_head(
@@ -150,17 +153,27 @@ def _left_the_fetched_head(
     a move is no fact about this attempt -- and the next tick's own fetch
     classifies the branch as it then finds it. What an earlier finish
     captured for the fetched head is the one exception
-    (`_abandons_what_it_captured`): that move is movement under it.
+    (`_abandons_what_it_captured`): a checkout read on another head is
+    movement under it. One whose head could not be proved read nothing
+    move, so the transaction waits for the next tick to prove it again.
     """
-    moved = candidate.rewritten_head != completed.head
-    if moved:
+    reads = candidate.rewritten_head
+    if reads == completed.head:
+        return False
+    if reads:
         log.warning(
             "issue=#%d the checkout left %.8s, the head PR #%d was fetched standing on, before its landing could be "
-            "finished (it now reads %r); finishing nothing until a later tick classifies it again",
-            context.issue.number, completed.head, context.pr_number, candidate.rewritten_head[:8],
+            "finished (it now reads %.8s); finishing nothing until a later tick classifies it again",
+            context.issue.number, completed.head, context.pr_number, reads,
         )
         _abandons_what_it_captured(context, completed, candidate)
-    return moved
+    else:
+        log.warning(
+            "issue=#%d the checkout's head could not be proved against %.8s, the head PR #%d was fetched standing "
+            "on; finishing nothing until a later tick proves it again",
+            context.issue.number, completed.head, context.pr_number,
+        )
+    return True
 
 
 def _abandons_what_it_captured(
@@ -168,17 +181,19 @@ def _abandons_what_it_captured(
     completed: _AutoRebaseRecoverySnapshot,
     candidate: _RewriteCandidate,
 ) -> None:
-    """Abandon a transaction an earlier finish recorded for the fetched head the checkout has since left.
+    """Abandon a transaction an earlier finish recorded for the fetched head the landing was read leaving.
 
-    The checkout moving off that head is movement under the decision, which
-    no later route may take, even one finding the checkout back on it. So
+    The checkout or the remote branch read off that head is movement under
+    the decision, which no later route may take, even one finding both back
+    on it -- and they may be back by the time anything reads them again. So
     the landing is handed, as the fetch found it, to the last word every
     route of the evidence step ends in
-    (`rewrite_finish_captured.stands_before_the_route`), which reads the
-    checkout off the head and
-    abandons the transaction unrun -- or, with no room for that, refuses it
-    for good -- before the recovery leaves. Nothing is routed either way, and
-    nothing is read or written where no transaction is recorded for the head.
+    (`rewrite_finish_captured.stands_before_the_route`) with that movement
+    already read (`rewrite_evidence_proof.LEFT_THE_LANDING`), however its own
+    readings come out: it abandons the transaction unrun -- or, with no room
+    for that, refuses it for good -- before the recovery leaves. Nothing is
+    routed either way, and nothing is read or written where no transaction is
+    recorded for the head.
     """
     fetched = replace(candidate, checkout=replace(candidate.checkout, head=completed.head))
     finish = LandedFinish(
@@ -193,7 +208,28 @@ def _abandons_what_it_captured(
         road=FinishRoad.RECOVERY,
     )
     if _captured.recorded(finish, logged=False) is not None:
-        _captured.stands_before_the_route(finish)
+        _captured.stands_before_the_route(finish, proof=_evidence_proof.LEFT_THE_LANDING)
+
+
+def _finishes_the_observation(
+    context: _AutoRebaseRecoveryContext,
+    completed: _AutoRebaseRecoverySnapshot,
+    candidate: _RewriteCandidate,
+) -> bool:
+    """Read the remote as it stands, pushing nothing, and finish the landing it shows; whether the recovery owns it.
+
+    A remote read anywhere but the landed head -- another commit, or no
+    branch at all -- is a landing the finish refuses, and movement under a
+    transaction an earlier finish captured for that head, which is abandoned
+    first (`_abandons_what_it_captured`) so that no later route takes it,
+    even one finding the branch back on the head. A remote nobody could read
+    established nothing: the finish refuses the landing all the same, and the
+    transaction waits for the next tick to prove it again.
+    """
+    landing = _rewrite_transport._observes_the_landing(context.spec, context.worktree, candidate)
+    if landing.remote.sha is not None and not landing.landed:
+        _abandons_what_it_captured(context, completed, candidate)
+    return _finish.finishes_the_recovery(context, landing)
 
 
 def _settles(

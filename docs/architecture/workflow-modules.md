@@ -1264,8 +1264,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             which no request answers, the checkout read whatever the remote's reading came to --
                             every reading taken, the first that establishes movement and
                             the first that holds answered side by side, so an unread reading masks no movement: a
-                            remote branch or checkout off the head, or a base read elsewhere, both holds and
-                            establishes movement, an unreadable base or issue only holds, and moved requirements or
+                            remote branch or checkout read off the head, or a base read elsewhere, both holds and
+                            establishes movement, a remote branch nobody could read, a checkout head that would not
+                            prove, or an unreadable base or issue only holds, and moved requirements or
                             configuration, or a base no longer the recorded tip, DEFER. The landing is read only for
                             a route that carries or follows a recorded decision or ran the configured commands.
                             `standing_refusal` puts the
@@ -1735,8 +1736,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             measured: an attempt made for another publication parked; a checkout read as a candidate
                             naming any other head than the one the fetch classified -- the one every voucher below
                             is about -- left with nothing made for the next tick to classify, save that a transaction
-                            an earlier finish captured for the fetched head is abandoned through the finish's last
-                            word (`rewrite_finish_captured.py`) on the way out; a landing the git owner
+                            an earlier finish captured for the fetched head is abandoned on the way out where the
+                            checkout read another head, that movement handed to the finish's last word
+                            (`rewrite_finish_captured.py`) so a checkout back on the head by then keeps nothing, and
+                            kept for another proof where the checkout's head would not prove; a landing the git owner
                             names a reason against (`git/base_sync/landed_recovery.py`) -- a mark naming another
                             head, a head nothing this attempt vouches for, a checkout not provably clean beneath a
                             verdict, a transfer the receipt and debt do not account for -- parked with HEAD and the
@@ -1746,7 +1749,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             at the remote through `rewrite_publication.py`'s transport, and a refusal, a no-op that
                             did not land, or a rotation the gate did not make parked with HEAD and the anchor kept;
                             and anything else observed where the remote stands (`git/base_sync/rewrite_transport.py`),
-                            which is how an accepted push whose answer was lost is finished without a second one.
+                            which is how an accepted push whose answer was lost is finished without a second one -- a
+                            remote observed off the landed head abandoning a captured transaction the same way first,
+                            and one nobody could read keeping it.
                             What the proof or the observation found goes to `rewrite_finish.py` on its recovery road,
                             the mark an earlier finish left keeping its notice and event from being said again, and
                             its evidence decision resumed where the dead tick left it: the configured commands run

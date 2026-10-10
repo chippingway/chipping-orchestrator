@@ -1335,12 +1335,14 @@ because there it is the claim that this stage has already rerouted rather than a
   requirements over the issue fetched once more, and then what no request answers, the checkout's own head and the
   configuration. Every reading is taken and none masks another, the checkout read whatever the remote branch's reading
   came to: the first that establishes movement and the first that holds the route are answered side by side, so a
-  reading nobody could take never hides one that read something move. A remote branch or checkout off the landed head,
-  or a base gone elsewhere or unreadable, holds the route; moved requirements or configuration, or a base no longer the
-  recorded tip, refuse the transaction the route would carry, and the head goes to the fresh reviewer. Wherever any
-  reading establishes movement -- the captured transaction's own proof refusing it, those refusals, a landing that
-  moved, or a base read elsewhere -- the transaction is abandoned unrun in its own evidence write, so no later route
-  takes it, not even once everything is back where it was; only readings nobody could take leave it to be proved again.
+  reading nobody could take never hides one that read something move. A remote branch or checkout read off the landed
+  head, a remote branch nobody could read or a checkout whose head would not prove, or a base gone elsewhere or
+  unreadable, holds the route; moved requirements or configuration, or a base no longer the recorded tip, refuse the
+  transaction the route would carry, and the head goes to the fresh reviewer. Wherever any reading establishes
+  movement -- the captured transaction's own proof refusing it, those refusals, a landing read off its head, or a base
+  read elsewhere -- the transaction is abandoned unrun in its own evidence write, so no later route takes it, not even
+  once everything is back where it was; only readings nobody could take, an unproved checkout head among them, leave it
+  to be proved again.
   A comment with no room for the abandonment takes a write that only shrinks it instead: the transaction is dropped --
   nothing was posted under it while the anchor stood, and the revision floor keeps its revision -- and the attempt's
   recorded base tip is blanked, so every later reading of the base proves nothing and no finish of the attempt runs the
@@ -1354,8 +1356,11 @@ because there it is the claim that this stage has already rerouted rather than a
   and the recovery of the push already landed (`workflow/engine/rewrite_landed.py`) proves the landing again -- the
   attempt's record naming the head, the remote and the checkout agreeing on it, the transfer accounted for -- and hands
   it to the same finish -- save where the checkout has left the head the recovery's fetch found by the time the landing
-  is read, which finishes nothing for the next tick to classify but abandons, through the same last word, a transaction
-  an earlier finish captured for that head. Nothing is pushed a second time, no notice, event, or round reset is
+  is read, or the remote is observed off it, which finishes nothing for the next tick to classify but first abandons,
+  through the same last word with that movement already read, a transaction an earlier finish captured for that head:
+  a checkout or remote back on the head by the time the last word reads them again still routes nothing that
+  transaction carried. A checkout whose head would not prove, or a remote nobody could read, abandons nothing and
+  leaves the transaction to be proved again. Nothing is pushed a second time, no notice, event, or round reset is
   repeated under the attempt's own mark, no developer is launched, and the evidence decision resumes where the dead tick
   left it. A tick that died before its evidence write landed -- before the configured commands ran, or behind a run that
   completed and was never recorded -- captured nothing, so the decision is taken afresh and the commands run again where

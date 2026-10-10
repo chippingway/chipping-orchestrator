@@ -7,10 +7,12 @@ another, so movement read beside a base nobody could read still abandons the
 captured run while the unread base holds the route. And where the pinned
 comment has no room for the abandonment, the write that only shrinks it -- the
 run dropped and the base tip its replay was recorded as made onto blanked --
-refuses the run for good. A recovery that leaves before reading the landing,
-because the checkout left the head its fetch found, abandons the run on its way
-out. Either way, putting back what moved and making room routes the head with
-nothing run, recorded, pushed, or announced again.
+refuses the run for good. A recovery that leaves without finishing the landing,
+because the checkout left the head its fetch found or the remote branch is
+observed off it, abandons the run on its way out, even where the checkout is
+back on the head before anything reads it again. Either way, putting back what
+moved and making room routes the head with nothing run, recorded, pushed, or
+announced again.
 """
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ import unittest
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator.git import branch_transport
 from orchestrator.git.base_sync import replay_evidence, rewrite_facts
 from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
@@ -26,6 +29,7 @@ from tests.workflow.engine import (
     rewrite_finish_readings as readings,
     rewrite_verification_recovery_support as support,
 )
+from tests.workflow.interleaving import _RacesPastTheStep
 
 _BASE_READING = "_standing_on_the_remote_base"
 
@@ -38,6 +42,8 @@ _STRAY_COMMIT = (
 )
 
 _CLASSIFIED = "_made_for_another_publication"
+
+_REMOTE_READ = "_remote_branch_read"
 
 _CONFIGURED = f"test -f feature.py && echo '{git_support.CHECKED}'"
 
@@ -70,11 +76,17 @@ def _answered(standing: _BaseStanding, move, *_args) -> _BaseStanding:
     return standing
 
 
-def _commits_behind(original, case: support.VerificationRecoveryCase, *args):
-    """Answer `original`, then commit in `case`'s checkout past the head the recovery classified."""
+def _moves_behind(original, move, *args):
+    """Answer `original` -- the recovery's classification of what its fetch found -- then make `move`."""
     answered = original(*args)
-    case._git(*_STRAY_COMMIT, cwd=case._wt)
+    move()
     return answered
+
+
+def _behind_the_classification(move):
+    """A patch making `move` each time a recovery has classified what its fetch found, before it reads the landing."""
+    original = getattr(replay_evidence, _CLASSIFIED)
+    return patch.object(replay_evidence, _CLASSIFIED, side_effect=partial(_moves_behind, original, move))
 
 
 def _fills_the_comment(case: support.VerificationRecoveryCase) -> None:
@@ -141,16 +153,35 @@ class SurvivingRefusalTest(support.VerificationRecoveryCase, unittest.TestCase):
         # The recovery's fetch finds the remote and the checkout on the landed
         # head, and the checkout commits past it before the landing is read:
         # the recovery finishes nothing, and abandons the run captured for
-        # that head on its way out. Put back on the head, the next recovery
+        # that head on its way out -- even where the checkout is put back on
+        # the head while that abandonment reads the remote branch, ahead of
+        # reading the checkout again. Back on the head, the next recovery
         # routes it with the run still abandoned and nothing run again.
+        for put_back_mid_read in (False, True):
+            with self.subTest(put_back_mid_read=put_back_mid_read):
+                head, captured = self._leaves_early(put_back_mid_read=put_back_mid_read)
+
+                self.recovers()
+
+                self._assert_abandoned(captured)
+                self.assert_recovered(head)
+
+    def test_a_remote_observed_off_the_head_abandons(self) -> None:
+        # The recovery's fetch finds the remote and the checkout on the landed
+        # head, and the remote branch is put back on the anchor before the
+        # landing is observed: the observation finds no landing to finish, and
+        # the run captured for the head is abandoned before the recovery
+        # leaves. With the branch back on the head, the next recovery routes
+        # it with the run still abandoned and nothing run, pushed, or
+        # announced again.
         head, captured = _captures(self)
-        classified = partial(_commits_behind, getattr(replay_evidence, _CLASSIFIED), self)
-        with patch.object(replay_evidence, _CLASSIFIED, side_effect=classified):
+        branch = f"refs/heads/{git_support.BRANCH}"
+        with _behind_the_classification(partial(self._git, "update-ref", branch, self.anchor, cwd=self._remote)):
             self.recovers()
 
         self.assert_held(None)
         self._assert_abandoned(captured)
-        self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+        self._git("update-ref", branch, head, cwd=self._remote)
         self.recovers()
         self._assert_abandoned(captured)
         self.assert_recovered(head)
@@ -170,6 +201,29 @@ class SurvivingRefusalTest(support.VerificationRecoveryCase, unittest.TestCase):
         self.assert_held(None)
         self._assert_abandoned(captured)
         restores(self, body)
+        return head, captured
+
+    def _leaves_early(self, *, put_back_mid_read: bool) -> tuple:
+        """A fresh case's captured run, its checkout committing past the head behind the recovery's classification.
+
+        Put back on the head after that recovery -- or, `put_back_mid_read`,
+        while it reads the remote branch on its way out. The head and the run,
+        once the recovery held the route and abandoned the run.
+        """
+        self.setUp()
+        head, captured = _captures(self)
+        put_back = partial(self._git, "reset", "--quiet", "--hard", head, cwd=self._wt)
+        reads = getattr(branch_transport, _REMOTE_READ)
+        if put_back_mid_read:
+            reads = _RacesPastTheStep(reads, put_back)
+        with (
+            _behind_the_classification(partial(self._git, *_STRAY_COMMIT, cwd=self._wt)),
+            patch.object(branch_transport, _REMOTE_READ, reads),
+        ):
+            self.recovers()
+        self.assert_held(None)
+        self._assert_abandoned(captured)
+        put_back()
         return head, captured
 
     def _assert_abandoned(self, captured) -> None:

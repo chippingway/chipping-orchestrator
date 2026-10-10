@@ -25,10 +25,12 @@ checkout read whatever the remote's came to. Every reading is taken, and none
 masks another: the last word
 answers with the first that establishes movement and the first that holds the
 route, side by side, so a reading nobody could take never hides one that read
-something move. A remote branch or a checkout off the landed head
+something move. A remote branch or a checkout read off the landed head
 (`LEFT_THE_LANDING`) both holds the route -- the landing it would finish is no
 longer the one in front of it, and the next tick's recovery classifies the
-branch afresh -- and establishes movement; requirements or a configuration that
+branch afresh -- and establishes movement; a remote branch nobody could read,
+or a checkout whose head would not prove, only HOLDS, leaving a transaction to
+be proved again. Requirements or a configuration that
 moved DEFER, establishing movement under the transaction the route would carry. The remote branch and the
 checkout are read only for a route that carries or follows a recorded decision
 or ran the configured commands; one that ran nothing and recorded nothing has
@@ -102,6 +104,10 @@ _RECONFIGURED = _evidence_models.ReportEvidence(
 
 _UNREAD_REMOTE = _evidence_models.ReportEvidence(
     _HOLD, "the remote branch the rebased head landed on could not be read again",
+)
+
+_UNREAD_CHECKOUT = _evidence_models.ReportEvidence(
+    _HOLD, "the checkout's head could not be proved again",
 )
 
 # A checkout or remote branch off the head that landed: the landing the route
@@ -242,7 +248,11 @@ def _landing_refusals(
 
     Two readings, each refused on its own: a remote branch nobody could read
     says nothing about the checkout, which is read whatever the branch's
-    reading came to, so a checkout that moved is never hidden behind it.
+    reading came to, so a checkout that moved is never hidden behind it. A
+    reading that did not happen -- the branch unread, or a checkout head the
+    proof could not name, which reads as "" -- holds without establishing
+    movement, as the evidence policy holds a reading nobody took; only a head
+    read somewhere else is the landing left.
     """
     checkout = _rewrite_facts._reads_the_checkout(
         finish.spec, _worktree_paths._worktree_path(finish.spec, finish.issue.number),
@@ -251,6 +261,8 @@ def _landing_refusals(
         branch = _UNREAD_REMOTE
     else:
         branch = None if remote == finish.head else LEFT_THE_LANDING
+    if not checkout:
+        return branch, _UNREAD_CHECKOUT
     return branch, None if checkout == finish.head else LEFT_THE_LANDING
 
 

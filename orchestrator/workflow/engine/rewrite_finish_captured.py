@@ -148,7 +148,8 @@ def stands_before_the_route(
     proved again, a recorded failure notice published, an abandoned
     transaction -- over the transaction the route would carry, where one is
     still recorded for the head (`rewrite_evidence_proof.last_word`), beside
-    `proof`, the verdict a captured transaction was just proved again with.
+    `proof`, the verdict a captured transaction was just proved again with,
+    or the movement a recovery already read leaving the landing.
     The landing itself is read again for every route that carries or follows
     a recorded decision or ran the configured commands, `landing` False
     sparing only a fresh decision that ran nothing and recorded nothing.
