@@ -4,8 +4,13 @@
 
 from __future__ import annotations
 
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 
+from tests.workflow.agent_failure_values import WEEKLY_LIMIT_MESSAGE
+from tests.workflow.fixtures import EVENT_PARK_AWAITING_HUMAN, REVIEW_CHANGES_REQUESTED_MESSAGE
 from tests.workflow.stages.fixing import fixing_test_support as support
 from tests.workflow.stages.fixing.prompt_expectations import (
     only_prompt,
@@ -33,6 +38,7 @@ COMMAND_COMMENT_ID = support.COMMAND_COMMENT_ID
 CONTINUE_COMMAND = support.CONTINUE_COMMAND
 DAVE = support.DAVE
 DEV_AGENT = support.DEV_AGENT
+DEV_SESSION = support.DEV_SESSION
 DEV_SESSION_ID = support.DEV_SESSION_ID
 FIXING = support.FIXING
 FRESH_SESSION = support.FRESH_SESSION
@@ -69,6 +75,7 @@ PUSHED_FIX_MESSAGE = support.PUSHED_FIX_MESSAGE
 RESUME_SESSION_ID = support.RESUME_SESSION_ID
 REVIEW_ROUND = support.REVIEW_ROUND
 RUN_AGENT = support.RUN_AGENT
+SESSION_LIMIT_PHRASE = support.SESSION_LIMIT_PHRASE
 SHA_AFTER = support.SHA_AFTER
 SHA_BEFORE = support.SHA_BEFORE
 SHA_SAME = support.SHA_SAME
@@ -79,6 +86,9 @@ _agent = support._agent
 dev_task_section = support.dev_task_section
 make_issue = support.make_issue
 posted_comment_contains = support.posted_comment_contains
+
+_DIRTY_FILE_NAME = "orchestrator/uncommitted_work.py"
+_DIRTY_CONTENT = "# reviewer fix the quota stopped half way\n"
 
 
 class _ContinueCommandFixtureMixin(_PatchedWorkflowMixin):
@@ -421,3 +431,145 @@ class ValidatingContinueCommandTest(
                 for _, comment_body in gh.posted_comments
             )
         )
+
+
+class ValidatingQuotaParkContinueTest(unittest.TestCase, _PatchedWorkflowMixin):
+    """#1796: the developer handed a reviewer's change request stops on its
+    account's weekly quota, leaving the fix half written in the checkout. That
+    notice is the CLI's, not a question, so the round parks retryably with
+    everything the retry needs kept -- and the bare `/orchestrator continue`
+    the park asks for, once the quota resets, replays the reviewer's request
+    on a fresh session over that same checkout instead of being refused as an
+    unanswered question.
+    """
+
+    def test_weekly_limit_park_continue_replays(self) -> None:
+        github = FakeGitHubClient()
+        issue = self._seed_validating(github)
+        worktree = self._dirty_worktree()
+
+        # --- Tick 1: the reviewer asks for a change; the quota stops the dev.
+        self._run_validating(
+            github,
+            issue,
+            run_agent=[
+                _agent(session_id="rev-sess", last_message=REVIEW_CHANGES_REQUESTED_MESSAGE),
+                _agent(session_id=DEV_SESSION, last_message=WEEKLY_LIMIT_MESSAGE),
+            ],
+            head_shas=[SHA_BEFORE, SHA_BEFORE],
+            dirty_files=[_DIRTY_FILE_NAME],
+            issue_checkout=worktree,
+            issue_worktree=worktree,
+        )
+        reviewer = self._assert_retryable_quota_park(github)
+
+        # --- Tick 2: the bare command after the reset retries the round.
+        issue.comments.append(
+            FakeComment(
+                id=max(comment.id for comment in issue.comments) + 1,
+                body=CONTINUE_COMMAND,
+                user=FakeUser(DAVE),
+            ),
+        )
+        mocks = self._run_fixing(
+            github,
+            issue,
+            run_agent=_agent(session_id=FRESH_SESSION, last_message=PUSHED_FIX_MESSAGE),
+            head_shas=(SHA_BEFORE, SHA_AFTER),
+            issue_checkout=worktree,
+            issue_worktree=worktree,
+        )
+
+        self._assert_replayed_review(mocks, reviewer, worktree)
+        self._assert_park_cleared(github)
+
+    def _seed_validating(self, github):
+        """A `validating` issue whose pull request the reviewer is about to read."""
+        issue = make_issue(ISSUE, label=VALIDATING)
+        github.add_issue(issue)
+        github.add_pr(
+            FakePR(
+                number=PR_NUMBER,
+                head_branch=BRANCH,
+                head=FakePRRef(sha=PR_HEAD_SHA),
+                mergeable=True,
+                check_state=CHECK_SUCCESS,
+            ),
+        )
+        github.seed_state(
+            ISSUE,
+            pr_number=PR_NUMBER,
+            branch=BRANCH,
+            dev_agent=DEV_AGENT,
+            dev_session_id=DEV_SESSION,
+            review_round=0,
+        )
+        return issue
+
+    def _dirty_worktree(self) -> Path:
+        worktree = Path(tempfile.mkdtemp(prefix="fixing-quota-wt-"))
+        self.addCleanup(shutil.rmtree, worktree, ignore_errors=True)
+        dirty_file = worktree / _DIRTY_FILE_NAME
+        dirty_file.parent.mkdir(parents=True)
+        dirty_file.write_text(_DIRTY_CONTENT)
+        return worktree
+
+    def _assert_retryable_quota_park(self, github):
+        """The park tick 1 leaves, and the reviewer comment it is anchored on."""
+        parks = [
+            record for record in github.recorded_events
+            if record.get("event") == EVENT_PARK_AWAITING_HUMAN
+        ]
+        self.assertEqual(
+            [(record.get("stage"), record.get("reason")) for record in parks],
+            [("fixing", "agent_session_limit")],
+        )
+        self.assertEqual(github.label_history, [(ISSUE, FIXING)])
+        pinned_data = github.pinned_data(ISSUE)
+        # `agent_silent` is the retryable reason the continue command keys
+        # off; the anchor, PR and branch are what the replay is rebuilt from.
+        self.assertEqual(
+            (
+                pinned_data.get(AWAITING_HUMAN),
+                pinned_data.get(PARK_REASON),
+                pinned_data.get("pr_number"),
+                pinned_data.get("branch"),
+            ),
+            (True, PARK_AGENT_SILENT, PR_NUMBER, BRANCH),
+        )
+        notice = github.posted_comments[-1][1]
+        for expected in (SESSION_LIMIT_PHRASE, CONTINUE_COMMAND, WEEKLY_LIMIT_MESSAGE):
+            self.assertIn(expected, notice)
+        self.assertNotIn("needs your input", notice)
+        return next(
+            posted for posted in github.get_pr(PR_NUMBER).issue_comments
+            if posted.id == pinned_data.get(PENDING_FIX_REVIEWER_COMMENT_ID)
+        )
+
+    def _assert_replayed_review(self, mocks, reviewer, worktree: Path) -> None:
+        """Exactly the reviewer's request, on a fresh spawn of the developer's
+        own backend, in the checkout still holding the unfinished fix."""
+        self.assertEqual(
+            replayed_task(only_prompt(mocks)), pr_feedback_prompt([reviewer]),
+        )
+        agent_call = mocks[RUN_AGENT].call_args
+        self.assertEqual(
+            (agent_call.args[0], agent_call.args[2], agent_call.kwargs.get(RESUME_SESSION_ID)),
+            (DEV_AGENT, worktree, None),
+        )
+        self.assertEqual((worktree / _DIRTY_FILE_NAME).read_text(), _DIRTY_CONTENT)
+
+    def _assert_park_cleared(self, github) -> None:
+        """The retry was taken, not refused, and the fix went back to review."""
+        self.assertFalse(posted_comment_contains(github, "needs your actual guidance"))
+        pinned_data = github.pinned_data(ISSUE)
+        self.assertEqual(
+            (
+                pinned_data.get(AWAITING_HUMAN),
+                pinned_data.get(PARK_REASON),
+                pinned_data.get(DEV_SESSION_ID),
+                pinned_data.get(PENDING_FIX_REVIEWER_COMMENT_ID),
+            ),
+            (False, None, FRESH_SESSION, None),
+        )
+        self.assertIn((ISSUE, VALIDATING), github.label_history)

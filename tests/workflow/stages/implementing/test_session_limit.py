@@ -7,6 +7,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.stages.implementing import session_read as _session_read
+from tests.workflow.agent_failure_values import WEEKLY_LIMIT_MESSAGE
 from tests.workflow.stages.implementing import retry_test_support as support
 
 DEFAULT_SESSION = support.DEFAULT_SESSION
@@ -14,11 +15,12 @@ _agent = support._agent
 
 
 class SessionLimitMessageClassifierTest(unittest.TestCase):
-    """A session/usage-quota notice returned as the CLI's FINAL message is a
-    retryable session-failure, not a real agent question. `_on_question` keys
-    the retryable `agent_silent` park off `_is_session_limit_message`, so the
-    classifier must accept the known phrasings (including a curly apostrophe)
-    as a prefix while ignoring a plain question or a mid-answer mention.
+    """A session/usage/weekly-quota notice returned as the CLI's FINAL message
+    is a retryable session-failure, not a real agent question. `_on_question`
+    keys the retryable `agent_silent` park off `_is_session_limit_message`, so
+    the classifier must accept the known phrasings (including a curly
+    apostrophe) as a prefix while ignoring a plain question or a mid-answer
+    mention.
     """
 
     def test_matches_known_session_limit_phrasings(self) -> None:
@@ -28,6 +30,10 @@ class SessionLimitMessageClassifierTest(unittest.TestCase):
             # Curly apostrophe still hits (normalized before matching).
             "You’ve hit your session limit · resets 7pm",
             "You've reached your usage limit for now",
+            WEEKLY_LIMIT_MESSAGE,
+            "You’ve hit your weekly limit · resets Sep 25, 12pm",
+            "You've reached your weekly limit for now",
+            "You’ve reached your weekly limit",
             "Claude AI usage limit reached|1712345678",
             # Mixed casing / leading whitespace still trip the prefix match.
             "  CLAUDE USAGE LIMIT REACHED",
@@ -46,6 +52,8 @@ class SessionLimitMessageClassifierTest(unittest.TestCase):
             # A dev discussing the concept mid-answer must not be caught --
             # the marker is matched as a prefix, not anywhere in the body.
             "I added a note about the session limit handling in fixing.py.",
+            # Quoting the weekly notice whole, mid-answer, is still an answer.
+            "Done: the classifier now parks \"You've hit your weekly limit\" retryably.",
         ):
             with self.subTest(last_message=last_message):
                 agent_result = _agent(session_id=DEFAULT_SESSION, last_message=last_message)

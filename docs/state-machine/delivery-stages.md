@@ -2445,11 +2445,12 @@ because there it is the claim that this stage has already rerouted rather than a
      - no new commits → `_on_question`, which parks on the agent result and whose words the last message is. A run
        carrying unfinished command diagnostics (`unfinished_steps`) parks retryably as `agent_execution_failed` with
        an execution-failure notice explaining that cancelled or partial command output was not accepted and the
-       operator told to reply `/orchestrator continue`. A quota notice (`_is_session_limit_message`) and a transient
-       provider refusal (`agents/provider_failures.py`'s `is_transient_provider_failure` — `API Error: 529 Overloaded`
-       and its 5xx siblings) are the CLI's rather than the agent's, so both park retryably as `agent_silent` with the
-       operator told to reply `/orchestrator continue`; any other non-empty message is posted as a real HITL question
-       (`park_reason=None`); an empty one is the silent-failure park (`agent_silent`).
+       operator told to reply `/orchestrator continue`. A Claude session-, usage-, or weekly-limit notice
+       (`_is_session_limit_message`) and a transient provider refusal (`agents/provider_failures.py`'s
+       `is_transient_provider_failure` — `API Error: 529 Overloaded` and its 5xx siblings) are the CLI's rather than
+       the agent's, so both park retryably as `agent_silent` with the operator told to reply `/orchestrator continue`;
+       any other non-empty message is posted as a real HITL question (`park_reason=None`); an empty one is the
+       silent-failure park (`agent_silent`).
 - **Output**: one of four. A pushed branch + open PR + the report on it + label moved to `workflow:validating`; a
   pushed branch + open PR whose report is still owed, unparked and still on `workflow:implementing` for the next tick
   to finish; an **unpublished** committed candidate held under `workflow:decomposing` for size adjudication, with no
@@ -4856,7 +4857,8 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      park (`agent_silent` / `agent_timeout` / `agent_execution_failed`) is never resumed on the bare command text.
      Unfinished command executions are parked `agent_execution_failed` by `_on_question`, and two dev final messages
      are parked `agent_silent` rather than as a real `park_reason=None` question, because neither is the agent's own
-     words: a recognized Claude session/usage-limit notice (`_is_session_limit_message`), and a transient provider
+     words: a recognized Claude session-, usage-, or weekly-limit notice (`_is_session_limit_message`, matched as a
+     prefix of the final message so an answer that merely mentions a limit stays an answer), and a transient provider
      refusal such as `API Error: 529 Overloaded` (`agents/provider_failures.py`'s `is_transient_provider_failure`,
      which prefers the terminal result event's `is_error` flag and otherwise requires a non-zero exit beside the prefix,
      so a successful answer that merely quotes the error stays an answer). A quota reset, a provider that came back,
