@@ -3555,7 +3555,11 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
 - **Input**: PR #, branch, `dev_agent` / `dev_session_id`, `review_round`.
 - **Internal flow**:
   0. **External-merge / closed-issue short-circuit** (same chain as implementing / documenting). The reviewer is not
-     spawned on either short-circuit.
+     spawned on either short-circuit. Ahead of even these, a `conflict_handed_sha` that `_handle_resolving_conflict`'s
+     lost write behind its relabel left standing is dropped in a write of its own (`conflicts/handoff.py`): the move
+     it claims is owed has been made by the time this handler runs, and left standing it would read to the next
+     conflict episode over the same head as that move still owed (see
+     [_handle_resolving_conflict](#_handle_resolving_conflict-label-workflowresolving_conflict)).
   1. A squash this issue began and did not finish (`late_collapse_*` on the pinned comment) is answered here,
      ahead of every route that could point an agent at the branch — the drift resume, the awaiting-human path, and
      the reviewer spawn (`_recovers_a_recorded_collapse`) — over the same tail the approval road runs. Asked only
