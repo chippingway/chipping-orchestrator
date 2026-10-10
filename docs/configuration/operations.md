@@ -1639,4 +1639,5 @@ When each setting's change takes effect:
   `~/.config/<owner>/<repo>/token`
 - `ORCHESTRATOR_BASE_BRANCH` — developer source wrappers capture this before the restart loop, so editing it requires
   restarting the wrapper itself ([developer guide](../development.md#development-restart-wrapper)). The Python
-  process picks it up on the same next start.
+  process picks it up on the same next start. An installed package never uses it: the
+  [self-restart guard](../architecture.md#process-model) runs only in a source checkout.
