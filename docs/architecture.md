@@ -985,7 +985,7 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
    │              build one shared IssueScheduler(global_cap, per_repo)   │
    │     loop every POLL_INTERVAL s:                                      │
    │       1. self-restart check (origin/<ORCHESTRATOR_BASE_BRANCH>       │
-   │          moved & touches orchestrator/?)                             │
+   │          moved & touches orchestrator/?; source checkout only)       │
    │       2. run_tick(state, clients, scheduler):                        │
    │            N == 1 → in-thread engine_tick.tick(gh, spec, scheduler)  │
    │            N  > 1 → ThreadPoolExecutor fans engine_tick.tick across  │
