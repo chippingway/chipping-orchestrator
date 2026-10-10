@@ -137,7 +137,10 @@ adjudication took over, once its authorized settlement publishes it (a claimed
 `developer_report_rewrite_debt`): before any reviewer, the claim is cleared at once where a published report of that
 exact head, still intact and written against the current requirements, has already settled, and otherwise the
 developer is asked with no human reply for a fresh `REPORT: READY` report of that head, recorded and settled the same
-way, which clears it once it has -- a verification of the report the rewrite left behind pays nothing. Each reviewer
+way, which clears it once it has -- a verification of the report the rewrite left behind pays nothing. A report of the
+approved commit this orchestrator's approval squash collapsed into the head a later rebase replaced is refreshed the
+same way, but only once the squash's own recorded lineage proves it and the report re-reads intact; it keeps naming
+the commit it was written about. Each reviewer
 is then handed the report re-read where it settled, and what it approves is
 recorded as `review_approved_subject` — pull request, head, requirements, and report — so a report that changes on
 an unchanged head goes back to a fresh reviewer rather than riding an earlier approval

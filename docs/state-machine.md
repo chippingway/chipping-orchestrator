@@ -481,7 +481,8 @@ frozen pair, an approved push — releases the hold, since it keeps the refresh 
 ends it, and the hold is asked again once the reconciliation has run, so a claim it spends leaves the anchor holding
 the tick. Every other record and park the refresh freezes on holds: a stage's handler takes its park down on a reply
 and runs on into the agent it was holding back, and a timeout, a reading nobody could take, or a collapse mid-rewrite
-is likewise ended by a handler the hold keeps back. So beside an anchor none of them keeps the refresh away, and the
+is likewise ended by a handler the hold keeps back, as is a developer report recorded and not yet settled by the
+report reconciliation behind it. So beside an anchor none of them keeps the refresh away, and the
 refresh answers the anchor under them with the recovery alone, no reply spent, leaving each for its owner. A pull
 request that merged or closed is asked for first under any park, the refresh's own included, and ends the attempt's
 whole handoff there, so the hold never outlives it. A checkout
