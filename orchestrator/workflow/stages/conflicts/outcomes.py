@@ -130,10 +130,24 @@ def _park_stalled_conflict_result(
         )
         return True
 
+    return _parks_an_unfinished_rebase(ctx, run)
+
+
+def _parks_an_unfinished_rebase(
+    ctx: _models._ConflictContext, run: _models._ConflictResumeRun,
+) -> bool:
+    """Park a run that returned with the rebase still mid-flight; True where it did.
+
+    A HEAD that moved during an unfinished rebase says nothing about whether
+    the conflicts were resolved, so nothing it left may be published -- nor
+    any report of it recorded, which would describe a branch that is not
+    finished being written. Asked by the resolution funnel above and by the
+    road a body edit's resume and the reply behind it take
+    (`resume_reports`).
+    """
     if not _base_sync_pre_pr._rebase_in_progress(run.worktree):
         return False
-
-    raw = dev_result.last_message.strip()
+    raw = run.dev_result.last_message.strip()
     quoted = ""
     if raw:
         quoted = f"\n\nAgent output:\n\n{_messages._as_blockquote(raw)}"

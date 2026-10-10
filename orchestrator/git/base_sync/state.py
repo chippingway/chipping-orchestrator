@@ -31,6 +31,20 @@ _REVIEW_ROUND = "review_round"
 
 _CONFLICT_ROUND = "conflict_round"
 
+# The head a counted conflict round handed to `validating`, standing only
+# until the write behind that relabel lands. It is about the episode that
+# counted it, so the route opening a new one drops it.
+_CONFLICT_HANDED_SHA = "conflict_handed_sha"
+
+# The publication a body edit's resume recorded beside its report, which that
+# episode's stage drops once no report of it is unbound. One a settled report
+# left behind is that episode's too, so the route opening a new one drops it.
+_CONFLICT_RESUME_KEYS = (
+    "conflict_resume_from_sha",
+    "conflict_resume_to_sha",
+    "conflict_resume_pr_number",
+)
+
 _PENDING_PUSH_SHA = "pending_auto_base_rebase_push_sha"
 
 # The TERMS one attempt was made under, written in the anchor's own statement

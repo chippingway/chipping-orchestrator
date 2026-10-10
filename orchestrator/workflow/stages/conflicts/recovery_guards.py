@@ -5,6 +5,11 @@
 A recovered push needs the exact commit and remote tip its proof named.
 A status read that failed cannot establish a clean tree. Each refusal keeps
 the recovered work in place and records the park that the next tick reads.
+
+A recovered push is also work reaching the pull request, so it goes out only
+under a report that describes it (`_parked_undescribed_push`): never over a
+report owed and unrecorded, never with a head other than the one a saved
+report names, and never ahead of the settlement of a report already bound.
 """
 from __future__ import annotations
 
@@ -13,11 +18,18 @@ from pathlib import Path
 
 from orchestrator import config
 from orchestrator.git.verification import status as _worktree_status
+from orchestrator.workflow.engine import (
+    report_delivery_state as _delivery_state,
+    report_record_state as _record_state,
+)
 from orchestrator.workflow.stages.conflicts import (
     models as _models,
     parks as _conflict_parks,
+    resume_records as _resume_records,
     state as _state,
 )
+from orchestrator.workflow.stages.validating import drift_reports as _drift_reports, report_hold as _report_hold
+from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -159,3 +171,46 @@ def _parked_dirty_recovery(
         reason="dirty_worktree",
     )
     return True
+
+
+def _parked_undescribed_push(
+    ctx: _models._ConflictContext, recovered_sha: str,
+) -> bool:
+    """Refuse a recovered push no report of this issue's would describe.
+
+    Three shapes, and each is work reaching the pull request with nothing on
+    it accounting for that work. The first is committed work the issue owes a
+    report NOBODY recorded: a body edit's resume that committed and wrote no
+    report parks for one, and a reply that only acknowledges the edit answers
+    that park without writing it -- the debt stands, the flags are down, and
+    the commit is still ahead of the remote, which is exactly what this
+    recovery publishes. Refused, the issue parks again for the report, as the
+    review hold on `validating` parks for it.
+
+    The second is anything but the commit a saved report describes. A body
+    edit's resume that recorded its report and died before its push leaves
+    the commit it meant to publish named beside that report. A checkout that
+    has since moved on -- still ahead of the remote, so nothing about the
+    branch looks wrong -- would publish some other head, and the hold behind
+    it would then bind the report to that head and hand it to a reviewer. So
+    the push is refused, the issue parks for the report the branch as it
+    stands is owed, and the record is kept for whoever answers it.
+
+    The third is a report already BOUND and not yet settled, with no delivery
+    beside it to replace it: a report alone whose settlement a crash cut
+    short, and a commit the checkout gained since. The transaction is held to
+    the head it was bound to, so a push moving the pull request off that head
+    leaves a report that can never settle, and the round it counts hands a
+    reviewer a head nobody described. So it is settled first, through the
+    same hold the rebase waits behind: settled, the push goes ahead as any
+    recovered commit does; where the checkout cannot vouch for it, the hold
+    parks for a human, and where a later tick may settle it, nothing moves.
+    """
+    bound = _record_state.carries_pending_report(
+        ctx.state,
+    ) and not _delivery_state.carries_delivered_report(ctx.state)
+    if bound or _drift_reports._owes_an_unrecorded_report(ctx.state):
+        return _report_hold._owed_report_holds(
+            ctx.gh, ctx.spec, ctx.issue, ctx.state, WorkflowLabel.RESOLVING_CONFLICT,
+        )
+    return _resume_records._refuses_another_head(ctx, recovered_sha)

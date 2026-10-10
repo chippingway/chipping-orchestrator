@@ -110,7 +110,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             comment, and a delivery snapshot over a read taken by the pinned comment's id is handed
                             that id too. `_delivered_thread` takes the read ITSELF for the prompts whose delivery is
                             recorded -- the text, the entries it is made of, and the revision that read fingerprints
-                            to, so a prompt and the mark taken for it cannot be two readings
+                            to, so a prompt and the mark taken for it cannot be two readings; the comments a caller
+                            already answered as controls -- the bare continue a retry spent -- come out of that read,
+                            which keeps every reply past the watermark of the batch it answers whole
     prompt_delivery.py      shared process-local input-delivery snapshot and conservative settlement contract recording
                             exact delivered issue-thread, PR-conversation, inline-review, and review-summary inputs;
                             preserves distinct namespaces, watermark fields, bounded-excerpt omissions, filtering decisions,
@@ -821,11 +823,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             parking as a question. The implementing publication seam is the caller, between its
                             tree reading and the size gate, and so are the two dispositions an open pull request's
                             fix loop runs ahead of that same gate -- the requirements-drift one both review stages
-                            share (`stages/validating/drift_reports.py`) and the reviewer-requested one the
-                            `workflow:fixing` label covers (`stages/validating/fix_reports.py` for the round
-                            `validating` spawns, `stages/fixing/reporting.py` for every round behind it), which is
-                            why the label is one of the roads whose park notice says the pull request stands where
-                            it stood rather than that none was opened. A caller may freeze the bookkeeping its handover
+                            and `workflow:resolving_conflict` share (`stages/validating/drift_reports.py`) and the
+                            reviewer-requested one the `workflow:fixing` label covers
+                            (`stages/validating/fix_reports.py` for the round `validating` spawns,
+                            `stages/fixing/reporting.py` for every round behind it), which is why those labels are
+                            among the roads whose park notice says the pull request stands where it stood rather
+                            than that none was opened. A caller may freeze the bookkeeping its handover
                             owes onto the record as well as onto the gate, which is what covers a report reaching
                             the pull request with no code in it and so no gate behind it. A report it cannot RECORD
                             is held on the refusal `stage_delivered_report` gave rather than on a yes or no, so the
@@ -1044,7 +1047,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             refuses is left owed, for the reconciliation to park. The implementing publication calls it,
                             through
                             `stages/implementing/report_handoff.py`, once its push has reached a pull request; the
-                            review stages' `stages/validating/report_settlement.py` calls the binding step alone,
+                            drift roads' `stages/validating/report_settlement.py` calls the binding step alone,
                             `binds_the_delivery`, and leaves the post to the reconciliation's full evidence
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
                             terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
@@ -1814,8 +1817,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       routing.py            the one reading every road runs behind -- the worktree restored, the branch fetched, the
                             checkout compared to it -- and everything that reading can report that is not a rebase:
                             a round the size gate held and an adjudication has since published, a behind-base
-                            divergence, a body edit or a human reply the dev is resumed on, and commits a crashed
-                            tick never pushed. Both resumes sit behind the divergence guard, since what either
+                            divergence, a body edit or a human reply the dev is resumed on, a report a resume
+                            saved about the head the pull request carries (settled behind the edit, ahead of the
+                            reply wait and the cap), and commits a crashed tick never pushed. Both resumes sit behind
+                            the divergence guard, since what either
                             starts is an agent whose commit this stage force-pushes and no lease catches a push made
                             from a checkout the remote has moved past -- the tip it is pinned to is the tip the
                             resume read. Only the BODY EDIT also defers over a checkout ahead of its remote: it
@@ -1831,20 +1836,28 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             announced once per reason
       guards.py             the worktree restore and the two probes that prove a stale PR head is safe to
                             force-publish over
-      divergence.py         admission over a stale orchestrator-produced head or a recorded replay, and recovered
+      divergence.py         admission over a stale orchestrator-produced head, a recorded replay, or the publication a
+                            body edit's resume recorded with the report it still owes, and recovered
                             publication through the size gate under the original lease; the behind-base count decides
                             whether the push finishes a round or precedes another rebase, and a landed push that
                             precedes one records its report debt at once, since that rebase may end without a tail,
                             having handed the gate its head so a later tick can record the debt after a crash or a
                             hold
       recovery_guards.py    recovery parks for an unreadable candidate, unpinned remote tip, or dirty/unreadable checkout;
-                            each refusal retains the recovered work and the exact reason a later tick retries
+                            each refusal retains the recovered work and the exact reason a later tick retries; and
+                            the refusal of a recovered push no report would describe -- committed work the issue
+                            owes a report nobody recorded, a head other than the commit a saved report describes, or
+                            any push ahead of the settlement of a report already bound, which the review hold's
+                            settling half is asked first and which parks where the checkout cannot vouch for it
       rebase.py             the branch and base fetches, the pre-rebase head every exit of the round leases its
                             push against -- refused when nothing could read it, since the gate reads no head as a
                             caller that established none and pins the push to whatever the pull request has moved
                             to -- the fork point that head's contribution is read over, taken in the same breath
                             since the replay destroys it and made DURABLE before the rebase runs, the rebase, its
-                            `merge_attempt` event, and the three-way disposition
+                            `merge_attempt` event, and the three-way disposition -- none of it while a report this
+                            issue recorded is still unsettled, since settled after the rebase it would be bound to
+                            the head the rebase left. The `MAX_CONFLICT_ROUNDS` cap is asked here, behind that
+                            settlement, and so is the earlier settlement of a saved report over a placed branch
       publication.py        the unproven-tree and unreadable-head parks, the no-op flip, the rebased-head push
                             (measured by the size gate first, since a base that moved changes what the branch adds
                             to it, handed the pair the replay replaced beside it, and stamping the commit that
@@ -1856,7 +1869,22 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             this stage started on, so taken as absences they hand a reviewer a tree nobody read or
                             a rewritten head the pull request never received
       evidence.py           live and recovered rewrite evidence: the replayed input pair and the new fork point;
-                            recovery requires the recorded publication, original lease, and produced commit to agree
+                            recovery requires the recorded publication, original lease, and produced commit to agree.
+                            Beside it, the proof that a diverged branch is the publication a body edit's resume
+                            recorded, while its report is still owed -- no rewrite evidence, only the force-push
+      resume_records.py     the publication a body edit's resume owes -- the head its push is leased against, the
+                            commit it sends, and the pull request -- staged with the report it returned so that
+                            report's guarded commit, or the park taken instead, lands it; read by the proof above,
+                            and read only while that report is unbound -- so no settlement of an older transaction
+                            retires it, and the tail that counts the round drops it only where no unbound report is
+                            about it, leaving it standing for the refusal behind a lost relabel; the base refresh
+                            opening the next episode drops what is left. While that report is unbound it refuses
+                            any other head -- the one a recovered push would send, or the one a binding would take --
+                            parking for the report the branch as it stands is owed and keeping the record. A run
+                            that commits nothing and reports names the head the pull request carries as both ends of
+                            it, over any earlier candidate, through that report's own guarded commit. A report
+                            whose run left a head nothing could read is refused before it is recorded, its work
+                            marked undescribed and the issue parked, since no record could hold it to a commit
       replay_records.py     two-step replay persistence, before rebase and before publication; whole-commit reads and
                             the original publication identity keep a stale or unfinished record from proving a push
       resume.py             the three dev-resume entry points, the shared run, and the `/orchestrator continue`
@@ -1866,10 +1894,36 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             none of their cursors moves. Each of the three can end in a commit this stage publishes onto a
                             pull request the remote already carries, so each passes the size gate -- the fresh
                             conflict and the reply behind it through the shared conflict disposition, the body edit
-                            through the shared fix publication -- and each names the round it would have counted,
+                            through `resume_reports` -- and each names the round it would have counted,
                             since a held candidate ends the tick on the adjudication and no later tick of this stage
-                            counts one
-      outcomes.py           the interrupt / timeout / mid-rebase parks read before HEAD, and the push a completed
+                            counts one. A reply over a park that left a report owed, asked before the run, goes
+                            through `resume_reports` too rather than the conflict disposition, resumed on the frozen
+                            drift prompt as the edit's own resume is and leased against the head the pull request
+                            stood on before the run. This orchestrator's own notices, by the id ledger, are no
+                            reply, so a park whose notice stands above the watermark waits for a human
+      resume_reports.py     the developer report a body edit's resume returns, carried into the report transaction:
+                            the shared drift disposition named with this stage's route and the revision the resume
+                            was handed, the report recorded ahead of the size gate, a pushed answer counted and
+                            relabelled through the shared tail as `drift_resolved` before the report is bound to
+                            the receipt's head and settled, and a report with no commit recorded for the head the
+                            pull request carries and settled with the issue left here. The publication goes down
+                            beside the report (`resume_records`) before anything pushes. The reply to a park that
+                            left a report owed takes the same road under the lease its caller proved, so the commit
+                            the first run left -- a rebase past the pull request's head included -- is published
+                            under the report the reply wrote rather than pushed undescribed with that report parked
+                            as a question; that report is stamped with the frozen drift prompt's record -- the issue
+                            and conversation the run was handed, through a rotated session's fresh spawn too, which
+                            is re-grounded on the same frozen text -- and that record is settled. Either run left
+                            with the rebase mid-flight parks before anything is recorded or pushed, a timeout read
+                            ahead of that as the funnel reads it, and a report from a run that left a command
+                            running parks as the execution failure it is, recorded nowhere; one that commits
+                            nothing and reports names the
+                            head it is about in place of an earlier candidate in the write that saves its report,
+                            for its settlement to spend. And ahead of
+                            any rebase, a report this issue recorded and has not settled is settled first, through the
+                            validating hold's own settling half, so it is never bound to a head a rewrite left
+      outcomes.py           the interrupt / timeout / mid-rebase parks read before HEAD -- the mid-rebase one asked
+                            by the report-carrying road too, behind its own timeout reading -- and the push a completed
                             resolution earns -- measured by the size gate first, since a resolution grows the pull
                             request like any other candidate, and pinned by the pre-rebase head this stage read
       parks.py              park notices, durable reasons, and the predicate that preserves a human question through
@@ -1880,7 +1934,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the three rounds that rewrite the head -- a clean rebase, an agent resolution, a
                             recovered push -- are named here, and the tail records their report debt before the
                             relabel, on the pushing tick and on the settled round a crash or a hold left alike; the
-                            settled-round reader records a published preamble head's debt before anything else
+                            settled-round reader makes a move a counted round still owes first, then records a
+                            published preamble head's debt before anything else. The tail drops a body edit's
+                            recorded publication with the receipt
+      handoff.py            the move a counted round owes `validating`: the count written with the head it hands
+                            on, ahead of the round's audit event and the relabel, and that claim dropped in a write
+                            behind it -- or, where that write was lost, by `validating` before anything else -- so a
+                            count write that never landed reports nothing twice and a relabel that
+                            never landed is made by the next tick standing on that head without counting again, a
+                            head nothing could prove holding the tick with the claim kept rather than dropping it --
+                            and the proof that a checkout stands on a recorded commit, which the settled-round
+                            reader asks too
       report_debt.py        the report debt a head this stage rewrote is owed, read off the code-publication receipt
                             the push left -- the commit it names, the pinned pull request, and the head it replaced --
                             and carried through the debt owner's retargeting; a receipt short of any of those records
@@ -1893,12 +1957,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       models.py             frozen conflict context, checkout and resume results, live replay pairs, and recorded replay
                             values handed between the stage's owners; a body-edit resume's result carries the
                             delivery record its prompt was cut from, since the thread moves while an agent is out
-                            and a mark taken off the one it returns to crosses replies nobody delivered
+                            and a mark taken off the one it returns to crosses replies nobody delivered -- the
+                            reply that finishes a report-owed park carrying the same record; the parked reply names
+                            the commands a retry spent, which that record's read leaves out, and the last comment it
+                            holds, which only the resolution road marks read ahead of its run
       state.py              the counter keys they share, the single settled pair one held round at a time is named
                             by, the preamble head a recovered push ahead of a rebase leaves for its report debt, and
                             the `conflict_replay_*` group a rebase writes about itself -- both ends of what it
                             replaced, the commit it produced, and the publication it was made against -- for the
-                            tick that may have to publish it
+                            tick that may have to publish it; beside it the `conflict_resume_*` group a body edit's
+                            resume writes about its own publication, and the handed head a counted round leaves
+                            until its relabel is behind it
     decomposition/          `workflow:decomposing`, `workflow:ready`, `workflow:blocked`, and `workflow:umbrella`
       run.py                one `decomposing` tick: the retry-cap notice a stranded park still owes replayed at
                             entry, the late route asked before anything else after it, the spent-budget park held
@@ -3770,7 +3839,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       state.py              the park reasons and pinned-state keys they share, plus the role a run is attributed to
                             and the two route names a park is recorded under
     validating/             `workflow:validating`
-      handler.py            the order one review tick asks its questions in, the terminals it opens with, and the
+      handler.py            the order one review tick asks its questions in, opening with the retirement of a
+                            handed head a lost `resolving_conflict` write left claimed, the terminals, and the
                             recorded-collapse route it asks behind only those, ahead of every route that could
                             point an agent at the branch -- and the report hold it asks last, behind the drift resume
                             that would supersede a stale report and ahead of the reviewer spawn, settling a park the
@@ -4020,7 +4090,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             head it carries on as the lease, taken for a run that committed as well as for one
                             that did not -- a tick committing over work an earlier one stranded begins at a
                             commit the pull request has never carried, so a lease read off that head parks every
-                            such tick unmeasured -- the tree proved in BOTH halves before the push, since the
+                            such tick unmeasured -- unless a caller names the head it proved it may lease over,
+                            which is then the lease and is never re-proved, so a pull request moved while the agent
+                            was out is refused rather than adopted, and a rebase that reads to the proof as a remote
+                            that moved still goes out; the tree proved in BOTH halves before the push, since the
                             size gate's own proof rides the entry it freezes and `DECOMPOSE=off` freezes none,
                             the size gate every fix route publishes through, told the
                             state the run really belongs to by the route that relabels before it spawns rather
@@ -4092,7 +4165,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       drift_models.py       the frozen record that route's resume hands the helper that finishes it, the delivery
                             it was built from -- and the revision that read fingerprints -- included
       drift_outcomes.py     the claim that the edit is still unanswered, written -- for a caller that named what
-                            its resume was `handed`, which is the caller that reads it back -- beside every park a
+                            its resume was `handed`, which is the caller that reads it back, so on the two review
+                            routes alone, since a `resolving_conflict` park is answered by that stage's own reply
+                            road -- beside every park a
                             resume ends on and dropped by every outcome that answers it, with the fresh review
                             budget a hand-back recorded, but only once the publication that budget was reset for
                             has happened, so an `ACK:` leaving a commit withheld for its report keeps it; the `ACK:`
@@ -4102,7 +4177,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       drift_reports.py      that contract for a drift resume on an open pull request, which is that nothing this
                             road publishes may be work no report describes: the run's report recorded ahead of the
                             size gate under the route and the revision its CALLER handed it -- the prompt-delivery
-                            record's on either review stage -- a
+                            record's on either review stage and on `resolving_conflict` -- a
                             commit of this run's with no usable report parked rather than pushed, a report alone
                             recorded only over a tree proved clean -- parked on the tree otherwise, with nothing
                             recorded -- and a commit an earlier run stranded, under a run that committed NOTHING,
@@ -4172,7 +4247,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             or commit did not land over the comment the tick read -- refused over a moved comment or
                             never confirmed -- or whose post or re-read left the report owed while another road wrote
                             the comment, is the one silent hold among them: the tick's state is withheld, so no park
-                            could be recorded.
+                            could be recorded. The settling half is its own step, which `resolving_conflict` asks
+                            ahead of any rebase of a head a recorded report is about.
                             Once nothing is owed it asks `report_refresh.py` about the rewritten-head report debt
       report_refresh.py     the rewritten-head report debt (`workflow/engine/report_rewrite_debt.py`) the report hold
                             asks once nothing else is owed, against the pull request's head as the reviewer's subject

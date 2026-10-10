@@ -12,21 +12,30 @@ circuit refused, a shutdown interruption and a live pause, return WITHOUT
 writing pinned state, so the next process re-detects the same edit rather than
 acting on a run it cannot trust. A human
 reply to a park resumes on the reply text and hands the result to the shared
-disposition. The third caller is the conflict resolution itself, which lives
-beside the rebase that produced the conflicted files.
+disposition -- or, over a park that left this issue owing a report, to the road
+the body edit takes, since that reply is the rest of the body edit's resume.
+The third caller is the conflict resolution itself, which lives beside the
+rebase that produced the conflicted files.
 
 The reply path is also where `/orchestrator continue` is answered, and the
 three-way split matters: a session-failure park retries the dev on a neutral
 prompt rather than on the literal command it has no context for, a park that
 needs a real answer refuses, and an auto-rebase park is left alone entirely
-because the base-sync retry loop -- not this stage -- owns unparking it.
+because the base-sync retry loop -- not this stage -- owns unparking it. The
+retry keeps that meaning over a park that left a report owed as well: the
+neutral prompt leads the frozen drift prompt, and the command is left out of
+everything that read quotes. A reply over such a park is marked read by what
+that frozen read delivered rather than ahead of it, and the read quotes every
+reply whole, so a reply is never marked read without having been handed over.
 Untrusted authors are dropped before any of that, so an outsider reply neither
 steers the dev nor advances the consumed-comment watermark.
 
 Each of the three can end in a commit this stage publishes onto a pull request
 the remote already carries, so each goes through the size gate: the fresh
 conflict and the reply behind it through the shared conflict disposition, the
-body edit through the shared fix publication. All three hand the gate the
+body edit through the shared fix publication, held on the way to the developer
+report contract the review stages' drift resumes are held to
+(`resume_reports`). All three hand the gate the
 round they would have counted, because a held candidate ends the tick on
 `workflow:decomposing` and the tail that counts one never runs -- and no later
 tick of this stage counts it either, since an authorized settlement publishes the
@@ -53,18 +62,12 @@ from orchestrator.workflow.stages.conflicts import (
     models as _models,
     outcomes as _outcomes,
     parks as _conflict_parks,
-    state as _state,
-    transitions as _transitions,
+    resume_reports as _resume_reports,
 )
 from orchestrator.workflow.stages.implementing import (
     resume as _dev_resume,
     resume_batch as _resume_batch,
 )
-from orchestrator.workflow.stages.validating import drift_outcomes as _drift_outcomes
-
-# What a round a body-edit resume finished is recorded as, in the audit event
-# and in the receipt a hold leaves for the tick that resumes behind it.
-_DRIFT_RESOLVED = "drift_resolved"
 
 
 def _resume_on_user_content_change(
@@ -76,7 +79,10 @@ def _resume_on_user_content_change(
     Posts a resuming ack and resumes the dev on the updated body plus the
     conversation around it, quoted from ONE frozen read of the issue thread.
     On a pushed fix bumps the conflict round and hands to `validating`; on an
-    ack (no commit) stays in `resolving_conflict` without parking. The caller
+    ack or a report with no commit stays in `resolving_conflict` without
+    parking. Either way the report the session returned is the one the pull
+    request gets: recorded before the push, and bound and settled once this
+    stage's own bookkeeping is written (`resume_reports`). The caller
     returns immediately after this helper runs. Persists pinned state on every
     exit EXCEPT the shutdown-sweep-interrupted / live-paused short-circuits,
     which return without writing so the drift stays unconsumed and re-runs next
@@ -128,55 +134,32 @@ def _resume_on_user_content_change(
     # writing pinned state -- the frozen record below is never settled and the
     # session mutations above are discarded, so the next process re-detects and
     # re-runs the drift resume.
-    # Must precede `_post_user_content_change_result`, which has no interrupted
-    # check of its own and would otherwise parse `last_message` / route through
-    # `_on_question` before the caller persists those changes.
+    # Must precede the settlement below, which would otherwise stage the edit
+    # as answered by a run whose output nobody can trust.
     if _guards._ignore_if_interrupted(ctx.issue, run.dev_result):
         return
     # Live pause applied mid-run: an operator added `paused` (or `backlog`)
     # while this drift resume was in flight. Same short-circuit as the
-    # interrupted branch -- return before `_post_user_content_change_result`,
-    # the conflict-round bump, or any relabel / pinned-state write, so the
-    # drift stays unconsumed and the committed work stays on the branch until
-    # the label is removed.
+    # interrupted branch -- return before the disposition, the report it would
+    # record, the conflict-round bump, or any relabel / pinned-state write, so
+    # the drift stays unconsumed and the committed work stays on the branch
+    # until the label is removed.
     if run.paused:
         return
     _settles_what_it_delivered(ctx, run)
-    # Read once and handed on, because the head this resume produced is what
-    # three separate steps have to agree about: the commit the shared fix
-    # publication measures and pushes, the receipt a hold leaves for the tick
-    # that resumes behind it, and the SHA the round below is recorded under.
-    # Re-read at each, a checkout something moved mid-tick makes them three
-    # different commits.
-    after_sha = _verification_probes._head_sha(run.worktree)
-    outcome = _drift_outcomes._post_user_content_change_result(
-        ctx.gh, ctx.spec, ctx.issue, ctx.state, run.worktree,
-        run.dev_result, before_sha,
-        after_sha=after_sha,
-        # The round this resume earns, handed to the gate for the exit where
-        # the tail below never runs: an oversized resolution is held, the
-        # issue is relabelled to the adjudication, and the resumed tick reads
-        # the published commit as a branch already standing on its base --
-        # the no-op flip, which resolves nothing and stamps no
-        # `last_conflict_resolved_at`.
-        spends=_transitions._settles_the_held_round(
-            _DRIFT_RESOLVED, after_sha,
-        ),
+    # Stamped with the revision this resume's own prompt was cut from -- the
+    # baseline the settlement above has just staged -- rather than with
+    # whatever the issue says by the time the report reaches the pull request.
+    # The head the run began at is the lease: this road runs only over a
+    # branch in sync with its remote, so it IS the head the pull request is on.
+    _resume_reports._disposes(
+        ctx, run, before_sha, run.delivered.requirements_revision, before_sha,
     )
-    if outcome == "pushed":
-        # Pushed branch diff -> hand straight back to validating; the single
-        # docs pass runs after final reviewer approval.
-        _transitions._hand_resolved_round_to_validating(
-            ctx, int(ctx.state.get(_state._CONFLICT_ROUND) or 0), pr_number,
-            outcome=_DRIFT_RESOLVED,
-            sha=after_sha,
-        )
-        return
-    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
 
 
 def _run_drift_resume(
     ctx: _models._ConflictContext,
+    reply: _models._ParkedReply | None = None,
 ) -> _models._ConflictResumeRun:
     """Freeze what this edit's resume quotes, and run it on that text.
 
@@ -186,10 +169,24 @@ def _run_drift_resume(
     The same frozen conversation re-grounds a fresh respawn, where a rotated,
     retired or poisoned session turns this resume into one: read live there it
     would be a second reading, newer than the record this tick settles.
+
+    `reply` is the batch a reply to a report-owed park is resumed on. Every
+    reply in it is quoted whole, since what this read delivers is what marks
+    them read. A bare `/orchestrator continue` retrying a session failure is
+    out of that one read, and the neutral retry prompt leads the edit's own:
+    quoted, the command would be the last thing a human said, to a developer
+    with no context for it. The report contract and the revision it is
+    stamped with are the drift prompt's either way.
     """
-    answered = _drift_delivery._drift_resume_prompt(ctx.gh, ctx.issue, ctx.state)
+    answered = _drift_delivery._drift_resume_prompt(
+        ctx.gh, ctx.issue, ctx.state, answering=None if reply is None else reply.retried,
+    )
+    prompt = (
+        f"{_prompt_notes._CONTINUE_RETRY_PROMPT}\n\n{answered.text}"
+        if reply is not None and reply.retried else answered.text
+    )
     return _run_conflict_resume(
-        ctx, answered.text,
+        ctx, prompt,
         thread_text=answered.delivery.rendered_text,
         delivered=answered.delivery,
     )
@@ -233,19 +230,51 @@ def _resume_awaiting_human(
     whatever landed on that pull request meanwhile would become the head the
     gate freezes and the lease this force-push replaces, which is the one
     move a lease exists to refuse.
+
+    A park that left this issue owing a report -- a body edit's resume that
+    committed and wrote none, wrote one no record could carry, or recorded one
+    whose push did not land -- is answered as the rest of that resume instead
+    (`resume_reports`): the resolution funnel reads no report, so it would push
+    the commit undescribed and park the report the reply wrote as a question.
+    So it is resumed the way that resume was: on the frozen drift prompt,
+    which quotes the issue and its conversation -- the reply among it, and any
+    edit made since -- and whose record is what the run's report is stamped
+    with and what is settled once the run is back. A rotated or poisoned
+    session's fresh spawn is re-grounded with that same frozen conversation,
+    so the revision says what the run was given however it was launched. Its
+    publication is handed the same lease, which the divergence guard ahead of
+    this resume admitted, so a rebase the first run left goes out under the
+    reply's report even where the reply commits nothing more. A bare
+    `/orchestrator continue` retrying a session failure there is still a
+    retry, on the same frozen prompt less the command.
+
+    The resolution road marks the batch read before its run, since it quotes
+    every reply in full. The drift road marks the replies read by what its
+    frozen read delivered, once the run is back: that read is bounded, and a
+    reply cut from it would otherwise be marked read without ever having been
+    handed over. A retry's commands are spent ahead of either, as the
+    controls they are.
     """
-    followup = _awaiting_human_followup(ctx)
-    if followup is None:
+    reply = _awaiting_human_followup(ctx)
+    if reply is None:
         return
-    wt = _conflict_guards._ensure_conflict_worktree(ctx)
-    before_sha = _verification_probes._head_sha(wt)
+    owes = _resume_reports._owes_a_report(ctx.state)
+    if reply.retried or not owes:
+        ctx.state.set("last_action_comment_id", reply.through)
+    before_sha = _verification_probes._head_sha(
+        _conflict_guards._ensure_conflict_worktree(ctx),
+    )
     entered_head = pr.head.sha
-    run = _run_conflict_resume(ctx, followup)
+    run = _run_drift_resume(ctx, reply) if owes else _run_conflict_resume(ctx, reply.followup)
     # Live pause applied mid-run: honor the helper's decision and return
     # before `_post_conflict_resolution_result` (which parses the result,
     # pushes, relabels, and writes pinned state). The in-progress rebase stays
     # on the branch until the label is removed.
     if run.paused:
+        return
+    if run.delivered is not None:
+        _settles_what_it_delivered(ctx, run)
+        _resume_reports._answers_the_reply(ctx, run, before_sha, entered_head or "")
         return
     _outcomes._post_conflict_resolution_result(
         ctx, run, before_sha, conflict_round,
@@ -253,14 +282,17 @@ def _resume_awaiting_human(
     )
 
 
-def _awaiting_human_followup(ctx: _models._ConflictContext) -> str | None:
+def _awaiting_human_followup(
+    ctx: _models._ConflictContext,
+) -> _models._ParkedReply | None:
     """Build the dev-resume prompt for a parked rebase from the trusted human
     reply, or return ``None`` when the tick is handled without a resume.
 
     Returns ``None`` when no trusted reply has arrived yet (no state write) or
     the `/orchestrator continue` command is refused (park written). Otherwise
-    advances the consumed-comment watermark and returns the retry prompt or the
-    joined reply text.
+    returns the retry prompt, with the commands it consumed, or the joined
+    reply text -- with the last comment of the batch, which the caller marks
+    read as its road requires.
     """
     last_action_id = ctx.state.get("last_action_comment_id")
     # Drop untrusted authors up front (mirrors `_resume_developer_on_human_reply`):
@@ -268,7 +300,17 @@ def _awaiting_human_followup(ctx: _models._ConflictContext) -> str | None:
     # not steer the developer NOR advance the consumed watermark. Only trusted
     # comments are consumed, so an outsider reply trailing a trusted one is left
     # unconsumed; an all-untrusted batch is treated as "no human reply yet".
-    new_comments = filter_trusted(ctx.gh.comments_after(ctx.issue, last_action_id))
+    # This orchestrator's own notices come out beside them, by the ledger of ids
+    # it recorded posting: a bounded park cannot carry the watermark over a
+    # human comment that landed ahead of it, so its notice can stand above the
+    # watermark, and read as a reply it would resume the developer with nobody
+    # having said anything.
+    ours = frozenset(_comments._orchestrator_ids(ctx.state))
+    new_comments = [
+        comment
+        for comment in filter_trusted(ctx.gh.comments_after(ctx.issue, last_action_id))
+        if comment.id not in ours
+    ]
     if not new_comments:
         return None  # no human reply yet
     # `/orchestrator continue` on a parked rebase, BEFORE the generic comment
@@ -278,10 +320,10 @@ def _awaiting_human_followup(ctx: _models._ConflictContext) -> str | None:
     # which the dev has no context for -- while a park needing a real answer
     # refuses. Auto-rebase parks belong to the refresh retry-unpark, so leave
     # those (and command-plus-guidance / normal replies) to the resume below.
-    park_reason = ctx.state.get("park_reason")
     continue_action = (
-        "passthrough" if park_reason in _base_sync_state._AUTO_REBASE_PARK_REASONS
-        else _messages._continue_command_action(new_comments, park_reason)
+        "passthrough"
+        if ctx.state.get("park_reason") in _base_sync_state._AUTO_REBASE_PARK_REASONS
+        else _messages._continue_command_action(new_comments, ctx.state.get("park_reason"))
     )
     if continue_action == "refuse":
         _messages._refuse_parked_continue(
@@ -289,11 +331,18 @@ def _awaiting_human_followup(ctx: _models._ConflictContext) -> str | None:
         )
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return None
-    ctx.state.set(
-        "last_action_comment_id", max(comment.id for comment in new_comments),
-    )
+    through = max(comment.id for comment in new_comments)
     if continue_action == "retry":
-        return f"{_prompt_notes._CONTINUE_RETRY_PROMPT}\n\n{_prompt_notes._FOREGROUND_ONLY_NOTE}"
+        return _models._ParkedReply(
+            f"{_prompt_notes._CONTINUE_RETRY_PROMPT}\n\n{_prompt_notes._FOREGROUND_ONLY_NOTE}",
+            through,
+            frozenset(comment.id for comment in new_comments),
+        )
+    return _models._ParkedReply(_quoted_reply(new_comments), through)
+
+
+def _quoted_reply(new_comments: list) -> str:
+    """The trusted replies as the resume prompt quotes them."""
     joined = "\n\n".join(
         _prompt_context._quote_comment_line(comment)
         for comment in new_comments

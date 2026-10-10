@@ -3,7 +3,8 @@
 """The open pull request a requirements-drift resume reports onto.
 
 Both review stages resume the developer when the issue is edited under an open
-pull request, and both publish what that session reports. The world every case
+pull request, and so does the stage rebasing one; each publishes what that
+session reports. The world every case
 runs in is the one production leaves: a pull request on the issue's branch
 whose last publication the code-publication receipt names, a checkout standing
 on its head, and a push that moves the pull request to the commit it sends --
@@ -19,7 +20,7 @@ from pathlib import Path
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     content_hash as _content_hash,
@@ -62,6 +63,10 @@ LATER_BODY = "the criteria moved again while the agent worked"
 LATER_COMMENT = "one more thing the edit should cover"
 
 LATER_COMMENT_ID = 50_000
+
+# The head somebody else pushes onto the pull request while the agent is out,
+# one the candidate still descends from.
+CONCURRENT_HEAD = "c0c0a7e5" * 5
 
 REPORT_TEXT = "Answers the edited criteria; the suite passes."
 
@@ -106,6 +111,16 @@ RETRY_OVER_STRANDED = MappingProxyType({
 # worktree is taken rather than deferred as a checkout on another host.
 _EXISTING_WORKTREE = Path("/tmp")
 
+# The seam that resolves an issue's checkout path, patched by name.
+_WORKTREE_PATH = "orchestrator.git.worktrees.paths._worktree_path"
+
+# The handler a tick runs over an issue carrying each label; every other label
+# this world is seeded on is `validating`'s.
+_STAGE_RUNNERS = MappingProxyType({
+    WorkflowLabel.IN_REVIEW: "_run_in_review",
+    WorkflowLabel.RESOLVING_CONFLICT: "_run_resolving_conflict",
+})
+
 
 def reported(text: str = REPORT_TEXT) -> str:
     """A finished resume's message, ending on a report ready for publication."""
@@ -143,12 +158,14 @@ def human_reply(case, body: str = "please write the report") -> None:
 
 
 class _MidRunChange:
-    """A run during which a human changes the issue, before the agent replies.
+    """A run during which a human changes the issue, or the pull request, before the agent replies.
 
     An `edit` is what GitHub answers a later read with: a NEW issue object
     carrying the new body, registered in the client's place, while the tick
     that launched the run still holds the one it fetched first. A `comment`
-    lands on the thread itself, which every read walks afresh.
+    lands on the thread itself, which every read walks afresh. A `push` moves
+    the pull request onto `CONCURRENT_HEAD`, and every later reading of the
+    branch counts the checkout one commit ahead of that head.
     """
 
     def __init__(self, case, change: str, reply: str) -> None:
@@ -159,6 +176,8 @@ class _MidRunChange:
     def __call__(self, *_args, **_kwargs):
         if self._change == "edit":
             self._edits()
+        elif self._change == "push":
+            self._pushes()
         else:
             self._case.issue.comments.append(FakeComment(
                 id=LATER_COMMENT_ID, body=LATER_COMMENT, user=FakeUser("alice"),
@@ -167,6 +186,12 @@ class _MidRunChange:
 
     def _edits(self) -> None:
         edits(self._case, LATER_BODY)
+
+    def _pushes(self) -> None:
+        self._case.pull_request.head.sha = CONCURRENT_HEAD
+        _publication_probes._branch_divergence.return_value = _publication_probes._BranchDivergence(
+            tip=CONCURRENT_HEAD, ahead=1, behind=0, readable=True,
+        )
 
 
 class _LandingPush:
@@ -241,22 +266,14 @@ class _DriftReportMixin(_PatchedWorkflowMixin):
             FETCHED_TIP: after,
             **run_options,
         }
-        stage = (
-            self._run_in_review
-            if any(seen.name == WorkflowLabel.IN_REVIEW for seen in self.issue.labels)
-            else self._run_validating
-        )
-        with patch.object(
-            _worktree_paths, "_worktree_path", return_value=_EXISTING_WORKTREE,
-        ):
-            return stage(self.github, self.issue, run_agent=run_agent, **options)
+        runner = _STAGE_RUNNERS.get(self.github.workflow_label(self.issue), "_run_validating")
+        with patch(_WORKTREE_PATH, return_value=_EXISTING_WORKTREE):
+            return getattr(self, runner)(self.github, self.issue, run_agent=run_agent, **options)
 
     def reconcile(self):
         """The dispatch reconciliation ahead of the next handler, on this host."""
         head = self.pull_request.head.sha
-        with patch.object(
-            _worktree_paths, "_worktree_path", return_value=_EXISTING_WORKTREE,
-        ):
+        with patch(_WORKTREE_PATH, return_value=_EXISTING_WORKTREE):
             return self._run(
                 partial(
                     _report_transaction._reconciles_pending_report,
@@ -269,7 +286,7 @@ class _DriftReportMixin(_PatchedWorkflowMixin):
             )
 
     def mid_run(self, change: str, reply: str) -> _MidRunChange:
-        """A run during which a human `edit`s or `comment`s, then replies."""
+        """A run during which a human `edit`s, `comment`s, or `push`es to the pull request, then replies."""
         return _MidRunChange(self, change, reply)
 
     def published_reports(self, text: str = REPORT_TEXT) -> list:

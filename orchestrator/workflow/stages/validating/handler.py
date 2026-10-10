@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """One validating tick, in the order its questions have to be asked.
 
+A handed head `resolving_conflict` claimed it still owed this stage a move
+for is retired before anything is asked: the move has been made by the time
+this handler runs, and only a lost write left the claim standing.
+
 The terminals come first because a PR a human already settled, or an issue
 closed without one, makes the whole round pointless -- and running the
 reviewer against a branch that landed, or against work somebody turned down,
@@ -65,6 +69,7 @@ from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import terminals as _terminals
+from orchestrator.workflow.stages.conflicts import handoff as _conflict_handoff
 from orchestrator.workflow.stages.validating import (
     awaiting_resume as _awaiting_resume,
     collapse as _collapse,
@@ -138,6 +143,11 @@ def _ends_before_review(
 
 def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
     state = gh.read_pinned_state(issue)
+    # The move `resolving_conflict` claimed it owed this stage has been made by
+    # the time this stage runs, so a claim a lost write left is retired before
+    # anything else: standing, the next conflict episode over the same head
+    # would read it as that move still owed and skip its rebase.
+    _conflict_handoff._retires_the_claim(gh, issue, state)
     # The comment as this tick read it, which the reading a reviewer round is
     # bound to is measured from: every road below stages its moves on `state`.
     read = copy.deepcopy(state.data)

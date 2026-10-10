@@ -6,7 +6,10 @@
 files, so a merely-behind-base branch the orchestrator can rewrite on its own
 never arrives here and the label keeps meaning "a dev agent or a human has to
 look at this". The round counter is seeded only when it is absent, because a PR
-that keeps re-entering has to exhaust the cap rather than restart it. The
+that keeps re-entering has to exhaust the cap rather than restart it, while a
+handed head the last episode's counted round left behind is dropped, since it
+is that episode's claim and not this one's -- and so is the publication record
+a body edit's resume in that episode left beside a report since settled. The
 relabel is what hands the work on -- the refresh runs before the handlers in
 the same tick, so `_handle_resolving_conflict` picks the worktree up
 immediately -- and the pinned state is written after it, so the counter is
@@ -19,6 +22,8 @@ from typing import Any
 
 from orchestrator.git.base_sync.models import _ConflictRouteContext
 from orchestrator.git.base_sync.state import (
+    _CONFLICT_HANDED_SHA,
+    _CONFLICT_RESUME_KEYS,
     _CONFLICT_ROUND,
     _REVIEW_ROUND,
     log,
@@ -86,6 +91,15 @@ def _route_pr_worktree_conflict_context(
     # perpetually-stuck PR can't ping-pong between handlers indefinitely.
     if context.state.get(_CONFLICT_ROUND) is None:
         context.state.set(_CONFLICT_ROUND, 0)
+    # A head the last episode's counted round handed on, left by a write that
+    # never landed, describes that episode's move rather than this one: read
+    # here it would hand the conflicted head straight back to review. The
+    # publication record a body edit's resume left beside a report since
+    # settled is that episode's too, and read here it would park a report of
+    # this one as the account of a commit it never described.
+    for spent in (_CONFLICT_HANDED_SHA, *_CONFLICT_RESUME_KEYS):
+        if context.state.get(spent) is not None:
+            context.state.set(spent, None)
 
     _post_conflict_route_notice(context)
     log.info(

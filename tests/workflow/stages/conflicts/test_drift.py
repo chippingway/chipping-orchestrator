@@ -18,6 +18,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow.drift_reports import reported
 from tests.workflow.fixtures import (
     AGENT_RUN_CHARGE_KEYS,
     AGENT_RUN_CHARGE_WRITES,
@@ -70,12 +71,12 @@ class _Outcome(NamedTuple):
 # What each outcome does to the record of the prompt it was given, whether the
 # resume left a commit behind, and whether an operator paused mid-run.
 _SETTLES = (
-    _Outcome("a published resolution", _agent(session_id=DEV_SESSION, last_message="rebased"), True, False, True),
+    _Outcome("a published resolution", _agent(session_id=DEV_SESSION, last_message=reported()), True, False, True),
     _Outcome("an ACK", _agent(session_id=DEV_SESSION, last_message=ACK_REPLY), False, False, True),
     _Outcome("a question", _agent(session_id=DEV_SESSION, last_message=QUESTION_REPLY), False, False, True),
     _Outcome("a timeout", _agent(session_id=DEV_SESSION, timed_out=True), False, False, True),
     _Outcome("a shutdown kill", _agent(session_id=DEV_SESSION, interrupted=True), False, False, False),
-    _Outcome("a live pause", _agent(session_id=DEV_SESSION, last_message="rebased"), True, True, False),
+    _Outcome("a live pause", _agent(session_id=DEV_SESSION, last_message=reported()), True, True, False),
 )
 
 
@@ -164,7 +165,7 @@ class HandleResolvingConflictHashDriftTest(
         self._run_resolving_conflict(
             gh,
             issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message="resolved with edit"),
+            run_agent=_agent(session_id=DEV_SESSION, last_message=reported()),
             has_new_commits=True,
             dirty_files=(),
             push_branch=True,

@@ -28,6 +28,7 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.git.measurement.models import FrozenCommit
 from tests.support.fakes import FakeComment, FakeUser
+from tests.workflow.drift_reports import reported
 from tests.workflow.patch_models import _agent
 from tests.workflow.stages.conflicts.conflicts_test_support import CONFLICT_PR_HEAD_SHA
 from tests.workflow.stages.conflicts.round_record_support import _receipt_of, _rounds_of, _settlements_of
@@ -188,7 +189,7 @@ class ResolvingConflictCappedRoundTest(
                 push_branch=True,
                 added_lines=PAST_THE_CEILING,
                 run_agent_result=_agent(
-                    session_id="dev-sess", last_message="resolved it",
+                    session_id="dev-sess", last_message=reported(),
                 ),
             )[0]
 

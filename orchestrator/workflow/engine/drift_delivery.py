@@ -97,7 +97,11 @@ class _DriftPrompt:
 
 
 def _drift_resume_prompt(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    *,
+    answering: frozenset | None = None,
 ) -> _DriftPrompt:
     """Freeze what a dev resume is told about a requirements edit.
 
@@ -105,8 +109,15 @@ def _drift_resume_prompt(
     what the excerpt LEFT OUT as well as what it carried -- and what it left
     out holds the issue watermark below it, leaving that context for the road
     that delivers it rather than crossing it here.
+
+    `answering` is set where the resume answers a parked reply batch: the
+    comments that batch spent as controls, which neither the prompt nor its
+    record nor the re-grounding text may carry, with every reply past the
+    watermark quoted whole (`prompt_context._delivered_thread`).
     """
-    delivery = _prompt_context._delivered_thread(gh, issue, state)
+    delivery = _prompt_context._delivered_thread(
+        gh, issue, state, answering=answering,
+    )
     return _DriftPrompt(
         delivery,
         _drift._build_user_content_change_prompt(issue, delivery.rendered_text),

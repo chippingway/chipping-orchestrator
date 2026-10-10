@@ -21,20 +21,28 @@ a head the orchestrator itself recorded) is what `guards` proves and
 `divergence` leases the force-push against. `rebase` runs the rebase and emits
 the `merge_attempt` that records it; `publication` disposes of a clean one and
 hands real content conflicts to the dev; `resume` owns the three dev-resume
-entry points and `outcomes` what a finished run left behind. `evidence` is what
+entry points and `outcomes` what a finished run left behind, while
+`resume_reports` carries the report a body edit's resume returns -- and the
+reply to a park that left one owed -- into the developer-report transaction,
+through the drift disposition the review stages share, with `resume_records`
+writing down the publication that report goes out with. `evidence` is what
 a clean rebase tells the size gate about the commit it replaced, so an
 adjudicated change is recognized in the object the replay produced rather than
 adjudicated a second time. Only that one publication reaches it: every other
 push here carries a commit somebody else made -- an agent's resolution, a
 rerouted fix, whatever an earlier tick left for the recovery -- and nothing
-readable off the branch tells those from a replay.
+readable off the branch tells those from a replay. What it does answer for a
+body edit's resume is the divergence a developer's own rebase leaves, off that
+resume's record, so the force-push may go ahead -- never an exemption.
 
 `transitions` is separate because every exit that changes the issue's state
 shares one shape. A park is `_park_awaiting_human` plus the pinned-state write
 that must accompany it, and a pushed round is a `review_round` reset, a
-`conflict_round` bump, an audit event, a relabel, and one write -- so many exits
+`conflict_round` bump, an audit event, a write, and a relabel -- so many exits
 publish those that keeping them on one owner is what stops the pairs drifting
-apart. `report_debt` is what that tail owes `validating` when the round
+apart. `handoff` is the last two: the count goes down ahead of the move it pays
+for, so a move a crash cut short is made by the next tick rather than counted
+again. `report_debt` is what that tail owes `validating` when the round
 rewrote the head -- a clean rebase, a resolution, a recovered push -- read off
 the code-publication receipt the push left and written ahead of the relabel,
 since the head it hands on is one no developer report is about. `state` holds

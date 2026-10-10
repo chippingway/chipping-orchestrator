@@ -977,7 +977,34 @@ The keys that matter for the state machine fall into a few groups:
   relabel) so the report debt it owes is not lost to a crash before the debt's own write or to an adjudication that
   publishes it later. The resumed tick reads it before anything else; once the publication receipt names that head
   it is written `null`, and the debt is recorded where the pull request was just fetched standing on it. Any debt
-  this stage records drops it too.
+  this stage records drops it too. `conflict_handed_sha` is the head a counted round hands to `workflow:validating`,
+  written in the same write as the count, ahead of the relabel, and written `null` by the write behind it; a tick
+  that finds it on `workflow:resolving_conflict` with the branch in sync and standing on that head makes the move
+  without counting the round again, and drops it where the checkout is proved elsewhere; a head nothing could prove
+  holds the tick with the claim kept, so the round is neither counted again nor parked at the cap it reached. Where
+  that `null` write was lost, `workflow:validating`
+  writes it before anything else, and the base refresh drops it in the write that opens a new conflict episode, so
+  no later episode reads it as a move still owed.
+  - **The publication a body edit's resume owes.** `conflict_resume_from_sha`, `conflict_resume_to_sha`, and
+  `conflict_resume_pr_number` are the head a body-edit resume's push is leased against, the commit it sends, and
+  the pull request it goes onto, staged with the report that resume returned so the report's own guarded commit
+  carries them -- or the park taken in its place, for the reply that finishes it. A rebase the developer ran
+  diverges the branch exactly as a replay does, so the divergence guard admits that shape against this record while
+  the issue still owes the report: the pull request has to stand on the head it names and the checkout on the
+  commit it names. It is no rewrite evidence and the gate is handed nothing from it. It is also what the report saved
+  beside it is about: while that report is recorded and unbound, the recovered push publishes no other head and the
+  binding ahead of a rebase takes no other publication, parking `report_undeliverable` with the record left as it
+  stands. A run that commits nothing and reports writes the head the pull request carries as both ends of it, in the
+  guarded commit that saves that report (or the park held in its place, which marks the work undescribed), over any
+  earlier candidate: that report is not tied to a candidate it is not about, and it is still the report of one
+  commit, so a checkout that gains a commit after a crash cut its binding short parks the same way rather than
+  publishing that commit under it. A run that reports over a head nothing could read writes neither this record
+  nor its report: the issue parks for the report with the run's work marked undescribed. An `ACK:` or a question
+  saves no report and leaves the record. It is read only while the report it went down with is unbound, and no
+  write retires it while any report is: not a settlement, which could be an older transaction's beside a newer
+  report of the same head, and not the tail that counts the round, since the relabel behind a landed push can fail
+  and a commit the checkout gains before the binding is still refused against the record. That tail drops it where
+  no report is unbound, and the base refresh that opens the next conflict episode drops whatever is left.
   - **The replay a rebase made.** `conflict_replay_from_sha`, `conflict_replay_from_base_sha`,
   `conflict_replay_to_sha`, and `conflict_replay_pr_number` are what a `workflow:resolving_conflict` rebase records
   ABOUT ITSELF, because the tick that runs a replay is not always the tick that publishes one. The head it is about
@@ -2209,8 +2236,10 @@ The keys that matter for the state machine fall into a few groups:
   happened. It is read
   before the resume that continues the road, since that resume clears the park it was written beside. The
   disposition writes it only for a caller that named what its resume was handed, which is the caller that reads it
-  back — both review stages do, and `in_review` reads it for the budget its hand-back owes. An issue without the key
-  has no edit outstanding.
+  back — both review stages do, and `in_review` reads it for the budget its hand-back owes.
+  `workflow:resolving_conflict` names its body-edit resume too and writes no claim: a park that stage takes is
+  answered by its own reply road, which reads the report the issue owes for itself and leaves a question to the
+  resolution it interrupted. An issue without the key has no edit outstanding.
 - **The reviewer round somebody is still owed.** `validating_reviewer_owes_a_round`, additive and set only between
   the `workflow:validating` tick that stood a round up and the round that runs. A reviewer-side park — a returned
   verdict's `reviewer_unverified` / `reviewer_unrecorded` among them — or a `review_cap` one owns the human's next

@@ -18,6 +18,11 @@ did not land over the comment the tick read is the one silent hold among those:
 the tick's state is withheld, so a park behind it would be a notice no write
 could record.
 
+`resolving_conflict` asks the settling half alone (`_owed_report_holds`), ahead
+of any rewrite of the head a recorded report is about: rewritten first, the
+report would be bound to the head the rewrite left and handed to a reviewer as
+its account.
+
 Once nothing is owed there, a head this orchestrator rewrote is asked about
 last (`report_refresh`): the pull request stands on a commit the settled report
 is not about, and the reviewer road behind would park for that. A report of
@@ -111,22 +116,41 @@ def _report_holds_the_review(
     and asked ahead of the reviewer, since what it holds the reviewer for is
     the developer run that writes the report of that head.
     """
-    if not _report_delivery.owes_a_report(state):
-        return _report_refresh._rewrite_holds_the_review(gh, spec, issue, state)
+    if _report_delivery.owes_a_report(state) and _owed_report_holds(
+        gh, spec, issue, state, WorkflowLabel.VALIDATING,
+    ):
+        return True
+    return _report_refresh._rewrite_holds_the_review(gh, spec, issue, state)
+
+
+def _owed_report_holds(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    label: WorkflowLabel,
+) -> bool:
+    """Settle the report this issue owes as far as this tick can; True where it is still owed.
+
+    Parked where no retry settles it, held silently where a later tick may,
+    and False once nothing is owed. `label` is the stage asking, which the
+    settlement is told: `resolving_conflict` asks this too, ahead of any
+    rewrite of the head a recorded report is about.
+    """
     refusal = _refusal_before_settling(state)
     if refusal:
         _settlement._parks(gh, issue, state, refusal)
         return True
-    _settlement._settles_the_report(gh, spec, issue, state, WorkflowLabel.VALIDATING)
+    _settlement._settles_the_report(gh, spec, issue, state, label)
     if not _report_delivery.owes_a_report(state):
-        return _report_refresh._rewrite_holds_the_review(gh, spec, issue, state)
+        return False
     refusal = _refusal_after_settling(gh, spec, issue, state)
     if refusal:
         _settlement._parks(gh, issue, state, refusal)
         return True
     log.info(
         "issue=#%d still owes its pull request a developer report; holding "
-        "the review until it is confirmed", issue.number,
+        "until it is confirmed", issue.number,
     )
     return True
 

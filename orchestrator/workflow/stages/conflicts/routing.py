@@ -17,9 +17,11 @@ does not have. A human's edit or reply is answered next -- but not over a
 branch AHEAD of its remote, which carries an unpublished commit that every
 publication behind a resume would be leased against and the size gate would
 then refuse as somebody else's movement. So an ahead branch ships its
-recovered commits instead, and the human waits a tick. A recovered push that
-leaves the branch still behind base falls through to the rebase rather than
-ending the tick, so the two land as one round.
+recovered commits instead, and the human waits a tick. Between the edit and
+the reply, a report a resume saved about the head the pull request carries is
+settled, since no wait or park behind them would ever settle it. A recovered
+push that leaves the branch still behind base falls through to the rebase
+rather than ending the tick, so the two land as one round.
 
 The `MAX_CONFLICT_ROUNDS` cap stands in front of the REBASE and nothing else.
 It guards a loop that genuinely cannot converge on its own -- an unmergeable
@@ -74,20 +76,19 @@ def _drive_conflict_rebase(
 
     The `MAX_CONFLICT_ROUNDS` cap stands in front of the REBASE and nothing
     else, because the rebase and the dev run behind it are the attempt it
-    exists to refuse. Everything the reconciliation does is work already done
-    that this stage still owes an effect for -- a round a settlement
-    published, commits an earlier tick committed and never pushed, a human
-    whose reply or edit is waiting -- and refusing those does not end the loop,
-    it strands them: nothing else clears a receipt, publishes an unpushed
-    commit, or answers a person.
+    exists to refuse -- so the rebase owner asks it, behind the settlement of
+    a report this issue still owes. Everything the reconciliation does is work
+    already done that this stage still owes an effect for -- a round a
+    settlement published, commits an earlier tick committed and never pushed,
+    a report a resume saved, a human whose reply or edit is waiting -- and
+    refusing those does not end the loop, it strands them: nothing else clears
+    a receipt, publishes an unpushed commit, settles a saved report, or
+    answers a person.
     """
     conflict_round = int(ctx.state.get(_state._CONFLICT_ROUND) or 0)
     wt = _prepare_conflict_worktree(ctx, pr, pr_number, conflict_round)
     if wt is None:
         return
-    if _capped(ctx, conflict_round):
-        return
-
     _rebase._rebase_and_dispose(ctx, pr_number, conflict_round, wt)
 
 
@@ -223,6 +224,13 @@ def _reconciled_before_the_rebase(
     the counts, and one with neither refuses rather than letting git take its
     own reading at push time.
 
+    A report a resume saved about the head the pull request carries is settled
+    between the two resumes (`_resumed`), ahead of the reply wait and the cap:
+    a report-only result whose binding a crash cut short is owed whatever this
+    stage waits on next, and behind a cap park or a reply wait nothing would
+    ever settle it. Over a placed branch only, since a report is bound to the
+    head the checkout stands on.
+
     The two dev resumes sit between the guard and the cap. Behind the guard
     because what either starts is an agent whose commit this stage
     force-pushes: over a checkout the remote has moved past, that push drops
@@ -332,6 +340,16 @@ def _resumed(
     answered as the reply it is, and a body edit that really did move waits
     for the branch to be in sync, its hash still unconsumed.
 
+    Between the two, a report a resume saved about the head the pull request
+    carries is settled (`rebase._settles_the_saved_report`): behind the edit,
+    because a report the requirements have since moved past is no account a
+    reviewer may be handed -- the reconciliation defers it for good, and held
+    in front of the edit it would hold the very resume whose report replaces
+    it -- and ahead of the reply wait and the cap, behind which nothing would
+    ever settle it. Until that replacement is recorded the saved report stays
+    exactly as it is: a resume that ends in a question or an `ACK:` leaves it
+    to the hold that parks it for the requirements it no longer answers.
+
     A round a settlement already published is the one thing that does stop the
     reply, and only while the recovered push below can pay it: they share the
     one receipt slot, and that push is what writes it.
@@ -349,31 +367,11 @@ def _resumed(
     if edited is not None and sync.ahead <= 0:
         _resume._resume_on_user_content_change(ctx, pr_number)
         return True
+    if _rebase._settles_the_saved_report(ctx, sync):
+        return True
     if not _conflict_parks._waits_on_a_human(ctx.state):
         return False
     if sync.ahead > 0 and _transitions._settled_round_owed(ctx.state)[0]:
         return False
     _resume._resume_awaiting_human(ctx, conflict_round, pr)
-    return True
-
-
-def _capped(ctx: _models._ConflictContext, conflict_round: int) -> bool:
-    """Park a branch that has spent every round the cap allows it.
-
-    The loop this ends genuinely cannot converge on its own: a pull request no
-    amount of rebasing makes mergeable would spawn a dev run every tick
-    forever. Escaping it is a human's move -- relabel off
-    `workflow:resolving_conflict`, or comment, which the awaiting-human resume
-    picks up.
-    """
-    if conflict_round < config.MAX_CONFLICT_ROUNDS:
-        return False
-    _conflict_parks._park_conflict(
-        ctx,
-        f"{config.HITL_MENTIONS} auto-conflict-resolution still failing "
-        f"after {conflict_round} round(s) "
-        f"(`MAX_CONFLICT_ROUNDS={config.MAX_CONFLICT_ROUNDS}`); manual "
-        "intervention needed.",
-        reason="conflict_cap",
-    )
     return True

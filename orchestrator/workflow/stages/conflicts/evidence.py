@@ -5,6 +5,11 @@
 Live evidence freezes the original head and its fork point. Recovery uses
 the pinned replay record and requires its lease, publication, and output
 commit to match before the gate may consider moving an exemption.
+
+A body edit's resume can diverge the branch as a replay does, so its own
+record (`resume_records`) proves the same thing about a diverged checkout --
+whose commits a force-push would drop -- and nothing else: it is no rewrite
+evidence, and the gate is handed none for it.
 """
 from __future__ import annotations
 
@@ -14,6 +19,7 @@ from pathlib import Path
 from orchestrator.config import models as _config_models
 from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.workflow.engine import report_delivery as _report_delivery
 from orchestrator.workflow.late_split import (
     payloads as _payloads,
     rewrite_values as _rewrite_values,
@@ -21,6 +27,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.conflicts import (
     models as _models,
     replay_records as _replay_records,
+    resume_records as _resume_records,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -185,3 +192,34 @@ def _replays_the_publication(
     if recorded.pr_number != _payloads.as_identity(getattr(pr, "number", None)):
         return False
     return recorded.to_sha == _verification_probes._head_sha(worktree)
+
+
+def _resumes_the_publication(
+    ctx: _models._ConflictContext, worktree: Path, pr,
+) -> bool:
+    """Whether the record proves this diverged branch is the publication a resume still owes.
+
+    The body-edit resume's counterpart of the replay proof above, for a
+    rebase the developer ran rather than this stage. The record names the head
+    the resume's push was leased against, the commit it sends, and the pull
+    request -- all written with the report that resume returned, before any
+    push -- so a remote still standing on that head is one nobody has pushed
+    to since, and the commits the force-push drops are the ones the developer's
+    rebase replaced.
+
+    Only while the issue still owes the report that publication goes out
+    under: a delivery recorded ahead of a push that never happened, or a park
+    asking for the report a run left out. A record whose report has settled,
+    or whose run parked on a question, licenses nothing, and the divergence is
+    parked as it always was.
+    """
+    recorded = _resume_records._read_candidate(ctx.state)
+    if recorded is None or not _report_delivery.owes_a_report(ctx.state):
+        return False
+    lease, candidate, number = recorded
+    head = getattr(getattr(pr, "head", None), "sha", None) or ""
+    if lease != head:
+        return False
+    if number != _payloads.as_identity(getattr(pr, "number", None)):
+        return False
+    return candidate == _verification_probes._head_sha(worktree)

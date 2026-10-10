@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The rebase itself, and the two fetches that have to precede it.
+"""The rebase itself, and what has to precede it.
 
 Both fetches go through the hardened authenticated path rather than a plain
 `git fetch`, and both park on failure instead of proceeding: measuring a
@@ -14,6 +14,11 @@ when a PR keeps bouncing back here. The disposition after it splits three ways:
 a clean rebase publishes, a failure that named no conflicted files parks
 (without files there is nothing to hand a dev), and real content conflicts go
 to the agent.
+
+Ahead of the rebase, and of the `MAX_CONFLICT_ROUNDS` cap that refuses it, a
+report this issue recorded and has not settled is settled, so neither a
+rewrite nor a cap park ever lands over a report still owed. A branch in sync
+with its remote is asked earlier still, ahead of the reply wait.
 """
 from __future__ import annotations
 
@@ -30,6 +35,7 @@ from orchestrator.workflow.stages.conflicts import (
     parks as _conflict_parks,
     publication as _publication,
     replay_records as _replay_records,
+    resume_reports as _resume_reports,
     state as _state,
 )
 
@@ -97,6 +103,41 @@ def _fetch_base_ref(ctx: _models._ConflictContext, wt: Path) -> bool:
     return False
 
 
+def _settles_the_saved_report(
+    ctx: _models._ConflictContext, sync: _models._WorktreeSync,
+) -> bool:
+    """Settle a saved report of the head the pull request carries, behind the edit; True where still owed.
+
+    Only over a checkout in sync with its remote: one ahead of it carries
+    commits the recovered push publishes under its own guards, and the report
+    of those is settled behind that push, ahead of the rebase
+    (`resume_reports._holds_the_saved_report`).
+    """
+    return not sync.ahead and _resume_reports._holds_the_saved_report(ctx)
+
+
+def _capped(ctx: _models._ConflictContext, conflict_round: int) -> bool:
+    """Park a branch that has spent every round the cap allows it.
+
+    The loop this ends genuinely cannot converge on its own: a pull request no
+    amount of rebasing makes mergeable would spawn a dev run every tick
+    forever. Escaping it is a human's move -- relabel off
+    `workflow:resolving_conflict`, or comment, which the awaiting-human resume
+    picks up.
+    """
+    if conflict_round < config.MAX_CONFLICT_ROUNDS:
+        return False
+    _conflict_parks._park_conflict(
+        ctx,
+        f"{config.HITL_MENTIONS} auto-conflict-resolution still failing "
+        f"after {conflict_round} round(s) "
+        f"(`MAX_CONFLICT_ROUNDS={config.MAX_CONFLICT_ROUNDS}`); manual "
+        "intervention needed.",
+        reason="conflict_cap",
+    )
+    return True
+
+
 def _rebase_and_dispose(
     ctx: _models._ConflictContext, pr_number, conflict_round: int, wt: Path,
 ) -> None:
@@ -132,7 +173,16 @@ def _rebase_and_dispose(
     leaves the rebased commit on the branch, unpushed, with nothing on the
     comment saying a rebase is what put it there -- and no reading of the
     branch afterwards tells it from a resolution an agent wrote.
+
+    A report this issue recorded and has not settled is settled first
+    (`resume_reports._holds_the_rewrite`), and while it cannot be nothing is
+    rebased: settled after the rebase, it would be bound to the head the
+    rebase left rather than to the commit it describes. The cap is asked
+    behind it, so a counter that has spent every round still settles the
+    report it owes before it parks.
     """
+    if _resume_reports._holds_the_rewrite(ctx) or _capped(ctx, conflict_round):
+        return
     spec = ctx.spec
     before_sha = _verification_probes._head_sha(wt)
     if not before_sha:
