@@ -3,10 +3,12 @@
 """How many polling passes a run makes, and the drain it always ends with.
 
 `--once` is a single pass; otherwise the run keeps polling until a signal stops
-it or the checkout it runs from moves under it, which exits 0 so the wrapper
-relaunches the new code. Either way the body runs inside `scheduler_drained`,
-so the workers a pass submitted are waited on even when the pass raised, and
-the drain sets the event the shutdown watchdog is waiting on.
+it or, when it runs from the orchestrator's own source checkout, that checkout
+moves under it, which exits 0 so the wrapper relaunches the new code. An
+installed package has no checkout to move: only a signal stops its polling.
+Either way the body runs inside `scheduler_drained`, so the workers a pass
+submitted are waited on even when the pass raised, and the drain sets the event
+the shutdown watchdog is waiting on.
 
 The recurring form is also where the host-wide artifact maintenance is fitted
 in: at the END of the wait between two passes, behind a due gate this loop
@@ -52,7 +54,7 @@ def run_polling_loop(
     clients: RepoClients,
     scheduler: IssueScheduler,
 ) -> int | None:
-    """Poll until signaled or a self-modifying merge requests restart."""
+    """Poll until signaled or a source checkout's self-modifying merge requests restart."""
     own_sha = self_update.own_head_sha()
     log.info("own HEAD=%s", own_sha)
     due_gate = artifact_schedule.DueGate()
