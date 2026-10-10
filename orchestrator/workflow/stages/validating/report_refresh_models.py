@@ -9,7 +9,11 @@ to hold the world to again. `debt` is the claim the refresh answers, and its
 and a clean checkout were each proved to stand on before the run -- the head the
 report is asked about and recorded for. `requirements` is the baseline the
 drift check had just proved current, which the report is stamped with: re-read
-once the agent is back, it could be an edit the session never saw.
+once the agent is back, it could be an edit the session never saw. `approved`
+is the commit the settled report is about where that is neither head the debt
+names -- the approved commit this orchestrator's approval squash collapsed into
+the head the rewrite replaced, proved so before the run -- and "" otherwise,
+so the developer is told which commit the report standing there describes.
 
 It is also where the requirements are read again once the run is back --
 whether the issue, fetched afresh since an edit made while the agent was out
@@ -46,6 +50,7 @@ class _ReportRefresh:
     state: PinnedState
     debt: RewriteDebt
     requirements: str
+    approved: str = ""
 
     @property
     def head(self) -> str:

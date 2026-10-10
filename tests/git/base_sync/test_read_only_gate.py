@@ -15,7 +15,9 @@ The discussion stage does push once -- the plan its humans confirmed, from its
 own publication and onto a pull request of that file alone -- which is why the
 gate reads that stage's in-flight records as well as its parks: a rebase over
 the commit a publication is mid-way through pushing would move the branch off
-the very tip the record names.
+the very tip the record names. The other records that freeze a branch by their
+presence are read here too -- the late size gate's, a squash's, and a developer
+report recorded and not yet settled -- beside what ends each freeze.
 """
 
 from __future__ import annotations
@@ -53,6 +55,8 @@ _FALSEY_RECORD_ISSUE_NUMBER = 1015
 _LONE_LEASE_ISSUE_NUMBER = 1020
 _PENDING_COLLAPSE_ISSUE_NUMBER = 1025
 _PARTIAL_COLLAPSE_ISSUE_NUMBER = 1030
+_REPORT_IN_FLIGHT_ISSUE_NUMBER = 1035
+_REPORT_SETTLED_ISSUE_NUMBER = 1040
 _HANDED_ON_ISSUE_NUMBER = 1002
 _PUBLISHED_EXEMPTION_ISSUE_NUMBER = 1003
 _UNREAD_MEASUREMENT_ISSUE_NUMBER = 998
@@ -117,6 +121,20 @@ _PARTIAL_COLLAPSES: tuple[dict, ...] = (
     {"late_collapse_count": 3},
     {"late_collapse_count": None},
     {"late_collapse_head": ""},
+)
+
+
+# A developer report recorded and not yet settled, by each record that says
+# so: the delivery a run wrote before its binding, the transaction that binding
+# made before its settlement, and each spelled in a shape nobody can read,
+# which is still a report somebody owes the pull request. Neither follows a
+# rewrite -- the delivery binds to whichever head the receipt names when it is
+# bound, and the transaction names the head it was written about.
+_REPORTS_IN_FLIGHT: tuple[dict, ...] = (
+    {"developer_report_delivery": {"revision": 2, "report": "A report of the rebased head."}},
+    {"developer_report_pending": {"pr": 42, "revision": 2, "sha": _ACCEPTED_COMMIT}},
+    {"developer_report_delivery": "unreadable"},
+    {"developer_report_pending": {}},
 )
 
 
@@ -443,6 +461,34 @@ class FalseyLateRecordSkipTest(_SkipCase, unittest.TestCase):
                     park_reason=None,
                     **record,
                 )
+
+
+class ReportInFlightSkipTest(_SkipCase, unittest.TestCase):
+    """A developer report recorded and not yet settled holds the branch until it settles.
+
+    A rewrite inside that window either binds the report to a head no
+    developer read or leaves a transaction about a head the pull request has
+    left, which the hold can only park on. The binding and the settlement
+    write each record `null`, so the freeze ends with the publication.
+    """
+
+    def test_a_report_in_flight_holds_the_branch(self) -> None:
+        for offset, record in enumerate(_REPORTS_IN_FLIGHT):
+            with self.subTest(record=record):
+                self._assert_skipped(
+                    _REPORT_IN_FLIGHT_ISSUE_NUMBER + offset,
+                    LABEL_VALIDATING,
+                    awaiting_human=False,
+                    park_reason=None,
+                    **record,
+                )
+
+    def test_a_settled_report_syncs_again(self) -> None:
+        self._assert_synced(
+            _REPORT_SETTLED_ISSUE_NUMBER,
+            developer_report_delivery=None,
+            developer_report_pending=None,
+        )
 
 
 class LateRecordBaseRefreshEndTest(_SkipCase, unittest.TestCase):

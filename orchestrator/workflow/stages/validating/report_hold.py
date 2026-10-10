@@ -23,9 +23,11 @@ last (`report_refresh`): the pull request stands on a commit the settled report
 is not about, and the reviewer road behind would park for that. A report of
 that head settled and still intact pays the debt, and the reviewer runs; a
 claim owed a fresh report holds the reviewer while the developer is asked for
-it, with no human involved. A claim nobody can read, or a head it does not
-explain, holds nothing and leaves the reviewer road's own rules to answer the
-report it finds.
+it, with no human involved -- a settled report of the approved commit this
+orchestrator's approval squash collapsed into the head the rewrite replaced
+included, once that lineage is proved. A claim nobody can read, or a head it
+does not explain, holds nothing and leaves the reviewer road's own rules to
+answer the report it finds.
 """
 from __future__ import annotations
 

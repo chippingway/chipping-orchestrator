@@ -17,7 +17,9 @@ the requirements the refresh froze, and with no round or feedback riding on it,
 since answering a rewrite answers nobody's words -- and then bound to the
 publication the receipt names and settled through the reconciliation, whose
 receipt is what lets a lost post response or an interrupted settlement finish
-on a later tick without a second comment. Before anything is recorded the pull
+on a later tick without a second comment. The base refresh rebases nothing
+while the report is recorded and unsettled (`git/base_sync/frozen.py`), so it
+finishes about the head it was written for. Before anything is recorded the pull
 request's head and the requirements are read again: a head somebody moved, or
 an issue edited, while the agent was out makes the report one about a world
 that is gone, so it is dropped unrecorded and the next tick asks its own road

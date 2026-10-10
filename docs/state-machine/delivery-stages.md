@@ -1264,22 +1264,26 @@ because there it is the claim that this stage has already rerouted rather than a
   never recorded.
 - **Why it sits here**: behind the auto-rebase anchor readings, since a replay no recovery has published is no head a
   debt can name yet, and ahead of the handler it keeps off.
-- **Approval-squash lineage (dormant)**: a settled report of the approved commit an approval's squash replaced is of
-  neither head the claim names, so the report hold neither pays nor refreshes it. `lineage_verdict`
+- **Approval-squash lineage**: a settled report of the approved commit an approval's squash replaced is of neither
+  head the claim names, so it pays nothing and is owed nothing on its own. `lineage_verdict`
   (`workflow/engine/report_squash_lineage.py`) proves whether this orchestrator squashed that commit into the head the
-  claim replaced, and nothing consults it yet. It is PROVED only where the claim reads whole and names the pinned
-  pull request, the head it stands on, and the settled report's pull request and branch, and a recorded evidence
-  carry -- which only the approval squash writes
-  ([evidence transaction](#the-verification-evidence-transaction-every-dispatch)) -- is of that settled report
-  exactly: the commit it is about, its pull request, revision, digest, and requirements, on the same repository and
-  branch, onto the claim's `previous_head`. The carry is read owed, current, or from history
+  claim replaced, and the report hold asks it only where that is the one thing left to know: a readable claim naming
+  the pinned pull request, the head it stands on, and the branch the issue pins, whose settled report is of neither
+  head, on the claim's pull request and branch, and written against the current `user_content_hash` (`squashed` on
+  `RewriteDebt.owes_a_refresh`). PROVED makes that claim owed a fresh report of its `rewritten_head`, once the
+  report re-reads intact at its location; DEFER leaves the report to the reviewer road's refusal; HOLD holds the
+  reviewer with no developer run. It is PROVED only where the claim reads whole and names the pinned pull request,
+  the head it stands on, and the settled report's pull request and branch, and a recorded evidence carry -- which
+  only the approval squash writes ([evidence transaction](#the-verification-evidence-transaction-every-dispatch)) --
+  is of that settled report exactly: the commit it is about, its pull request, revision, digest, and requirements, on
+  the same repository and branch, onto the claim's `previous_head`. The carry is read owed, current, or from history
   whatever retired it, since the question is what the squash did rather than whether its evidence is current, and
   both commits read again in the checkout (`verification_world.tree_of`) have to be the tree it recorded. Equal trees
   alone, ancestry, and the `late_collapse_*` recovery fields prove nothing; so does a claim, report, or carry that
   disagrees on any member, or a commit read as another tree, each DEFERRING. A checkout not on this host or a commit
-  git would not read HOLDS for the consumer to interpret. It writes nothing: `developer_report_current` keeps the
-  commit it was written about, and the claim keeps its fields, its actual replaced head, and its retargeting, so a
-  claim a later base advance retargeted still proves for the latest head it names.
+  git would not read HOLDS. The proof writes nothing: `developer_report_current` keeps the commit it was written
+  about, and the claim keeps its fields, its actual replaced head, and its retargeting, so a claim a later base
+  advance retargeted still proves for the latest head it names.
 
 ## The seed hold (every dispatch, ahead of the reuse guard)
 - **Trigger**: `_pinned_state_refuses` (`workflow/engine/dispatch_guards.py`) on any issue this orchestrator opened
@@ -3746,10 +3750,18 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        its location as the reviewer road reads it before the key is written `null`, and the reviewer runs on that tick.
        A location nobody could read holds; a report out of step with its handoff, removed, edited, or untrusted pays
        nothing and holds nothing, so step 5 parks for it with the claim still standing.
-     - **Refreshed.** A readable claim naming the pinned pull request and the head it stands on, whose settled report
-       is of the head the rewrite replaced or of the rewritten head itself without paying
+     - **Refreshed.** A readable claim naming the pinned pull request and the head it stands on, on the branch the
+       issue pins (`_resolve_branch_name`) -- the one the resume checks out and binds its report to -- whose settled
+       report is of the head the rewrite replaced or of the rewritten head itself without paying
        (`RewriteDebt.owes_a_refresh`), holds the reviewer while the developer is asked for a fresh report of that
-       head (`workflow/stages/validating/report_refresh.py`). The world is frozen first, before any agent runs: a
+       head (`workflow/stages/validating/report_refresh.py`). So does a settled report of neither head, on the
+       claim's pull request and branch and written against the current baseline, once the
+       [approval-squash lineage](#the-rewritten-head-report-debt-every-dispatch) proves it the approved commit this
+       orchestrator's squash collapsed into the claim's `previous_head` and, behind the drift wait, it re-reads intact
+       at its location as the reviewer road reads it: that report keeps the commit it is about, and the prompt names
+       the approved commit beside the squash. A lineage nothing proves and a report out of reach are left to step 5's
+       refusal, and a tree or location nobody could read holds with nobody run. The world is frozen first, before
+       any agent runs: a
        code-publication receipt group with a member this build cannot read (`late_receipt_damage._damaged_receipt`,
        the damage the reconciliation would only hold on, with nobody told), one that does not name the rewritten
        head, or a checkout not standing on it clean parks under `report_undeliverable`, naming what to repair; a
@@ -3764,8 +3776,11 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        then bound to the receipt's publication and settled through the reconciliation, all on this tick -- so a
        refused post, a lost response, a crash before the binding, or one on the settlement write is finished by the
        reconciliation or the next tick's hold, found by its receipt, with no second developer run and no second
-       comment. A head somebody pushed or an edit made while the agent was out records nothing and parks nothing:
-       the reviewer road refuses a head the claim no longer explains, and the drift resume answers the edit. A run
+       comment. The per-tick base refresh rebases nothing while that report is recorded and unsettled
+       ([base refresh](labels-and-state.md#base-refresh)), so it settles about the head it was written for, and a
+       base that moved meanwhile is rebased onto behind it, leaving a debt of its own. A head somebody pushed or an
+       edit made while the agent was out records nothing and parks nothing: the reviewer road refuses a head the
+       claim no longer explains, and the drift resume answers the edit. A run
        that committed (recorded `developer_report_unreported_work`) or left loose work, one that timed out, one
        that ended on `REPORT: VERIFIED` instead of writing a report, and one whose `REPORT: READY` cannot be recorded
        -- its notice naming the refusal, as the implementing seam's does -- park once under `report_undeliverable`;
@@ -3780,11 +3795,11 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        debt, and the reviewer is handed it, with no later tick posting it again or repeating its settlement; until
        then the tick holds with nothing run. Every refresh tick ends
        there, a settled one included: the next tick finds the debt paid.
-     - **Held for nothing.** Anything else -- a claim nobody can read, another pull request or branch, a head
-       somebody pushed over the rewrite, a settled report of neither head -- one of the approved commit before an
-       approval squash included, which only the dormant
-       [approval-squash lineage](#the-rewritten-head-report-debt-every-dispatch) proof links to the claim -- holds
-       nothing, so the subject resolution in step 5 refuses the stale report as it would with no claim.
+     - **Held for nothing.** Anything else -- a claim nobody can read, another pull request or branch than the issue
+       pins or the settled report is on, a head somebody pushed over the rewrite, a settled report of neither head
+       that no
+       [approval-squash lineage](#the-rewritten-head-report-debt-every-dispatch) proof reaches -- holds nothing, so
+       the subject resolution in step 5 refuses the stale report as it would with no claim.
   4. A reviewer verdict an earlier tick persisted and never disposed of (`review_returned_verdict`) is finished ahead of
      the cap and the spawn (`review_resume.resumes_a_returned_verdict`), running no reviewer, folding no usage, and
      spending no round: one not yet handed through a run rebuilt of its round over the subject resolved again, in a

@@ -570,7 +570,12 @@ orchestrator/
                         the comment AT ALL, `null` included -- because that is what the squash's own reader counts
                         as a claim it must refuse to resume, and what a rebase there destroys is the tree
                         relationship the recovery proves the collapse by; nothing sets that group aside, since it
-                        is another owner's work rather than this refresh's own -- the two parks that freeze one
+                        is another owner's work rather than this refresh's own. A developer report recorded and
+                        not yet settled -- `developer_report_delivery` or `developer_report_pending` anything but
+                        `null` -- freezes it too, since a delivery binds to whichever head the receipt names and a
+                        transaction names the head it was written about, so a rewrite between would bind a report
+                        to a head no developer read or strand it on one the pull request left; the binding and
+                        the settlement write each `null`, which ends that freeze -- the two parks that freeze one
                         with no record behind them at all
                         (a size reading nobody could take, and an implementer timeout whose watermark names a
                         commit not yet made), and the two no write ever ends (the accepted commit and the
