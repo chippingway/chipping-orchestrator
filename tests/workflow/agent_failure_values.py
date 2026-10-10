@@ -25,4 +25,8 @@ PROVIDER_UNAVAILABLE_PHRASE = "temporarily unavailable"
 
 SESSION_LIMIT_MESSAGE = "You've hit your session limit · resets 7pm (Asia/Novosibirsk)"
 
+# The #1796 shape, verbatim: a weekly quota arrives on the same final-message
+# field, and resets days rather than hours away.
+WEEKLY_LIMIT_MESSAGE = "You've hit your weekly limit · resets Sep 25, 12pm (Asia/Novosibirsk)"
+
 SESSION_LIMIT_PHRASE = "session/usage limit"

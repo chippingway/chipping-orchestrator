@@ -125,13 +125,14 @@ def _is_context_overflow_failure(
 
 
 def _is_session_limit_message(agent_result: AgentResult) -> bool:
-    """True iff the result message is a Claude session/usage-quota notice.
+    """True iff the result message is a Claude session/usage/weekly-quota notice.
 
-    A non-empty quota notice ("You've hit your session limit ...") is not a
-    real agent question: the session is healthy and the only recovery is to
-    wait for the reset and retry. Matched as a PREFIX of the normalized last
-    agent message so a dev reply that merely mentions a session limit
-    mid-answer is not caught. Backend-agnostic on purpose -- the phrasings are
+    A non-empty quota notice ("You've hit your session limit ...", "You've hit
+    your weekly limit ...") is not a real agent question: the session is
+    healthy and the only recovery is to wait for the reset and retry, however
+    far away that reset is. Matched as a PREFIX of the normalized last agent
+    message so a dev reply that merely mentions a limit mid-answer is not
+    caught. Backend-agnostic on purpose -- the phrasings are
     distinctive enough that a non-Claude backend echoing them would still be a
     quota stop, and `_on_question` (the sole caller) has no backend in hand.
     """
