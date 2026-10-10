@@ -439,7 +439,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
        (developer_report_rewrite_debt) ─► a published report of the head
        the PR stands on, against the current requirements and still intact
        where it settled, pays it (written null) and the reviewer runs; a
-       readable claim owed a fresh report of that head ─► no reviewer
+       readable claim owed a fresh report of that head -- a report of the
+       approved commit its approval squash collapsed included, once the
+       squash's carry proves it and the report re-reads intact ─► no reviewer
        spawned, the developer resumed for that report alone, which is
        recorded, bound, posted once, and settled -- paid on the next tick;
        a run that brings none ─► parked once with developer_report_owed;

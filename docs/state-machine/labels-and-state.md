@@ -454,7 +454,13 @@ still to publish, each dropped by the step that spends it. The `late_collapse_*`
 a squash mid-rewrite is proved by the TREE the commit on the branch carries, which a rebase replaces with one
 carrying the base advance too, so any member of the group being on the comment at all — `null` included, since that
 is what the squash's own reader refuses to resume — holds the branch until whatever finishes or undoes the collapse
-drops it. Two PARKS freeze the branch as well, and by the park
+drops it. So does a developer report recorded and not yet settled — `developer_report_delivery` or
+`developer_report_pending` holding anything but `null`, a record nobody can read included. A delivery names no commit
+and is bound to whichever one the code-publication receipt names when the binding runs, and a transaction names the
+head it was written about, so a rebase in that window would bind a report to a head no developer read or leave one
+about a head the pull request has left, which the report hold can only park on. The binding and the settlement write
+each `null`, so the first refresh behind the settlement rebases as it always would, and a rewritten-head report debt
+it leaves is refreshed afresh. Two PARKS freeze the branch as well, and by the park
 rather than by a record, because neither can leave one. A standing `late_measurement_failed` is the first: the
 sharpest of those refusals is taken before any commit could be named, so there is nothing on the pinned comment to
 freeze by — and rebased under it, the exact-pair retry has lost its commit and the refusal that substitutes nothing
@@ -1440,19 +1446,20 @@ The keys that matter for the state machine fall into a few groups:
   own, written against the current `user_content_hash`, and still intact at its location -- writing `null` before the
   reviewer road. A `developer_report_current` in `verify` mode, or with no mode, pays nothing: a verification of the
   report standing when the head was rewritten is that report carried forward, not proof it describes the new head.
-  Where a readable claim names the pinned pull request, the pull request stands on `rewritten_head`, and the settled
-  report is about `previous_head` or about `rewritten_head` without paying (`RewriteDebt.owes_a_refresh`), the hold
-  keeps the reviewer off and resumes the developer for a fresh report of `rewritten_head` -- recorded as
-  `developer_report_delivery`, bound, published, and settled like every other report, so the next tick finds it paid;
-  a run that brings none parks with `developer_report_owed` so a reply's report pays it instead. Otherwise it holds
-  nothing, leaving the reviewer road to refuse the stale report as it would with no claim.
+  Where a readable claim names the pinned pull request and the branch the issue pins, the pull request stands on
+  `rewritten_head`, and the settled report is about `previous_head` or about `rewritten_head` without paying
+  (`RewriteDebt.owes_a_refresh`), the hold keeps the reviewer off and resumes the developer for a fresh report of
+  `rewritten_head` -- recorded as `developer_report_delivery`, bound, published, and settled like every other report,
+  so the next tick finds it paid; a run that brings none parks with `developer_report_owed` so a reply's report pays it
+  instead. Otherwise it holds nothing, leaving the reviewer road to refuse the stale report as it would with no claim.
 
-  A settled report of the approved commit an approval's squash replaced is of neither head, so that hold leaves it to
-  the reviewer road too. Whether this orchestrator's squash links it to `previous_head` is answered by a dormant
-  read-only proof nothing consults yet (`workflow/engine/report_squash_lineage.py`,
-  [approval-squash lineage](delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)), from the squash's own
-  evidence carry: the claim's fields, their meanings, and its retargeting are unchanged, and
-  `developer_report_current` keeps the commit it was written about.
+  A settled report of the approved commit an approval's squash replaced is of neither head, so it pays nothing, and
+  that hold refreshes it too only once a read-only proof (`workflow/engine/report_squash_lineage.py`,
+  [approval-squash lineage](delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)) shows from the squash's
+  own evidence carry that this orchestrator's squash collapsed it into `previous_head`, the report was written against
+  the current `user_content_hash`, and it re-reads intact at its location; otherwise the reviewer road refuses it. The
+  claim's fields, their meanings, and its retargeting are unchanged, and `developer_report_current` keeps the commit
+  it was written about until the fresh report settles over it.
 
   `workflow:resolving_conflict` records the claim for every head its own push rewrites -- a clean rebase, a
   resolution the dev finished one with, and a recovered push (`stages/conflicts/report_debt.py`) -- and reads it

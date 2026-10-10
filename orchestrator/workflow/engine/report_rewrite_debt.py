@@ -66,11 +66,15 @@ taken over by the late generation with its attempt retired
 (`rewrite_takeover.py`), and the authorized settlement that publishes it
 records the same debt before it hands the head back to its stage
 (`stages/decomposition/late_replay_debt.py`). A settled report of the commit
-an approval's squash replaced is of neither head, so it pays nothing and is
-owed nothing here; whether this orchestrator's own squash links it to the
-head the debt replaced is a dormant proof beside this owner
-(`report_squash_lineage.py`) that nothing consults yet. This owner is the
-record, its reader, its retargeting, and its drop.
+an approval's squash replaced is of neither head, so it pays nothing, and on
+its own it is owed nothing either. Written against the requirements the issue
+carries now, it is the one case only a proof can open (`squashed` on
+`RewriteDebt.owes_a_refresh`): that this orchestrator's own squash collapsed
+the commit it is about into the head the debt replaced
+(`report_squash_lineage.py`, which reads this record, so the validating stage
+asks it). Proved, the debt is owed a fresh report of the head it published,
+and the settled report keeps the commit it was written about. This owner is
+the record, its reader, its retargeting, and its drop.
 """
 from __future__ import annotations
 
@@ -183,7 +187,8 @@ class RewriteDebt:
         On this rewrite's pull request and branch. It is what a debt has to be
         able to explain, and what paid the debt of the rewrite before it.
         """
-        return self._settled_head(state) == self.previous_head
+        settled = self._settled_subject(state)
+        return settled is not None and settled.source_sha == self.previous_head
 
     def explains(self, state: PinnedState, head: str) -> bool:
         """Whether this debt is exactly why the report `state` last settled is about another head than `head`.
@@ -196,7 +201,7 @@ class RewriteDebt:
         pinned = (pinned_pull_request(state), head) == (self.pr_number, self.rewritten_head)
         return pinned and self.follows_the_report(state)
 
-    def owes_a_refresh(self, state: PinnedState, head: str) -> bool:
+    def owes_a_refresh(self, state: PinnedState, head: str, *, squashed: bool = False) -> bool:
         """Whether a fresh report of `head` is what this debt is owed.
 
         Where the debt explains the settled report, and where that report is
@@ -205,20 +210,33 @@ class RewriteDebt:
         earlier one stood, or written against requirements the issue has since
         moved past. Asked once the settled report is known not to pay, so a
         report of either head is one only a fresh report of `head` replaces.
-        A settled report of neither head is one this debt says nothing about.
+
+        A settled report of neither head is one this debt says nothing about,
+        save where `squashed` answers for it: that this orchestrator's
+        approval squash collapsed the commit it is about into `previous_head`,
+        which `report_squash_lineage` proves and its caller asks, since that
+        proof reads this record. Then it is owed a fresh report of `head` too,
+        on this debt's pull request and branch -- but only written against the
+        requirements the issue carries now, since one of older requirements is
+        the report the reviewer road refuses as stale.
         """
         pinned = (pinned_pull_request(state), head) == (self.pr_number, self.rewritten_head)
-        return pinned and self._settled_head(state) in {self.previous_head, self.rewritten_head}
+        settled = self._settled_subject(state)
+        if not pinned or settled is None:
+            return False
+        if settled.source_sha in {self.previous_head, self.rewritten_head}:
+            return True
+        return squashed and settled.requirements_revision == state.get(_prompt_delivery.PINNED_USER_CONTENT_HASH)
 
-    def _settled_head(self, state: PinnedState) -> str:
-        """The head the report `state` last settled is about, on this debt's pull request and branch, or ""."""
+    def _settled_subject(self, state: PinnedState) -> _records.ReportSubject | None:
+        """What the report `state` last settled is about, on this debt's pull request and branch, or None."""
         settled = _settlement.read_current_report(state)
         if settled is None:
-            return ""
+            return None
         subject = settled.subject
         if (subject.pr_number, subject.branch) != (self.pr_number, self.branch):
-            return ""
-        return subject.source_sha
+            return None
+        return subject
 
 
 def carries_rewrite_debt(state: PinnedState) -> bool:

@@ -1079,25 +1079,29 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             PUBLISHED rather than verified where it stood, and written against the current baseline --
                             whether a claim explains exactly why that report is about another head, and whether a
                             claim is owed a fresh report of the head it names because the settled report is of either
-                            head it names and pays nothing. `dispatch_guards.py` holds the roads past an approval on
-                            any claim and `stages/validating/report_refresh.py` holds the reviewer, obtains that
-                            report, and pays it. `stages/conflicts/report_debt.py` records one for every head the
-                            conflict stage's own push rewrites, `rewrite_finish_debt.py` one for each clean auto
-                            rebase of the base refresh whose push lands -- the crash recovery's retry and a push it
-                            finds already landed included -- and `stages/decomposition/late_replay_debt.py` one for
-                            the replay a late generation took over, once its authorized settlement publishes it
+                            head it names and pays nothing -- or, where the approval squash's lineage answers for it,
+                            is of the approved commit that squash collapsed into the replaced head, on the claim's pull
+                            request and branch and against the current baseline. `dispatch_guards.py` holds the
+                            roads past an approval on any claim and `stages/validating/report_refresh.py` holds the
+                            reviewer, obtains that report, and pays it. `stages/conflicts/report_debt.py` records
+                            one for every head the conflict stage's own push rewrites, `rewrite_finish_debt.py` one
+                            for each clean auto rebase of the base refresh whose push lands -- the crash recovery's
+                            retry and a push it finds already landed included -- and
+                            `stages/decomposition/late_replay_debt.py` one for the replay a late generation took
+                            over, once its authorized settlement publishes it
     report_rewrite_room.py  whether the debt owner refused a rewrite for nothing but the pinned comment's room -- the
                             one refusal a writer holds on rather than handing the head on -- told from a record that
                             would not read back and a standing claim the rewrite cannot extend; asked by every
                             writer -- the conflict stage, the workflow finish below, whichever road reached it, and
                             the late settlement of a taken-over replay -- so their readings cannot differ
-    report_squash_lineage.py the dormant proof that a settled report's approved commit is the one this orchestrator's
+    report_squash_lineage.py the proof that a settled report's approved commit is the one this orchestrator's
                             approval squash rewrote into the head a rewrite debt replaced. It reads the squash's own
                             evidence carry -- owed, current, or from history, never asking whether that evidence is
                             current -- and holds it exactly to the settled report, the debt, the pinned pull request,
                             and the head it stands on, then reads both commits' trees again in the checkout
                             (`verification_world.tree_of`). PROVED, DEFER for no proof, or HOLD for a tree nobody
-                            could read; it writes nothing, and nothing consults it yet
+                            could read; it writes nothing. `stages/validating/report_refresh.py` asks it before
+                            refreshing a report of that approved commit
     rewrite_finish.py       the one finish of a landed automatic PR base rewrite, whichever road reached it -- the base
                             refresh publishing its own rebase, or a recovery that pushed the replay again or found it
                             standing, announced or not -- handed the typed landing (`git/base_sync/rewrite_handoffs.py`)
@@ -4175,18 +4179,23 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reads it. A published report of that head, against the current baseline and still intact
                             where it settled -- re-read as `review_report.py` reads it -- pays it, written `null`
                             before the reviewer road; a report the thread moved out of reach pays nothing and is left
-                            to that road's refusal. A readable claim owed a fresh report holds the reviewer and resumes
-                            the locked session on the report-refresh prompt. Before either, requirements the drift
-                            check stood down for hold and drop the owed-round note, so the drift resume answers them
-                            rather than a report of older requirements paying. The refresh freezes its world before
-                            any run: a damaged receipt group, a receipt not naming the rewritten head, or a checkout
-                            not standing on it clean -- the one the resume runs in, read where it stands and only
-                            recreated where gone -- parks under `report_undeliverable`. A launch nothing ran, a
-                            shutdown kill, and a live pause write nothing. Anything else is left to
-                            `review_report.py`'s own staleness refusal
+                            to that road's refusal. A readable claim owed a fresh report, on the branch the issue pins,
+                            holds the reviewer and resumes the locked session on the report-refresh prompt -- over a
+                            settled report of the approved commit an approval squash collapsed too, once
+                            `workflow/engine/report_squash_lineage.py` proves that lineage and the report re-reads
+                            intact, the prompt naming that commit; a lineage nothing proves is left to the reviewer
+                            road, and a tree or location nobody could read holds with nobody run. Before either,
+                            requirements the drift check stood down for hold and drop the owed-round note, so the
+                            drift resume answers them rather than a report of older requirements paying. The refresh
+                            freezes its world before any run: a damaged receipt group, a receipt not naming the
+                            rewritten head, or a checkout not standing on it clean -- the one the resume runs in,
+                            read where it stands and only recreated where gone -- parks under `report_undeliverable`.
+                            A launch nothing ran, a shutdown kill, and a live pause write nothing. Anything else is
+                            left to `review_report.py`'s own staleness refusal
       report_refresh_models.py the frozen record that refresh hands the owner reading its run -- the debt, whose
-                            rewritten head is the one proved on the pull request, the receipt, and the checkout, and
-                            the requirements baseline the report is stamped with -- with the reading of the
+                            rewritten head is the one proved on the pull request, the receipt, and the checkout, the
+                            requirements baseline the report is stamped with, and the approved commit a proved squash
+                            leaves the settled report describing -- with the reading of the
                             requirements taken once the run is back and the park both helpers take
       report_refresh_outcomes.py what a refresh run left: a `REPORT: READY` over a checkout still clean on the head,
                             with the pull request's head and the requirements read again unchanged, recorded under

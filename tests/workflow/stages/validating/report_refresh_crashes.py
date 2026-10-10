@@ -10,7 +10,9 @@ and the process ending on the settlement's own write with the comment already
 posted. Each leaves the report owed on the pinned comment for a later tick.
 
 A process ending is spelled as a raise the case swallows, so what a test reads
-afterwards is exactly the durable state a crash would have left.
+afterwards is exactly the durable state a crash would have left. Each window is
+opened on the case's own pull request and the head it stands on, so the
+rebased world and the journey that squashes and rebases it share them.
 """
 from __future__ import annotations
 
@@ -21,7 +23,6 @@ from orchestrator.workflow.engine import (
     report_binding as _report_binding,
     report_settlement_state as _settlement,
 )
-from tests.workflow.stages.validating import report_refresh_test_support as _support
 
 
 class _Crashed(RuntimeError):
@@ -31,17 +32,17 @@ class _Crashed(RuntimeError):
 @contextlib.contextmanager
 def refusing_the_post(case):
     """GitHub refuses the report's comment for as long as the tick runs."""
-    case.github.report_failures.refused.add(_support.PR)
+    case.github.report_failures.refused.add(case.pull_request.number)
     yield
-    case.github.report_failures.refused.discard(_support.PR)
+    case.github.report_failures.refused.discard(case.pull_request.number)
 
 
 @contextlib.contextmanager
 def losing_the_response(case):
     """GitHub lands the report's comment and the response to the post is lost."""
-    case.github.report_failures.lost.add(_support.PR)
+    case.github.report_failures.lost.add(case.pull_request.number)
     yield
-    case.github.report_failures.lost.discard(_support.PR)
+    case.github.report_failures.lost.discard(case.pull_request.number)
 
 
 @contextlib.contextmanager
@@ -68,19 +69,20 @@ def dying_on_the_settlement(case):
     """
     edits = case.github.edit_pinned_state
     with patch.object(
-        case.github, "edit_pinned_state", _DiesOnTheSettlement(edits),
+        case.github, "edit_pinned_state", _DiesOnTheSettlement(edits, case.pull_request.head.sha),
     ), contextlib.suppress(_Crashed):
         yield
 
 
 class _DiesOnTheSettlement:
-    """The pinned edits a tick makes, ending on the one settling a report of the rewritten head."""
+    """The pinned edits a tick makes, ending on the one settling a report of `head`, the rewritten head."""
 
-    def __init__(self, edits) -> None:
+    def __init__(self, edits, head: str) -> None:
         self._edits = edits
+        self._head = head
 
     def __call__(self, issue, state, **options):
         settled = _settlement.read_current_report(state)
-        if settled is not None and settled.subject.source_sha == _support.REWRITTEN_HEAD:
+        if settled is not None and settled.subject.source_sha == self._head:
             raise _Crashed
         return self._edits(issue, state, **options)

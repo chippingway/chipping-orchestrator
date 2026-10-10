@@ -218,18 +218,20 @@ it settles
 The additive `developer_report_rewrite_debt` claim is the report a rewrite of the pull request's head leaves owed --
 the pull request, its branch, the head the rewrite replaced, and the exact head it published. While any claim stands,
 readable or not, the dispatcher holds `workflow:documenting` and `in_review`; the validating report hold keeps the
-reviewer off while it resumes the developer for a fresh report of that head, with no human reply, and drops the claim
-once a published report of it, still intact where it settled and written against the current requirements, pays it.
+reviewer off while it resumes the developer, on the branch the issue pins, for a fresh report of that head, with no
+human reply, and drops the claim once a published report of it, still intact where it settled and written against the
+current requirements, pays it.
 `workflow:resolving_conflict` records one for every head its own push rewrites, off the code-publication receipt that
 push left, and the base refresh one for each clean auto rebase whose push lands, its crash recovery included, before
 the attempt is cleared or the issue routed to `workflow:validating`. The authorized settlement of a replay a late
 generation took over records one for the push it makes, before its label resumes the source stage
 ([rewritten-head report debt](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)).
-A settled report of the approved commit an approval's squash replaced is of neither head a claim names, so the hold
-neither pays nor refreshes it. A dormant proof (`workflow/engine/report_squash_lineage.py`) answers whether that
-squash links it to the head the claim replaced -- from the squash's own recorded evidence carry, held exactly to the
-settled report and the claim, and from both trees read again in the checkout -- writing nothing and leaving the
-report's `source_sha` as it is; nothing consults it yet.
+A settled report of the approved commit an approval's squash replaced is of neither head a claim names, so it pays
+nothing, and the hold refreshes it only once a proof (`workflow/engine/report_squash_lineage.py`) links it to the head
+the claim replaced -- from the squash's own recorded evidence carry, held exactly to the settled report and the claim,
+and from both trees read again in the checkout -- and the report, written against the current requirements, re-reads
+intact where it settled. The proof writes nothing and the report keeps its `source_sha`; a lineage nothing proves is
+left to the reviewer road's refusal, and a tree or location nobody could read holds with no developer run.
 Most owners write the record whole from the state they read. A guarded commit -- adopted so far by the
 verification-evidence publication and settlement, the evidence reconciliation's retirements, `validating`'s invalidation
 of an unanswered carry, the developer report's recording, its binding, its settlement (prepared before the report is

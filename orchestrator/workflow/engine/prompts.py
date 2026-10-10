@@ -191,27 +191,36 @@ def _build_conflict_resolution_prompt(
 
 
 def _build_report_refresh_prompt(
-    issue: Issue, previous_head: str, rewritten_head: str,
+    issue: Issue, previous_head: str, rewritten_head: str, approved: str = "",
 ) -> str:
     """Ask the developer for a fresh report of a head this orchestrator rewrote, and nothing else.
 
     The report the pull request carries is about `previous_head`, which a
     rewrite replaced with `rewritten_head` -- a rebase, a conflict resolution,
     or commits an earlier run left unpushed -- so the only outcome that pays for
-    the rewrite is one written afresh about it. The whole report contract
+    the rewrite is one written afresh about it. Where `approved` is given the
+    report is about that commit instead, which this orchestrator's approval
+    squash collapsed into `previous_head`, and the prompt says so rather than
+    naming a commit the report never mentions. The whole report contract
     rides along, as on every developer prompt, and the verified outcome it
     teaches is then refused by name: pointing at the report already there
     would carry the account of another commit forward unchanged.
     """
     body = issue.body or _prompt_notes._NO_BODY
+    described = f"`{previous_head}`, the head that rewrite replaced"
+    if approved:
+        described = (
+            f"`{approved}`, the approved commit this orchestrator squashed into "
+            f"`{previous_head}` before that rewrite replaced it"
+        )
     return (
         "This orchestrator rewrote the head of the pull request of GitHub issue "
         f"#{issue.number} ({issue.title!r}) -- rebasing it onto its updated base "
         "branch, resolving the conflicts that rebase met, or publishing commits an "
         "earlier run left unpushed. The pull request now stands on commit "
         f"`{rewritten_head}`, and your worktree is checked out at it. The developer "
-        f"report the pull request carries describes `{previous_head}`, the head "
-        "that rewrite replaced, so it is not a report of this commit.\n\n"
+        f"report the pull request carries describes {described}, so it is not a "
+        "report of this commit.\n\n"
         f"Issue body:\n{body}\n\n"
         "This run delivers a report alone. Read the branch as it now stands -- "
         "what the rewrite changed included -- and write a fresh, "

@@ -16,7 +16,9 @@ is refused and leaves the standing claim exactly where it was.
 What pays a debt is a report PUBLISHED about the head the pinned pull request
 stands on, against the requirements baseline the issue carries now; a settled
 report of either head the debt names that pays nothing is owed a fresh report
-of the head the rewrite published.
+of the head the rewrite published. A settled report of neither head is owed
+one only once the approval squash's lineage answers for it, on the debt's pull
+request and branch and against the current baseline.
 """
 from __future__ import annotations
 
@@ -45,8 +47,11 @@ FIRST = "b" * SHA_LENGTH
 
 SECOND = "c" * SHA_LENGTH
 
-# A head somebody else pushed.
+# A head somebody else pushed, and the approved commit an approval squash
+# collapsed into the head the first rebase replaced.
 FOREIGN = "d" * SHA_LENGTH
+
+APPROVED = "1" * SHA_LENGTH
 
 DEBT = _rewrite_debt.RewriteDebt(
     pr_number=PR, branch=BRANCH, previous_head=REPORTED, rewritten_head=FIRST,
@@ -74,6 +79,10 @@ DIGEST = "e" * max(_formats.DIGEST_LENGTHS)
 # The rewrite that follows `DEBT`, from the head it published.
 NEXT = replace(DEBT, previous_head=FIRST, rewritten_head=SECOND)
 
+# What a settled report owes with the approval squash's lineage unproved and
+# proved, where it owes nothing either way.
+_OWED_NONE = (False, False)
+
 
 def _reported_on(head: str) -> PinnedState:
     """A pinned pull request carrying `DEBT`, whose settled report is about `head`."""
@@ -99,13 +108,17 @@ def _settled_on(
     mode: _records.ReportMode | None = _records.ReportMode.PUBLISH,
     requirements: str = DIGEST,
     pinned: int = PR,
+    branch: str = BRANCH,
 ) -> PinnedState:
-    """`_reported_on(head)` settled by `mode` against `requirements`, pinning `pinned`, over a `DIGEST` baseline."""
+    """`_reported_on(head)` settled on `branch` by `mode` against `requirements`, pinning `pinned`.
+
+    Over a `DIGEST` baseline.
+    """
     state = _reported_on(head)
     settled = _settlement.read_current_report(state)
     _settlement.record_current_report(state, replace(
         settled,
-        subject=replace(settled.subject, requirements_revision=requirements),
+        subject=replace(settled.subject, requirements_revision=requirements, branch=branch),
         mode=mode,
     ))
     state.set("pr_number", pinned)
@@ -332,6 +345,27 @@ class RewriteDebtPaymentTest(unittest.TestCase):
         ):
             with self.subTest(name):
                 self.assertEqual(DEBT.owes_a_refresh(settled, head), owed)
+
+    def test_a_squash_proof_opens_a_refresh(self) -> None:
+        # The approved commit's report -- of neither head the debt names -- is
+        # owed nothing on its own, and a fresh report of the head the rewrite
+        # published once the approval squash's lineage answers for it, on the
+        # debt's pull request and branch and against the baseline the issue
+        # carries now. Older requirements, another branch, another pinned pull
+        # request, a head the debt did not publish, and no settled report open
+        # nothing; a report of a head the debt names is owed one either way.
+        for name, settled, head, owed in (
+            ("the approved commit", _settled_on(APPROVED), FIRST, (False, True)),
+            ("the replaced head", _settled_on(REPORTED), FIRST, (True, True)),
+            ("older requirements", _settled_on(APPROVED, requirements="f" * len(DIGEST)), FIRST, _OWED_NONE),
+            ("another branch", _settled_on(APPROVED, branch="elsewhere"), FIRST, _OWED_NONE),
+            ("another pull request pinned", _settled_on(APPROVED, pinned=PR + 1), FIRST, _OWED_NONE),
+            ("another head standing", _settled_on(APPROVED), FOREIGN, _OWED_NONE),
+            ("no settled report", _carrying(DEBT.recorded(), pr_number=PR), FIRST, _OWED_NONE),
+        ):
+            with self.subTest(name):
+                unproved = DEBT.owes_a_refresh(settled, head)
+                self.assertEqual((unproved, DEBT.owes_a_refresh(settled, head, squashed=True)), owed)
 
 
 if __name__ == "__main__":

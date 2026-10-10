@@ -49,13 +49,15 @@ or a commit whose tree differs from the one recorded. A reading nobody could
 take HOLDS -- a checkout not on this host, or a commit git would not read --
 for the caller to interpret.
 
-Dormant: nothing consults it yet. The validating report hold
-(`stages/validating/report_refresh.py`) asks only `RewriteDebt.owes_a_refresh`,
-so a report of the approved commit before a squash holds nothing there and is
-left to the reviewer road's refusal.
-A consumer reads PROVED as a settled report the debt is owed a fresh report
-of `head` for, and decides for itself what a HOLD costs; the settled report
-itself is still to be re-read at its location before anything acts on it.
+The validating report hold (`stages/validating/report_refresh.py`) is its
+consumer. It asks only where `RewriteDebt.owes_a_refresh` leaves the settled
+report to this proof (`squashed`) -- a report of neither head the debt names,
+on its pull request and branch, against the requirements the issue carries
+now -- and reads PROVED as a settled report the debt is owed a fresh report
+of `head` for, once that report re-reads intact at its location. DEFER leaves
+the stale report to the reviewer road's refusal, as though nothing had asked,
+and a HOLD holds the reviewer with no developer run, for the next tick to read
+again.
 """
 from __future__ import annotations
 

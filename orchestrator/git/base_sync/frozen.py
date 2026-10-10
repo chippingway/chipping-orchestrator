@@ -12,7 +12,8 @@ never sees its base again.
 Most of them end by being SPENT: the step that consumes the record drops it,
 so the freeze lasts exactly as long as the question it belongs to -- the terms
 a squash records before it rewrites the branch among them, dropped by whatever
-finishes or undoes that collapse. Three do not, and they are the reason this
+finishes or undoes that collapse, and a developer report recorded and not yet
+settled, dropped by the binding and settlement that publish it. Three do not, and they are the reason this
 is an owner rather than a tuple. An
 exemption and a publication record are invalidated by the head moving off them
 rather than by any write, so what answers for those is the checkout itself --
@@ -126,6 +127,30 @@ _FROZEN_BY_KEYS: tuple[str, ...] = (
 # that has already moved.
 _LATE_CLAIM_KEYS: tuple[str, ...] = (
     _LATE_READING_KEYS + _LATE_APPROVAL_KEYS
+)
+
+
+# A developer report this issue recorded and has not finished publishing: the
+# delivery a run wrote before the publication it is bound to, and the
+# transaction that binding made before the comment carrying it settled. Each is
+# an account of the head the checkout stood on when it was written, and neither
+# can follow a rewrite. A delivery names no commit at all -- the binding takes
+# whichever one the code-publication receipt names when it runs -- so a rebase
+# before it binds the report to a head no developer read; a transaction names
+# the head it was written about, so a rebase before its settlement leaves it
+# about a head the pull request has left, which the hold can only park on. The
+# rewritten-head report refresh is where both windows are widest, since its
+# report is recorded, bound, and settled across ticks an interruption splits.
+#
+# Both end by being SPENT, like the records above: the binding writes the
+# delivery `null` and the settlement, or the reconciliation's drop, writes the
+# transaction `null`, which is the resting state each is read against. So any
+# other value holds the branch -- a record nobody can read included, which is
+# still a report somebody owes the pull request -- and the first refresh behind
+# the settlement rebases as it always would, its debt then refreshed afresh.
+_REPORT_IN_FLIGHT_KEYS: tuple[str, ...] = (
+    "developer_report_delivery",
+    "developer_report_pending",
 )
 
 
@@ -278,9 +303,13 @@ def _held_records(state: _pinned_state.PinnedState) -> tuple[str, ...]:
     It is also the one group nothing sets aside: the carve-out below is for an
     approval that is this refresh's OWN interrupted work, and a collapse is
     another owner's -- a rebase under one is exactly what it exists to stop.
+
+    A report in flight is read against `null`, the way its own owners ask
+    whether one is outstanding, so a record they cannot read still holds.
     """
     held = tuple(key for key in _FROZEN_BY_KEYS if state.get(key))
     held += _late_claims(state)
+    held += tuple(key for key in _REPORT_IN_FLIGHT_KEYS if state.get(key) is not None)
     return held + tuple(
         key for key in _LATE_COLLAPSE_KEYS if key in state.data
     )

@@ -9,20 +9,40 @@ and the checkout stand on the published head, and the pinned comment claims the
 debt the rebase left. What a case varies is what the developer asked for that
 head's report answers, what moves while it is out, and where the publication
 behind it is interrupted.
+
+The squashed world is the same rebase one step further from the report: the
+settled report is about the commit a reviewer approved, this orchestrator's
+approval squash published `SQUASHED_HEAD` on the same tree in its place and
+carried the approved run onto it, and the rebase replaced the squash. So the
+debt and the receipt name the squash as the head the rebase replaced, and the
+carry is kept in the evidence history, invalidated once the head moved past it,
+which is where a later validating tick finds it.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from unittest.mock import MagicMock
 
 from orchestrator import config
 from orchestrator.github.developer_reports import developer_report_from_comment
-from orchestrator.workflow.engine import report_rewrite_debt as _rewrite_debt
+from orchestrator.workflow.engine import (
+    report_rewrite_debt as _rewrite_debt,
+    report_settlement_state as _report_settlement,
+    review_subjects as _review_subjects,
+    verification_record_state as _evidence_record_state,
+    verification_records as _evidence_records,
+    verification_settlement_state as _evidence_settlement,
+)
+from tests.support.fakes import FakeUser
 from tests.workflow import (
     drift_reports as _drift_world,
     fix_reports as _fix_world,
+    published_reports as _published_reports,
     reviewed_reports as _reviewed,
 )
+from tests.workflow.engine import verification_record_test_support as _evidence_support
 from tests.workflow.fixtures import LABEL_VALIDATING, _agent, _issue_branch
+from tests.workflow.repo_values import _FAKE_TREE_SHA
 
 ISSUE = 2_006
 
@@ -51,8 +71,19 @@ REWRITE = _rewrite_debt.RewriteDebt(
     rewritten_head=REWRITTEN_HEAD,
 )
 
+# The commit an approval's squash published in place of the approved head the
+# settled report is about. The rebase of that squash is `REWRITTEN_HEAD`.
+SQUASHED_HEAD = "5c3a91b7" * 5
+
+SQUASHED_REWRITE = replace(REWRITE, previous_head=SQUASHED_HEAD)
+
 # What `unrecorded` reads where a refresh left no trace.
 NOTHING = (None, None, [], False)
+
+# What settling a report writes, and what a settlement replayed would write
+# again: the report the pull request now carries, the handoff saying this
+# transaction finished, and the round the road behind it spent.
+SETTLED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_round")
 
 # What an issue that predates the record carries in its place: nothing at all.
 LEGACY = object()
@@ -156,3 +187,97 @@ class _RefreshedReports(_reviewed._ReviewedReports):
             ([config.REVIEW_AGENT], None),
         )
         self.assertIn(f"> {text}", _reviewed.prompt(mocks))
+
+    def rebased_again(self, second: _rewrite_debt.RewriteDebt) -> None:
+        """Record the debt a second rebase leaves, and move the receipt and the pull request onto its head."""
+        state = self.github.read_pinned_state(self.issue)
+        self.assertTrue(_rewrite_debt.records_rewrite(state, second))
+        state.set("implementing_published_sha", second.rewritten_head)
+        state.set("implementing_published_lease", second.previous_head)
+        self.github.write_pinned_state(self.issue, state)
+        self.pull_request.head.sha = second.rewritten_head
+
+
+def settled_records(case) -> dict:
+    """What the case's pinned comment holds of every record a settlement writes."""
+    return {key: case.pinned().get(key) for key in SETTLED_RECORDS}
+
+
+def squash_carry(state) -> _evidence_records.EvidenceBinding:
+    """The approval squash's carry of the run on the settled report's commit onto `SQUASHED_HEAD`.
+
+    The approved subject is the settled report exactly -- its commit, pull
+    request, revision, digest, and requirements -- and the carry answers for
+    the squash on the same repository, pull request, and branch, over the tree
+    a tick reads every commit as unless a case seeds another.
+    """
+    settled = _report_settlement.read_current_report(state)
+    reported = settled.subject
+    approved = _review_subjects.ReviewSubject(
+        pr_number=reported.pr_number,
+        commit=reported.source_sha,
+        requirements_revision=reported.requirements_revision,
+        report=_review_subjects.ReviewReport(
+            text=_published_reports.DELIVERED_REPORT,
+            report_revision=settled.report_revision,
+            content_revision=settled.content_revision,
+            source_sha=reported.source_sha,
+            requirements_revision=reported.requirements_revision,
+            location=settled.location,
+        ),
+    )
+    return _evidence_support.binding(
+        target=_evidence_records.EvidenceTarget(
+            publication=replace(reported, source_sha=SQUASHED_HEAD), subject=approved.recorded(),
+        ),
+        tested_sha=reported.source_sha,
+        tested_tree=_FAKE_TREE_SHA,
+    )
+
+
+class _SquashedReports(_RefreshedReports):
+    """Validating ticks over a pull request this orchestrator squashed on approval and then rebased."""
+
+    def squashed_then_rebased(self, carry=squash_carry, claim=None) -> None:
+        """A validating issue whose approved report's squash a rebase replaced, owing `REWRITTEN_HEAD` a report.
+
+        `carry` builds the binding the squash's carry is recorded under from
+        the pinned state, and None records no carry at all; `claim` is the
+        debt the pinned comment carries, the rebase's of the squash unless a
+        case names another.
+        """
+        self.rebased(SQUASHED_REWRITE.recorded() if claim is None else claim)
+        state = self.github.read_pinned_state(self.issue)
+        state.set("implementing_published_lease", SQUASHED_HEAD)
+        if carry is not None:
+            pending = _evidence_record_state.mint_pending_evidence(
+                state, ISSUE, carry(state), (_evidence_support.ran(),),
+            )
+            self.assertTrue(_evidence_record_state.record_pending_evidence(state, pending))
+            _evidence_support.settles(state, pending)
+            self.assertTrue(_evidence_settlement.retire_current_evidence(state))
+        self.github.write_pinned_state(self.issue, state)
+
+    def approved_comment(self):
+        """The comment the approved report landed as, which the settled record names."""
+        return next(
+            posted for posted in self.pull_request.issue_comments
+            if posted.id == self.opening_report.location.comment_id
+        )
+
+    def acknowledges_an_edit(self) -> None:
+        """Edit the issue and move the baseline onto it, as an `ACK:` to that edit leaves it.
+
+        The settled report and the squash's carry stay written against the
+        requirements before the edit.
+        """
+        _drift_world.edits(self, _drift_world.LATER_BODY)
+        _reviewed.restate(self, user_content_hash=_drift_world.handed_revision(self.issue))
+
+    def rewrites_the_approved_report(self, text: str = "", login: str = "") -> None:
+        """Rewrite the approved report's comment in place: its words to `text`, its author to `login`, where given."""
+        landed = self.approved_comment()
+        if text:
+            landed.body = landed.body.replace(_published_reports.DELIVERED_REPORT, text)
+        if login:
+            landed.user = FakeUser(login)

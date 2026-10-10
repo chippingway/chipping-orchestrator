@@ -308,7 +308,8 @@ Where the contract is carried:
   there and, when it is complete and current, end on `REPORT: VERIFIED`; and the drift, late-revision, and
   PR-feedback prompts keep `ACK:` for a reply after which neither the branch nor the report has to change. The
   report-refresh `_build_report_refresh_prompt` carries it whole too, then asks for the `REPORT: READY` block alone and
-  refuses `REPORT: VERIFIED` by name, since the report already on the pull request is about the head a rewrite replaced;
+  refuses `REPORT: VERIFIED` by name, since the report already on the pull request is about the head a rewrite replaced
+  -- or about the approved commit an approval squash collapsed into it, which the prompt then names beside the squash;
   it offers no `ACK:`.
 - **Deferred** in `_build_fresh_respawn_preamble`, which carries `_RESPAWN_REPORT_NOTE` instead: the concise report
   covers the final state of the whole branch, the previous session's commits included; the report's scope, ownership,
