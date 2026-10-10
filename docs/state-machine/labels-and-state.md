@@ -431,7 +431,8 @@ Two paths depending on whether a PR exists:
   the git owner pushes exactly that candidate (`git/base_sync/rewrite_transport.py`, force-with-lease pinned to the
   pre-rebase SHA so a foreign update rejects rather than being clobbered). A landed push is finished by
   `workflow/engine/rewrite_finish.py`: it resets `review_round`, posts a PR notice, records the report the landed head
-  is owed, and relabels to `workflow:validating` so the reviewer re-runs against the rewritten head. Only when the
+  is owed, makes the evidence that head is routed with durable, and relabels to `workflow:validating` so the reviewer
+  re-runs against the rewritten head. Only when the
   rebase actually leaves conflicted files does the helper relabel to `workflow:resolving_conflict`.
 
 The `question` and `discussion` labels skip both paths unconditionally (`_issue_skips_base_sync`) — the question
@@ -673,10 +674,20 @@ refusal for room alone over a comment that still reads as the tick read it — a
 leaves the tick's state to be written, since that comment is only full; every other refusal, and an edit nobody
 confirmed, withholds it. It takes no writer claim of its own: the caller's claim, held through the route, covers it.
 Between the checkpoint and the route sits the post-push, pre-route step where the evidence a landed head
-is routed with is decided; it routes on the base lag alone so far. Its policy is built and dormant
-(`workflow/engine/rewrite_evidence.py`, the
-[base-rewrite evidence](delivery-stages.md#the-verification-evidence-transaction-every-dispatch) bullet): it writes
-nothing, and nothing asks it yet.
+is routed with is decided (`workflow/engine/rewrite_evidence.py`) and, for a head the base has not advanced past
+again, made durable before the relabel (`workflow/engine/rewrite_finish_evidence.py`, the
+[base-rewrite evidence](delivery-stages.md#the-verification-evidence-transaction-every-dispatch) bullets): in one
+guarded commit decided on the attempt, the debt, and every record the evidence is bound through, current evidence
+the rewrite moved past -- its tree, or the context configured as the write is staged, behind any run -- is
+invalidated into history, and a fresh run or a proved carry is recorded as
+`verification_evidence_pending`, which the dispatcher publishes once the attempt is retired. Nothing is recorded where
+the binding to a review of the rewritten head is not there yet, the configuration is empty, the run failed -- its
+notice recorded in the same write (`auto_base_rebase_failed_verification`) and put on the pull request once before
+the route -- something moved under it, or the comment cannot record it: the fresh reviewer owes the evidence. A
+decision nobody could take, an invalidation with no room, a failure notice whose post nobody could confirm, or an
+evidence write refused or unconfirmed holds the route with the attempt standing, for the recovery of the push already
+landed to finish under its own mark: a transaction or failure notice an earlier finish recorded is reused rather than
+made again, with the invalidation a moved context now owes landed before the route.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
@@ -2759,12 +2770,15 @@ The keys that matter for the state machine fall into a few groups:
   (`stages/validating/review_resume.py`) -- so every approval the arc acts on is one that proof passed.
 - **Verification evidence.** Four additive records and a revision floor, the developer report's shape extended rather
   than forked (`workflow/engine/verification_records.py`). The dispatcher reconciles a recorded transaction, and its
-  live producers are two: the returned-verdict disposition, which records the transaction a reviewer's declared
-  commands were minted as in the write persisting its verdict, and the approval's squash, which records a carry onto
+  live producers are three: the returned-verdict disposition, which records the transaction a reviewer's declared
+  commands were minted as in the write persisting its verdict; the approval's squash, which records a carry onto
   the head it published -- of its verify gate's run where that binds, or of the evidence the approval rests on -- in
-  the write settling its handoff (`stages/validating/squash_evidence.py`). The verify gate records nothing on its own
-  account, and the recovery of a waiting verdict records none, so an issue whose reviewer declared no run carries none
-  of these keys. `verification_evidence_pending` is one transaction,
+  the write settling its handoff (`stages/validating/squash_evidence.py`); and the finish of a landed automatic base
+  rewrite, which records a fresh run of the rewritten head or a carry onto it in the write ahead of its route, the
+  evidence it moved past invalidated in the same write (`workflow/engine/rewrite_finish_evidence.py`). The verify
+  gate records nothing on its own
+  account, and the recovery of a waiting verdict records none, so an issue whose reviewer declared no run and whose
+  rewrites recorded none carries none of these keys. `verification_evidence_pending` is one transaction,
   written BEFORE its
   artifact is posted: a receipt (`issue-<n>-verification-<revision>-<nonce>`, which every record's reader holds to that
   record's own revision) and a revision past every one the issue has spent; the report subject's own `repo` / `pr` /
@@ -3115,6 +3129,15 @@ The keys that matter for the state machine fall into a few groups:
   read by PRESENCE, like every other checkpoint here: the key standing at all says a finish announced THIS attempt's
   replay, so a value naming any other head — or naming no commit — is a mark something took apart rather than an
   answer a reader may give as "nothing was announced".
+  `auto_base_rebase_failed_verification` sits beside the group without being a member of it: the notice a landed
+  head's failed configured verification is owed — an object of `head`, the rewritten head the run failed on, and
+  `notice`, the notice's whole text (the failing command, how it failed, and its output's tail) — written by the
+  finish's evidence write before the notice is posted (`workflow/engine/rewrite_finish_failures.py`), so the failure
+  outlives a post GitHub refused or never answered. A finish that finds it naming the head it finishes runs nothing
+  again and posts the recorded notice only where no comment of ours on the pull request carries it already, and the
+  retirement that routes the head writes it `null`. It is additive and read fail-closed: absent, `null`, or any other
+  shape is no record, which a finish answers by deciding afresh, and one naming another head is no record of this
+  landing's.
   The whole group is dropped by the one write that ends an attempt — the reset that puts the branch back, the no-op
   that moved nothing, the relabel that takes the issue out of the refresh's reach, the finalize that publishes, and
   the handoff of an unpublished replay to the late generation adjudicating it (which stages

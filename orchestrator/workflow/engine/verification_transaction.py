@@ -51,9 +51,12 @@ still owed, for a push, a drift resume, a fresh reviewer, or fresher evidence
 to answer.
 
 Save a CARRY: a transaction carrying a run onto a head it did not run on,
-which only an approval's squash records and which nothing later makes answer
-again once refused. Any refusal of it but a reading nobody could take
-abandons it into history with the approval it was recorded for
+which an approval's squash records onto the head it published and a landed
+base rewrite's finish onto its rewritten head (`rewrite_finish_evidence`), and
+which nothing later makes answer again once refused. Any refusal of it but a
+reading nobody could take abandons it into history with the approval it was
+recorded for -- the squash's own; a base rewrite's carry takes one only where
+it is exactly the review of the rewritten head the carry answers for
 (`verification_carries`) -- here, ahead of the post, and on the publication
 and the settlement behind it (`verification_publishing`,
 `verification_settling`) -- for a fresh reviewer to answer the head as it

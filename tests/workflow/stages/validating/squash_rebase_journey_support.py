@@ -166,12 +166,13 @@ class _SquashRebaseJourney(_squash.SquashedRoundWorld):
             **run_options,
         )
 
-    def base_refresh(self, onto: str | None = None, *, push=None) -> None:
+    def base_refresh(self, onto: str | None = None, *, push=None, **run_options) -> None:
         """One per-tick base refresh, the base moved under the pull request's head by a rebase onto `onto`.
 
         With no `onto` the base has not moved, which is the tick a crash
         recovery finishes an attempt on. The push lands unless `push` stands
-        in for it.
+        in for it. `run_options` are the run's own readings beside those --
+        `checkout_tree=None` leaves every tree to the reading a case installed.
         """
         head = self.pull_request.head.sha
         git = _BaseGit(self.pull_request, LAG if onto else 0)
@@ -189,6 +190,7 @@ class _SquashRebaseJourney(_squash.SquashedRoundWorld):
                 fetched_branch_tip=head,
                 candidate_commit=FrozenCommit(sha=onto or head),
                 push_branch=push or _drift_world._LandingPush(self.pull_request),
+                **run_options,
             )
 
     def approved_into_review(self, head: str) -> None:

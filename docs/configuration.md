@@ -632,6 +632,15 @@ approval and its squash -- while the squash runs, or before a refused relabel be
 refuses the carry: the evidence is invalidated and the squash handoff dropped, and the head goes back to a fresh
 reviewer (see [`_handle_validating`](state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating)).
 
+The same commands verify a head an automatic base rebase published, where no current evidence carries onto it -- an
+equal full tree under these two settings -- and a reviewer was already handed a report of the rebased head: a pass is
+recorded as orchestrator-executed evidence of that head before it is routed to `workflow:validating`, and a failure is
+recorded on the pinned comment and posted on the pull request once, with the failing command and its output's tail,
+before the route. Without that review -- the usual case,
+since the rebased head's report refresh has not run yet -- nothing runs: evidence the rebase moved past is
+invalidated, and the fresh reviewer runs the verification itself (see
+[base-rewrite evidence](state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
+
 A run records the commit and full tree it tested, both read before the first command; the exact ordered
 `VERIFY_COMMANDS`; each attempted command's outcome, exit code, and redacted, bounded output; `VERIFY_TIMEOUT`; and a
 context revision digested from those commands and that timeout. The worktree has to read clean before the first
@@ -665,7 +674,8 @@ Conda activation markers and their `PATH` entries for Conda-based target reposit
 commands must select the intended environment.
 
 **Do not embed secret literals in `VERIFY_COMMANDS`.** Verify failures park `awaiting_human` with the offending command
-string published *verbatim* in the GitHub issue comment, and every approving reviewer declares each configured command
+string published *verbatim* in the GitHub issue comment -- a rebased head's failure is posted the same way on the pull
+request -- and every approving reviewer declares each configured command
 exactly as written, with the output it quotes, in a verification artifact the orchestrator publishes on the pull request
 — kept in its hidden payload, out of the rendered thread but in the comment's source for anybody who reads it — so an
 inline `ANTHROPIC_API_KEY=sk-… pytest` entry would leak the literal secret on the first failure or the first approval.
@@ -676,7 +686,8 @@ outside the worktree (`~/.config/<provider>/key`) and exports it before running 
 ### Settings
 
 - `VERIFY_COMMANDS` — default _(empty — no verification)_. Ordered shell commands run sequentially in the per-issue
-  worktree on `VERDICT: APPROVED`, and the commands every approving reviewer has to declare. Entries are separated by
+  worktree on `VERDICT: APPROVED` and on a rebased head no evidence carries onto, and the commands every approving
+  reviewer has to declare. Entries are separated by
   `;` or newlines; blank lines and `#`-comment lines are skipped. Each entry runs via the shell so quoting, pipes, and
   `&&` work; stdout and stderr are merged into one captured block.
 - `VERIFY_TIMEOUT` — default `600`. Per-command wall-clock cap in seconds. A single slow command parks with

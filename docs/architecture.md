@@ -890,8 +890,13 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   a replay record naming another head, a lag against the base nobody could count — makes nothing, and a head this
   tick pushed nothing for is announced as one found standing. Every write is a guarded commit, so a refused or
   unconfirmed one stops the finish with nothing behind it made. Its post-push, pre-route step is where the evidence a
-  landed head is routed with is decided, on the base lag alone so far; the policy for it
-  (`workflow/engine/rewrite_evidence.py`) is built and dormant. It runs under its caller's issue writer claim.
+  landed head is routed with is decided (`workflow/engine/rewrite_evidence.py`) and made durable before the route
+  (`workflow/engine/rewrite_finish_evidence.py`): current evidence the rewrite moved past invalidated into history,
+  and a fresh run or a proved carry recorded as the evidence transaction's pending record for the dispatcher to publish
+  -- or nothing recorded, and the fresh reviewer owes the evidence, a failed run's notice recorded first and put on the
+  pull request once (`workflow/engine/rewrite_finish_failures.py`). A decision nobody could take, an evidence write
+  that did not land or fit, or a failure notice nobody could confirm published holds the route with the attempt
+  standing, and the finish that completes it reuses what was recorded. It runs under its caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

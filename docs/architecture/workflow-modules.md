@@ -1129,12 +1129,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             prepared before the notice and the `base_rebased` event go out, and lands the debt, the
                             reset round, and the mark while the anchor stands; a finish whose mark already names the
                             head repeats neither and lands only a debt new beside it. The post-push, pre-route step
-                            (`_decides_the_route`) is where a landed head's evidence is decided, and routes on the base
-                            lag alone so far: its policy (`rewrite_evidence.py`) is built and asked by nothing yet.
-                            The retirement -- the attempt cleared, the round reset, a human's retry
-                            spent -- is prepared before the relabel to `workflow:validating` and lands behind it, and a
-                            head the base advanced past again is retired unrouted for the caller's next rebase. A
-                            refused or unconfirmed write stops the finish with nothing behind it made. It runs under its
+                            (`_decides_the_route`) is where a landed head's evidence is decided: a head the base
+                            advanced past again is retired unrouted for the caller's next rebase, and every other one
+                            is routed only once its evidence step (`rewrite_finish_evidence.py`) has landed what the
+                            decision requires, or stops the finish where it could not. The retirement -- the attempt
+                            cleared, the round reset, a human's retry spent -- is prepared before the relabel to
+                            `workflow:validating` and lands behind it. A refused or unconfirmed write, or an evidence
+                            decision held, stops the finish with nothing behind it made. It runs under its
                             caller's issue writer claim and takes none. The ordinary publication
                             (`rewrite_publication.py`) hands its landing here, and the recovery's retry
                             (`rewrite_retry.py`) and its finish of a push already landed (`rewrite_landed.py`) hand
@@ -1146,26 +1147,57 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             spends, with whether this tick's own push is what the remote was shown standing on --
                             an observation, a publication refused over a remote already on the replay, and a push
                             whose remote could not be read after are not -- and what it came to (`FinishOutcome`):
-                            routed, continued to another rebase, parked, refused, unconfirmed, or unfinishable
+                            routed, continued to another rebase, parked, refused, unconfirmed, held over an evidence
+                            decision nobody could take, an invalidation with no room, or a failure notice nobody
+                            could confirm published, or unfinishable
     rewrite_finish_debt.py  the debt a landed rewrite leaves, staged only where both the announcement write it rides
                             -- the notice's ledger entry reserved at the widest id, the reset round, and the mark --
                             and the comment as it stands have room for it, a refusal for anything but room leaving a
                             standing claim as it is; and the park notice of a debt with no room
+    rewrite_finish_evidence.py
+                            the finish's evidence step for a head it routes: asks the policy (`rewrite_evidence.py`)
+                            and lands what the decision requires in one guarded commit before the relabel -- the
+                            current evidence invalidated into history where the rewrite moved the tree or context, a
+                            fresh or carried result minted and recorded as the pending transaction, which the
+                            dispatcher's reconciliation (`verification_transaction.py`) publishes and settles once the
+                            attempt is retired, and a FAILED run's notice, recorded and then published once
+                            (`rewrite_finish_failures.py`). A result the comment cannot record is recorded nowhere, and
+                            the head goes to the fresh reviewer, as for a REVIEWER or MOVED decision. A transaction or
+                            failure notice an earlier finish of the landing recorded for the head is reused with no
+                            second run or revision. On either road the invalidation is asked as the write is staged
+                            (`rewrite_evidence.invalidates_current`), behind any commands run, so a configuration
+                            moved during the run or between finishes is answered. A decision short of a reading nobody
+                            could take, an invalidation with no room, or a failure notice nobody could confirm
+                            published holds the route (`HELD`)
+    rewrite_finish_failures.py
+                            the notice a landed head's failed verification is owed, kept on the pinned comment
+                            (`auto_base_rebase_failed_verification`: the head and the notice's whole text) from the
+                            evidence write until the retirement clears it, and its publication: the pull request's
+                            conversation read, and the notice posted only where no comment of ours carries it -- its
+                            whole text its identity, its author held to this orchestrator -- so a lost answer is found
+                            where it landed; an unreadable thread or a post that raised holds the route
     rewrite_finish_notices.py
                             the pull-request notice and the `base_rebased` event a finish announces with, spelled as
                             every finish has spelled them -- the publication's, a recovery that pushed
                             again, and a head this tick sent nothing for, on either road, as one found standing,
                             each recovery notice saying where a base advanced again sends the landed head -- and the
-                            method the event files for each
+                            method the event files for each; and the notice of a configured verification the landed
+                            head failed, naming the command, how it failed, and its output's tail
     rewrite_finish_writes.py
                             the guarded commits the finish writes through, under the tick-state guard
                             (`report_commits.py`) and decided on the publication's pinned fields as well: the
                             checkpoint, decided on the attempt, the report records and claim, the park's flags, and
                             the round, and prepared with its notice's ledger entry reserved over the fresh ledger;
-                            the retirement, decided on the attempt, the park's flags, the round, and the claim; and
-                            the debt park, decided on what the checkpoint is and prepared before its notice is posted
-    rewrite_evidence.py     the dormant evidence policy for a landed rewrite's head, handed the finish's input and
-                            writing nothing; nothing consults it yet. Where the tree the rewrite replaced, the tree it
+                            the evidence write, owning the four evidence records' pending, current, and history, the
+                            revision floor, and a failed run's notice, decided on the attempt, the claim, and every
+                            record the evidence is bound through (`verification_durable.py`); the retirement, clearing
+                            that notice beside the attempt, decided on the attempt, the park's flags, the round, and
+                            the claim; and the debt park, decided on what the checkpoint is and prepared before its
+                            notice is posted
+    rewrite_evidence.py     the evidence policy for a landed rewrite's head, handed the finish's input and writing
+                            nothing; the finish's evidence step (`rewrite_finish_evidence.py`) asks it for every head
+                            it routes, and asks whether the current evidence is invalidated (`invalidates_current`)
+                            again as it stages its write. Where the tree the rewrite replaced, the tree it
                             published, and the tree the current evidence tested all read as one under the configured
                             context, the generic carry-forward decision (`verification_carry_forward.py`) is asked and
                             held to a review subject about the rewritten head -- never the approval of the replaced
@@ -1190,7 +1222,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             carried, reviewer, failed, or moved), whether the current evidence is invalidated, the
                             refusal in the proof's own verdicts, the run, and what a fresh run binds or a carry
                             licenses; `stages` retires the current evidence into history as invalidated where the
-                            decision says so, through `verification_settlement_state.py`, and writes nothing
+                            decision says so, through `verification_settlement_state.py`, and writes nothing; the
+                            evidence step lands that same retirement, through the same owner
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in. The greeting anchors both
                             `pickup_comment_id` and `last_action_comment_id`, the floor the park ending the first
@@ -1249,8 +1282,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             commit id as the head wherever a pull request is named, and neither a head nor a report
                             where none is -- or neither its identity, its head, nor its requirements are read
     verification_records.py the verification-evidence records and their pinned keys, reconciled by the dispatcher
-                            (`verification_transaction.py`), whose live producers are a returned reviewer and the
-                            approval squash's carry-forward (`stages/validating/squash_evidence.py`): PENDING
+                            (`verification_transaction.py`), whose live producers are a returned reviewer, the
+                            approval squash's carry-forward (`stages/validating/squash_evidence.py`), and a landed base
+                            rewrite's fresh run or carry (`rewrite_finish_evidence.py`): PENDING
                             (`verification_evidence_pending`, the run and its binding, written before the artifact is
                             posted), CURRENT (`verification_evidence_current`), HISTORY
                             (`verification_evidence_history`, retired records with why -- superseded, invalidated, or
@@ -1309,8 +1343,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             revision floor, not the index, keeps revisions monotonic
     verification_local_runs.py
                             what one local `VERIFY_COMMANDS` run is worth as evidence, asked by the approval squash
-                            of its verify gate's run (`stages/validating/squash_evidence.py`) and by the dormant
-                            base-rewrite evidence policy of its fresh run (`rewrite_evidence.py`): only a run
+                            of its verify gate's run (`stages/validating/squash_evidence.py`) and by the base-rewrite
+                            evidence policy of its fresh run (`rewrite_evidence.py`): only a run
                             `is_reusable` vouches for, on the head its target answers for, bound with exactly the
                             commands that ran. A failed run binds nothing, since the runner proves no
                             clean tree after a nonzero exit; nor do an empty configuration, a timeout, a dirty or moved
@@ -1339,8 +1373,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             verify runner's own over the configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, for both
                             witnesses), the recorded subject, the world, the settled report, the requirements -- in
                             the report transaction's verdict vocabulary; `binding_verdict` is both halves in one call,
-                            which the settlement takes again over the comment it re-read, and which the dormant
-                            base-rewrite evidence policy (`rewrite_evidence.py`) takes over a carry, and over a run's
+                            which the settlement takes again over the comment it re-read, and which the base-rewrite
+                            evidence policy (`rewrite_evidence.py`) takes over a carry, and over a run's
                             binding before the run and behind it. `current_evidence_verdict`
                             is for a reader about to rely on the current record: the pull request, then its
                             publication (`verification_current.py` -- the latest record, its handoff, its artifact),
@@ -1359,10 +1393,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             evidence it copied its transcript from (`copied_from`): still the current record, its
                             artifact re-read as the one that settled and carrying exactly the commands copied --
                             asked ahead of the carry's post and again ahead of its settlement
-    verification_carries.py a refused carry -- a transaction carrying a run onto a head it did not run on, which only
-                            an approval's squash records -- abandoned into history with the approval it was recorded
-                            for (`review_approved_subject` written null, while it is still that approval spelled exactly
-                            as the carry recorded it, and even where the carry's own entry has no room), in one guarded
+    verification_carries.py a refused carry -- a transaction carrying a run onto a head it did not run on, which an
+                            approval's squash records onto the head it published and a landed base rewrite's finish
+                            onto its rewritten head (`rewrite_finish_evidence.py`) -- abandoned into history with the
+                            approval it was recorded for (`review_approved_subject` written null, while it is still
+                            exactly the subject the carry answers for, spelled as the carry recorded it -- the squash's
+                            approval, and for a base rewrite's carry only an approval of the rewritten head's review --
+                            and even where the carry's own entry has no room), in one guarded
                             commit staged on the pinned comment read afresh and guarded by it
                             (`verification_durable.py`), owning only the record, its history, and that approval
                             (`ABANDONS`), so an approval, a transaction, or any other bound record another road moved
@@ -1391,8 +1428,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             carried over the same proofs save an artifact it never had, with its own transcript. The
                             approval squash asks for one (`squash_evidence.py`), and takes the unchanged approved
                             review alone (`approved`): a review recorded about the new head since refuses it. The
-                            dormant base-rewrite evidence policy (`rewrite_evidence.py`) takes only a review
-                            recorded about the rewritten head
+                            base-rewrite evidence policy (`rewrite_evidence.py`) takes only a review recorded about
+                            the rewritten head
     verification_publishing.py
                             posting a proved transaction's artifact through `verification_comments.py`, scoped by
                             its receipt: the settlement's own guarded commit staged at its widest

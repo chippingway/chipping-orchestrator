@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Sequencing owner for a configured `VERIFY_COMMANDS` run.
 
-This is the entry point the validating stage calls -- and the one the dormant
-evidence policy of a landed automatic base rewrite
-(`workflow/engine/rewrite_evidence.py`) is built over: it mints the context
+This is the entry point the validating stage calls -- and the one the evidence
+policy of a landed automatic base rewrite
+(`workflow/engine/rewrite_evidence.py`) runs a rewritten head through: it mints the context
 revision from the configuration it was given, reads the commit and full tree
 to verify, proves the worktree clean, builds the stripped child environment
 once, and runs the commands in order until one of them earns a refusal.

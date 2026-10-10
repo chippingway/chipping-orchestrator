@@ -1,15 +1,15 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The evidence a landed automatic base rewrite's head would be routed with, decided while nothing consults it.
+"""The evidence a landed automatic base rewrite's head is routed with.
 
 A rebase whose push landed moves the pull request onto a head no verification
 evidence was recorded for, and its finish (`rewrite_finish`) routes that head
 to review between its checkpoint and its route. This owner is the evidence
-policy for that step (`decides`), and it is DORMANT: the finish still routes on
-the base lag alone, and nothing records, publishes, or routes on what this
-decides. It reads the landing the finish is handed (`rewrite_finish_models`)
-and writes nothing, so a caller can ask it without changing any record; the
-one staging its decision implies is `RewriteEvidence.stages`.
+policy for that step (`decides`), asked by the finish's evidence step
+(`rewrite_finish_evidence`) for every head it routes, which records what the
+decision requires before anything routes. It reads the landing the finish is
+handed (`rewrite_finish_models`) and writes nothing itself; the one staging its
+decision implies is `RewriteEvidence.stages`.
 
 Evidence is carried only across a rewrite PROVED to change nothing it was
 taken over. The landing carries both trees -- the one the rewrite replaced and
@@ -124,7 +124,7 @@ _UNREAD = _evidence_models.ReportEvidence(
 
 
 def decides(finish: LandedFinish) -> RewriteEvidence:
-    """The evidence `finish`'s landed head would be routed with; nothing is written.
+    """The evidence `finish`'s landed head is routed with; nothing is written.
 
     Asked of a landing the finish accounts for, after its push landed and
     before anything routes it. A carry where the rewrite is proved equivalent
@@ -133,31 +133,37 @@ def decides(finish: LandedFinish) -> RewriteEvidence:
     bound.
     """
     reading = _proof.ProofReading(finish.gh, finish.spec, finish.issue, finish.state)
-    current = _settlement.read_current_evidence(finish.state)
-    invalidates = current is not None and _moved(finish, current.binding)
+    invalidates = invalidates_current(finish)
     carried = None
-    if current is not None and not invalidates:
+    if _settlement.read_current_evidence(finish.state) is not None and not invalidates:
         carried = _carried(reading, finish.head)
     decided = carried or _verified(reading, finish, invalidates)
     log.info(
-        "issue=#%d would route the base rewrite's head %.8s with %s evidence, "
+        "issue=#%d decided %s evidence for the base rewrite's head %.8s, "
         "invalidating the current evidence: %s; %s",
-        finish.issue.number, finish.head, decided.route.value, decided.invalidates,
+        finish.issue.number, decided.route.value, finish.head, decided.invalidates,
         decided.reason or "nothing refused",
     )
     return decided
 
 
-def _moved(finish: LandedFinish, binding: _records.EvidenceBinding) -> bool:
-    """Whether the rewrite moved the full tree or the context `binding` was taken under.
+def invalidates_current(finish: LandedFinish) -> bool:
+    """Whether the rewrite moved the full tree or the context the current evidence was taken under.
 
     Equivalence has to be shown rather than assumed: the tree the rewrite
     replaced, the tree it published, and the tree the evidence tested all
-    read, and are one, under the context configured now.
+    read, and are one, under the context configured now. False where there is
+    no current evidence to invalidate. Asked again by the finish as it stages
+    its write -- behind the commands a decision ran, and of a decision an
+    earlier finish made durable -- since the configuration can move in
+    between.
     """
+    current = _settlement.read_current_evidence(finish.state)
+    if current is None:
+        return False
     candidate = finish.landed.candidate
-    trees = {candidate.original_tree, candidate.checkout.tree, binding.tested_tree}
-    context = binding.context_revision == _proof.configured_context_revision()
+    trees = {candidate.original_tree, candidate.checkout.tree, current.binding.tested_tree}
+    context = current.binding.context_revision == _proof.configured_context_revision()
     return not (context and candidate.checkout.tree and len(trees) == 1)
 
 

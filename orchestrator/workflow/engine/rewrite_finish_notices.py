@@ -20,14 +20,24 @@ The notice is best effort: a post that fails is logged, and the publication it
 was about is recorded all the same. A post that lands enters the ledger of
 this orchestrator's comments on the state the caller stages, so the write that
 records the announcement carries it.
+
+A landed head whose configured verification failed is said once more, behind
+its announcement (`failure`): the failing command, how it failed, and the tail
+of what it printed, worded as the approval's own verify gate words a failure
+(`stages/validating/verify.py`), so the failure stays actionable on the pull
+request although nothing records it as evidence. That notice is not best
+effort: it is recorded before it is posted and the route waits for the pull
+request to carry it (`rewrite_finish_failures`); only its wording is here.
 """
 from __future__ import annotations
 
 import logging
 
+from orchestrator.git.verification.models import VerifyResult
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import comments as _comments, messages as _messages
 from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad, LandedFinish
+from orchestrator.workflow.stages.validating import verify as _verify
 from orchestrator.workflow.state import WorkflowLabel, stage_name
 
 log = logging.getLogger("orchestrator.workflow")
@@ -97,6 +107,27 @@ def notice(finish: LandedFinish) -> str:
         f"{said} Base advanced again by {finish.behind} commit(s) since the interrupted "
         f"rebase; rebasing once more before routing to `{WorkflowLabel.VALIDATING}`."
     )
+
+
+def failure(finish: LandedFinish, run: VerifyResult) -> str:
+    """The pull-request notice of the configured verification `finish`'s landed head failed.
+
+    The output is quoted exactly as the runner left it, redacted and then
+    truncated, since redacting a tail again cannot catch a secret the cut
+    split. No evidence is recorded for the head, so the fresh reviewer it is
+    routed to runs the verification itself.
+    """
+    short_head = finish.head[:_SHORT_SHA]
+    said = (
+        ":x: The configured verification failed on the rebased head "
+        f"`{short_head}`: {_verify._verify_failure_detail(run)}. Nothing is recorded "
+        f"as verification evidence for it; routing to `{WorkflowLabel.VALIDATING}`, where the "
+        "fresh reviewer runs the verification itself."
+    )
+    output = (run.output or "").rstrip()
+    if not output:
+        return said
+    return f"{said}\n\n_Verify output (tail):_\n\n{_messages._as_blockquote(output)}"
 
 
 def _published(finish: LandedFinish) -> str:

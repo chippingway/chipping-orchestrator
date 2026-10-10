@@ -22,7 +22,7 @@ nobody can produce:
   taken; nothing here says any check passed.
 - FAILED is the configured commands run on the rewritten head and not
   passing. The run is kept whole, so the failing command, its status, and its
-  output stay what a park quotes.
+  output stay what the notice on the pull request quotes.
 - MOVED is a result something it is bound to moved under while the commands
   ran -- a head, the requirements, the report or the review subject, the
   configuration -- a run whose own baseline was another commit, tree, or
@@ -38,7 +38,9 @@ the new head. Equivalence is what spares it, and only a carry then supersedes
 it.
 
 Data and the one staging it implies, nothing that writes. The policy that
-decides it is `rewrite_evidence`.
+decides it is `rewrite_evidence`, and the finish's evidence step
+(`rewrite_finish_evidence`) records what each route requires before the head
+is routed.
 """
 from __future__ import annotations
 

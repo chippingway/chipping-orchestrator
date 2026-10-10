@@ -26,9 +26,9 @@ replay an interrupted tick never published (`workflow/engine/rewrite_retry.py`),
 which reads its candidate through `recovery_push`, and so does its recovery of
 a push an interrupted tick already landed (`workflow/engine/rewrite_landed.py`):
 the same candidate, with the landing observed where the remote stands rather
-than published again. The two trees a candidate carries are what the dormant
-evidence policy of a landed rewrite (`workflow/engine/rewrite_evidence.py`)
-holds the current evidence's tested tree to; no policy is decided here.
+than published again. The two trees a candidate carries are what the evidence
+policy of a landed rewrite (`workflow/engine/rewrite_evidence.py`) holds the
+current evidence's tested tree to; no policy is decided here.
 """
 from __future__ import annotations
 
