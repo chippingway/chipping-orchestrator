@@ -1651,9 +1651,19 @@ The keys that matter for the state machine fall into a few groups:
   nothing else (see the **agent-run-limit park** bullet below). A returned verdict's parks set `reviewer_unverified`
   and `reviewer_unrecorded` in their own write for a reason of their own: neither retries itself, and the reason is
   what hands the reply to a fresh reviewer rather than to the developer, and what the drift check stands down for
-  (see the **Returned reviewer verdict** bullet below). A `park_reason` spelled as anything but a word -- a hand edit
-  leaving a list or an object -- names no park the `workflow:validating` awaiting and drift routes know, exactly as
-  an unknown word does: a reply to it resumes the developer, and an edit under it takes the drift road. A failed
+  (see the **Returned reviewer verdict** bullet below). `reviewer_usage_limit` is the reviewer-side reason for a
+  reviewer its provider's usage limit stopped -- additive, and one no road sets yet, since recognizing that stop on a
+  reviewer's result is a separate change; what is defined is how the park is answered. It never retries itself,
+  because another poll is no evidence the quota reset, so it is outside `_VALIDATING_TRANSIENT_PARK_REASONS`; it is
+  among `_REVIEWER_SIDE_PARK_REASONS`, so the drift check stands down for it; and the one reply that answers it is a
+  trusted `/orchestrator continue`. Anything short of that command -- a quiet tick, an outsider's words the trust
+  filter takes out, a trusted reply without the command -- holds the park with nothing run, posted, consumed, or
+  written, the round, the pull request, the worktree, and the developer session left as they are; the command clears
+  it into a fresh reviewer round, never a developer resume (see
+  [`delivery-stages.md`](delivery-stages.md#_handle_validating-label-workflowvalidating)). A `park_reason` spelled as
+  anything but a word -- a hand edit leaving a list or an object -- names no park the `workflow:validating` awaiting
+  and drift routes know, exactly as an unknown word does: a reply to it resumes the developer, and an edit under it
+  takes the drift road. A failed
   verify gate's `verify_*` reason is set in the park's own write too, through the funnel a returned verdict's parks
   take (`stages/validating/review_parks.py`): only over the approved subject still standing behind the gate and
   behind the park's notice, and only behind a notice that was identified. A failed squash-on-approval sets
@@ -2350,7 +2360,8 @@ The keys that matter for the state machine fall into a few groups:
   requirements change (a reviewer-side park retries on its own or, for a returned verdict's `reviewer_unverified` /
   `reviewer_unrecorded` park, waits on exactly that reply, so a reply to one says something), so it records
   none and the round is held for the developer; a round bought before the key existed is held to the drift baseline
-  too.
+  too. A `reviewer_usage_limit` park is bought only by a reply carrying the `/orchestrator continue` line, and is
+  held to the same split: the bare command records the reach, and words beside it record none.
 - **The review-cap grant already honored.** `review_cap_granted_comment_id`, additive, holding the id of the
   comment the last `/orchestrator add-review-rounds` reset was written for. A grant may leave that command
   uncrossed — a bounded reviewer round records only what its own excerpt carried — so the batch a LATER cap

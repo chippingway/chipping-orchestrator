@@ -1,9 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Review-cap, interruption, and trust-filter validating scenarios."""
+"""Review-cap, reviewer-quota, interruption, and trust-filter validating scenarios."""
 
 from __future__ import annotations
 
+import copy
 import unittest
 
 from orchestrator.workflow.engine import content_hash as _content_hash, prompt_context as _prompt_context
@@ -12,6 +13,7 @@ from orchestrator.workflow.stages.validating import (
     drift_outcomes as _drift_outcomes,
     state as _state,
 )
+from tests.workflow import published_reports as _published_reports
 from tests.workflow.stages.validating import (
     validating_review_test_support as review_support,
 )
@@ -83,6 +85,17 @@ CAP_RESET_MESSAGE = "review-cap reset"
 USER_CONTENT_HASH = "user_content_hash"
 ALLOWED_AUTHORS_SETTING = "ALLOWED_ISSUE_AUTHORS"
 ALLOWED_AUTHORS = ("geserdugarov",)
+QUOTA_ISSUE = 92
+QUOTA_PR = 20
+# The first reply written under the quota park; any later one numbers up from it.
+QUOTA_REPLY_ID = 1400
+# The park a reviewer its provider's usage limit stopped is filed under.
+REVIEWER_USAGE_LIMIT = "reviewer_usage_limit"
+REVIEWER_TIMEOUT = "reviewer_timeout"
+TRUSTED_LOGIN = ALLOWED_AUTHORS[0]
+OUTSIDER_LOGIN = "mallory"
+RECOVERED_NOTICE = "Recovered automatically"
+REVIEWER_SESSION = "rev-sess"
 
 
 class HandleValidatingReviewCapAddRoundsCommandTest(
@@ -746,6 +759,156 @@ class HandleValidatingResumeTrustFilterTest(
         ]
         self.assertEqual(len(reviewer_spawns), 1)
         self.assertEqual(trust_github.pinned_data(TRUST_RETRY_ISSUE).get(LAST_ACTION_COMMENT_ID), FOLLOWUP_COMMENT_ID)
+
+
+def _spawned_roles(github) -> list:
+    """The role of every agent the ticks so far spawned, in order."""
+    return [
+        event.get(AGENT_ROLE)
+        for event in github.recorded_events
+        if event[EVENT_NAME] == EVENT_AGENT_SPAWN
+    ]
+
+
+class HandleValidatingReviewerUsageLimitTest(unittest.TestCase, _PatchedWorkflowMixin):
+    """Hold a reviewer quota park until a trusted continue buys one fresh reviewer."""
+
+    def test_holds_without_a_trusted_continue(self) -> None:
+        # Another poll is no evidence the provider's quota reset, and neither
+        # is anything short of the operator's own command: an outsider's
+        # continue the trust filter takes out, a trusted reply without the
+        # command, the command mentioned inside a sentence. Every tick leaves
+        # the park exactly as it was filed -- nothing run, posted, consumed, or
+        # written, and the developer whose session it stands over not resumed.
+        for replies in (
+            (),
+            ((OUTSIDER_LOGIN, RETRY_CONTROL),),
+            ((TRUSTED_LOGIN, "is the quota back yet?"),),
+            ((TRUSTED_LOGIN, f"do I just post `{RETRY_CONTROL}` here?"),),
+        ):
+            with self.subTest(replies=replies):
+                self._assert_held(*self._quota_parked(*replies))
+        # Never among the parks a quiet tick may retry on its own -- the
+        # grouping every recovery and reroute keyed on it reads.
+        self.assertNotIn(REVIEWER_USAGE_LIMIT, _state._VALIDATING_TRANSIENT_PARK_REASONS)
+
+    def test_trusted_continue_buys_one_fresh_reviewer(self) -> None:
+        # The operator says the quota reset, which buys the reviewer the park
+        # was taken from -- one, on this tick -- and nothing of the developer's:
+        # no session resumed, and no drift road taken over the command, which is
+        # a control rather than requirements. The round it bought records it as
+        # read, so it buys nothing again.
+        github, issue = self._quota_parked((TRUSTED_LOGIN, RETRY_CONTROL))
+
+        ran = self._ticks(github, issue)[RUN_AGENT].call_args
+
+        self.assertEqual(ran.args[0], config.REVIEW_AGENT)
+        self.assertIsNone(ran.kwargs.get("resume_session_id"))
+        self.assertEqual(_spawned_roles(github), [ROLE_REVIEWER])
+        released = github.pinned_data(QUOTA_ISSUE)
+        self.assertEqual(
+            (released.get(AWAITING_HUMAN), released.get(PARK_REASON), released.get(OWES_A_ROUND)),
+            (False, None, None),
+        )
+        self.assertEqual(released.get(LAST_ACTION_COMMENT_ID), QUOTA_REPLY_ID)
+        self.assertEqual(released.get(REVIEW_ROUND), 1)
+        self.assertEqual(released.get("dev_session_id"), DEV_SESSION)
+        self.assertFalse(
+            any(DRIFT_NOTICE in body for _, body in github.posted_comments),
+        )
+
+    def test_interrupted_review_keeps_the_park(self) -> None:
+        # A reviewer the shutdown sweep killed read nothing anybody may count,
+        # so the park and the command that released it stand where they were:
+        # the next tick's same command buys the reviewer again, and only the
+        # round that ran records it as read.
+        github, issue = self._quota_parked((TRUSTED_LOGIN, RETRY_CONTROL))
+
+        self._ticks(github, issue, run_agent=_agent(interrupted=True))
+        interrupted = github.pinned_data(QUOTA_ISSUE)
+        self.assertTrue(interrupted.get(AWAITING_HUMAN))
+        self.assertEqual(
+            (interrupted.get(PARK_REASON), interrupted.get(LAST_ACTION_COMMENT_ID)),
+            (REVIEWER_USAGE_LIMIT, ACTION_COMMENT_ID),
+        )
+
+        self._ticks(github, issue)
+        self.assertEqual(github.pinned_data(QUOTA_ISSUE).get(LAST_ACTION_COMMENT_ID), QUOTA_REPLY_ID)
+        self.assertEqual(_spawned_roles(github), [ROLE_REVIEWER, ROLE_REVIEWER])
+
+    def test_timed_out_reviewer_parks_as_a_timeout(self) -> None:
+        # The reviewer the command bought ran, so the command is read, and
+        # its timeout is the `reviewer_timeout` park's to answer as it always
+        # is: a quiet tick clears it into the next reviewer, announced as the
+        # recovery it is, with no quota park left holding it and no command
+        # left to buy a round of its own.
+        github, issue = self._quota_parked((TRUSTED_LOGIN, RETRY_CONTROL))
+
+        self._ticks(github, issue, run_agent=_agent(timed_out=True))
+        timed_out = github.pinned_data(QUOTA_ISSUE)
+        self.assertEqual(timed_out.get(PARK_REASON), REVIEWER_TIMEOUT)
+        self.assertGreaterEqual(timed_out.get(LAST_ACTION_COMMENT_ID), QUOTA_REPLY_ID)
+
+        self._ticks(github, issue, run_agent=_agent())
+        self.assertIsNone(github.pinned_data(QUOTA_ISSUE).get(PARK_REASON))
+        self.assertIn(RECOVERED_NOTICE, github.posted_comments[-1][1])
+        self.assertEqual(_spawned_roles(github), [ROLE_REVIEWER])
+
+    def _quota_parked(self, *replies):
+        """A validating issue parked on its reviewer's spent quota, with `replies` written under it.
+
+        Each reply is an author and a body, numbered up from `QUOTA_REPLY_ID`.
+        The pull request carries the report its delivery published, so the
+        record a tick could move is whole before any tick runs.
+        """
+        github = FakeGitHubClient()
+        issue = make_issue(QUOTA_ISSUE, label=LABEL_VALIDATING)
+        github.add_issue(issue)
+        github.seed_state(
+            QUOTA_ISSUE,
+            awaiting_human=True,
+            park_reason=REVIEWER_USAGE_LIMIT,
+            last_action_comment_id=ACTION_COMMENT_ID,
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
+            review_round=1,
+            dev_session_id=DEV_SESSION,
+            dev_agent=BACKEND_CLAUDE,
+            pr_number=QUOTA_PR,
+            branch=_issue_branch(QUOTA_ISSUE),
+        )
+        review_support._open_pr_for(github, issue_number=QUOTA_ISSUE, pr_number=QUOTA_PR)
+        _published_reports.publishes_the_report(github, issue)
+        issue.comments.extend(
+            FakeComment(id=QUOTA_REPLY_ID + offset, body=body, user=FakeUser(author))
+            for offset, (author, body) in enumerate(replies)
+        )
+        return github, issue
+
+    def _ticks(self, github, issue, **run_options):
+        """One validating tick with the author allowlist on, so trust decides whose words count.
+
+        A reviewer that runs approves the head the pull request stands on,
+        unless the case names another run.
+        """
+        run_options.setdefault(
+            RUN_AGENT, _agent(session_id=REVIEWER_SESSION, last_message=REVIEW_APPROVED_MESSAGE),
+        )
+        run_options.setdefault("head_shas", [BEFORE_FIX_SHA])
+        with patch.object(config, ALLOWED_AUTHORS_SETTING, ALLOWED_AUTHORS):
+            return self._run_validating(github, issue, **run_options)
+
+    def _assert_held(self, github, issue) -> None:
+        """Two ticks over the park, each leaving everything as the park filed it."""
+        parked = copy.deepcopy(github.pinned_data(QUOTA_ISSUE))
+        for _ in range(2):
+            mocks = self._ticks(github, issue, run_agent=_agent())
+            mocks[RUN_AGENT].assert_not_called()
+            mocks["_ensure_worktree"].assert_not_called()
+            mocks[PUSH_BRANCH].assert_not_called()
+        self.assertEqual(github.pinned_data(QUOTA_ISSUE), parked)
+        self.assertEqual(github.write_state_calls, 0)
+        self.assertEqual((github.posted_comments, github.posted_pr_comments), ([], []))
+        self.assertEqual(github.label_history, [])
 
 
 if __name__ == "__main__":

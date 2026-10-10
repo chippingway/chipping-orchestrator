@@ -4250,7 +4250,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reviewer-side park -- a returned verdict's `reviewer_unverified` and
                             `reviewer_unrecorded` among them -- is answered by a fresh reviewer, and its retry
                             records nothing at all: that reply belongs to the round it
-                            buys, which reads it under the round's own bound (`reviewer.py`). Both roads DO write
+                            buys, which reads it under the round's own bound (`reviewer.py`). The usage-limit park
+                            (`reviewer_usage_limit`) is answered only by a batch carrying the `/orchestrator
+                            continue` line, and short of one the same claim holds the tick -- idle or not, ahead
+                            of the dev attempt, consuming and posting nothing. Both roads DO write
                             down the round those words bought, since the clear can go out on a tick that runs no
                             round and the reply has moved the requirements by the next one.
                             A transient retry that resolves drops the fresh review budget a hand-back recorded
@@ -4939,8 +4942,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             evidence a reuse may name
       state.py              the pinned-state keys, park reasons, and outcome tokens they share -- with the
                             grouping of the reviewer-side parks whose reply buys a fresh reviewer and that the
-                            drift check stands down for, `reviewer_unverified` and `reviewer_unrecorded` among
-                            them, neither of which retries itself -- including the
+                            drift check stands down for, `reviewer_unverified`, `reviewer_unrecorded`, and
+                            `reviewer_usage_limit` among them, none of which retries itself, the last answered
+                            only by `/orchestrator continue` and set by no road yet -- including the
                             three that outlive their own tick: the claim that a requirements edit this stage's
                             resume ended without answering is still outstanding, the note left for a reviewer
                             round still owed -- the park it was written beside is gone before that round runs

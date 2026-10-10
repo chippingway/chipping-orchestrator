@@ -11,7 +11,11 @@ intent would vanish without a trace.
 After that the three park-reason decisions are asked in order and the first
 one that claims the reply wins. Only when none does is this a plain
 awaiting-human resume, and a bare `/orchestrator continue` against a park that
-needs real words is refused there rather than spent on the dev.
+needs real words is refused there rather than spent on the dev. A reviewer
+quota park never gets that far: its decision claims every tick, holding on
+anything short of the operator's `/orchestrator continue` and spending that
+command on the fresh reviewer, so neither the command nor a reply beside it
+can reach the developer through this resume.
 
 The resume itself is implementing's mechanic with one difference: a clean
 pushed fix bumps the round and emits no relabel, so the issue stays on
@@ -187,9 +191,12 @@ def _handle_validating_awaiting_human(context: _models._AwaitingValidation) -> s
 
     Returns ``"return"`` when the tick is fully handled (caller must return) or
     ``"spawn_reviewer"`` when the park cleared into a reviewer re-run (review-cap
-    reset, reviewer timeout / silent crash, or a reply to a returned verdict's
-    `reviewer_unverified` / `reviewer_unrecorded` park) and the caller should
-    fall through to the round-cap check and reviewer spawn.
+    reset, reviewer timeout / silent crash, a reply to a returned verdict's
+    `reviewer_unverified` / `reviewer_unrecorded` park, or the operator's
+    `/orchestrator continue` on a `reviewer_usage_limit` park) and the caller
+    should fall through to the round-cap check and reviewer spawn. A
+    `reviewer_usage_limit` park with no such command is a ``"return"`` with
+    nothing written: the quota has not been said to reset.
 
     `context` is the handler's, built before its drift check, so the check and
     every road here read the same frozen reply batch.
