@@ -361,11 +361,13 @@ Per-stage specifics:
   standing for any OTHER reason hears the refusal, which supersedes it: what the issue waits on now is a decision
   about the commits.
 - For **`workflow:validating`** drift, the handler defers to the awaiting-human branch when `park_reason` is
-  reviewer-side (`reviewer_timeout` / `reviewer_failed`, and a returned verdict's `reviewer_unverified` /
-  `reviewer_unrecorded` park — `state._REVIEWER_SIDE_PARK_REASONS`): a "retry" reply after a reviewer failure, or to
-  a verdict whose round the reviewer has to redo, must re-spawn the reviewer, not the dev. The two verdict parks
-  never retry themselves, so an edit under one nobody replied to leaves the park standing and waits for the reviewer
-  that reply buys. A deferral delivers the edit to nobody, so it records nothing about it — no watermark and
+  reviewer-side (`reviewer_timeout` / `reviewer_failed` / `reviewer_usage_limit`, and a returned verdict's
+  `reviewer_unverified` / `reviewer_unrecorded` park — `state._REVIEWER_SIDE_PARK_REASONS`): a "retry" reply after a
+  reviewer failure, or to a verdict whose round the reviewer has to redo, must re-spawn the reviewer, not the dev.
+  The two verdict parks and the usage-limit park never retry themselves, so an edit under one nobody replied to —
+  or, under the usage-limit park, nobody answered with `/orchestrator continue` — leaves the park standing and waits
+  for the reviewer that reply buys. A deferral delivers the edit to nobody, so it records nothing about it — no
+  watermark and
   no baseline. What it does record is `validating_reviewer_owes_a_round`, because the park is gone before that
   round runs: the silent recovery clears the flags and ends its tick, a report still owed holds the reviewer behind
   a clear already written, and without the note the edit would take a later tick down the developer's road ahead of
@@ -3790,7 +3792,18 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      `reviewer_unverified` / `reviewer_unrecorded` park — which clears the park into a fresh reviewer round instead
      (`_reviewer_retry_awaiting_action`): a bare `/orchestrator continue` hands that round the thread through it, while
      a reply with words in it is requirements the report never saw, so the round is held for the developer to answer
-     them first. The two verdict parks never retry themselves, so that reply is the only thing that ends them. A
+     them first. The two verdict parks never retry themselves, so that reply is the only thing that ends them.
+     A `reviewer_usage_limit` park — a reviewer its provider's usage limit stopped; no road sets the reason yet — is
+     narrower still: another poll is no evidence the quota reset, so it is no transient park and never retries itself,
+     and only a batch carrying the `/orchestrator continue` line (honored only from an author `ALLOWED_ISSUE_AUTHORS`
+     lists) answers it. Short of that, the same road holds the tick ahead of the developer resume — a quiet tick, an
+     outsider's command the trust filter took out, or a reply without the command — running, posting, consuming, and
+     writing nothing, so the round, the pull request, the worktree, and the developer session stand as the park left
+     them. With it, the park clears into a fresh reviewer round exactly as a reply to any reviewer-side park does: no
+     developer is resumed, and the command is recorded as read only by a round that ran — a reviewer the shutdown
+     sweep kills leaves the park and the command for the next tick, and a launch the run circuit refuses leaves the
+     command unread for the round its grant buys — while a reviewer that then times out or crashes parks under
+     `reviewer_timeout` / `reviewer_failed` with their usual meaning. A
      further exception: a bare `/orchestrator continue` on a session-failure dev park (`agent_silent` /
      `agent_timeout` / `agent_execution_failed`) is intercepted (`_continue_command_action`) and retries the dev on
      the neutral `_DEVELOPER_CONTINUE_RETRY_PROMPT` — NOT the literal command, which the dev has no context for — while

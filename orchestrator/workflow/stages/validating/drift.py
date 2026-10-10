@@ -14,6 +14,9 @@ crash produced no review output for the dev to act on, and an approval parked
 without its verification evidence or a verdict parked without room to be
 recorded is the reviewer's round to redo, so a "retry" reply has to re-spawn
 the REVIEWER -- and the reviewer re-reads the edited body itself when it runs.
+A reviewer its provider's usage limit stopped is the same round to redo, owed
+only once the operator's `/orchestrator continue` says the quota reset, so an
+edit under that park waits for that reviewer as well.
 `review_cap` is sharper still: the cap has consumed every round, so resuming
 the dev would just re-park on it, and the operator's
 `/orchestrator add-review-rounds` comment is itself content that moves the
@@ -204,12 +207,13 @@ def _resume_dev_on_validating_drift(
     Returns True when a drift was detected and fully handled (caller must
     return). Returns False when there is no drift, or when the issue is parked
     with a reviewer-side reason (`reviewer_timeout` / `reviewer_failed` /
-    `reviewer_unverified` / `reviewer_unrecorded`) or on the review-round cap
-    (`review_cap`) -- those defer to the awaiting-human branch. A human "retry"
-    comment on a reviewer-side park must re-spawn the REVIEWER, not the dev:
-    the failure produced no review output for the dev to act on -- an approval
-    without its verification evidence, or a verdict nothing could record, is
-    the reviewer's to redo -- and the reviewer re-reads the updated
+    `reviewer_unverified` / `reviewer_unrecorded` / `reviewer_usage_limit`) or
+    on the review-round cap (`review_cap`) -- those defer to the awaiting-human
+    branch. A human "retry" comment on a reviewer-side park must re-spawn the
+    REVIEWER, not the dev: the failure produced no review output for the dev to
+    act on -- an approval without its verification evidence, a verdict nothing
+    could record, or a run the provider's quota stopped, is the reviewer's to
+    redo -- and the reviewer re-reads the updated
     `issue.body` + comments via `_build_review_prompt` when it runs. For
     `review_cap`, the cap has consumed every round, so resuming the dev would
     re-park on the cap next tick; the operator's

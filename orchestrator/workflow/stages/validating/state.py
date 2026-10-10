@@ -61,9 +61,12 @@ filed under, the second is the set a later tick is allowed to retry silently
 -- membership here is what says a condition can resolve without anyone
 commenting -- and the third is the set whose reply belongs to a fresh reviewer
 rather than to the developer, which the drift check stands down for as well.
-Two of those never retry themselves: an approval parked without valid
+Three of those never retry themselves: an approval parked without valid
 evidence (`reviewer_unverified`) and a verdict parked without room to be
-recorded (`reviewer_unrecorded`) wait for exactly that reply.
+recorded (`reviewer_unrecorded`) wait for exactly that reply, and a reviewer
+its provider's usage limit stopped (`reviewer_usage_limit`) waits for a
+narrower one still -- the operator's `/orchestrator continue`, since only a
+human can say the quota has reset.
 
 `_BOTH_MOVES` is the fourth. A write laid over the pinned comment as it stands
 keeps what another road wrote there and what this tick staged, and where both
@@ -118,6 +121,15 @@ _REASON_REVIEWER_UNVERIFIED = "reviewer_unverified"
 # it would be answered again by a second reviewer the moment the tick died.
 # Durable for the same reason as the one above, and answered the same way.
 _REASON_REVIEWER_UNRECORDED = "reviewer_unrecorded"
+
+# What a reviewer its provider's usage limit stopped parks under. Durable
+# rather than transient: the quota has not reset because another poll ran, so
+# no idle tick may spend a launch finding that out. And unlike the two above,
+# a reply does not answer it either -- only the operator's own
+# `/orchestrator continue`, written once the quota has reset, releases it into
+# a fresh reviewer. Nothing parks under it yet: recognizing the provider's stop
+# on a reviewer's result is the road that will.
+_REASON_REVIEWER_USAGE_LIMIT = "reviewer_usage_limit"
 
 # What a squash that could not be finished is filed under. Durable rather than
 # event-only, because the recovery ahead of the reviewer retries it on every
@@ -212,15 +224,17 @@ _VALIDATING_TRANSIENT_PARK_REASONS = frozenset(
 )
 
 # The parks whose round is the reviewer's to redo rather than a developer's to
-# answer: a reviewer that timed out or crashed, and a returned verdict parked
-# without its evidence or without room to be recorded. A reply to any of them
-# buys a fresh reviewer, and the drift check stands down for one rather than
-# resuming the developer on an edit made under it.
+# answer: a reviewer that timed out, crashed, or ran out of provider quota, and
+# a returned verdict parked without its evidence or without room to be
+# recorded. A reply to any of them buys a fresh reviewer -- for the quota park,
+# only a reply carrying `/orchestrator continue` -- and the drift check stands
+# down for one rather than resuming the developer on an edit made under it.
 _REVIEWER_SIDE_PARK_REASONS = frozenset((
     _REASON_REVIEWER_TIMEOUT,
     _REASON_REVIEWER_FAILED,
     _REASON_REVIEWER_UNVERIFIED,
     _REASON_REVIEWER_UNRECORDED,
+    _REASON_REVIEWER_USAGE_LIMIT,
 ))
 
 _VERIFY_STATUS_TO_REASON = MappingProxyType({

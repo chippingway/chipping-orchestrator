@@ -63,6 +63,17 @@ requirements edit was owed, where one was: the fresh review budget an
 lands -- or finds there was none to land -- so the record of it goes down with
 the park rather than outliving it.
 
+A reviewer its provider's usage limit stopped (`reviewer_usage_limit`) is the
+narrowest of the reviewer-side parks. It never retries itself, since another
+poll is no evidence the quota reset, and no reply answers it but a line of
+`/orchestrator continue`, since only the operator can say the quota did. Short
+of that command its road holds every tick -- idle, an outsider's words the
+trust filter took out, a reply without it -- ahead of the developer resume,
+consuming and posting nothing. With it, the command buys the fresh reviewer
+exactly as any reply to a reviewer-side park does: the round records it as
+read off its own prompt, and a bare one hands that round the thread through it
+rather than reading as requirements the developer owes an answer.
+
 `_run_awaiting_dev` is the fall-through the router uses when none of those
 match. It reads HEAD before the resume because that is the only watermark that
 can tell a commit this run produced from one already on the branch, and it
@@ -255,12 +266,21 @@ def _transient_awaiting_action(
 def _reviewer_retry_awaiting_action(
     context: _models._AwaitingValidation,
 ) -> str | None:
-    if not context.comments or context.park_reason not in _state._REVIEWER_SIDE_PARK_REASONS:
+    if context.park_reason not in _state._REVIEWER_SIDE_PARK_REASONS:
+        return None
+    # A quota park answers to the operator's `/orchestrator continue` alone,
+    # so anything short of it is held here rather than reaching the developer.
+    if context.park_reason == _state._REASON_REVIEWER_USAGE_LIMIT and not (
+        _messages._parse_orchestrator_continue(list(context.comments))
+    ):
+        return _state._OUTCOME_RETURN
+    if not context.comments:
         return None
     # A reviewer-side park either retries itself with nobody replying or, for
     # a verdict that came back without its evidence or without room to be
-    # recorded, waits on exactly this reply -- so a reply to one says
-    # something, short of a bare `/orchestrator continue`.
+    # recorded, or a reviewer its quota stopped, waits on exactly this reply --
+    # so a reply to one says something, short of a bare
+    # `/orchestrator continue`.
     context.bought_a_round(carries_requirements=not all(
         _messages._is_bare_orchestrator_continue(seen) for seen in context.comments
     ))
