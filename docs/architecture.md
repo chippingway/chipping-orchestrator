@@ -107,10 +107,10 @@ orchestrator/
   agents/               the agent-CLI subprocess layer: shared dispatch and its
                         result models, credential filtering, the
                         backend-agnostic session-id walk and the Claude
-                        final-message parsing beside it, the transient-provider
-                        verdict read off that output, the process registry and
-                        the group operations every teardown spends, and one
-                        module per backend
+                        final-message and Codex terminal-turn parsing beside
+                        it, the provider verdicts read off that output, the
+                        process registry and the group operations every
+                        teardown spends, and one module per backend
   scheduler/            the `IssueScheduler` every tick shares, the typed
                         submissions it takes, the host-local writer claim
                         one issue is dispatched under, and what a hold of it
@@ -574,7 +574,10 @@ lock, and the resume mechanic are documented in
   `codex exec [-C cwd | resume <sid>] --dangerously-bypass-approvals-and-sandbox --json -o <tempfile> <prompt>`. The
   `-o` path is a per-spawn `tempfile.mkstemp` outside the worktree (so target repos without `.codex-*` in `.gitignore`
   don't see it as untracked); `last_message` is read from it and the tempfile is cleaned up on any exit path by a
-  per-spawn context manager (`codex.codex_last_message_file`).
+  per-spawn context manager (`codex.codex_last_message_file`). A failed turn writes nothing there, so `stdout` keeps
+  the JSONL event stream beside the empty `last_message`: `agents/codex_events.py` reads the error the last turn's
+  closing `turn.failed` carried, and `agents/provider_failures.py`'s `codex_usage_limit_failure` turns a usage-limit
+  stop into a diagnostic with the provider message and its reset time.
 - **Claude command**:
   `claude -p --dangerously-skip-permissions --output-format stream-json --include-partial-messages --verbose <prompt>`
   (with `--resume <sid>` when resuming). `last_message` is parsed from the stream-json: prefers the terminal

@@ -24,6 +24,7 @@ _MODULES = (
     "orchestrator.agents.environment",
     "orchestrator.agents.session_ids",
     "orchestrator.agents.sessions",
+    "orchestrator.agents.codex_events",
     "orchestrator.agents.provider_failures",
     "orchestrator.agents.process_groups",
     "orchestrator.agents.processes",
@@ -53,6 +54,7 @@ _OWNER_ANNOTATED_FUNCS = (
     _agent_runner.log_agent_spawn,
     _agent_provider_failures.is_transient_provider_failure,
     _agent_provider_failures.is_provider_refusal,
+    _agent_provider_failures.codex_usage_limit_failure,
 )
 
 

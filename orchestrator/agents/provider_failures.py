@@ -16,13 +16,25 @@ the server-side family alone. Whether the agent got to its prompt at all is
 the wider one: a 401 or a 429 is no more the agent's words than a 529 is, and
 a caller settling what a run was handed has to know that whatever a retry
 could do about it.
+
+A third verdict is Codex's alone and is read off a different signal. A Codex
+turn the account's usage limit stopped writes no final message at all, so the
+refusal is taken from the JSONL stream through the `codex_events` reader, and
+it is returned as a diagnostic rather than a flag: a caller parking the run
+has to tell the operator when the limit resets, in the provider's words.
 """
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
-from orchestrator.agents import models as _agent_models, sessions as _agent_sessions
+from orchestrator.agents import (
+    codex_events as _codex_events,
+    models as _agent_models,
+    sessions as _agent_sessions,
+)
 
 # The server-side refusals a retry is the whole recovery for, matched as a
 # PREFIX of the normalized final message. Deliberately only the 5xx family and
@@ -42,6 +54,21 @@ _TRANSIENT_PROVIDER_MESSAGE_MARKERS: tuple[str, ...] = (
 # Every refusal the provider answers a turn with, retryable or not: the CLI
 # prints each HTTP error it was handed under this one prefix.
 _PROVIDER_REFUSAL_MARKER = "api error:"
+
+# The `codex_error_info` variant an exhausted account usage limit is coded as.
+_CODEX_USAGE_LIMIT_CODE = "usage_limit_exceeded"
+
+# How the provider opens that refusal, matched as a PREFIX of the message after
+# folding the typographic apostrophe the CLI prints. `codex exec --json` keeps
+# only the message on a failed turn's error, so for the CLIs that print no code
+# these words are the whole signal.
+_CODEX_USAGE_LIMIT_MESSAGE_PREFIX = "you've hit your usage limit"
+
+# The reset the provider names, as it renders it: `try again at Sep 26th, 2026
+# 12:09 PM.`, closing the message or one of its sentences.
+_CODEX_USAGE_LIMIT_RESET = re.compile(
+    r"\btry again at (?P<reset>.+?)(?:\.\s|\.?$)", re.IGNORECASE,
+)
 
 
 def _has_transient_provider_marker(message: Any) -> bool:
@@ -129,3 +156,54 @@ def is_provider_refusal(agent_result: _agent_models.AgentResult) -> bool:
     if structured_verdict is not None:
         return structured_verdict
     return _has_provider_refusal_marker(agent_result.last_message)
+
+
+@dataclass(frozen=True)
+class CodexUsageLimitFailure:
+    """A Codex run the account's usage limit stopped, as the provider said it.
+
+    `message` is the provider's text verbatim: neither redacted nor bounded,
+    so a consumer that publishes it applies both first.
+    """
+
+    message: str
+
+    @property
+    def reset_time(self) -> str | None:
+        """The time the provider named for a retry, or None when it named none.
+
+        Kept as phrased, such as `Sep 26th, 2026 12:09 PM`: the CLI renders
+        it in the local time of the host it ran on and names no zone, so a
+        parsed instant would claim a precision the text does not carry.
+        """
+        reset_match = _CODEX_USAGE_LIMIT_RESET.search(self.message)
+        return reset_match.group("reset") if reset_match else None
+
+
+def codex_usage_limit_failure(
+    agent_result: _agent_models.AgentResult,
+) -> CodexUsageLimitFailure | None:
+    """Return the usage-limit stop a Codex run ended on, or None.
+
+    Read off stdout whatever `last_message` holds, since the stop leaves that
+    field empty, and only off the turn the run ENDED on: an error a later turn
+    recovered from is no stop, neither is a completed turn quoting the
+    provider's words, and a stop an earlier turn closed on is set aside by a
+    later turn the stream never closed.
+
+    A code on that turn's error settles it either way, so an error coded as
+    anything else is never reclassified by its prose. Only an error printed
+    without a code falls back to the provider's opening words, and only beside
+    a non-zero exit, so a clean run is never reclassified on its prose alone.
+    """
+    turn_failure = _codex_events.codex_turn_failure(agent_result.stdout or "")
+    if turn_failure is None:
+        return None
+    if turn_failure.code is None:
+        opening = turn_failure.message.replace("\u2019", "'").strip().lower()
+        exhausted = agent_result.exit_code != 0 and opening.startswith(
+            _CODEX_USAGE_LIMIT_MESSAGE_PREFIX,
+        )
+    else:
+        exhausted = turn_failure.code == _CODEX_USAGE_LIMIT_CODE
+    return CodexUsageLimitFailure(turn_failure.message) if exhausted else None
