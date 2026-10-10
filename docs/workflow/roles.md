@@ -416,7 +416,9 @@ None of what follows is what an adjudicator's `single` earns — that parks — 
 to publish the candidate unsplit would license. A settlement of a candidate taken past publication publishes it itself
 and then continues at the stage the record names, rather than sending every one of them back to `implementing`: that
 stage is the only owner of the completion the candidate still owes, and the settlement is the last tick holding the
-head the reading was taken over. It proves its pull request before either — and a pull request already standing on the
+head the reading was taken over. The one exception is an auto-rebase replay the generation took over, which continues
+at `workflow:validating` as every rebase this orchestrator publishes does, since its report and its review are owed
+there. It proves its pull request before either — and a pull request already standing on the
 accepted candidate is that proof answering "this settlement's own push landed and the tick died before the label", not
 "somebody moved it", but only where a durable record vouches for the push: the approval written in the write ahead of
 it, or the receipt the push itself leaves read with the head that receipt replaced. On a fresh pass neither is written

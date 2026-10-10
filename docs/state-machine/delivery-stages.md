@@ -1276,7 +1276,8 @@ because there it is the claim that this stage has already rerouted rather than a
   it clears its attempt or routes to `workflow:validating` (`workflow/engine/rewrite_finish_debt.py`) -- its crash
   recovery's retry of a replay nothing published and its finish of a push already landed included (see
   [Base refresh](labels-and-state.md#base-refresh)). The authorized settlement of a replay a late generation took over
-  from its auto rebase records one for the push it makes, before its label (`late_replay_debt.py`).
+  from its auto rebase records one for the push it makes, before its label (`late_replay_debt.py`) -- which hands the
+  head to `workflow:validating`, as the refresh's own finish does, and never to the two roads held below.
   An issue without the record passes through reading nothing.
 - **Holds**: `workflow:documenting` and `in_review`, the roads past an approval that would carry a head no report is
   about to the human who merges it. Nothing is written or posted; the claim is left for validating, and the hold is
