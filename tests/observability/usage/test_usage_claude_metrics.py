@@ -4,22 +4,28 @@
 
 import json
 import unittest
+from dataclasses import replace
 
 from orchestrator.observability.usage import metrics as _metrics
 from tests.observability.usage import (
     usage_assertions as _assertions,
     usage_claude_events as _claude,
+    usage_claude_stream_capture as _capture,
     usage_jsonl_helpers as _jsonl,
     usage_test_values as _usage_cases,
 )
+
+_ASSISTANT_FRAME = "assistant"
+_RESULT_FRAME = "result"
 
 
 class ClaudeUsageAggregationTest(unittest.TestCase):
     """Synthetic ``claude -p --output-format stream-json`` runs.
 
-    Final assistant frame per ``message.id`` wins (claude streams partial
-    usage on intermediate frames); per-model totals roll up into the
-    flattened ``_metrics.UsageMetrics`` shape.
+    Frames sharing a ``message.id`` are one message, and with no
+    ``message_delta`` closing it the last frame's usage is the message's;
+    per-model totals roll up into the flattened ``_metrics.UsageMetrics``
+    shape.
     """
 
     def test_extracts_tokens_model_and_estimates_cost(self) -> None:
@@ -126,7 +132,7 @@ class ClaudeUsageAggregationTest(unittest.TestCase):
             ),
         )
         metrics = _metrics.parse_claude_usage(stdout)
-        self.assertEqual(metrics.cost_source, "reported")
+        self.assertEqual(metrics.cost_source, _usage_cases.REPORTED_COST_SOURCE)
         self.assertEqual(metrics.cost_usd, _usage_cases.CLAUDE_REPORTED_COST_USD)
 
     def test_multiple_models_sum_when_all_priced(self) -> None:
@@ -155,12 +161,127 @@ class ClaudeUsageAggregationTest(unittest.TestCase):
         self.assertAlmostEqual(metrics.cost_usd, expected, places=9)
 
 
+class ClaudeCapturedUsageTest(unittest.TestCase):
+    """Run totals parsed from the captured streams in ``usage_claude_stream_capture``.
+
+    Every ``assistant`` frame repeats the usage its message opened with, so a
+    message's output count is the one the ``message_delta`` closing it
+    carries, joined through the wrapper's ``api_message_id``; its input and
+    cache counts stay the ones its frames carry.
+    """
+
+    def test_run_output_is_the_cli_reported_total(self) -> None:
+        metrics = _metrics.parse_claude_usage(_capture.MAIN_RUN_STDOUT)
+        self.assertEqual(
+            (
+                _capture.TokenCounts.parsed(metrics),
+                metrics.models,
+                metrics.turns,
+                metrics.cost_usd,
+                metrics.cost_source,
+            ),
+            (
+                _capture.MAIN_RUN_TOTALS,
+                (_capture.MODEL,),
+                _capture.MAIN_RUN_NUM_TURNS,
+                _capture.MAIN_RUN_COST_USD,
+                _usage_cases.REPORTED_COST_SOURCE,
+            ),
+        )
+
+    def test_subagent_run_output_is_the_cli_total(self) -> None:
+        # The hand-back's usage is that of the subagent's closing message,
+        # which printed no frame, and what `modelUsage` reports beyond every
+        # printed count is its first message's final output. Input and cache
+        # counts stay the ones the `assistant` frames carry.
+        frames = _capture.summed(
+            message.start
+            for message in (*_capture.SUBAGENT_RUN_LEAD_MESSAGES, *_capture.SUBAGENT_RUN_SUBAGENT_MESSAGES)
+        )
+        metrics = _metrics.parse_claude_usage(_capture.SUBAGENT_RUN_STDOUT)
+        self.assertEqual(
+            (_capture.TokenCounts.parsed(metrics), metrics.cost_usd, metrics.cost_source),
+            (
+                replace(frames, output_tokens=_capture.SUBAGENT_RUN_MODEL_TOTALS.output_tokens),
+                _capture.SUBAGENT_RUN_COST_USD,
+                _usage_cases.REPORTED_COST_SOURCE,
+            ),
+        )
+
+    def test_unmatched_model_usage_keeps_starts(self) -> None:
+        # Without `modelUsage`, or with input and cache counts showing it
+        # covers usage the stream never printed, the subagent's first message
+        # keeps its start count; the hand-back's output still counts.
+        unmatched = (
+            ("no result frame", _jsonl.without_frames(_capture.SUBAGENT_RUN_STDOUT, _RESULT_FRAME)),
+            ("wider modelUsage", _capture.SUBAGENT_RUN_STDOUT.replace('"inputTokens":10,', '"inputTokens":12,')),
+        )
+        printed = _capture.summed([
+            *(message.final for message in _capture.SUBAGENT_RUN_LEAD_MESSAGES),
+            *(message.start for message in _capture.SUBAGENT_RUN_SUBAGENT_MESSAGES),
+        ])
+        expected = replace(printed, output_tokens=printed.output_tokens + _capture.SUBAGENT_RUN_HANDBACK.output_tokens)
+        for label, unmatched_stdout in unmatched:
+            with self.subTest(label):
+                self.assertEqual(_capture.TokenCounts.parsed(_metrics.parse_claude_usage(unmatched_stdout)), expected)
+
+    def test_estimate_prices_the_final_output_counts(self) -> None:
+        # Repriced under a model with first-party rates, and cut of the
+        # `result` frame whose reported cost would take precedence.
+        repriced = _capture.MAIN_RUN_STDOUT.replace(_capture.MODEL, _usage_cases.OPUS_FOUR_SEVEN)
+        metrics = _metrics.parse_claude_usage(_jsonl.without_frames(repriced, _RESULT_FRAME))
+        totals = _capture.MAIN_RUN_TOTALS
+        # opus-4-7 rates: input=5, cw5m=6.25, cr=0.50, output=25 (per 1M);
+        # the flat cache-write count bills at the 5m rate.
+        expected = (
+            totals.input_tokens * 5
+            + totals.cache_write_tokens * _usage_cases.PRICE_RATE_SIX_AND_QUARTER
+            + totals.cache_read_tokens * 0.5
+            + totals.output_tokens * _usage_cases.PRICE_RATE_TWENTY_FIVE
+        ) / _usage_cases.TOKENS_PER_MILLION
+        self.assertEqual(
+            (_capture.TokenCounts.parsed(metrics), metrics.models, metrics.cost_source),
+            (totals, (_usage_cases.OPUS_FOUR_SEVEN,), _usage_cases.ESTIMATED_COST_SOURCE),
+        )
+        _assertions.assert_cost(self, metrics, expected, places=_usage_cases.COST_ASSERT_PLACES)
+
+    def test_streams_without_deltas_keep_fallbacks(self) -> None:
+        # Without stream events, the start counts on a message's `assistant`
+        # frames are all the run counts of it -- a subagent's hand-back and
+        # `modelUsage` go unread -- and with the `result` frame alone left, its
+        # `usage` is the run's.
+        cases = (
+            (
+                _capture.MAIN_RUN_STDOUT,
+                (_claude.STREAM_EVENT,),
+                _capture.summed(message.start for message in _capture.MAIN_RUN_MESSAGES),
+            ),
+            (
+                _capture.SUBAGENT_RUN_STDOUT,
+                (_claude.STREAM_EVENT,),
+                _capture.summed(
+                    message.start
+                    for message in (*_capture.SUBAGENT_RUN_LEAD_MESSAGES, *_capture.SUBAGENT_RUN_SUBAGENT_MESSAGES)
+                ),
+            ),
+            (_capture.MAIN_RUN_STDOUT, (_claude.STREAM_EVENT, _ASSISTANT_FRAME), _capture.MAIN_RUN_TOTALS),
+        )
+        for captured, cut_frames, expected in cases:
+            with self.subTest(expected=expected):
+                metrics = _metrics.parse_claude_usage(_jsonl.without_frames(captured, *cut_frames))
+                self.assertEqual(
+                    (_capture.TokenCounts.parsed(metrics), metrics.cost_source),
+                    (expected, _usage_cases.REPORTED_COST_SOURCE),
+                )
+
+
 class ClaudeUsageErrorTest(unittest.TestCase):
     """Synthetic ``claude -p --output-format stream-json`` runs.
 
-    Final assistant frame per ``message.id`` wins (claude streams partial
-    usage on intermediate frames); per-model totals roll up into the
-    flattened ``_metrics.UsageMetrics`` shape.
+    Frames sharing a ``message.id`` are one message, and with no
+    ``message_delta`` closing it the last frame's usage is the message's;
+    per-model totals roll up into the flattened ``_metrics.UsageMetrics``
+    shape.
     """
 
     def test_unknown_model_yields_unknown_price(self) -> None:

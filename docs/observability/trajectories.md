@@ -59,8 +59,11 @@ headline, and the codex surface too, since codex has no per-turn detail. Each `t
 turn (`turn` index, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, and an
 always-*estimated* `cost_usd` / `cost_source`); each billed `steps[]` entry (`assistant_message` / `tool_call`) carries
 the same `turn` index tying it to its turn, while a `tool_result` / `user_message` step is a turn *input* and omits
-`turn`. `build_record` drops every empty / `None` field, so an absent prompt, an empty system prompt, a no-trigger skill
-set, codex's empty per-turn array, or a claude run's absent item accounting simply leaves its key off.
+`turn`. The only turns no step names are subagents' closing messages, which the stream prints only as their hand-backs'
+usage: each is numbered after every stepped turn and carries its output count alone, as
+[`usage.md`](usage.md#usage-parser) describes. `build_record` drops every empty / `None` field, so an absent prompt, an
+empty system prompt, a no-trigger skill set, codex's empty per-turn array, or a claude run's absent item accounting
+simply leaves its key off.
 
 **Per-item accounting (`source_items`).** Beside the steps, a codex record carries the parser's [per-item
 accounting](usage.md): one `{item_id, item_type, disposition}` row per item the exec stream identified, in first-seen

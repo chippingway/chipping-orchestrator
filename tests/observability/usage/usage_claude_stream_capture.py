@@ -43,7 +43,9 @@ its report and usage trailer; and each content block's run of text or tool-input
 delta frame. Every usage block, result total, model name, and the order of the remaining frames is verbatim.
 """
 
-from dataclasses import dataclass, replace
+from collections.abc import Iterable
+from dataclasses import astuple, dataclass, replace
+from typing import Any
 
 CLI_VERSION = "2.1.295"
 MODEL = "claude-opus-5-5"
@@ -73,6 +75,11 @@ class TokenCounts:
     cache_write_tokens: int
     output_tokens: int
 
+    @classmethod
+    def parsed(cls, usage: Any) -> "TokenCounts":
+        """The counts a parsed `UsageMetrics` or `TurnUsage` holds."""
+        return cls(usage.input_tokens, usage.cache_read_tokens, usage.cache_write_tokens, usage.output_tokens)
+
 
 @dataclass(frozen=True)
 class MessageCounts:
@@ -96,6 +103,12 @@ def counts(row: CountsRow) -> TokenCounts:
 def messages(*rows: MessageRow) -> tuple[MessageCounts, ...]:
     """Messages written as `(message id, start counts row, final output count)` rows."""
     return tuple(_message(*row) for row in rows)
+
+
+def summed(token_counts: Iterable[TokenCounts]) -> TokenCounts:
+    """Each count added up across the usage blocks."""
+    columns = zip(*(astuple(counted) for counted in token_counts), strict=True)
+    return TokenCounts(*(sum(column) for column in columns))
 
 
 def _message(message_id: str, start: CountsRow, final_output_tokens: int) -> MessageCounts:

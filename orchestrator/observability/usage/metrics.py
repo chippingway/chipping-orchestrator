@@ -9,7 +9,7 @@ from typing import Any
 
 from orchestrator.observability.usage import (
     agy_summary,
-    claude_rows,
+    claude_settlement,
     claude_summary,
     codex_summary,
     event_stream,
@@ -51,7 +51,7 @@ def parse_claude_usage(stdout: str) -> UsageMetrics:
     """Extract usage and cost from a Claude stream-json run."""
     events = event_stream.iter_events(stdout)
     metrics = UsageMetrics(backend=protocol.CLAUDE)
-    records = claude_rows.claude_usage_records(events)
+    records = claude_settlement.claude_usage_records(events)
     aggregate = claude_summary.aggregate_by_model(records)
     aggregate.apply_tokens(metrics)
     selected_cost = event_stream.select_cost(

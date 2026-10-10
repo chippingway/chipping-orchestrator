@@ -19,6 +19,13 @@ def stdout_lines(*emitted: str) -> str:
     return "\n".join(emitted)
 
 
+def without_frames(stdout: str, *frame_types: str) -> str:
+    """A captured run's lines, in their order, less every frame of the named types."""
+    return "\n".join(
+        line for line in stdout.splitlines() if json.loads(line)[_usage_cases.TYPE_FIELD] not in frame_types
+    )
+
+
 def text(text_value: object) -> dict:
     return {_usage_cases.TYPE_FIELD: _usage_cases.TEXT_FIELD, _usage_cases.TEXT_FIELD: text_value}
 

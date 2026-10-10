@@ -6,9 +6,10 @@ Home of the provider payloads a run is metered from. The owners divide by what
 a payload has to be turned into: the JSONL vocabulary and the resilient line
 decoder every provider reads through (``protocol``, ``event_stream``); the
 price tables and the nested model-name lookup an estimate needs (``prices``,
-``model_names``); the per-provider frame decoding and run summary the token
-counts come from (``claude_rows``, ``claude_summary``, ``codex_rows``,
-``codex_summary``, ``agy_events``, ``agy_summary``); the shell scanning and
+``model_names``); the per-provider frame decoding, settlement, and run summary
+the token counts come from (``claude_rows``, ``claude_settlement``,
+``claude_summary``, ``codex_rows``, ``codex_summary``, ``agy_events``,
+``agy_summary``); the shell scanning and
 command classification a codex skill reference is inferred from (``shell_segments``, ``skill_commands``,
 ``skills_claude``, ``skills_codex``); and the records and per-provider
 reconstruction one timeline is rebuilt into (``trajectory_models``,

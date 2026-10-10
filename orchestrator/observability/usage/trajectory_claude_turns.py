@@ -1,6 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Build Claude per-turn usage aligned with trajectory steps."""
+"""Build Claude per-turn usage aligned with trajectory steps.
+
+A turn is one API message, keyed the way the trajectory steps it produced are. Its output count is settled by the
+same `claude_settlement.ClaudeSettlement` the run aggregate reads, so the turns sum to the run.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +14,7 @@ from typing import Any
 
 from orchestrator.observability.usage import (
     claude_rows,
+    claude_settlement,
     model_names,
     prices,
     protocol,
@@ -24,8 +29,10 @@ TurnUsageRow = tuple[int, str, protocol.TokenBucket]
 class ClaudeTurnUsageBuilder:
     turn_index: dict[str, int] = field(default_factory=dict)
     by_key: dict[str, TurnUsageRow] = field(default_factory=dict)
+    settlement: claude_settlement.ClaudeSettlement = field(default_factory=claude_settlement.ClaudeSettlement)
 
     def add_event(self, index: int, event: dict[str, Any]) -> None:
+        self.settlement.add_event(index, event)
         if event.get(protocol.TYPE) != protocol.ASSISTANT:
             return
         message = event.get(protocol.MESSAGE)
@@ -42,12 +49,14 @@ class ClaudeTurnUsageBuilder:
             )
 
     def build(self) -> tuple[TurnUsage, ...]:
-        ordered_rows = sorted(self.by_key.values(), key=turn_usage_row_index)
+        ordered_rows = self.settlement.settled_rows(self.by_key)
+        # The message closing a subagent printed no frame, so no step names it:
+        # its turn is numbered after every turn the steps were stamped with.
+        ordered_rows.extend(
+            (len(self.turn_index) + position, model, record)
+            for position, (_, model, record) in enumerate(self.settlement.handback_rows())
+        )
         return tuple(turn_usage_from_row(row) for row in ordered_rows)
-
-
-def turn_usage_row_index(usage_row: TurnUsageRow) -> int:
-    return usage_row[0]
 
 
 def turn_usage_from_row(usage_row: TurnUsageRow) -> TurnUsage:
