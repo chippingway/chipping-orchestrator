@@ -43,6 +43,11 @@ JOURNEY_LINES = 200
 # The one account trusted to answer the adjudication's park.
 OPERATOR = "operator"
 
+# The review cap a shipped install applies. The journey's issue has already
+# spent rounds, so whether its reviewer runs turns on the cap -- pinned here
+# rather than read off whatever the process running the suite was started with.
+REVIEW_ROUNDS = 3
+
 # The line counter before the shared base-sync doubles replace it, put back
 # because a journey about an OVERSIZED candidate has to really cross the ceiling.
 _REAL_ADDITION_COUNT = _additions._count_added_lines
@@ -61,6 +66,7 @@ class OversizedJourneyRealGitFixture(AdjudicatedRebaseRealGitFixture):
             (_branch_transport, "_authed_fetch", _local_fetch),
             (_additions, "_count_added_lines", _REAL_ADDITION_COUNT),
             (config, "MAX_ADDED_LINES", JOURNEY_CEILING),
+            (config, "MAX_REVIEW_ROUNDS", REVIEW_ROUNDS),
             (config, "ALLOWED_ISSUE_AUTHORS", (OPERATOR,)),
             (config, "WORKTREES_DIR", self._tmpdir / WORKTREES_DIR_NAME),
         ):

@@ -10,14 +10,21 @@ its own guarded checkpoint (`workflow/engine/rewrite_finish.py`) and reads it
 back here. Every completion clears the whole attempt, and so does the
 handoff of an unpublished replay to the late generation adjudicating it
 (`workflow/engine/rewrite_takeover.py`), in the write that has the generation
-take the replay over. attempt_records validates interrupted replay evidence
-and defines the field group that the clear includes.
+take the replay over -- the one ending that also retires the park the
+attempt's own road left, since nothing is left to answer it, with the replies
+that park was answered with recorded read
+(`workflow/engine/rewrite_takeover_parks.py`). attempt_records
+validates interrupted replay evidence and defines the field group that the
+clear includes.
 """
 from __future__ import annotations
 
 from orchestrator.git.base_sync import attempt_records as _attempt_records
 from orchestrator.git.base_sync.models import _AutoRebaseContext
 from orchestrator.git.base_sync.state import (
+    _AUTO_REBASE_PARK_REASONS,
+    _AWAITING_HUMAN,
+    _PARK_REASON,
     _PENDING_ANNOUNCED_SHA,
     _PENDING_PUSH_SHA,
     _PENDING_REWRITE_SHA,
@@ -51,6 +58,27 @@ def _clears_the_attempt(state: PinnedState) -> None:
     """
     for key in _ATTEMPT_KEYS:
         state.set(key, None)
+
+
+def _retires_its_park(state: PinnedState) -> bool:
+    """Drop a park the attempt's own road left standing; whether one stood.
+
+    Every auto-rebase park asks a human to reply so the refresh comes back to
+    this attempt, which an ending that hands the attempt over leaves nobody to
+    come back for. Left standing, the park would hold the very stage the
+    replay is handed back to, whose handler stands down on these reasons.
+    Every other park -- a stage's, an adjudication's -- is somebody else's
+    question and is left as it is. The flags alone: what the retired park was
+    answered with is its caller's to record read
+    (`workflow/engine/rewrite_takeover_parks.py`).
+
+    Staged like the clear, so it lands with the write that ends the attempt.
+    """
+    if not state.get(_AWAITING_HUMAN) or state.get(_PARK_REASON) not in _AUTO_REBASE_PARK_REASONS:
+        return False
+    state.set(_AWAITING_HUMAN, False)
+    state.set(_PARK_REASON, None)
+    return True
 
 
 def _records_the_replay(context: _AutoRebaseContext, replayed: str) -> None:

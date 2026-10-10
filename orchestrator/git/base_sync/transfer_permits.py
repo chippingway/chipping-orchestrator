@@ -5,9 +5,10 @@
 The workflow's retry of an unpublished replay
 (`workflow/engine/rewrite_retry.py`) and its settlement of a landed push whose
 permission is still outstanding (`workflow/engine/rewrite_landed.py`) ask
-before publishing and repeat the same permit-only restriction inside the
-gate. Workflow owners are loaded only inside that call, preserving the Git
-layer's import boundary.
+before publishing, and where the permit holds repeat the same permit-only
+restriction inside the gate. What a refusal costs is the caller's to say.
+Workflow owners are loaded only inside that call, preserving the Git layer's
+import boundary.
 """
 from __future__ import annotations
 
@@ -36,6 +37,17 @@ def _permits_the_publication(
     is whether the permission may be spent, and a refusal is a refusal. The
     gate is told the same thing on the way in, so a permit that stops holding
     between this ask and its own is refused there rather than measured.
+
+    One refusal the retry measures after all, and it is the retry's to tell
+    apart: a replay its attempt's own record names, whose evidence was
+    re-derived here because the crash came before any grant. The record, not
+    the permit, vouches for that checkout, and nothing was ever granted on it,
+    so a permit refusing it says the base advance changed the contribution --
+    the very candidate the interrupted publication would have measured. The
+    retry enters it with that evidence and no restriction, as that publication
+    would have, so past the ceiling it goes to a fresh adjudication with the
+    replay standing. A standing permission and a replay the record does not
+    name yet have only this answer behind them, and a refusal there is one.
 
     Asked over the evidence this recovery holds: the record the grant left,
     where there is one, and otherwise the rewrite re-derived for a grant the

@@ -13,22 +13,22 @@ label, the pinned record, the notices and events, and what the next tick does.
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from orchestrator import config
-from orchestrator.git.measurement import additions as _measurement
 from orchestrator.workflow.engine import base_refresh as _base_refresh
 from tests.git.base_sync import refresh_test_support as base
-from tests.git.base_sync.gate_reads_support import _oversized_count
 from tests.git.base_sync.report_debt_test_support import owed
 from tests.git.base_sync.sync_test_support import _patch_base_sync
-from tests.workflow.engine import rewrite_publication_moves as moves, rewrite_publication_test_support as world
+from tests.workflow.engine import (
+    rewrite_gate_holds_support as holds,
+    rewrite_publication_moves as moves,
+    rewrite_publication_test_support as world,
+)
 from tests.workflow.observation_support import ObservedCloseCase
 
 ISSUE = base.ISSUE
 
 LABEL_VALIDATING = "workflow:validating"
-LABEL_DECOMPOSING = "workflow:decomposing"
 
 KEY_AWAITING_HUMAN = "awaiting_human"
 KEY_PARK_REASON = "park_reason"
@@ -70,9 +70,6 @@ LEVEL = "0\n"
 
 # The reset a rollback puts the checkout back onto its anchor with.
 RESET_ONTO_THE_ANCHOR = ("reset", "--hard", world.ANCHOR)
-
-# A ceiling the oversized count crosses.
-CEILING = 5
 
 # What moves after the gate measured the candidate and before the git owner
 # reads it again for its push, and where PR #42 is left standing.
@@ -253,6 +250,23 @@ class PublishedRebaseTest(_PublicationCase):
                 self._assert_finished(SAID_FOUND)
                 self.assertIn(FOUND_NOTICE, self.gh.posted_pr_comments[-1][1])
 
+    def test_a_rejected_lease_waits_for_a_reply(self) -> None:
+        self.world.rejects = True
+        self._ticks()
+
+        self.assertEqual(self.world.pushes, [PUBLISHED])
+        self._assert_rolled_back(world.ANCHOR)
+
+        self.world.rejects = False
+        reply = self.gh.next_reply_id(self.gh._issues[ISSUE])
+        self._add_comment(reply, "branch reconciled, please retry", base.HUMAN_LOGIN)
+        self._ticks()
+
+        self.assertEqual(self.world.pushes, [PUBLISHED, PUBLISHED])
+        self._assert_finished()
+        self.assertEqual(_parked(self.gh), (False, None))
+        self.assertEqual(self.gh.pinned_data(ISSUE).get(KEY_WATERMARK), reply)
+
 
 class RefusedBeforeThePushTest(_PublicationCase):
     """A candidate the git owner will not publish, and a gate that will not let one through."""
@@ -334,38 +348,52 @@ class RefusedBeforeThePushTest(_PublicationCase):
 
                 self._assert_held()
 
-    def test_a_rejected_lease_waits_for_a_reply(self) -> None:
-        self.world.rejects = True
-        self._ticks()
+    def test_the_rebase_spends_only_a_retry(self) -> None:
+        # The reply that let the rebase start is the operator's retry where it
+        # says nothing else, and the anchor's own write records it read on the
+        # requirements baseline as well as the watermark -- so the adjudication
+        # the gate hands the replay to, on this tick or after a crash, never
+        # reads it as guidance. A reply that says more is a human's words: the
+        # watermark moves past it as it always has, and the baseline stays
+        # short of it for the adjudication to hand it to the developer.
+        for body, spent in holds.REPLIES:
+            with self.subTest(body):
+                self._fresh()
+                self.world.rejects = True
+                self._ticks()
+                holds.covers_the_thread(self.gh)
+                self.world.rejects = False
+                reply = holds.replies(self, body)
+                before = holds.read_through(self.gh)[1]
 
-        self.assertEqual(self.world.pushes, [PUBLISHED])
-        self._assert_rolled_back(world.ANCHOR)
+                with holds.oversized():
+                    self._ticks()
 
-        self.world.rejects = False
-        reply = self.gh.next_reply_id(self.gh._issues[ISSUE])
-        self._add_comment(reply, "branch reconciled, please retry", base.HUMAN_LOGIN)
-        self._ticks()
+                read = holds.baseline_through(self.gh, reply) if spent else before
+                self.assertEqual(holds.left_with(self.gh), (None, None, world.REPLAY))
+                self.assertEqual(holds.read_through(self.gh), (reply, read))
 
-        self.assertEqual(self.world.pushes, [PUBLISHED, PUBLISHED])
-        self._assert_finished()
-        self.assertEqual(_parked(self.gh), (False, None))
-        self.assertEqual(self.gh.pinned_data(ISSUE).get(KEY_WATERMARK), reply)
+    def test_only_an_adjudication_takes_the_attempt(self) -> None:
+        # Past the ceiling, the gate hands the issue to an adjudication with
+        # the replay standing, and nothing is pushed, announced, or routed to
+        # review -- and the attempt goes to the live generation in the same
+        # tick, so no anchor is left to hold that adjudication behind. A count
+        # nobody can pin parks instead and leaves no adjudication to take the
+        # replay over, so the attempt stays pinned for the recovery the park's
+        # reply brings back.
+        for count, relabelled, left, parked in holds.HOLDS:
+            with self.subTest(count.__name__):
+                self._fresh()
 
-    def test_an_oversized_replay_is_never_pushed(self) -> None:
-        # The gate hands the issue to an adjudication with the replay
-        # standing, and nothing is pushed, announced, or routed to review.
-        with patch.object(config, "MAX_ADDED_LINES", CEILING), patch.object(
-            _measurement, "_count_added_lines", _oversized_count(),
-        ):
-            self._ticks()
+                with count():
+                    self._ticks()
 
-        self.assertEqual(self.world.pushes, [])
-        self.assertEqual(_head(self.gh), world.ANCHOR)
-        self.assertEqual(self.gh.label_history, [(ISSUE, LABEL_DECOMPOSING)])
-        attempt = _attempt(self.gh)
-        self.assertEqual(attempt[KEY_PENDING_PUSH], world.ANCHOR)
-        self.assertEqual(attempt[KEY_REWRITE_SHA], world.REPLAY)
-        self.assertEqual(_said(self.gh), SAID_NOTHING)
+                self.assertEqual(self.world.pushes, [])
+                self.assertEqual(_head(self.gh), world.ANCHOR)
+                self.assertEqual(self.gh.label_history, list(relabelled))
+                self.assertEqual(holds.left_with(self.gh), left)
+                self.assertEqual(_parked(self.gh), parked)
+                self.assertEqual(_said(self.gh), SAID_NOTHING)
 
 
 if __name__ == "__main__":

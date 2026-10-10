@@ -27,12 +27,24 @@ kept:
   and the gate is told the same, so a refusal on either side of that seam is
   a reset and a park rather than the cumulative reading, which on this road
   would force-push a replay nothing vouched for and finish the route with the
-  verdict still on the commit a human ruled on.
+  verdict still on the commit a human ruled on. One refusal is not that: a
+  replay the attempt's own record names, whose evidence was re-derived because
+  the crash came before any grant, is vouched for by the record, and a permit
+  refusing it is a changed contribution -- the very candidate the interrupted
+  publication would have measured. So it is measured here too, with the
+  evidence handed to the gate as that publication hands it, and an oversized
+  one goes to a fresh adjudication with its replay standing rather than being
+  reset away.
 - The push the gate licenses is the git owner's publication of exactly that
   candidate under the anchor's lease, through the transport the ordinary
   publication pushes with (`rewrite_publication.CandidatePush`). The receipt,
   the debt it settles, the exemption it rotates, and the proof of the checkout
   behind it stay the gate's own (`stages/implementing/late_push.py`).
+- A hold that handed the replay to an adjudication hands the attempt over
+  with it (`rewrite_takeover`), as the ordinary publication does, and a park
+  the gate takes keeps it. The reply that brought the attempt back, where it
+  only asked for the retry, is recorded read in whatever the gate writes
+  (`rewrite_replies`), so an adjudication never takes it for guidance.
 - A publication that sent nothing or did not land resets the checkout onto
   the anchor and parks. One that landed with the verdict left behind -- a
   permit that stopped holding inside the gate -- parks with HEAD and the
@@ -64,6 +76,8 @@ from orchestrator.git.base_sync.transfer_values import _Handoff
 from orchestrator.workflow.engine import (
     rewrite_finish as _finish,
     rewrite_publication as _rewrite_publication,
+    rewrite_replies as _rewrite_replies,
+    rewrite_takeover as _takeover,
 )
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
@@ -87,8 +101,11 @@ def retries(
     transfer is the only thing that can vouch for this checkout. A permission
     this route's own grant already persisted is that evidence rather than the
     absence of it, so it licenses the road exactly as the re-derived rewrite
-    does. False only where the finish left the landed head behind a base that
-    has advanced again, and this tick's rebase goes on from it.
+    does -- save that a refusal of the re-derived rewrite, for a replay the
+    record names, is measured as the publication this retries would have
+    measured it rather than reset away. False only where the finish left the
+    landed head behind a base that has advanced again, and this tick's rebase
+    goes on from it.
     """
     candidate = _recovery_push._recovered_candidate(context, completed)
     dirty = candidate.checkout.status.paths
@@ -98,9 +115,13 @@ def retries(
     licensed = rewrite is not None or carried == _Handoff.OUTSTANDING
     if permit_alone and not licensed:
         return _replay_transfer_parks._park_unproven_replay_recovery(context, completed)
-    if licensed and not _transfer_permits._permits_the_publication(context, completed.head, rewrite):
+    permit_only = licensed and _transfer_permits._permits_the_publication(context, completed.head, rewrite)
+    # Only a replay the record names, with evidence nobody granted on, is
+    # measured past a refusal: a standing permission and a replay in flight
+    # have nothing else to vouch for them.
+    if licensed and not permit_only and (permit_alone or rewrite is None):
         return _replay_transfer_parks._park_refused_permit_recovery(context, completed)
-    entered = _late_gate_models._Entered(
+    return _publishes(context, completed, candidate, _late_gate_models._Entered(
         head=context.pending_pre_rebase_sha,
         reconciling=True,
         # The head this recovery verified against the remote, and the one the
@@ -110,9 +131,8 @@ def retries(
         # bound, and a moved checkout refuses instead.
         candidate=completed.head,
         rewrite=rewrite,
-        permit_only=licensed,
-    )
-    return _publishes(context, completed, candidate, entered)
+        permit_only=permit_only,
+    ))
 
 
 def _publishes(
@@ -125,8 +145,19 @@ def _publishes(
 
     A gate that held the candidate -- parked it, or handed it to an
     adjudication -- owns the issue from there, so nothing is announced or
-    routed; its park's flags are written as the gate left them.
+    routed; its park's flags are written as the gate left them, and the
+    attempt is offered to the adjudication the hold may have left
+    (`rewrite_takeover`), whose proof is what tells that hold from a park.
+
+    The reply that released this recovery, where it only asked for the
+    retry, is staged read before the gate, so it rides the gate's own write --
+    the one that takes its park down -- and no crash can leave the park gone
+    with the reply still waiting for the adjudication as guidance.
     """
+    _rewrite_replies.records_the_retry(
+        context.gh, context.issue, context.state,
+        _rewrite_replies.released_by(context.state, context.unparking_consumed_max),
+    )
     push = _rewrite_publication.CandidatePush(candidate)
     published = _late_push._publishes(
         _late_records._gate(context.gh, context.spec, context.issue, context.state, context.worktree),
@@ -138,6 +169,7 @@ def _publishes(
         return _replay_transfer_parks._park_refused_permit_recovery(context, completed)
     if published.held:
         context.gh.write_pinned_state(context.issue, context.state)
+        _takeover.takes_over(context.gh, context.issue, context.state)
         return True
     landing = push.landing
     if landing is None or not published.landed:

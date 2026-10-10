@@ -136,6 +136,11 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # A pull request that is over ends an attempt's whole handoff in one write --
 # the receipt, the debt, the rotation, and the rollback's drop -- and reports a
 # settlement the sinks never got, which is the terminal handoff's own.
+#
+# The stranded park asks a human to put a label back, which a live
+# adjudication's own guard undoes, so it reads that guard's answer for whether
+# one holds the label rather than spelling what makes an adjudication live a
+# second time.
 _CALL_TIME_HOPS = MappingProxyType({
     f"{_BASE_SYNC}.attempt_records": (
         f"{PACKAGE}.workflow.late_split.formats",
@@ -155,6 +160,9 @@ _CALL_TIME_HOPS = MappingProxyType({
         f"{PACKAGE}.workflow.stages.implementing.late_approval_state",
         _LATE_RECORDS,
         _LATE_TRANSFER,
+    ),
+    f"{_BASE_SYNC}.replay_publication_parks": (
+        f"{PACKAGE}.workflow.stages.decomposition.late_relabel",
     ),
     f"{_BASE_SYNC}.transfers": (_EXEMPTION, _REWRITES, _REWRITE_VALUES),
     f"{_BASE_SYNC}.transfer_permits": (

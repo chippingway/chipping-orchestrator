@@ -81,7 +81,10 @@ def _recovery_holds_dispatch(
     there reads no pull request and fetches nothing, so the dispatcher takes
     that road itself rather than waiting on a walk that may never come -- a
     clear, or the stranded park, and over a checkout that is not on disk the
-    park -- and there is nothing for a release to wait out.
+    park -- and there is nothing for a release to wait out. Beside a live
+    adjudication the dispatcher first hands the replay to it where the two
+    records describe one (`workflow/engine/rewrite_takeover.py`), so an anchor
+    reaching this hold there is one that handoff refused.
 
     On a label the refresh DOES drive, one shape is released, because it is
     ended by an owner ahead of every stage handler and a hold over it would
@@ -203,7 +206,9 @@ def _answers_a_held_anchor(gh, spec, issue, state, label) -> None:
     the stranded park. With no checkout there is no head to read, which that
     road parks on too. The park is taken once, with every record kept: a
     human who puts the label back and replies sends the issue down the
-    recovery, and one who reconciles the record by hand ends the hold with it.
+    recovery, and one who reconciles the record by hand ends the hold with it
+    -- the only road beside a live adjudication, whose own guard puts its
+    label back, which is what that park then asks for.
 
     Reached under the writer claim the dispatching worker holds, which is the
     claim the refresh syncs a worktree under, so it never runs beside a

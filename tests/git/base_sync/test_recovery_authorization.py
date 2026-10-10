@@ -15,7 +15,9 @@ over.
 Each window has to end in the same place -- the push the dead tick never
 made goes out, the verdict moves with it, and the tick is over -- and neither
 may reach a second reading of the change, which would send it back into
-adjudication with the pull request already open over the work.
+adjudication with the pull request already open over the work. A replay whose
+contribution CHANGED is the one the permit refuses, and it is measured as the
+publication the dead tick was making would have measured it.
 """
 from __future__ import annotations
 
@@ -55,7 +57,7 @@ MEASUREMENT_EVENT = "late_measurement"
 TRANSFER_EVENT = "late_transfer"
 DECOMPOSING = "workflow:decomposing"
 
-# The park a road that may not measure takes when its permit refuses.
+# The park a rollback the recovery cannot account for takes.
 PARK_FAILED = "auto_base_rebase_failed"
 
 
@@ -315,13 +317,16 @@ class UndoneRebaseTest(_AdjudicatedRecoveryCase):
 
 
 class RefusedPermitTest(_AdjudicatedRecoveryCase):
-    """A replay the verdict does not account for is reset and parked."""
+    """A replay the verdict does not account for is measured as the publication it retries would have been."""
 
-    def test_a_changed_contribution_is_not_published(self) -> None:
+    def test_a_changed_contribution_is_measured(self) -> None:
         # The identity records a contribution this replay does not carry, so
-        # the permit refuses -- and measuring instead would either publish an
-        # adjudicated change with the verdict left behind or route it into a
-        # second adjudication.
+        # the permit refuses. The record names the replay and no grant was
+        # ever made, so what refused is a changed contribution -- the very
+        # candidate the interrupted publication would have measured -- and it
+        # is measured here too rather than reset away: under the ceiling it
+        # publishes on the count, leased to the anchor, with the verdict left
+        # on the commit a human ruled on.
         state = self._state()
         _exemption.record_semantic_identity(
             state,
@@ -333,13 +338,15 @@ class RefusedPermitTest(_AdjudicatedRecoveryCase):
 
         self.assertFalse(_resumes(self))
 
-        self.assertEqual(self.push.leases, [])
-        self.assertEqual(fixtures.head_sha(self.work), self.anchor)
-        pinned = self.gh.pinned_data(fixtures.ISSUE)
-        self.assertTrue(pinned.get(fixtures.KEY_AWAITING_HUMAN))
+        self.assertEqual(self.push.leases, [self.anchor])
+        self.assertEqual(fixtures.head_sha(self.work), self.recovered)
+        pinned = self._state()
+        self.assertTrue(_exemption_reading.is_exempt(pinned, self.anchor))
+        self.assertFalse(_exemption_reading.is_exempt(pinned, self.recovered))
         self.assertEqual(
-            pinned.get(fixtures.KEY_PARK_REASON), PARK_FAILED,
+            (len(self._events_of(MEASUREMENT_EVENT)), self._events_of(TRANSFER_EVENT)), (1, []),
         )
+        self.assertFalse(pinned.get(fixtures.KEY_AWAITING_HUMAN))
 
 
 if __name__ == "__main__":

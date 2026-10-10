@@ -5,6 +5,9 @@
 Neither a reset nor a clear can be justified against another publication.
 The recovery leaves the checkout and pinned evidence intact, and
 records a stranded park once so repeated ticks do not consume human replies.
+Beside a live adjudication the stranded park asks for the record to be
+reconciled rather than for the label back: that label is the adjudication's,
+and its own guard restores it.
 """
 from __future__ import annotations
 
@@ -90,6 +93,52 @@ def _already_stranded(state) -> bool:
     return state.get(_PARK_REASON) == _REASON_AUTO_BASE_REBASE_FAILED
 
 
+def _stranded_notice(context: _AutoRebaseRecoveryContext) -> str:
+    """What the stranded park asks a human for, given who holds the label.
+
+    Ordinarily the label back and a reply: the label is all that moved, and
+    the recovery finishes the attempt once it is back. Under a live
+    adjudication that road does not exist -- the adjudication's own guard puts
+    `workflow:decomposing` straight back, and an attempt that provably
+    described its replay would already have been handed to it
+    (`workflow/engine/rewrite_takeover.py`). What is left is a record that
+    does not agree with the adjudication, which only a human can reconcile;
+    past that the adjudication runs and asks for its own decision. Read
+    lazily, as every upward reach in this package is: the generation is the
+    late domain's record.
+    """
+    from orchestrator.workflow.stages.decomposition import late_relabel as _late_relabel
+    if _late_relabel._adjudicating(context.state):
+        return (
+            f"{config.HITL_MENTIONS} this issue's committed candidate is "
+            f"under adjudication for its size on `{context.label}`, and an "
+            "auto rebase's attempt is still pinned beside it that the "
+            "adjudication could not take over -- the two records do not "
+            "describe the same replay, or one of them cannot be read whole, "
+            "and the orchestrator log names which. Nothing was reset and "
+            "nothing was cleared. Relabelling does not help: the "
+            "adjudication keeps its label. Reconcile the "
+            "`pending_auto_base_rebase_*` and `late_rewrite_*` fields on the "
+            "pinned comment by hand and clear this park's `awaiting_human` and "
+            "`park_reason`; the next tick then adjudicates the candidate and "
+            "asks for the usual decision on its verdict."
+        )
+    return (
+        f"{config.HITL_MENTIONS} this issue was moved to "
+        f"`{context.label}`, which the base refresh does not drive, while "
+        "an auto rebase was still in flight for it -- the branch may be "
+        "standing on a replay the pull request has never seen, and a "
+        "permission granted for a push nobody made may still be "
+        "outstanding. Nothing was reset and nothing was cleared, because "
+        "this tick cannot say whether the checkout moved with the label. "
+        "Put the issue back on the stage the rebase was made under and "
+        "then reply on this issue to let the recovery finish it -- the "
+        "label alone leaves this park standing -- or reconcile the "
+        "`pending_auto_base_rebase_*` and `late_rewrite_*` fields on the "
+        "pinned comment by hand."
+    )
+
+
 def _park_stranded_recovery(context: _AutoRebaseRecoveryContext) -> bool:
     """Hold an attempt whose issue was relabelled out from under it.
 
@@ -123,6 +172,10 @@ def _park_stranded_recovery(context: _AutoRebaseRecoveryContext) -> bool:
     `last_action_comment_id` past whatever the operator wrote: the reply that
     would release the attempt ends up behind the orchestrator's own newest
     comment and the retry scan never sees it.
+
+    What it asks a human for turns on who holds the label (`_stranded_notice`):
+    the label back and a reply, or -- beside a live adjudication, which keeps
+    its label -- the record reconciled by hand.
     """
     if _already_stranded(context.state):
         return True
@@ -136,20 +189,7 @@ def _park_stranded_recovery(context: _AutoRebaseRecoveryContext) -> bool:
         context.gh,
         context.issue,
         context.state,
-        message=(
-            f"{config.HITL_MENTIONS} this issue was moved to "
-            f"`{context.label}`, which the base refresh does not drive, while "
-            "an auto rebase was still in flight for it -- the branch may be "
-            "standing on a replay the pull request has never seen, and a "
-            "permission granted for a push nobody made may still be "
-            "outstanding. Nothing was reset and nothing was cleared, because "
-            "this tick cannot say whether the checkout moved with the label. "
-            "Put the issue back on the stage the rebase was made under and "
-            "then reply on this issue to let the recovery finish it -- the "
-            "label alone leaves this park standing -- or reconcile the "
-            "`pending_auto_base_rebase_*` and `late_rewrite_*` fields on the "
-            "pinned comment by hand."
-        ),
+        message=_stranded_notice(context),
         reason=_REASON_AUTO_BASE_REBASE_FAILED,
     )
     return True

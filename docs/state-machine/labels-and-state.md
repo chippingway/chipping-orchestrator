@@ -495,7 +495,10 @@ keeps back, so a freeze on any of them as well would leave neither side able to 
 them is holding a branch still against a rebase any more — the anchor says one already ran — so the recovery reaches
 the checkout, pushes the replay its record names or puts the branch back on the anchor and asks a human, and leaves
 each record for its owner. The `question` and `discussion` labels themselves are still skipped, and an anchor under
-either is answered by the dispatcher on the recovery's ineligible road.
+either is answered by the dispatcher on the recovery's ineligible road. The one late claim beside an anchor that no
+reconciliation ends is a generation measured past its ceiling over the anchor's own replay, which the refresh stays
+away from and the hold would keep its adjudication off: the dispatcher hands that replay to the generation ahead of the
+hold instead (below), so the two never stand against each other and the adjudication is always the road left.
 
 `late_exempt_sha` and `implementing_published_sha` freeze the branch too, but on conditions rather than on their
 presence: neither is ended by a write — the exemption is never cleared at all and the publication record is
@@ -528,7 +531,8 @@ same pinned-state write that publishes real progress, so an early-return path ca
 Every PR-stage handler short-circuits at its `awaiting_human` gate when `park_reason in _AUTO_REBASE_PARK_REASONS` so
 the refresh owns the operator's retry comment. A park some STAGE left is kept intact rather than rebased past, but an
 anchor standing under one is answered all the same: the recovery runs alone, with no reply spent and no rebase of its
-own behind it, and a finish leaves the stage's park where it was. Under every park, the refresh's own included, the
+own behind it, and a finish leaves the stage's park where it was -- as does a gate that routes the replay to an
+adjudication instead (see the handoff below). Under every park, the refresh's own included, the
 pull request is asked for first, and one that merged or closed ends the attempt's whole handoff rather than leaving
 its anchor to hold back the handler that finalizes the issue.
 
@@ -567,21 +571,82 @@ standing claim the rewrite cannot be carried onto is no such debt, and `workflow
 tells the two refusals apart, for the conflict stage as well.
 
 A clean rebase whose candidate the size gate hands to an adjudication instead of pushing leaves two owners over one
-unpublished replay: the attempt's anchor, and the live late generation whose candidate that replay is.
-`workflow/engine/rewrite_takeover.py` is the handoff between them, dormant in this build since nothing calls it yet.
+unpublished replay: the attempt's anchor, and the live late generation whose candidate that replay is. Left that way
+each would hold the other for good -- the generation freezes the refresh that would end the attempt, and the anchor
+holds the adjudication's handler -- so `workflow/engine/rewrite_takeover.py` hands the replay over. The ordinary
+publication and the recovery's retry ask it of every answer the gate holds (`rewrite_publication.py`,
+`rewrite_retry.py`); its proof is what tells the hold that routed the replay from the parks the gate takes instead --
+a reading nobody could take, a refused entry, a moved publication -- none of which leaves a live measured adjudication
+of this replay, so each keeps the attempt pinned for the recovery its reply brings back. The dispatcher asks it again
+ahead of the anchor hold whenever an anchor stands beside a live adjudication (`dispatch_guards._anchor_holds_the_tick`,
+see [Pinned state](#pinned-state)), which covers every write of the handoff a crash can interrupt -- the replay recorded
+and unmeasured is the retry's, the generation persisted with its relabel lost is put back on `workflow:decomposing` by
+the adjudication's own guard first, and the generation relabelled with the handoff lost is handed over there -- and a
+pair an earlier build already stranded under its `auto_base_rebase_failed` park.
 It proves off the pinned record alone, never off the checkout, that the attempt reads back whole with no announcement
 mark, that the generation is one late adjudication would itself act on for this issue -- it passes the late domain's
 record gate, freezes both its candidate and its base, and names this issue as `late_current_issue` -- and is live,
 measured past its ceiling, with a whole publication group, and that the two name the same candidate, pull request,
-anchor (the generation's `late_published_sha`), and stage. One guarded write, decided on both records as they were read,
-then records the takeover (`late_auto_rebase_replay_sha`, see [Late generation state](#late-generation-state)) and
-retires the whole attempt through the same clear every ending uses, so the attempt is never gone without the generation
-carrying the replay; the frozen pair, the measurement, the publication group, and every other field stay as the comment
-spells them, and a repeated handoff finds the attempt gone and writes nothing; a write sent and never confirmed answers
-UNCONFIRMED, since only the comment read again says whether it landed. Evidence short of that is answered INCOMPLETE and
-evidence of other work UNRELATED, and both leave the attempt standing for the recovery that answers it. Ownership
-licenses no push: the replay is published only by the settlement of an authorized `single`, leased to the head the
-generation froze, which records the report debt that push leaves before it resumes the source stage.
+anchor (the generation's `late_published_sha`), and stage. One guarded write, decided on both records and the park's
+flags as they were read, then records the takeover (`late_auto_rebase_replay_sha`, see
+[Late generation state](#late-generation-state)) and retires the whole attempt through the same clear every ending
+uses, so the attempt is never gone without the generation carrying the replay. A park the attempt's own road left --
+any of the `auto_base_rebase_*` reasons, the stranded park among them -- goes in that write, since nothing is left to
+come back for the reply it asks for and the stage the replay is handed back to stands down on those reasons; every other
+park, the round, the frozen pair, the measurement, the publication group, and every other field stay as the comment
+spells them, and a repeated handoff finds the attempt gone and writes nothing.
+
+Every `auto_base_rebase_*` notice asks for a reply, and the base sync reads one for its arrival alone: any trusted
+comment past the notice lets the attempt go again. What the reply says is the adjudication's question once the replay
+is handed to one, since it reads a trusted comment it has not counted as guidance, and guidance resumes the developer
+over a candidate nobody adjudicated (`workflow/engine/rewrite_replies.py`). A reply that asks for the retry and nothing
+else -- a bare `/orchestrator continue`, or a bare "retry", "try again", or "please retry" -- is the attempt's: it is
+recorded read where the adjudication reads from, `last_action_comment_id` past it and `user_content_hash` over the
+thread through it, which is what a generation's first late baseline counts comments up to. A reply that says anything
+more is a human's words, a requirement or a decision, and stays unread for the adjudication to hand the developer. Only
+the leading run of retries is spent, since the baseline covers a prefix of the thread and the first reply of guidance
+is where it stops; and the baseline moves only where it already reproduces over the thread up to the watermark the
+replies were written past -- short of that, words nobody read stand before the park's notice, and folding the retry in
+would fold those in too. It reproduces in either spelling the drift check accepts: a baseline the legacy algorithm
+wrote, counting a bare `/orchestrator continue`, covers the thread as the current one does, and what is written past
+it is the current spelling, as that check normalizes a legacy baseline it recognizes.
+
+Each retry is recorded in the write that already spends its reply, so no lost tick can split the two: the anchor's
+write on a rebase the reply let start, which moves the watermark past every reply it read
+(`workflow/engine/base_rewrite.py`); the gate's write on the recovery's retry, which takes the reply's park down
+(`workflow/engine/rewrite_retry.py`); and the handoff's write over a park the attempt's own road left, which retires
+the park with what answered it (`workflow/engine/rewrite_takeover_parks.py`). The park's notice outlives it, though:
+it still stands on the thread asking for a reply once the handoff has landed, and a tick lost before the adjudication
+first reads the thread leaves the human to answer it with no park left to say whose the answer is. So until that first
+reading, with no park standing, the dispatcher's hold over a taken-over replay's adjudication spends a retry past the
+watermark the same way, in a guarded write of its own ahead of the adjudication -- the only question a bare retry
+could answer there being the attempt's -- and holds the tick only where that write did not land.
+
+Any other park is somebody else's question, which nothing on `workflow:decomposing` answers -- and the adjudication's
+verdict would take its flags over with one of its own. So such a park survives every step that brings the replay to an
+adjudication: the size gate's route keeps one whose reason is neither the attempt's, the late domain's (`late_*`), nor
+the spent spawn budget's (`retry_cap`) wherever an auto-rebase anchor is pinned -- the recovery a stage's park let
+through with no reply spent (`stages/implementing/late_park_retirement.py`) -- the handoff leaves it, and the
+dispatcher holds the taken-over replay's adjudication behind it, writing nothing, until a human replies past the park's
+notice. The adjudication then reads that reply as it reads any reply on a park it does not own: guidance answers the
+park and resumes the developer, and a bare `/orchestrator continue` lets the adjudication run. A write sent and never
+confirmed answers UNCONFIRMED, since only the comment read again says whether it landed, and the dispatcher holds that
+tick for the next to prove again. Evidence short of that is answered INCOMPLETE and evidence of other work UNRELATED,
+and both leave the attempt standing; beside a live adjudication the dispatcher then takes the stranded park, which asks
+for the `pending_auto_base_rebase_*` record to be reconciled by hand rather than for the label back, since the
+adjudication's guard restores its label. Ownership licenses no push: the replay is published only by the settlement of
+an authorized `single`, leased to the head the generation froze, which records the report debt that push leaves and
+puts the reviewer's spent rounds back before it routes the head to `workflow:validating` -- where the rewrite finish
+sends every rebase it publishes, whatever stage the rebase was made under, since the merge roads hold their handlers
+while that report is owed and only validating pays it and reviews the head. A pull request somebody pushed to
+meanwhile refuses that publication and parks, with nothing pushed and no debt recorded.
+
+The retry is where a changed contribution meets a refused permit after a crash. A replay the attempt's own record names,
+with no grant made before the crash, is vouched for by that record, so a permit that refuses the evidence re-derived for
+it is a contribution the base advance changed -- and it is measured, with that evidence, as the publication the dead
+tick was making would have measured it: past the ceiling it goes to a fresh adjudication with the replay standing, and
+under it publishes on the count with the verdict left on the commit a human ruled on. A standing permission and a
+replay the record does not name yet have only the permit behind them, so a refusal there still resets and parks.
 
 Every finish is the workflow's (`workflow/engine/rewrite_finish.py`): of a head the refresh published itself, of one
 the recovery's retry pushed again, and of one the recovery found already standing
@@ -1053,7 +1118,12 @@ The keys that matter for the state machine fall into a few groups:
   conversation: no agent ran, so no feedback watermark moves and the comments stay unread for the reviewer the
   relabel hands the issue to. A late adjudication on `workflow:decomposing` writes it too, whenever it consumes a
   content reading — the same write that moves its local watermark and the shared `last_action_comment_id`, to the
-  hash that one reading froze (see [the local fingerprints](#late-generation-state)). What a run may cross on the
+  hash that one reading froze (see [the local fingerprints](#late-generation-state)). So does an auto rebase's attempt,
+  over the replies to its own park that only asked for the retry -- in the write that spends the reply, to the hash of
+  the thread through the last of them, and only where the recorded value -- in either spelling the drift check
+  accepts -- already covers the thread up to the watermark they were written past (`workflow/engine/rewrite_replies.py`,
+  see [Base refresh](#base-refresh)), so an
+  adjudication the replay is handed to never reads an operator's retry as guidance. What a run may cross on the
   issue thread is bounded beside it — see [the drift section](delivery-stages.md#user-content-drift-detection).
 - **Observed reading.** `observed_user_content_hash` — the same fingerprint over a reading a stage acted on without
   consuming any of it, written only where no `user_content_hash` is recorded: by a late adjudication carrying on over a
@@ -1515,7 +1585,8 @@ The keys that matter for the state machine fall into a few groups:
   A replay the size gate handed to an adjudication, and the late generation took over with its attempt retired, records
   the same claim once the authorized settlement publishes it (`stages/decomposition/late_replay_debt.py`): proved by
   that ownership and by the code-publication receipt naming the replay over `late_published_sha` on
-  `late_published_pr_number`, in a write of its own before the label hands the head back to `late_source_stage`. A
+  `late_published_pr_number`, in a write of its own before the label hands the head to `workflow:validating` -- the
+  write that also puts a spent `review_round` back to zero, as the finish's announcement does. A
   retry after the push landed records it again from the same ownership with no second push, and a proved claim with no
   room parks `late_pr_unreconciled` with the push kept and the generation live, so a later tick records it once room
   is made -- or, where the comment has no room for that park either, posts and writes nothing and leaves the same
@@ -1556,7 +1627,10 @@ The keys that matter for the state machine fall into a few groups:
   (see [`delivery-stages.md`](delivery-stages.md), **Recovery follow-up**). Park reasons that route via
   `_park_auto_rebase_failure` (`auto_base_rebase_failed` / `auto_base_rebase_dirty` /
   `auto_base_rebase_push_failed` / `auto_base_rebase_unrecorded_debt`) are owned by the per-tick
-  base-sync flow — every PR-stage handler short-circuits when `park_reason in _AUTO_REBASE_PARK_REASONS`. The
+  base-sync flow — every PR-stage handler short-circuits when `park_reason in _AUTO_REBASE_PARK_REASONS`. A reply to
+  one that only asks for the retry is the attempt's, recorded read past `last_action_comment_id` by the write that
+  spends it, and a reply that says more is left for whoever reads guidance next; a park of any other reason standing
+  beside an anchor is kept through the size gate's route to an adjudication (see [Base refresh](#base-refresh)). The
   exhausted retry budget re-sets `retry_cap` for the same kind of reason — a park nothing can recognize is one the
   next tick re-decides from scratch (see [The retry budget](#the-retry-budget)), and the spent lifetime agent-run
   ledger re-sets `agent_run_limit` for the same reason again, since the dispatcher's hold over it reads that flag and
@@ -2975,12 +3049,20 @@ The keys that matter for the state machine fall into a few groups:
   either no-op, push the recovered head, or park, on the record described below. While it stands, the dispatcher
   holds the stage handler back (`recovery_holds._recovery_holds_dispatch`): a refresh that could not reach the
   recovery — a failed base fetch, a pull request that would not read — would otherwise hand a reviewer, a developer,
-  or a decomposer a replay no push has published. On a label the refresh does not drive — the read-only stages it
-  skips and a generation an
+  or a decomposer a replay no push has published. An anchor beside a live adjudication is first offered to it
+  (`workflow/engine/rewrite_takeover.py`, see [Base refresh](#base-refresh)): a pair whose records describe one replay
+  is handed over, the attempt and any `auto_base_rebase_*` park it left retired in one write with the replies that only
+  asked that park for a retry recorded read, and the anchor no longer holds anything; a handoff write nobody confirmed
+  holds the tick for the next to prove again, and a park the handoff leaves that nothing on the adjudication's road
+  answers holds it until a human replies to that park. On a label the refresh
+  does not drive — the read-only stages it skips and a generation an
   adjudication is still deciding included — nothing is waited on: the dispatcher takes the refresh's own ineligible
   road itself, a clear or the stranded park, and over a checkout that is not on disk goes straight to the park, since
   no reading of where the branch stands can be taken. The stranded park asks for the label back and a reply both,
-  since that park is the refresh's own and a relabel alone never releases it. On a label the refresh drives, the hold
+  since that park is the refresh's own and a relabel alone never releases it -- save beside a live adjudication, whose
+  guard restores its label: there it asks for the `pending_auto_base_rebase_*` and `late_rewrite_*` fields, and the
+  park's own flags, to be reconciled by hand, past which the adjudication runs and asks for its usual decision. On a
+  label the refresh drives, the hold
   is lifted only for a late claim the reconciliation answers — a frozen pair, an approved push — since that freezes
   the refresh out and the reconciliation is what ends it, and it is asked again once the reconciliation has run, so a
   claim it spends leaves the anchor holding the tick. Every other record and park holds, since each is ended by a
@@ -3033,10 +3115,10 @@ The keys that matter for the state machine fall into a few groups:
   The whole group is dropped by the one write that ends an attempt — the reset that puts the branch back, the no-op
   that moved nothing, the relabel that takes the issue out of the refresh's reach, the finalize that publishes, and
   the handoff of an unpublished replay to the late generation adjudicating it (which stages
-  `late_auto_rebase_replay_sha` in that same write) all go through the same clear — so no road can leave a member
-  behind. That clear is held to the reset LANDING wherever one is made: a reset that failed abandoned nothing, and the
-  comment is then the only account of where the checkout may be standing, so nothing is dropped and the next tick
-  still has an anchor to come back with.
+  `late_auto_rebase_replay_sha` in that same write, and retires any `auto_base_rebase_*` park the attempt left) all go
+  through the same clear — so no road can leave a member behind. That clear is held to the reset LANDING wherever one
+  is made: a reset that failed abandoned nothing, and the comment is then the only account of where the checkout may
+  be standing, so nothing is dropped and the next tick still has an anchor to come back with.
   **The whole record is live: every write, the clear, and the readings.** The terms and the anchor go down before
   `git rebase`, the replay goes down before the dirty check, both finishes mark what they announced, and every ending
   drops the group; the three answers and the presence test on the mark are what the workflow's recovery decides on.
@@ -3087,6 +3169,16 @@ The keys that matter for the state machine fall into a few groups:
   measured, adjudicated, run, or said on the issue a second time; and
   [`tests/git/base_sync/test_real_git_journey_recovery.py`](../../tests/git/base_sync/test_real_git_journey_recovery.py)
   loses the tick at every durable boundary of that rebase and requires the next refresh to reach the same finish.
+  [`tests/git/base_sync/test_real_git_journey_handoff.py`](../../tests/git/base_sync/test_real_git_journey_handoff.py)
+  advances the base under the file the change edits instead, so the replay contributes something else: over
+  consecutive production ticks the gate adjudicates it afresh with the pull request left on the authorized head, the
+  human's authorization of the replay publishes it under the lease with its report owed, and the reviewer runs on
+  over it -- while somebody else's push to the pull request refuses that publication, and a tick lost at each write of
+  the handoff comes back to the same adjudication with no reset, no reused verdict, and no developer run -- an
+  operator's retry before it included, on the publication's road and the recovery's. A pair an earlier build stranded
+  under its park comes back to it too, the retry that park asked for spent with the attempt rather than resuming the
+  developer, while a reply that says more reaches the developer as guidance; and a park another owner left, stood
+  before the gate measured the replay or after, holds the adjudication until a human answers it.
 - **Counters / timestamps.** `retry_window_start` + `retry_count` (24h fresh-spawn budget shared between implementing
   and decomposing, with `retry_cap_stage`, `retry_cap_continued`, and the sentence the park owes the thread beside
   them once it runs out — `retry_cap_notice`, or `late_park_notice` where a late adjudication is what ran out, since
@@ -3785,7 +3877,8 @@ rather than preserving.
   set, for the reason the cancellation marker is: `bool("false")` is `True`, and reading the flag for its truthiness
   would tell a reconciliation there is a pull request to act on. The three fields beside it are what a
   pre-publication entry has no need of and a post-publication one could not re-derive. `late_source_stage` is the
-  workflow label the issue was taken out of and the state a settled adjudication continues at — read through the label
+  workflow label the issue was taken out of and the state a settled adjudication continues at -- save a taken-over
+  auto-rebase replay, which continues at `workflow:validating` as every published rebase does — read through the label
   vocabulary, so a value that is not one of them reads back absent rather than as a state a later tick would obey, and
   the adjudication runs under `decomposing` rather than the label it came from, so a stage that was not recorded is
   not one anything could recover. Being a label is not enough: the group is written and read as context only while
@@ -3828,8 +3921,8 @@ rather than preserving.
   commit id, and a record from before the key existed are no takeover. It licenses no push and no route: an authorized
   `single` publishes the replay exactly as it publishes any post-publication candidate, leased to
   `late_published_sha`, and what the field adds is the report debt that push leaves (`developer_report_rewrite_debt`),
-  recorded before the label. Additive and written only while set, it is inside the generation's own key group, so the
-  retirement that ends the cycle drops it.
+  recorded before the label with the spent `review_round` put back to zero, as the rewrite finish does. Additive and
+  written only while set, it is inside the generation's own key group, so the retirement that ends the cycle drops it.
 - **External-resource ledgers.** `late_resources` holds one `{kind, target, state}` entry per obligation the remote is
   owed — kind `snapshot_ref` / `branch` / `plan_pr` / `child`, state `pending` / `retained` / `reclaiming` /
   `reconciled` / `failed`
@@ -4279,9 +4372,14 @@ rather than preserving.
   What is left is licensed by the permit and by nothing else — re-asked over the record where there is one and over
   the re-derived evidence where the grant never landed, ahead of the gated push rather than through it, with
   `permit_only` telling the gate the same so a refusal on either side is a refusal rather than a fall-through to the
-  cumulative reading. The rotation is read back past the push, since a permit that stopped holding in between leaves
-  the push landed and the verdict where it was. Every park there that resets is held to the reset landing like any
-  other: a reset git refuses keeps the anchor, the replay, the mark, the permission, and the debt.
+  cumulative reading. The one exception is a replay the attempt's own record names whose evidence was re-derived
+  because the crash came before any grant: the record vouches for that checkout and nothing was granted on it, so a
+  refusal there is a contribution the base advance changed, and the retry enters it with that evidence and without
+  `permit_only`, as the interrupted publication would have — measured, and adjudicated afresh past the ceiling, with
+  the replay left standing (see [Base refresh](#base-refresh)). The rotation is read back past the push, since a permit
+  that stopped holding in between leaves the push landed and the verdict where it was. Every park there that resets is
+  held to the reset landing like any other: a reset git refuses keeps the anchor, the replay, the mark, the permission,
+  and the debt.
 
   `late_rewrite_proof` sits beside that group and deliberately outside it. It records which reading proved the push a
   settlement was taken on had landed — `pushed` for the leased force-push that moved the pull request off the head the
@@ -4896,13 +4994,15 @@ A restart's projection drops all three with the branch they describe.
 On every publication still to be made, only a permit `late_transfer` re-asked on the settling tick spends a grant.
 A grant no permit vouched for is left standing for a later tick to settle, a grant the publication went past is
 dropped, and a refused permit is never read as equivalence: the rewrite goes to the ordinary cumulative gate, or, on
-the base refresh's permit-only crash recovery, parks. The one settlement with no permit to re-ask is a pull request
-that merged or closed on the rewritten commit before the receipt was written: a permit licenses a push about to be
-made and this one is behind it, so the attempt's terminal handoff holds the grant to its own binding instead — read
-back whole, still `authorized`, and naming the commit the pull request ended on, the anchor it was pushed from, and
-that pull request — and settles it as `already_published`. A grant that fails those terms is dropped only on the
-rollback's own rule — read back whole, still `authorized`, and granted over that same anchor — while a damaged group,
-a `published` one, and one bound to some other head are left standing, fail-closed.
+the base refresh's permit-only crash recovery, parks — save the retry of a replay its attempt's record names with no
+grant made before the crash, which goes to the cumulative gate as the interrupted publication would have. The one
+settlement with no permit to re-ask is a pull request that merged or closed on the rewritten commit before the receipt
+was written: a permit licenses a push about to be made and this one is behind it, so the attempt's terminal handoff
+holds the grant to its own binding instead — read back whole, still `authorized`, and naming the commit the pull request
+ended on, the anchor it was pushed from, and that pull request — and settles it as `already_published`. A grant that
+fails those terms is dropped only on the rollback's own rule — read back whole, still `authorized`, and granted over
+that same anchor — while a damaged group, a `published` one, and one bound to some other head are left standing,
+fail-closed.
 
 **Who may present a rewrite.** Only the owner that RAN it, since nothing read off a branch tells a replay from work
 somebody else wrote. The kind and the stage it was entered from are one claim, and a pairing no owner produces reads
@@ -4914,8 +5014,9 @@ back as no authorization.
 - `auto_clean_rebase`, entered from `validating`, `documenting`, `in_review`, or `fixing`: the base refresh's clean
   rebase (`workflow/engine/rewrite_publication.publishes`). Its recovery is the refresh's own crash recovery — the
   reissued push (`workflow/engine/rewrite_retry.retries`) and the leased no-op
-  (`workflow/engine/rewrite_landed.recovers`), both `permit_only` — and the terminal handoff of a pull request that
-  merged or closed.
+  (`workflow/engine/rewrite_landed.recovers`), both `permit_only` save where the reissued push is of a replay the
+  attempt's record names with no grant made before the crash, whose refused evidence it measures instead — and the
+  terminal handoff of a pull request that merged or closed.
 - `conflict_rebase`, entered from `resolving_conflict`: the clean rebase `conflicts/publication._publish_clean_rebase`
   runs. Its recovery is `conflicts/divergence._push_recovered_commits`, over the `conflict_replay_*` record written
   before the replay.
@@ -4945,7 +5046,8 @@ every term below is asked in this fixed order, and a reading that could not be t
 
 **What a crash leaves.** The base refresh's journey is proved at every durable boundary on a real repository
 ([`tests/git/base_sync/test_real_git_journey_recovery.py`](../../tests/git/base_sync/test_real_git_journey_recovery.py)),
-and every case finishes without an agent run, a measurement, or a second adjudication, or parks:
+and every case of an unchanged contribution finishes without an agent run, a measurement, or a second adjudication, or
+parks:
 
 - **After the anchor, before `git rebase`**: the checkout is still on the anchor, so the attempt is dropped and
   rebased afresh.
@@ -4953,7 +5055,9 @@ and every case finishes without an agent run, a measurement, or a second adjudic
   `pending_auto_base_rebase_rewrite_sha`, so the replay is vouched for by what it contributes over the pinned terms
   and pushed under the lease.
 - **After the replay was recorded, before the grant**: an exemption and no permission (*unrecorded*), so the evidence
-  is re-derived from the recorded terms, the permit is asked, and the push goes out under the lease.
+  is re-derived from the recorded terms, the permit is asked, and the push goes out under the lease -- or, where the
+  permit refuses it, the base advance changed the contribution, and the replay is measured as the publication would
+  have measured it, adjudicated afresh past the ceiling.
 - **After the grant, before the push**: an *outstanding* permission with the remote still on the lease, so the push is
   reissued on the permit alone.
 - **After the push, before the receipt**: an outstanding permission with the remote already on the rewrite, so the

@@ -467,9 +467,12 @@ merged or been closed, which the issue's own flag cannot show — so a terminal 
 ([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-agent-run-limit-hold-every-dispatch-ahead-of-every-handler))
 — an auto-rebase anchor no recovery has ended, since the base refresh answers one ahead of every handler only on a
 tick that reaches it: the handler is held while the anchor stands, under a stage's own park and on the live
-adjudication's road too, and asked again once the late reconciliation has run; a label the refresh does not drive is
-answered on its ineligible road by the dispatcher itself, and a missing checkout on one it drives is restored for the
-refresh to walk
+adjudication's road too, and asked again once the late reconciliation has run -- save that an anchor beside a live
+adjudication is first offered to it, and a pair describing one replay is handed over
+(`workflow/engine/rewrite_takeover.py`) so the adjudication runs, held only behind a park that handoff leaves and
+nothing on its road answers until a human replies to it (`workflow/engine/rewrite_takeover_parks.py`); a label the
+refresh does not drive is answered on its ineligible road by the dispatcher itself, and a missing checkout on one it
+drives is restored for the refresh to walk
 ([`state-machine/labels-and-state.md`][pinned-state])
 — a developer report the issue recorded and never finished publishing, which is answered last of the
 reconciliations and ahead of the reuse guard below: the record is durable and the publication that follows it is
@@ -865,16 +868,18 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   could not show landed resets the checkout onto its anchor and parks `auto_base_rebase_push_failed`. The crash
   recovery's retry of a replay nothing published (`workflow/engine/rewrite_retry.py`) crosses the same boundary: it
   reads the candidate the attempt left, in the attempt's own terms and over the remote head its fetch verified
-  (`git/base_sync/recovery_push.py`), asks the transfer permit first where a transfer is the only voucher -- a refusal
-  resets and parks rather than falling through to the cumulative reading -- and publishes and finishes exactly as the
-  ordinary publication does. A push the recovery finds already landed (`workflow/engine/rewrite_landed.py`) crosses
-  it too, without a second push: the same candidate is read and held to the head the recovery's fetch classified -- a
-  checkout and branch moved together onto another head since make nothing, for the next tick to classify -- and
-  `git/base_sync/landed_recovery.py` names why the pinned record may not account for the landing -- a foreign mark,
-  a head nothing this attempt vouches for, a checkout not provably clean beneath a verdict, a transfer the receipt
-  and debt do not account for -- and a refusal parks with HEAD and the anchor kept. Past those the landing is
-  observed where the remote stands, or, for a transfer whose permission is still outstanding, proved by the
-  permit-only leased no-op the gate settles that transfer through, and either is handed to the same finish.
+  (`git/base_sync/recovery_push.py`), asks the transfer permit first where a transfer licenses the push -- a refusal
+  resets and parks rather than falling through to the cumulative reading, save for a replay the attempt's record names
+  with no grant made before the crash, whose refused contribution the base advance changed and which is measured as
+  the publication would have measured it -- and publishes and finishes exactly as the ordinary publication does. A push
+  the recovery finds already landed (`workflow/engine/rewrite_landed.py`) crosses it too, without a second push: the
+  same candidate is read and held to the head the recovery's fetch classified -- a checkout and branch moved together
+  onto another head since make nothing, for the next tick to classify -- and `git/base_sync/landed_recovery.py` names
+  why the pinned record may not account for the landing -- a foreign mark, a head nothing this attempt vouches for, a
+  checkout not provably clean beneath a verdict, a transfer the receipt and debt do not account for -- and a refusal
+  parks with HEAD and the anchor kept. Past those the landing is observed where the remote stands, or, for a transfer
+  whose permission is still outstanding, proved by the permit-only leased no-op the gate settles that transfer through,
+  and either is handed to the same finish.
 - The finish a landed rewrite still owes sits on the workflow side of that boundary.
   `workflow/engine/rewrite_finish.py` takes the landed record beside the issue it finishes and applies one policy to
   the ordinary publication, a recovered one, and a finish whose announcement is already out: the report debt staged

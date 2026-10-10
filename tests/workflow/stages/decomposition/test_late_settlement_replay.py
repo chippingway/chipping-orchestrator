@@ -5,7 +5,9 @@
 The replay is a head this orchestrator made, so the settlement that publishes
 it -- onto the pull request the generation froze, leased to the head it froze
 -- owes the pull request the report debt the rewrite finish records for every
-rebase it publishes, before the label hands the head back to its stage. A
+rebase it publishes, with the reviewer's spent rounds put back as that finish
+puts them back, and the label hands the head to `validating` as that finish
+does, whatever stage the rebase was made under. A
 pull request somebody moved refuses the publication and records nothing, and
 a retry past a push that landed records the same debt without pushing again.
 The settlement of a candidate nobody took over is in
@@ -38,7 +40,12 @@ _LateDisposition = _late_result_models._LateDisposition
 
 KEY_REWRITE_DEBT = "developer_report_rewrite_debt"
 LABEL_DECOMPOSING = "workflow:decomposing"
+LABEL_VALIDATING = "workflow:validating"
 KEY_REPLAY = "late_auto_rebase_replay_sha"
+KEY_REVIEW_ROUND = "review_round"
+
+# The rounds a reviewer had spent on PR #78 before the rebase replaced its head.
+_SPENT_ROUNDS = 2
 
 # The attempt the auto rebase pinned before the size gate took its replay to
 # an adjudication: the anchor PR #78 stands on, its terms, and the replay.
@@ -132,8 +139,11 @@ class ReplayPublicationTest(_ReplayCase, unittest.TestCase):
 
     def test_the_replay_publishes_and_owes_its_report(self) -> None:
         # The attempt hands its replay to the generation first, and owning it
-        # is what the settlement's push owes the report for.
-        self._seed_replay(replay_sha="", **_ATTEMPT)
+        # is what the settlement's push owes the report for -- and what puts
+        # the reviewer's spent rounds back and sends the head to review rather
+        # than to the stage it was rebased under, as for every rebase this
+        # orchestrator publishes.
+        self._seed_replay(replay_sha="", review_round=_SPENT_ROUNDS, **_ATTEMPT)
         state = self.github.read_pinned_state(self.issue)
         handed = _takeover.takes_over(self.github, self.issue, state)
         self.assertEqual(handed, _takeover.TakeoverOutcome.TAKEN_OVER)
@@ -142,7 +152,7 @@ class ReplayPublicationTest(_ReplayCase, unittest.TestCase):
 
         self.assertEqual(
             self._settled(outcome),
-            (_LateDisposition.SETTLED, _late_support.PUBLISHED_SOURCE_STAGE, _owed()),
+            (_LateDisposition.SETTLED, LABEL_VALIDATING, _owed()),
         )
         pinned = self._pinned()
         # Pushed as exactly the replay over the frozen head, its publication
@@ -156,10 +166,11 @@ class ReplayPublicationTest(_ReplayCase, unittest.TestCase):
                 pinned.get(_late_support.KEYS.approved_sha),
                 KEY_REPLAY in pinned,
                 {key: pinned[key] for key in _ATTEMPT},
+                pinned[KEY_REVIEW_ROUND],
             ),
             (
                 _late_support.CANDIDATE_SHA, _late_support.PUBLISHED_HEAD_SHA,
-                _late_support.PUBLISHED_PR_NUMBER, None, False, dict.fromkeys(_ATTEMPT),
+                _late_support.PUBLISHED_PR_NUMBER, None, False, dict.fromkeys(_ATTEMPT), 0,
             ),
         )
 
@@ -174,17 +185,18 @@ class ReplayPublicationTest(_ReplayCase, unittest.TestCase):
 
         self.assertEqual(
             self._settled(outcome),
-            (_LateDisposition.SETTLED, _late_support.PUBLISHED_SOURCE_STAGE, _owed(_late_support.OTHER_SHA)),
+            (_LateDisposition.SETTLED, LABEL_VALIDATING, _owed(_late_support.OTHER_SHA)),
         )
 
     def test_an_unowned_candidate_owes_no_report(self) -> None:
         # A candidate a developer committed, and an ownership naming another
         # commit than the one being published: neither is this orchestrator's
-        # rewrite, so the settlement records no debt for it.
+        # rewrite, so the settlement records no debt for it and leaves the
+        # rounds the reviewer spent where they stand.
         for replay_sha in ("", _late_support.OTHER_SHA):
             with self.subTest(replay_sha=replay_sha):
                 self.setUp()
-                self._seed_replay(replay_sha=replay_sha)
+                self._seed_replay(replay_sha=replay_sha, review_round=_SPENT_ROUNDS)
 
                 outcome = self._settle()
 
@@ -192,6 +204,7 @@ class ReplayPublicationTest(_ReplayCase, unittest.TestCase):
                     self._settled(outcome),
                     (_LateDisposition.SETTLED, _late_support.PUBLISHED_SOURCE_STAGE, None),
                 )
+                self.assertEqual(self._pinned()[KEY_REVIEW_ROUND], _SPENT_ROUNDS)
 
     def test_ownership_alone_publishes_nothing(self) -> None:
         # The adjudicator answers `single` and no operator has authorized the
@@ -263,7 +276,7 @@ class InterruptedReplaySettlementTest(_ReplayCase, unittest.TestCase):
 
                 self.assertEqual(
                     self._settled(outcome),
-                    (_LateDisposition.SETTLED, _late_support.PUBLISHED_SOURCE_STAGE, _owed()),
+                    (_LateDisposition.SETTLED, LABEL_VALIDATING, _owed()),
                 )
 
     def test_a_debt_without_room_parks_for_it(self) -> None:
@@ -316,5 +329,5 @@ class InterruptedReplaySettlementTest(_ReplayCase, unittest.TestCase):
 
         self.assertEqual(
             self._settled(outcome),
-            (_LateDisposition.SETTLED, _late_support.PUBLISHED_SOURCE_STAGE, _owed()),
+            (_LateDisposition.SETTLED, LABEL_VALIDATING, _owed()),
         )

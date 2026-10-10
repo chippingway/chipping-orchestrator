@@ -693,14 +693,17 @@ write and the record leaves the proof the settlement kept, and the reconciliatio
 from it — best effort, since a sink that refuses the record loses it and a proof drop that does not land lets a later
 tick report it again.
 
-The base refresh's rebase of an accepted commit is recoverable at every one of those writes, and its recovery never
-falls back on a reading. A replay git produced before anything recorded it is vouched for by what it contributes over
-the terms the attempt pinned before git ran; a push that never went out is reissued on the permit alone, entered into
-the gate whatever `DECOMPOSE` says; a push that landed with its receipt lost is settled through the leased no-op;
-and a pull request that merged or closed over the attempt ends the attempt, its debt, and its permission in one
-write, settling the permission where the pull request ended on the rewrite it names — on the record's own binding,
-since that push is behind it and there is no permit left to re-ask. Every road finishes without an
-agent, a measurement, or a second adjudication, or parks where the record cannot account for what it finds
+The base refresh's rebase of an accepted commit is recoverable at every one of those writes, and its recovery of an
+unchanged contribution never falls back on a reading. A replay git produced before anything recorded it is vouched for
+by what it contributes over the terms the attempt pinned before git ran; a push that never went out is reissued on the
+permit alone, entered into the gate whatever `DECOMPOSE` says -- save a replay the attempt's record names, with no
+grant made before the crash, whose re-derived evidence the permit refuses: its contribution changed, and it is
+measured as the publication would have measured it; a push that landed with its receipt lost is settled through the
+leased no-op; and a pull request that merged or closed over the attempt ends the attempt, its debt, and its permission
+in one write, settling the permission where the pull request ended on the rewrite it names — on the record's own
+binding, since that push is behind it and there is no permit left to re-ask. Every road over an unchanged
+contribution finishes without an agent, a measurement, or a second adjudication, or parks where the record cannot
+account for what it finds
 ([`../state-machine/labels-and-state.md#base-refresh`](../state-machine/labels-and-state.md#base-refresh)).
 
 None of this widens the exemption. A rotation moves it from one exact commit onto one other, and only where the owner
@@ -1239,8 +1242,9 @@ drops what it could not confirm
 ([`../state-machine/delivery-stages.md`](../state-machine/delivery-stages.md#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr)).
 Where the candidate is an auto-rebase replay the generation took over from its attempt
 (`late_auto_rebase_replay_sha`), the settlement's push is a head this orchestrator rebased rather than one a developer
-reported on, so it records the report debt that push leaves (`late_replay_debt.py`) before its label resumes the
-source stage, as every orchestrator rewrite of a pull request's head does.
+reported on, so it records the report debt that push leaves (`late_replay_debt.py`) and puts the reviewer's spent
+rounds back, and its label hands the head to `workflow:validating` rather than to the stage the rebase was made under,
+as every orchestrator rebase of a pull request's head does.
 
 Two things the reconciliation deliberately does not do. It creates **no snapshot** — a snapshot exists so children
 can be cut from a candidate about to be superseded, and an accepted candidate supersedes nothing, so preserving a

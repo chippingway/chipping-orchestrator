@@ -64,7 +64,7 @@ a replay its crash recovery pushed again, and of a push that recovery found
 already landed. A replay the size gate handed to an adjudication instead is
 taken over by the late generation with its attempt retired
 (`rewrite_takeover.py`), and the authorized settlement that publishes it
-records the same debt before it hands the head back to its stage
+records the same debt before it hands the head to `validating`
 (`stages/decomposition/late_replay_debt.py`). A settled report of the commit
 an approval's squash replaced is of neither head, so it pays nothing, and on
 its own it is owed nothing either. Written against the requirements the issue

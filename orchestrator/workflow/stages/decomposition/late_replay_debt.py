@@ -12,7 +12,11 @@ human whose reply only restarts a report of a commit this orchestrator made
 the settlement records the same claim (`workflow/engine/report_rewrite_debt.py`)
 before its label hands the head on: the pull request, the branch the push
 went to, the head the replay replaced, and the replay itself, retargeting a
-claim an earlier rewrite left exactly as that owner does.
+claim an earlier rewrite left exactly as that owner does. The rounds the
+reviewer spent go back to zero in the same write, as the rewrite finish puts
+them back for every rebase it publishes: the reviewer has to read a head no
+round of its own produced, and a cap those rounds already reached would park
+the issue on a review that never ran.
 
 What proves the rewrite is the generation's own ownership of the replay,
 beside the code-publication receipt the push wrote -- or the retry after a
@@ -37,6 +41,7 @@ from __future__ import annotations
 import copy
 import logging
 
+from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -72,12 +77,12 @@ _UNRECORDED_PARK = (
 
 
 def _records_the_replay_debt(context: _LateContext) -> bool:
-    """Make durable the report debt a published taken-over replay leaves; False where it parked for room.
+    """Make durable a published taken-over replay's report debt and its spent rounds put back; False where it parked.
 
     True, with nothing written, for every candidate the generation did not
     take over from an auto rebase, for a receipt that does not prove its
-    publication, for a standing claim the replay cannot be carried onto, and
-    for a claim already recorded.
+    publication, and for a debt and rounds already recorded. A standing claim
+    the replay cannot be carried onto has the rounds put back alone.
     """
     if not context.generation.publication.replayed_as(context.generation.candidate_sha):
         return True
@@ -89,23 +94,31 @@ def _records_the_replay_debt(context: _LateContext) -> bool:
             context.issue.number, context.generation.candidate_sha,
         )
         return True
-    standing = context.state.get(_rewrite_debt.REWRITE_DEBT)
-    if _rewrite_debt.records_rewrite(context.state, rewrite):
-        if context.state.get(_rewrite_debt.REWRITE_DEBT) != standing:
-            _late_park_state._persist(context)
+    standing = _recorded(context.state)
+    carried = _rewrite_debt.records_rewrite(context.state, rewrite)
+    if not carried and _rewrite_room.outgrows_the_comment(context.state, rewrite):
+        return _parked_for_room(context, rewrite)
+    if context.state.get(_base_sync_state._REVIEW_ROUND):
+        context.state.set(_base_sync_state._REVIEW_ROUND, 0)
+    if _recorded(context.state) != standing:
+        _late_park_state._persist(context)
+    if carried:
         log.info(
             "issue=#%d PR #%d stands on the taken-over replay %.8s of %.8s; it is owed a report of that head",
             context.issue.number, rewrite.pr_number, rewrite.rewritten_head, rewrite.previous_head,
         )
-        return True
-    if _rewrite_room.outgrows_the_comment(context.state, rewrite):
-        return _parked_for_room(context, rewrite)
-    log.warning(
-        "issue=#%d the report debt standing on PR #%d cannot be carried onto the taken-over replay %s; "
-        "leaving it as it is",
-        context.issue.number, rewrite.pr_number, rewrite.rewritten_head,
-    )
+    else:
+        log.warning(
+            "issue=#%d the report debt standing on PR #%d cannot be carried onto the taken-over replay %s; "
+            "leaving it as it is",
+            context.issue.number, rewrite.pr_number, rewrite.rewritten_head,
+        )
     return True
+
+
+def _recorded(state: PinnedState) -> tuple:
+    """What a published replay settles on the comment: the report debt standing, and the rounds the reviewer spent."""
+    return state.get(_rewrite_debt.REWRITE_DEBT), state.get(_base_sync_state._REVIEW_ROUND)
 
 
 def _published_replay(context: _LateContext) -> _rewrite_debt.RewriteDebt | None:

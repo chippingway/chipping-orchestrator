@@ -15,9 +15,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from orchestrator.workflow.engine import rewrite_takeover as _takeover
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    content_hash as _content_hash,
+    rewrite_takeover as _takeover,
+)
 from orchestrator.workflow.engine.rewrite_takeover import TakeoverOutcome
-from tests.support.fakes import FakeGitHubClient, FakeIssue, make_issue
+from tests.support.fakes import FakeComment, FakeGitHubClient, FakeIssue, make_issue
 
 ISSUE = 7
 PR_NUMBER = 42
@@ -44,12 +48,24 @@ KEY_REPLAY = "late_auto_rebase_replay_sha"
 # Every field one attempt puts on the comment, which a handoff retires as one.
 ATTEMPT_KEYS = (KEY_PENDING_PUSH, KEY_REWRITE_PR, KEY_REWRITE_STAGE, KEY_REWRITE_SHA, KEY_ANNOUNCED)
 
-# A park the auto rebase left standing, and a round a reviewer spent: records
-# a handoff leaves where it found them.
-STANDING = MappingProxyType({
+# The park the auto rebase left standing over the pair, which a handoff
+# retires with the attempt it belongs to.
+STRANDED = MappingProxyType({
     "awaiting_human": True,
     "park_reason": "auto_base_rebase_failed",
+})
+
+# The flags a retired park reads as.
+UNPARKED = MappingProxyType({
+    "awaiting_human": False,
+    "park_reason": None,
+})
+
+# A round a reviewer spent and the comment the issue last acted on: records a
+# handoff leaves where it found them.
+STANDING = MappingProxyType({
     "review_round": 3,
+    "last_action_comment_id": 1007,
 })
 
 _ATTEMPT = MappingProxyType({
@@ -119,6 +135,26 @@ class TakeoverWorld:
     def pinned(self) -> dict:
         """The record the pinned comment carries now."""
         return self.github.pinned_data(ISSUE)
+
+    def says(self, body: str, *, ours: bool = False) -> int:
+        """A comment past everything on issue #7's thread -- a trusted human's, or this orchestrator's own; its id."""
+        if ours:
+            return self.github.comment(self.issue, _comments._with_orch_marker(body)).id
+        said = FakeComment(id=self.github.next_reply_id(self.issue), body=body)
+        self.issue.comments.append(said)
+        return said.id
+
+    def baseline_through(self, last: int, *, legacy: bool = False) -> str:
+        """Issue #7's requirements baseline over its title, its body, and its thread through comment `last`.
+
+        `legacy` spells it as the algorithm that counted a bare continue did.
+        """
+        return _content_hash._compute_user_content_hash(
+            self.issue,
+            _comments._orchestrator_ids(self.github.read_pinned_state(self.issue)),
+            include_bare_continue=legacy,
+            comments=[seen for seen in self.issue.comments if seen.id <= last],
+        )
 
     def another_road(self, **fields: object) -> None:
         """Another road's whole-record write over the comment as it stands."""

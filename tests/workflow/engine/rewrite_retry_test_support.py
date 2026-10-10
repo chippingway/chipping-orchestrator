@@ -28,7 +28,6 @@ ANCHOR = world.ANCHOR
 REPLAY = world.REPLAY
 
 LABEL_VALIDATING = "workflow:validating"
-LABEL_DECOMPOSING = "workflow:decomposing"
 
 KEY_AWAITING_HUMAN = "awaiting_human"
 KEY_PARK_REASON = "park_reason"

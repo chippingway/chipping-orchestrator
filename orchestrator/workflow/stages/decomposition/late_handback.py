@@ -12,7 +12,8 @@ an auto-rebase replay the generation took over owes the report debt that push
 leaves (`late_replay_debt`), recorded before anything hands the head on. Then
 the label, handed to the stage the record names rather than to `implementing`,
 because a generation entered on the published side names the one stage whose
-completion the candidate still owes. Only after that is the generation cleared: a
+completion the candidate still owes -- save that taken-over replay, which goes
+to `validating` as every rebase this orchestrator publishes does. Only after that is the generation cleared: a
 `decomposing` issue with no generation on it is one the INITIAL decomposer
 would pick up and re-decompose, and an issue back on its own stage with a live
 generation is one the relabel guard puts back and the settlement re-runs.
@@ -123,10 +124,22 @@ def _continues_at(context: _LateContext) -> WorkflowLabel:
 
     `implementing` is the answer for a candidate nothing had published, which
     is the only other kind: there is no other stage it could have come from.
+
+    An auto-rebase replay the generation took over is the one published
+    candidate whose completion its stage does not own. It is a head this
+    orchestrator rebased: it is owed a developer's report of it and a review
+    of it, which only `validating` pays and runs, and the merge roads past it
+    hold their handlers while that report is owed. So it goes where the
+    rewrite finish sends every rebase it publishes, whichever stage the rebase
+    was made under -- a relabel and nothing more, so every record that stage
+    keeps stands for the road back through it.
     """
-    if not context.generation.publication.is_complete:
+    publication = context.generation.publication
+    if not publication.is_complete:
         return WorkflowLabel.IMPLEMENTING
-    return context.generation.publication.source_stage
+    if publication.replayed_as(context.generation.candidate_sha):
+        return WorkflowLabel.VALIDATING
+    return publication.source_stage
 
 
 def _published(context: _LateContext) -> _LateDisposition | None:

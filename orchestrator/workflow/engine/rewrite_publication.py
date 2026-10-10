@@ -19,8 +19,15 @@ it is made here, in the order the auto rebase has always kept:
 - The size gate and the transfer permit rule on the candidate before anything
   is pushed (`stages/implementing/late_push.py`): they hold it, hand it to an
   adjudication, or -- where the permit refuses -- measure it cumulatively like
-  any other candidate. The push they license is the git owner's publication of
-  exactly that candidate under its original lease
+  any other candidate. A hold that handed the replay to an adjudication hands
+  the attempt over with it (`rewrite_takeover`), so the live generation owns
+  the replay and its next tick adjudicates it rather than meeting an anchor
+  the dispatcher holds it behind; every park the gate takes instead keeps the
+  attempt for the recovery its reply brings back. A reply to this refresh's
+  park that let the rebase start and only asked for the retry was already
+  recorded read by the anchor's own write (`base_rewrite`, `rewrite_replies`),
+  so the adjudication never meets it as guidance. The push they license is the
+  git owner's publication of exactly that candidate under its original lease
   (`git/base_sync/rewrite_transport.py`), which reads the checkout and the
   remote once more first; the gate asks whether the publication ended between
   that reading and the push. A remote that reading finds already on the
@@ -58,7 +65,7 @@ from orchestrator.git.base_sync.rewrite_handoffs import (
     _RewriteRefusal,
 )
 from orchestrator.git.worktrees import naming as _naming
-from orchestrator.workflow.engine import rewrite_finish as _finish
+from orchestrator.workflow.engine import rewrite_finish as _finish, rewrite_takeover as _takeover
 from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
@@ -75,7 +82,9 @@ def publishes(context: _AutoRebaseContext, anchor: str) -> None:
 
     A gate that held the candidate -- parked it, or handed it to an
     adjudication -- owns the issue from there, so nothing is announced or
-    routed; its park's flags are written as the gate left them.
+    routed; its park's flags are written as the gate left them, and the
+    attempt is offered to the adjudication the hold may have left
+    (`rewrite_takeover`), whose proof is what tells that hold from a park.
     """
     candidate = _prepared(context, anchor)
     if not _gateable(context, candidate):
@@ -89,6 +98,7 @@ def publishes(context: _AutoRebaseContext, anchor: str) -> None:
     )
     if published.held:
         context.gh.write_pinned_state(context.issue, context.state)
+        _takeover.takes_over(context.gh, context.issue, context.state)
         return
     landing = push.landing
     if landing is None or not published.landed:

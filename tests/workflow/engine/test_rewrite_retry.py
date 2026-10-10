@@ -13,13 +13,10 @@ what the next tick does.
 from __future__ import annotations
 
 import unittest
-from unittest.mock import patch
 
-from orchestrator import config
-from orchestrator.git.measurement import additions as _measurement
 from tests.git.base_sync.candidate_reads_support import _checkout_carries
-from tests.git.base_sync.gate_reads_support import _oversized_count
 from tests.workflow.engine import (
+    rewrite_gate_holds_support as holds,
     rewrite_publication_moves as moves,
     rewrite_publication_test_support as world,
     rewrite_retry_test_support as retry,
@@ -33,9 +30,6 @@ MOVES = (
     ("somebody's push to the branch", moves.PUSHED_OVER, world.FOREIGN),
     ("a remote that stops answering", moves.silences_the_remote, retry.ANCHOR),
 )
-
-# A ceiling the oversized count crosses.
-CEILING = 5
 
 
 class RetriedReplayTest(retry.RetryCase):
@@ -92,23 +86,26 @@ class RefusedRetryTest(retry.RetryCase):
         self._assert_rolled_back(retry.ANCHOR, retry.PARK_DIRTY)
         self.assertTrue(self.git.ran(retry.CLEAN))
 
-    def test_an_oversized_replay_is_never_pushed(self) -> None:
+    def test_only_an_adjudication_takes_the_attempt(self) -> None:
         # An ordinary replay is measured like any other push onto an open pull
-        # request: over the ceiling, the gate hands the issue to an
-        # adjudication with the replay standing, and nothing is pushed,
-        # announced, or routed to review.
-        with patch.object(config, "MAX_ADDED_LINES", CEILING), patch.object(
-            _measurement, "_count_added_lines", _oversized_count(),
-        ):
-            self._ticks()
+        # request: past the ceiling, the gate hands the issue to an
+        # adjudication with the replay standing and unreset, nothing is pushed,
+        # announced, or routed to review, and the attempt goes to the live
+        # generation with it. A count nobody can pin parks instead, so the
+        # retried attempt stays pinned for the reply that brings it back.
+        for count, relabelled, left, parked in holds.HOLDS:
+            with self.subTest(count.__name__):
+                self._fresh()
 
-        self.assertEqual(self.world.pushes, [])
-        self.assertEqual(retry.head(self.gh), retry.ANCHOR)
-        self.assertEqual(self.gh.label_history, [(retry.ISSUE, retry.LABEL_DECOMPOSING)])
-        attempt = retry.attempt(self.gh)
-        self.assertEqual(attempt[retry.KEY_PENDING_PUSH], retry.ANCHOR)
-        self.assertEqual(attempt[retry.KEY_REWRITE_SHA], retry.REPLAY)
-        self.assertEqual(retry.said(self.gh), retry.SAID_NOTHING)
+                with count():
+                    self._ticks()
+
+                self.assertEqual(self.world.pushes, [])
+                self.assertEqual(self.gh.label_history, list(relabelled))
+                self.assertEqual(holds.left_with(self.gh), left)
+                self.assertEqual(retry.parked(self.gh), parked)
+                self.assertFalse(self.git.ran(retry.RESET_ONTO_THE_ANCHOR))
+                self.assertEqual(retry.said(self.gh), retry.SAID_NOTHING)
 
     def test_a_refused_reset_keeps_the_attempt(self) -> None:
         # The lease is rejected and the reset that would undo the replay is
@@ -151,6 +148,30 @@ class RefusedRetryTest(retry.RetryCase):
         """The remote takes the lease again, and git resets."""
         self.world.rejects = False
         self.git.refuses_reset = False
+
+
+class HandedOverReplyTest(retry.RetryCase):
+    """The reply that brought a parked attempt back, where the gate hands its replay to an adjudication."""
+
+    def test_the_gate_spends_only_a_retry(self) -> None:
+        # A reply that only asked for the retry is the attempt's, recorded read
+        # in the gate's own write -- the one that takes its park down -- so no
+        # crash leaves it waiting for the adjudication as guidance. A reply
+        # that says more is left unread, for the adjudication to hand on.
+        for body, spent in holds.REPLIES:
+            with self.subTest(body):
+                self._fresh(awaiting_human=True, park_reason=retry.PARK_PUSH_FAILED)
+                holds.covers_the_thread(self.gh)
+                reply = holds.replies(self, body)
+                before = holds.read_through(self.gh)
+
+                with holds.oversized():
+                    self._ticks()
+
+                read = (reply, holds.baseline_through(self.gh, reply)) if spent else before
+                self.assertEqual(holds.left_with(self.gh), (None, None, retry.REPLAY))
+                self.assertEqual(holds.read_through(self.gh), read)
+
 
 if __name__ == "__main__":
     unittest.main()
