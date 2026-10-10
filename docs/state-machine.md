@@ -154,24 +154,36 @@ replay that contributes what a human already ruled on carries the exemption — 
 made it a bypass — over instead of being adjudicated again; where the permit refuses, the replay is measured like any
 other candidate. A transfer of an exemption nothing authorizes is refused, since moving one would hand the rewritten
 commit a permission the accepted one never had. A process lost anywhere in that rebase comes back to the record the
-attempt pinned, and the recovery finishes it on the permit alone — reissuing a push that never went out, receipting one
-that landed through a leased no-op — so the replay is never measured or adjudicated again. Every road that finishes a
-landed head, the recovered ones included, makes that report debt durable before its relabel, and repeated advances
-carry one debt onto the latest head a push landed; a no-op, a refused push, a reset, or a pull request somebody else
-moved records none and leaves a standing debt as it is. A landed head whose debt the pinned comment has no room for —
-measured on the whole announcement write it rides and on the comment as it stands — is neither announced nor
-routed: it parks with the attempt standing until room is made and a human replies. Every landed head -- one the
-refresh published itself, one its recovery's retry pushed again, and one its recovery found already standing,
+attempt pinned, and the recovery finishes an unchanged contribution on the permit alone — reissuing a push that never
+went out, receipting one that landed through a leased no-op — so that replay is never measured or adjudicated again; a
+replay its record names whose re-derived evidence the permit refuses, with no grant made before the crash, is a
+contribution the base advance changed, and it is measured as the publication would have measured it. Every road that
+finishes a landed head, the recovered ones included, makes that report debt durable before its relabel, and repeated
+advances carry one debt onto the latest head a push landed; a no-op, a refused push, a reset, or a pull request
+somebody else moved records none and leaves a standing debt as it is. A landed head whose debt the pinned comment has
+no room for — measured on the whole announcement write it rides and on the comment as it stands — is neither
+announced nor routed: it parks with the attempt standing until room is made and a human replies. Every landed head --
+one the refresh published itself, one its recovery's retry pushed again, and one its recovery found already standing,
 observed rather than pushed a second time -- is finished by the one workflow-owned finish
 (`workflow/engine/rewrite_finish.py`) over guarded commits, with one post-push evidence decision ahead of its route.
-A replay the size gate hands to an adjudication instead can be handed to the late generation adjudicating it
-(`workflow/engine/rewrite_takeover.py`, dormant until a caller is wired in): where the pinned record proves a whole
-attempt and a live generation late adjudication would itself accept for this issue, describing the same candidate,
-pull request, anchor, and stage, the generation records `late_auto_rebase_replay_sha` in the one guarded write that
-retires the attempt, and anything less leaves the attempt standing for its recovery. That ownership licenses no push:
-the replay publishes only through an authorized `single`'s settlement, which records the report debt its push leaves.
-The `question` and `discussion` labels — and the
-parks and in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto rebase's
+A replay the size gate hands to an adjudication instead is handed to the late generation adjudicating it
+(`workflow/engine/rewrite_takeover.py`) by the publication and by the recovery's retry alike, and a park the gate takes
+keeps the attempt for its recovery: where the pinned record proves a whole attempt and a live generation late
+adjudication would itself accept for this issue, describing the same candidate, pull request, anchor, and stage, the
+generation records `late_auto_rebase_replay_sha` in the one guarded write that retires the attempt and any park its own
+road left, and anything less leaves the attempt standing. An operator's reply that only asked for the retry is recorded
+read in the write that spends it -- the anchor's, the retry's gate, or the handoff, or past a handoff whose tick was
+lost the dispatcher's own ahead of the adjudication -- so the adjudication never takes a retry for guidance, while a
+reply that says more stays guidance (`workflow/engine/rewrite_replies.py`). Any other park
+survives the gate's route beside an anchor and the handoff, and the adjudication waits behind it until a human replies
+to it rather than let its verdict take the park over. A handoff a crash interrupted, or a pair an
+earlier build stranded, is handed over by the dispatcher ahead of its anchor hold, so the next tick adjudicates with no
+relabel or pinned-state edit. The retry measures a replay its record names whose permit refuses it -- a changed
+contribution -- as the publication would have, rather than resetting it away. That ownership licenses no push: the
+replay publishes only through an authorized `single`'s settlement, leased to the head the pull request stood on, which
+records the report debt its push leaves and puts the reviewer's spent rounds back, as the rewrite finish does; an
+unchanged contribution still carries the verdict over on the transfer permit. The `question` and `discussion` labels —
+and the parks and in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto rebase's
 anchor, of the records and parks that freeze a branch only the late size-gate claims keep the refresh away, so its
 recovery answers the anchor ahead of any stage handler. The failure modes, their durable `park_reason` tokens, and the
 refresh-owned retry are in
@@ -226,7 +238,8 @@ current requirements, pays it.
 `workflow:resolving_conflict` records one for every head its own push rewrites, off the code-publication receipt that
 push left, and the base refresh one for each clean auto rebase whose push lands, its crash recovery included, before
 the attempt is cleared or the issue routed to `workflow:validating`. The authorized settlement of a replay a late
-generation took over records one for the push it makes, before its label resumes the source stage
+generation took over records one for the push it makes, before its label routes the head to `workflow:validating` as
+the refresh routes every rebase it publishes
 ([rewritten-head report debt](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)).
 A settled report of the approved commit an approval's squash replaced is of neither head a claim names, so it pays
 nothing, and the hold refreshes it only once a proof (`workflow/engine/report_squash_lineage.py`) links it to the head
@@ -479,10 +492,14 @@ that moved off the frozen one each park rather than push. A pair frozen and neve
 handler on the next tick, by the dispatcher, on the stage the record names — and one whose checkout is not on this
 host stops the tick instead of letting the stage run over a candidate nobody read. An auto-rebase anchor still
 standing — a failed base fetch or a pull request that would not read returns before its recovery runs — holds the
-handler back the same way, on every label and on the live adjudication's own road too, unless a hard-skip stands. On
+handler back the same way, on every label and on the live adjudication's own road too, unless a hard-skip stands --
+save that an anchor beside a live adjudication is first offered to it, and a pair describing one replay is handed
+over with its attempt's park, so the adjudication runs on that tick -- unless a park neither the attempt's nor the late
+domain's stands beside it, which holds the adjudication until a human replies to it. On
 a label the refresh does not drive — read-only stages and a generation still under adjudication included — nothing
 is waited on: the dispatcher answers the anchor itself on the refresh's ineligible road, a clear or the stranded
-park, and holds the handler until the record ends. On one it drives, a late claim the reconciliation answers — a
+park -- which, beside a live adjudication, asks for the record to be reconciled rather than for a label its guard
+restores -- and holds the handler until the record ends. On one it drives, a late claim the reconciliation answers — a
 frozen pair, an approved push — releases the hold, since it keeps the refresh away and nothing but the reconciliation
 ends it, and the hold is asked again once the reconciliation has run, so a claim it spends leaves the anchor holding
 the tick. Every other record and park the refresh freezes on holds: a stage's handler takes its park down on a reply

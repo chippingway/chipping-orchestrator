@@ -239,7 +239,11 @@ def _state_holds_the_branch(
     this refresh's own interrupted work, and the dispatcher keeps every stage
     handler back while it stands -- save, on a label this refresh drives, the
     reconciliation ahead of them,
-    which answers those claims and asks the hold again once it has run. Every
+    which answers those claims and asks the hold again once it has run. A
+    generation measured past its ceiling over the anchor's own replay is the
+    one claim no reconciliation spends, and the dispatcher hands that replay to
+    it ahead of the hold (`workflow/engine/rewrite_takeover.py`), so the
+    adjudication is the road left rather than neither side moving. Every
     other record and park here is ended by a handler that hold keeps back, so
     one that froze the recovery out as well would leave neither to move; and
     none of them is holding a branch still against a rebase any more, since

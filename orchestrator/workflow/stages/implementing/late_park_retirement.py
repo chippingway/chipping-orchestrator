@@ -4,13 +4,16 @@
 
 Each targeted retirement changes only the park whose condition has ended.
 A settled split cannot clear an unrelated reason, while supersession
-explicitly clears the current wait and its reason together.
+explicitly clears the current wait and its reason together -- save a park
+another owner left beside an auto-rebase anchor, which no hold answers.
 """
 from __future__ import annotations
 
+from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.github import (
     pinned_state as _pinned_state,
 )
+from orchestrator.workflow.engine import rewrite_takeover_parks as _takeover_parks
 from orchestrator.workflow.late_split import (
     models as _late_models,
 )
@@ -130,7 +133,16 @@ def _retire_superseded_park(state: _pinned_state.PinnedState) -> None:
     issue already parked -- its own parked dispatch fires on a mention nobody
     made about the question now open -- and the reason beside it describes a
     step no one is retrying. Every road into a hold either had no park or has
-    one this hold supersedes, so the clear is unconditional.
+    one this hold supersedes, save one.
+
+    That one is the recovery of an auto rebase a stage's park let through with
+    no reply spent (`git/base_sync/eligibility._answers_only_the_anchor`),
+    reached with the attempt's anchor still pinned. Its park is neither the
+    attempt's nor this domain's, and the hold answers nothing it asked, so it
+    stays, flags and all; the dispatcher holds the adjudication behind it until
+    a human replies to it (`workflow/engine/rewrite_takeover_parks.py`).
     """
+    if state.get(_base_sync_state._PENDING_PUSH_SHA) and _takeover_parks.stands_for_another_owner(state):
+        return
     state.set(_state._AWAITING_HUMAN, False)
     state.set(_state._PARK_REASON, None)

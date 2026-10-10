@@ -68,12 +68,28 @@ class RefusedRetryTest(LicensedRetryCase):
             self.parks("_park_unproven_replay_recovery", permit_alone=True)
 
     def test_a_refused_permit_parks_unmeasured(self) -> None:
-        publishes = MagicMock()
+        # A standing permission, and a replay in flight whose only voucher is
+        # the evidence re-derived for it, have nothing but the permit behind
+        # them: refused before the gate, nothing is measured in its place.
+        for shape, fresh, retry in (
+            ("a standing permission", {}, {}),
+            (
+                "a replay in flight",
+                {"pending_rewrite": seed.DECLARED},
+                {"reconstructed": MagicMock(return_value=seed.GRANTED), "permit_alone": True},
+            ),
+        ):
+            with self.subTest(shape):
+                if fresh:
+                    self._fresh(**fresh)
+                publishes = MagicMock()
 
-        self.parks("_park_refused_permit_recovery", permits=MagicMock(return_value=False), publishes=publishes)
+                self.parks(
+                    "_park_refused_permit_recovery",
+                    permits=MagicMock(return_value=False), publishes=publishes, **retry,
+                )
 
-        # Refused before the gate, so nothing is measured in its place.
-        publishes.assert_not_called()
+                publishes.assert_not_called()
 
     def test_a_permit_the_gate_refuses_parks_too(self) -> None:
         # The permit is asked twice -- here and inside the gate -- so one that

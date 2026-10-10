@@ -31,7 +31,9 @@ last is held by the loader itself rather than by a check.
   branch back to where it started; `base_sync/terminal_handoff.py` ends an attempt a closed pull request strands;
   `base_sync/attempt_records.py` reaches `workflow/late_split/formats.py`, for the
   shape a recorded commit is held to, which spelled twice would let a pinned comment accept what every other reader
-  refuses; the base-sync transfer owners read the higher-layer records only inside their calls:
+  refuses; `replay_publication_parks.py` reads `workflow/stages/decomposition/late_relabel.py`'s answer for whether
+  a live adjudication holds the label, so its stranded park never asks for a label back that guard restores; the
+  base-sync transfer owners read the higher-layer records only inside their calls:
   `transfers.py` reads `workflow/late_split/exemption_reading.py`, `rewrite_reading.py`, and `rewrite_values.py`;
   `transfer_values.py` reads the phase value, `transfer_evidence.py` reads the exemption and rewrite value,
   `transfer_attempts.py` reads the exemption, and `transfer_publication.py` reads
@@ -587,13 +589,15 @@ orchestrator/
                         runs; a terminal PR ends an anchored attempt's whole handoff through `terminal_handoff`
       pre_pr.py         the hardened rebase / merge probes and the aborting pre-PR local rebase
       startup.py        the pre-rebase HEAD guard, and the anchor and the attempt's terms persisted before git
-                        runs
+                        runs -- the write that spends the reply a park of the refresh's let the rebase start on, and
+                        carries the retry the workflow staged read from it (`workflow/engine/rewrite_replies.py`)
       attempts.py       the replay checkpoint, the announcement mark's presence checks, and the whole-record clear
                         that ends an auto-rebase attempt. The workflow's publication records its replay here; the
                         workflow's finish of every landing puts the mark down through its own guarded checkpoint,
                         while the anchor still stands and before relabeling, and reads it back here; the
                         workflow's handoff of an unpublished replay to a late generation
-                        (`workflow/engine/rewrite_takeover.py`) retires the whole record through the same clear
+                        (`workflow/engine/rewrite_takeover.py`) retires the whole record through the same clear,
+                        and with it any `auto_base_rebase_*` park the attempt's own road left (`_retires_its_park`)
       attempt_records.py
                           validate interrupted replay terms and head as absent, declared, recorded, or damaged,
   sharing the replay
@@ -645,7 +649,9 @@ orchestrator/
                         freeze the current publication entry and ask its transfer permit ahead of the workflow's
                         retry of a recovered replay or the leased no-op that receipts a landed one
                         (`workflow/engine/rewrite_retry.py`, `rewrite_landed.py`); both require the same permit
-                        again inside the publication gate
+                        again inside the publication gate where it held. The retry measures past one refusal: a
+                        replay its record names with no grant made before the crash, whose contribution the base
+                        advance changed, enters the gate unrestricted as the publication would have
       conflicts.py      the counter, notice, event, and relabel a genuinely conflicted rebase is handed to its stage
                         with, dropping the handed head an earlier episode's counted round left claimed and the
                         publication record a body edit's resume left beside a report since settled
@@ -690,14 +696,17 @@ orchestrator/
                         the remote lost, or an undone rebase whose abandoned bookkeeping must be retired
       replay_publication_parks.py
                         keep the checkout and pinned evidence when the issue's publication or label changed; a
-                        stranded park is recorded once so repeated ticks do not advance the reply watermark
+                        stranded park is recorded once so repeated ticks do not advance the reply watermark, and
+                        beside a live adjudication it asks for the record to be reconciled by hand rather than for
+                        a label that adjudication's guard restores
       recovery_holds.py
                         what no recovery road reaches: the reset and park over a checkout whose base lag cannot
                         be counted, and the dispatch hold -- whether a standing anchor keeps a stage handler back,
                         which every label the refresh does not drive does, and one it drives does unless a late
                         claim the reconciliation answers freezes the refresh out -- with a missing checkout
                         restored where the refresh drives the label and the ineligible answer taken where it does
-                        not
+                        not. An anchor beside a live adjudication reaches it only once the dispatcher's handoff
+                        (`workflow/engine/rewrite_takeover.py`) has refused the pair
       persistence.py    the parks and the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the

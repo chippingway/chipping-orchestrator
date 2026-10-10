@@ -11,6 +11,18 @@ freezes the refresh that would end the attempt -- so this owner moves the
 replay to the generation, durably, where the two provably describe the same
 work.
 
+It is asked where either side can come to stand beside the other. The
+publication of a clean rebase (`rewrite_publication`) and the retry of a
+replay an interrupted tick never published (`rewrite_retry`) ask it of every
+answer the gate holds: the proof below is what tells the hold that left a
+live adjudication of this very replay from every park the gate takes instead,
+none of which leaves one, so a parked hold keeps its attempt for the recovery
+its reply brings back. The dispatcher asks it ahead of the anchor hold on the
+adjudication's own road (`dispatch_guards`), so a pair whose handoff a crash
+interrupted -- the generation persisted with the relabel or this write lost --
+or a pair an earlier build already stranded is handed over before the hold
+can park it again.
+
 The proof is of the pinned record alone and never of a checkout. The attempt
 has to read back whole (`attempt_records`): the anchor a whole commit, the
 terms it was made under, and the replay it recorded, with no announcement a
@@ -30,10 +42,18 @@ and both are left exactly as they stand for the recovery that answers them.
 
 A proved pair is handed over in one guarded write (`report_commits`, as the
 rewrite finish writes): the generation's publication group takes over the
-replay (`late_auto_rebase_replay_sha`) and the whole attempt is retired,
-decided on both records as they were read. The attempt is never retired
+replay (`late_auto_rebase_replay_sha`) and the whole attempt is retired with
+any park its own road left standing (`attempts._retires_its_park`) -- the
+stranded park among them, which asked for a reply nothing would come back
+for -- decided on both records and the park's flags as they were read. The
+replies to that park that only asked for the retry are recorded read in the
+same write (`rewrite_takeover_parks`, `rewrite_replies`), so the
+adjudication never meets one as guidance, while a reply that says anything
+more is left for the adjudication to hand on. The attempt is never retired
 without the generation carrying the replay, and the frozen pair, the
-measurement, and the publication group are left as the comment spells them.
+measurement, the publication group, and every other park are left as the
+comment spells them -- which the dispatcher then holds the adjudication
+behind, rather than let its verdict replace one.
 A repeated handoff finds no attempt and a generation that already owns its
 candidate, and writes nothing. A write sent and never confirmed may or may
 not have landed: only the comment read again says which, and the handoff
@@ -60,7 +80,12 @@ from orchestrator.git.base_sync import (
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import pinned_commit_models as _commit_models, report_commits as _commits
+from orchestrator.workflow.engine import (
+    pinned_commit_models as _commit_models,
+    report_commits as _commits,
+    rewrite_replies as _rewrite_replies,
+    rewrite_takeover_parks as _takeover_parks,
+)
 from orchestrator.workflow.late_split import (
     formats as _formats,
     keys as _late_keys,
@@ -73,6 +98,10 @@ from orchestrator.workflow.late_split.models import LateGeneration
 log = logging.getLogger("orchestrator.workflow")
 
 _ANCHOR = _base_sync_state._PENDING_PUSH_SHA
+
+# The flags a park the attempt's own road left goes down as, which the handoff
+# retires with the attempt.
+_PARK = (_base_sync_state._AWAITING_HUMAN, _base_sync_state._PARK_REASON)
 
 
 class TakeoverOutcome(StrEnum):
@@ -97,11 +126,15 @@ class TakeoverOutcome(StrEnum):
     UNCONFIRMED = "unconfirmed"
 
 
-# The write that hands the replay over: it owns the attempt and the one late key
-# that records the takeover, and is decided on both records it was proved on.
+# The write that hands the replay over: it owns the attempt, the one late key
+# that records the takeover, the park the attempt's road left, and the two
+# marks its replies are recorded read on, and is decided on both records it
+# was proved on and on the park it found.
 _TAKEOVER = _commits.ReportWrite(
-    owned=frozenset((*_attempts._ATTEMPT_KEYS, _late_keys.AUTO_REBASE_REPLAY_SHA)),
-    decided_on=frozenset((*_attempts._ATTEMPT_KEYS, *_late_keys.LATE_STATE_KEYS)),
+    owned=frozenset((
+        *_attempts._ATTEMPT_KEYS, _late_keys.AUTO_REBASE_REPLAY_SHA, *_PARK, *_rewrite_replies.REPLY_FIELDS,
+    )),
+    decided_on=frozenset((*_attempts._ATTEMPT_KEYS, *_late_keys.LATE_STATE_KEYS, *_PARK)),
 )
 
 # What a handoff whose write was refused, or never confirmed, is answered as.
@@ -130,12 +163,18 @@ def takes_over(gh: GitHubClient, issue: Issue, state: PinnedState) -> TakeoverOu
 
 
 def _hands_over(gh: GitHubClient, issue: Issue, state: PinnedState) -> TakeoverOutcome:
-    """Land a proved handoff: the generation takes the replay over and the attempt is retired, in one write."""
+    """Land a proved handoff: the generation takes the replay over and the attempt is retired, in one write.
+
+    A park the attempt's own road left goes with it -- the stranded park an
+    earlier tick left over this very pair included -- and so do the replies
+    that only asked it for a retry; every other park stays where it stands.
+    """
     commit = _commits.ReportCommit(gh, issue, state)
     staged = commit.staging()
     replay = _late_state.read_late_generation(state).candidate_sha
     _late_state.record_replay_takeover(staged, replay)
     _attempts._clears_the_attempt(staged)
+    retired = _takeover_parks.retires_its_park(gh, issue, staged)
     unlanded = _UNLANDED.get(commit.lands(staged, _TAKEOVER).status)
     if unlanded is not None:
         log.warning(
@@ -145,8 +184,8 @@ def _hands_over(gh: GitHubClient, issue: Issue, state: PinnedState) -> TakeoverO
         )
         return unlanded
     log.info(
-        "issue=#%d handed the unpublished auto-rebase replay %.8s to late cycle %s; the attempt is retired",
-        issue.number, replay, state.get(_late_keys.CYCLE_ID),
+        "issue=#%d handed the unpublished auto-rebase replay %.8s to late cycle %s; the attempt is retired%s",
+        issue.number, replay, state.get(_late_keys.CYCLE_ID), " with its park" if retired else "",
     )
     return TakeoverOutcome.TAKEN_OVER
 

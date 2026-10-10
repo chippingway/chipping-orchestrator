@@ -237,7 +237,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             operator controls; an already-pinned unlabeled issue is left where its labels put it.
                             A standing auto-rebase anchor holds the handler, on the adjudication's own road too,
                             and is asked again behind the reconciliation; whether it holds and what a held tick
-                            is owed are `base_sync/recovery_holds.py`'s. The developer-report transaction is
+                            is owed are `base_sync/recovery_holds.py`'s. An anchor beside a live adjudication is
+                            first offered to it (`rewrite_takeover.py`), so a pair describing one replay is handed
+                            over with its attempt's park before the hold can strand it, and a handoff write
+                            nobody confirmed holds the tick; a park the handoff leaves standing that its road does
+                            not answer holds the adjudication until a human replies to it, and a retry the attempt's
+                            notice drew past the handoff is recorded read ahead of it (`rewrite_takeover_parks.py`).
+                            The developer-report transaction is
                             answered last of the reconciliations -- behind that second anchor reading as well as
                             behind the reconciliation itself -- and ahead of the reuse guard: its own evidence asks
                             whether the commit the report is about reached the pull request, which is the question
@@ -1538,8 +1544,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             owners' gates and rebase and the publication below are asked in, a terminal pull request
                             asked for ahead of any park an anchor stands under, the recovery alone an anchor a
                             stage's park stands over is answered with, and the same gates in front of the abort a
-                            checkout whose lag cannot be counted takes. It writes nothing itself: a clean rebase is
-                            handed to `rewrite_publication.py`, a pinned anchor's recovery to `rewrite_recovery.py`,
+                            checkout whose lag cannot be counted takes. It writes nothing itself -- a reply that let
+                            the rebase start is staged read, where it only asked for the retry, for the anchor's own
+                            write to land (`rewrite_replies.py`) -- and a clean rebase is handed to
+                            `rewrite_publication.py`, a pinned anchor's recovery to `rewrite_recovery.py`,
                             the abort over an uncountable lag to `git/base_sync/recovery_holds.py`, and the keyword
                             adapter binds the refresh's argument list into their typed context
     rewrite_publication.py  the ordinary publication of a clean rebase, from the candidate the git owner reads
@@ -1548,7 +1556,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             checkout git names uncommitted paths in reset, cleaned, and parked; the size gate and
                             the transfer permit asked before any push (`stages/implementing/late_push.py`), a permit
                             refusal measured cumulatively and `DECOMPOSE=off` publishing unmeasured as on every other
-                            road; and the push the gate licenses made as the git owner's publication of exactly that
+                            road; a hold that handed the replay to an adjudication handing the attempt over with
+                            it (`rewrite_takeover.py`), whose proof leaves every park the gate takes its attempt;
+                            and the push the gate licenses made as the git owner's publication of exactly that
                             candidate under its anchor's lease (`git/base_sync/rewrite_transport.py`), handed to the
                             gate as its two-step transport (`stages/implementing/late_transport.py`) -- the fresh
                             reading, then the push, with the gate's ending barrier between them -- so the receipt,
@@ -1581,10 +1591,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`git/base_sync/transfer_evidence.py`), a replay only a transfer can vouch for parked
                             where none assembles, and the transfer permit asked before the gate wherever a transfer
                             licenses the push, the gate told it is the only licence, so a refusal on either side is
-                            a reset and a park rather than the cumulative reading; an ordinary replay measured; the
+                            a reset and a park rather than the cumulative reading -- save a replay the record names
+                            with no grant before the crash, whose refused evidence is a changed contribution the
+                            gate measures as the publication would have; an ordinary replay measured; the
                             exact candidate pushed under the anchor's lease through `rewrite_publication.py`'s
                             transport, a refused or unlanded push reset and parked `auto_base_rebase_push_failed`, a
-                            gate's hold written as it left it, and a landing whose verdict did not rotate parked with
+                            gate's hold written as it left it, the reply that brought the attempt back recorded read
+                            in that write where it only asked for the retry (`rewrite_replies.py`), and offered to
+                            the adjudication it may have left (`rewrite_takeover.py`), and a landing whose verdict
+                            did not rotate parked with
                             HEAD and the anchor kept; and every other landing handed to `rewrite_finish.py` on its
                             recovery road with the reply that brought the attempt back, a head the base advanced
                             past again leaving this tick's rebase to go on from it
@@ -1613,11 +1628,36 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             group; and the two agreeing on the candidate, the pull request, the anchor the
                             generation froze as the published head, and the stage. Evidence short of that is
                             INCOMPLETE and evidence of other work UNRELATED, both left standing; a proved pair lands
-                            in one guarded write (`report_commits.py`) decided on the attempt and the generation --
-                            `late_auto_rebase_replay_sha` staged and the whole attempt retired, every other field as
-                            the comment spells it -- and a repeated handoff answers OWNED and writes nothing. A write
-                            never confirmed is UNCONFIRMED, landed or not until the comment is read again. Dormant:
-                            nothing calls it yet, and ownership licenses no push
+                            in one guarded write (`report_commits.py`) decided on the attempt, the generation, and
+                            the park's flags -- `late_auto_rebase_replay_sha` staged and the whole attempt retired
+                            with any `auto_base_rebase_*` park it left and the replies that only asked that park
+                            for a retry recorded read (`rewrite_takeover_parks.py`), every other park and every
+                            other field as the comment spells them -- and a repeated handoff answers OWNED and
+                            writes nothing. A write never confirmed is UNCONFIRMED, landed or not until the comment
+                            is read again. Asked by `rewrite_publication.py` and `rewrite_retry.py` after every hold
+                            the gate makes, whose parks its proof refuses, and by `dispatch_guards.py` ahead of the
+                            anchor hold beside a live adjudication, which hands over a pair a crash interrupted or an
+                            earlier build stranded. Ownership licenses no push
+    rewrite_takeover_parks.py
+                            the parks on either side of that handoff, by owner: the attempt's `auto_base_rebase_*`
+                            reasons, retired with the attempt and the retry replies that answered them; the late
+                            domain's (`late_*`, and the shared `retry_cap`); and everybody else's
+                            (`stands_for_another_owner`), which the size gate's route keeps beside a pinned anchor
+                            (`stages/implementing/late_park_retirement.py`), the handoff leaves, and
+                            `holds_the_adjudication` holds a taken-over replay's adjudication behind until a human
+                            replies past its notice, so no verdict takes its flags over. With no park standing, that
+                            same hold spends a retry the attempt's notice drew past the handoff -- up to the
+                            adjudication's first reading of the thread, the only question a bare retry could answer --
+                            in a guarded write of its own, and holds the tick only where that write did not land
+    rewrite_replies.py      which replies to an auto-rebase attempt's park are the attempt's: a bare
+                            `/orchestrator continue` or a bare retry phrase is the retry the park asked for, anything
+                            more is guidance. The leading run of retries is staged read (`records_the_retry`) on
+                            `last_action_comment_id` and -- where it already covers the thread up to the watermark
+                            they were written past, in the current spelling or the legacy one that counted a bare
+                            continue -- on `user_content_hash`, in the write that spends the reply: the anchor's
+                            (`base_rewrite.py`), the retry's gate (`rewrite_retry.py`), the handoff's, or the
+                            dispatcher's own past a handoff whose tick was lost (`rewrite_takeover_parks.py`), so no
+                            lost tick leaves an adjudication to read a retry as guidance
     parallel.py             the other in-tick mode: the bounded pool a `parallel_limit` above 1 runs the pass
                             across, the submission plan the executor is sized from -- which is why this half
                             materializes the enumeration the sequential one streams -- the family bucket folded
@@ -2417,15 +2457,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             generation took over (`workflow/engine/rewrite_takeover.py`): proved by that ownership
                             and the code-publication receipt naming the replay over the frozen head on the frozen
                             pull request, recorded through `workflow/engine/report_rewrite_debt.py` -- retargeting a
-                            standing claim as every rewrite does -- in a write of its own before the label, and
-                            re-derived by a retry after a landed push without a second one; a proved claim with no
+                            standing claim as every rewrite does -- in a write of its own before the label, with the
+                            reviewer's spent `review_round` put back to zero there as the rewrite finish puts it back,
+                            and re-derived by a retry after a landed push without a second one; a proved claim with no
                             room parks `late_pr_unreconciled` with the push kept and the generation live, the park
                             measured first -- its flags, and its notice's ledger entry and watermark at the widest
                             id -- and nothing posted or written where it does not fit either
       late_handback.py      the effects a settled decision licenses, in the order a crash in them is safe in:
                             the push, the report debt a taken-over replay's push leaves, the label handed to the
                             stage the record names rather than to implementing -- a pre-publication candidate goes
-                            back to the ordinary publication -- the accepted
+                            back to the ordinary publication, and a taken-over replay to `validating`, where every
+                            rebase this orchestrator publishes goes -- the accepted
                             notice, worded on the operator whose authorization is the only road here and quoting
                             the decomposer's rationale off the record through `late_notice`'s fencing, with a
                             display-only stand-in where the record holds none a reader can use, and the
@@ -3534,7 +3576,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the base clears misses and a completed measurement also clears its failure
       late_park_retirement.py
                             targeted retirement of measurement, authorization, and settled-split parks, and explicit
-                            supersession of the current wait; unrelated park reasons remain standing
+                            supersession of the current wait -- save, beside a pinned auto-rebase anchor, a park
+                            neither the attempt's nor the late domain's (`engine/rewrite_takeover_parks.py`), which no
+                            hold answers; unrelated park reasons remain standing
       late_park_state.py    persist generations and route spends, retire a measurement park bound to another candidate,
                             and consume a held authorization's command watermark monotonically
       late_park_notices.py  operational failure descriptions, stage-attributed events, and measurement park notices;

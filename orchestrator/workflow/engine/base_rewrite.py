@@ -17,15 +17,19 @@ have already routed themselves to ``conflicts`` or to a park.
 
 The ordinary publication is the workflow's own (``rewrite_publication``): the
 candidate the git owner reads, the size and transfer gates it passes before
-any push, the exact-candidate push, and the shared finish of what landed. So
-is the recovery of an attempt an earlier tick left (``rewrite_recovery``): the
-order its classification and refusals are asked in, the retry of a replay the
-crash kept off the pull request (``rewrite_retry``), which publishes and
-finishes exactly as the ordinary publication does, and the finish of a push
-the recovery finds already landed (``rewrite_landed``), which is observed
-rather than pushed again and handed to the same finish. The legacy keyword
-signature is bound here too, because the refresh still passes the pre-context
-argument list this route derives its context from.
+any push -- and the handoff of a replay they route to an adjudication
+(``rewrite_takeover``) -- the exact-candidate push, and the shared finish of
+what landed. A reply to a park of this refresh's that let the rebase start is
+recorded read here, where it only asked for the retry, in the anchor's own
+write (``rewrite_replies``). So is the recovery of an attempt an earlier tick left
+(``rewrite_recovery``): the order its classification and refusals are asked
+in, the retry of a replay the crash kept off the pull request
+(``rewrite_retry``), which publishes and finishes exactly as the ordinary
+publication does, and the finish of a push the recovery finds already landed
+(``rewrite_landed``), which is observed rather than pushed again and handed to
+the same finish. The legacy keyword signature is bound here too, because the
+refresh still passes the pre-context argument list this route derives its
+context from.
 """
 from __future__ import annotations
 
@@ -47,6 +51,7 @@ from orchestrator.git.base_sync.state import _PENDING_PUSH_SHA
 from orchestrator.workflow.engine import (
     rewrite_publication as _rewrite_publication,
     rewrite_recovery as _rewrite_recovery,
+    rewrite_replies as _rewrite_replies,
 )
 
 _SYNC_PR_SIGNATURE = inspect.Signature((
@@ -70,6 +75,11 @@ def _publish_auto_rebase_from_pr(
     if not eligibility._normal_auto_rebase_can_start(context):
         return
 
+    # The retry the reply asked for is staged read before the anchor's write
+    # spends the reply, so the two land together: past it the watermark no
+    # longer says which replies were the retry.
+    released = _rewrite_replies.released_by(context.state, recovery.consumed_comment_id)
+    _rewrite_replies.records_the_retry(context.gh, context.issue, context.state, released)
     before_sha = startup._start_auto_rebase(
         context, pr, recovery.consumed_comment_id,
     )

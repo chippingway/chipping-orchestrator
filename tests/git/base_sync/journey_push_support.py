@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.base_sync import attempts as _attempts, pre_pr as _pre_pr
-from orchestrator.workflow.engine import rewrite_finish_notices as _finish_notices
+from orchestrator.workflow.engine import rewrite_finish_notices as _finish_notices, rewrite_takeover as _takeover
 from orchestrator.workflow.stages.implementing import (
     late_push as _late_push,
     late_transfer_telemetry as _transfer_telemetry,
@@ -49,6 +49,14 @@ BEFORE_THE_MARK = "before the mark"
 AT_THE_RELABEL = "at the relabel"
 AFTER_THE_RELABEL = "after the relabel"
 
+# One the size gate hands to an adjudication instead writes the anchor, its
+# terms, and the replay as above, then the generation, its notice, and the
+# relabel -- the first relabel that tick makes, so `AT_THE_RELABEL` is the
+# window past the generation and before it -- and last the write that hands the
+# replay over and retires the attempt.
+BEFORE_THE_HANDOFF = "before the handoff"
+AFTER_THE_HANDOFF = "after the handoff"
+
 # The windows a module-level call closes, each stood in for by a raise.
 _MODULE_SEAMS = MappingProxyType({
     BEFORE_THE_REBASE: (_pre_pr, "_rebase_base_into_worktree"),
@@ -57,6 +65,7 @@ _MODULE_SEAMS = MappingProxyType({
     BEFORE_THE_PUSH: (_branch_transport, PUSH_BRANCH),
     BEFORE_THE_REPORT: (_transfer_telemetry, "_reports_the_transfer"),
     BEFORE_THE_NOTICE: (_finish_notices, "announces"),
+    BEFORE_THE_HANDOFF: (_takeover, "takes_over"),
 })
 
 
@@ -89,15 +98,15 @@ class _LandsThenDies(PublishesToThePullRequest):
         raise RuntimeError(DIED)
 
 
-class _DiesAfterTheRelabel:
-    """A relabel that lands in a process that does not come back."""
+class _DiesAfter:
+    """A step that lands in a process that does not come back: a relabel, or a handoff's write."""
 
-    def __init__(self, relabel) -> None:
-        self._relabel = relabel
+    def __init__(self, step) -> None:
+        self._step = step
 
-    def __call__(self, issue, label) -> None:
-        """Apply the label the finish chose, then stop the tick."""
-        self._relabel(issue, label)
+    def __call__(self, *called) -> None:
+        """Take the step as asked, then stop the tick."""
+        self._step(*called)
         raise RuntimeError(DIED)
 
 
@@ -113,8 +122,9 @@ def crash_at(github, window: str = ""):
         BEFORE_THE_MARK: (github, "edit_pinned_state"),
         AT_THE_RELABEL: (github, SET_LABEL),
         AFTER_THE_RELABEL: (
-            github, SET_LABEL, _DiesAfterTheRelabel(github.set_workflow_label),
+            github, SET_LABEL, _DiesAfter(github.set_workflow_label),
         ),
+        AFTER_THE_HANDOFF: (_takeover, "takes_over", _DiesAfter(_takeover.takes_over)),
     }
     owner, name, *stand_in = seams[window]
     died = MagicMock(side_effect=RuntimeError(DIED))

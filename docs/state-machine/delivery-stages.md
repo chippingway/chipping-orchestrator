@@ -439,6 +439,20 @@ because there it is the claim that this stage has already rerouted rather than a
      one pinned read that has already happened and answers immediately. What it does under that label is
      [`../workflow/roles.md`](../workflow/roles.md#what-a-late-adjudication-is-asked-and-what-it-may-answer).
 
+     A replay the base refresh's auto rebase handed to this adjudication reaches the route with its attempt already
+     retired (`workflow/engine/rewrite_takeover.py`): the refresh hands it over on the tick the gate routes it, and
+     the dispatcher hands over one a crash or an earlier build left pinned beside the generation ahead of its anchor
+     hold, with the attempt's own park, so no relabel and no edit of the pinned comment stands between the issue and
+     its adjudication. A reply that only asked the attempt's park, or the refresh's road, for a retry is recorded read
+     in the write that spends it (`workflow/engine/rewrite_replies.py`) -- or, for one written to the attempt's notice
+     after a handoff whose tick was lost, by the dispatcher ahead of this route's first reading of the thread -- so the
+     coordinator never meets an operator's retry as guidance and resumes nobody over it; a reply that says more is
+     guidance, handed to the developer as any is. A park neither the attempt's nor this route's own survives the
+     gate's route and the handoff, and holds the route at the dispatcher until a human replies to it, rather than
+     letting a verdict's park replace it. The coordinator then adjudicates the replay like any other candidate
+     measured past publication, and the human's decision on it is the only thing that publishes it (see
+     [Base refresh](labels-and-state.md#base-refresh)).
+
      The spent spawn budget's park is asked inside that route as well as below it, because the two questions wearing
      this label reach an agent by different roads. A live generation standing on `awaiting_human` +
      `park_reason="retry_cap"` is held by `late_retry_cap._park_owns_the_tick`, behind only the reconciliations
@@ -2659,7 +2673,13 @@ such pushes and no others:
   caller inside the gate whatever `DECOMPOSE` says, since the permit is asked over the entry only the gate freezes. A
   refusal is handed back as `refused` rather than parked or routed — nothing was measured, nothing was decided — and
   the recovery parks: the reissued push resets onto its anchor first, and the no-op keeps HEAD where the remote
-  already carries it;
+  already carries it. The one replay the retry does not enter that way is one its attempt's record names, with no
+  grant made before the crash, whose re-derived evidence the permit refuses: that is a contribution the base advance
+  changed, and the retry enters it with that evidence as the ordinary publication would have, so it is measured --
+  adjudicated afresh past the ceiling -- rather than reset away. Either caller whose hold handed the replay to an
+  adjudication hands the attempt over with it (`workflow/engine/rewrite_takeover.py`), the reply its road was released
+  by recorded read where it only asked for the retry, and a park the gate took leaves the attempt for its recovery (see
+  [Base refresh](labels-and-state.md#base-refresh));
 - and the final documentation pass `documenting/publication._push_docs_and_advance`.
 
 One more seam pushes without measuring, and it skips the reading for a reason and nothing else beside it.
@@ -3078,9 +3098,13 @@ retirement behind it takes the record that said so away. So the branch is put wh
 named against the accepted commit and leased against the frozen head — and only then is the label handed on, to
 `late_source_stage` rather than to `workflow:implementing`. That stage is the only owner of the completion the
 candidate still owes (the docs watermark and its `in_review` handoff, a conflict round, another reviewer look), and
-two of the five have no publication seam a resumed tick would even reach. A push that does not land parks with the
-label still on the adjudication: the exemption and the approval are already durable, so the retry asks for the same
-commit against the same head.
+two of the five have no publication seam a resumed tick would even reach. The one candidate it does not own is an
+auto-rebase replay the generation took over: a head this orchestrator rebased, owed a report and a review that only
+`workflow:validating` pays and runs -- and `workflow:documenting` and `in_review` hold their handlers while that report
+is owed -- so it is handed to `workflow:validating`, where the rewrite finish sends every rebase it publishes, with
+every record of the stage it came from left standing for the road back through it. A push that does not land parks
+with the label still on the adjudication: the exemption and the approval are already durable, so the retry asks for
+the same commit against the same head.
 
 The window between that push and the label is the one the record alone cannot answer, and it has its own
 recognition. A tick that dies in it comes back to a live generation whose pull request is standing on the **accepted
@@ -3119,7 +3143,8 @@ shown rather than obeyed, with the whole body inside one comment. Where the reco
 derived from the explanation or the verdict category, into the pinned state, and the settlement proceeds exactly as it
 would with a rationale. None of this moves the contracts around it — a `single` still parks `late_single_decision`
 until that authorization, the barriers and step order above stand, and the label handed on is still
-`late_source_stage`, or `workflow:implementing` for a candidate nothing had published. The rationale remains issue
+`late_source_stage` -- `workflow:validating` for a taken-over auto-rebase replay -- or `workflow:implementing` for a
+candidate nothing had published. The rationale remains issue
 prose and is outside the closed late-event and analytics schemas: no late-split record on either sink carries it
 ([`../observability/event-streams.md`](../observability/event-streams.md#late-split-records-both-sinks)). Its storage
 contract is in [`labels-and-state.md`](labels-and-state.md#the-late-run).
@@ -3151,9 +3176,12 @@ so a pull request somebody pushed to refuses it here or at the lease and records
 the report the replay leaves owed, since no developer report is about a head this orchestrator rebased: once the push
 lands, or a retry finds it landed, `late_replay_debt.py` records `developer_report_rewrite_debt` -- the frozen pull
 request, the branch pushed, `late_published_sha` as the head replaced, and the replay -- proved by the
-code-publication receipt naming exactly that push, in a write of its own before the label hands the head back to
-`late_source_stage`, where the claim is held and paid as every orchestrator rewrite's is (see
-[the rewritten-head report debt](#the-rewritten-head-report-debt-every-dispatch)).
+code-publication receipt naming exactly that push, in a write of its own before the label hands the head to
+`workflow:validating`, where the claim is held and paid as every orchestrator rewrite's is (see
+[the rewritten-head report debt](#the-rewritten-head-report-debt-every-dispatch)). The same write puts a spent
+`review_round` back to zero, as the rewrite finish does for every rebase it publishes: the reviewer is handed a head no
+round of its own produced, and a cap the earlier rounds reached would otherwise park the issue on a review that never
+ran.
 The ownership stays on the generation until the retirement drops it, so a retry after a landed push records the same
 claim without pushing again; a proved claim with no room on the pinned comment parks `late_pr_unreconciled` with the
 push kept and the generation live, and the next tick records it once room is made. That park is measured first -- its

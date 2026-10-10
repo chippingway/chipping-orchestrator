@@ -19,7 +19,7 @@ import logging
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.base_sync import recovery_holds as _recovery_holds
+from orchestrator.git.base_sync import recovery_holds as _recovery_holds, state as _base_sync_state
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
@@ -28,6 +28,8 @@ from orchestrator.workflow.engine import (
     poll_models as _poll_models,
     report_rewrite_debt as _rewrite_debt,
     report_transaction as _report_transaction,
+    rewrite_takeover as _takeover,
+    rewrite_takeover_parks as _takeover_parks,
     run_limit_dispatch as _run_limit_dispatch,
     stage_targets as _stage_targets,
     verification_transaction as _verification_transaction,
@@ -39,6 +41,15 @@ log = logging.getLogger("orchestrator.workflow")
 # The roads past an approval: the final-docs pass and the ready ping a human
 # merges on. `validating` is not one, since it is the stage that pays the debt.
 _MERGE_ROADS = frozenset((WorkflowLabel.DOCUMENTING, WorkflowLabel.IN_REVIEW))
+
+# The anchor an auto rebase pins before git runs, spelled by the base sync.
+_ANCHOR = _base_sync_state._PENDING_PUSH_SHA
+
+# The handoffs of a replay whose write did not land, which leave the comment
+# for the next tick to read again.
+_UNLANDED_HANDOFFS = frozenset((
+    _takeover.TakeoverOutcome.REFUSED, _takeover.TakeoverOutcome.UNCONFIRMED,
+))
 
 
 def _pinned_state_refuses(
@@ -210,9 +221,17 @@ def _pinned_state_refuses(
         # published and routed back to `implementing` with the evidence
         # retired behind it. Nor past a standing auto-rebase anchor: a
         # measured generation is left for the decomposer the handler spawns,
-        # and a replay no push published is no candidate for it to split.
+        # and a replay no push published is no candidate for it to split --
+        # unless the generation is the one adjudicating that very replay, which
+        # the anchor's own reading hands over first. A replay handed over
+        # beside a park its road does not answer then waits behind that park,
+        # whose flags the adjudication's verdict would otherwise take over, and
+        # a retry its attempt's notice drew past the handoff is spent first.
         return _anchor_holds_the_tick(
             gh, spec, issue, label, state,
+        ) or (
+            hard_skip_control_label(issue) is None
+            and _takeover_parks.holds_the_adjudication(gh, issue, state)
         ) or importlib.import_module(
             _stage_targets._LATE_RECONCILE_OWNER,
         )._reconciles_published_work(gh, spec, issue, label, state)
@@ -320,7 +339,39 @@ def _anchor_holds_the_tick(
     refresh drives the label, and the refresh's own ineligible answer where it
     does not. This is where the two meet, so every place the dispatcher asks
     it takes the same road.
+
+    An anchor beside a live adjudication is offered to it first
+    (`rewrite_takeover`), because the hold is the one owner that can strand
+    the two: the generation freezes the refresh that would end the attempt,
+    and the ineligible answer under `decomposing` parks a replay a human cannot
+    route back, since putting the label back is undone by the adjudication's
+    own guard. A pair whose handoff a crash interrupted, or that an earlier
+    build stranded, is handed over here -- its attempt's park with it -- and
+    the anchor is gone before the hold is asked. A handoff whose write was
+    refused or never confirmed stops the tick with nothing else done, for the
+    next tick to prove again over the comment as it then reads; one the proof
+    refuses is left to the hold, whose park says what a human has to reconcile.
+    Nothing is handed over under an operator's hard-skip, which the hold
+    releases for too: the one thing a parked issue may still have done is a
+    close recorded. The handoff takes down only the park the attempt's own
+    road left; one it leaves standing is somebody else's question, and the
+    adjudication's road holds behind it (`rewrite_takeover_parks`) rather than
+    run a verdict over it on this tick or any later one.
     """
+    late_relabel = importlib.import_module(_stage_targets._LATE_RELABEL_OWNER)
+    beside_an_adjudication = (
+        bool(state.get(_ANCHOR))
+        and hard_skip_control_label(issue) is None
+        and late_relabel._adjudicating(state)
+    )
+    if beside_an_adjudication and _takeover.takes_over(gh, issue, state) in _UNLANDED_HANDOFFS:
+        log.warning(
+            "repo=%s issue=#%s could not land the handoff of its auto-rebase "
+            "replay to the live adjudication; holding the %r handler for the "
+            "next tick to prove it again",
+            spec.slug, issue.number, label,
+        )
+        return True
     checkout = _worktree_paths._worktree_path(spec, issue.number)
     if not _recovery_holds._recovery_holds_dispatch(
         issue, label, state, checkout,

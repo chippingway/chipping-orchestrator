@@ -74,10 +74,17 @@ def _adjudicates(fixture) -> None:
 
 def _authorizes(fixture, candidate: str) -> None:
     """Post the operator's command as a reply to the park's own notice."""
+    replies(fixture, AUTHORIZE_COMMAND.format(candidate=candidate))
+
+
+def replies(fixture, body: str) -> int:
+    """Post `body` as the operator's reply, past the park's own notice and everything else on the thread; its id."""
     issue = fixture._issue()
     answered = fixture._durable().get("last_action_comment_id") or 0
-    issue.comments.append(FakeComment(
+    reply = FakeComment(
         id=1 + max([answered, *(posted.id for posted in issue.comments)]),
-        body=AUTHORIZE_COMMAND.format(candidate=candidate),
+        body=body,
         user=FakeUser(OPERATOR),
-    ))
+    )
+    issue.comments.append(reply)
+    return reply.id

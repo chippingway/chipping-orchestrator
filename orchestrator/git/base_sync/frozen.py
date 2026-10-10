@@ -321,7 +321,10 @@ def _late_claims(state: _pinned_state.PinnedState) -> tuple[str, ...]:
     The one part of the list above an owner AHEAD of every stage handler
     answers: the dispatcher's reconciliation measures a frozen pair and pays an
     approved push before any handler is reached, so a hold that keeps the
-    handlers back still leaves these something to end them.
+    handlers back still leaves these something to end them. A generation
+    already measured past its ceiling over an anchor's own replay is answered
+    there too, by the handoff that gives it the replay and retires the anchor
+    (`workflow/engine/rewrite_takeover.py`).
     """
     return tuple(
         key for key in _claimed_by(state) if state.get(key) is not None
