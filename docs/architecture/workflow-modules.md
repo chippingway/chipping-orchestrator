@@ -1261,7 +1261,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `last_word` reads everything that moves again once nothing else is left to request, the
                             network first -- the remote branch the head landed on, the base, the requirements over
                             the issue fetched once more -- and then the checkout's own head and the configuration,
-                            which no request answers -- every reading taken, the first that establishes movement and
+                            which no request answers, the checkout read whatever the remote's reading came to --
+                            every reading taken, the first that establishes movement and
                             the first that holds answered side by side, so an unread reading masks no movement: a
                             remote branch or checkout off the head, or a base read elsewhere, both holds and
                             establishes movement, an unreadable base or issue only holds, and moved requirements or
@@ -1733,7 +1734,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     rewrite_landed.py       the recovery of a push an interrupted tick already landed, with nothing pushed again or
                             measured: an attempt made for another publication parked; a checkout read as a candidate
                             naming any other head than the one the fetch classified -- the one every voucher below
-                            is about -- left with nothing made for the next tick to classify; a landing the git owner
+                            is about -- left with nothing made for the next tick to classify, save that a transaction
+                            an earlier finish captured for the fetched head is abandoned through the finish's last
+                            word (`rewrite_finish_captured.py`) on the way out; a landing the git owner
                             names a reason against (`git/base_sync/landed_recovery.py`) -- a mark naming another
                             head, a head nothing this attempt vouches for, a checkout not provably clean beneath a
                             verdict, a transfer the receipt and debt do not account for -- parked with HEAD and the

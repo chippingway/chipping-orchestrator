@@ -18,7 +18,9 @@ decision is made here, in the order the recovery has always kept:
   finish takes on trust for a replay the attempt never got to name, is about
   that head. A candidate naming any other -- the checkout and the branch both
   moved since, or a head that no longer reads -- makes nothing, and the next
-  tick classifies what it then finds.
+  tick classifies what it then finds; a transaction an earlier finish
+  captured for the fetched head is abandoned first, since that move is
+  movement under it.
 - A landing the record does not account for parks the same way: a mark
   naming another head, a head nothing this attempt wrote vouches for, a
   checkout not provably clean beneath a verdict, a transfer the receipt and
@@ -68,6 +70,7 @@ before the issue is read and holds through the route.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 
 from orchestrator.git.base_sync import (
     landed_recovery as _landed_recovery,
@@ -83,12 +86,15 @@ from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoveryContext,
     _AutoRebaseRecoverySnapshot,
 )
-from orchestrator.git.base_sync.rewrite_handoffs import _RewriteCandidate
+from orchestrator.git.base_sync.rewrite_handoffs import _LandedRewrite, _PushOutcome, _RewriteCandidate
 from orchestrator.git.base_sync.transfer_values import _Handoff
+from orchestrator.git.ref_transport import _RefRead
 from orchestrator.workflow.engine import (
     rewrite_finish as _finish,
+    rewrite_finish_captured as _captured,
     rewrite_publication as _rewrite_publication,
 )
+from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad, LandedFinish
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     late_push as _late_push,
@@ -142,7 +148,9 @@ def _left_the_fetched_head(
     and observed or proved, that head would be announced and routed on a
     voucher it never had. So nothing is made for it -- no park either, since
     a move is no fact about this attempt -- and the next tick's own fetch
-    classifies the branch as it then finds it.
+    classifies the branch as it then finds it. What an earlier finish
+    captured for the fetched head is the one exception
+    (`_abandons_what_it_captured`): that move is movement under it.
     """
     moved = candidate.rewritten_head != completed.head
     if moved:
@@ -151,7 +159,41 @@ def _left_the_fetched_head(
             "finished (it now reads %r); finishing nothing until a later tick classifies it again",
             context.issue.number, completed.head, context.pr_number, candidate.rewritten_head[:8],
         )
+        _abandons_what_it_captured(context, completed, candidate)
     return moved
+
+
+def _abandons_what_it_captured(
+    context: _AutoRebaseRecoveryContext,
+    completed: _AutoRebaseRecoverySnapshot,
+    candidate: _RewriteCandidate,
+) -> None:
+    """Abandon a transaction an earlier finish recorded for the fetched head the checkout has since left.
+
+    The checkout moving off that head is movement under the decision, which
+    no later route may take, even one finding the checkout back on it. So
+    the landing is handed, as the fetch found it, to the last word every
+    route of the evidence step ends in
+    (`rewrite_finish_captured.stands_before_the_route`), which reads the
+    checkout off the head and
+    abandons the transaction unrun -- or, with no room for that, refuses it
+    for good -- before the recovery leaves. Nothing is routed either way, and
+    nothing is read or written where no transaction is recorded for the head.
+    """
+    fetched = replace(candidate, checkout=replace(candidate.checkout, head=completed.head))
+    finish = LandedFinish(
+        gh=context.gh,
+        spec=context.spec,
+        issue=context.issue,
+        state=context.state,
+        landed=_LandedRewrite(
+            candidate=fetched, outcome=_PushOutcome.OBSERVED, remote=_RefRead(sha=completed.remote_head),
+        ),
+        label=_replay_evidence._recovered_stage(context.label),
+        road=FinishRoad.RECOVERY,
+    )
+    if _captured.recorded(finish, logged=False) is not None:
+        _captured.stands_before_the_route(finish)
 
 
 def _settles(

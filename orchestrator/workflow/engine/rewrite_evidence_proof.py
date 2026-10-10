@@ -20,7 +20,9 @@ left to request, which reads everything that moves again in one fixed order:
 the network first -- the remote branch the head landed on, the base, and the
 issue's requirements over the issue fetched once more -- and then the readings
 no request answers, behind every one that did: the checkout's own head and the
-configuration. Every reading is taken, and none masks another: the last word
+configuration. The remote branch and the checkout are two readings, the
+checkout read whatever the remote's came to. Every reading is taken, and none
+masks another: the last word
 answers with the first that establishes movement and the first that holds the
 route, side by side, so a reading nobody could take never hides one that read
 something move. A remote branch or a checkout off the landed head
@@ -224,22 +226,32 @@ def _answers_locally(
     """The readings no request answers, behind every one that did -- the checkout's own head, the configuration.
 
     Then every verdict in its order, None for each reading that refused
-    nothing: the landing, the base, the requirements, the configuration.
+    nothing: the remote branch, the checkout, the base, the requirements, the
+    configuration.
     """
     remote, base, asked = heard
-    landed = _landing_refusal(finish, remote) if landing else None
+    landed = _landing_refusals(finish, remote) if landing else (None, None)
     reconfigured = binding is not None and binding.context_revision != _proof.configured_context_revision()
-    return landed, base, asked, _RECONFIGURED if reconfigured else None
+    return *landed, base, asked, _RECONFIGURED if reconfigured else None
 
 
-def _landing_refusal(finish: LandedFinish, remote: str | None) -> _evidence_models.ReportEvidence | None:
-    """Why the remote branch, as heard, and the checkout, read now, are not both on the landed head; or None."""
-    if remote is None:
-        return _UNREAD_REMOTE
+def _landing_refusals(
+    finish: LandedFinish, remote: str | None,
+) -> tuple[_evidence_models.ReportEvidence | None, _evidence_models.ReportEvidence | None]:
+    """The remote branch, as heard, and the checkout, read now, each against the landed head.
+
+    Two readings, each refused on its own: a remote branch nobody could read
+    says nothing about the checkout, which is read whatever the branch's
+    reading came to, so a checkout that moved is never hidden behind it.
+    """
     checkout = _rewrite_facts._reads_the_checkout(
         finish.spec, _worktree_paths._worktree_path(finish.spec, finish.issue.number),
     ).head
-    return None if {remote, checkout} == {finish.head} else LEFT_THE_LANDING
+    if remote is None:
+        branch = _UNREAD_REMOTE
+    else:
+        branch = None if remote == finish.head else LEFT_THE_LANDING
+    return branch, None if checkout == finish.head else LEFT_THE_LANDING
 
 
 def _fetches(finish: LandedFinish) -> Issue | None:

@@ -4,8 +4,9 @@
 
 The fetch result and the divergence say what the ref the pull request is built
 from looks like -- the checkout on the branch's head, or a commit past it where
-it is ahead -- and `base` where a landed rewrite's head stands against the base
-it was counted against; `trees` says which commits this repository reads and the full
+it is ahead -- `remote_answers` whether the remote answers a read of the branch
+at all, and `base` where a landed rewrite's head stands against the base it was
+counted against; `trees` says which commits this repository reads and the full
 tree each carries, so a commit missing from it is one git could not read; and
 `tags` says which ids are annotated tags and the commit each points at. The
 tags are answered as git answers them: `^{tree}` peels one to its commit's
@@ -71,6 +72,8 @@ class EvidenceWorld:
     })
     tags: dict[str, str] = field(default_factory=lambda: {TAG_SHA: SQUASHED_SHA})
     base: _BaseStanding = _BaseStanding.STANDING
+    remote_answers: bool = True
+    checkout_head: str = ""
 
     def fetch(self, *_args, **_kw) -> Fetched:
         """What `_authed_fetch` hands back in this world."""
@@ -99,13 +102,19 @@ class EvidenceWorld:
 
 
 def remote_read(world: EvidenceWorld, *_args) -> _RefRead:
-    """What `_remote_branch_read` answers for the pull request's branch in `world`."""
-    return _RefRead(sha=world.remote.tip)
+    """What `_remote_branch_read` answers for the pull request's branch in `world`: its head, or nothing it read."""
+    return _RefRead(sha=world.remote.tip if world.remote_answers else None)
 
 
 def checkout_of(world: EvidenceWorld, *_args) -> _CheckoutReading:
-    """What `_reads_the_checkout` reads in `world`: the remote branch's head, or a commit past it the checkout made."""
-    head = STRAY_SHA if world.remote.ahead else world.remote.tip
+    """What `_reads_the_checkout` reads in `world`: the remote branch's head, or a commit past it the checkout made.
+
+    `checkout_head` stands the checkout somewhere of its own instead, with the
+    divergence every other reading takes left as it is.
+    """
+    head = world.checkout_head
+    if not head:
+        head = STRAY_SHA if world.remote.ahead else world.remote.tip
     return _CheckoutReading(
         head=head,
         tree=world.trees.get(head, ""),

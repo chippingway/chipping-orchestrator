@@ -31,6 +31,7 @@ from tests.workflow.engine import (
     rewrite_finish_moves as moves,
     rewrite_finish_readings as readings,
     verification_evidence_test_support as support,
+    verification_world_fixture as _world,
 )
 from tests.workflow.interleaving import _RacesPastTheStep
 
@@ -259,6 +260,36 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
         self.assertEqual(
             (self.at_the_relabel(), len(self.handed)),
             (recorded, 1),
+        )
+
+    def test_a_checkout_moved_beside_an_unread_remote(self) -> None:
+        # The evidence write lands and its answer is lost. The next finish's
+        # remote read of the branch comes back with nothing, and the checkout
+        # has committed past the head since the proof read it: the unread
+        # remote holds the route, and the moved checkout, read all the same,
+        # abandons the record. Put back, the head routes with the record still
+        # abandoned and the suite never run again.
+        self.attempts(REBASED)
+        self.rewrites(REBASED)
+        self.during = moves.loses_answers
+        self.assertEqual(self.finishes(REBASED), FinishOutcome.UNCONFIRMED)
+        self.gh.pinned_failures.lost.clear()
+        recorded = self.gh.read_pinned_state(self.issue)
+        self.world.remote_answers = False
+        self.world.checkout_head = _world.STRAY_SHA
+
+        self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.HELD)
+
+        receipt = readings.records(recorded.data)[0].receipt
+        abandoned = (*self.invalidated(), (receipt, readings.ABANDONED))
+        held = readings.records(readings.pinned(self))
+        self.assertEqual(held, (None, None, abandoned))
+        self.world.remote_answers = True
+        self.world.checkout_head = ""
+        self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.ROUTED)
+        self.assertEqual(
+            (self.at_the_relabel(), len(self.handed)),
+            ((None, None, abandoned), 1),
         )
 
     def test_a_moved_context_abandons_the_carry(self) -> None:

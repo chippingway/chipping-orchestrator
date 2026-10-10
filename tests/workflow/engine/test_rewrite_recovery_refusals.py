@@ -7,8 +7,10 @@ another, so movement read beside a base nobody could read still abandons the
 captured run while the unread base holds the route. And where the pinned
 comment has no room for the abandonment, the write that only shrinks it -- the
 run dropped and the base tip its replay was recorded as made onto blanked --
-refuses the run for good. Either way, putting back what moved and making room
-routes the head with nothing run, recorded, pushed, or announced again.
+refuses the run for good. A recovery that leaves before reading the landing,
+because the checkout left the head its fetch found, abandons the run on its way
+out. Either way, putting back what moved and making room routes the head with
+nothing run, recorded, pushed, or announced again.
 """
 from __future__ import annotations
 
@@ -16,7 +18,7 @@ import unittest
 from functools import partial
 from unittest.mock import patch
 
-from orchestrator.git.base_sync import rewrite_facts
+from orchestrator.git.base_sync import replay_evidence, rewrite_facts
 from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from tests.workflow.engine import (
@@ -29,6 +31,13 @@ _BASE_READING = "_standing_on_the_remote_base"
 
 # A key nothing reads, standing in for whatever else fills the comment.
 _FILLER = "room_filler"
+
+_STRAY_COMMIT = (
+    "-c", "user.name=stray", "-c", "user.email=stray@example.invalid",
+    "commit", "--quiet", "--allow-empty", "-m", "stray",
+)
+
+_CLASSIFIED = "_made_for_another_publication"
 
 _CONFIGURED = f"test -f feature.py && echo '{git_support.CHECKED}'"
 
@@ -59,6 +68,13 @@ def _answered(standing: _BaseStanding, move, *_args) -> _BaseStanding:
     """A base reading that comes back as `standing`, `move` made while it was taken."""
     move()
     return standing
+
+
+def _commits_behind(original, case: support.VerificationRecoveryCase, *args):
+    """Answer `original`, then commit in `case`'s checkout past the head the recovery classified."""
+    answered = original(*args)
+    case._git(*_STRAY_COMMIT, cwd=case._wt)
+    return answered
 
 
 def _fills_the_comment(case: support.VerificationRecoveryCase) -> None:
@@ -119,6 +135,24 @@ class SurvivingRefusalTest(support.VerificationRecoveryCase, unittest.TestCase):
             (readings.pinned_records(self), self.runs()),
             (git_support.nothing_recorded(self), 1),
         )
+        self.assert_recovered(head)
+
+    def test_a_checkout_left_early_abandons(self) -> None:
+        # The recovery's fetch finds the remote and the checkout on the landed
+        # head, and the checkout commits past it before the landing is read:
+        # the recovery finishes nothing, and abandons the run captured for
+        # that head on its way out. Put back on the head, the next recovery
+        # routes it with the run still abandoned and nothing run again.
+        head, captured = _captures(self)
+        classified = partial(_commits_behind, getattr(replay_evidence, _CLASSIFIED), self)
+        with patch.object(replay_evidence, _CLASSIFIED, side_effect=classified):
+            self.recovers()
+
+        self.assert_held(None)
+        self._assert_abandoned(captured)
+        self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+        self.recovers()
+        self._assert_abandoned(captured)
         self.assert_recovered(head)
 
     def _holds_beside_an_unread_base(self, moves_it, restores) -> tuple:
