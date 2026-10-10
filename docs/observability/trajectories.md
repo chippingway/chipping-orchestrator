@@ -441,7 +441,9 @@ other entry is shown verbatim in a code block). For a claude
 run, a compact per-turn usage strip (model · in / out tokens · cache-read / cache-write · estimated cost, with a
 *cache hit* chip when the turn read from cache) is drawn at each assistant-turn boundary in the timeline; the copy
 states that per-turn figures are claude-only estimates that need not sum to the authoritative run total, and that
-entries without a strip (tool results, user turns) are turn inputs billed on the next turn. A pre-usage record carries
+entries without a strip (tool results, user turns) are turn inputs billed on the next turn. A turn no step names — a
+subagent's closing message, known only from its hand-back — has no boundary to draw a strip at, so its output count
+shows in the run-level row alone. A pre-usage record carries
 no usage, so the row and strips are absent and it renders exactly as before. The fixtures `is_fixture` flags are tagged
 in the overview table and the run-level picker (the `[fixture]` prefix rides the run option; and the detail card carries
 a notice) so the operator can tell the inherited test-suite records from real runs even with the toggle off. When the
