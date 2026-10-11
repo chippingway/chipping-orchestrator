@@ -517,7 +517,10 @@ and the ordinary cumulative gate measures the replay exactly as it always did.
 
 Refresh-only failure modes — push rejected or refused (`auto_base_rebase_push_failed`), rebase failed without
 conflicted files (`auto_base_rebase_failed`), dirty-after-clean-rebase (`auto_base_rebase_dirty`) — reset HEAD back to
-the pre-rebase SHA and park awaiting human with a durable `park_reason`. A push is refused, with nothing sent, where the
+the pre-rebase SHA and park awaiting human with a durable `park_reason`. The park's notice says why it parks and then
+what the reset came to: a reset git refused is reported as refused, the attempt and its records kept, and a landed
+one's drop of the attempt is said as what the park's own write makes durable, since the notice goes out ahead of that
+write. A push is refused, with nothing sent, where the
 checkout, the base ref, or the remote branch moved since the candidate was read, or the remote could not be read; a
 remote already standing on the candidate excuses none of those refusals, and is proved there by a push leased to the
 candidate itself before anything is finished -- announced as found standing even where that proof's answer was lost --
@@ -3196,7 +3199,9 @@ The keys that matter for the state machine fall into a few groups:
   it is never cleared, and read as one it would strand every untouched attempt the issue makes. Its parks read
   `auto_base_rebase_push_failed` where the push, the remote, or an announced publication the remote lost is what
   refused, and `auto_base_rebase_failed` where the pinned comment is; the foreign-publication, the
-  unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand.
+  unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand, save a
+  verification transaction a finish captured for the landed head, which every recovery park that keeps the attempt
+  has proved again first and abandoned where anything it rests on moved (`proves_before_a_park`).
   **The post-publication route is live too.** The recovery hands every head the pull request already carries, beside
   how far the transfer got, to the workflow's landed road (`workflow/engine/rewrite_landed.py`), which asks
   `landed_recovery` why it may not finish one, and eligibility's open-PR gate hands `terminal_handoff` every
