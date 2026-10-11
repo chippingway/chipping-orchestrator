@@ -52,6 +52,7 @@ import logging
 from dataclasses import dataclass
 
 from orchestrator.git.base_sync import (
+    attempt_records as _attempt_records,
     attempts as _attempts,
     guards as _guards,
     rewrite_facts as _rewrite_facts,
@@ -198,7 +199,8 @@ def _gateable(context: _AutoRebaseContext, candidate: _RewriteCandidate) -> bool
     if refusal is _RewriteRefusal.UNMOVED:
         _guards._finish_noop_auto_rebase(context)
         return False
-    _attempts._records_the_replay(context, candidate.rewritten_head)
+    onto = _attempt_records._recorded_onto(context.state)
+    _attempts._records_the_replay(context, candidate.rewritten_head, onto)
     dirty = candidate.checkout.status.paths
     if dirty:
         _guards._park_dirty_auto_rebase(context, anchor, list(dirty))

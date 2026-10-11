@@ -13,7 +13,8 @@ makes, moves. A case about one of them seeds the one reading it is about.
 """
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from dataclasses import replace
 from unittest.mock import MagicMock
 
 from orchestrator.git import branch_transport
@@ -84,6 +85,31 @@ class _PullRequestBranches:
         pulls = getattr(getattr(self._case, "gh", None), "pulls", {})
         heads = [pull.head.sha for pull in pulls.values() if pull.head_branch == branch]
         return _RefRead(sha=heads[0] if heads else CONFLICT_PR_HEAD_SHA)
+
+
+class _RepointedBase:
+    """The divergence probe, reading the base branch on `tip` once `repointed` says something moved the ref.
+
+    Every other branch, and the base before then, reads as the probe beneath
+    reads it.
+    """
+
+    def __init__(self, probe, tip: str, repointed: Callable[[], bool]) -> None:
+        self._probe = probe
+        self._tip = tip
+        self._repointed = repointed
+
+    def __call__(self, spec, worktree, branch, *revision):
+        read = self._probe(spec, worktree, branch, *revision)
+        if branch != spec.base_branch or not self._repointed():
+            return read
+        return replace(read, tip=self._tip)
+
+
+def _repoints_the_base(test_case, tip: str, repointed: Callable[[], bool]) -> None:
+    """Read the base ref on `tip` once `repointed()` answers True, for the rest of the test."""
+    probe = _RepointedBase(_publication_probes._branch_divergence, tip, repointed)
+    _patched(test_case, _publication_probes, "_branch_divergence", probe)
 
 
 def _candidate_reads(test_case) -> None:

@@ -20,6 +20,11 @@ round, settled as the round returned -- is no staleness.
 The settlement proves the pull request and the requirements once more after the
 post, since a push can land while the artifact is being written: evidence is
 then left owed rather than declared current over a head nobody verified.
+
+The part of the proof the review and report records answer on their own is
+asked apart too (`recorded_verdict`), for a caller whose proof stopped at a
+reading nobody could take: it refuses what moved on the comment, as the whole
+proof words it, and nothing only a request could have read.
 """
 from __future__ import annotations
 
@@ -35,6 +40,7 @@ from orchestrator.workflow.engine import (
     report_records as _report_records,
     report_settlement_state as _report_settlement,
     review_subjects as _review_subjects,
+    verification_proof as _proof,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
@@ -183,6 +189,35 @@ _REFUSALS = (
     ),
 )
 
+# The moves the review and report records on the comment answer on their own,
+# with no request made (`recorded_verdict`); every other move needs the pull
+# request, the branch, the report's location, the issue, or the configuration.
+_RECORDED_MOVES = frozenset((
+    "a developer report is owed",
+    "a report is owed as undeliverable",
+    "the round was bought through a later thread",
+    "no review subject is recorded",
+    "a later review was handed another report",
+    "a report settled after the review",
+    "the report handoff is gone",
+    "the issue records another pull request",
+    "the drift baseline moved past the report",
+))
+
+# A report settled after the review, which the whole proof refuses at the
+# report the pull request carries, and the records alone at the subject's own
+# report naming.
+_RECORDED_WORDING = (
+    ("a report settled after the review", "not about the report this issue records as settled"),
+)
+
+
+def _records_refuse(case, moved: str, refusal: str) -> bool:
+    """Whether the records `case`'s comment carries refuse `moved` on their own, worded as `refusal` is."""
+    found = _proof.recorded_verdict(case.gh.read_pinned_state(case.issue), case.pending.binding)
+    worded = dict(_RECORDED_WORDING).get(moved, refusal)
+    return found is not None and not found.holds and worded in found.refusal
+
 
 class UnprovedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
     """One moved fact holds or stands down, and publishes nothing either way."""
@@ -225,6 +260,7 @@ class UnprovedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
                 self.setUp()
                 moves(self)
 
+                self.assertIs(_records_refuse(self, moved, refusal), moved in _RECORDED_MOVES)
                 with self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
                     self.assertIs(self.reconcile(), holds)
                     self.assertIn(refusal, support.logged_refusal(logged))

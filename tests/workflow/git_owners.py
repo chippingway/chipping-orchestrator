@@ -15,7 +15,7 @@ from types import MappingProxyType
 from unittest.mock import DEFAULT, patch
 
 from orchestrator.git import branch_transport as _branch_transport, commands as _commands
-from orchestrator.git.base_sync import pre_pr as _base_sync_pre_pr
+from orchestrator.git.base_sync import pre_pr as _base_sync_pre_pr, rewrite_facts as _rewrite_facts
 from orchestrator.git.measurement import (
     additions as _measurement,
     commits as _measurement_commits,
@@ -82,6 +82,7 @@ GIT_SEAM_OWNERS = MappingProxyType({
     "_push_branch": _branch_transport,
     "_rebase_base_into_worktree": _base_sync_pre_pr,
     "_rebase_in_progress": _base_sync_pre_pr,
+    "_reads_the_checkout": _rewrite_facts,
     "_remote_branch_read": _branch_transport,
     "_remote_branch_tip": _branch_transport,
     "_remove_issue_worktree": _worktree_cleanup,
@@ -89,6 +90,7 @@ GIT_SEAM_OWNERS = MappingProxyType({
     "_revision_contains_path": _verification_probes,
     "_run_verify_commands": _verify_runner,
     "_squash_and_force_push": _squash,
+    "_standing_on_the_remote_base": _rewrite_facts,
     "_tree_sha": _verification_probes,
     "_worktree_dirty_files": _worktree_status,
     "_worktree_path": _worktree_paths,

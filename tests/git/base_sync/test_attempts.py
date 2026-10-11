@@ -13,6 +13,7 @@ from orchestrator.git.measurement import additions as _measurement
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.state import WorkflowLabel
 from tests.git.base_sync import base_sync_helpers as fixtures
+from tests.git.base_sync.candidate_reads_support import _repoints_the_base
 from tests.git.base_sync.refresh_scenarios import (
     PUSH_PATCH,
     REBASE_PATCH,
@@ -39,6 +40,8 @@ KEY_REWRITE_STAGE = "pending_auto_base_rebase_rewrite_stage"
 
 KEY_ANNOUNCED_SHA = "pending_auto_base_rebase_announced_sha"
 
+KEY_REWRITE_BASE = "pending_auto_base_rebase_rewrite_base"
+
 # The publication one attempt is made for. `in_review` is a stage that pushes
 # onto a pull request the remote already carries, which is the only kind this
 # record may name.
@@ -50,6 +53,16 @@ ATTEMPT_STAGE = WorkflowLabel.IN_REVIEW
 # values that are not one: an abbreviation names a commit no comparison could
 # make, and a word is not hex at all.
 REPLAYED_SHA = "5ca1ab1e" * 5
+
+# The base tip a replay was made onto, written beside it.
+ONTO_SHA = "0e70ba5e" * 5
+
+# The base tip this fixture's divergence reading answers with, which the
+# anchor's write freezes off the base ref before git runs.
+FROZEN_BASE_SHA = "ba5e0000" * 5
+
+# Where the base ref stands once something moved it while git ran.
+MOVED_BASE_SHA = "a0ed0ba5" * 5
 
 ABBREVIATED_SHA = REPLAYED_SHA[:8]
 
@@ -85,27 +98,37 @@ _ANCHOR_AND_TERMS = MappingProxyType({
     KEY_ANCHOR: BEFORE_SHA,
     KEY_REWRITE_PR: PR_NUMBER,
     KEY_REWRITE_STAGE: LABEL_IN_REVIEW,
+    KEY_REWRITE_BASE: FROZEN_BASE_SHA,
 })
 
 _WITH_THE_REPLAY = MappingProxyType({
-    **_ANCHOR_AND_TERMS, KEY_REWRITE_SHA: REPLAYED_SHA,
+    **_ANCHOR_AND_TERMS, KEY_REWRITE_SHA: REPLAYED_SHA, KEY_REWRITE_BASE: ONTO_SHA,
 })
 
 # Those writes in the order the flow makes them, each beside the moment it is
 # the first one able to answer for its member.
 _WRITERS = (
     (
-        "the anchor and the terms, before git runs",
+        "the anchor, the terms, and the base tip frozen for the rebase, before git runs",
         lambda context: startup._record_auto_rebase_attempt(
             context, BEFORE_SHA, None,
         ),
         _ANCHOR_AND_TERMS,
     ),
     (
-        "the head the replay produced",
-        lambda context: attempts._records_the_replay(context, REPLAYED_SHA),
+        "the head the replay produced, and the base tip it was made onto",
+        lambda context: attempts._records_the_replay(context, REPLAYED_SHA, ONTO_SHA),
         _WITH_THE_REPLAY,
     ),
+)
+
+# What a recorded base tip reads back as: a whole commit id itself, and an
+# absent, abbreviated, or non-hex one as no tip at all.
+_RECORDED_TIPS = (
+    (ONTO_SHA, ONTO_SHA),
+    (None, ""),
+    (ONTO_SHA[:8], ""),
+    (NOT_A_SHA, ""),
 )
 
 
@@ -185,6 +208,21 @@ class PendingRewriteReadTest(unittest.TestCase):
 
         self.assertFalse(pending.damaged)
         self.assertFalse(pending.left_a_replay)
+
+    def test_the_base_tip_stands_apart(self) -> None:
+        # The tip a replay was made onto is no member of the group: a legacy
+        # record naming none is still whole, and a tip that is not a whole
+        # commit id names no base.
+        for recorded, read in _RECORDED_TIPS:
+            with self.subTest(recorded=recorded):
+                state = _recorded(**{KEY_REWRITE_BASE: recorded})
+
+                pending = _attempt_records._pending_rewrite(state)
+
+                self.assertEqual(
+                    (_attempt_records._recorded_onto(state), pending.is_recorded, pending.damaged),
+                    (read, True, False),
+                )
 
     def test_the_terms_alone_date_the_attempt(self) -> None:
         # The terms go down before git runs and the head after it, so a
@@ -335,19 +373,31 @@ class AttemptWriteOrderTest(_SyncWorktreeWithBaseFixture, unittest.TestCase):
     """
 
     def test_the_terms_are_durable_before_git_runs(self) -> None:
-        observed = self._run_rebase()
+        # Beside them, the base tip the rebase is about to replay onto.
+        at_the_rebase = self._run_rebase()[REBASE_PATCH]
 
-        self.assertEqual(observed[REBASE_PATCH].get(KEY_ANCHOR), BEFORE_SHA)
-        self.assertEqual(observed[REBASE_PATCH].get(KEY_REWRITE_PR), PR_NUMBER)
+        self.assertEqual(at_the_rebase.get(KEY_ANCHOR), BEFORE_SHA)
+        self.assertEqual(at_the_rebase.get(KEY_REWRITE_PR), PR_NUMBER)
         self.assertEqual(
-            observed[REBASE_PATCH].get(KEY_REWRITE_STAGE), LABEL_IN_REVIEW,
+            at_the_rebase.get(KEY_REWRITE_STAGE), LABEL_IN_REVIEW,
         )
-        self.assertIsNone(observed[REBASE_PATCH].get(KEY_REWRITE_SHA))
+        self.assertEqual(at_the_rebase.get(KEY_REWRITE_BASE), FROZEN_BASE_SHA)
+        self.assertIsNone(at_the_rebase.get(KEY_REWRITE_SHA))
 
     def test_the_replay_is_durable_by_the_measurement(self) -> None:
-        observed = self._run_rebase()
+        # Beside the base tip frozen before git ran, which the publication
+        # carries into the replay's own record rather than reading it again.
+        # A base ref naming another commit once the rebase returns leaves
+        # nothing saying which tip the replay sits on, so its record carries
+        # none -- which proves nothing -- rather than one read after the fact.
+        for base_moves, onto in ((False, FROZEN_BASE_SHA), (True, None)):
+            with self.subTest(base_moves=base_moves):
+                self.setUp()
+                at_the_count = self._run_rebase(base_moves=base_moves)[COUNT_SEAM]
 
-        self.assertEqual(observed[COUNT_SEAM].get(KEY_REWRITE_SHA), AFTER_SHA)
+                self.assertEqual(
+                    (at_the_count.get(KEY_REWRITE_SHA), at_the_count.get(KEY_REWRITE_BASE)), (AFTER_SHA, onto),
+                )
 
     def test_a_finished_route_leaves_no_member(self) -> None:
         self._run_rebase()
@@ -388,11 +438,13 @@ class AttemptWriteOrderTest(_SyncWorktreeWithBaseFixture, unittest.TestCase):
                     {key: standing.get(key) for key in attempts._ATTEMPT_KEYS},
                 )
 
-    def _run_rebase(self) -> dict:
-        """Run one clean rebase, reading the comment at three points in it."""
+    def _run_rebase(self, *, base_moves: bool = False) -> dict:
+        """Run one clean rebase, reading the comment at three points in it; `base_moves` repoints the base under git."""
         self._seed_pr_issue()
         self._add_pr()
         observed: dict = {}
+        if base_moves:
+            _repoints_the_base(self, MOVED_BASE_SHA, lambda: REBASE_PATCH in observed)
         self.enterContext(patch.object(
             self.gh,
             SET_LABEL,

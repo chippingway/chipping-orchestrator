@@ -3129,6 +3129,20 @@ The keys that matter for the state machine fall into a few groups:
   as either one it resembles, exactly the state nobody can vouch for would take a road reserved for one that can.
   Because the write that ends an attempt blanks these fields rather than removing them, a group of nulls is the record
   nobody wrote and a member carrying something beside one that does not is the record something took apart.
+  `pending_auto_base_rebase_rewrite_base` — the base tip that replay was made onto, frozen off `<remote>/<base>` in
+  the anchor's own write before git runs, carried into the write that records the replay's head, and blanked with the
+  rest of the attempt by every write that ends it. A base ref that names another commit once the rebase returns
+  leaves it blank, since nothing then says which tip the replay sits on. It sits outside the group above: an attempt
+  pinned without it is still whole and simply names no base, and a value that is not a whole commit id names none
+  either (`attempt_records._recorded_onto`). A head counted level with a base says nothing about WHICH base -- one
+  rewound or repointed under the head after the rebase leaves it level with a commit it was never replayed onto -- so
+  whether a landed head still stands on its base is read against this very tip
+  (`rewrite_facts._standing_on_the_remote_base`): standing, moved, dropped, unread, or unproven where none is
+  recorded. The evidence helpers that hold a landed head's route to that reading are dormant
+  (`workflow/engine/rewrite_evidence_proof.py`): no finish or recovery road asks them yet. Among them, a captured
+  transaction whose abandonment the comment has no room for is dropped with this member blanked, in a write that
+  only shrinks the comment, so no later reading proves a base for it
+  (`workflow/engine/rewrite_finish_captured.py`).
   `pending_auto_base_rebase_announced_sha` is the last member and covers the last window a finish has: everything a
   finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out before the
   relabel, and the write that clears this record goes out after it, so the head it has already said it published is

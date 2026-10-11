@@ -612,11 +612,15 @@ orchestrator/
                         still owes a standing anchor its recovery -- which the workflow's recovery coordinator
                         runs; a terminal PR ends an anchored attempt's whole handoff through `terminal_handoff`
       pre_pr.py         the hardened rebase / merge probes and the aborting pre-PR local rebase
-      startup.py        the pre-rebase HEAD guard, and the anchor and the attempt's terms persisted before git
-                        runs -- the write that spends the reply a park of the refresh's let the rebase start on, and
-                        carries the retry the workflow staged read from it (`workflow/engine/rewrite_replies.py`)
+      startup.py        the pre-rebase HEAD guard, and the anchor, the attempt's terms, and the base tip the rebase
+                        will replay onto -- frozen off `<remote>/<base>` and blanked where that ref moved while git
+                        ran -- persisted before git runs: the write that spends the reply a park of the refresh's
+                        let the rebase start on, and carries the retry the workflow staged read from it
+                        (`workflow/engine/rewrite_replies.py`)
       attempts.py       the replay checkpoint, the announcement mark's presence checks, and the whole-record clear
-                        that ends an auto-rebase attempt. The workflow's publication records its replay here; the
+                        that ends an auto-rebase attempt, the recorded base tip among its members. The workflow's
+                        publication records its replay here, with the base tip frozen before git ran beside it
+                        (`pending_auto_base_rebase_rewrite_base`); the
                         workflow's finish of every landing puts the mark down through its own guarded checkpoint,
                         while the anchor still stands and before relabeling, and reads it back here; the
                         workflow's handoff of an unpublished replay to a late generation
@@ -625,14 +629,16 @@ orchestrator/
       attempt_records.py
                           validate interrupted replay terms and head as absent, declared, recorded, or damaged,
   sharing the replay
-                        field group with the lifecycle clear. Commit validation uses the late domain's format
-                        reader through a call-time import
+                        field group with the lifecycle clear, and read the base tip the replay was made onto
+                        apart from that group (`_recorded_onto`), "" where a legacy attempt names none. Commit
+                        validation uses the late domain's format reader through a call-time import
       rewrite_handoffs.py
                         the frozen, data-only handoffs an automatic PR base rewrite crosses the git boundary as:
                         the candidate -- original and rewritten heads and their trees, the branch, the base and
                         remote readings, the worktree status, and the attempt's anchor, pull request, and stage --
-                        and the landed record of one lease-pinned publication of it, an uncertain answer included.
-                        Neither carries a GitHub client, an issue, pinned state, or a callback. The workflow's
+                        and the landed record of one lease-pinned publication of it, an uncertain answer included;
+                        and where a landed head stands against the base it was counted against (`_BaseStanding`).
+                        None carries a GitHub client, an issue, pinned state, or a callback. The workflow's
                         ordinary publication of a clean rebase, its retry of a replay a crash kept off the pull
                         request, and its recovery of a push already landed read, publish or observe, and finish
                         through them
@@ -641,7 +647,14 @@ orchestrator/
                         push: a head that left the candidate, a tree dirtied or made unreadable, a base ref rewound
                         so it no longer contains the tip the replay sits over, or a remote off the anchor --
                         already on the candidate included, which excuses none of the others -- refuses, while a
-                        base that only advanced does not
+                        base that only advanced does not. For a landed head it also answers whether the head
+                        still stands on its base (`_standing_on_the_remote_base`), by identity: the head counted
+                        afresh against the local base ref has to find the tip the attempt recorded its replay as
+                        made onto, and the remote's base, read without a fetch, still there -- standing, moved
+                        (the remote's elsewhere, read even where the local count could not be taken, or a local
+                        base the head is behind), dropped by a base rewound or repointed under it, unproven where
+                        no tip was recorded, or unread. Its one reader is the workflow's dormant evidence proof
+                        (`workflow/engine/rewrite_evidence_proof.py`)
       rewrite_transport.py
                         publishes exactly the candidate's rewritten head, leased to its original one, through the
                         branch transport once that fresh reading refuses nothing, so a publication that landed is
@@ -725,7 +738,9 @@ orchestrator/
                         a label that adjudication's guard restores
       recovery_holds.py
                         what no recovery road reaches: the reset and park over a checkout whose base lag cannot
-                        be counted, and the dispatch hold -- whether a standing anchor keeps a stage handler back,
+                        be counted, handed on whatever its caller says the workflow's recovery owes over that
+                        reset (`settles_over_a_reset`, which the refresh hands none of), and the dispatch hold --
+                        whether a standing anchor keeps a stage handler back,
                         which every label the refresh does not drive does, and one it drives does unless a late
                         claim the reconciliation answers freezes the refresh out -- with a missing checkout
                         restored where the refresh drives the label and the ineligible answer taken where it does
@@ -734,11 +749,15 @@ orchestrator/
       persistence.py    the parks and the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the
-                        approved commit. The finish of a landing -- its report debt, notice, event, announcement
-                        mark, and route -- is the workflow's (`workflow/engine/rewrite_finish.py`)
+                        approved commit; a recovery context is asked first what it owes over that reset
+                        (`settles_over_a_reset`), staged on the same state so it rides the one park write -- an
+                        optional answer no recovery road hands yet. The finish of a landing -- its report debt,
+                        notice, event, announcement mark, and route -- is the workflow's
+                        (`workflow/engine/rewrite_finish.py`)
       recovery_notices.py
                         how a recovery's park notices name the commits they are about
-      models.py         the frozen contexts, requests, snapshots, and decisions
+      models.py         the frozen contexts, requests, snapshots, and decisions -- a recovery context carrying the
+                        optional answer its reset is owed (`settles_over_a_reset`)
       state.py          the pinned-state keys, park reasons, refresh detour labels, and the shared logger
     publication/        what a branch becomes before review reads it
       commits.py        the commits the orchestrator creates on a branch itself -- the squash, and the documenting
