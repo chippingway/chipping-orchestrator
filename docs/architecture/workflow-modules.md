@@ -1174,9 +1174,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`rewrite_evidence.invalidates_current`), behind any commands run, so a configuration
                             moved during the run or between finishes is answered. A decision short of a reading nobody
                             could take, an invalidation with no room, or a failure notice nobody could confirm
-                            published holds the route (`HELD`) -- an invalidation with no room only behind the last
-                            word on a captured transaction, which is still proved again and abandoned where anything
-                            moved under it
+                            published holds the route (`HELD`), and an evidence write refused or never confirmed
+                            stops it -- each only behind the last word on a captured transaction, which is still
+                            proved again and abandoned where anything moved under it
     rewrite_finish_captured.py
                             the transaction an earlier finish of a landing recorded for its head -- a captured run or
                             carry -- read back and proved again before a later finish routes with it, its whole
@@ -1188,11 +1188,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`sets_aside`), and one once abandoned is still a run the landing captured (`retired`,
                             read off the evidence history), so a later finish decides nothing afresh and runs nothing
                             again. Every route of the evidence step that carries or follows a recorded decision -- a
-                            fresh decision once written, a captured record proved again (a hold for want of room to
-                            invalidate included), a recorded failure notice published, an abandoned record -- ends in
-                            `stands_before_the_route`, the last word behind every request
-                            (`rewrite_evidence_proof.last_word`); a fresh decision held before anything is written
-                            records nothing and ends without it. A landing that moved, or a base gone elsewhere or
+                            fresh decision once written, a captured record proved again (behind whatever stopped its
+                            route: no room to invalidate, an evidence write refused or unconfirmed), a recorded
+                            failure notice published, an abandoned record -- ends in `stands_before_the_route`, the
+                            last word behind every request (`rewrite_evidence_proof.last_word`); a fresh decision held
+                            before its write, or whose write did not land, records nothing the tick knows of and ends
+                            without it. A landing that moved, or a base gone elsewhere or
                             unreadable, holds the route, and a transaction the route would carry is abandoned unrun,
                             in its own write, staged on the comment read afresh and committed guarded by that reading
                             so a review, report, or approval another road wrote meanwhile neither refuses it nor is
@@ -1563,7 +1564,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transaction: stands aside on work that is not live (closed, `done`/`rejected`, a
                             hard-skip control label, or no workflow label); drops a record whose revision a settled
                             or retired record already carries (a replay, or a restored comment) and an unreadable
-                            one; abandons one whose pull request ENDED, or past which a revision was spent or
+                            one; holds while an auto-rebase anchor stands, leaving a transaction a landed rewrite's
+                            finish recorded to that attempt's recovery; abandons one whose pull request ENDED, or past
+                            which a revision was spent or
                             nobody can say what was -- every retirement one guarded commit staged on the comment read
                             afresh and guarded by it (`verification_durable.py`), owning only what it retires, with
                             nothing written where a record moved before that reading or under the commit, or where it
@@ -1731,7 +1734,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             remote with commits of its own park, a strictly-ahead branch is retried. Before any road a
                             snapshot it read chooses, a verification transaction captured for the head the attempt
                             announced is abandoned unless the remote and the checkout both read on that head, and
-                            behind a snapshot nobody could take whose abort's reset landed (`rewrite_landing_moved.py`)
+                            behind a snapshot nobody could take whose abort's reset landed (`rewrite_landing_moved.py`);
+                            an abandonment that did not land holds the tick with nothing reset, cleared, or parked
     rewrite_retry.py        the retry of a replay the crash kept off the pull request, from the candidate the git
                             owner reads in the attempt's own terms (`git/base_sync/recovery_push.py`) to the shared
                             finish: a checkout git names uncommitted paths in reset, cleaned, and parked; the
@@ -1788,7 +1792,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             put back by then keep nothing. A snapshot nobody could take ends in the git owner's abort;
                             where its reset onto the anchor landed and cleared the attempt, the transaction captured
                             for the head announced before it is abandoned behind it (`abandons_behind_the_reset`), and
-                            where the reset failed nothing moved and it is kept
+                            where the reset failed nothing moved and it is kept. Each says whether its abandonment
+                            landed: one that did not -- a comment nobody could read again, a write refused -- leaves
+                            the coordinator holding the tick with the attempt standing, so its anchor keeps the
+                            reconciliation off the transaction until a later recovery abandons it, while one behind a
+                            landed reset is logged and left beside the cleared attempt
     rewrite_takeover.py     the handoff of an unpublished replay the size gate handed to an adjudication, from the
                             attempt to the live late generation adjudicating it (`takes_over`), proved off the pinned
                             record alone: the attempt read back whole (`git/base_sync/attempt_records.py`) with no

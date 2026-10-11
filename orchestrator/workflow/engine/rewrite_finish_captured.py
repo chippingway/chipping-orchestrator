@@ -39,11 +39,13 @@ afresh and runs nothing again.
 
 Every route the evidence step takes that carries or follows a recorded
 decision -- these, a recorded failure notice's, and a fresh decision's once
-written, a hold for want of room to invalidate the current evidence included --
-ends in the last word behind every request made for it
-(`stands_before_the_route`, over `rewrite_evidence_proof.last_word`). Only a
-fresh decision held before anything is written, which recorded nothing, ends
-without it. A landing that moved, or a base gone elsewhere or unreadable, holds
+written -- ends in the last word behind every request made for it
+(`stands_before_the_route`, over `rewrite_evidence_proof.last_word`), and a
+captured transaction's does so behind whatever stopped it: a hold for want of
+room to invalidate the current evidence, an evidence write refused or never
+confirmed, a failure notice nobody could confirm (`behind`). Only a fresh
+decision held before its write, or whose write did not land, ends without it,
+having recorded nothing this tick knows of. A landing that moved, or a base gone elsewhere or unreadable, holds
 the route, and a transaction the route would carry is abandoned, unrun,
 wherever any reading there establishes movement -- its binding refused, the
 review and report records the comment carries moved, the landing moved, or the
@@ -153,7 +155,11 @@ def proved_again(finish: LandedFinish, pending: _records.PendingEvidence) -> Rep
 
 
 def stands_before_the_route(
-    finish: LandedFinish, *, landing: bool = True, proof: ReportEvidence | None = None,
+    finish: LandedFinish,
+    *,
+    landing: bool = True,
+    proof: ReportEvidence | None = None,
+    behind: FinishOutcome | None = None,
 ) -> FinishOutcome | None:
     """The last word on `finish`'s route, behind every request its evidence step made; None to route.
 
@@ -167,6 +173,10 @@ def stands_before_the_route(
     The landing itself is read again for every route that carries or follows
     a recorded decision or ran the configured commands, `landing` False
     sparing only a fresh decision that ran nothing and recorded nothing.
+    `behind` is where the route already stopped -- a write that did not land,
+    a hold for want of room, a failure notice nobody could confirm -- and is
+    the answer whatever this reads: the last word is asked all the same, so a
+    captured transaction something moved under is abandoned behind any stop.
 
     Every reading is taken, and none masks another. Any that establishes
     movement -- a refusal of the transaction's binding, a landing off its
@@ -186,17 +196,16 @@ def stands_before_the_route(
         landing=landing or pending is not None,
         earlier=proof,
     )
+    stopped = None
     if pending is not None and moved is not None:
         stopped = _abandoned(finish, pending, moved.refusal)
-        if stopped is not None:
-            return stopped
-    if held is None:
-        return None
-    log.warning(
-        "issue=#%d holding the route of %.8s behind its evidence step: %s",
-        finish.issue.number, finish.head, held.refusal,
-    )
-    return FinishOutcome.HELD
+    if stopped is None and held is not None:
+        log.warning(
+            "issue=#%d holding the route of %.8s behind its evidence step: %s",
+            finish.issue.number, finish.head, held.refusal,
+        )
+        stopped = FinishOutcome.HELD
+    return behind or stopped
 
 
 def sets_aside(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:

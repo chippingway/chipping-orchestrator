@@ -34,10 +34,10 @@ The route is held instead -- nothing relabelled or retired, the attempt left
 standing for a later tick's recovery to finish -- for a decision short of a
 reading nobody could take, a base that moved after the head was counted
 against it among them (HELD), an invalidation the comment has no room for
-(HELD, behind the last word on a captured transaction, which still abandons
-one something moved under), an evidence write refused or never confirmed
-(REFUSED, UNCONFIRMED),
-and a failure notice whose publication nobody could confirm (HELD). The
+(HELD), an evidence write refused or never confirmed (REFUSED, UNCONFIRMED),
+and a failure notice whose publication nobody could confirm (HELD). Each of
+these stops a captured transaction's route only behind the last word, which
+still proves it again and abandons it where anything moved under it. The
 standing anchor holds every handler meanwhile, so no reviewer is handed the
 head.
 
@@ -103,27 +103,23 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     abandoned is still a run this landing captured: nothing is decided or
     run afresh, and the fresh reviewer owes the evidence. This route ends
     in the last word behind every request made for it
-    (`rewrite_finish_captured.stands_before_the_route`), and so does a fresh
-    decision's once written. An invalidation the comment has no room for
-    holds the route, but only behind that last word: the captured
+    (`rewrite_finish_captured.stands_before_the_route`) whatever stopped it
+    -- an invalidation the comment has no room for, an evidence write refused
+    or never confirmed, a failure notice nobody could confirm: the captured
     transaction is still proved again and, where anything moved under it,
-    abandoned or refused for good, so no hold leaves it standing for a later
-    route once what moved is back and room is made.
+    abandoned or refused for good in a write of its own, so no stop leaves it
+    standing for a later route once what moved is back. The stop is the
+    outcome all the same.
     """
     failure = _failures.recorded(finish.state, finish.head)
     captured = _captured.recorded(finish)
     if failure is None and captured is None and not _captured.retired(finish):
         return _decides(finish)
     staged = _writes.staging(finish)
-    room = _invalidates(finish, staged)
+    stopped = _lands(finish, staged) if _invalidates(finish, staged) else FinishOutcome.HELD
     proof = None if captured is None else _captured.proved_again(finish, captured)
-    if not room:
-        return _captured.stands_before_the_route(finish, proof=proof) or FinishOutcome.HELD
-    return (
-        _lands(finish, staged)
-        or _failures.publishes(finish, failure)
-        or _captured.stands_before_the_route(finish, proof=proof)
-    )
+    stopped = stopped or _failures.publishes(finish, failure)
+    return _captured.stands_before_the_route(finish, proof=proof, behind=stopped)
 
 
 def continues(finish: LandedFinish) -> FinishOutcome | None:

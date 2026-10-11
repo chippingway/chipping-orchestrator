@@ -21,10 +21,12 @@ found already landed -- hand it to the one finish every landing gets
   abandoned unless the remote and the checkout both read on that head
   (`rewrite_landing_moved`): every other road clears, resets, or parks the
   attempt without taking that transaction's route, and the landing it was
-  captured for has moved under it. A snapshot nobody could take ends in the
-  git owner's abort, which resets the checkout onto the anchor and clears the
-  attempt; where that reset landed, the transaction is abandoned behind it,
-  since the recovery's own reset moved the checkout off the head.
+  captured for has moved under it. An abandonment that did not land holds
+  the tick instead, with nothing reset, cleared, or parked, so the attempt
+  stands for the next tick to abandon it again. A snapshot nobody could take
+  ends in the git owner's abort, which resets the checkout onto the anchor and
+  clears the attempt; where that reset landed, the transaction is abandoned
+  behind it, since the recovery's own reset moved the checkout off the head.
 - The remote head completes the comparison, and how far the transfer beside
   the attempt got is read off the comment (`git/base_sync/transfers.py`).
 - A remote standing on the checkout is a push that already landed, and the
@@ -113,9 +115,24 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
         _landing_moved.abandons_behind_the_reset(context, announced)
         return True
     if observed.local_head and observed.local_head == context.pending_pre_rebase_sha:
-        _landing_moved.abandons_off_the_landing(context, observed)
-        return _replay_cleanup._finish_an_unmoved_head(context, observed)
+        return _routes_an_unmoved_head(context, observed)
     return _routes_the_comparison(context, observed)
+
+
+def _routes_an_unmoved_head(
+    context: _AutoRebaseRecoveryContext,
+    observed: _AutoRebaseRecoverySnapshot,
+) -> bool:
+    """Route a checkout standing on the anchor, once nothing captured for the announced head stands.
+
+    Every road from here clears or resets the attempt, so a transaction an
+    earlier finish captured for the head it announced is abandoned first, and
+    one the abandonment could not retire holds the tick with the attempt
+    standing (`rewrite_landing_moved.abandons_off_the_landing`).
+    """
+    if not _landing_moved.abandons_off_the_landing(context, observed):
+        return True
+    return _replay_cleanup._finish_an_unmoved_head(context, observed)
 
 
 def _routes_the_comparison(
@@ -150,7 +167,8 @@ def _routes_the_comparison(
     if completed is None:
         _landing_moved.abandons_behind_the_reset(context, announced)
         return True
-    _landing_moved.abandons_off_the_landing(context, completed)
+    if not _landing_moved.abandons_off_the_landing(context, completed):
+        return True
     carried = _transfers._carried_by(context, completed.head)
     if completed.local_head and completed.local_head == completed.remote_head:
         return _rewrite_landed.recovers(context, completed, carried)

@@ -18,6 +18,17 @@ transaction again, which settles whatever proves whole however the heads got
 back. The same holds for the checkout or remote the landed road itself reads
 leaving the head (`abandons`).
 
+The abandonment is a write of its own, over the comment read afresh, and it
+can fail: a comment nobody could read again, or one another road moved under
+the write. Until it lands, the transaction is still the attempt's to answer,
+so the coordinator takes none of those roads -- nothing is reset, cleared, or
+parked -- and holds the tick with the attempt standing
+(`abandons_off_the_landing` answers whether it may go on); the anchor keeps the
+dispatcher's reconciliation off the transaction meanwhile, and the next tick's
+recovery reads the landing and abandons it again. A landing put back before
+that tick reads as one nothing moved under, since nothing durable could record
+the movement.
+
 A snapshot nobody could take is the git owner's to answer, and its answer is
 an abort that resets the checkout onto the anchor and clears the attempt
 (`git/base_sync/snapshot.py`). Where that reset landed, the recovery itself has
@@ -25,9 +36,12 @@ moved the checkout off the landed head, and nothing is left to route the
 transaction, so it is abandoned behind the abort
 (`abandons_behind_the_reset`); where the reset failed, the attempt and every
 record stand, nothing was read moving, and the transaction waits for the next
-proof. A checkout nobody could read beside a remote it disagrees with abandons
-the transaction all the same, since every road that snapshot takes resets the
-checkout off the head itself.
+proof. An abandonment behind a landed reset that cannot itself land is logged
+and leaves the transaction pending beside a cleared attempt, with the checkout
+reset off its head, so the reconciliation's proof of it defers until something
+puts the checkout back. A checkout nobody could read beside a remote it
+disagrees with abandons the transaction all the same, since every road that
+snapshot takes resets the checkout off the head itself.
 
 Only a transaction about the head the attempt's finish announced
 (`pending_auto_base_rebase_announced_sha`) is read: a finish records evidence
@@ -37,6 +51,7 @@ snapshot (`announced`), since an abort clears it with the attempt.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import replace
 
 from orchestrator.git.base_sync import (
@@ -51,6 +66,8 @@ from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import rewrite_finish_captured as _captured
 from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING
 from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad, LandedFinish
+
+log = logging.getLogger("orchestrator.workflow")
 
 
 def announced(context: _AutoRebaseRecoveryContext) -> str:
@@ -69,20 +86,35 @@ def abandons_behind_the_reset(context: _AutoRebaseRecoveryContext, head: str) ->
     if not head or context.state.get(_base_sync_state._PENDING_PUSH_SHA):
         return
     branch = _naming._resolve_branch_name(context.state, context.spec, context.issue.number)
-    abandons(context, _AutoRebaseRecoverySnapshot(branch=branch, local_head=""), head=head)
+    if not abandons(context, _AutoRebaseRecoverySnapshot(branch=branch, local_head=""), head=head):
+        log.error(
+            "issue=#%d the verification evidence captured for %.8s could not be abandoned behind the reset that "
+            "took the checkout off it; it stays recorded beside a cleared attempt",
+            context.issue.number, head,
+        )
 
 
-def abandons_off_the_landing(context: _AutoRebaseRecoveryContext, snapshot: _AutoRebaseRecoverySnapshot) -> None:
-    """Abandon the transaction captured for the announced head unless `snapshot` reads both heads on it.
+def abandons_off_the_landing(context: _AutoRebaseRecoveryContext, snapshot: _AutoRebaseRecoverySnapshot) -> bool:
+    """Abandon the transaction captured for the announced head unless `snapshot` reads both heads on it; may it go on.
 
     Asked by the recovery's coordinator of every snapshot it reads, before
     the road the snapshot chooses is taken; a remote and a checkout both on
     the announced head are the landed road's to finish, which reads them
-    again itself.
+    again itself. False only where a transaction still stands that the
+    abandonment could not retire, logged: the coordinator then holds the tick
+    rather than take a road that would leave it behind.
     """
     head = announced(context)
-    if head and (snapshot.local_head, snapshot.remote_head) != (head, head):
-        abandons(context, snapshot)
+    if not head or (snapshot.local_head, snapshot.remote_head) == (head, head):
+        return True
+    if abandons(context, snapshot):
+        return True
+    log.warning(
+        "issue=#%d holding the recovery of %.8s: the verification evidence captured for it could not be "
+        "abandoned yet, so nothing is reset, cleared, or parked until a later tick abandons it",
+        context.issue.number, head,
+    )
+    return False
 
 
 def abandons(
@@ -91,8 +123,8 @@ def abandons(
     candidate: _RewriteCandidate | None = None,
     *,
     head: str = "",
-) -> None:
-    """Abandon a transaction an earlier finish recorded for the announced head the landing was read leaving.
+) -> bool:
+    """Abandon what an earlier finish recorded for the announced head the landing was read leaving; whether none stands.
 
     `candidate` is the checkout as the caller already read it, read here
     where the caller has none, and `head` the announced head where the
@@ -103,11 +135,13 @@ def abandons(
     readings come out -- the heads may be back by then -- so it abandons the
     transaction unrun, or, with no room for that, refuses it for good. Nothing
     is routed either way, and nothing is read or written where no transaction
-    is recorded for that head.
+    is recorded for that head. False where one is still recorded once that
+    write was asked: a comment nobody could read again, or a write refused or
+    never confirmed.
     """
     landed = head or announced(context)
     if not landed:
-        return
+        return True
     read = candidate or _recovery_push._recovered_candidate(context, snapshot)
     finish = LandedFinish(
         gh=context.gh,
@@ -122,5 +156,7 @@ def abandons(
         label=_replay_evidence._recovered_stage(context.label),
         road=FinishRoad.RECOVERY,
     )
-    if _captured.recorded(finish, logged=False) is not None:
-        _captured.stands_before_the_route(finish, proof=LEFT_THE_LANDING)
+    if _captured.recorded(finish, logged=False) is None:
+        return True
+    _captured.stands_before_the_route(finish, proof=LEFT_THE_LANDING)
+    return _captured.recorded(finish, logged=False) is None

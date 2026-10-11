@@ -19,11 +19,12 @@ That proof makes requests of its own -- the pull request, the branch fetch,
 the settled report re-read -- and so does the finish behind it: the evidence
 write, a failure notice's conversation read and post. Anything read before one
 of them can have moved while it was answered. So every route the evidence
-step takes that carries or follows a recorded decision -- a hold for want of
-room behind a captured transaction included -- ends in one last word
-(`last_word`), asked once nothing else is left to request; only a fresh
-decision held before anything is written, which recorded nothing, ends
-without it. The last word reads everything that moves again in one fixed order:
+step takes that carries or follows a recorded decision ends in one last word
+(`last_word`), asked once nothing else is left to request -- a captured
+transaction's behind whatever stopped it, a write refused or a hold for want
+of room included. Only a fresh decision held before its write, or whose write
+did not land, ends without it, having recorded nothing this tick knows of.
+The last word reads everything that moves again in one fixed order:
 the network first -- the remote branch the head landed on, the base, and,
 over the issue and pinned comment fetched once more, the issue's requirements
 and the review and report records the transaction is bound to -- and then the
