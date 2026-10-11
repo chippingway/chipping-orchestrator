@@ -2187,7 +2187,8 @@ because there it is the claim that this stage has already rerouted rather than a
      `agent_execution_failed` rather than `agent_question`. The daily fresh-spawn gate is charged only once for the
      original fresh spawn, while every process consumes the lifetime agent-run ledger. Non-AGY backends (Codex,
      Claude) and completed runs are untouched. Pause, timeout, shutdown sweep kill, and run-limit refusals stop
-     recovery.
+     recovery, and so do a run that names no conversation and one that hands back a conversation retired as failed
+     (`dev_session_retirement`), whose id the post-run pin refuses too.
   6. Branch on result:
      - `interrupted` (shutdown sweep killed the run mid-flight) → ignore the partial result and return WITHOUT writing
        pinned state, so durable GitHub state stays exactly as the prior tick left it and the next process retries.
