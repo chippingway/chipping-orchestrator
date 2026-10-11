@@ -61,7 +61,22 @@ per-stage behavior is in
   `/orchestrator continue` that renews the budget retires the session as it buys the attempt (`dev_agent` kept), so
   what a human pays for is a fresh conversation rather than a replay of the one that ran out. The locked
   `(backend, args)` spec is re-parsed on every resume from pinned `dev_agent` so
-  a config flip mid-flight cannot retarget the session. `_resume_dev_with_text` on
+  a config flip mid-flight cannot retarget the session. A conversation a run showed to have FAILED is retired for good
+  rather than rotated: `dev_session_retirement` records its id with a fresh conversation owed, the pins are cleared
+  with `dev_agent` kept, and every one of those resumes opens a fresh conversation over the same worktree, branch, and
+  issue context under the pinned command — whatever the silent streak or resume budget read, and whatever a
+  publication resets — until one with an id of its own is pinned. A fresh conversation there, or an unparked tick's
+  first spawn, that returns no id or hands a retired id back pins nothing and leaves that recovery owed, and no
+  retired id is resumed again — not by the one continuation an AGY run that stopped mid-command earns either, and
+  not where the record is misspelled or will not read at all, which owes a fresh conversation and keeps every id it
+  still names, while the pin it was owed over — in either field, a legacy `codex_session_id` the pinned `dev_agent`
+  hides from the session read included — is retired by name as it is cleared. A resume charges the resume budget
+  only of the conversation it ran while that is still the one pinned, so neither a conversation retired meanwhile nor
+  the fresh one a recovery pinned in its place is charged for it. An authorized late restart drops the pins and
+  `dev_agent` with the cycle but keeps the record, so the fresh cycle's first spawn is refused a retired id too. The
+  retirement spends nothing of the retry budget or the run ledger, and authorizes no run: the next one still waits on
+  whatever gate stopped the issue. The record does not decide THAT a conversation failed; its lifecycle is in
+  [the pinned-state reference](../state-machine/labels-and-state.md#pinned-state). `_resume_dev_with_text` on
   `workflow/stages/implementing/resume.py` is the one module every one of those resumes goes through; it declares the
   call signature its callers were written against, then binds those arguments into a typed request/context before
   executing the resume.

@@ -14,6 +14,12 @@ a backend-selection problem) while clearing the id and both counters.
 Retirement drops the id BEFORE the spawn so a spawn that returns no id of its
 own cannot leave the next tick resuming the session this one just retired.
 
+A conversation a run showed to have FAILED is retired for good instead, on a
+record of its own that `session_retirement` keeps: the planned read here asks
+that record before either counter, and the pin a fresh spawn's id goes through
+refuses a retired id or a missing one, so recovery stays owed until a
+conversation with an id of its own is pinned.
+
 The retry budget is the other gate, and it is deliberately not per-session:
 the 24h window counts fresh spawns per ISSUE, shared with decomposing, so a
 stuck issue cannot burn a day of tokens by rotating sessions. Only fresh spawns
@@ -48,6 +54,7 @@ from orchestrator.workflow.stages.implementing import (
     models as _models,
     resume_request as _resume_request,
     session_read as _session_read,
+    session_retirement as _session_retirement,
     state as _state,
 )
 
@@ -76,31 +83,16 @@ def _drop_poisoned_dev_session(state: PinnedState) -> None:
     budget one more attempt, which is a fresh spawn by definition and so may
     not leave the retired session pinned for the next reply to resume.
 
-    Preserves the stored `dev_agent` spec when one is already pinned --
-    a poisoned session is a transcript problem, not a backend-selection
-    problem, so the fresh spawn that follows must replay the exact same
-    backend+args. Writing the parsed backend back here would silently
-    strip the configured CLI args from the spec and switch a `codex -m
-    gpt-5.5 -c '...'` issue back to bare `codex` on the next resume.
-
-    When the issue is on the legacy `codex_session_id` schema (no
-    `dev_agent` ever written), pin `dev_agent="codex"` BEFORE clearing
-    the legacy field. Without this, the next `_read_dev_session` would
-    fall through to the config default and a `DEV_AGENT=claude` flip
-    would silently switch the issue from codex to claude on retry.
-
-    Clearing the legacy field too leaves no trace of the dropped
-    session anywhere.
+    It keeps the pinned `dev_agent` command and zeroes both per-session
+    counters (`session_retirement._clear_dev_session_pins`, which says why),
+    and it records nothing of its own: a transcript retired for being long,
+    quiet, or poisoned is not a conversation a later spawn must refuse to pin
+    again, and the record of one that is (`session_retirement`) survives this
+    drop. The only pins it does record are those dropped while that record
+    owes a fresh conversation -- in either field -- so the record still names
+    them once they are gone.
     """
-    stored_spec = state.get(_state._DEV_AGENT)
-    if not stored_spec and state.get(_state._CODEX_SESSION_ID) is not None:
-        state.set(_state._DEV_AGENT, "codex")
-    state.set(_state._DEV_SESSION_ID, None)
-    state.set(_state._CODEX_SESSION_ID, None)
-    state.set(_state._SILENT_PARK_COUNT, 0)
-    # The resume budget is per-session; clearing the session resets it so the
-    # fresh spawn that follows starts its own count from zero.
-    state.set(_state._DEV_RESUME_COUNT, 0)
+    _session_retirement._clear_dev_session_pins(state)
 
 
 def _resolve_dev_session_for_resume(
@@ -118,7 +110,10 @@ def _resolve_dev_session_for_resume(
     the entire accumulated transcript every time, so a session resumed many
     times creeps toward the model context window; rotating proactively rebuilds
     a small prompt from durable state and caps that creep before it overflows.
-    Retirement drops the pinned session id BEFORE the spawn (via
+    A conversation the retirement record names (`session_retirement`), or any
+    pinned while that record still owes a fresh one, is retired the same way
+    whatever either counter says. Retirement drops the pinned session id
+    BEFORE the spawn (via
     `_drop_poisoned_dev_session`, which also zeroes `dev_resume_count`) so a
     fresh spawn that returns no session id does not leave the next tick reading
     the retired id and burning another retry.
@@ -155,8 +150,15 @@ def _planned_dev_session(state: PinnedState) -> tuple[_models._DevSession, str |
     reader asking which launch a resume would be -- the charge a handed change
     request's recovery correlates (`execution._first_launch_fingerprint`) --
     plans it without retiring anything.
+
+    The retirement record is asked before either counter, because publication
+    and every rotation zero those: a conversation retired as failed stays
+    retired however healthy the counters read afterwards.
     """
     session = _models._DevSession(*_session_read._read_dev_session(state))
+    recorded = _session_retirement._retired_session_reason(state, session.session_id)
+    if recorded is not None:
+        return session, recorded
     silent_count = int(state.get(_state._SILENT_PARK_COUNT) or 0)
     resume_count = int(state.get(_state._DEV_RESUME_COUNT) or 0)
     return session, _dev_session_retirement_reason(session.session_id, resume_count, silent_count)
@@ -222,22 +224,38 @@ def _persist_dev_session_after_run(
     agent_result: AgentResult,
     *,
     fresh_spawn: bool,
-    resume_count: int,
+    resume_count: int = 0,
+    resumed_session_id: str | None = None,
 ) -> None:
-    """Record the session id / resume budget after a dev run and clear the
-    awaiting-human flag (the caller reacted to a fresh human signal).
+    """Record the session id / resume budget after a dev run.
 
     A fresh spawn that produced a session id pins it and zeroes the resume
     budget so the new session starts its own count -- covering both rotation /
     poisoned-session recovery (which already reset the count) and the entry
     case where a stale count left by a prior session would otherwise rotate the
-    brand-new session early. A resumed session is charged one against the
-    budget so the next tick can rotate once the transcript has grown enough.
+    brand-new session early. A resumed session -- `resumed_session_id`, the
+    conversation the plan resumed -- is charged one against the budget so the
+    next tick can rotate once the transcript has grown enough.
+
+    The pin goes through `session_retirement._pin_dev_session`, so a fresh
+    spawn that returns no id, or hands a retired conversation's id back, pins
+    nothing and leaves the recovery owed. The budget a resume charges is the
+    pinned conversation's, so it is charged only while that is still the
+    conversation that ran and the record does not forbid resuming it: one
+    retired while it ran is charged nothing, and neither is the fresh
+    conversation a recovery may have pinned in its place meanwhile, whose
+    budget is its own from zero.
+
+    It writes nothing but the session's own fields -- clearing the park a
+    resume answered is the resume's (`execution`) -- so the first spawn on an
+    unparked tick (`spawn._spawn_implementer`) pins through here too, and no
+    road pins a developer id around the retirement record.
     """
     if fresh_spawn:
-        if agent_result.session_id:
-            state.set(_state._DEV_SESSION_ID, agent_result.session_id)
-            state.set(_state._DEV_RESUME_COUNT, 0)
-    else:
+        _session_retirement._pin_dev_session(state, agent_result.session_id)
+        return
+    pinned = _session_read._read_dev_session(state)[3]
+    if pinned is None or pinned != resumed_session_id:
+        return
+    if _session_retirement._retired_session_reason(state, pinned) is None:
         state.set(_state._DEV_RESUME_COUNT, resume_count + 1)
-    state.set(_state._AWAITING_HUMAN, False)

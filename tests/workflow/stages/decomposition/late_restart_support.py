@@ -95,6 +95,9 @@ KEY_PLAN_PR_NUMBER = "late_plan_pr_number"
 KEY_TERMINAL_CYCLE = "late_terminal_cycle_id"
 KEY_TERMINAL_CONFIRMED = "late_terminal_confirmed"
 KEY_ORCHESTRATOR_IDS = "orchestrator_comment_ids"
+KEY_DEV_AGENT = "dev_agent"
+KEY_DEV_SESSION_ID = "dev_session_id"
+KEY_DEV_RETIREMENT = "dev_session_retirement"
 
 # The bare tag the workflow label a restart applies is recorded under.
 DECOMPOSING_STAGE = "decomposing"
@@ -146,6 +149,17 @@ CARRIED_OVER = MappingProxyType({
 # keeps beside them.
 SEEDED_COMMENT_IDS = (901, 902)
 
+# The developer conversation a run showed to have failed, and the record its
+# retirement left with the recovery from it still owed.
+RETIRED_CONVERSATION = "dev-sess-failed"
+KEY_RETIRED_IDS = "session_ids"
+KEY_RECOVERY_PENDING = "recovery_pending"
+OWED_RETIREMENT = MappingProxyType({
+    KEY_RETIRED_IDS: [RETIRED_CONVERSATION],
+    "reason": "agent_session_limit",
+    KEY_RECOVERY_PENDING: True,
+})
+
 KEPT = MappingProxyType({
     KEY_ORCHESTRATOR_IDS: list(SEEDED_COMMENT_IDS),
     "issue_agent_runs": 4,
@@ -154,6 +168,7 @@ KEPT = MappingProxyType({
     "issue_cost_sources": ["reported"],
     "agent_run_allowance": 60,
     "agent_runs_used": 5,
+    KEY_DEV_RETIREMENT: {**OWED_RETIREMENT, KEY_RECOVERY_PENDING: False},
 })
 
 

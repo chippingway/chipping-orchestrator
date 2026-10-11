@@ -6,10 +6,13 @@ about its health.
 `_read_dev_session` is the read every spawn and resume starts from: it returns
 the full configured agent command string as the durable role identity, so a
 `DEV_AGENT` flip between ticks cannot retarget an in-flight issue at a backend
-that never ran on it. The three classifiers beside it read the other direction
+that never ran on it. `_pinned_session_ids` reads past that resolution to
+every conversation either pin field still holds, for the retirement guard that
+must refuse a legacy pin the read no longer resolves. The three classifiers
+beside them read the other direction
 -- the CLI's own words -- and each answers exactly one recovery question: was
 the session GC'd, did its transcript outgrow the context window, is the account
-out of quota. They sit with the read because all four are about the same
+out of quota. They sit with the reads because all are about the same
 session and none of them may act: each returns a verdict its caller disposes.
 
 `_as_blockquote` is here because every one of those verdicts ends up quoted
@@ -84,6 +87,18 @@ def _read_dev_session(
         config.DEV_AGENT_ARGS,
         None,
     )
+
+
+def _pinned_session_ids(state: PinnedState) -> list[str]:
+    """Every conversation id either pin field holds, whichever one `_read_dev_session` resolves.
+
+    That read resolves the legacy `codex_session_id` only while no `dev_agent`
+    is pinned, and the first spawn and the documenting pass pin one before
+    their run -- so by the time the run's id is weighed, a legacy pin is
+    hidden from it while still on the comment.
+    """
+    pinned = (state.get(field) for field in (_state._DEV_SESSION_ID, _state._CODEX_SESSION_ID))
+    return list(dict.fromkeys(str(session_id) for session_id in pinned if session_id))
 
 
 def _is_stale_session_failure(

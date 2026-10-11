@@ -326,7 +326,8 @@ class _ProactiveSessionFixtureMixin(_PatchedWorkflowMixin):
         *,
         resume_count: int = 0,
         dev_agent: str = BACKEND_CLAUDE,
-        sid: str = LIVE_SESSION,
+        sid: str | None = LIVE_SESSION,
+        **records,
     ):
         gh = FakeGitHubClient()
         issue = make_issue(
@@ -341,6 +342,7 @@ class _ProactiveSessionFixtureMixin(_PatchedWorkflowMixin):
             dev_session_id=sid,
             silent_park_count=0,
             dev_resume_count=resume_count,
+            **records,
         )
         return gh, issue
 

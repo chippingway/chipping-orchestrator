@@ -9,11 +9,11 @@ from unittest.mock import Mock, patch
 
 from orchestrator import config
 from orchestrator.workflow.late_split import obligations as _obligations, state as _late_state
-from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
     late_restart_effects as _late_restart_effects,
     late_restart_state as _late_restart_state,
 )
+from orchestrator.workflow.stages.implementing import session_retirement as _session_retirement
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.stages.decomposition import late_restart_support as _fix
 from tests.workflow.stages.decomposition.late_seam_support import (
@@ -34,6 +34,8 @@ _RETIRED_STEP = "_retired"
 _LAST_APPLIED = "last_workflow_label_applied"
 
 _REFUSED = "github said no"
+
+_RESTART_FAILED = "restart_failed"
 
 _RESTARTED = ((LATE_ISSUE_NUMBER, WorkflowLabel.DECOMPOSING),)
 
@@ -58,6 +60,25 @@ _DAMAGED_ROOTS = (
         _fix.ANCESTRY_ROOT,
     ),
     (replace(_fix.CANCELLED, root_issue=0), {}, LATE_ISSUE_NUMBER),
+)
+
+# The command the retired conversation ran under, which the restart drops with
+# the pins.
+_DEV_COMMAND = "codex -m gpt-5.5"
+
+# The conversation the cancelled cycle still pinned while a fresh one was owed,
+# which is retired as surely as the one the record names.
+_OWED_PIN = _fix.CARRIED_OVER[_fix.KEY_DEV_SESSION_ID]
+
+_REPLACEMENT_CONVERSATION = "dev-sess-fresh"
+
+# The ids a fresh cycle's spawns hand back in turn, beside the conversation each
+# leaves pinned and whether the recovery is still owed after it: both retired
+# ids are refused, and the distinct one recovers.
+_RECOVERY_PINS = (
+    (_fix.RETIRED_CONVERSATION, None, True),
+    (_OWED_PIN, None, True),
+    (_REPLACEMENT_CONVERSATION, _REPLACEMENT_CONVERSATION, False),
 )
 
 # Every state an obligation can be left in that is not `reconciled`, each of
@@ -550,7 +571,7 @@ class RestartTransactionTest(_fix.RestartCase, unittest.TestCase):
                 record["failure"]
                 for record in _fix.records_named(self, _fix.EVENT_LATE_FAILURE)
             ],
-            [LateFailure.RESTART_FAILED],
+            [_RESTART_FAILED],
         )
 
     def test_an_applied_label_is_not_undone(self) -> None:
@@ -604,6 +625,39 @@ class RestartProjectionTest(_fix.RestartCase, unittest.TestCase):
                 *_fix.SEEDED_COMMENT_IDS, _fix.notice_id(self),
             ],
         }))
+
+    def test_a_failed_conversation_stays_retired(self) -> None:
+        # The fresh cycle inherits no pin and no command, but a backend can
+        # hand a conversation retired as failed back to its first spawn. The
+        # record the projection keeps -- naming the pin it was owed over too --
+        # has the pin refuse every such id with the recovery still owed, and
+        # pin a distinct one.
+        self._seed(**{
+            **_fix.CARRIED_OVER,
+            _fix.KEY_DEV_AGENT: _DEV_COMMAND,
+            _fix.KEY_DEV_RETIREMENT: dict(_fix.OWED_RETIREMENT),
+        })
+
+        self._reported_route()
+
+        retired = {
+            **_fix.OWED_RETIREMENT,
+            _fix.KEY_RETIRED_IDS: [_fix.RETIRED_CONVERSATION, _OWED_PIN],
+        }
+        self.assertEqual(self._pinned(), _fix.fresh_state(**{
+            _fix.KEY_ORCHESTRATOR_IDS: [_fix.notice_id(self)],
+            _fix.KEY_DEV_RETIREMENT: retired,
+        }))
+        fresh = self.github.read_pinned_state(self.issue)
+        for returned, pinned, pending in _RECOVERY_PINS:
+            with self.subTest(returned=returned):
+                self.assertEqual(
+                    _session_retirement._pin_dev_session(fresh, returned), pinned is not None,
+                )
+                self.assertEqual(
+                    (fresh.get(_fix.KEY_DEV_SESSION_ID), fresh.get(_fix.KEY_DEV_RETIREMENT)),
+                    (pinned, {**retired, _fix.KEY_RECOVERY_PENDING: pending}),
+                )
 
     def test_a_damaged_identity_is_rebuilt(self) -> None:
         # The projection carries the identity forward, so a record that could

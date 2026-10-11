@@ -201,7 +201,10 @@ lock is per pin, not per issue: `dev_agent` is written on the first implementing
 resume for the life of the issue, while `decomposer_agent`, `question_agent`, and `discussion_agent` are each seeded
 from `DECOMPOSE_AGENT` on their own first spawn. So a flip reaches any spawn that has no pin to read yet — including
 the first question or discussion round on an issue whose decomposing session is already locked — and never a session
-that has already pinned one. The reviewer is spawned fresh every round, so `REVIEW_AGENT` takes effect on the next
+that has already pinned one. A dev conversation retired as failed (`dev_session_retirement`) keeps that pin too: the
+fresh conversation replacing it runs the same `dev_agent` command, and the retired id is never resumed again
+([session lifecycles](workflow/roles.md#session-lifecycles)).
+The reviewer is spawned fresh every round, so `REVIEW_AGENT` takes effect on the next
 validating tick. Per-role keys, the resume path, and the legacy values still honored on read:
 [`workflow/command-specs.md#in-flight-session-lock`][session-lock].
 

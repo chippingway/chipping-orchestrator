@@ -21,8 +21,8 @@ commits there predate this stage entirely, and the guard records the tip it
 certified for exactly this read. Then the retry budget
 gates the spawn -- retiring the pinned session where a continuation is what
 paid for it, since what a human bought is a fresh conversation and the run
-records an id of its own only when the backend hands one back -- and the
-agent spec is
+records an id of its own only when the backend hands one back, and never one
+`session_retirement` retired -- and the agent spec is
 persisted BEFORE the run -- so a spawn that commits but returns no session id
 still leaves the durable role identity behind and a later `DEV_AGENT` flip
 cannot retarget the next resume at a backend that never ran on this issue.
@@ -122,9 +122,10 @@ def _spawn_implementer(
         retry_count=state.get(_state._RETRY_COUNT),
         pause_guard=True,
     )
-    if agent_result.session_id:
-        state.set(_state._DEV_SESSION_ID, agent_result.session_id)
-        state.set(_state._DEV_RESUME_COUNT, 0)
+    # The persistence every developer run's id goes through, so a spawn that
+    # hands a retired conversation's id back -- or none -- pins nothing and a
+    # recovery owed stays owed.
+    _session._persist_dev_session_after_run(state, agent_result, fresh_spawn=True)
     return agent_result, paused, delivered
 
 

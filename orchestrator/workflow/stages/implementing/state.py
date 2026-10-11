@@ -71,6 +71,22 @@ _SILENT_PARK_COUNT = "silent_park_count"
 
 _DEV_RESUME_COUNT = "dev_resume_count"
 
+# The developer conversations retired for good on this issue, and whether the
+# fresh conversation replacing the last one is still owed. One object:
+# `session_ids` lists every retired id oldest first, `reason` says why the last
+# was retired, and `recovery_pending` stays true until a fresh conversation
+# with an id of its own is pinned.
+#
+# A key of its own rather than a state of `dev_session_id`, because what it
+# records has to outlive every write that clears that pin or zeroes the
+# counters beside it. Publication zeroes the silent streak, each rotation
+# zeroes the resume budget, and a backend can hand a failed conversation's id
+# back on a later spawn -- so a retirement kept in any of those is undone by the
+# next one, and the conversation that failed is resumed again. Written and
+# honored by `session_retirement`, and cleared by nothing: a late restart's
+# whitelist projection keeps it while dropping `dev_agent` and both pins.
+_DEV_SESSION_RETIREMENT = "dev_session_retirement"
+
 _RETRY_WINDOW_START = "retry_window_start"
 
 _RETRY_COUNT = "retry_count"
