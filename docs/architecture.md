@@ -577,7 +577,8 @@ lock, and the resume mechanic are documented in
   per-spawn context manager (`codex.codex_last_message_file`). A failed turn writes nothing there, so `stdout` keeps
   the JSONL event stream beside the empty `last_message`: `agents/codex_events.py` reads the error the last turn's
   closing `turn.failed` carried, and `agents/provider_failures.py`'s `codex_usage_limit_failure` turns a usage-limit
-  stop into a diagnostic with the provider message and its reset time.
+  stop into a diagnostic with the provider message and its reset time, which a reviewer round parks on under
+  `reviewer_usage_limit` rather than reading as a crash.
 - **Claude command**:
   `claude -p --dangerously-skip-permissions --output-format stream-json --include-partial-messages --verbose <prompt>`
   (with `--resume <sid>` when resuming). `last_message` is parsed from the stream-json: prefers the terminal
