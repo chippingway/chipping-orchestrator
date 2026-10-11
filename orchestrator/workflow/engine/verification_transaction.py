@@ -13,8 +13,10 @@ It sits among the dispatch guards directly behind the developer-report
 transaction, and that place is the point. A pause, a terminal, a live
 adjudication, an outstanding size-gate publication and its lease, and a
 standing auto-rebase anchor all outrank it, since each is a world in which the
-pull request's head is not yet what anything downstream may believe. The
-report transaction outranks it too: evidence answers for a review subject that
+pull request's head is not yet what anything downstream may believe -- and the
+anchor is asked again here, so a transaction a landed rewrite's finish recorded
+is left to the recovery that owes it while the attempt stands, whoever calls
+this. The report transaction outranks it too: evidence answers for a review subject that
 names the developer report, so a report still owed is a subject about to move,
 and this proof defers to it. Behind them, it runs ahead of the reuse guard and
 the handler, so a reviewer or a readiness decision behind it reads evidence
@@ -74,6 +76,7 @@ import logging
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
+from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -102,12 +105,24 @@ def _reconciles_pending_evidence(
 ) -> bool:
     """Finish an evidence transaction this issue recorded and never completed.
 
-    True is a tick this owner holds over a reading nobody could take. False is
-    every other tick: nothing owed, work that is not live, a transaction
-    settled, retired, or still owed behind a structural refusal.
+    True is a tick this owner holds over a reading nobody could take, or
+    behind a standing auto-rebase anchor. False is every other tick: nothing
+    owed, work that is not live, a transaction settled, retired, or still owed
+    behind a structural refusal.
+
+    The anchor is asked here as well as ahead of this guard: a transaction a
+    landed rewrite's finish recorded is the recovery's to route or abandon
+    while the attempt stands, and settled here behind its back it would
+    outlive a movement the recovery read but could not yet record.
     """
     if not _record_state.carries_pending_evidence(state):
         return False
+    if state.get(_base_sync_state._PENDING_PUSH_SHA):
+        log.info(
+            "issue=#%d leaves the verification evidence it owes to the recovery of its standing base rewrite",
+            issue.number,
+        )
+        return True
     if _live_work.stands_aside(issue, label):
         log.info(
             "issue=#%d is not live work (label=%r); leaving the verification "

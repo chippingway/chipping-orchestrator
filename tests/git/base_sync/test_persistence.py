@@ -56,6 +56,20 @@ _UNANSWERED = ([], None, fixtures.PRE_REBASE_SHA, [WRITE_STATE])
 # it for, the head a finish said it had already announced, and the debt the
 # gate wrote before the push. A reset that landed abandons every one of them;
 # a reset that failed abandons none.
+_ANCHOR = fixtures.PRE_REBASE_SHA[:8]
+
+# What the park's notice says behind the caller's reason, for each way the reset
+# and a clean behind it can go: whether the reset lands, whether a clean ran and
+# landed (None where none was asked), and what the notice says of them.
+_OUTCOMES = (
+    (True, None, (f"Local HEAD has been reset to `{_ANCHOR}`", "is dropped by the pinned-state write")),
+    (False, None, (f"`git reset --hard {_ANCHOR}` failed (`fatal: bad object`)", "keeps the attempt")),
+    (True, True, ("has been reset", ", and untracked files were cleaned")),
+    (True, False, ("has been reset", "`git clean -fd` failed, so untracked files may remain")),
+    (False, True, ("did not land", "though untracked files were cleaned")),
+    (False, False, ("did not land", "`git clean -fd` failed too")),
+)
+
 _IN_FLIGHT = MappingProxyType({
     fixtures.KEY_PENDING_PUSH_SHA: fixtures.PRE_REBASE_SHA,
     "pending_auto_base_rebase_rewrite_sha": fixtures.RECOVERED_SHA,
@@ -122,6 +136,13 @@ class ParkAutoRebaseFailureTest(unittest.TestCase):
                 message=PARK_MESSAGE,
                 reason="reviewer_timeout",
             )
+
+
+def _answered(*, landed: bool):
+    """What git answers a reset or a clean that landed, or one that failed."""
+    if landed:
+        return fixtures._git_result()
+    return fixtures._git_result(returncode=fixtures.GIT_FAILURE_EXIT_CODE, stderr="fatal: bad object\n")
 
 
 class ResetClearAndParkTest(unittest.TestCase):
@@ -206,6 +227,25 @@ class ResetClearAndParkTest(unittest.TestCase):
         for field, recorded in _IN_FLIGHT.items():
             with self.subTest(field=field):
                 self.assertEqual(published.get(field), recorded)
+
+    def test_the_notice_says_what_the_reset_came_to(self) -> None:
+        # The caller says why it parks, and the tail what its reset, the clean
+        # behind it, and the drop came to: a reset that failed is never
+        # reported as made, nor an attempt it kept as dropped.
+        for resets, cleans, said in _OUTCOMES:
+            with self.subTest(resets=resets, cleans=cleans):
+                notice = self._notice(resets=resets, cleans=cleans)
+
+                self.assertTrue(notice.startswith(PARK_MESSAGE), notice)
+                self.assertEqual([phrase in notice for phrase in said], [True, True], notice)
+                self.assertNotIn("did not land" if resets else "has been reset", notice)
+
+    def _notice(self, *, resets: bool, cleans: bool | None) -> str:
+        """The notice a park posts behind a reset that `resets` lands and a clean `cleans` says came to."""
+        answers = (_answered(landed=resets), _answered(landed=bool(cleans)))
+        hardened = MagicMock(side_effect=answers)
+        context, _, _ = self._reset_and_park(hardened=hardened, clean=cleans is not None)
+        return context.gh.posted_comments[-1][1]
 
     def _reset_and_park(
         self,

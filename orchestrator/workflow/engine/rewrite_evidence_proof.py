@@ -5,11 +5,15 @@
 The readings a landed head's evidence route is held to, before it records or
 routes anything over a decision: its binding proved again (`proves_again`),
 the head held to the base tip its replay was made onto (`standing_refusal`),
-and the last word over everything that moves (`last_word`). They are dormant:
-the evidence policy (`rewrite_evidence`) still proves a run again over its own
-re-read, and no finish or recovery road asks any of them yet. Their one
-reader is the captured-evidence owner beside them (`rewrite_finish_captured`),
-itself asked by no road.
+and the last word over everything that moves (`last_word`). The evidence
+policy (`rewrite_evidence`) proves a run again behind it and holds the head
+to the base before a run starts or a carry is made, and a recovery takes up a
+decision an earlier finish captured only once it proves again
+(`rewrite_finish_captured`). Every route the finish's evidence step takes that
+carries or follows a recorded decision ends in the last word -- a captured
+transaction's behind whatever stopped it -- and only a fresh decision held
+before its write, whose write did not land, or whose failure notice nobody
+could confirm ends without it, leaving no transaction behind it to abandon.
 
 `proves_again` reads the world afresh rather than off the tick's own reading:
 the issue is fetched again, since the one a finish holds carries the title and
@@ -63,11 +67,17 @@ tip the attempt recorded its replay as made onto
   -- rewound or repointed under the head after the rebase -- DEFERS, and so
   does an attempt that recorded no tip at all, a legacy one included, since
   nothing then proves which base the head was replayed onto. No later tick
-  changes either answer.
+  changes either answer, so the decision is refused for good: nothing is run
+  or carried for the head, a captured decision is abandoned, and the fresh
+  reviewer owes the evidence.
 
 Two remote readings cannot be taken at one instant, so the network part of the
-last word is ordered rather than atomic, and whatever a caller writes behind
-it is not read past.
+last word is ordered rather than atomic, and the writes the route itself makes
+behind it are not read past. What moves there is no evidence anyone settles:
+the retirement behind the route is decided on every record the evidence is
+bound through (`rewrite_finish_writes.FINISH`), and the dispatcher's
+reconciliation proves a recorded transaction whole again before it publishes
+it (`verification_transaction`).
 """
 from __future__ import annotations
 

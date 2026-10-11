@@ -4,13 +4,14 @@
 
 A finish that recorded the landed head's evidence transaction -- a fresh run of
 the configured commands, or a carry onto the head -- and then stopped short of
-its route leaves the attempt standing beside that record. The record is a
-completed decision durably captured, so the commands are never to run for that
-landing again: it continues with its own transcript and its tested and source
-provenance, or nothing continues. These helpers read, prove, and abandon such
-a record. They are dormant: the finish (`rewrite_finish_evidence`) still
-routes a recorded transaction as it stands, and no finish or recovery road
-asks any of them yet.
+its route leaves the attempt standing beside that record, and the recovery of
+the push already landed finishes it on a later tick (`rewrite_finish_evidence`).
+The record is a completed decision durably captured, so the commands are never
+run for that landing again: it continues with its own transcript and its tested
+and source provenance, or nothing continues. A finish that died before the
+record landed -- before its commands ran, or after they completed -- captured
+nothing, and the policy decides afresh, running them again where it runs them.
+These helpers read, prove, and abandon such a record.
 
 `recorded` reads the transaction about the landed head, and `retired` whether
 one was recorded for it and has since been retired into the evidence history,
@@ -26,7 +27,11 @@ requirements -- and hands its verdict on rather than acting on it alone.
 `stands_before_the_route` is the last word behind every request a route made
 (`rewrite_evidence_proof.last_word`), over the transaction the route would
 carry, beside a verdict the caller already read it with and behind wherever
-the route already stopped. A transaction under which any reading establishes
+the route already stopped: the finish asks it at the end of its evidence step,
+behind a checkpoint or retirement the comment refuses, and once more behind
+the relabel before the retirement lands (`rewrite_finish`), so a record moved
+while the route was taken abandons the transaction before the anchor goes. A
+transaction under which any reading establishes
 movement -- its binding refused, the review and report records the comment
 carries moved, the landing moved, or the base read elsewhere -- is abandoned
 unrun, however the readings beside it came out, so no later route takes it
@@ -148,7 +153,7 @@ def stands_before_the_route(
 ) -> FinishOutcome | None:
     """The last word on `finish`'s route, behind every request its evidence step made; None to route.
 
-    Meant for every route an evidence step takes -- a fresh or carried
+    Asked on every route an evidence step takes -- a fresh or carried
     decision once its write and any failure notice are behind it, a captured
     transaction proved again, a recorded failure notice published, an
     abandoned transaction -- and read over the transaction the route would

@@ -45,22 +45,36 @@ move refuses stops the finish there with nothing behind it made:
   already names this head repeats neither: it lands only a debt that is new
   beside it -- one an earlier build's mark never carried -- before its route.
 - The route is decided (`_decides_the_route`). A head the base has advanced
-  past again is not routed: its retirement lands, and the caller's ordinary
-  rebase goes on from it. Any other head's evidence is decided and made
-  durable first (`rewrite_finish_evidence`): the current evidence the rewrite
-  moved past invalidated into history, and a fresh or carried result recorded
-  as a pending transaction, in a guarded commit that lands before anything
-  routes -- or nothing recorded, the fresh reviewer owing the evidence, a
-  failed run's notice recorded and put on the pull request once. A decision
-  nobody could take, an invalidation with no room, an evidence write that did
-  not land, or a failure notice nobody could confirm published holds the
-  route with the attempt standing, and the finish that completes it reuses
-  what this one recorded.
+  past again is not routed: a transaction an earlier finish recorded for it
+  is abandoned, its retirement lands, and the caller's ordinary rebase goes
+  on from it. Any other head's evidence is decided and made durable first
+  (`rewrite_finish_evidence`): the current evidence the rewrite moved past
+  invalidated into history, and a fresh or carried result recorded as a
+  pending transaction, in a guarded commit that lands before anything routes
+  -- or nothing recorded, the fresh reviewer owing the evidence, a failed
+  run's notice recorded and put on the pull request once. A decision nobody
+  could take, an invalidation with no room, an evidence write that did not
+  land, or a failure notice nobody could confirm published holds the route
+  with the attempt standing. The finish that completes it runs the commands
+  again only where no run was captured, and takes what this one recorded
+  only once it proves again: a captured transaction something moved under
+  since -- the base included -- is abandoned, with nothing run again then or
+  after. Every evidence decision is held to the base tip the replay was
+  recorded as made onto once its requests are behind it, so a base that
+  moved meanwhile holds the route too.
 - The write that retires the attempt is prepared before the relabel to
   `workflow:validating`, then lands behind it -- the anchor is what brings a
   tick lost between them back, to the mark this finish left and the evidence
-  it recorded. An issue already on `workflow:validating` under its own mark
-  is not relabelled again.
+  it recorded. Between the two, a transaction the route carries is held to
+  the last word once more, so a configuration or anything else that moved
+  while the route was taken abandons it before the anchor that keeps the
+  reconciliation off it goes. The retirement is decided on every record the evidence is bound through,
+  so a report or review another road moved after the evidence was decided
+  refuses the route rather than riding it -- behind the last word asked once
+  more, which abandons a transaction the route would carry that the move
+  falls under (`rewrite_finish_captured.stands_before_the_route`), as it is
+  behind a checkpoint the comment refuses. An issue already on
+  `workflow:validating` under its own mark is not relabelled again.
 
 Run under the issue writer claim the caller already holds -- the base refresh
 (`base_refresh`) takes it before the issue is read and keeps it through the
@@ -74,9 +88,10 @@ never published (`rewrite_retry`) and a push the interrupted tick already
 landed (`rewrite_landed`) -- observed where the remote stands, or proved there
 by the leased no-op that settles an outstanding transfer. So all three share
 one post-push policy and one evidence decision, and a finish one tick could
-not complete -- a write refused or unconfirmed, an evidence decision held --
-is completed by the recovery of a push already landed, from what the pinned
-record says it made.
+not complete -- a write refused or unconfirmed, an evidence decision held, a
+process that died behind the push, before its commands ran or before their
+result was recorded -- is completed by the recovery of a push already landed,
+from what the pinned record says it made.
 """
 from __future__ import annotations
 
@@ -93,6 +108,7 @@ from orchestrator.git.base_sync.rewrite_handoffs import _LandedRewrite
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     report_rewrite_debt as _rewrite_debt,
+    rewrite_finish_captured as _captured,
     rewrite_finish_debt as _debt,
     rewrite_finish_evidence as _evidence,
     rewrite_finish_notices as _notices,
@@ -111,14 +127,21 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     """Finish the route behind `finish`'s landing, at most once; what it came to.
 
     ROUTED and CONTINUED retired the attempt; every other outcome left it
-    standing, and made nothing that depends on a write that did not land.
+    standing, and made nothing that depends on a write that did not land. A
+    landing the record does not account for leaves the attempt standing
+    beside a transaction an earlier finish captured for its head, so that
+    transaction is proved again first and abandoned where anything it rests
+    on moved (`rewrite_finish_captured.stands_before_the_route`): putting what
+    moved back before a later finish revives nothing.
     """
     if not _finishable(finish):
-        return FinishOutcome.UNFINISHABLE
+        captured = _captured.recorded(finish, logged=False)
+        proof = None if captured is None else _captured.proved_again(finish, captured)
+        return _captured.stands_before_the_route(finish, proof=proof, behind=FinishOutcome.UNFINISHABLE)
     announced = _attempts._already_announced(finish.state, finish.head)
     stopped = _checkpoints(finish, announced=announced)
     if stopped is not None:
-        return stopped
+        return _captured.stands_before_the_route(finish, behind=stopped)
     headed = _decides_the_route(finish)
     if headed not in _HEADED:
         return headed
@@ -248,13 +271,15 @@ def _decides_the_route(finish: LandedFinish) -> FinishOutcome:
     debt and announcement are durable, and before anything moves the label or
     retires the attempt. A head the base has advanced past is CONTINUED to the
     caller's next rebase with no evidence decided, since that rebase replaces
-    it and the head it lands is decided then. Every other head is ROUTED to
-    `workflow:validating` only once the evidence it is routed with is durable
-    (`rewrite_finish_evidence.settles`); a decision or write that stopped short
-    of that is the outcome instead, and nothing routes.
+    it and the head it lands is decided then -- a transaction an earlier
+    finish recorded for it abandoned first (`rewrite_finish_evidence.continues`).
+    Every other head is ROUTED to `workflow:validating` only once the evidence
+    it is routed with is durable (`rewrite_finish_evidence.settles`); a
+    decision or write that stopped short of that is the outcome instead, and
+    nothing routes.
     """
     if finish.behind:
-        return FinishOutcome.CONTINUED
+        return _evidence.continues(finish) or FinishOutcome.CONTINUED
     return _evidence.settles(finish) or FinishOutcome.ROUTED
 
 
@@ -263,20 +288,34 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
 
     The retirement is prepared before the relabel and lands behind it, so a
     relabel is made only for a write that would follow it, and the anchor
-    stands until the route is behind it.
+    stands until the route is behind it. A transaction the route would carry
+    is held to the last word once more behind the relabel
+    (`rewrite_finish_captured.stands_before_the_route`), so whatever moved
+    while the route was being taken -- a configuration among it, which no
+    write is decided on -- abandons it before the anchor that keeps the
+    reconciliation off it goes, and the retirement is staged again over what
+    that left. A retirement the comment refuses -- a review or report record
+    another road moved since the last word read it among the reasons -- stops
+    the route behind the last word asked once more, so a transaction the route
+    would carry that something moved under is abandoned there rather than
+    left for a later route once the record moves back -- with the movement the
+    retirement's guard read handed to that word as its proof
+    (`rewrite_finish_writes.prepares`, `lands`), so a record put back before
+    the word reads the comment again is abandoned over all the same.
     """
-    staged = _writes.retirement(finish)
-    stopped = _writes.prepares(finish, staged, _writes.FINISH)
+    observed: list = []
+    stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH, observed)
     if stopped is not None:
-        return stopped
-    relabels = headed is FinishOutcome.ROUTED and not (
-        announced and finish.label == WorkflowLabel.VALIDATING
-    )
-    if relabels:
+        return _captured.stands_before_the_route(finish, proof=next(iter(observed), None), behind=stopped)
+    if headed is FinishOutcome.ROUTED and not (announced and finish.label == WorkflowLabel.VALIDATING):
         finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
-    stopped = _writes.lands(finish, staged, _writes.FINISH)
+    if _captured.recorded(finish, logged=False) is not None:
+        stopped = _captured.stands_before_the_route(finish)
     if stopped is not None:
         return stopped
+    stopped = _writes.lands(finish, _writes.retirement(finish), _writes.FINISH, observed)
+    if stopped is not None:
+        return _captured.stands_before_the_route(finish, proof=next(iter(observed), None), behind=stopped)
     log.info(
         "issue=#%d finished the base rewrite PR #%d landed on %.8s: %s",
         finish.issue.number, finish.pr_number, finish.head, headed.value,

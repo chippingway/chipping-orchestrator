@@ -27,7 +27,7 @@ that tip, and whether the remote's base is still there, since a base advanced,
 rewound, or repointed under the head is no ground a verification of it may be
 recorded or routed on. The evidence proof's base reading
 (`workflow/engine/rewrite_evidence_proof.standing_refusal`) is its one reader,
-and no finish or recovery road asks that proof yet.
+asked before a landed head's evidence is run, carried, or routed.
 
 The workflow's ordinary publication of a clean rebase reads a candidate here
 (`workflow/engine/rewrite_publication.py`), and so do both roads its recovery

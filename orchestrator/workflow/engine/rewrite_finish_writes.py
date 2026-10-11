@@ -37,14 +37,18 @@ own copy instead (`abandons`) and decided only on the records it retires and
 the attempt, so one comment reading that failed or one move under the write
 does not leave the transaction standing. It owns the base tip the replay was
 recorded as made onto too, which an abandonment with no room for its history
-entry blanks. Nothing a finish or recovery takes asks for it yet.
+entry blanks.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
-park's flags, the round, and the claim the checkpoint made durable. `PARK`
-records the park a debt with no
-room takes, decided on what the checkpoint would have been -- the round
-included, since how wide it is decides which of the two writes the debt was
-measured on had no room.
+park's flags, the round, the claim the checkpoint made durable, and every
+record the evidence is bound through -- so the head is routed only with
+evidence decided over the records the comment still carries, a transaction an
+earlier finish recorded and the evidence step left unchanged included: a
+report, review subject, or evidence record another road moved since refuses
+the route rather than letting it carry a decision about a review nobody is
+handed any more. `PARK` records the park a debt with no room takes, decided on
+what the checkpoint would have been -- the round included, since how wide it is
+decides which of the two writes the debt was measured on had no room.
 
 Anything but a commit that landed stops the finish there (`lands`,
 `prepares`), and nothing that depends on the write is made: a refusal writes
@@ -73,6 +77,7 @@ from orchestrator.workflow.engine import (
     verification_durable as _durable,
     verification_records as _evidence_records,
 )
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 from orchestrator.workflow.engine.rewrite_finish_failures import FAILED_VERIFICATION
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_carries import ABANDONS
@@ -119,7 +124,7 @@ FINISH = _commits.ReportWrite(
     owned=_ATTEMPT | _PARK_FLAGS | {
         _ROUND, _prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, FAILED_VERIFICATION,
     },
-    decided_on=_ATTEMPT | _PARK_FLAGS | {_ROUND, _rewrite_debt.REWRITE_DEBT},
+    decided_on=frozenset(_durable._BOUND_RECORDS) | _ATTEMPT | _PARK_FLAGS | {_ROUND, _rewrite_debt.REWRITE_DEBT},
 )
 
 PARK = _commits.ReportWrite(
@@ -128,6 +133,17 @@ PARK = _commits.ReportWrite(
 )
 
 # What a write that did not land is answered as.
+# The records a transaction recorded for the landed head is bound through.
+_BOUND = frozenset(_durable._BOUND_RECORDS)
+
+# What a refusal that read one of them moved observed: movement under any
+# transaction recorded for the head, which the caller hands to the last word as
+# its proof, so a record put back before that word reads it again revives
+# nothing (`rewrite_finish_captured.stands_before_the_route`).
+_BOUND_MOVED = ReportEvidence(
+    ReportEvidenceVerdict.DEFER, "a record the evidence is bound through moved under a write finishing the landing",
+)
+
 _UNLANDED = MappingProxyType({
     _commit_models.CommitStatus.UNCONFIRMED: FinishOutcome.UNCONFIRMED,
     _commit_models.CommitStatus.REFUSED: FinishOutcome.REFUSED,
@@ -166,34 +182,38 @@ def prepares(
     finish: LandedFinish,
     staged: PinnedState,
     write: _commits.ReportWrite,
-    *,
-    notice: bool = False,
-    ledger_entry: bool = False,
+    observed: list[ReportEvidence] | None = None,
+    **reserves: bool,
 ) -> FinishOutcome | None:
     """None where `staged` would land as `write` now, measured over the fresh comment; REFUSED otherwise.
 
     Asked ahead of an effect that depends on the write -- a notice, an event,
     a relabel -- so none is made for a record that could not follow it. What
     posting a notice writes is reserved at the widest a comment id is recorded
-    at, over the ledger the fresh comment carries: `notice` is one on the
-    issue thread, which enters the ledger and moves the watermark, and
-    `ledger_entry` one on the pull request, which only enters the ledger.
+    at, over the ledger the fresh comment carries (`reserves`): `notice` is
+    one on the issue thread, which enters the ledger and moves the watermark,
+    and `ledger_entry` one on the pull request, which only enters the ledger.
+    `observed` collects the movement a refusal read (`_stopped`).
     """
     commit = _commits.ReportCommit(finish.gh, finish.issue, finish.state)
-    prepared = commit.prepares(
-        staged, write.on_the_publication(), notice=notice, ledger_entry=ledger_entry,
-    )
-    return _stopped(finish, prepared)
+    prepared = commit.prepares(staged, write.on_the_publication(), **reserves)
+    return _stopped(finish, prepared, observed)
 
 
-def lands(finish: LandedFinish, staged: PinnedState, write: _commits.ReportWrite) -> FinishOutcome | None:
+def lands(
+    finish: LandedFinish,
+    staged: PinnedState,
+    write: _commits.ReportWrite,
+    observed: list[ReportEvidence] | None = None,
+) -> FinishOutcome | None:
     """Land `staged` as `write` over the fresh comment: None where it landed, laid over the tick's state.
 
     REFUSED where it was refused with nothing written, and UNCONFIRMED where it
-    went out and nothing confirmed it.
+    went out and nothing confirmed it. `observed` collects the movement a
+    refusal read (`_stopped`).
     """
     commit = _commits.ReportCommit(finish.gh, finish.issue, finish.state)
-    return _stopped(finish, commit.lands(staged, write.on_the_publication()))
+    return _stopped(finish, commit.lands(staged, write.on_the_publication()), observed)
 
 
 def abandons(finish: LandedFinish, stage: Callable[[PinnedState], bool]) -> bool | None:
@@ -228,8 +248,18 @@ def parks(finish: LandedFinish) -> FinishOutcome:
     return lands(finish, staged, PARK) or FinishOutcome.PARKED
 
 
-def _stopped(finish: LandedFinish, outcome: _commit_models.CommitOutcome) -> FinishOutcome | None:
-    """None where `outcome` prepared or landed; what the finish stops at otherwise, logged."""
+def _stopped(
+    finish: LandedFinish,
+    outcome: _commit_models.CommitOutcome,
+    observed: list[ReportEvidence] | None = None,
+) -> FinishOutcome | None:
+    """None where `outcome` prepared or landed; what the finish stops at otherwise, logged.
+
+    A refusal that names a record the evidence is bound through read that
+    record moved, and that reading is appended to `observed` as the movement
+    it is (`_BOUND_MOVED`): the guard read it once, and whatever reads the
+    comment after may find it put back.
+    """
     stopped = _UNLANDED.get(outcome.status)
     if stopped is not None:
         why = outcome.refusal or outcome.status
@@ -238,4 +268,6 @@ def _stopped(finish: LandedFinish, outcome: _commit_models.CommitOutcome) -> Fin
             "posting, relabeling, and clearing nothing behind it",
             finish.issue.number, finish.head, why.value,
         )
+        if observed is not None and _BOUND.intersection(outcome.fields):
+            observed.append(_BOUND_MOVED)
     return stopped

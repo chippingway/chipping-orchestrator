@@ -921,14 +921,15 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   -- or nothing recorded, and the fresh reviewer owes the evidence, a failed run's notice recorded first and put on the
   pull request once (`workflow/engine/rewrite_finish_failures.py`). A decision nobody could take, an evidence write
   that did not land or fit, or a failure notice nobody could confirm published holds the route with the attempt
-  standing, and the finish that completes it reuses what was recorded. It runs under its caller's issue writer claim.
-  Beside it sit the primitives a recovery of that evidence is built from, dormant until a finish or recovery road asks
-  them: the proof again, the head held to its recorded base tip, and the last word over everything that moves
-  (`workflow/engine/rewrite_evidence_proof.py`); a captured run proved again, or abandoned unrun -- refused for good,
-  its base tip blanked, where the comment has no room (`workflow/engine/rewrite_finish_captured.py`); and that
-  abandonment where a recovery reads the landing on another head or its reset takes the checkout off it
-  (`workflow/engine/rewrite_landing_moved.py`), the git owner's reset tail asking a recovery context for that answer
-  (`settles_over_a_reset`) though no road hands one yet.
+  standing, as does a base that moved after the head was counted against it, and every route that carries or follows
+  a recorded decision ends in a last word over everything that moves (`workflow/engine/rewrite_evidence_proof.py`).
+  The finish that completes it runs the commands again only where no run was captured, and routes a captured one only
+  once it proves again, abandoning it unrun, then or after, where something it is bound to -- or the base -- moved
+  since: refused for good, its base tip blanked, where the comment has no room
+  (`workflow/engine/rewrite_finish_captured.py`). The recovery abandons it the same way where its snapshot reads the
+  landing on another head, or its reset takes the checkout off it (`workflow/engine/rewrite_landing_moved.py`), the
+  git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`). It runs under its
+  caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

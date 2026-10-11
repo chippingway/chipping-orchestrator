@@ -684,10 +684,13 @@ invalidated into history, and a fresh run or a proved carry is recorded as
 the binding to a review of the rewritten head is not there yet, the configuration is empty, the run failed -- its
 notice recorded in the same write (`auto_base_rebase_failed_verification`) and put on the pull request once before
 the route -- something moved under it, or the comment cannot record it: the fresh reviewer owes the evidence. A
-decision nobody could take, an invalidation with no room, a failure notice whose post nobody could confirm, or an
-evidence write refused or unconfirmed holds the route with the attempt standing, for the recovery of the push already
-landed to finish under its own mark: a transaction or failure notice an earlier finish recorded is reused rather than
-made again, with the invalidation a moved context now owes landed before the route.
+decision nobody could take, a base that moved after the head was counted, an invalidation with no room, a failure
+notice whose post nobody could confirm, or an evidence write refused or unconfirmed holds the route with the attempt
+standing, for the recovery of the push already landed to finish under its own mark, with no developer launched: the
+commands run again only where no completed run was captured, a failure notice an earlier finish recorded is published
+once, and a transaction it recorded is routed as captured only once it proves again -- abandoned into history, nothing
+run, where anything it is bound to, the landing, or the base moved since -- with the invalidation a moved context now
+owes landed before the route.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
@@ -2845,7 +2848,8 @@ The keys that matter for the state machine fall into a few groups:
   squash (`stages/validating/squash_evidence.py`).
   The dispatcher reconciles the pending record directly behind the developer-report transaction and ahead of the reuse
   guard and the handler (`workflow/engine/verification_transaction.py`), so it is behind every pause, terminal,
-  adjudication, outstanding-publication, lease, and auto-rebase-anchor guard, and stands aside -- publishing and
+  adjudication, outstanding-publication, lease, and auto-rebase-anchor guard -- the anchor asked again inside it, so a
+  landed rewrite's transaction is left to its recovery whoever calls it -- and stands aside -- publishing and
   dropping nothing -- on an issue that is closed, labelled `done` or `rejected`, held by a hard-skip control label, or
   unlabelled. It publishes only once it has PROVED the pull request -- the one `pr_number` pins -- open on the recorded
   branch and standing on the target head, the branch and checkout standing there too, the tested commit and the target
@@ -3140,10 +3144,11 @@ The keys that matter for the state machine fall into a few groups:
   base -- one rewound or repointed under the head after the rebase leaves it level with a commit it was never replayed
   onto -- so whether a landed head still stands on its base is read against this very tip
   (`rewrite_facts._standing_on_the_remote_base`): standing, moved, dropped, unread, or unproven where none is recorded.
-  The evidence helpers that hold a landed head's route to that reading are dormant
-  (`workflow/engine/rewrite_evidence_proof.py`): no finish or recovery road asks them yet. Among them, a captured
-  transaction whose abandonment the comment has no room for is dropped with this member blanked, in a write that only
-  shrinks the comment, so no later reading proves a base for it (`workflow/engine/rewrite_finish_captured.py`).
+  A landed head's evidence is held to that reading before a run starts or a carry is made and once more behind every
+  request its route makes (`workflow/engine/rewrite_evidence_proof.py`): moved or unread holds the route, dropped or
+  unproven refuses the decision for good. A captured transaction whose abandonment the comment has no room for is
+  dropped with this member blanked, in a write that only shrinks the comment, so no later reading proves a base for it
+  and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`).
   `pending_auto_base_rebase_announced_sha` is the last member and covers the last window a finish has: everything a
   finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out before the
   relabel, and the write that clears this record goes out after it, so the head it has already said it published is

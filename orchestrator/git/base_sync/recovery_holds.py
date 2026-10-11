@@ -17,6 +17,7 @@ the walk it waits on cannot come to disagree about either.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 
 from github.Issue import Issue
@@ -158,6 +159,7 @@ def _answers_an_unreadable_checkout(
     context: _AutoRebaseContext,
     consumed_comment_id: int | None,
     settles_over_a_reset: Callable[[], None] | None = None,
+    proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
 ) -> bool:
     """Reset and park an anchor over a checkout whose HEAD cannot be read.
 
@@ -176,8 +178,10 @@ def _answers_an_unreadable_checkout(
     repair still has the anchor to come back with. `settles_over_a_reset` is
     what the workflow's recovery owes over a reset that landed, handed on to
     the abort as every recovery road's is
-    (`_AutoRebaseRecoveryContext.settles_over_a_reset`); the refresh asks
-    with none.
+    (`_AutoRebaseRecoveryContext.settles_over_a_reset`), by the workflow's
+    recovery (`workflow/engine/rewrite_recovery.answers_an_unreadable_checkout`),
+    and so is what it asks before the park of a reset that did not land
+    (`proves_before_a_park`).
     """
     return snapshot._abort_recovery_unverified(
         _AutoRebaseRecoveryContext(
@@ -192,12 +196,36 @@ def _answers_an_unreadable_checkout(
             pending_rewrite=_attempt_records._pending_rewrite(context.state),
             unparking_consumed_max=consumed_comment_id,
             settles_over_a_reset=settles_over_a_reset,
+            proves_before_a_park=proves_before_a_park,
         ),
         _UNREADABLE_CHECKOUT,
     )
 
 
-def _answers_a_held_anchor(gh, spec, issue, state, label) -> None:
+def _held_anchor_context(gh, spec, issue, state, label) -> _AutoRebaseRecoveryContext:
+    """The recovery context an anchor the dispatcher holds a handler back for is read and answered in.
+
+    The dispatcher asks the hold over its checkout, and hands it to the answer
+    (`_answers_a_held_anchor`) with what the workflow asks before a park keeps
+    the attempt.
+    """
+    return _AutoRebaseRecoveryContext(
+        gh=gh,
+        spec=spec,
+        issue=issue,
+        state=state,
+        worktree=_worktree_paths._worktree_path(spec, issue.number),
+        pr_number=int(state.get("pr_number") or 0),
+        label=str(label or ""),
+        pending_pre_rebase_sha=str(state.get(_PENDING_PUSH_SHA)),
+        pending_rewrite=_attempt_records._pending_rewrite(state),
+    )
+
+
+def _answers_a_held_anchor(
+    context: _AutoRebaseRecoveryContext,
+    proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
+) -> None:
     """What an anchor the dispatcher holds a handler back for is owed.
 
     Where the refresh drives the label, the refresh is what answers it, and
@@ -221,25 +249,16 @@ def _answers_a_held_anchor(gh, spec, issue, state, label) -> None:
     Reached under the writer claim the dispatching worker holds, which is the
     claim the refresh syncs a worktree under, so it never runs beside a
     refresh of the same issue on this host -- and it asks for no claim of its
-    own, which that hold would refuse.
+    own, which that hold would refuse. `proves_before_a_park` is what the
+    workflow's recovery asks before the stranded park keeps the attempt
+    (`_AutoRebaseRecoveryContext.proves_before_a_park`).
     """
-    worktree = _worktree_paths._worktree_path(spec, issue.number)
-    if label in _PR_REFRESH_DETOUR_LABELS:
-        if not worktree.is_dir():
-            _restores_the_checkout(spec, issue.number, state)
+    context = replace(context, proves_before_a_park=proves_before_a_park)
+    if context.label in _PR_REFRESH_DETOUR_LABELS:
+        if not context.worktree.is_dir():
+            _restores_the_checkout(context.spec, context.issue.number, context.state)
         return
-    context = _AutoRebaseRecoveryContext(
-        gh=gh,
-        spec=spec,
-        issue=issue,
-        state=state,
-        worktree=worktree,
-        pr_number=int(state.get("pr_number") or 0),
-        label=str(label or ""),
-        pending_pre_rebase_sha=str(state.get(_PENDING_PUSH_SHA)),
-        pending_rewrite=_attempt_records._pending_rewrite(state),
-    )
-    if worktree.is_dir():
+    if context.worktree.is_dir():
         _replay_cleanup._answers_an_ineligible_label(context)
     else:
         _replay_publication_parks._park_stranded_recovery(context)

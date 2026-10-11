@@ -55,8 +55,9 @@ class AbortRecoveryUnverifiedTest(unittest.TestCase):
             reset.call_args.kwargs.get("reason"), fixtures.PARK_PUSH_FAILED,
         )
         message = reset.call_args.kwargs.get("message")
+        # Why it parks only: what the reset came to is the tail's to say.
         self.assertIn(ABORT_DETAIL, message)
-        self.assertIn(fixtures.PRE_REBASE_SHA[:8], message)
+        self.assertNotIn("has been reset", message)
         self.assertIn(f"#{fixtures.PR_NUMBER}", message)
 
 

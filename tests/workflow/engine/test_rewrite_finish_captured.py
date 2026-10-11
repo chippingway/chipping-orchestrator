@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """A run a landed rewrite's finish captured, proved again and held to the last word, or abandoned.
 
-Each case asks the dormant helpers directly over the run a finish captured and
+Each case asks the helpers directly over the run a finish captured and
 never routed. A run that proves goes on as it was recorded; anything that moved
 under it -- the landing, the base, the configuration, the requirements, or the
 review -- abandons it into history, a reading nobody could take beside the

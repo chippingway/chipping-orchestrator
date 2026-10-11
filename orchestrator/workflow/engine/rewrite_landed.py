@@ -12,13 +12,25 @@ does not account for the landing (`git/base_sync/landed_recovery.py`). Every
 decision is made here, in the order the recovery has always kept:
 
 - An attempt made for another publication than the issue now records parks
-  with HEAD, the anchor, and the record where they stand.
+  with HEAD, the anchor, and the record where they stand. Every park on this
+  road keeps the attempt for the human reply that finishes it once the issue
+  is put right, so the git owner has a transaction an earlier finish captured
+  for the head proved again first and abandoned where anything it rests on
+  moved -- a pull request repointed among the reasons -- and an abandonment no
+  write lands holds the tick with nothing parked
+  (`rewrite_landing_moved.abandons_unproved`).
 - The checkout is read as the candidate it stands for, and held to the head
   the recovery's fetch classified: every refusal below, and the voucher the
   finish takes on trust for a replay the attempt never got to name, is about
   that head. A candidate naming any other -- the checkout and the branch both
   moved since, or a head that no longer reads -- makes nothing, and the next
-  tick classifies what it then finds.
+  tick classifies what it then finds; a transaction an earlier finish
+  captured for the fetched head is abandoned first where the checkout reads
+  another head (`rewrite_landing_moved`), since that move is movement under
+  it, and kept for the next proof where its head would not read at all. A
+  snapshot that read either head off the landing never reaches this road:
+  the coordinator (`rewrite_recovery`) abandons the transaction before the
+  road it does take.
 - A landing the record does not account for parks the same way: a mark
   naming another head, a head nothing this attempt wrote vouches for, a
   checkout not provably clean beneath a verdict, a transfer the receipt and
@@ -36,10 +48,13 @@ decision is made here, in the order the recovery has always kept:
   candidate itself (`rewrite_publication.CandidatePush`), which sends nothing.
   A refusal, a no-op that did not land, or a rotation the gate did not make
   parks with HEAD and the anchor where they stand, and a hold writes only
-  what the gate left.
+  what the gate left, a transaction captured for the head proved again
+  first.
 - Anything else is observed (`git/base_sync/rewrite_transport.py`): the remote
   read as it stands, with no push at all, which is how an accepted push whose
-  answer was lost is finished without a second one.
+  answer was lost is finished without a second one. A remote read off the
+  landed head abandons a transaction captured for it first, as a checkout
+  that left the head does; one nobody could read keeps it.
 
 What the proof or the observation found is handed to the one finish every
 landing gets (`rewrite_finish.finishes_the_recovery`): the debt and the room
@@ -49,6 +64,18 @@ spent. A mark already naming this head says its notice and its event are out,
 so that finish repeats neither and finishes only the route. One that finds
 the remote no longer on the head, or a base it cannot count the head against,
 makes nothing, and the next tick classifies whatever it then finds.
+
+The evidence decision resumes where the dead tick left it
+(`rewrite_finish_evidence`). A tick that died before its evidence write
+landed -- before the configured commands ran, or behind a run that completed
+-- captured nothing, so the commands run again on the landed head, unless
+the base is no longer the tip its replay was recorded as made onto. A run or carry it captured is never made
+again, abandoned or not: it is routed with its own transcript and provenance
+once its binding and the head's standing on the base prove again, and
+abandoned, with nothing run, where the requirements, the report or review
+subject, the configuration, the heads, or the base moved since. A base that
+moves after the head was counted holds the route for the next tick, which
+counts the head again. Nothing on this road launches a developer.
 
 Run under the issue writer claim the base refresh (`base_refresh`) takes
 before the issue is read and holds through the route.
@@ -75,6 +102,7 @@ from orchestrator.git.base_sync.rewrite_handoffs import _RewriteCandidate
 from orchestrator.git.base_sync.transfer_values import _Handoff
 from orchestrator.workflow.engine import (
     rewrite_finish as _finish,
+    rewrite_landing_moved as _landing_moved,
     rewrite_publication as _rewrite_publication,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -113,8 +141,7 @@ def recovers(
     _transfer_telemetry._reports_a_settled_transfer(_gate(context))
     if carried == _Handoff.OUTSTANDING:
         return _settles(context, completed, candidate)
-    landing = _rewrite_transport._observes_the_landing(context.spec, context.worktree, candidate)
-    return _finish.finishes_the_recovery(context, landing)
+    return _finishes_the_observation(context, completed, candidate)
 
 
 def _left_the_fetched_head(
@@ -130,16 +157,53 @@ def _left_the_fetched_head(
     and observed or proved, that head would be announced and routed on a
     voucher it never had. So nothing is made for it -- no park either, since
     a move is no fact about this attempt -- and the next tick's own fetch
-    classifies the branch as it then finds it.
+    classifies the branch as it then finds it. What an earlier finish
+    captured for the fetched head is the one exception
+    (`rewrite_landing_moved.abandons`): a checkout read on another head is
+    movement under it. One whose head could not be proved read nothing
+    move, so the transaction is proved again over everything else that can
+    be read (`rewrite_landing_moved.abandons_unproved`), abandoned where any
+    of that moved and otherwise kept for the next tick to prove again.
     """
-    moved = candidate.rewritten_head != completed.head
-    if moved:
+    reads = candidate.rewritten_head
+    if reads == completed.head:
+        return False
+    if reads:
         log.warning(
             "issue=#%d the checkout left %.8s, the head PR #%d was fetched standing on, before its landing could be "
-            "finished (it now reads %r); finishing nothing until a later tick classifies it again",
-            context.issue.number, completed.head, context.pr_number, candidate.rewritten_head[:8],
+            "finished (it now reads %.8s); finishing nothing until a later tick classifies it again",
+            context.issue.number, completed.head, context.pr_number, reads,
         )
-    return moved
+        _landing_moved.abandons(context, completed, candidate)
+    else:
+        log.warning(
+            "issue=#%d the checkout's head could not be proved against %.8s, the head PR #%d was fetched standing "
+            "on; finishing nothing until a later tick proves it again",
+            context.issue.number, completed.head, context.pr_number,
+        )
+        _landing_moved.abandons_unproved(context)
+    return True
+
+
+def _finishes_the_observation(
+    context: _AutoRebaseRecoveryContext,
+    completed: _AutoRebaseRecoverySnapshot,
+    candidate: _RewriteCandidate,
+) -> bool:
+    """Read the remote as it stands, pushing nothing, and finish the landing it shows; whether the recovery owns it.
+
+    A remote read anywhere but the landed head -- another commit, or no
+    branch at all -- is a landing the finish refuses, and movement under a
+    transaction an earlier finish captured for that head, which is abandoned
+    first (`rewrite_landing_moved.abandons`) so that no later route takes it,
+    even one finding the branch back on the head. A remote nobody could read
+    established nothing: the finish refuses the landing all the same, and the
+    transaction waits for the next tick to prove it again.
+    """
+    landing = _rewrite_transport._observes_the_landing(context.spec, context.worktree, candidate)
+    if landing.remote.sha is not None and not landing.landed:
+        _landing_moved.abandons(context, completed, candidate)
+    return _finish.finishes_the_recovery(context, landing)
 
 
 def _settles(
@@ -160,6 +224,9 @@ def _settles(
     count over it would route an adjudicated change into a second adjudication
     with the pull request already carrying the work -- so the gate is held to
     the permit, and the permit decides whether the permission may be spent.
+    A hold the gate takes keeps the attempt for a later tick, so a transaction
+    an earlier finish captured for the head is proved again ahead of the
+    hold's write (`rewrite_landing_moved.abandons_unproved`).
     """
     landed = completed.head
     if not _transfer_permits._permits_the_publication(context, landed):
@@ -176,6 +243,7 @@ def _settles(
         transport=push,
     )
     if published.held and not published.refused:
+        _landing_moved.abandons_unproved(context)
         context.gh.write_pinned_state(context.issue, context.state)
         return True
     unsettled = _unsettled(context, landed, published, push)
