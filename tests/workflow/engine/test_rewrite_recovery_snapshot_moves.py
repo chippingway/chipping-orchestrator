@@ -7,14 +7,15 @@ landing moved before the next recovery fetched the branch: the remote rolled
 back onto the anchor, the checkout reset onto it, or both moved on together to
 another head. Each snapshot sends the recovery down a road that never takes the
 run's route -- the park that resets and clears an announced attempt, the
-rollback of an undone one, the park of a landing its announcement does not
-name -- and the run is abandoned before it. A snapshot nobody could take -- a
-fetch that failed, a remote head that would not resolve -- ends in the abort
-that resets the checkout onto the anchor and clears the attempt, and once that
-reset lands the run is abandoned behind it; a reset that failed moved nothing,
-and keeps it. So once both heads are put back, the dispatcher's reconciliation
-has nothing left to settle. Nothing runs, pushes, or announces again, and no
-developer is launched.
+rollback of an undone one, the park of a landing its announcement does not name
+-- and the run is abandoned before it. A snapshot nobody could take -- a fetch
+that failed, a remote head that would not resolve -- ends in the abort that
+resets the checkout onto the anchor and clears the attempt -- as does a
+checkout whose lag against its base could not be counted at all -- and once
+that reset lands the run is abandoned in the write that releases the attempt; a
+reset that failed moved nothing, and keeps it. So once both heads are put back,
+the dispatcher's reconciliation has nothing left to settle. Nothing runs,
+pushes, or announces again, and no developer is launched.
 """
 from __future__ import annotations
 
@@ -24,7 +25,7 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport, commands
-from orchestrator.workflow.engine import verification_transaction
+from orchestrator.workflow.engine import base_refresh, verification_transaction
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
@@ -72,7 +73,8 @@ _MOVES = (
 
 
 # A snapshot nobody could take: the fetch failing, or the fetched remote head not
-# resolving -- each beside the git seam it fails at and the calls it fails.
+# resolving -- each beside the git seam it fails at and the calls it fails, or
+# None for a seam whose every reading comes back as nothing.
 _UNREAD_SNAPSHOTS = (
     ("the fetch failed", branch_transport, "_authed_fetch", lambda _called: True),
     (
@@ -81,6 +83,9 @@ _UNREAD_SNAPSHOTS = (
         "_git_hardened",
         lambda called: called[0] == "rev-parse" and "refs/remotes/" in str(called),
     ),
+    # The checkout's lag against its base not counted at all, which the
+    # refresh answers with the same abort before any snapshot is taken.
+    ("the checkout's base lag was not counted", base_refresh, "_worktree_behind_base", None),
 )
 
 
@@ -138,6 +143,7 @@ class SnapshotMoveRecoveryTest(support.VerificationRecoveryCase, unittest.TestCa
                 _puts_the_checkout_on(self, head)
                 _reconciles(self)
                 self._assert_abandoned(captured)
+                self.assertEqual((self.pushes.call_count, self.developer.call_count), (0, 0))
 
     def test_a_failed_reset_keeps_the_run(self) -> None:
         # The fetch failed and the abort's reset failed too: the checkout and
@@ -163,8 +169,11 @@ class SnapshotMoveRecoveryTest(support.VerificationRecoveryCase, unittest.TestCa
         """
         self.setUp()
         head, captured = _captures(self)
-        failing = partial(_refuses, getattr(owner, seam), refused)
-        with patch.object(owner, seam, side_effect=failing):
+        failing = patch.object(owner, seam, return_value=None)
+        if refused is not None:
+            refusing = partial(_refuses, getattr(owner, seam), refused)
+            failing = patch.object(owner, seam, side_effect=refusing)
+        with failing:
             self.recovers()
         return head, captured
 

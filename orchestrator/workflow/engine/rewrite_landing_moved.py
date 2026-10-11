@@ -33,7 +33,10 @@ A reset is the one road that moves the checkout off the landed head itself:
 the git owner's park behind a snapshot nobody could take, and every other
 road's that resets, drops the attempt in one whole write of the issue's state
 (`git/base_sync/persistence._reset_clear_and_park`). The recovery hands that
-owner its answer to the movement (`abandons_over_the_reset`), which stages the
+owner its answer to the movement (`abandons_over_the_reset`) -- on every
+road's context, and on the abort the refresh takes over a checkout whose lag
+against base could not be counted
+(`rewrite_recovery.answers_an_unreadable_checkout`) -- which stages the
 abandonment on the very state the park writes once the reset landed, so the
 transaction goes with the attempt's release or neither goes: a park write that
 fails leaves both standing for the next recovery, and a reset that failed
@@ -56,7 +59,11 @@ from orchestrator.git.base_sync import (
     replay_evidence as _replay_evidence,
     state as _base_sync_state,
 )
-from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext, _AutoRebaseRecoverySnapshot
+from orchestrator.git.base_sync.models import (
+    _AutoRebaseContext,
+    _AutoRebaseRecoveryContext,
+    _AutoRebaseRecoverySnapshot,
+)
 from orchestrator.git.base_sync.rewrite_handoffs import _LandedRewrite, _PushOutcome, _RewriteCandidate
 from orchestrator.git.ref_transport import _RefRead
 from orchestrator.workflow.engine import (
@@ -71,12 +78,12 @@ from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad, Lande
 log = logging.getLogger("orchestrator.workflow")
 
 
-def announced(context: _AutoRebaseRecoveryContext) -> str:
+def announced(context: _AutoRebaseContext | _AutoRebaseRecoveryContext) -> str:
     """The head the attempt's finish announced, or ""."""
     return context.state.get(_base_sync_state._PENDING_ANNOUNCED_SHA) or ""
 
 
-def abandons_over_the_reset(context: _AutoRebaseRecoveryContext) -> None:
+def abandons_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext) -> None:
     """Stage the abandonment of what a finish captured for the announced head on the state a landed reset's park writes.
 
     The recovery's answer to a reset (`_AutoRebaseRecoveryContext.settles_over_a_reset`),

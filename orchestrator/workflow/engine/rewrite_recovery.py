@@ -27,7 +27,9 @@ found already landed -- hand it to the one finish every landing gets
   ends in the git owner's abort, which resets the checkout onto the anchor and
   clears the attempt; a reset that landed is itself movement, so the
   transaction is abandoned on the state the park writes, in the one write
-  that releases the attempt, or neither is written.
+  that releases the attempt, or neither is written. The same abort over a
+  checkout whose lag against base could not be counted is taken here too
+  (`answers_an_unreadable_checkout`), carrying the same answer.
 - The remote head completes the comparison, and how far the transfer beside
   the attempt got is read off the comment (`git/base_sync/transfers.py`).
 - A remote standing on the checkout is a push that already landed, and the
@@ -56,6 +58,7 @@ from functools import partial
 from orchestrator.git.base_sync import (
     outcomes as _outcomes,
     recovery as _recovery,
+    recovery_holds as _recovery_holds,
     replay_cleanup as _replay_cleanup,
     replay_evidence as _replay_evidence,
     replay_refusals as _replay_refusals,
@@ -96,6 +99,23 @@ def decides(
     if not context.state.get(_AWAITING_HUMAN):
         consumed_comment_id = None
     return _AutoRebaseDecision(True, consumed_comment_id)
+
+
+def answers_an_unreadable_checkout(context: _AutoRebaseContext, consumed_comment_id: int | None) -> bool:
+    """Take the git owner's fail-closed abort over a checkout whose lag against base could not be counted.
+
+    No road below can classify that checkout, so the refresh takes the abort
+    directly (`git/base_sync/recovery_holds._answers_an_unreadable_checkout`).
+    Its reset is movement like any recovery road's, so it is handed the same
+    answer to it (`rewrite_landing_moved.abandons_over_the_reset`): a
+    verification transaction a finish captured for the announced head goes in
+    the write that releases the attempt, or neither does.
+    """
+    return _recovery_holds._answers_an_unreadable_checkout(
+        context,
+        consumed_comment_id,
+        settles_over_a_reset=partial(_landing_moved.abandons_over_the_reset, context),
+    )
 
 
 def recovers(context: _AutoRebaseRecoveryContext) -> bool:

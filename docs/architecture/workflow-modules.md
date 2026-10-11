@@ -1694,8 +1694,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             checkout whose lag cannot be counted takes. It writes nothing itself -- a reply that let
                             the rebase start is staged read, where it only asked for the retry, for the anchor's own
                             write to land (`rewrite_replies.py`) -- and a clean rebase is handed to
-                            `rewrite_publication.py`, a pinned anchor's recovery to `rewrite_recovery.py`,
-                            the abort over an uncountable lag to `git/base_sync/recovery_holds.py`, and the keyword
+                            `rewrite_publication.py`, a pinned anchor's recovery to `rewrite_recovery.py`, and the
+                            abort over an uncountable lag to `rewrite_recovery.py` as well, which takes it through
+                            `git/base_sync/recovery_holds.py` with what the recovery owes over its reset; the keyword
                             adapter binds the refresh's argument list into their typed context
     rewrite_publication.py  the ordinary publication of a clean rebase, from the candidate the git owner reads
                             (`git/base_sync/rewrite_facts.py`) to the shared finish: an unreadable head reset and
@@ -1735,7 +1736,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             announced is abandoned unless the remote and the checkout both read on that head, and
                             in the write that releases the attempt behind any reset that landed, the abort's behind a
                             snapshot nobody could take included -- the context it hands every road carries that
-                            answer (`rewrite_landing_moved.py`); an abandonment that did not land holds the tick with
+                            answer (`rewrite_landing_moved.py`), and so does the abort over a checkout whose lag
+                            against base could not be counted, which the refresh takes through it
+                            (`answers_an_unreadable_checkout`); an abandonment that did not land holds the tick with
                             nothing reset, cleared, or parked
     rewrite_retry.py        the retry of a replay the crash kept off the pull request, from the candidate the git
                             owner reads in the attempt's own terms (`git/base_sync/recovery_push.py`) to the shared

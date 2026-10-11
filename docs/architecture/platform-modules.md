@@ -720,12 +720,13 @@ orchestrator/
                         beside a live adjudication it asks for the record to be reconciled by hand rather than for
                         a label that adjudication's guard restores
       recovery_holds.py
-                        what no recovery road reaches: the reset and park over a checkout whose base lag cannot
-                        be counted, and the dispatch hold -- whether a standing anchor keeps a stage handler back,
-                        which every label the refresh does not drive does, and one it drives does unless a late
-                        claim the reconciliation answers freezes the refresh out -- with a missing checkout
-                        restored where the refresh drives the label and the ineligible answer taken where it does
-                        not. An anchor beside a live adjudication reaches it only once the dispatcher's handoff
+                        what no recovery road reaches: the reset and park over a checkout whose base lag cannot be
+                        counted, handed what the workflow's recovery owes over that reset as every recovery road's
+                        context carries it, and the dispatch hold -- whether a standing anchor keeps a stage handler
+                        back, which every label the refresh does not drive does, and one it drives does unless a late
+                        claim the reconciliation answers freezes the refresh out -- with a missing checkout restored
+                        where the refresh drives the label and the ineligible answer taken where it does not. An anchor
+                        beside a live adjudication reaches it only once the dispatcher's handoff
                         (`workflow/engine/rewrite_takeover.py`) has refused the pair
       persistence.py    the parks and the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset

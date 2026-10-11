@@ -1381,11 +1381,13 @@ because there it is the claim that this stage has already rerouted rather than a
   head, so the transaction is abandoned on the state that abort's park writes (`git/base_sync/persistence.py` asks the
   recovery before it drops the attempt) and goes in the one write that releases the attempt, or -- that write not
   landing -- neither goes and the attempt still guards it; where the reset failed nothing moved and the transaction is
-  kept. Every other road that resets does the same, finding nothing left to abandon once the coordinator has. A checkout
-  whose head would not prove, or a remote nobody could read, abandons nothing and leaves the transaction to be proved
-  again. Nothing is pushed a second time, no notice, event, or round reset is repeated under the attempt's own mark, no
-  developer is launched, and the evidence decision resumes where the dead tick left it. A tick that died before its
-  evidence write landed -- before the configured commands ran, or behind a run that completed and was never recorded
+  kept. Every other road that resets does the same, finding nothing left to abandon once the coordinator has, and so
+  does the abort the refresh takes directly over a checkout whose lag against base could not be counted
+  (`rewrite_recovery.answers_an_unreadable_checkout`). A checkout whose head would not prove, or a remote nobody could
+  read, abandons nothing and leaves the transaction to be proved again. Nothing is pushed a second time, no notice,
+  event, or round reset is repeated under the attempt's own mark, no developer is launched, and the evidence decision
+  resumes where the dead tick left it. A tick that died before its evidence write landed -- before the configured
+  commands ran, or behind a run that completed and was never recorded
   -- captured nothing, so the decision is taken afresh and the commands run again where the policy runs them, held to
   the base as above. A failure notice the dead tick recorded is that decision, published once with nothing run again;
   the last word behind that publication holds the route where the landing or the base moved, as it does behind a
