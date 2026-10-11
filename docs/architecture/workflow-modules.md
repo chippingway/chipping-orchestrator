@@ -2721,8 +2721,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             deduplicate and adopt restart notices by cycle receipt, then establish the chosen label;
                             reapply a foreign label so the fresh cycle has the restart's own history boundary
       late_restart_state.py repair restart identity, persist its marker, and project the fresh cycle while retaining
-                            thread attribution and cumulative usage -- and a split child's receipted seed, through
-                            `split_seeds.py`; retirement drops the predecessor's work and sessions
+                            thread attribution, cumulative usage, and the developer conversations retired as failed
+                            -- and a split child's receipted seed, through `split_seeds.py`; retirement drops the
+                            predecessor's work and sessions
       late_restart.py       admit and resume an authorized restart only after cancellation and every obligation settle;
                             hard-skip controls defer it, the recorded target outranks settings, and notice plus label
                             effects must succeed before retirement, which is written inside the restart fence
@@ -3145,13 +3146,26 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             edit that is settled by nothing earlier
       session.py            the four session retirements -- the fourth being the continuation that buys a spent
                             budget one more attempt, which is a fresh spawn by definition -- the read-only plan of the
-                            session a resume opens with (`_planned_dev_session`), and the fresh-spawn
-                            prompt, whose re-grounding conversation is the caller's frozen read wherever it holds
-                            one and its own read otherwise. The budget that retirement answers to is
+                            session a resume opens with (`_planned_dev_session`, which asks `session_retirement`'s
+                            record before either counter), the post-run persistence that pins a fresh spawn's id --
+                            the first spawn's on `spawn.py` included -- only through that owner's guarded pin, and
+                            the fresh-spawn prompt, whose re-grounding conversation is the caller's frozen read
+                            wherever it holds one and its own read otherwise. The budget that retirement answers to is
                             `engine/retry_budget.py`'s entire, gate and park alike, and the spawn road calls it
                             there
-      session_read.py       the locked session read plus the stale / overflow / quota classifiers and the blockquote
-                            they quote with
+      session_read.py       the locked session read, every id either pin field holds (the legacy one that read
+                            hides once `dev_agent` is pinned included), the stale / overflow / quota classifiers,
+                            and the blockquote they quote with
+      session_retirement.py the record of a developer conversation retired as failed (`dev_session_retirement`):
+                            the idempotent retirement that records it and clears the pins with `dev_agent` kept,
+                            the reading the planned resume asks before either counter, the pin a fresh spawn's id
+                            goes through -- refusing a missing or retired id so recovery stays owed -- with every
+                            pin a fresh conversation is owed over, in either field, counted as retired and named as
+                            it is cleared or replaced (an unreadable record's included, which is read fail-closed:
+                            recovery owed, every id it still names retired), and the guarded commit that lands the
+                            retirement alone, over a fresh reading, for a tick whose own write is discarded -- every
+                            id the tick's own record names retired over that reading too -- putting what it landed
+                            back on that tick's state
       resume.py             the two resume entry points and the historical call shape they keep. The
                             human-reply one is handed its caller's frozen batch rather than reading the
                             thread itself, hands that batch's frozen conversation down for the re-grounding
@@ -3190,7 +3204,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             since that retry is a SECOND agent -- and what each attempt is allowed to persist; the
                             bounded AGY command-recovery coordinator (`_coordinate_developer_run`) that recognizes
                             incomplete command outcomes and permits at most one immediate tracked continuation for
-                            both fresh spawns and resumes; and the identity an attempt is charged under, spelled once
+                            both fresh spawns and resumes, never of a conversation `session_retirement` retired; and
+                            the identity an attempt is charged under, spelled once
                             (`_launch_identity`), so the fingerprint a resume's first attempt would be charged under is
                             read without resuming (`_first_launch_fingerprint`) -- how a handed change request's
                             recovery tells that developer's charge from another road's

@@ -814,7 +814,8 @@ place, or as a new comment where none is named or the named one is gone. A **gua
 reconciliation's retirements, `validating`'s invalidation of an unanswered carry, the developer report's writes, a
 reviewer round's launch, return, verdict, and park writes, a change request's handoff and its recovery's writes, and
 every write of an approval's tail commit through, and which the finish of a base rewrite the base refresh published
-itself lands through) is never written from its caller's state. It is captured from the reading the caller decided on —
+itself and the retirement of a failed developer conversation land through) is never written from its caller's state.
+It is captured from the reading the caller decided on —
 the comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent
 one included, and the fields the caller owns — and derived over a fresh reading: each field the caller's staged state
 changed, every one of which it has to own, is laid over that reading; a transformation the caller's domain supplies
@@ -962,7 +963,8 @@ state.
 The keys that matter for the state machine fall into a few groups:
 
 - **Agent identity.** `dev_agent` + `dev_session_id` (locked dev session — see
-  [in-flight session lock](../workflow/command-specs.md#in-flight-session-lock)),
+  [in-flight session lock](../workflow/command-specs.md#in-flight-session-lock)), with `dev_session_retirement`
+  beside them naming the dev conversations retired as failed (see [below](#pinned-state)),
   `review_agent` (traceability only; reviewer is fresh per round), `decomposer_agent` + `decomposer_session_id`
   (parents), `question_agent` + `question_session_id` (`question` stage), `discussion_agent` +
   `discussion_session_id` (`discussion` stage), `late_agent` + `late_session_id` (the late adjudication of an
@@ -3386,6 +3388,51 @@ The keys that matter for the state machine fall into a few groups:
 The legacy `codex_session_id` key (written before `dev_agent` existed) is still honored on read by `_read_dev_session`:
 it round-trips to `spec="codex"` with no args so an older orchestrator's pin keeps running on codex.
 
+The additive `dev_session_retirement` key records the developer conversations retired as FAILED, as one object:
+`session_ids` (every retired id, oldest first), `reason` (why the last was retired), and `recovery_pending` (true until
+a fresh conversation with an id of its own is pinned). An absent key is an issue that retired none. Anything not spelled
+that way is read fail-closed -- `null`, not an object, `session_ids` not a list of non-empty strings, a `reason` neither
+a string nor null, a `recovery_pending` that is not a boolean: every id it still names stays retired (a lone string in
+`session_ids` included), and recovery is owed whatever its flag says, until a write spells it readable again -- the pin
+clear a resume owed a fresh conversation makes, or the pin of the distinct conversation that recovers.
+Its lifecycle, all on `stages/implementing/session_retirement.py`:
+
+- **Retired.** The retirement records the conversation's id -- or none, where the failed run named none -- marks
+  recovery owed, and clears `dev_session_id` and the legacy `codex_session_id` with both per-session counters zeroed,
+  exactly as a rotation does: `dev_agent` keeps the full command (the legacy pin is converted to `"codex"` first), and
+  the worktree, branch, pull request, issue thread, retry gates, park, and lifetime run ledger are not touched.
+  Retiring a conversation the record already names changes nothing but a pin naming it again. The primitive stages
+  the retirement on the tick's state; its guarded commit lands it alone over a fresh reading as well, owning only the
+  record, the two pins, `dev_agent`, and the two counters, so a tick whose own write is discarded leaves the
+  retirement durable without the watermarks it staged or the park it was about to clear. Every conversation the
+  tick's own record names is retired over that reading first, so one the tick retired and never wrote is not
+  dropped from the comment, nor from the record the tick takes back. A commit that lands puts those owned fields back
+  on the tick's state as the comment now holds them, the rest of its staging left alone, so a write the tick does make
+  keeps an id another road retired since it read. The record does not decide THAT a conversation failed: whatever
+  retires one names the conversation and the reason.
+- **Owed.** While recovery is owed, every planned or resolved developer resume -- `_planned_dev_session`, which
+  `_resolve_dev_session_for_resume` and the launch fingerprint a handed change request correlates both read -- treats
+  any pinned id as retired and opens a fresh conversation, re-grounded on the committed branch, whatever
+  `silent_park_count` and `dev_resume_count` read. The pin such a resume clears is retired by name as it goes -- the
+  conversation a record that will not read was owed over included, under the reason `pinned while a fresh conversation
+  was owed` where the record gives none -- so the same id handed back later is refused like any other. Both pin fields
+  count: a legacy `codex_session_id` is still a conversation the recovery is owed over after the first spawn or the
+  documenting pass pins `dev_agent` before its run, which hides that field from the session read. That fresh
+  conversation's id -- like the id of an unparked tick's first spawn -- is pinned only through the guarded pin, which
+  refuses a missing id and a retired one (unpinning it where either field still pins it), so the next run is fresh
+  again; the one continuation an AGY run that stopped mid-command earns is refused a retired id the same way, before
+  that pin is asked. A resume charges `dev_resume_count` only while the conversation it ran is still the one pinned and
+  not retired, so one retired while it ran charges nothing, and neither does the fresh conversation a recovery pinned
+  in its place meanwhile, whose budget starts at 0.
+- **Recovered.** The first fresh conversation returning a distinct id is pinned normally, with both per-session
+  counters at 0, and sets `recovery_pending` false. It is pinned in place of every pin the recovery was owed over, a
+  legacy one included, each named in the record first, so no retired id stays pinned beside it. The retired ids stay
+  recorded after it: no publication, rotation, counter reset, or later spawn clears them, an id they name is never
+  resumed, and the guarded pin never pins one again. Nothing drops the record: a `late_restart`'s whitelist projection
+  keeps it while dropping `dev_agent` and both session pins, through the same pin clear, so a pin recovery was still
+  owed over is named on it before it goes. The fresh cycle starts with no conversation to resume, and its first spawn
+  handing a retired id back pins nothing while a distinct one is pinned.
+
 ### The retry budget
 
 Fresh agent spawns are charged to one per-issue budget — implementing and decomposing share it, because both spend
@@ -4538,11 +4585,12 @@ rather than preserving.
   it standing — it is what a generation is cleared AGAINST, so a clear that took it would send an authorized
   candidate back into the adjudication a human already answered — and so does a crash, since the terms are on the
   pinned comment rather than in the tick that proved them. A **`late_restart`** is neither: its projection
-  (`late_restart._projected`) is a whitelist keeping only the orchestrator's own comment ids and the cumulative
-  spend and run-ledger counters — beside a split child's own seed, which is no claim about any candidate — so this
-  group goes with `late_exempt_sha`, the generation, the parks, and everything else the cancelled cycle wrote. That is
-  the right answer rather than an oversight — the fresh cycle has adjudicated nothing, so there is no verdict for an
-  authorization to be half of, and a bypass carried across a cancellation would license a candidate nobody has read.
+  (`late_restart._projected`) is a whitelist keeping only the orchestrator's own comment ids, the cumulative
+  spend and run-ledger counters, and the developer conversations retired as failed — beside a split child's own seed,
+  none of which is a claim about any candidate — so this group goes with `late_exempt_sha`, the generation, the
+  parks, and everything else the cancelled cycle wrote. That is the right answer rather than an oversight — the fresh
+  cycle has adjudicated nothing, so there is no verdict for an authorization to be half of, and a bypass carried
+  across a cancellation would license a candidate nobody has read.
 
   It is also what the `late_unauthorized_exemption` park (see [the HITL park](#pinned-state)) is
   waiting for, and the group a trusted whole-comment `/orchestrator authorize-oversized <commit>` on that park
@@ -4999,11 +5047,14 @@ rather than preserving.
   than a second comment minted), `orchestrator_comment_ids`, the four cumulative `issue_*` usage counters, the two
   agent-run ledger fields the `run_ledger.py` owner names as its projected group (`agent_run_allowance` and
   `agent_runs_used` — a lifetime ceiling a restart handed back would be no lifetime ceiling at all, and the allowance
-  travels beside the count so a fresh cycle is not parked on its first run by a ceiling the projection dropped), and
-  the fresh generation's own identity — and, on an issue this orchestrator opened whose body carries an ordinary
-  split's child receipt, the seed that receipt holds it to: `parent_number` and whatever of the `late_ancestry_*`
-  group it carries, pointer included, kept exactly as carried (`split_seeds.carried_seed`), since the dispatcher holds
-  that child to its seed on every later dispatch. Everything else goes — every session id, `pr_number` and `branch`,
+  travels beside the count so a fresh cycle is not parked on its first run by a ceiling the projection dropped),
+  `dev_session_retirement`, naming any pin recovery was still owed over before the pins go (a backend can hand a
+  retired conversation's id back to the fresh cycle's first spawn, and only the record has the pin refuse it — see
+  [Pinned state](#pinned-state)), and the fresh generation's own identity — and, on an issue this orchestrator
+  opened whose body carries an ordinary split's child receipt, the seed that receipt holds it to: `parent_number` and
+  whatever of the `late_ancestry_*` group it carries, pointer included, kept exactly as carried
+  (`split_seeds.carried_seed`), since the dispatcher holds that child to its seed on every later dispatch. Everything
+  else goes — every session id, `pr_number` and `branch`,
   `children` / `dep_graph` / `expected_children_count` / `split_ledger_sealed`, the whole `late_ancestry_*` group on
   any other issue and the exemption beside it with the identity it carries, `awaiting_human` / `park_reason`,
   `user_content_hash`, the retry, review-round and park counters, `agent_run_reservation` (a launch, not a fact about

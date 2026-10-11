@@ -264,10 +264,16 @@ of an unanswered carry, the developer report's recording, its binding, its settl
 posted), the reconciliation's drop and damage-park retirement, the park a refused recording or binding takes, the
 fixing recovery's release, a reviewer round's launch, return, verdict, drop, and park writes, a change request's
 handoff (prepared before its feedback is posted), the drop, retirement, and park of a handed one, the recovery's
-writes over a verdict left waiting, and every write of an approval's tail, its squash's own and a failed squash's park
-included -- lays only the fields its caller owns over a fresh reading instead, refusing with nothing written where the
+writes over a verdict left waiting, every write of an approval's tail, its squash's own and a failed squash's park
+included, and the retirement of a failed developer conversation -- lays only the fields its caller owns over a fresh
+reading instead, refusing with nothing written where the
 comment, a record the decision rests on, or a field the caller is changing moved, or where the whole candidate would
 not fit one comment.
+The additive `dev_session_retirement` record names the developer conversations retired as failed and whether the fresh
+conversation replacing the last is still owed. Nothing that clears the session pin or zeroes `silent_park_count` and
+`dev_resume_count` -- a publication, a rotation, a late restart's projection -- erases it, so a retired id is never
+resumed, and every resume stays a fresh conversation under the pinned `dev_agent` command until one with an id of its
+own is pinned.
 Every key, what writes it, what spends it, the guarded commit, and the legacy `codex_session_id` still honored on read
 are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).

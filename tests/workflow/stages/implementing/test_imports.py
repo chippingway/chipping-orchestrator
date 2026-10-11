@@ -106,6 +106,7 @@ _OWNERS = (
     "retry_cap",
     "session",
     "session_read",
+    "session_retirement",
     "spawn",
     "state",
     "unreported_recovery",

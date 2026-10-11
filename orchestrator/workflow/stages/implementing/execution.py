@@ -52,6 +52,7 @@ from orchestrator.workflow.stages.implementing import (
     models as _models,
     resume_request as _resume_request,
     session as _session,
+    session_retirement as _session_retirement,
     state as _state,
     worktree as _worktree,
 )
@@ -125,7 +126,11 @@ class _DevResumeContext:
             agent_result,
             fresh_spawn=fresh_spawn,
             resume_count=self.plan.resume_count,
+            resumed_session_id=self.plan.session.session_id,
         )
+        # A resume answers a fresh human signal, so the park it was waiting
+        # on is over once the run is back.
+        self.state.set(_state._AWAITING_HUMAN, False)
         return self.worktree, agent_result, False
 
     def _run_attempt(
@@ -217,19 +222,25 @@ def _should_recover_incomplete_agy(
     backend: str,
     agent_result: AgentResult,
     paused: bool,
+    state: PinnedState,
 ) -> bool:
     """Whether an incomplete AGY command outcome earns an immediate continuation.
 
     Stops recovery on a freshly observed pause, a launch the run circuit
     refused, a shutdown sweep interruption, a process timeout, a missing
-    recorded conversation id, or an outcome that is non-AGY or normally
-    completed.
+    recorded conversation id, an outcome that is non-AGY or normally
+    completed, or a conversation `state` records as retired
+    (`session_retirement._held_retirement`). That last is a fresh run handing
+    a failed conversation's id back: continuing it would resume the very
+    conversation the post-run pin then refuses, with the recovery still owed.
     """
     if paused or not agent_result.invoked:
         return False
     if is_shutdown_sweep_interrupted(agent_result) or agent_result.timed_out:
         return False
-    return _is_incomplete_agy_result(backend, agent_result) and bool(agent_result.session_id)
+    if not (_is_incomplete_agy_result(backend, agent_result) and agent_result.session_id):
+        return False
+    return agent_result.session_id not in _session_retirement._held_retirement(state)[0]
 
 
 @dataclass(frozen=True)
@@ -250,7 +261,7 @@ class _DevRunCoordinator:
             paused = bool(self._options.get("initial_paused", False))
 
         backend = str(self._options["backend"])
-        if _should_recover_incomplete_agy(backend, agent_result, paused):
+        if _should_recover_incomplete_agy(backend, agent_result, paused, self._state()):
             log.info(
                 "issue=#%d AGY run ended with unfinished tool steps on session %r; "
                 "retrying once with command recovery prompt",
@@ -321,8 +332,9 @@ def _coordinate_developer_run(
 
     Every continuation invokes `_run_agent_tracked` with the same issue
     budget, worktree, backend spec, stage attribution, timeout behavior, and
-    conversation id. A missing conversation, timeout, shutdown interruption,
-    never-invoked run-budget refusal, or freshly observed pause stops recovery.
+    conversation id. A missing or retired conversation, timeout, shutdown
+    interruption, never-invoked run-budget refusal, or freshly observed pause
+    stops recovery.
     A second premature exit returns the structured failure for child 3 to park.
     No loop or direct backend/subprocess call is made.
     """

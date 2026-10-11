@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Persist restart identities and project the fresh cycle onto retained issue usage.
 
-The retired cycle keeps thread attribution and lifetime spending while
-dropping its sessions, publications, candidates, and children. A split's
-receipted child keeps the seed its receipt holds it to as well -- see
-`split_seeds.carried_seed` -- since that is a fact about where the issue sits
-in its tree rather than about the cycle that ended.
+The retired cycle keeps thread attribution, lifetime spending, and the
+developer conversations retired as failed while dropping its sessions,
+publications, candidates, and children. A split's receipted child keeps the
+seed its receipt holds it to as well -- see `split_seeds.carried_seed` --
+since that is a fact about where the issue sits in its tree rather than about
+the cycle that ended.
 """
 from __future__ import annotations
 
@@ -31,6 +32,10 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import split_seeds as _split_seeds
+from orchestrator.workflow.stages.implementing import (
+    session_retirement as _session_retirement,
+    state as _dev_state,
+)
 from orchestrator.workflow.state import stage_name
 
 log = logging.getLogger("orchestrator.workflow")
@@ -67,6 +72,12 @@ _RETAINED_KEYS = (
     # the ceiling an issue was granted while keeping its spend parks it on the
     # first run of the fresh cycle.
     *_run_ledger.PROJECTED_KEYS,
+    # The developer conversations a run showed to have FAILED. The pins and
+    # `dev_agent` go with the cycle, but a backend can hand a retired id back
+    # to the fresh cycle's first spawn, and only this record has the pin
+    # refuse it (`implementing/session_retirement.py`): dropped here, the
+    # conversation retired for good would be pinned and resumed again.
+    _dev_state._DEV_SESSION_RETIREMENT,
 )
 
 
@@ -172,7 +183,13 @@ def _projected(
     comment itself is kept by rewriting the payload in place rather than by
     minting a second one no reader would find. `seed` is the one group kept
     beside that list, and only on an issue whose body says a split owed it.
+
+    The developer pins go with the cycle through the clear every road that
+    drops them takes, so a pin a fresh conversation was still owed over is
+    named on the kept retirement record before it goes rather than left free
+    for the fresh cycle's first spawn to pin.
     """
+    _session_retirement._clear_dev_session_pins(state)
     kept = {
         key: state.data[key] for key in _RETAINED_KEYS if key in state.data
     }
