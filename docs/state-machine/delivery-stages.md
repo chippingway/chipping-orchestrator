@@ -1210,16 +1210,18 @@ because there it is the claim that this stage has already rerouted rather than a
     against the ledger as it stands, is prepared over the comment read afresh, and a comment another road filled, or
     whose bound records moved, since the tick read it posts nothing.
   - **Held** → a reading nobody could take: the pull request, the fetch, the divergence, the report's location, the
-    requirements, an unconfirmed post, or the issue, the pinned comment, or the artifact re-read before a settling or
-    retiring write -- a pinned comment replaced or no longer parsing included, over which nothing is written -- or a
+    requirements, an unconfirmed post, the issue re-read right before the post, or the issue, the pinned comment, or
+    the artifact re-read before a settling or retiring write -- a pinned comment replaced or no longer parsing
+    included, over which nothing is written -- or a
     settling commit that went out and was never confirmed. The next tick asks again, and finds either nothing owed or
     the same transaction to settle over the same artifact, with no second history entry.
   - **Stood down** → a moved head or branch, an absent checkout, an id that is not a commit itself, an unreadable or
     different tree, a moved configuration, a pinned `pr_number` naming another pull request, a report still owed (a
     delivery, a transaction, or an undeliverable park), a review subject absent, replaced, about another head than the
     target, or carrying requirements its round was not due, a report settled after the review, stale against the
-    subject, or deleted, edited, or out of step with its handoff, an issue that stopped being live work during the post,
-    edited requirements, an edited artifact, a bound record that moved on the pinned comment before or while the
+    subject, or deleted, edited, or out of step with its handoff, an issue that stopped being live work during the
+    proof or the post (where it stopped before the post, nothing is posted or written at all), edited requirements,
+    an edited artifact, a bound record that moved on the pinned comment before or while the
     artifact was posted or under the settling commit, a pinned comment that moved under that commit's edit, or a
     settlement the comment no longer has room for, before the post or behind it. The transaction stays owed for the
     route that answers it, with the artifact's ledger entry committed alone where the comment still reads (a comment

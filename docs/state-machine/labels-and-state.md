@@ -3169,26 +3169,25 @@ The keys that matter for the state machine fall into a few groups:
   unproven refuses the decision for good. A captured transaction whose abandonment the comment has no room for is
   dropped with this member blanked, in a write that only shrinks the comment, so no later reading proves a base for it
   and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`).
-  `pending_auto_base_rebase_announced_sha` is the last member and covers the last window a finish has: everything a
-  finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out before the
-  relabel, and the write that clears this record goes out after it, so the head it has already said it published is
-  recorded in between, while the anchor and the replay still stand. A tick lost there comes back to a comment that
-  says the announcement was made rather than to an attempt that looks unfinished, which is what stops a second
-  `base_rebased` on the stream and a second notice on the pull request for one publication that happened once. BOTH
-  finishes write it and for the same reason — the refresh's own publishing tail, which announces the rebase it just
-  pushed, and the recovery, which announces one an earlier tick left — since neither is distinguishable afterwards
-  from an attempt that never got that far. The report debt the landed head leaves (`developer_report_rewrite_debt`)
-  rides the same write, so it is durable before the attempt is cleared or the issue relabelled. A finish writes it
-  only once the landed head's evidence is resolved -- settled, retired, or the fresh reviewer's to owe -- so a tick lost
-  while that evidence was being run, published, or settled comes back to an attempt with no mark; the recovery then
-  reads the transaction under the receipt the finish put on the attempt (below) as the one that finish captured
-  (`workflow/engine/rewrite_landing_moved.py`) -- any other is another road's, and kept -- and any evidence
-  record naming the replay -- pending, current,
-  retired, or a failed run's notice -- as the word that its push landed (`workflow/engine/rewrite_landing_records.py`),
-  so a remote rolled back off that replay parks as the rollback it is rather than being pushed over again. It is
-  read by PRESENCE, like every other checkpoint here: the key standing at all says a finish announced THIS attempt's
-  replay, so a value naming any other head — or naming no commit — is a mark something took apart rather than an
-  answer a reader may give as "nothing was announced".
+  `pending_auto_base_rebase_announced_sha` is the member written last and covers the last window a finish has:
+  everything a finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out
+  before the relabel, and the write that clears this record goes out after it, so the head it has already said it
+  published is recorded in between, while the anchor and the replay still stand. A tick lost there comes back to a
+  comment that says the announcement was made rather than to an attempt that looks unfinished, which is what stops a
+  second `base_rebased` on the stream and a second notice on the pull request for one publication that happened once.
+  BOTH finishes write it and for the same reason — the refresh's own publishing tail, which announces the rebase it just
+  pushed, and the recovery, which announces one an earlier tick left — since neither is distinguishable afterwards from
+  an attempt that never got that far. The report debt the landed head leaves (`developer_report_rewrite_debt`) rides the
+  same write, so it is durable before the attempt is cleared or the issue relabelled. A finish writes it only once the
+  landed head's evidence is resolved -- settled, retired, or the fresh reviewer's to owe -- so a tick lost while that
+  evidence was being run, published, or settled comes back to an attempt with no mark; the recovery then reads the
+  transaction under the receipt the finish put on the attempt (below) as the one that finish captured
+  (`workflow/engine/rewrite_landing_moved.py`) -- any other is another road's, and kept -- and any evidence record
+  naming the replay -- pending, current, retired, or a failed run's notice -- as the word that its push landed
+  (`workflow/engine/rewrite_landing_records.py`), so a remote rolled back off that replay parks as the rollback it is
+  rather than being pushed over again. It is read by PRESENCE, like every other checkpoint here: the key standing at all
+  says a finish announced THIS attempt's replay, so a value naming any other head — or naming no commit — is a mark
+  something took apart rather than an answer a reader may give as "nothing was announced".
   `pending_auto_base_rebase_evidence_receipt` — the receipt of the verification transaction a finish of the attempt
   recorded for the landed head, written in the very guarded write that records it
   (`workflow/engine/rewrite_finish_writes.EVIDENCE`, staged by `workflow/engine/rewrite_landing_records.py`) and
@@ -3218,8 +3217,9 @@ The keys that matter for the state machine fall into a few groups:
   is made: a reset that failed abandoned nothing, and the comment is then the only account of where the checkout may
   be standing, so nothing is dropped and the next tick still has an anchor to come back with.
   **The whole record is live: every write, the clear, and the readings.** The terms and the anchor go down before
-  `git rebase`, the replay goes down before the dirty check, both finishes mark what they announced, and every ending
-  drops the group; the three answers and the presence test on the mark are what the workflow's recovery decides on.
+  `git rebase`, the replay goes down before the dirty check, a finish's evidence write puts its transaction's receipt
+  on it, both finishes mark what they announced, and every ending drops the group; the three answers, the receipt,
+  and the presence test on the mark are what the workflow's recovery decides on.
   An unpublished checkout is
   classified on the three-valued read: absent falls back to the divergence counts, in flight is proved by what the
   contribution is — or, past the permit's own grant, by the permission that grant persisted, cross-bound to the
