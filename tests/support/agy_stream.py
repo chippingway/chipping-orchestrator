@@ -22,6 +22,15 @@ _ACTIVE = "ACTIVE"
 _DONE = "DONE"
 _CMD_PARAM = "CommandLine"
 _DEFAULT_CMD = "pytest"
+# Synthetic quota diagnostics in the reported shapes, not captured CLI output:
+# the plain message an unsuccessful terminal's `error` and the CLI's `error:`
+# stderr line carry, and the reset interval it names.
+QUOTA_RESET = "2h42m39s"
+QUOTA_MESSAGE = (
+    "Individual quota reached. Please upgrade your subscription to increase your limits. "
+    f"Resets in {QUOTA_RESET}."
+)
+QUOTA_PLAIN_STDERR = f"error: {QUOTA_MESSAGE} (response may be truncated)"
 
 
 def event(name: str, **payload) -> str:
@@ -138,3 +147,18 @@ class ToolStream:
             init_event(),
             terminal(status="CANCELED", response=None, error="process was interrupted"),
         ))
+
+
+
+def quota_structured_stderr(short_error: str = "", **overrides: Any) -> str:
+    """A synthetic `AGY_ERROR:` stderr line; an override turns a field into a near miss."""
+    payload = {
+        "short_error": short_error or f"RESOURCE_EXHAUSTED (code 429): {QUOTA_MESSAGE}",
+        "status": "RESOURCE_EXHAUSTED",
+        "error_code": 429,
+        "code_kind": "http",
+        "retryable": True,
+        "error_id": "synthetic-error-id",
+        **overrides,
+    }
+    return f"AGY_ERROR: {json.dumps(payload)}"

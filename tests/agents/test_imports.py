@@ -11,6 +11,7 @@ import unittest
 
 from orchestrator import agents as _agents
 from orchestrator.agents import (
+    agy_failures as _agent_agy_failures,
     models as _agent_models,
     processes as _agent_processes,
     provider_failures as _agent_provider_failures,
@@ -25,6 +26,7 @@ _MODULES = (
     "orchestrator.agents.session_ids",
     "orchestrator.agents.sessions",
     "orchestrator.agents.codex_events",
+    "orchestrator.agents.agy_failures",
     "orchestrator.agents.provider_failures",
     "orchestrator.agents.process_groups",
     "orchestrator.agents.processes",
@@ -35,8 +37,8 @@ _MODULES = (
     "orchestrator.agents.backends.agy",
 )
 
-# Agent-package functions annotated against the `models` owner -- the runner
-# and provider-failure owners plus the Codex and Claude backends. Their hints
+# Agent-package functions annotated against the `models` owner -- the runner,
+# provider-failure, and AGY failure owners plus the backends. Their hints
 # must resolve at runtime, so the owner stays importable at module scope rather
 # than only for static type checkers.
 _OWNER_ANNOTATED_FUNCS = (
@@ -55,6 +57,7 @@ _OWNER_ANNOTATED_FUNCS = (
     _agent_provider_failures.is_transient_provider_failure,
     _agent_provider_failures.is_provider_refusal,
     _agent_provider_failures.codex_usage_limit_failure,
+    _agent_agy_failures.terminal_failure,
 )
 
 
