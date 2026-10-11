@@ -1369,10 +1369,10 @@ because there it is the claim that this stage has already rerouted rather than a
   observed off it. A head nobody could read abandons nothing by itself, but a recovery that stops there -- or on a
   landing the finish refuses, a base count nobody could take among the reasons, or behind a gate's hold -- proves the
   run again over every other reading first and abandons it where any moved. Every recovery park that keeps the
-  attempt -- the abort
-  or a rollback whose reset did not land, an issue relabelled out of the stages the refresh drives, whether the
-  refresh or the dispatcher's hold answers it, a landing made for another publication than the issue records or one
-  its record does not account for -- keeps it for the reply that finishes it once the issue is put right, so the git
+  attempt -- the abort or a rollback whose reset did not land, an issue relabelled out of the stages the refresh
+  drives, whether the refresh or the dispatcher's hold answers it, a landing made for another publication than the
+  issue records or one its record does not account for -- keeps it for the reply that finishes it once the issue is
+  put right, so the git
   owner has the transaction proved again before each such park (`git/base_sync/persistence._proves_before_the_park`,
   over `rewrite_landing_moved.abandons_unproved`), on readings no failed fetch is needed for, and abandoned where
   anything it rests on moved, a configuration or a pull request repointed among the reasons: putting that back before

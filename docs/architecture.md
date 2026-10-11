@@ -928,8 +928,9 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   since: refused for good, its base tip blanked, where the comment has no room
   (`workflow/engine/rewrite_finish_captured.py`). The recovery abandons it the same way where its snapshot reads the
   landing on another head, or its reset takes the checkout off it (`workflow/engine/rewrite_landing_moved.py`), the
-  git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`). It runs under its
-  caller's issue writer claim.
+  git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`), and every recovery
+  park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`). It runs under
+  its caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

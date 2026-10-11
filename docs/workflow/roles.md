@@ -2540,6 +2540,9 @@ nothing: a pass is recorded as orchestrator-executed evidence of the rebased hea
 `workflow:validating`, and a failure parks nothing -- its notice is posted on the pull request and the fresh reviewer
 verifies the head itself (see
 [base-rewrite evidence](../state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
+A tick that dies around that run leaves its recovery to run the commands again only where no run was recorded; a
+recorded run is never run twice, but routed as recorded or, where anything it was bound to moved, set aside for the
+fresh reviewer.
 
 [workflow-labels]: ../state-machine/labels-and-state.md#workflow-labels
 [review-subject]: ../state-machine/labels-and-state.md#pinned-state
