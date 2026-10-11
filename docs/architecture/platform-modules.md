@@ -464,8 +464,9 @@ orchestrator/
                         validating reviewer dispatch asks it ahead of the VERDICT parse and parks the stop
                         under `reviewer_usage_limit` (`workflow/stages/validating/reviewer.py`)
     agy_failures.py     the `TerminalFailure` record an Antigravity run the backend normalized to a failure
-                        carries: the subprocess's own exit code, the terminal status and error -- each redacted
-                        before it is bounded -- and the account-quota verdict with the reset interval AGY named.
+                        carries: the subprocess's own exit code (none for a run the timeout killed, whose `-1`
+                        is the runner's sentinel), the terminal status and error -- each redacted before it is
+                        bounded -- and the account-quota verdict with the reset interval AGY named.
                         Only failure evidence decides it: an unsuccessful terminal's `error` and the CLI's
                         `error:` and `AGY_ERROR:` stderr lines, the structured one settled by its
                         `RESOURCE_EXHAUSTED` / `429` / `http` / retryable signature alone. Never an exit code, the

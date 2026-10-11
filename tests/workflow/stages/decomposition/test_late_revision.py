@@ -11,6 +11,8 @@ bare continue, reading the same checkout with no second developer run.
 """
 from __future__ import annotations
 
+from functools import partial
+
 from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values, run_limit_values as _run_limit_values
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
@@ -39,14 +41,17 @@ from tests.workflow.stages.decomposition.late_test_support import (
 # An allowance the issue has already spent to its last run.
 _SPENT = 4
 
-# Every way a developer's CLI stops before it reads its prompt: on its quota,
-# with the notice or without it, and on a refusal its provider answered the
-# turn with -- an auth refusal on a failed exit, a rate limit on a clean one.
+# Every way a developer's CLI stops before it reads its prompt, each as the
+# reply it hands back: on its quota, with the notice or without it, on a
+# refusal its provider answered the turn with -- an auth refusal on a failed
+# exit, a rate limit on a clean one -- and an Antigravity run whose failure
+# record names the quota, which stopped it even though its timeout fired too.
 _STOPPED_RUNS = (
-    ("a silent quota stop", _stage_support.DEV_SILENT, _stage_support.QUOTA_EXIT),
-    ("a quota notice", _stage_support.QUOTA_NOTICE, _stage_support.QUOTA_EXIT),
-    ("an auth refusal", "API Error: 401 Unauthorized", 1),
-    ("a rate limit", "API Error: 429 Too Many Requests", 0),
+    ("a silent quota stop", partial(agent_reply, _stage_support.DEV_SILENT, exit_code=_stage_support.QUOTA_EXIT)),
+    ("a quota notice", partial(agent_reply, _stage_support.QUOTA_NOTICE, exit_code=_stage_support.QUOTA_EXIT)),
+    ("an auth refusal", partial(agent_reply, "API Error: 401 Unauthorized", exit_code=1)),
+    ("a rate limit", partial(agent_reply, "API Error: 429 Too Many Requests", exit_code=0)),
+    ("an AGY quota stop past its timeout", _stage_support.agy_quota_past_timeout),
 )
 
 
@@ -153,11 +158,11 @@ class StoppedRunTest(RevisionCase):
         # The retry the park waits for is a human's continue once the quota
         # resets or the provider serves again, and the guidance nobody read
         # is what it resumes on.
-        for shape, said, exited in _STOPPED_RUNS:
+        for shape, stopped_reply in _STOPPED_RUNS:
             with self.subTest(run=shape):
                 self._seed(**_stage_support.DEV_PIN)
                 _content_replies.reply(self.issue)
-                self._stopped(said, exited)
+                self._stopped(stopped_reply())
                 _content_replies.reply(self.issue, _support.BARE_CONTINUE)
 
                 revised, resumed = self._revise()
@@ -171,7 +176,7 @@ class StoppedRunTest(RevisionCase):
         # continue meets it as the drift it still is, and the answer to that
         # park is what resumes the developer with the guidance whole.
         self._seed_drifted()
-        self._stopped(_stage_support.DEV_SILENT, _stage_support.QUOTA_EXIT)
+        self._stopped(agent_reply(_stage_support.DEV_SILENT, exit_code=_stage_support.QUOTA_EXIT))
         _content_replies.reply(self.issue, _support.BARE_CONTINUE)
         _asked, unspawned = self._revise()
         unspawned.assert_not_called()
@@ -185,15 +190,15 @@ class StoppedRunTest(RevisionCase):
         self.assertIn(_content_replies.GUIDANCE_BODY, prompt)
         self.assertIn(_support.EDITED_TITLE, prompt)
 
-    def _stopped(self, said: str, exited: int) -> None:
-        """Run the developer the guidance bought, and have its CLI stop before it works.
+    def _stopped(self, stopped_reply) -> None:
+        """Run the developer the guidance bought, its CLI stopping before it works with `stopped_reply`.
 
         The run parks as one that answered nothing, over guidance still
         unread: no late watermark moved and no requirements baseline was
         recorded.
         """
         outcome, _spawn = self._revise(
-            reply=agent_reply(said, exit_code=exited),
+            reply=stopped_reply,
             seed=_stage_support.UNCHANGED,
             measurement=_stage_support.ACKNOWLEDGED,
         )

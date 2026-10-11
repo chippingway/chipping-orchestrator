@@ -20,6 +20,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow.agent_failure_values import agy_quota_stop
 from tests.workflow.fixtures import (
     AGENT_RUN_CHARGE_WRITES,
     LABEL_DOCUMENTING,
@@ -31,6 +32,7 @@ from tests.workflow.fixtures import (
     _PatchedWorkflowMixin,
 )
 from tests.workflow.report_values import _reported
+from tests.workflow.session_limit_parks import assert_session_limit_park
 
 PUSHED_DRIFT_ISSUE = 80
 PUSHED_DRIFT_PR = 800
@@ -200,6 +202,18 @@ class HandleInReviewResumeOnHashChangeTest(
         self.assertNotIn((PARKED_DRIFT_ISSUE, LABEL_VALIDATING), gh.label_history)
         state = gh.pinned_data(PARKED_DRIFT_ISSUE)
         self.assertTrue(state.get("awaiting_human"))
+
+    def test_quota_timeout_drift_parks_session_limit(self) -> None:
+        # The drift resume an account quota stopped parks as the session
+        # limit even past its timeout -- still in `in_review`, nothing
+        # published -- naming the quota a bare continue waits out.
+        gh, issue = self.seed_drift(PARKED_DRIFT_ISSUE, PARKED_DRIFT_PR)
+
+        with self.assertLogs("orchestrator.workflow", level="WARNING"):
+            self._run_in_review(gh, issue, run_agent=agy_quota_stop(timed_out=True), head_shas=[BEFORE_SHA])
+
+        assert_session_limit_park(self, gh, PARKED_DRIFT_ISSUE)
+        self.assertNotIn((PARKED_DRIFT_ISSUE, LABEL_VALIDATING), gh.label_history)
 
     def test_body_drift_interrupted_resume_is_ignored(self) -> None:
         # A shutdown-killed (interrupted) drift resume must be ignored

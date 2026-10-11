@@ -64,15 +64,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
   engine/                   what every stage is driven by
     agent_diagnostics.py    what a park comment and a WARNING say about a run that left no usable message: the
                             agent's stderr under two budgets -- 1KB for the human who came to the issue, 400
-                            characters so a log line still fits a screen -- and the exit code beside the first.
+                            characters so a log line still fits a screen -- and the exit code beside the first,
+                            split into the subprocess's own return and the normalized failure code where the
+                            result carries a failure record -- the return named not captured where the timeout
+                            killed the run -- and left the plain code where it does not.
                             The shared redactor runs over the RAW stderr before either trim, since a secret sliced
                             by the cut survives as a fragment the redactor no longer matches, and that fragment is
                             what leaks; the same ordering puts it ahead of the `rstrip`, so a multi-line env value
                             ending in a newline still matches verbatim. A Codex usage-limit stop gets a block of
                             its own -- the reset the provider named, then its message -- redacted whole before a
                             1KB budget cuts the message, the reset read off that redacted text under a budget of
-                            its own. Each block is quoted through `messages.py`'s blockquote, so it reads as the
-                            last-message body it is appended under
+                            its own. An account-quota stop a failure record names gets the reset interval that
+                            record kept, under the same budget, above the stderr block. Each block is quoted
+                            through `messages.py`'s blockquote, so it reads as the last-message body it is
+                            appended under
     comments.py             the orchestrator marker, bound from the GitHub trust owner, and the bounded id ledger
                             shared by issue and pull-request comment posts; a developer report enters the ledger on
                             whichever reading finds it on the thread, since a post whose response was lost hands
@@ -2112,7 +2117,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             any rebase, a report this issue recorded and has not settled is settled first, through the
                             validating hold's own settling half, so it is never bound to a head a rewrite left
       outcomes.py           the interrupt / timeout / mid-rebase parks read before HEAD -- the mid-rebase one asked
-                            by the report-carrying road too, behind its own timeout reading -- and the push a completed
+                            by the report-carrying road too, behind its own timeout reading, and a timeout, a
+                            mid-rebase stop, or a resolution over a tree not proved clean an account quota caused
+                            taken as the session limit through the shared question park instead, which a bare
+                            continue retries -- and the push a completed
                             resolution earns -- measured by the size gate first, since a resolution grows the pull
                             request like any other candidate, and pinned by the pre-rebase head this stage read
       parks.py              park notices, durable reasons, and the predicate that preserves a human question through
@@ -2723,8 +2731,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             offered only while the report needs no change either. The reading is consumed once the
                             run is back and made durable only by the reconciliation's write, so a paused,
                             interrupted, refused, or close-latched run leaves every baseline where it was, and so
-                            does one whose CLI stopped before it worked -- on its quota, any provider refusal
-                            (`agents/provider_failures`' wider verdict, a 401 or 429 included), or a
+                            does one whose CLI stopped before it worked -- on its quota, a Claude notice or an
+                            Antigravity failure record naming it, asked ahead of the timeout so a run that also ran
+                            out its clock is still read as stopped; any provider refusal
+                            (`agents/provider_failures`' wider verdict, a 401 or 429 included); or a
                             failed exit with nothing said -- whose park stands over guidance still unread. The two
                             entry points are this owner's own --
                             the guidance that buys a run, and the reply to a revision that stalled -- and each asks
@@ -2863,7 +2873,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             as this one begins -- every shape re-anchors the checked head, so a stale verdict beside
                             it would advertise a head no pass has documented as ready to merge -- plus the resume,
                             recovered-commit, and fresh-spawn shapes
-      outcomes.py           the timeout / dirty / commit / `DOCS: NO_CHANGE` order a finished run is read in
+      outcomes.py           the timeout / dirty / commit / `DOCS: NO_CHANGE` order a finished run is read in, a
+                            timeout or a tree not proved clean an account quota's stop left parked as the session
+                            limit rather than `agent_timeout` or the tree's park, the edits left in the checkout
       subject.py            the single ` (#N)` reference the docs commit's subject is normalized to end in under
                             `PR_REF_IN_SUBJECT`, ahead of the gate. Both numbers this pass knows -- the tracked issue's
                             and the pull request's -- go to the shared `git/publication/pr_references` owner, so the
@@ -3020,11 +3032,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             replay settles the batch it REPLAYED joined with the fresh rescan, each item against the
                             reader of the surface it was posted on
       reporting.py          the settlement-driven form of that road, which the resume above disposes every
-                            reported round through. Which reply this is -- a report, an ordinary answer, or one that reached
-                            for the contract and missed, an `ACK:` beside a report, which is held for a human rather
-                            than acted on by either half; whether a round that committed nothing may publish onto
-                            the head its pull request already carries, on the affirmative proof that the head read,
-                            never moved, is the one the pull request is STANDING on, and left a tree proved clean.
+                            reported round through, a run an account quota stopped parked as the session limit over
+                            the debt the missing-report parks would record. Which reply this is -- a report, an
+                            ordinary answer, or one that reached for the contract and missed, an `ACK:` beside a
+                            report, which is held for a human rather than acted on by either half; whether a round
+                            that committed nothing may publish onto the head its pull request already carries, on
+                            the affirmative proof that the head read, never moved, is the one the pull request is
+                            STANDING on, and left a tree proved clean.
                             Three readings there HOLD rather than answering -- a pull request reading this poll
                             could not take, a head the checkout would not name, and a tree status that established
                             nothing are about this tick and not about the round, so nothing is published and
@@ -3189,8 +3203,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `engine/retry_budget.py`'s entire, gate and park alike, and the spawn road calls it
                             there
       session_read.py       the locked session read, every id either pin field holds (the legacy one that read
-                            hides once `dev_agent` is pinned included), the stale / overflow / quota classifiers,
-                            and the blockquote they quote with
+                            hides once `dev_agent` is pinned included), the stale / overflow / quota classifiers --
+                            the quota one asking a failure record's verdict as well as the final message -- and
+                            the blockquote they quote with
       session_retirement.py the record of a developer conversation retired as failed (`dev_session_retirement`):
                             the idempotent retirement that records it and clears the pins with `dev_agent` kept,
                             the reading the planned resume asks before either counter, the pin a fresh spawn's id
@@ -3249,12 +3264,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             settlement; both heads must be readable and the run must leave commits above its floor --
                             with two exceptions: an issue still owing a report it could not deliver, where a run that
                             comes back with a report and moved no head is publishing the commits already on the branch
-                            rather than asking a question; and an intentional `/orchestrator continue` retry of an
-                            `agent_execution_failed` park whose failed run committed work before parking and whose retry
-                            now returns a valid report outcome without moving HEAD again. A RECOVERED run -- the restart
-                            shortcut -- is settled against the pinned comment as well as the tree, through
-                            `unreported_recovery.py`. The timeout park is bounded so its notice cannot carry the
-                            watermark over a reply written while the agent was out
+                            rather than asking a question; and an intentional `/orchestrator continue` retry of a park
+                            that kept the failed run's floor -- `agent_execution_failed` past unfinished tool steps,
+                            or the `agent_silent` session-limit park of any quota stop -- whose failed run committed
+                            work before parking and whose retry now returns a valid report outcome without moving HEAD
+                            again. A RECOVERED run -- the restart shortcut -- is settled against the pinned comment as
+                            well as the tree, through `unreported_recovery.py`. The timeout park is bounded so its
+                            notice cannot carry the watermark over a reply written while the agent was out, and a
+                            timed-out run an account quota stopped takes the question park's session-limit branch
+                            instead of it -- as does a quota stop's commit over a tree not provably clean, which
+                            publishes only over a clean one
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
                             through a proved clean tree and the size gate; a recovery hands on the candidate it proved.
                             The report the run wrote is recorded between the tree and the gate, the last moment it is
@@ -3871,8 +3890,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report claims -- delivered, pending, settled, or too damaged to say -- is left to the
                             binding's collision park while that report is owed, and parks here once it has settled
       handoff.py            the one write and the one relabel a finished publication is handed on by, spending the
-                            two park reasons reaching that line answers -- the agent timeout, and the report this
-                            publication could not deliver and since did: the pull request and the branch recorded
+                            park reasons reaching that line answers -- the agent timeout, the execution failure,
+                            the silent or quota park a shipped commit got past, and the report this publication
+                            could not deliver and since did: the pull request and the branch recorded
                             together, since a state that arrived without a
                             branch would leave the next tick resolving the legacy name while the live pull
                             request sits on the slug-namespaced one; the plan SHA, the certified baseline, the
@@ -3884,7 +3904,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             of the seam's roads publish without reading the thread at all and the reply that
                             ended the park would cross this line unread, to be taken for fresh feedback on the
                             stage it lands in; the review round, the retry budget, the granted attempts, the
-                            silent-park streak, and the timeout watermark all reset, since the issue moved
+                            silent-park streak, and the `pre_implement_sha` watermark a timeout recovery and a
+                            failed run's attribution read all reset, since the issue moved
                             forward and any of them left behind would mis-fire a later hop back into
                             implementing -- and every one of those written durably AHEAD of the
                             `workflow:validating` label, so nothing this line spends is stranded on an issue
@@ -3897,12 +3918,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the work and use the shared watermark reader after posting their notice; the refusal
                             reports which half failed, how many paths git named where it named any, and whether the
                             run had timed out
-      parks.py              classify unfinished commands, session limits, transient provider failures, real questions,
+      parks.py              classify session limits, unfinished commands, transient provider failures, real questions,
                             and silent exits; retryable failures keep their reason and streak, while a question clears
-                            both. Structured unfinished command diagnostics precede message checks; otherwise the
-                            final message picks the branch -- the quota and provider phrasings matched as a prefix,
-                            an empty one the silent exit -- reporting the branch that ran so the emitted vocabulary
-                            stays closed however the agent phrased itself
+                            both, and the execution-failure and quota parks keep the run's `pre_implement_sha`
+                            floor for a continue retry's attribution. A quota stop comes first -- a failure
+                            record's quota verdict, read without the final message and ahead of unfinished command
+                            diagnostics, or a Claude notice matched as a prefix -- and an Antigravity one's notice
+                            explains the exhausted account with the reset interval and diagnostics; structured
+                            unfinished command diagnostics precede the remaining message checks, where the final
+                            message picks the branch -- the provider phrasings matched as a prefix, an empty one the
+                            silent exit -- reporting the branch that ran so the emitted vocabulary stays closed
+                            however the agent phrased itself
       drift.py              a body edit mid-implementation: the resume it earns -- withheld while a continuation
                             has bought an attempt, since a resume passes no gate and the attempt is owed as a fresh
                             spawn -- and the `ACK:` that answers it. A commit-less reply bringing the report an
@@ -4310,7 +4336,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the size gate every fix route publishes through, told the
                             state the run really belongs to by the route that relabels before it spawns rather
                             than reading it off the issue object, the push and the approval it spends, the round
-                            bump, and the bounded timeout park
+                            bump, and the bounded timeout park, which a timeout an account quota caused skips for
+                            the session limit the shared question park takes -- as do the fix-report and drift
+                            dispositions beside it, and as a quota stop's commit over a tree not provably clean does
+                            in place of the tree's park
       stranded.py           one reading of a branch against the publication it is on, answered in words rather
                             than yes-or-nothing. Eight findings, two of them readings and six refusals. A clean
                             checkout fetched and proved strictly AHEAD of the remote pull request branch and
@@ -4393,7 +4422,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             road publishes may be work no report describes: the run's report recorded ahead of the
                             size gate under the route and the revision its CALLER handed it -- the prompt-delivery
                             record's on either review stage and on `resolving_conflict` -- a
-                            commit of this run's with no usable report parked rather than pushed, a report alone
+                            commit of this run's with no usable report parked rather than pushed -- as the session
+                            limit, over the same debt, where an account quota stopped the run -- a report alone
                             recorded only over a tree proved clean -- parked on the tree otherwise, with nothing
                             recorded -- and a commit an earlier run stranded, under a run that committed NOTHING,
                             withheld until a reply brings the report that describes it; a run that committed is
@@ -4495,7 +4525,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             before the binding or on the settlement is finished later by its receipt; a moved head
                             or an edit records nothing. A commit (recorded as work no report describes), loose work, a
                             timeout, and a `REPORT: VERIFIED` of the report already there park under
-                            `report_undeliverable`; any other finished run with no report takes the agent-failure park
+                            `report_undeliverable`; any other finished run with no report -- and one an account
+                            quota stopped, whatever its checkout reads as, a commit it left off the head still
+                            recorded as work no report describes -- takes the agent-failure park
                             `implementing/parks.py` classifies, route `report_refresh` -- a run that left a command
                             unfinished among them, read so ahead of any report block it wrote. Each park records
                             `developer_report_owed`, so the reply is read as the report it owes

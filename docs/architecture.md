@@ -599,11 +599,14 @@ lock, and the resume mechanic are documented in
   final message, and only when the structured lifecycle reducer reports no unfinished tool steps. When unfinished steps
   remain, the terminal response is suppressed, the outcome is forced non-zero, and `AgentResult.unfinished_steps`
   carries the step identities for recovery. Missing or failed terminal results produce a nonzero outcome, with
-  diagnostics in `stderr`; `INTERRUPTED` and `CANCELED` also mark the run interrupted. Partial text remains available
+  diagnostics in `stderr`; `INTERRUPTED` and `CANCELED` also mark the run interrupted, though one whose failure record
+  names the exhausted quota is not read as a shutdown-sweep kill (`agents/models.py`'s
+  `is_shutdown_sweep_interrupted`), so it reaches disposition rather than being dropped. Partial text remains available
   in the trajectory. Neither a response step, on either side of the terminal, nor a `DOCS: NO_CHANGE` response
   overrides an error, interrupted, or missing terminal, and no later step is trusted to repair a stale one. Every
   run that fails the gate also carries `AgentResult.terminal_failure`, read by `agents/agy_failures.py`:
-  `process_exit_code` keeps what the subprocess returned, since a zero return is normalized to `exit_code == 1`;
+  `process_exit_code` keeps what the subprocess returned, since a zero return is normalized to `exit_code == 1`, or
+  `None` where nothing was captured -- a run the timeout killed carries the runner's `-1` sentinel instead;
   `status` (`None` when no terminal result named one) and `error` are the terminal's, each redacted with
   `redact_secrets` before it is cut to a 1,024-character budget; `quota_exhausted` is the account-quota verdict and
   `quota_reset` the reset interval as AGY phrased it (`2h42m39s`), or `None`. The verdict reads failure evidence
@@ -614,7 +617,10 @@ lock, and the resume mechanic are documented in
   a successful answer about a quota stays an answer and an unrelated failure keeps its classification. The reset is
   read from the complete diagnostic, so a wrapped message keeps it: the whole terminal error, the decoded strings of
   the structured payload, or an `error:` line with the lines continuing it up to a blank line or the next
-  diagnostic, where only the opening line decides the verdict. No workflow stage reads the record.
+  diagnostic, where only the opening line decides the verdict. The shared question park
+  (`workflow/stages/implementing/parks.py`) takes the session-limit park on the quota verdict, asked through
+  `session_read.py`'s quota classifier, and `workflow/engine/agent_diagnostics.py` reads `quota_reset` and
+  `process_exit_code` for the notices it renders.
 - **Input**: prompt string; optional resume session id; timeout (`AGENT_TIMEOUT` / `REVIEW_TIMEOUT`).
 - **Output**: `AgentResult(...)`. `session_id` is harvested by `agents/session_ids.py` walking the JSONL events for
   any UUID-shaped value at `session_id` / `conversation_id` / etc. (shared across all backends).

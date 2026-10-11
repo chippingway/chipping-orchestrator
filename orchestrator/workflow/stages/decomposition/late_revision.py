@@ -249,18 +249,21 @@ def _read_by(
     a dirty tree, or a measurement nothing could take parks with the replies
     still owed to the run the answer to that park buys.
 
-    A CLI that stopped before it started -- a quota notice, any refusal its
+    A CLI that stopped before it started -- a quota stop, any refusal its
     provider answered the turn with (an auth refusal or a rate limit as much
     as an outage), a failed exit with nothing said -- read none of it, so
     nothing is consumed and nothing owed is repaid: the park that run earns
-    stands over guidance still unread. A timeout did work on the reading, and
-    what it left is reconciled as its answer, so its guidance is consumed the
-    way every stage consumes a timed-out batch; what it was quoted whole stays
-    owed, since a run stopped short has acted on none of it for certain.
+    stands over guidance still unread. The quota stop and the refusal are
+    asked ahead of the timeout, because each names why the CLI stopped and a
+    run that also ran out its clock stopped for that reason all the same. Any
+    other timeout did work on the reading, and what it left is reconciled as
+    its answer, so its guidance is consumed the way every stage consumes a
+    timed-out batch; what it was quoted whole stays owed, since a run stopped
+    short has acted on none of it for certain.
     """
     said = (agent_result.last_message or "").strip()
     if (
-        _session_read._is_session_limit_message(agent_result)
+        _session_read._is_session_limit(agent_result)
         or _provider_failures.is_provider_refusal(agent_result)
         or (agent_result.exit_code != 0 and not said and not agent_result.timed_out)
     ):

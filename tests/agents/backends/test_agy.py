@@ -146,7 +146,11 @@ class AntigravityResultTest(unittest.TestCase):
                                  (exit_code, timed_out, interrupted))
                 self.assertEqual(agent_result.session_id, stream.SESSION_ID)
                 self.assertIn("stderr diagnostic", agent_result.stderr)
-                self.assertEqual(agent_result.terminal_failure, models.TerminalFailure(exit_code))
+                # A timed-out run's exit code is the runner's sentinel for a
+                # process it killed, so the record keeps no captured return.
+                self.assertEqual(
+                    agent_result.terminal_failure, models.TerminalFailure(None if timed_out else exit_code),
+                )
 
     def test_malformed_output_is_tolerated(self) -> None:
         terminals = (

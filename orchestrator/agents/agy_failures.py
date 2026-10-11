@@ -144,7 +144,7 @@ def terminal_failure(
     ]
     resets = (_QUOTA_RESET.search(message) for message in quota_messages)
     return _agent_models.TerminalFailure(
-        process_exit_code=process_result.exit_code,
+        process_exit_code=None if process_result.timed_out else process_result.exit_code,
         status=None if status is None else _redacted_bounded(str(status)),
         error=_redacted_bounded(str(terminal.get("error") or "")),
         quota_exhausted=bool(quota_messages),

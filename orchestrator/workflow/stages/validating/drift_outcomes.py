@@ -54,7 +54,7 @@ from orchestrator.workflow.engine import (
     messages as _messages,
     report_delivery as _report_delivery,
 )
-from orchestrator.workflow.stages.implementing import parks as _dev_parks
+from orchestrator.workflow.stages.implementing import parks as _dev_parks, session_read as _session_read
 from orchestrator.workflow.stages.validating import (
     dev_fix as _dev_fix,
     drift_reports as _drift_reports,
@@ -115,9 +115,18 @@ def _reads_the_finished_resume(
     state: PinnedState,
     run: _models._DevFixRun,
 ) -> str:
-    """Which road a finished drift resume's result belongs to."""
+    """Which road a finished drift resume's result belongs to.
+
+    A timeout publishes nothing, and parks as the session limit it also is
+    where an account quota stopped the run, rather than as `agent_timeout`.
+    """
     if run.agent_result.timed_out:
-        _dev_fix._park_dev_fix_timeout(gh, issue, state, run.before_sha)
+        if _session_read._is_session_limit(run.agent_result):
+            _dev_parks._on_question(gh, issue, state, _guards._ParkedRun(
+                run.agent_result, _guards._ROUTE_DEV_DRIFT_RESUME, before_sha=run.before_sha,
+            ))
+        else:
+            _dev_fix._park_dev_fix_timeout(gh, issue, state, run.before_sha)
         return _state._OUTCOME_PARKED
     publishable = _dev_fix._publishable_dev_fix(spec, issue, state, run)
     if publishable is None or _drift_reports._withholds_the_stranded(state, publishable):

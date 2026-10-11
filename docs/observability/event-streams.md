@@ -71,7 +71,9 @@ file is the durable record.
   `agent_execution_failed` with the operator told to reply `/orchestrator continue`; the same reason, with `stage`
   `fixing`, marks a handed change request whose developer launch may have started and left no result, whose
   `/orchestrator continue` replays the reviewer's feedback to a fresh developer session),
-  `agent_session_limit` (a quota-exhausted agent message, parked retryably as `agent_silent`),
+  `agent_session_limit` (a quota-exhausted agent message, or an Antigravity failure record whose diagnostics name the
+  exhausted account quota, parked retryably as `agent_silent`; `exit_code` stays the normalized code the result
+  carries, never relabeled the subprocess's own return),
   `agent_provider_unavailable` (a transient provider refusal — `API Error: 529 Overloaded` and its 5xx siblings —
   arriving as the agent's final message, parked retryably as `agent_silent` too), `dirty_worktree`,
   `unreadable_worktree` (a seam that publishes from a checkout, or resumes an agent over one, could not read what it
@@ -112,7 +114,8 @@ file is the durable record.
   allow-list: `route`, `agent_role` (always `developer`; every road into them runs or resumes the dev session, the
   docs pass included), `session_id`, `exit_code`, `retry_count`, and `pr_number`. The checkout refusals add
   `timed_out`, because a run the timeout killed still reaches the publication seam, while every road into the
-  question park has answered a timeout above it; the conflict route adds `conflict_round`, taken from the round the
+  question park has answered a timeout above it — save a quota stop, which reaches it as a session limit whatever its
+  clock said and reports no `timed_out`; the conflict route adds `conflict_round`, taken from the round the
   resume was given rather than the durable counter, which the rebase loop advances on its success path alone.
   `route` names the road rather than the stage, since one stage reaches these parks from several and one road is
   reached from several stages: `dev_run` (a fresh or resumed developer run under `workflow:implementing`),
@@ -122,12 +125,14 @@ file is the durable record.
   of a head this orchestrator rewrote). What the correlation payload deliberately does not do
   is report any part of what the agent wrote: no last message, prompt, captured stream, or report body reaches
   either sink, and every field in it is a structured identifier the caller already held. The `reason` beside it is
-  a different matter — `_on_question` classifies structured unfinished tool steps first as `agent_execution_failed`,
-  then picks among the remaining branches from the final message, matching the known quota and provider-refusal
-  phrasings as a prefix and reading an empty message as a silent exit — but it reports the branch that ran rather
-  than the text that selected it, so the vocabulary stays closed. That is also why an `agent_question` record sits
-  beside a pinned `park_reason` of null: the event names the classification, and null on the durable field is what
-  tells a later tick this park needs a human's actual guidance.
+  a different matter — `_on_question` classifies a quota stop first as `agent_session_limit`, from an Antigravity
+  failure record's quota verdict, read without the final message and ahead of any unfinished tool step, or from a
+  Claude notice matched as a prefix of the final message; then structured unfinished tool steps as
+  `agent_execution_failed`; then picks among the remaining branches from the final message, matching the known
+  provider-refusal phrasings as a prefix and reading an empty message as a silent exit — but it reports the branch
+  that ran rather than the text that selected it, so the vocabulary stays closed. That is also why an
+  `agent_question` record sits beside a pinned `park_reason` of null: the event names the classification, and null on
+  the durable field is what tells a later tick this park needs a human's actual guidance.
 
   The returned-verdict parks (`stages/validating/review_parks.py`), which a live reviewer round's verdict takes through
   the disposition, emit for themselves as well, and only once the write that lands the park is down:

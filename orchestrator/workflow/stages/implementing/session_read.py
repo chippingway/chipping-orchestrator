@@ -12,8 +12,11 @@ must refuse a legacy pin the read no longer resolves. The three classifiers
 beside them read the other direction
 -- the CLI's own words -- and each answers exactly one recovery question: was
 the session GC'd, did its transcript outgrow the context window, is the account
-out of quota. They sit with the reads because all are about the same
-session and none of them may act: each returns a verdict its caller disposes.
+out of quota. The last is asked of both places a quota stop arrives: the final
+message a Claude notice takes, and the failure record a backend that keeps one
+classified its failure channels into. They sit with the reads because all are
+about the same session and none of them may act: each returns a verdict its
+caller disposes.
 
 `_as_blockquote` is here because every one of those verdicts ends up quoted
 back to a human in the comment the park posts.
@@ -139,18 +142,27 @@ def _is_context_overflow_failure(
     return any(marker in stderr for marker in _state._CLAUDE_CONTEXT_OVERFLOW_MARKERS)
 
 
-def _is_session_limit_message(agent_result: AgentResult) -> bool:
-    """True iff the result message is a Claude session/usage/weekly-quota notice.
+def _is_session_limit(agent_result: AgentResult) -> bool:
+    """True iff the run stopped on an exhausted account quota.
 
-    A non-empty quota notice ("You've hit your session limit ...", "You've hit
-    your weekly limit ...") is not a real agent question: the session is
-    healthy and the only recovery is to wait for the reset and retry, however
-    far away that reset is. Matched as a PREFIX of the normalized last agent
+    Two channels carry that stop. A backend that keeps a failure record names
+    it there (`terminal_failure.quota_exhausted`): Antigravity's arrives on
+    its terminal error and stderr diagnostics with the final message left
+    empty, so no reading of `last_message` could find it, and the record is
+    trusted whatever the run left beside it -- an unfinished tool step
+    included. Otherwise the stop is a Claude session/usage/weekly-quota notice
+    ("You've hit your session limit ...", "You've hit your weekly limit ...")
+    returned as the final message, matched as a PREFIX of the normalized
     message so a dev reply that merely mentions a limit mid-answer is not
-    caught. Backend-agnostic on purpose -- the phrasings are
-    distinctive enough that a non-Claude backend echoing them would still be a
-    quota stop, and `_on_question` (the sole caller) has no backend in hand.
+    caught -- backend-agnostic on purpose, since the phrasings are distinctive
+    enough that a non-Claude backend echoing them would still be a quota stop.
+
+    Neither is a real agent question: the only recovery is to wait for the
+    reset and retry, however far away that reset is.
     """
+    failure = agent_result.terminal_failure
+    if failure is not None and failure.quota_exhausted:
+        return True
     msg = (agent_result.last_message or "").strip().lower().replace("’", "'")
     return any(
         msg.startswith(marker) for marker in _state._CLAUDE_SESSION_LIMIT_MESSAGE_MARKERS

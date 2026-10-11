@@ -51,6 +51,7 @@ from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.workflow.engine import report_delivery as _report_delivery
 from orchestrator.workflow.stages.validating import review_report as _review_report
 from tests.workflow import (
+    agent_failure_values as _agent_failures,
     drift_reports as _drift_world,
     fix_reports as _fix_world,
     published_reports as _published_reports,
@@ -106,6 +107,14 @@ FAILED_RUNS = (
         UNDELIVERABLE,
         TIMED_OUT,
     ),
+    # A timeout an account quota caused is that quota's session limit, which
+    # a bare continue retries once it resets.
+    (
+        "a quota stop past its timeout",
+        _agent_failures.agy_quota_stop(timed_out=True),
+        "agent_silent",
+        "account quota is exhausted",
+    ),
     # A report block from a run that ended with a command still running is no
     # report: nothing it claims was verified.
     (
@@ -127,6 +136,25 @@ _CLEAN = _WorktreeStatus(readable=True, paths=())
 LEFT_CHECKOUTS = (
     ("a commit", {_drift_world.HEAD_SHAS: (REWRITTEN_HEAD, _drift_world.FIXED_HEAD)}, True),
     ("loose work", {"tree_states": (_CLEAN, _WorktreeStatus(readable=True, paths=("notes.txt",)))}, None),
+)
+
+# Each of those checkouts under each run that can leave it, beside the park it
+# takes: a run that answered with a report of something the pull request does
+# not carry parks it undeliverable, and one an account quota stopped -- a tool
+# step still open -- parks as that quota's session limit, the work left where
+# it is and the report still owed.
+MOVED_CHECKOUTS = tuple(
+    (f"{run_name} over {checkout}", make(**made_with), park, options, unreported)
+    for run_name, make, made_with, park in (
+        ("a report", _support.fresh, {}, (UNDELIVERABLE, LEFT_THE_HEAD)),
+        (
+            "a quota stop",
+            _agent_failures.agy_quota_stop,
+            {"unfinished": True},
+            ("agent_silent", "account quota is exhausted"),
+        ),
+    )
+    for checkout, options, unreported in LEFT_CHECKOUTS
 )
 
 # Every world a refresh refuses before any agent runs -- what the pinned comment
@@ -461,15 +489,16 @@ class RefreshFailureTest(unittest.TestCase, _support._RefreshedReports):
 
     def test_a_run_that_moves_the_checkout_parks(self) -> None:
         # A run asked for a report alone that committed or left loose work
-        # handed back a report of something the pull request does not carry.
-        # A commit is recorded as work no report describes.
-        for name, options, unreported in LEFT_CHECKOUTS:
+        # handed back a report of something the pull request does not carry,
+        # unless the account quota stopped it first. A commit is recorded as
+        # work no report describes either way.
+        for name, run, park, options, unreported in MOVED_CHECKOUTS:
             with self.subTest(name):
                 self.rebased()
 
-                self.refreshed(_support.fresh(), **options)
+                self.refreshed(run, **options)
 
-                self.assert_parked(UNDELIVERABLE, LEFT_THE_HEAD)
+                self.assert_parked(*park)
                 self.assertEqual(
                     (self.pinned().get(_report_delivery.UNREPORTED_WORK), self.fresh_reports()),
                     (unreported, []),

@@ -8,7 +8,11 @@ trusted at all -- it returns without writing pinned state, so the whole tick's
 in-memory bookkeeping is discarded and the next process re-runs from durable
 state. Then a timeout, then a rebase still mid-flight, because a HEAD that
 moved during an unfinished rebase says nothing about whether the conflicts were
-resolved.
+resolved. Where an account quota is what stopped the run, either of those two
+takes the question park's session-limit branch instead of its own park: the
+quota is what a human has to wait out, and `/orchestrator continue` after the
+reset resumes a developer on the rebase, where the unfinished-rebase park
+would refuse that command.
 
 Only after those does the HEAD comparison mean anything: unchanged is a
 question or silence and parks like the implementing handler does, a dirty tree
@@ -37,6 +41,7 @@ from orchestrator.workflow.stages.implementing import (
     late_push as _late_push,
     late_records as _late_records,
     parks as _dev_parks,
+    session_read as _session_read,
 )
 
 
@@ -64,11 +69,6 @@ def _post_conflict_resolution_result(
     post-approval handoff to `documenting` in `_handle_validating`.
     """
     wt = run.worktree
-    # Interrupt / timeout / still-mid-rebase dispositions park (or, for the
-    # shutdown-sweep interrupt, silently drop) and signal the caller to stop.
-    if _park_stalled_conflict_result(ctx, run):
-        return
-
     # The round this resume was given, not the one pinned state carries: the
     # increment below is on the success path alone, so a park here would
     # otherwise report the round before the one that just ran.
@@ -78,6 +78,11 @@ def _post_conflict_resolution_result(
         conflict_round=conflict_round,
         before_sha=before_sha,
     )
+    # Interrupt / timeout / still-mid-rebase dispositions park (or, for the
+    # shutdown-sweep interrupt, silently drop) and signal the caller to stop.
+    if _park_stalled_conflict_result(ctx, run, parked):
+        return
+
     after_sha = _verification_probes._head_sha(wt)
     if run.dev_result.unfinished_steps or not after_sha or after_sha == before_sha:
         # Agent did not finish the rebase. Treat as an execution-failure /
@@ -86,6 +91,12 @@ def _post_conflict_resolution_result(
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
 
+    # A quota stop's resolution goes out only over a tree PROVED clean: a
+    # status nobody could take lists no dirty paths, and a reading that
+    # established nothing is no clean tree to push from.
+    if _session_read._is_session_limit(run.dev_result) and not _worktree_status._worktree_status(wt).is_clean:
+        _parks_a_quota_stop(ctx, parked)
+        return
     dirty = _worktree_status._worktree_dirty_files(wt)
     if dirty:
         _checkout_parks._on_dirty_worktree(
@@ -100,7 +111,9 @@ def _post_conflict_resolution_result(
 
 
 def _park_stalled_conflict_result(
-    ctx: _models._ConflictContext, run: _models._ConflictResumeRun,
+    ctx: _models._ConflictContext,
+    run: _models._ConflictResumeRun,
+    parked: _guards._ParkedRun,
 ) -> bool:
     """Park (or silently drop) a conflict-resolution run that never landed
     a usable commit. Returns True when the tick is fully handled.
@@ -108,8 +121,9 @@ def _park_stalled_conflict_result(
     Covers the three dispositions that precede any HEAD inspection: a
     shutdown-sweep interruption (drop the result, return WITHOUT writing
     pinned state so the rebase re-runs from durable state), an agent
-    timeout, and a rebase left mid-flight. Returns False to let the caller
-    inspect HEAD for a completed resolution.
+    timeout, and a rebase left mid-flight -- the last two parked as the
+    session limit `parked` is where an account quota stopped the run.
+    Returns False to let the caller inspect HEAD for a completed resolution.
     """
     dev_result = run.dev_result
     # Shutdown-sweep interruption: a conflict-resolution run the orchestrator
@@ -120,6 +134,8 @@ def _park_stalled_conflict_result(
     if _guards._ignore_if_interrupted(ctx.issue, dev_result):
         return True
 
+    if dev_result.timed_out and _session_read._is_session_limit(dev_result):
+        return _parks_a_quota_stop(ctx, parked)
     if dev_result.timed_out:
         _conflict_parks._park_conflict(
             ctx,
@@ -130,11 +146,13 @@ def _park_stalled_conflict_result(
         )
         return True
 
-    return _parks_an_unfinished_rebase(ctx, run)
+    return _parks_an_unfinished_rebase(ctx, run, parked)
 
 
 def _parks_an_unfinished_rebase(
-    ctx: _models._ConflictContext, run: _models._ConflictResumeRun,
+    ctx: _models._ConflictContext,
+    run: _models._ConflictResumeRun,
+    parked: _guards._ParkedRun,
 ) -> bool:
     """Park a run that returned with the rebase still mid-flight; True where it did.
 
@@ -143,10 +161,17 @@ def _parks_an_unfinished_rebase(
     any report of it recorded, which would describe a branch that is not
     finished being written. Asked by the resolution funnel above and by the
     road a body edit's resume and the reply behind it take
-    (`resume_reports`).
+    (`resume_reports`), each handing the park its own road as `parked`.
+
+    A run an account quota stopped mid-rebase parks as the session limit it
+    is rather than as `rebase_in_progress`: that reason refuses a bare
+    `/orchestrator continue`, which is the one reply a quota stop needs once
+    the quota resets.
     """
     if not _base_sync_pre_pr._rebase_in_progress(run.worktree):
         return False
+    if _session_read._is_session_limit(run.dev_result):
+        return _parks_a_quota_stop(ctx, parked)
     raw = run.dev_result.last_message.strip()
     quoted = ""
     if raw:
@@ -158,6 +183,19 @@ def _parks_an_unfinished_rebase(
         f"guidance to resume.{quoted}",
         reason="rebase_in_progress",
     )
+    return True
+
+
+def _parks_a_quota_stop(ctx: _models._ConflictContext, parked: _guards._ParkedRun) -> bool:
+    """Park a stalled run the account quota stopped through the shared question park; always True.
+
+    That park sends it to the session-limit branch -- `agent_silent` pinned,
+    `agent_session_limit` reported, and the reset and diagnostics in the
+    notice -- and the rebase stays as the run left it for the developer the
+    continue resumes.
+    """
+    _dev_parks._on_question(ctx.gh, ctx.issue, ctx.state, parked)
+    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     return True
 
 

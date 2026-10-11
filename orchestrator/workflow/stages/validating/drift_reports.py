@@ -62,7 +62,11 @@ from orchestrator.workflow.engine import (
     report_outcomes as _outcomes,
     report_record_state as _record_state,
 )
-from orchestrator.workflow.stages.implementing import checkout_parks as _checkout_parks
+from orchestrator.workflow.stages.implementing import (
+    checkout_parks as _checkout_parks,
+    parks as _dev_parks,
+    session_read as _session_read,
+)
 from orchestrator.workflow.stages.validating import models as _models, state as _state
 
 _REPORTS = (_outcome_models._ReadyReport, _outcome_models._VerifiedReport)
@@ -124,6 +128,11 @@ def _records_the_run(
     and no session left to ask. So the failure is parked as the missing
     report it also is, and the reply that answers it resumes the session,
     which writes the report and publishes the work with it.
+
+    Unless an account quota is what stopped the run: the debt is recorded all
+    the same, but the park is the session limit the shared question park
+    takes, since the quota and its reset are what the operator waits out and
+    the missing-report park would refuse the bare continue that retries it.
     """
     if _report_delivery.recording_stops_the_tick(
         gh, issue, state, run.agent_result, run.handed,
@@ -132,6 +141,12 @@ def _records_the_run(
     if _reports(run.agent_result):
         return False
     _owes_the_undescribed(state)
+    if _session_read._is_session_limit(run.agent_result):
+        _dev_parks._on_question(gh, issue, state, _guards._ParkedRun(
+            run.agent_result, _guards._ROUTE_DEV_DRIFT_RESUME, before_sha=run.before_sha,
+        ))
+        gh.write_pinned_state(issue, state)
+        return True
     _report_delivery.parks_an_undeliverable_report(
         gh, issue, state,
         _UNFINISHED_PARK.format(mentions=config.HITL_MENTIONS),

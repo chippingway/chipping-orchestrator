@@ -35,7 +35,7 @@ from orchestrator.workflow.engine import (
     report_publishing as _report_publishing,
 )
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow import drift_reports as world, fix_report_crashes as crashes
+from tests.workflow import agent_failure_values as agent_failures, drift_reports as world, fix_report_crashes as crashes
 from tests.workflow.stages.conflicts import drift_report_support as conflict
 
 # What the reviewer behind a settled report says: no verdict, so it parks on
@@ -91,6 +91,15 @@ DELIVERED = "delivered"
 PENDING = "pending"
 CURRENT = "current"
 AGENT_TIMEOUT = "agent_timeout"
+
+# A run stopped with its rebase still mid-flight, beside the park it takes:
+# the timeout parks as one, and an account quota -- whether or not the timeout
+# fired after it -- as the session limit, both retried by a bare continue.
+MID_REBASE_STOPS = (
+    ("a timeout", conflict.TIMED_OUT, AGENT_TIMEOUT),
+    ("a quota stop", agent_failures.agy_quota_stop(unfinished=True), "agent_silent"),
+    ("a quota stop past its timeout", agent_failures.agy_quota_stop(timed_out=True), "agent_silent"),
+)
 HANDED_CLAIM = "conflict_handed_sha"
 LAST_ACTION = "last_action_comment_id"
 
@@ -286,21 +295,24 @@ class ResolvingConflictDriftReportTest(
                 self.assertEqual(set(self.records().values()), {None})
                 self.assertEqual(self.published_reports(), [])
 
-    def test_a_timeout_mid_rebase_is_retried(self) -> None:
-        # The timeout kills the session with its rebase still mid-flight. That
-        # reads first, as the resolution funnel reads it: a session failure,
-        # parked as the timeout it is, which `/orchestrator continue` retries
-        # -- not a rebase only a human can finish, which refuses the command.
-        self.seeded_on_conflict()
+    def test_a_stop_mid_rebase_is_retried(self) -> None:
+        # The timeout or the account quota stops the session with its rebase
+        # still mid-flight. That reads first, as the resolution funnel reads
+        # it: a session failure, parked as the timeout or the session limit it
+        # is, which `/orchestrator continue` retries -- not a rebase only a
+        # human can finish, which refuses the command.
+        for shape, stopped, reason in MID_REBASE_STOPS:
+            with self.subTest(stopped=shape):
+                self.seeded_on_conflict()
 
-        self.drift(conflict.TIMED_OUT, rebase_in_progress=True)[PUSH_BRANCH].assert_not_called()
+                self.drift(stopped, rebase_in_progress=True)[PUSH_BRANCH].assert_not_called()
 
-        self.assertEqual(self.pinned()[PARK_REASON], AGENT_TIMEOUT)
-        self.assertEqual(set(self.records().values()), {None})
-        world.human_reply(self, CONTINUE)
-        retried = self.drift(QUESTION_REPLY, committed=False)[RUN_AGENT]
-        retried.assert_called_once()
-        self.assertNotIn(CONTINUE, retried.call_args.args[1])
+                self.assertEqual(self.pinned()[PARK_REASON], reason)
+                self.assertEqual(set(self.records().values()), {None})
+                world.human_reply(self, CONTINUE)
+                retried = self.drift(QUESTION_REPLY, committed=False)[RUN_AGENT]
+                retried.assert_called_once()
+                self.assertNotIn(CONTINUE, retried.call_args.args[1])
 
     def test_a_capped_report_alone_still_settles(self) -> None:
         # The counter has spent every round, and the session answers the edit

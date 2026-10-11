@@ -20,8 +20,10 @@ class TerminalFailure:
     a missing, unsuccessful, or interrupted terminal result, or a successful
     one with unfinished tool steps behind it.
 
-    `process_exit_code` is what the subprocess itself returned. AGY normalizes
-    a zero return to `AgentResult.exit_code == 1` on failure, so the
+    `process_exit_code` is what the subprocess itself returned, or None where
+    no return was captured: a run the timeout killed reports the runner's `-1`
+    sentinel in place of whatever the killed process exited with. AGY
+    normalizes a zero return to `AgentResult.exit_code == 1` on failure, so the
     normalized code is no proof the CLI exited with it. `status` is the
     terminal result's status, None when no terminal result named one; it and
     `error`, the terminal error, are both redacted before they are bounded,
@@ -34,7 +36,7 @@ class TerminalFailure:
     interval as AGY phrased it, such as `2h42m39s`, or None when it named none.
     """
 
-    process_exit_code: int
+    process_exit_code: int | None
     status: str | None = None
     error: str = ""
     quota_exhausted: bool = False
@@ -142,7 +144,10 @@ def is_shutdown_sweep_interrupted(agent_result: AgentResult) -> bool:
     CANCELED/INTERRUPTED statuses with normal process exit codes), only runs
     without structured unfinished tool steps are ignored as interruptions; runs
     carrying structured unfinished steps are execution failures that must
-    proceed to disposition. Timed-out runs are never shutdown interruptions.
+    proceed to disposition. So is a backend cancellation whose failure record
+    names an exhausted account quota: the CLI stopped itself on the quota, and
+    ignored as a shutdown it would leave the issue unparked for the next tick
+    to spend another run on. Timed-out runs are never shutdown interruptions.
     """
     if getattr(agent_result, "timed_out", None) is True:
         return False
@@ -150,5 +155,8 @@ def is_shutdown_sweep_interrupted(agent_result: AgentResult) -> bool:
         return False
     if is_signal_interrupted(agent_result):
         return True
+    failure = getattr(agent_result, "terminal_failure", None)
+    if isinstance(failure, TerminalFailure) and failure.quota_exhausted:
+        return False
     unfinished = getattr(agent_result, "unfinished_steps", ())
     return not (isinstance(unfinished, (tuple, list)) and bool(unfinished))

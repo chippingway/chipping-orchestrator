@@ -62,7 +62,7 @@ from orchestrator.workflow.engine import (
     report_outcomes as _outcomes,
     report_records as _records,
 )
-from orchestrator.workflow.stages.implementing import parks as _dev_parks
+from orchestrator.workflow.stages.implementing import parks as _dev_parks, session_read as _session_read
 from orchestrator.workflow.stages.validating import (
     report_refresh_models as _models,
     report_settlement as _settlement,
@@ -124,9 +124,14 @@ def _disposes_the_refresh(
     Called for a run that finished, in the order the module note gives: the
     timeout, then the checkout, and only then the outcome the run ended on --
     which a run that left a command unfinished has none of, whatever its
-    message says, so it takes the execution-failure park instead.
+    message says, so it takes the execution-failure park instead. A run an
+    account quota stopped is asked about ahead of all three
+    (`_parks_a_quota_stop`).
     """
     head = refresh.head
+    if _session_read._is_session_limit(agent_result):
+        _parks_a_quota_stop(refresh, worktree, agent_result)
+        return
     if agent_result.timed_out:
         refresh.parks(_TIMED_OUT.format(head=head))
         return
@@ -148,6 +153,23 @@ def _disposes_the_refresh(
         refresh.parks(_VERIFIED.format(head=head))
     else:
         _parks_the_failure(refresh, agent_result)
+
+
+def _parks_a_quota_stop(
+    refresh: _models._ReportRefresh, worktree: Path, agent_result: AgentResult,
+) -> None:
+    """Park a refresh an account quota stopped as the session limit, whatever its checkout reads as.
+
+    The quota is what a human has to wait out, so it outranks the timeout and
+    the checkout refusals alike, whose `report_undeliverable` park would name
+    neither the quota nor the reset. What those would have kept is kept: a
+    commit the run left off the head is recorded as work no report describes,
+    loose work stays in the checkout, and the report the refresh owed stays
+    owed (`_parks_the_failure`) for the run the continue buys.
+    """
+    if _checkout_refusal(worktree, refresh.head) == _OFF_THE_HEAD:
+        refresh.state.set(_report_delivery.UNREPORTED_WORK, True)
+    _parks_the_failure(refresh, agent_result)
 
 
 def _left_the_head(refresh: _models._ReportRefresh, refusal: str) -> None:

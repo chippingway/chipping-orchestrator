@@ -291,7 +291,9 @@ Result routing in `_post_user_content_change_result`:
   failures other roads answer, and on the roads that exemption serves nothing is published either way — but this
   road publishes, so a commit pushed for such a run would reach the reviewer with no account of it anywhere and no
   session left to ask. The park says so in its own words rather than the engine's, which speaks for a developer
-  that finished and declined to report;
+  that finished and declined to report. A run an account quota stopped records the same debt and undescribed work
+  but parks as the session limit instead, through the shared question park, since the quota and its reset are what
+  the operator waits out and the missing-report park would refuse the bare continue that retries the run;
 - a no-commit reply whose clean HEAD is strictly ahead of the remote PR branch (a fix a prior parked / interrupted run
   committed but never pushed) is published through the push tail and counted as a pushed fix
   (`validating/stranded._stranded_evidence`), ahead of the ack check — EXCEPT on the requirements-drift road,
@@ -2139,7 +2141,9 @@ because there it is the claim that this stage has already rerouted rather than a
        `_resume_dev_with_text` rotates it, a fresh respawn preamble quoting the classifier's frozen conversation less
        the commands) rather than the nudge — and the result disposes
        through the normal commit / timeout / question paths, with no "issue body changed" notice. If the failed run
-       already committed work before parking, its tip moved past `pre_implement_sha` and above any inherited floor;
+       already committed work before parking — an unfinished-command run parked `agent_execution_failed`, or any run
+       an account quota stopped, parked `agent_silent`, either park keeping its floor — its tip moved past
+       `pre_implement_sha` and above any inherited floor;
        when an intentional retry returns a valid `REPORT: READY` outcome with no HEAD change, that clean ahead-of-base
        commit attributable to the failed run is published through the normal report, size, push, and PR gates, clearing
        `pre_implement_sha` and `park_reason`. A park needing a real
@@ -2240,7 +2244,9 @@ because there it is the claim that this stage has already rerouted rather than a
      - `interrupted` (shutdown sweep killed the run mid-flight) → ignore the partial result and return WITHOUT writing
        pinned state, so durable GitHub state stays exactly as the prior tick left it and the next process retries.
        Precedes every branch below and applies to both the awaiting-human and user-content-change resumes. Never posts a
-       HITL question, consumes `awaiting_human`, or advances a watermark.
+       HITL question, consumes `awaiting_human`, or advances a watermark. An Antigravity cancellation with no signal
+       behind it whose failure record names the exhausted quota is not one: the CLI stopped itself, so it reaches the
+       branches below and parks as a session limit rather than leaving the issue unparked for another run.
      - `paused` / `backlog` applied mid-run → same short-circuit as `interrupted`: return WITHOUT writing pinned
        state, so no PR opens, no relabel, no park, no watermark bump. `_paused_during_agent_run` re-reads a FRESHLY
        fetched issue (`gh.get_issue`) because the dispatch-time skip only saw the pre-run labels. Applies to the fresh
@@ -2253,7 +2259,9 @@ because there it is the claim that this stage has already rerouted rather than a
        goes through the same committed-work seam — the size gate, and `_on_commits` past it — exactly as a normal
        completion (a clean commit produced just before/around the kill is **not** stranded behind `awaiting_human`);
        an unfinished command, dirty tree, or run leaving nothing parks (`agent_timeout`) with `pre_implement_sha`
-       persisted for step 1's next-tick recovery. Neither reading answers alone. The `pre_implement_sha`
+       persisted for step 1's next-tick recovery — unless an account quota stopped it (`_is_session_limit`), which
+       takes `_on_question`'s session-limit park instead whatever the clock said, as the user-content-change resume's
+       timeout does too. Neither reading answers alone. The `pre_implement_sha`
        watermark is what tells a
        commit produced by THIS run apart from commits already carried on the branch, which `_has_new_commits` cannot
        (it only compares to `<remote>/<base>`, which a branch can arrive at this stage already ahead of). And
@@ -2266,9 +2274,9 @@ because there it is the claim that this stage has already rerouted rather than a
        that cannot be a commit — so an unread end differs from every commit there is, and on a branch that was
        already ahead of base (one a read-only relabel certified, one a size-gate park left a candidate on, one a
        human's guidance resumed a developer over) that difference publishes work the run never made.
-       (`_on_commits` clears the spent watermark + stale reason on publish.) Pairs with the hardened
-       `process_groups.terminate_process_group` (SIGKILLs surviving descendants after the leader exits) so a build
-       grandchild cannot keep committing into the worktree after the timeout is recorded.
+       (`_on_commits` clears the spent watermark + stale reason on publish, `agent_silent` included.) Pairs with the
+       hardened `process_groups.terminate_process_group` (SIGKILLs surviving descendants after the leader exits) so a
+       build grandchild cannot keep committing into the worktree after the timeout is recorded.
      - new commits + clean tree → the **late size gate** first (`implementing/late_gate.py` and the
        `late_records` / `late_freeze` / `late_evidence` / `late_verdict` / `late_parks` owners under it, plus
        `late_authority` for whether an adjudicated commit has a human behind it and `late_consent` / `late_command`
@@ -2498,21 +2506,36 @@ because there it is the claim that this stage has already rerouted rather than a
        instead. Any other invalid record is worded with no claim about size and points at the pinned comment and
        the log. No size is named where none was measured, and every recovery is a reply whose resume needs no new
        commit.
-     - new commits + dirty files → `_on_dirty_worktree`: park; refuse to publish a partial branch.
+     - new commits + dirty files → `_on_dirty_worktree`: park; refuse to publish a partial branch. A run an account
+       quota stopped takes the session-limit park over such a tree instead, timed out or not, the work left in the
+       checkout: its commit publishes only over a tree provably clean.
      - new commits + a tree `git status` could not report on → `_on_unreadable_worktree`: park under
        `unreadable_worktree`. An unreadable tree is not a clean one: the list form of that read maps its own failure
        to "no paths", which is the answer a clean tree gives, so the seam that publishes asks the status form and
        refuses on either half of "not provably clean". An index entry marked `assume-unchanged` / `skip-worktree`
        comes back as a path AND withholds the reading, so it takes the dirty park and is named there.
-     - no new commits → `_on_question`, which parks on the agent result and whose words the last message is. A run
+     - no new commits → `_on_question`, which parks on the agent result and whose words the last message is. A
+       quota stop (`_is_session_limit`) is classified first, from either channel it arrives on: the account-quota
+       verdict of the failure record Antigravity attaches to a failed run (`AgentResult.terminal_failure`), read
+       without the final message, which such a run leaves empty, and ahead of any unfinished tool step beside it;
+       or a Claude session-, usage-, or weekly-limit notice matched as a prefix of the final message. It parks
+       retryably as `agent_silent` and reports `agent_session_limit`. The Claude notice is quoted as it is; the
+       Antigravity notice explains that the account quota is exhausted, names the reset interval the failure gave
+       as a countdown from when the run stopped (or that it named none), and quotes the redacted 1KB stderr tail,
+       which carries the CLI's diagnostics and the terminal error, under a line that tells the subprocess's own exit
+       code apart from the orchestrator's normalized failure code, or says none was captured where the timeout killed
+       the run, since the runner reports a `-1` sentinel for a process it killed. Both tell the operator to reply
+       `/orchestrator continue` once the quota resets. A quota stop may follow commits the run made first -- beside an
+       unfinished tool step, or over a tree it left unclean -- so the quota park keeps the run's `pre_implement_sha`
+       floor the way the execution-failure park does, and the continue retry can still publish them. Past it, a run
        carrying unfinished command diagnostics (`unfinished_steps`) parks retryably as `agent_execution_failed` with
        an execution-failure notice explaining that cancelled or partial command output was not accepted and the
-       operator told to reply `/orchestrator continue`. A Claude session-, usage-, or weekly-limit notice
-       (`_is_session_limit_message`) and a transient provider refusal (`agents/provider_failures.py`'s
-       `is_transient_provider_failure` — `API Error: 529 Overloaded` and its 5xx siblings) are the CLI's rather than
-       the agent's, so both park retryably as `agent_silent` with the operator told to reply `/orchestrator continue`;
+       operator told to reply `/orchestrator continue`. A transient provider refusal (`agents/provider_failures.py`'s
+       `is_transient_provider_failure` — `API Error: 529 Overloaded` and its 5xx siblings) is the CLI's rather than
+       the agent's, so it parks retryably as `agent_silent` with the operator told to reply `/orchestrator continue`;
        any other non-empty message is posted as a real HITL question (`park_reason=None`); an empty one is the
-       silent-failure park (`agent_silent`).
+       silent-failure park (`agent_silent`). The silent and execution-failure notices name both exit codes too
+       wherever the run carries a failure record, and the plain exit code wherever it does not.
 - **Output**: one of four. A pushed branch + open PR + the report on it + label moved to `workflow:validating`; a
   pushed branch + open PR whose report is still owed, unparked and still on `workflow:implementing` for the next tick
   to finish; an **unpublished** committed candidate held under `workflow:decomposing` for size adjudication, with no
@@ -2675,8 +2698,13 @@ because there it is the claim that this stage has already rerouted rather than a
         returns WITHOUT pushing, posting the docs notice, advancing to `in_review`, ratcheting watermarks, or writing
         pinned state. The committed docs work stays on the branch and republishes through the `ahead > 0` recovered
         path once the label is removed (the recovered path itself runs no agent, so it observes no live-pause window).
-      - `timed_out` → park (`agent_timeout`).
-      - dirty worktree → `_on_dirty_worktree`: park.
+      - `timed_out` → park (`agent_timeout`); where an account quota stopped the run, the shared question park's
+        session-limit branch instead (`agent_silent` pinned, `agent_session_limit` reported). Nothing is published
+        either way.
+      - dirty worktree → `_on_dirty_worktree`: park — save a run an account quota stopped, which parks as the
+        session limit over any tree not proved clean instead (a status nobody could take included, which names no
+        paths), the edits left on disk for the developer a bare continue resumes, since the dirty-tree park pins no
+        retryable reason and would refuse that command.
       - new commit on a clean tree → **its subject normalized to one pull-request reference**, then the **size gate**
         every push onto an open pull request goes through (`implementing/late_push._publishes`, reached from
         `documenting/publication._push_docs_and_advance`). Under `PR_REF_IN_SUBJECT` (default on)
@@ -4383,7 +4411,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        label write GitHub refused — leaves the delivery unbound on `workflow:fixing`, where `_handle_fixing` step 4
        binds it and hands the round back on that mark, rather than letting its scan read whatever arrived since
        under a route the settlement has just closed. The dev spawn records `stage="fixing"` for analytics.
-       On any park (timeout, premature execution exit, no-commit, dirty, push-fail) the label STAYS
+       On any park (timeout -- or the session limit, where an account quota caused it --, premature execution
+       exit, no-commit, dirty, push-fail) the label STAYS
        `workflow:fixing` with `awaiting_human=True` and `_handle_fixing` owns the awaiting-human cycle thereafter. A
        premature AGY exit with unfinished tool steps triggers an immediate in-session continuation in the existing
        worktree; if unfinished steps persist across the continuation, the run is not publishable and parks under
@@ -4393,7 +4422,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        COMMITTED and handed over no usable report — including one that did not finish, which the engine exempts from
        the contract because the roads that exemption serves publish
        nothing either way — parks under `report_undeliverable` with nothing pushed, the commit in the worktree and
-       the round unspent, in this road's own words rather than the engine's. Every park a reporting round earns carries
+       the round unspent, in this road's own words rather than the engine's; a run an account quota stopped, there
+       or over a report an earlier round still owes, leaves the same debt under the session limit instead, which a
+       bare continue retries. Every park a reporting round earns carries
        the input its prompt delivered into the park's OWN write rather than a caller's afterwards: durable over
        feedback that still reads as unanswered, the park is one the next tick reads as fresh and resumes the developer
        over again, with nobody having replied and another agent run spent. An `interrupted` dev resume is ignored:
@@ -4945,11 +4976,13 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      It is matched as an EXACT LINE (`^\s*/orchestrator continue\s*$`), so a comment carrying the command line AND real
      guidance still counts as the command; the command is handled on BOTH routes so a session-limit / session-failure
      park (`agent_silent` / `agent_timeout` / `agent_execution_failed`) is never resumed on the bare command text.
-     Unfinished command executions are parked `agent_execution_failed` by `_on_question`, and two dev final messages
-     are parked `agent_silent` rather than as a real `park_reason=None` question, because neither is the agent's own
-     words: a recognized Claude session-, usage-, or weekly-limit notice (`_is_session_limit_message`, matched as a
-     prefix of the final message so an answer that merely mentions a limit stays an answer), and a transient provider
-     refusal such as `API Error: 529 Overloaded` (`agents/provider_failures.py`'s `is_transient_provider_failure`,
+     Unfinished command executions are parked `agent_execution_failed` by `_on_question`, and two kinds of stop are
+     parked `agent_silent` rather than as a real `park_reason=None` question, because neither is the agent's own
+     words: a quota stop (`_is_session_limit`) — a recognized Claude session-, usage-, or weekly-limit notice, matched
+     as a prefix of the final message so an answer that merely mentions a limit stays an answer, or the account-quota
+     verdict of an Antigravity failure record, which only failure diagnostics settle, so a successful answer about a
+     quota stays an answer too — and a transient provider refusal such as `API Error: 529 Overloaded`
+     (`agents/provider_failures.py`'s `is_transient_provider_failure`,
      which prefers the terminal result event's `is_error` flag and otherwise requires a non-zero exit beside the prefix,
      so a successful answer that merely quotes the error stays an answer). A quota reset, a provider that came back,
      and a retryable command failure are therefore retried here rather than refused as needing human guidance.
@@ -5371,8 +5404,11 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
   13. `_post_conflict_resolution_result`: `interrupted` (shutdown sweep killed the run mid-flight) → ignore the
       partial result and return WITHOUT writing pinned state, leaving durable state retryable (this is the one branch
       that does not write; it precedes all others); timeout / unfinished rebase / no commit / dirty / push fail →
-      park; success → force-with-lease push, record the report debt the resolved head owes, increment
-      `conflict_round`, reset `review_round=0`, flip to `workflow:validating`. Fresh-rebase pushes pin the lease to
+      park, a timeout, an unfinished rebase, or a resolution over a tree not proved clean an account quota caused
+      parking as the session limit (`agent_silent`, which a bare continue retries) rather than `agent_timeout`,
+      `rebase_in_progress`, or the tree's park; success → force-with-lease push, record the report debt the
+      resolved head owes, increment `conflict_round`, reset `review_round=0`, flip to `workflow:validating`.
+      Fresh-rebase pushes pin the lease to
       the pre-rebase PR head; awaiting-human resume
       pushes pin it to the head the pull request was standing on when the tick fetched it, which is read BEFORE the
       session resumes — the local `before_sha` may be an intermediate SHA on a worktree that is mid-rebase or already
@@ -5485,16 +5521,18 @@ measurement exists to prevent.
   rebase already published, nothing is pushed, no round is spent, and the issue stays here as on an `ACK:` until
   the next tick's no-op flip or rebase hands it on. A finished run that committed with no usable report, a report no
   record can carry, and a commit an incomplete run left all publish nothing and park under `report_undeliverable`,
-  as on the review stages. The reply that answers such a park — or a `push_failed` park behind a recorded report —
+  as on the review stages -- save a commit an account quota's stop left, which keeps the same debt under the
+  session limit. The reply that answers such a park — or a `push_failed` park behind a recorded report —
   is the rest of the same road rather than a conflict resolution: `_resume_awaiting_human` asks whether the issue
   owes a report before the run, and where it does the reply's run goes through the same disposition and publishes
   the commit the first run left under the report the reply wrote -- unless the run left the rebase mid-flight, which
   parks `rebase_in_progress` as the resolution funnel does, recording no report and pushing nothing, as the body
   edit's own resume does too. A timeout reads ahead of that, as in the funnel: the run parks `agent_timeout`, which
-  `/orchestrator continue` retries rather than refusing. The reply's publication is leased against the head the
-  pull request stood on before the run, which the divergence guard ahead of the resume admitted, so a rebase past
-  that head goes out even where the reply commits nothing more: the shared stranded-commit proof reads such a
-  branch as a remote that moved, so a lease its caller names is never asked of that proof
+  `/orchestrator continue` retries rather than refusing -- and a run an account quota stopped, mid-rebase or past
+  its timeout, parks as the session limit, which the same command retries. The reply's publication is leased against
+  the head the pull request stood on before the run, which the divergence guard ahead of the resume admitted, so a
+  rebase past that head goes out even where the reply commits nothing more: the shared stranded-commit proof reads
+  such a branch as a remote that moved, so a lease its caller names is never asked of that proof
   (`validating/dev_fix._replaced_head`). The body edit's resume names the head it began at the same way. A pull
   request somebody pushes to while either run is out is therefore refused by the size gate rather than adopted as
   the head the push replaces, even where the candidate still descends from it. A run that commits
