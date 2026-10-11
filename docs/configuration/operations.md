@@ -1128,11 +1128,13 @@ agent sessions, its pull request and branch, its child issues and dependency gra
 any park, the drift baseline, the retry and review counters, and the timestamps. What is kept is the pinned comment
 itself, the ids of the comments the orchestrator has posted on the thread, and the issue's cumulative agent-run,
 token, and cost counters — so the receipt a later terminal posts still reports what the whole issue has spent, not
-just what the newest attempt did. A child an ordinary split created keeps its seed as well — its `parent_number` and
-its `late_ancestry_*` group, the snapshot pointer included — because the receipt in its body holds every later
-dispatch to that seed ([below](#re-decomposing-an-issue-inside-a-late-lineage)); nothing of the cancelled cycle's
-candidate, exemption, or authorization comes with it. Child issues the cancelled cycle created on GitHub are **not**
-touched: they are real issues carrying real work, and what happens to them stays a human's decision.
+just what the newest attempt did. The record of developer conversations retired as failed (`dev_session_retirement`) is
+kept too, so the fresh attempt never pins or resumes one of them, even where a backend hands its id back to the first
+spawn. A child an ordinary split created keeps its seed as well — its `parent_number` and its `late_ancestry_*` group,
+the snapshot pointer included — because the receipt in its body holds every later dispatch to that seed
+([below](#re-decomposing-an-issue-inside-a-late-lineage)); nothing of the cancelled cycle's candidate, exemption, or
+authorization comes with it. Child issues the cancelled cycle created on GitHub are **not** touched: they are real
+issues carrying real work, and what happens to them stays a human's decision.
 
 If you apply that same target label by hand while a restart is mid-transaction, you will see the orchestrator take
 it off and put it straight back. That is deliberate, not a fight over the label: its own application of the target
