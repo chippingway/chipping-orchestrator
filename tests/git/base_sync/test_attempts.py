@@ -39,6 +39,8 @@ KEY_REWRITE_STAGE = "pending_auto_base_rebase_rewrite_stage"
 
 KEY_ANNOUNCED_SHA = "pending_auto_base_rebase_announced_sha"
 
+KEY_REWRITE_BASE = "pending_auto_base_rebase_rewrite_base"
+
 # The publication one attempt is made for. `in_review` is a stage that pushes
 # onto a pull request the remote already carries, which is the only kind this
 # record may name.
@@ -50,6 +52,13 @@ ATTEMPT_STAGE = WorkflowLabel.IN_REVIEW
 # values that are not one: an abbreviation names a commit no comparison could
 # make, and a word is not hex at all.
 REPLAYED_SHA = "5ca1ab1e" * 5
+
+# The base tip a replay was made onto, written beside it.
+ONTO_SHA = "0e70ba5e" * 5
+
+# The base tip this fixture's divergence reading answers with, which the
+# anchor's write freezes off the base ref before git runs.
+FROZEN_BASE_SHA = "ba5e0000" * 5
 
 ABBREVIATED_SHA = REPLAYED_SHA[:8]
 
@@ -85,27 +94,38 @@ _ANCHOR_AND_TERMS = MappingProxyType({
     KEY_ANCHOR: BEFORE_SHA,
     KEY_REWRITE_PR: PR_NUMBER,
     KEY_REWRITE_STAGE: LABEL_IN_REVIEW,
+    KEY_REWRITE_BASE: FROZEN_BASE_SHA,
 })
 
 _WITH_THE_REPLAY = MappingProxyType({
-    **_ANCHOR_AND_TERMS, KEY_REWRITE_SHA: REPLAYED_SHA,
+    **_ANCHOR_AND_TERMS, KEY_REWRITE_SHA: REPLAYED_SHA, KEY_REWRITE_BASE: ONTO_SHA,
 })
 
 # Those writes in the order the flow makes them, each beside the moment it is
 # the first one able to answer for its member.
 _WRITERS = (
     (
-        "the anchor and the terms, before git runs",
+        "the anchor, the terms, and the base tip frozen for the rebase, before git runs",
         lambda context: startup._record_auto_rebase_attempt(
             context, BEFORE_SHA, None,
         ),
         _ANCHOR_AND_TERMS,
     ),
     (
-        "the head the replay produced",
-        lambda context: attempts._records_the_replay(context, REPLAYED_SHA),
+        "the head the replay produced, and the base tip it was made onto",
+        lambda context: attempts._records_the_replay(context, REPLAYED_SHA, ONTO_SHA),
         _WITH_THE_REPLAY,
     ),
+)
+
+
+# What a recorded base tip reads back as: a whole commit id itself, and an
+# absent, abbreviated, or non-hex one as no tip at all.
+_RECORDED_TIPS = (
+    (ONTO_SHA, ONTO_SHA),
+    (None, ""),
+    (ONTO_SHA[:8], ""),
+    (NOT_A_SHA, ""),
 )
 
 
@@ -185,6 +205,21 @@ class PendingRewriteReadTest(unittest.TestCase):
 
         self.assertFalse(pending.damaged)
         self.assertFalse(pending.left_a_replay)
+
+    def test_the_base_tip_stands_apart(self) -> None:
+        # The tip a replay was made onto is no member of the group: a record
+        # naming none -- written before it existed -- is still whole, and a
+        # tip that is not a whole commit id names no base.
+        for recorded, read in _RECORDED_TIPS:
+            with self.subTest(recorded=recorded):
+                state = _recorded(**{KEY_REWRITE_BASE: recorded})
+
+                pending = _attempt_records._pending_rewrite(state)
+
+                self.assertEqual(
+                    (_attempt_records._recorded_onto(state), pending.is_recorded, pending.damaged),
+                    (read, True, False),
+                )
 
     def test_the_terms_alone_date_the_attempt(self) -> None:
         # The terms go down before git runs and the head after it, so a

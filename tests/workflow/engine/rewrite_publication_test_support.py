@@ -48,9 +48,10 @@ class RewriteWorld:
 
     `head` is what the checkout proves to; `base_tip` is where the base ref
     stands -- the tip the candidate was read over, one repointed off it, or
-    None for a count nobody could take; `answers` is whether the remote answers a
-    read at all; `rejects` refuses every push whatever its lease; `answered` is
-    what a push that landed tells the tick that made it. `pushes` is every push
+    None for a count nobody could take, and where the remote says the base
+    branch is too; `answers` is whether the remote answers a read at all;
+    `rejects` refuses every push whatever its lease; `answered` is what a push
+    that landed tells the tick that made it. `pushes` is every push
     made, as the commit named and the head it was leased against.
     """
 
@@ -98,9 +99,11 @@ class RewriteWorld:
     def _contains(self, _worktree, _ancestor, _revision) -> bool:
         return self.base_tip == base.GATE_BASE_SHA
 
-    def _read(self, _spec, _worktree, _branch) -> _RefRead:
+    def _read(self, spec, _worktree, branch) -> _RefRead:
         if not self.answers:
             return _RefRead(detail="the remote did not answer")
+        if branch == spec.base_branch:
+            return _RefRead(sha=self.base_tip)
         if self._readings:
             return _RefRead(sha=self._readings.pop(0))
         pull = self._case.gh.pulls[base.PR_NUMBER]

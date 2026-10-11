@@ -13,6 +13,7 @@ from tests.workflow.patch_measurement import _measurement_mocks
 from tests.workflow.patch_models import _WorkflowRunContext
 from tests.workflow.patch_readings import (
     _AnchorAnswers,
+    _BaseDivergences,
     _ForkPoints,
     _HeadReadings,
     _RemoteBranchReads,
@@ -165,6 +166,7 @@ def _conflict_mocks(context: _WorkflowRunContext) -> dict[str, object]:
         # -- which is what the push they license is pinned to -- and whether
         # the reading happened at all.
         "_branch_divergence": MagicMock(
+            side_effect=_BaseDivergences(context),
             return_value=_publication_probes._BranchDivergence(
                 tip=context.fetched_branch_tip,
                 ahead=context.branch_ahead_behind[0],

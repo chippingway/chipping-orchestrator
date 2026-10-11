@@ -686,8 +686,22 @@ notice recorded in the same write (`auto_base_rebase_failed_verification`) and p
 the route -- something moved under it, or the comment cannot record it: the fresh reviewer owes the evidence. A
 decision nobody could take, an invalidation with no room, a failure notice whose post nobody could confirm, or an
 evidence write refused or unconfirmed holds the route with the attempt standing, for the recovery of the push already
-landed to finish under its own mark: a transaction or failure notice an earlier finish recorded is reused rather than
-made again, with the invalidation a moved context now owes landed before the route.
+landed to finish under its own mark, launching no developer. A tick that died before its evidence write landed --
+before the configured commands ran, or behind a run that completed -- captured nothing, and that recovery runs them
+again; a failure notice an earlier finish recorded is published once with nothing run again, and a transaction it
+recorded is routed exactly as recorded only once its binding proves again, abandoned into history with nothing run
+again -- then or by any later finish -- where the heads, the requirements, the report or review subject, or the
+configuration moved since, or the base is no longer the tip its replay was recorded as made onto or no tip was
+recorded, and abandoned too where the base advanced past the head it is about. Every route then ends in one last word
+read behind every request it made -- the remote branch the head landed on, the base, and the requirements over the
+network, then the checkout's own head and the configuration, every reading taken so none masks another -- so a
+landing or a base that moved holds the route, and whatever any reading shows moved abandons a recorded transaction
+unrun, even one the base later comes back under and even beside a reading nobody could take, which only holds. A
+comment with no room for the abandonment takes a write that only shrinks it instead: the transaction dropped and
+the attempt's recorded base tip blanked, so no later reading proves a base for it. The retirement behind the route is
+decided on every record the evidence is bound through, so a review moved meanwhile refuses it. The invalidation a moved
+context now owes lands before the route either way
+([base-rewrite evidence, recovered](delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
@@ -3127,6 +3141,16 @@ The keys that matter for the state machine fall into a few groups:
   as either one it resembles, exactly the state nobody can vouch for would take a road reserved for one that can.
   Because the write that ends an attempt blanks these fields rather than removing them, a group of nulls is the record
   nobody wrote and a member carrying something beside one that does not is the record something took apart.
+  `pending_auto_base_rebase_rewrite_base` — the base tip that replay was made onto, written in the same write as its
+  head and from the same reading, and blanked with the rest of the attempt. It sits outside the group above: an
+  attempt recorded before it existed is still whole, and simply names no base. The evidence a landed head is routed
+  with is held to it (`workflow/engine/rewrite_evidence_proof.py`): a head counted level with a base says nothing
+  about which base, and one rewound or repointed under the head after the rebase leaves it level with a commit it was
+  never replayed onto, so the base it is counted against has to be this very tip -- and an attempt naming none, or a
+  value that is not a whole commit id, proves no base at all. That is also how a refusal outlives a comment with no
+  room to record it: where movement under a recorded transaction is read and the comment cannot take the entry
+  abandoning it, the finish drops the transaction and blanks this member in a write that only shrinks the comment, so
+  every later reading of the base proves nothing and no finish of the attempt runs or routes over it again.
   `pending_auto_base_rebase_announced_sha` is the last member and covers the last window a finish has: everything a
   finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out before the
   relabel, and the write that clears this record goes out after it, so the head it has already said it published is

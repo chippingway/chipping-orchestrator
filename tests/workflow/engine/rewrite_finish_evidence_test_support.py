@@ -46,13 +46,14 @@ REVIEWING = WorkflowLabel.IN_REVIEW
 FOUND = FinishRoad.RECOVERY
 
 
-def attempt_record(anchor: str, head: str, pr_number: int, stage: WorkflowLabel) -> dict:
-    """What an auto rebase of `anchor` pins before git runs, its replay onto `head` named, over a spent round."""
+def attempt_record(anchor: str, head: str, pr_number: int, stage: WorkflowLabel, onto: str | None = None) -> dict:
+    """What an auto rebase of `anchor` pins, its replay `head` and the base tip `onto` named, over a spent round."""
     return {
         _readings.KEY_PENDING_PUSH: anchor,
         _readings.KEY_REWRITE_PR: pr_number,
         _readings.KEY_REWRITE_STAGE: str(stage),
         _readings.KEY_REWRITE_SHA: head,
+        _readings.KEY_REWRITE_BASE: onto,
         _readings.KEY_REVIEW_ROUND: SPENT_ROUND,
     }
 

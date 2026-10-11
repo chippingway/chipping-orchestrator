@@ -3,11 +3,11 @@
 """The evidence a landed base rewrite's head is routed with, made durable before anything routes it.
 
 The finish (`rewrite_finish`) asks this once its checkpoint is durable and
-before the relabel to `workflow:validating` or the attempt's retirement, and
-only for a head it routes: a head the base advanced past again is rebased once
-more, and the head that rebase lands is decided then. The decision is the
-evidence policy's (`rewrite_evidence.decides`); what it requires of the pinned
-comment is staged here and lands in one guarded commit
+before the relabel to `workflow:validating` or the attempt's retirement
+(`settles`), for a head it routes: a head the base advanced past again is
+rebased once more, and the head that rebase lands is decided then. The
+decision is the evidence policy's (`rewrite_evidence.decides`); what it
+requires of the pinned comment is staged here and lands in one guarded commit
 (`rewrite_finish_writes.EVIDENCE`) before the finish goes on:
 
 - Current evidence the rewrite moved past -- a changed full tree or
@@ -32,14 +32,31 @@ comment is staged here and lands in one guarded commit
 
 The route is held instead -- nothing relabelled or retired, the attempt left
 standing for a later tick's recovery to finish -- for a decision short of a
-reading nobody could take (HELD), an invalidation the comment has no room for
+reading nobody could take, a base that moved after the head was counted
+against it among them (HELD), an invalidation the comment has no room for
 (HELD), an evidence write refused or never confirmed (REFUSED, UNCONFIRMED),
-and a failure notice whose publication nobody could confirm (HELD). The
+and a failure notice whose publication nobody could confirm (HELD). Each of
+these stops a captured transaction's route only behind the last word, which
+still proves it again and abandons it where anything moved under it. The
 standing anchor holds every handler meanwhile, so no reviewer is handed the
-head. A retried finish repeats nothing it made: a transaction an earlier
-finish recorded for the landed head, or a failure notice it recorded, is the
-decision itself -- taken again with no second run, revision, or notice, the
-notice published only where the pull request does not carry it yet.
+head.
+
+The finish that completes it -- the recovery of the push already landed --
+repeats nothing an earlier one made durable. One that died before its
+evidence write landed, before its commands ran or behind a run that
+completed, captured nothing, and the decision is taken afresh, running the
+commands again where the policy runs them. A failure notice it recorded is
+the decision itself, taken again with no second run and published only where
+the pull request does not carry it yet. A transaction it recorded for the
+landed head is a captured run or carry, never made again: proved again over
+what this finish reads (`rewrite_finish_captured`), it is routed exactly as
+recorded, or -- something it is bound to moved since, the base included --
+abandoned into history in its own write, with nothing run again and the
+fresh reviewer owing the evidence; and once abandoned it is still a run this
+landing captured, so the finish after one that stopped short of its route
+decides nothing afresh either. A head the base advanced past again is decided
+nothing for (`continues`): a transaction recorded for it is abandoned before
+the attempt retires, since the next rebase replaces that head.
 
 Whether the current evidence has to be invalidated is asked as the write is
 staged, on every road, rather than taken from a decision read before its
@@ -55,6 +72,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.github.verification_evidence import VerifiedCommand
 from orchestrator.workflow.engine import (
     rewrite_evidence as _rewrite_evidence,
+    rewrite_finish_captured as _captured,
     rewrite_finish_failures as _failures,
     rewrite_finish_notices as _notices,
     rewrite_finish_writes as _writes,
@@ -77,16 +95,43 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
 
     Anything else is where the finish stops, with nothing routed and the
     attempt standing. A decision an earlier finish of this landing made
-    durable is routed as it stands, behind the invalidation the current
-    evidence is owed now and the failure notice it recorded.
+    durable is taken again with nothing run, behind the invalidation the
+    current evidence is owed now: the failure notice it recorded published,
+    and the transaction it recorded proved again first -- routed as it was
+    captured, or abandoned where something moved under it
+    (`rewrite_finish_captured`). One it recorded and a later finish already
+    abandoned is still a run this landing captured: nothing is decided or
+    run afresh, and the fresh reviewer owes the evidence. This route ends
+    in the last word behind every request made for it
+    (`rewrite_finish_captured.stands_before_the_route`) whatever stopped it
+    -- an invalidation the comment has no room for, an evidence write refused
+    or never confirmed, a failure notice nobody could confirm: the captured
+    transaction is still proved again and, where anything moved under it,
+    abandoned or refused for good in a write of its own, so no stop leaves it
+    standing for a later route once what moved is back. The stop is the
+    outcome all the same.
     """
     failure = _failures.recorded(finish.state, finish.head)
-    if failure is None and not _recorded_already(finish):
+    captured = _captured.recorded(finish)
+    if failure is None and captured is None and not _captured.retired(finish):
         return _decides(finish)
     staged = _writes.staging(finish)
-    if not _invalidates(finish, staged):
-        return FinishOutcome.HELD
-    return _lands(finish, staged) or _failures.publishes(finish, failure)
+    stopped = _lands(finish, staged) if _invalidates(finish, staged) else FinishOutcome.HELD
+    proof = None if captured is None else _captured.proved_again(finish, captured)
+    stopped = stopped or _failures.publishes(finish, failure)
+    return _captured.stands_before_the_route(finish, proof=proof, behind=stopped)
+
+
+def continues(finish: LandedFinish) -> FinishOutcome | None:
+    """Abandon what an earlier finish recorded for a landed head the base advanced past; None to continue it.
+
+    The caller's next rebase replaces that head, so a transaction recorded
+    for it is a decision no route takes (`rewrite_finish_captured.sets_aside`),
+    abandoned in a write of its own over the comment read afresh before the
+    attempt retires. Nothing is decided, run, or invalidated for the head
+    itself.
+    """
+    return _captured.sets_aside(finish)
 
 
 def _decides(finish: LandedFinish) -> FinishOutcome | None:
@@ -106,7 +151,8 @@ def _decides(finish: LandedFinish) -> FinishOutcome | None:
     if decided.route is RewriteEvidenceRoute.FAILED:
         notice = _notices.failure(finish, decided.run)
         _failures.records(staged, finish.head, notice)
-    return _lands(finish, staged) or _failures.publishes(finish, notice)
+    stopped = _lands(finish, staged) or _failures.publishes(finish, notice)
+    return stopped or _captured.stands_before_the_route(finish, landing=decided.run is not None)
 
 
 def _invalidates(finish: LandedFinish, staged: PinnedState) -> bool:
@@ -128,23 +174,6 @@ def _invalidates(finish: LandedFinish, staged: PinnedState) -> bool:
         finish.issue.number, finish.head,
     )
     return False
-
-
-def _recorded_already(finish: LandedFinish) -> bool:
-    """Whether an earlier finish of this landing recorded its evidence transaction already; logged where it did.
-
-    Nothing records evidence for the landed head but this step while the
-    attempt stands, since the anchor holds every other road: a pending record
-    targeting it is this finish's own, from a tick whose route did not land.
-    """
-    pending = _record_state.read_pending_evidence(finish.state)
-    recorded = pending is not None and pending.binding.target.target_head == finish.head
-    if recorded:
-        log.info(
-            "issue=#%d already recorded verification evidence revision %d for %.8s; routing it",
-            finish.issue.number, pending.revision, finish.head,
-        )
-    return recorded
 
 
 def _records(finish: LandedFinish, decided: RewriteEvidence, staged: PinnedState) -> None:

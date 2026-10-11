@@ -640,6 +640,10 @@ before the route. Without that review -- the usual case,
 since the rebased head's report refresh has not run yet -- nothing runs: evidence the rebase moved past is
 invalidated, and the fresh reviewer runs the verification itself (see
 [base-rewrite evidence](state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
+An orchestrator that stops after a rebased head's push and before its run is recorded runs the commands again when it
+recovers that push on a later tick; a run already recorded is never run again, and one whose configuration,
+requirements, review, or base moved in between is set aside for the fresh reviewer instead. A base that moves while
+the commands run leaves their result unrecorded, and the head is rebased again before anything routes it.
 
 A run records the commit and full tree it tested, both read before the first command; the exact ordered
 `VERIFY_COMMANDS`; each attempted command's outcome, exit code, and redacted, bounded output; `VERIFY_TIMEOUT`; and a

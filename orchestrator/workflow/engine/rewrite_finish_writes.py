@@ -27,11 +27,25 @@ head's evidence decision durable ahead of its route
 transaction a fresh or carried result is recorded as, with the revision floor
 it raises, and the notice a failed run is owed (`rewrite_finish_failures`) --
 decided on the attempt, the debt, and every record the evidence is bound
-through (`verification_durable`), so a report, a review subject, or an
-evidence record another road moved while the commands ran refuses it.
+through (`verification_durable`), so a report, a review subject, or an evidence
+record another road moved while the commands ran refuses it. The abandonment of
+a recorded transaction -- one something was read moving under, or one recorded
+for a head the base advanced past -- is none of these: it is staged on the
+comment read afresh and committed guarded by that reading
+(`rewrite_finish_captured`), since a record another road moved is the very
+movement it answers or none of its business. Where that write does not land,
+`ABANDONMENT` (`abandons`) stages it on the tick's own copy instead, decided
+only on the records it retires and the attempt, so one comment reading that
+failed or one move under the write does not leave the transaction standing.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
-park's flags, the round, and the claim the checkpoint made durable. `PARK`
+park's flags, the round, the claim the checkpoint made durable, and every
+record the evidence is bound through -- so the head is routed only with
+evidence decided over the records the comment still carries, a transaction
+an earlier finish recorded and the evidence step left unchanged included: a
+report, review subject, or evidence record another road moved since refuses
+the route rather than letting it carry a decision about a review nobody is
+handed any more. `PARK`
 records the park a debt with no
 room takes, decided on what the checkpoint would have been -- the round
 included, since how wide it is decides which of the two writes the debt was
@@ -49,6 +63,7 @@ still be written over it.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from types import MappingProxyType
 
 from orchestrator.git.base_sync import attempts as _attempts, state as _base_sync_state
@@ -65,6 +80,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.rewrite_finish_failures import FAILED_VERIFICATION
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
+from orchestrator.workflow.engine.verification_carries import ABANDONS
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -90,15 +106,27 @@ EVIDENCE = _commits.ReportWrite(
         _evidence_records.EVIDENCE_HISTORY,
         _evidence_records.REVISION_FLOOR,
         FAILED_VERIFICATION,
+        *ABANDONS,
+        _base_sync_state._PENDING_REWRITE_BASE,
     )),
     decided_on=frozenset(_durable._BOUND_RECORDS) | _ATTEMPT | {_rewrite_debt.REWRITE_DEBT},
+)
+
+# An abandonment staged on the tick's own copy, where the comment read afresh
+# would not take one: decided only on the records it retires and the attempt,
+# so a review, report, or approval another road moved since lands as the fresh
+# comment carries it rather than refusing it -- save a carry's approval the copy
+# still names, which another road's move refuses as the conflict it is.
+ABANDONMENT = _commits.ReportWrite(
+    owned=frozenset((*ABANDONS, _base_sync_state._PENDING_REWRITE_BASE)),
+    decided_on=frozenset((_evidence_records.PENDING_EVIDENCE, _evidence_records.EVIDENCE_HISTORY)) | _ATTEMPT,
 )
 
 FINISH = _commits.ReportWrite(
     owned=_ATTEMPT | _PARK_FLAGS | {
         _ROUND, _prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, FAILED_VERIFICATION,
     },
-    decided_on=_ATTEMPT | _PARK_FLAGS | {_ROUND, _rewrite_debt.REWRITE_DEBT},
+    decided_on=frozenset(_durable._BOUND_RECORDS) | _ATTEMPT | _PARK_FLAGS | {_ROUND, _rewrite_debt.REWRITE_DEBT},
 )
 
 PARK = _commits.ReportWrite(
@@ -173,6 +201,17 @@ def lands(finish: LandedFinish, staged: PinnedState, write: _commits.ReportWrite
     """
     commit = _commits.ReportCommit(finish.gh, finish.issue, finish.state)
     return _stopped(finish, commit.lands(staged, write.on_the_publication()))
+
+
+def abandons(finish: LandedFinish, stage: Callable[[PinnedState], bool]) -> bool | None:
+    """Stage an abandonment on a copy of the tick's state with `stage`, and land it as `ABANDONMENT`.
+
+    Whether what `stage` staged fit -- the transaction retired into history,
+    or only dropped -- or None where the write did not land.
+    """
+    staged = staging(finish)
+    fits = stage(staged)
+    return fits if lands(finish, staged, ABANDONMENT) is None else None
 
 
 def parks(finish: LandedFinish) -> FinishOutcome:

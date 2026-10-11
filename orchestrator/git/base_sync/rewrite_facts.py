@@ -20,6 +20,12 @@ landed -- or landed and lost its answer -- only a fresh reading shows the branch
 already standing on it. The lease covers what is left, the moment between that
 reading and the push.
 
+Once a candidate has landed, the evidence its head is routed with is held to
+the base tip its replay was recorded as made onto: whether the base it was
+counted against is that tip, and whether the remote's base is still there
+(`_standing_on_the_remote_base`), a base advanced, rewound, or repointed since
+being no ground a verification of the head may be recorded or routed on.
+
 The workflow's ordinary publication of a clean rebase reads a candidate here
 (`workflow/engine/rewrite_publication.py`), and so do both roads its recovery
 takes an interrupted attempt down -- the retry of a replay nothing published
@@ -35,6 +41,7 @@ from pathlib import Path
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, ref_transport
 from orchestrator.git.base_sync.rewrite_handoffs import (
+    _BaseStanding,
     _CheckoutReading,
     _RewriteAttempt,
     _RewriteCandidate,
@@ -89,6 +96,36 @@ def _standing_on_the_base(
     return _publication_probes._branch_divergence(
         spec, worktree, spec.base_branch, head,
     )
+
+
+def _standing_on_the_remote_base(
+    spec: _config_models.RepoSpec, worktree: Path, candidate: _RewriteCandidate, onto: str,
+) -> _BaseStanding:
+    """Whether `candidate`'s head still stands on `onto`, the base tip its attempt recorded the replay made onto.
+
+    Asked of a landing whose push is already out, by the evidence policy
+    before it records or routes anything over it
+    (`workflow/engine/rewrite_evidence_proof.py`). Proved by identity rather than inferred from
+    counts: the base the head was counted against has to BE the tip the
+    rebase used, since a base rewound or repointed under the head leaves it
+    level with a commit it was never replayed onto, whatever the commits over
+    it look like. Then the remote is asked, without a fetch, whether its base
+    is still there -- only it can say the base went elsewhere after the head
+    was counted, while commands ran or a proof's requests were answered -- so
+    the shared ref every other worktree counts from is left as the tick's own
+    fetch set it. An attempt that recorded no tip proves nothing.
+    """
+    counted = candidate.checkout.base
+    if not counted.readable:
+        return _BaseStanding.UNREAD
+    if not onto:
+        return _BaseStanding.UNPROVEN
+    if counted.tip != onto:
+        return _BaseStanding.DROPPED
+    remote = branch_transport._remote_branch_read(spec, worktree, spec.base_branch).sha
+    if remote is None:
+        return _BaseStanding.UNREAD
+    return _BaseStanding.STANDING if remote == onto else _BaseStanding.MOVED
 
 
 def _prepares_the_candidate(

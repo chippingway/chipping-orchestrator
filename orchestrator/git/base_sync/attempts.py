@@ -27,6 +27,7 @@ from orchestrator.git.base_sync.state import (
     _PARK_REASON,
     _PENDING_ANNOUNCED_SHA,
     _PENDING_PUSH_SHA,
+    _PENDING_REWRITE_BASE,
     _PENDING_REWRITE_SHA,
 )
 from orchestrator.github.pinned_state import PinnedState
@@ -34,7 +35,9 @@ from orchestrator.github.pinned_state import PinnedState
 # Everything one auto-rebase attempt puts on the pinned comment, so the step
 # that ends it drops the whole record rather than the field it happens to
 # name.
-_ATTEMPT_KEYS = (_PENDING_PUSH_SHA, *_attempt_records._PENDING_REWRITE_KEYS, _PENDING_ANNOUNCED_SHA)
+_ATTEMPT_KEYS = (
+    _PENDING_PUSH_SHA, *_attempt_records._PENDING_REWRITE_KEYS, _PENDING_REWRITE_BASE, _PENDING_ANNOUNCED_SHA,
+)
 
 
 def _clears_the_attempt(state: PinnedState) -> None:
@@ -81,8 +84,8 @@ def _retires_its_park(state: PinnedState) -> bool:
     return True
 
 
-def _records_the_replay(context: _AutoRebaseContext, replayed: str) -> None:
-    """Say which commit this attempt produced, durably, before it is spent.
+def _records_the_replay(context: _AutoRebaseContext, replayed: str, onto: str) -> None:
+    """Say which commit this attempt produced, and onto which base tip, durably, before it is spent.
 
     The anchor pinned before git ran is what brings an interrupted attempt
     back; it is not what says the checkout it comes back to is this attempt's
@@ -111,8 +114,17 @@ def _records_the_replay(context: _AutoRebaseContext, replayed: str) -> None:
     returning and this write -- and that is what the terms pinned with the
     anchor answer: an attempt carrying them and no head reads back as one
     still IN FLIGHT rather than as one that never ran.
+
+    `onto` is the base tip the replay was made onto, frozen with the anchor
+    before git ran (`startup._frozen_base`) and blank where the ref moved
+    while it ran, and goes down beside the head: what a landed head's
+    evidence is later held to (`rewrite_facts._standing_on_the_remote_base`)
+    is that the base is still this very commit, which no count over a base
+    read later can say -- and a base ref read again once the replay exists
+    may already name another.
     """
     context.state.set(_PENDING_REWRITE_SHA, replayed)
+    context.state.set(_PENDING_REWRITE_BASE, onto or None)
     context.gh.write_pinned_state(context.issue, context.state)
 
 

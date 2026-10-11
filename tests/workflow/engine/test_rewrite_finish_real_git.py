@@ -9,9 +9,9 @@ of the rewritten head exists yet. Handed a landing whose head a reviewer was
 handed, the finish runs the configured command through the verify runner in
 the checkout: a pass is recorded with exactly what it printed, a failure is
 posted on the pull request, and a run under which the checkout or the remote
-moved is recorded nowhere. An exact tree's carry a later finish reuses is
-recorded once, and the evidence it carried is invalidated where the context
-moved between the two finishes.
+moved is recorded nowhere. An exact tree's carry a later finish proves again
+under a context moved between the two finishes is abandoned with nothing run,
+and the evidence it carried is invalidated.
 """
 from __future__ import annotations
 
@@ -126,14 +126,15 @@ class VerifiedRewriteRealGitTest(git_support.RealGitFinishCase, unittest.TestCas
     def test_a_move_during_the_run_records_nothing(self) -> None:
         # A command that commits moves the checkout past the remote; one that
         # puts the remote branch back moves the pull request's branch off the
-        # head. Either way the run is of nothing the head can be routed with.
+        # head. Either way the run is of nothing the head can be routed with,
+        # and the landing it was made for no longer stands: the route holds.
         for moved, command in (("the checkout", _commits), ("the remote", _puts_the_remote_back)):
             with self.subTest(moved=moved):
                 self.setUp()
                 head = self._reviewed_rebase(command(self))
 
                 with self.assertLogs("orchestrator.workflow", "INFO") as logged:
-                    self.assertEqual(self.finishes(head), ROUTED)
+                    self.assertEqual(self.finishes(head), FinishOutcome.HELD)
                     self.assertIn(_decided_moved(head), str(logged.output))
 
                 self.assertEqual(readings.pinned_records(self), git_support.nothing_recorded(self))
@@ -162,16 +163,17 @@ class VerifiedRewriteRealGitTest(git_support.RealGitFinishCase, unittest.TestCas
 
 
 
-class ReusedCarryRealGitTest(git_support.RealGitFinishCase, unittest.TestCase):
-    """An exact tree's carry, recorded by a finish whose retirement was refused, reused by the finish after it."""
+class AbandonedCarryRealGitTest(git_support.RealGitFinishCase, unittest.TestCase):
+    """An exact tree's carry, recorded by a finish whose retirement was refused, proved again by the finish after it."""
 
-    def test_a_reused_carry_is_invalidated_once_owed(self) -> None:
+    def test_a_moved_context_abandons_the_carry(self) -> None:
         # The rebase leaves the tested tree and a reviewer was handed it, so
         # the settled evidence is carried and stays current; another road's
         # round refuses the retirement behind the relabel. The configuration
-        # moves before the recovery finishes the landing: the carry is reused
-        # as recorded, nothing runs, and the settled evidence the moved
-        # context no longer lets stand is invalidated before the route.
+        # moves before the recovery finishes the landing: the carry is proved
+        # again and refused, so it is abandoned rather than routed, nothing
+        # runs, and the settled evidence the moved context no longer lets
+        # stand is invalidated before the route.
         git_support.advances_the_base(self, net=False)
         head = self.rebases_by_hand()
         self.reviews(head)
@@ -190,7 +192,7 @@ class ReusedCarryRealGitTest(git_support.RealGitFinishCase, unittest.TestCase):
         self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), ROUTED)
         self.assertEqual(
             readings.pinned_records(self),
-            (carried, None, git_support.invalidated(self)),
+            (None, None, (*git_support.invalidated(self), (carried.receipt, readings.ABANDONED))),
         )
         self.assertEqual(
             (self.runs(), readings.attempt(readings.pinned(self))),
