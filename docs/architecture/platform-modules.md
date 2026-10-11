@@ -437,7 +437,8 @@ orchestrator/
                         comment around it and where it sits in a body are the compact format's
                         (`verification_compact_artifacts.py`)
   agents/               publishes the run/result models, runner entry point, and process shutdown hook
-    models.py           the agent result and unfinished-step diagnostics, run-option, and subprocess-result models
+    models.py           the agent result with its unfinished-step and terminal-failure diagnostics, and the
+                        run-option and subprocess-result models
     environment.py      credential and virtualenv filtering and the injected git identity
     session_ids.py      the backend-agnostic session-id walk: a UUID-shaped value at a known key, anywhere in
                         any CLI's event tree, so a resume is issued against what the run actually reported
@@ -462,6 +463,15 @@ orchestrator/
                         falls back to the provider's opening words only beside a non-zero exit. The
                         validating reviewer dispatch asks it ahead of the VERDICT parse and parks the stop
                         under `reviewer_usage_limit` (`workflow/stages/validating/reviewer.py`)
+    agy_failures.py     the `TerminalFailure` record an Antigravity run the backend normalized to a failure
+                        carries: the subprocess's own exit code, the terminal status and error -- each redacted
+                        before it is bounded -- and the account-quota verdict with the reset interval AGY named.
+                        Only failure evidence decides it: an unsuccessful terminal's `error` and the CLI's
+                        `error:` and `AGY_ERROR:` stderr lines, the structured one settled by its
+                        `RESOURCE_EXHAUSTED` / `429` / `http` / retryable signature alone. Never an exit code, the
+                        terminal response, or step and tool text. The reset is read from the complete diagnostic --
+                        the whole terminal error, the decoded structured strings, or an `error:` line with the
+                        lines a wrapped message continues on -- so a line break before it does not lose it
     process_groups.py   what a child started into its own process group costs to tear down, apart from any
                         record of which ones are in flight: the bounded drain that reports a pipe a descendant
                         still holds open rather than blocking on it, the `killpg(_, 0)` probe that answers
@@ -474,7 +484,8 @@ orchestrator/
     backends/
       codex.py          Codex command construction, scratch output, and execution
       claude.py         Claude command construction and execution
-      agy.py            Antigravity command construction, terminal-result gating, and conversation resumes
+      agy.py            Antigravity command construction, terminal-result gating, the failure record a
+                        failed run carries, and conversation resumes
   scheduler/            publishes `IssueScheduler` and `SubmissionRequest` from their defining owners
     models.py           the typed submission, the historical `submit` binding, and field normalization
     service.py          the concrete scheduler: the caps, the tracked claims, the family mutex, dispatch, and

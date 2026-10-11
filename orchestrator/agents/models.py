@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Agent run options, result models, and unfinished tool step diagnostics."""
+"""Agent run options, result models, and unfinished-step and terminal-failure diagnostics."""
 from __future__ import annotations
 
 import signal
@@ -10,6 +10,35 @@ from typing import NamedTuple, TypedDict
 from orchestrator import config
 from orchestrator.observability.usage.agy_events import ToolLifecycle
 from orchestrator.observability.usage.metrics import UsageMetrics
+
+
+@dataclass(frozen=True)
+class TerminalFailure:
+    """How a backend's failed run ended, read from its failure channels rather than `last_message`.
+
+    Only the Antigravity backend fills it, on every run it normalizes to a failure:
+    a missing, unsuccessful, or interrupted terminal result, or a successful
+    one with unfinished tool steps behind it.
+
+    `process_exit_code` is what the subprocess itself returned. AGY normalizes
+    a zero return to `AgentResult.exit_code == 1` on failure, so the
+    normalized code is no proof the CLI exited with it. `status` is the
+    terminal result's status, None when no terminal result named one; it and
+    `error`, the terminal error, are both redacted before they are bounded,
+    so a cut can never leave half a secret behind.
+
+    `quota_exhausted` is the account-quota verdict, taken from failure evidence
+    alone: the error an unsuccessful terminal carried and the CLI's own `error:`
+    and `AGY_ERROR:` stderr lines. An exit code, the terminal response, and
+    assistant or tool text never decide it. `quota_reset` is the reset
+    interval as AGY phrased it, such as `2h42m39s`, or None when it named none.
+    """
+
+    process_exit_code: int
+    status: str | None = None
+    error: str = ""
+    quota_exhausted: bool = False
+    quota_reset: str | None = None
 
 
 @dataclass
@@ -39,6 +68,10 @@ class AgentResult:
     # as Antigravity tool lifecycles where active commands remained when a
     # terminal envelope was emitted). Empty for completed or non-AGY runs.
     unfinished_steps: tuple[ToolLifecycle, ...] = ()
+    # The failure diagnostics a backend read off a run it normalized to a
+    # failure. None for successful runs and for backends that keep no such
+    # record.
+    terminal_failure: TerminalFailure | None = None
 
 
 CodexResult = AgentResult

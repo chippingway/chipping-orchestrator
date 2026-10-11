@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Antigravity command construction, terminal-result gating, and conversation resumes."""
+"""Antigravity command construction, terminal-result gating, failure records, and conversation resumes."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from typing import Any, Unpack
 
 from orchestrator import config
 from orchestrator.agents import (
+    agy_failures as _agy_failures,
     environment as _agent_environment,
     models as _agent_models,
     processes as _agent_processes,
@@ -75,13 +76,19 @@ def _apply_failure_outcome(
     agent_result.exit_code = process_result.exit_code or 1
     agent_result.stderr = f"{process_result.stderr}\n{error}".strip()
     agent_result.interrupted |= terminal.get("status") in ("INTERRUPTED", "CANCELED")
+    agent_result.terminal_failure = _agy_failures.terminal_failure(terminal, process_result)
 
 
 def agy_result(
     options: _agent_models.AgentRunOptions,
     process_result: _agent_models.SubprocessResult,
 ) -> _agent_models.AgentResult:
-    """Gate terminal success on completed tool lifecycles and keep partial output out of the final message."""
+    """Gate terminal success on completed tool lifecycles and keep partial output out of the final message.
+
+    A run that fails the gate also carries `terminal_failure`: the subprocess's
+    own exit code beside the normalized one, the redacted and bounded terminal
+    diagnostics, and the account-quota verdict read off its failure channels.
+    """
     events = event_stream.iter_events(process_result.stdout)
     unfinished_steps = tuple(agy_events.incomplete_tool_steps(events))
     final_message = _final_message(events, unfinished_steps)

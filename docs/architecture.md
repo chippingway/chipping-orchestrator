@@ -520,7 +520,7 @@ per-handler routing in
 `claude.run_claude` / `agy.run_agy`); `backend` is one of `"codex"` / `"claude"` / `"agy"` and is re-validated
 at call time so misuse fails loudly. All runners return a unified
 `AgentResult(session_id, last_message, exit_code, timed_out, stdout, stderr,`
-`interrupted, usage, invoked, unfinished_steps)`.
+`interrupted, usage, invoked, unfinished_steps, terminal_failure)`.
 `interrupted`
 (default `False`) flags a run the runner observed exiting on SIGTERM/SIGKILL, in either form: the negative
 returncode `Popen` reports when the child itself dies from the signal (`-15` / `-9`), or the shell-convention
@@ -547,7 +547,10 @@ counters `_accumulate_issue_usage` folds each run into, and the one visible rece
 [`observability/usage.md`](observability/usage.md); nothing gates on the figure. `unfinished_steps` (default `()`)
 carries structured diagnostics (`ToolLifecycle`) for any tool steps left unfinished when a backend emits terminal
 output (such as Antigravity active commands); when present, the terminal response is suppressed from `last_message`
-and the result is forced non-zero so recovery can act on it. `CodexResult` is kept as a transitional alias.
+and the result is forced non-zero so recovery can act on it. `terminal_failure` (default `None`) is the
+`TerminalFailure` record a backend attaches to a run it normalized to a failure, so a consumer can tell why the run
+stopped without reading `last_message`; only Antigravity fills it, as its command entry below describes.
+`CodexResult` is kept as a transitional alias.
 
 Being the only call that starts an agent process is also what makes `_run_agent_tracked` the place the lifetime
 agent-run ledger is charged. `workflow/engine/run_circuit.py` is asked immediately around it: two durable writes
@@ -597,7 +600,21 @@ lock, and the resume mechanic are documented in
   remain, the terminal response is suppressed, the outcome is forced non-zero, and `AgentResult.unfinished_steps`
   carries the step identities for recovery. Missing or failed terminal results produce a nonzero outcome, with
   diagnostics in `stderr`; `INTERRUPTED` and `CANCELED` also mark the run interrupted. Partial text remains available
-  in the trajectory.
+  in the trajectory. Neither a response step, on either side of the terminal, nor a `DOCS: NO_CHANGE` response
+  overrides an error, interrupted, or missing terminal, and no later step is trusted to repair a stale one. Every
+  run that fails the gate also carries `AgentResult.terminal_failure`, read by `agents/agy_failures.py`:
+  `process_exit_code` keeps what the subprocess returned, since a zero return is normalized to `exit_code == 1`;
+  `status` (`None` when no terminal result named one) and `error` are the terminal's, each redacted with
+  `redact_secrets` before it is cut to a 1,024-character budget; `quota_exhausted` is the account-quota verdict and
+  `quota_reset` the reset interval as AGY phrased it (`2h42m39s`), or `None`. The verdict reads failure evidence
+  only: the `error` of an unsuccessful terminal and the CLI's own stderr diagnostic lines. An `AGY_ERROR:` line is
+  settled by its structure alone (`status` `RESOURCE_EXHAUSTED`, `error_code` `429`, `code_kind` `http`, and
+  `retryable` `true`, each matched by JSON type), while the terminal error and an `error:` line are matched on AGY's
+  `Individual quota reached` wording. An exit code, the terminal response, and step or tool text never decide it, so
+  a successful answer about a quota stays an answer and an unrelated failure keeps its classification. The reset is
+  read from the complete diagnostic, so a wrapped message keeps it: the whole terminal error, the decoded strings of
+  the structured payload, or an `error:` line with the lines continuing it up to a blank line or the next
+  diagnostic, where only the opening line decides the verdict. No workflow stage reads the record.
 - **Input**: prompt string; optional resume session id; timeout (`AGENT_TIMEOUT` / `REVIEW_TIMEOUT`).
 - **Output**: `AgentResult(...)`. `session_id` is harvested by `agents/session_ids.py` walking the JSONL events for
   any UUID-shaped value at `session_id` / `conversation_id` / etc. (shared across all backends).
