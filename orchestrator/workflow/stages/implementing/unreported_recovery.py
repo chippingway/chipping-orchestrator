@@ -46,6 +46,10 @@ from orchestrator.workflow.stages.implementing import (
 
 log = logging.getLogger("orchestrator.workflow")
 
+# The pinned reasons a failed run's floor is read under: the two parks that
+# keep one, and no reason at all.
+_FLOOR_PARK_REASONS = (_state._PARK_EXECUTION_FAILED, _state._AGENT_SILENT, None)
+
 # Why a recovered publication is held: commits no recorded report describes,
 # which is the window the recording exists to close.
 _UNRECOVERED_PARK = (
@@ -209,14 +213,18 @@ def _attributable_failed_run_commit(
 ) -> bool:
     """True when an intentional retry returned a report over a commit from a failed run.
 
-    When an `agent_execution_failed` run commits work before parking, the commit
-    is attributable to that run rather than an inherited floor. Its intentional
-    `/orchestrator continue` retry may return a valid `REPORT: READY` with no HEAD
-    change (`head == prepared.before_sha`). In that recovery sequence, the clean
-    ahead-of-base commit attributable to the failed run is published through the
-    normal report, size, push, and PR gates.
+    When a run commits work and then parks without publishing it, the commit
+    is attributable to that run rather than an inherited floor. Its park is
+    `agent_execution_failed`, taken past unfinished tool steps, or
+    `agent_silent` where an account quota stopped it -- beside such steps or
+    over a commit it left with the tree unclean -- and either keeps the run's
+    floor (`pre_implement_sha`). Its intentional `/orchestrator continue` retry may
+    return a valid `REPORT: READY` with no HEAD change
+    (`head == prepared.before_sha`). In that recovery sequence, the clean
+    ahead-of-base commit attributable to the failed run is published through
+    the normal report, size, push, and PR gates.
     """
-    if state.get(_state._PARK_REASON) not in (_state._PARK_EXECUTION_FAILED, None):
+    if state.get(_state._PARK_REASON) not in _FLOOR_PARK_REASONS:
         return False
     pre_sha = state.get(_state._PRE_IMPLEMENT_SHA)
     if not isinstance(pre_sha, str) or not pre_sha or head == pre_sha:

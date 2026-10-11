@@ -8,6 +8,8 @@ import unittest
 from types import MappingProxyType
 
 from orchestrator.github.pinned_state import PinnedState
+from tests.workflow.agent_failure_values import agy_quota_stop
+from tests.workflow.session_limit_parks import assert_session_limit_park
 from tests.workflow.stages.fixing import (
     fixing_test_support as support,
     report_crash_support as crash,
@@ -279,6 +281,20 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
         # operator. (A pushed fix would relabel to validating.)
         self.assertNotIn((ISSUE, VALIDATING), scenario.github.label_history)
         self.assertNotIn((ISSUE, DOCUMENTING), scenario.github.label_history)
+
+    def test_quota_timeout_parks_as_session_limit(self) -> None:
+        # A fix round an account quota stopped parks as that session limit
+        # even once its timeout fired, so the reset and the retry it needs
+        # are what the operator is told rather than a bare timeout.
+        trigger = FakeComment(id=TRIGGER_ID, body=TIGHTEN, user=REPLIER, created_at=LONG_SETTLED)
+        world = self._seed(pr=self._open_pr(), issue_comments=[trigger])
+
+        # Settled long before any quiet window, so the round runs on this tick.
+        with self.assertLogs(level="WARNING"):
+            self._run_fixing(*world, run_agent=agy_quota_stop(timed_out=True), head_shas=(SHA_BEFORE,))
+
+        assert_session_limit_park(self, world[0], ISSUE)
+        self.assertNotIn((ISSUE, VALIDATING), world[0].label_history)
 
     # --- watermark advancement across all three surfaces ----------------
 

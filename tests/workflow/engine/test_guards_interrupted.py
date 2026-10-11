@@ -6,9 +6,11 @@ from __future__ import annotations
 
 import signal
 import unittest
+from dataclasses import replace
 from unittest.mock import MagicMock
 
 from orchestrator.agents.models import (
+    TerminalFailure,
     ToolLifecycle,
     is_shutdown_sweep_interrupted,
     is_signal_interrupted,
@@ -24,6 +26,7 @@ _SHELL_SIGINT = _SHELL_BASE + signal.SIGINT
 _NON_INTERRUPTED_CODES = (0, 1, 3, -1, -signal.SIGINT, _SHELL_SIGINT)
 _SESSION = "sess-1"
 _ISSUE_NUMBER = 42
+_CANCELED = "CANCELED"
 
 
 class InterruptedGuardsTest(unittest.TestCase):
@@ -104,6 +107,21 @@ class InterruptedGuardsTest(unittest.TestCase):
             unfinished_steps=(_ACTIVE_STEP,),
         )
         self.assertFalse(is_shutdown_sweep_interrupted(timed_out_with_steps))
+
+    def test_quota_cancellation_is_no_shutdown(self) -> None:
+        # A backend cancellation the failure record says the account quota
+        # caused is the CLI stopping itself, so it goes on to be parked; a
+        # signal is still the sweep's kill, and a cancellation naming no
+        # quota is still read as one.
+        cancelled = replace(
+            _agent(session_id=_SESSION, exit_code=1, interrupted=True),
+            terminal_failure=TerminalFailure(0, status=_CANCELED, quota_exhausted=True),
+        )
+        self.assertFalse(is_shutdown_sweep_interrupted(cancelled))
+        self.assertTrue(is_shutdown_sweep_interrupted(replace(cancelled, exit_code=-signal.SIGTERM)))
+        self.assertTrue(is_shutdown_sweep_interrupted(
+            replace(cancelled, terminal_failure=TerminalFailure(0, status=_CANCELED)),
+        ))
 
     def test_ignore_if_interrupted(self) -> None:
         issue = make_issue(_ISSUE_NUMBER)

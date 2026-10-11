@@ -435,6 +435,25 @@ rebase fast-forwarded the checkout to is never published as a late-landing commi
 and the plan-PR question the merge terminal is reached past are in
 [`state-machine/delivery-stages.md`][implementing].
 
+A no-commit run an account quota stopped is a session limit rather than a question, on whichever channel the stop
+arrived: a Claude limit notice as the final message, or an Antigravity failure record whose quota verdict its terminal
+error or CLI diagnostics settled, read without the final message and ahead of any unfinished tool step beside it.
+That holds past the run's timeout on every delivery stage -- implementing, the docs pass, a fix round, a drift resume,
+a report refresh, and the rebase stage, where it also outranks a rebase left mid-flight, as it outranks a dirty tree in
+the docs pass and a moved or dirty checkout in a report refresh, the work left where it was -- and nowhere is an
+Antigravity cancellation the quota caused read as a shutdown-sweep kill, so it is parked rather than dropped. A commit a
+quota stop left publishes only where it needs no report and stands over a tree provably clean -- implementing's own,
+timed out or not, as any incomplete run's commit there is, and a fix or a resolution on the roads that ask for none.
+Over any other tree, and on the review roads that hold a reportless commit for the report it is missing, it takes the
+session limit instead, recording the same report debt and undescribed work the missing-report park would. Every
+stage that parks through the shared question park takes it the same way: retryable under the pinned `agent_silent`,
+reported as `agent_session_limit`, and on implementing routes keeping the failed run's `pre_implement_sha` floor, so a
+continue retry can still publish what that run committed. An Antigravity notice explains the exhausted
+account, names the reset interval the failure gave (a countdown from when the run stopped), and quotes the redacted,
+bounded diagnostics with the subprocess's exit code told apart from the orchestrator's normalized failure code -- or
+named not captured, where the timeout killed the run; either notice tells the operator to reply
+`/orchestrator continue` once the quota resets.
+
 ### `_handle_documenting` (label `workflow:documenting`)
 
 The single docs pass on the existing PR worktree, reached only via the final-docs handoff in `_handle_validating`'s

@@ -11,7 +11,7 @@ allow-list it screens through is the funnel's own.
 
 Every reported field is a structured identifier the caller already holds: the
 route named on the `_ParkedRun` it was given, the session the backend handed
-back, the exit status of the process, and the counters pinned state carries.
+back, the exit code the result carries, and the counters pinned state carries.
 No part of what the agent wrote reaches one. The park's `reason` is decided
 before this is called -- and the question park does read the final message to
 decide it -- but the reason arrives here already reduced to a closed
@@ -39,7 +39,11 @@ def _correlated_fields(
     `exit_code` rides on every one of them because it is what separates a run
     that finished and asked something from one that died without saying
     anything -- the distinction the question park is built around, and the one
-    an operator counting silent failures needs the record to carry.
+    an operator counting silent failures needs the record to carry. It is the
+    code the backend normalized the result to, not necessarily what the
+    subprocess returned: an Antigravity failure whose CLI exited 0 reports 1
+    here, and the subprocess's own return stays out of this record, named in
+    the park comment's diagnostics instead.
 
     A `None` here is a field the issue has never held; both sinks drop it,
     which is why a park on an issue with no pull request yet reports no

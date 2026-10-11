@@ -123,8 +123,11 @@ def _checkout_park_fields(
     `timed_out` is reported here and not on the question park because a run
     the timeout killed still reaches this seam: the disposition publishes a
     commit such a run managed to make, and the tree it is read on is refused
-    from here. Every road into the question park has answered the timeout
-    above it, so the field would be a constant there.
+    from here. A road into the question park answers the timeout above it,
+    all but a quota stop's: one an account quota stopped reaches that park as
+    the session limit whatever its clock said, and is reported as that limit,
+    which is what its notice names and its retry waits out, rather than by
+    the clock.
     """
     return {
         "reason": reason,

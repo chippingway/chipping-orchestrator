@@ -25,6 +25,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow.agent_failure_values import agy_quota_stop
 from tests.workflow.fixtures import (
     LABEL_IMPLEMENTING,
     LABEL_VALIDATING,
@@ -224,6 +225,26 @@ class HandleImplementingTimeoutDispositionTest(unittest.TestCase, _PatchedWorkfl
         # the timeout watermark is spent once the commit ships.
         self.assertFalse(pinned_data.get(AWAITING_HUMAN))
         self.assertIsNone(pinned_data.get(KEY_PRE_IMPLEMENT_SHA))
+
+    def test_quota_timeout_commit_still_publishes(self) -> None:
+        # The session-limit park is for a timed-out run that left nothing to
+        # publish. One the account quota stopped after it committed clean work
+        # of its own is proved by the same two readings and publishes as any
+        # timed-out run's commit does.
+        scenario = IssueScenario(*_seed_timeout_issue())
+        self._run_implementing(
+            scenario.github,
+            scenario.issue,
+            run_agent=agy_quota_stop(timed_out=True),
+            head_shas=(PRE_TIMEOUT_SHA, POST_TIMEOUT_SHA),
+            has_new_commits=[False, True],
+            dirty_files=(),
+            push_branch=True,
+        )
+
+        self.assertEqual(len(scenario.github.opened_prs), 1)
+        self.assertIn((1, LABEL_VALIDATING), scenario.github.label_history)
+        self.assertFalse(scenario.github.pinned_data(1).get(AWAITING_HUMAN))
 
     def test_dirty_commit_parks_without_push(self) -> None:
         # HEAD advanced but the tree carries uncommitted edits. Pushing would

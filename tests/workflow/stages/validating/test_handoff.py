@@ -18,6 +18,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow.agent_failure_values import agy_quota_stop
 from tests.workflow.fixtures import (
     _agent,
     _open_pr_for,
@@ -25,6 +26,7 @@ from tests.workflow.fixtures import (
     _reported,
     approved_on,
 )
+from tests.workflow.session_limit_parks import assert_session_limit_park
 from tests.workflow.stages.validating import (
     validating_review_test_support as review_support,
 )
@@ -185,6 +187,31 @@ class ValidatingPushedFixesStayOnValidatingTest(
         self.assertFalse(state.get(AWAITING_HUMAN))
         self.assertEqual(state.get(REVIEW_ROUND), 2)
         self.assertNotIn((HUMAN_RESUME_ISSUE, LABEL_DOCUMENTING), gh.label_history)
+
+    def test_quota_resume_over_dirty_tree_parks(self) -> None:
+        # The reply's resume committed and the account quota stopped it over a
+        # tree it left dirty: nothing is pushed, and the park is the session
+        # limit rather than the tree's, which would refuse the bare continue
+        # the quota needs once it resets.
+        reply = FakeComment(id=1000, body="please add a test", user=FakeUser("alice"))
+        gh, issue = self._validating_issue(
+            issue_number=HUMAN_RESUME_ISSUE, awaiting_human=True,
+            last_action_comment_id=PICKUP_COMMENT_ID, review_round=1, comments=[reply],
+            silent_park_count=1,
+        )
+
+        with self.assertLogs("orchestrator.workflow", level="WARNING"):
+            self._run_validating(
+                gh, issue, run_agent=agy_quota_stop(), dirty_files=("stray.py",),
+                push_branch=True, head_shas=[BEFORE_FIX_SHA, AFTER_FIX_SHA],
+            )
+
+        assert_session_limit_park(self, gh, HUMAN_RESUME_ISSUE)
+        pinned = gh.pinned_data(HUMAN_RESUME_ISSUE)
+        self.assertEqual(pinned.get(REVIEW_ROUND), 1)
+        # The streak the reply's park stood on advances rather than starting
+        # over, so the rotation threshold still counts consecutive stops.
+        self.assertEqual(pinned.get("silent_park_count"), 2)
 
     def test_drift_pushed_fix_stays_on_validating(self) -> None:
         gh, issue = self._validating_issue(

@@ -52,7 +52,7 @@ from github.Issue import Issue
 
 from orchestrator.agents import models as _agent_models
 from orchestrator.config import models as _config_models
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
@@ -226,13 +226,22 @@ def _dispose_implementing_drift(
     # read the prompt -- a timeout and a question included, since what the
     # park that follows says is wrong is the answer rather than the input.
     drift.delivery.settle(state)
-    if drift.publishes(spec, state):
+    # A quota stop's commit publishes only over a tree provably clean, as on
+    # the ordinary disposition: any other the publication seam would park
+    # under a reason that refuses the bare continue the quota needs.
+    held = (
+        _session_read._is_session_limit(drift.agent_result)
+        and not _worktree_status._worktree_status(drift.worktree).is_clean
+    )
+    if not held and drift.publishes(spec, state):
         _candidate_recovery._publish_committed_work(
             gh, spec, issue, state,
             _models._AgentWork(drift.agent_result, drift.worktree),
         )
     elif drift.agent_result.timed_out:
-        _disposition._park_agent_timeout(gh, issue, state, drift.before_sha)
+        _disposition._park_agent_timeout(gh, issue, state, _guards._ParkedRun(
+            drift.agent_result, _guards._ROUTE_DEV_DRIFT_RESUME, before_sha=drift.before_sha,
+        ))
     else:
         ack_reason = drift.ack_reason()
         if ack_reason:

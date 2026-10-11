@@ -5,8 +5,12 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 
-from orchestrator.agents.models import ToolLifecycle
+from orchestrator.agents import models as _agent_models
+from orchestrator.agents.backends import agy as _agy
+from tests.support import agy_stream as _agy_stream
+from tests.workflow.agent_failure_values import agy_quota_stop
 from tests.workflow.fixtures import _reported
 from tests.workflow.stages.implementing import drift_test_support as support
 
@@ -37,6 +41,30 @@ _agent = support._agent
 _issue_branch = support._issue_branch
 make_issue = support.make_issue
 posted_comment_contains = support.posted_comment_contains
+
+_ACTIVE_STEP = _agent_models.ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+_EXECUTION_FAILED = "agent_execution_failed"
+# A drift resume that stopped with a tool step still open, beside the pinned
+# park and the reason its event reports: an execution failure, and an AGY run
+# the account quota stopped there and whose clock then ran out, which is a
+# session limit rather than a timeout.
+_UNFINISHED_DRIFT_RUNS = (
+    (
+        _agent(session_id=DEV_SESSION, last_message="partial drift output", unfinished_steps=(_ACTIVE_STEP,)),
+        _EXECUTION_FAILED,
+        _EXECUTION_FAILED,
+    ),
+    (
+        replace(
+            _agy.agy_result(_agent_models.AgentRunOptions(), _agent_models.SubprocessResult(
+                _agy_stream.ToolStream.canceled_active_command(), _agy_stream.QUOTA_PLAIN_STDERR, -1, True, False,
+            )),
+            session_id=DEV_SESSION,
+        ),
+        "agent_silent",
+        "agent_session_limit",
+    ),
+)
 
 
 def _assert_body_drift_outcome(test_case, github, prompt) -> None:
@@ -150,45 +178,21 @@ class HandleImplementingResumeOnHashChangeTest(
 
     def test_unfinished_drift_parks_failed(self) -> None:
         # A drift resume that committed new work but exited prematurely with unfinished
-        # tool steps must NOT publish or flip to validating. It parks under agent_execution_failed.
-        step = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
-        gh = FakeGitHubClient()
-        issue = make_issue(
-            DRIFT_RESUME_ISSUE,
-            label=LABEL_IMPLEMENTING,
-            body=UPDATED_REQUIREMENTS,
-        )
-        gh.add_issue(issue)
-        gh.seed_state(
-            DRIFT_RESUME_ISSUE,
-            user_content_hash=STALE_CONTENT_HASH,
-            dev_agent=DEV_AGENT,
-            dev_session_id=DEV_SESSION,
-            awaiting_human=True,
-            last_action_comment_id=HUMAN_COMMENT_ID,
-            branch=_issue_branch(DRIFT_RESUME_ISSUE),
-        )
-
-        mocks = self._run_implementing(
-            gh,
-            issue,
-            run_agent=_agent(
-                session_id=DEV_SESSION,
-                last_message="partial drift output",
-                unfinished_steps=(step,),
-            ),
-            has_new_commits=True,
-            dirty_files=(),
-            push_branch=True,
-            head_shas=["before-resume", "after-resume"],
-        )
-
-        mocks[RUN_AGENT].assert_called_once()
-        self.assertEqual(gh.opened_prs, [])
-        self.assertNotIn((DRIFT_RESUME_ISSUE, LABEL_VALIDATING), gh.label_history)
-        state = gh.pinned_data(DRIFT_RESUME_ISSUE)
-        self.assertTrue(state.get(AWAITING_HUMAN))
-        self.assertEqual(state.get("park_reason"), "agent_execution_failed")
+        # tool steps must NOT publish or flip to validating. It parks retryably: under
+        # agent_execution_failed, or as a session limit where the account quota stopped it,
+        # even past its timeout.
+        for run_agent, park_reason, event_reason in _UNFINISHED_DRIFT_RUNS:
+            with self.subTest(park=event_reason):
+                gh = self._unfinished_drift_park(run_agent)
+                self.assertEqual(gh.opened_prs, [])
+                self.assertNotIn((DRIFT_RESUME_ISSUE, LABEL_VALIDATING), gh.label_history)
+                state = gh.pinned_data(DRIFT_RESUME_ISSUE)
+                self.assertTrue(state.get(AWAITING_HUMAN))
+                self.assertEqual(state.get("park_reason"), park_reason)
+                self.assertEqual(
+                    [event["reason"] for event in gh.recorded_events if event["event"] == "park_awaiting_human"],
+                    [event_reason],
+                )
 
     def test_no_session_falls_through_to_fresh(self) -> None:
         # Pre-spawn implementing (ready -> implementing on the same tick,
@@ -234,6 +238,51 @@ class HandleImplementingResumeOnHashChangeTest(
         # But the new hash is persisted.
         state = gh.pinned_data(FRESH_DRIFT_ISSUE)
         self.assertNotEqual(state.get(USER_CONTENT_HASH), STALE_CONTENT_HASH)
+
+    def test_quota_drift_over_dirty_tree_parks(self) -> None:
+        # A drift resume the account quota stopped after it committed, with
+        # uncommitted work beside the commit and no tool step open, parks as
+        # the session limit rather than reaching the publication seam's tree
+        # park, whose pinned reason would refuse the bare continue.
+        quota_stop = replace(agy_quota_stop(), session_id=DEV_SESSION)
+        with self.assertLogs("orchestrator.workflow", level="WARNING"):
+            gh = self._unfinished_drift_park(quota_stop, dirty_files=("pending.md",))
+        self.assertEqual(gh.opened_prs, [])
+        self.assertEqual(gh.pinned_data(DRIFT_RESUME_ISSUE).get("park_reason"), "agent_silent")
+        self.assertEqual(
+            [event["reason"] for event in gh.recorded_events if event["event"] == "park_awaiting_human"],
+            ["agent_session_limit"],
+        )
+
+    def _unfinished_drift_park(self, run_agent, dirty_files=()):
+        """The client one drift-resume tick left after `run_agent` committed and stopped short, over `dirty_files`."""
+        gh = FakeGitHubClient()
+        issue = make_issue(
+            DRIFT_RESUME_ISSUE,
+            label=LABEL_IMPLEMENTING,
+            body=UPDATED_REQUIREMENTS,
+        )
+        gh.add_issue(issue)
+        gh.seed_state(
+            DRIFT_RESUME_ISSUE,
+            user_content_hash=STALE_CONTENT_HASH,
+            dev_agent=DEV_AGENT,
+            dev_session_id=DEV_SESSION,
+            awaiting_human=True,
+            last_action_comment_id=HUMAN_COMMENT_ID,
+            branch=_issue_branch(DRIFT_RESUME_ISSUE),
+        )
+        mocks = self._run_implementing(
+            gh,
+            issue,
+            run_agent=run_agent,
+            has_new_commits=True,
+            dirty_files=dirty_files,
+            push_branch=True,
+            head_shas=["before-resume", "after-resume"],
+        )
+        mocks[RUN_AGENT].assert_called_once()
+        return gh
 
 
 class ImplementingDriftInterruptedResumeTest(

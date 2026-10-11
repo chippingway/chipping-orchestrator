@@ -33,11 +33,13 @@ from tests.workflow import (
     fix_report_crashes as crashes,
     fix_reports as world,
 )
+from tests.workflow.agent_failure_values import agy_quota_stop
 from tests.workflow.fixtures import (
     LABEL_FIXING,
     LABEL_IN_REVIEW,
     LABEL_VALIDATING,
 )
+from tests.workflow.session_limit_parks import assert_session_limit_park
 
 ISSUE = 1_794
 
@@ -253,6 +255,15 @@ class ParkedFixHandoverTest(unittest.TestCase, world._FixReportMixin):
         held = self.parked_resume(world.reported(), committed=False)
         held["run_agent"].assert_not_called()
 
+# The parks a reply resumes a quota-stopped run over: a question's, which
+# owed nothing, and the missing-report park an earlier round's undescribed
+# commit took.
+QUOTA_RESUMED_PARKS = (
+    (world.QUESTION_REPLY, False),
+    ("done -- see the diff", True),
+)
+
+
 class ParkedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
     """The replies this road publishes nothing for, and what each leaves."""
 
@@ -274,6 +285,24 @@ class ParkedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
         )
         self.assertEqual(self.pull_request.head.sha, world.PUBLISHED_HEAD)
         self.assertNotIn((ISSUE, LABEL_VALIDATING), self.github.label_history)
+
+    def test_a_quota_stopped_resume_owes_its_report(self) -> None:
+        # The reply's resume committed and the account quota stopped it before
+        # it reported -- over a park that owed nothing, and over one whose
+        # earlier round's commit is still owed a report. Nothing is pushed and
+        # the debt stands as the missing-report park would leave it, but the
+        # park is the session limit, whose bare continue retries the round.
+        for first_reply, committed in QUOTA_RESUMED_PARKS:
+            with self.subTest(committed=committed):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.requested_fix(first_reply, committed=committed)
+                world.replied(self)
+                with self.assertLogs("orchestrator.workflow", level="WARNING"):
+                    resumed = self.parked_resume(agy_quota_stop(), **_drift_world.RETRY_OVER_STRANDED)
+
+                resumed[PUSH_BRANCH].assert_not_called()
+                assert_session_limit_park(self, self.github, ISSUE)
+                self.assertTrue(self.pinned()[_report_delivery.OWED_REPORT])
 
     def test_the_human_route_re_reviews_a_report(self) -> None:
         # A report is a handover the next reviewer has to read, so on the

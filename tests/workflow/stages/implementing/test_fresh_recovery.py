@@ -39,6 +39,26 @@ _AGENT_RUNS_USED = "agent_runs_used"
 _WORKFLOW_CHANNEL = "orchestrator.workflow"
 _STEP_ONE = _agent_models.ToolLifecycle(step_index=1, tool_name=_RUN_COMMAND, state=_ACTIVE)
 
+# The park a run takes when it committed work and then stopped on an
+# unfinished tool step, beside the stderr that picks it and the reason its
+# event reports: an execution failure, and an account quota stopping it
+# there, which is a session limit pinned as `agent_silent`. Both keep the
+# failed run's floor for the continue that follows.
+# An Antigravity run the account quota stopped with no tool step open, and the
+# heads around a run that committed before it: the floor it started on, which
+# `_assert_committed_park` expects pinned, and the commit it left.
+_QUOTA_STOP = _agy.agy_result(_agent_models.AgentRunOptions(), _agent_models.SubprocessResult(
+    _agy_stream.terminal(_agy_stream.FAILURE, response=None, error=_agy_stream.QUOTA_MESSAGE),
+    _agy_stream.QUOTA_PLAIN_STDERR, 1, False, False,
+))
+_FLOOR_SHA = "sha-before"
+_QUOTA_COMMIT = "sha-quota-commit"
+
+_COMMITTED_FAILURES = (
+    ("", _EXECUTION_FAILED, _EXECUTION_FAILED),
+    (_agy_stream.QUOTA_PLAIN_STDERR, "agent_silent", "agent_session_limit"),
+)
+
 
 def _seed_fresh_issue(dev_agent: str = _AGY, **state: object) -> IssueScenario:
     gh = FakeGitHubClient()
@@ -52,13 +72,13 @@ def _seed_fresh_issue(dev_agent: str = _AGY, **state: object) -> IssueScenario:
 
 
 def _incomplete_agy_run(
-    cmd: str = "pytest", timed_out: bool = False,
+    cmd: str = "pytest", timed_out: bool = False, stderr: str = "",
 ) -> _agent_models.AgentResult:
     return _agy.agy_result(
         _agent_models.AgentRunOptions(),
         _agent_models.SubprocessResult(
             _agy_stream.ToolStream.canceled_active_command(cmd=cmd),
-            "",
+            stderr,
             1,
             timed_out,
             False,
@@ -100,12 +120,16 @@ class _RecoveryBase(unittest.TestCase, _PatchedWorkflowMixin):
         self.assertEqual(pinned["review_round"], 0)
         self.assertEqual(pinned.get(_AGENT_RUNS_USED), 2)
 
-    def _assert_committed_park(self, scenario: IssueScenario) -> None:
+    def _assert_committed_park(self, scenario: IssueScenario, park_reason: str, event_reason: str) -> None:
         pinned = self._pinned_data(scenario)
         self.assertTrue(pinned.get(_AWAITING_HUMAN))
-        self.assertEqual(pinned.get(_PARK_REASON), _EXECUTION_FAILED)
+        self.assertEqual(pinned.get(_PARK_REASON), park_reason)
         self.assertEqual(pinned.get("pre_implement_sha"), "sha-before")
         self.assertEqual(scenario.github.opened_prs, [])
+        self.assertEqual(
+            [event["reason"] for event in scenario.github.recorded_events if event["event"] == "park_awaiting_human"],
+            [event_reason],
+        )
 
     def _assert_published_continue(self, scenario: IssueScenario) -> None:
         self.assertEqual(len(scenario.github.opened_prs), 1)
@@ -228,41 +252,80 @@ class HandleImplementingAGYRecoveryTest(_RecoveryBase):
                 )
 
     def test_premature_exit_published_on_continue(self) -> None:
-        # End-to-end recovery sequence:
+        # End-to-end recovery sequence, once per park in `_COMMITTED_FAILURES`:
         # Tick 1: An implementing run commits work (sha-before -> sha-committed)
-        # but exits prematurely with unfinished steps (parks agent_execution_failed).
+        # but exits prematurely with unfinished steps, and parks keeping its floor.
         # Tick 2: Operator posts `/orchestrator continue`.
         # Retry returns REPORT: READY with no further HEAD movement (head == sha-committed).
         # Clean ahead-of-base commit attributable to failed run is published.
-        scenario = _seed_fresh_issue()
-        premature = _incomplete_agy_run()
-        # Tick 1:
-        self._run_implementing(
-            scenario.github,
-            scenario.issue,
-            run_agent=[premature, premature],
-            head_shas=["sha-before", "sha-committed"],
-            has_new_commits=[False, True],
-        )
-        self._assert_committed_park(scenario)
+        for stderr, park_reason, event_reason in _COMMITTED_FAILURES:
+            with self.subTest(park=event_reason):
+                scenario = _seed_fresh_issue()
+                premature = _incomplete_agy_run(stderr=stderr)
+                # Tick 1:
+                self._run_implementing(
+                    scenario.github,
+                    scenario.issue,
+                    run_agent=[premature, premature],
+                    head_shas=["sha-before", "sha-committed"],
+                    has_new_commits=[False, True],
+                )
+                self._assert_committed_park(scenario, park_reason, event_reason)
 
-        # Human operator posts `/orchestrator continue`
+                # Human operator posts `/orchestrator continue`
+                scenario.issue.comments.append(
+                    FakeComment(id=100, body="/orchestrator continue", user=FakeUser("dave")),
+                )
+
+                # Tick 2: continue retry runs, returns REPORT: READY at sha-committed (no head change)
+                self._run_implementing(
+                    scenario.github,
+                    scenario.issue,
+                    run_agent=_agent(session_id=_agy_stream.SESSION_ID, last_message=_reported("done")),
+                    head_shas=["sha-committed", "sha-committed"],
+                    has_new_commits=True,
+                    dirty_files=(),
+                    push_branch=True,
+                )
+                self._assert_published_continue(scenario)
+
+
+
+class HandleImplementingQuotaContinueTest(_RecoveryBase):
+    """A quota stop's commit held over an unclean tree, and the continue that publishes it."""
+
+    def test_held_quota_commit_published_on_continue(self) -> None:
+        # Tick 1: the run commits (sha-before -> sha-committed) and the account
+        # quota stops it with uncommitted work beside the commit, with no tool
+        # step left open. It parks as the session limit, keeping its floor.
+        # Tick 2: after `/orchestrator continue` the retry cleans the tree and
+        # returns REPORT: READY with no further commit, which publishes the
+        # commit the quota stop left.
+        scenario = _seed_fresh_issue()
+        with self.assertLogs(_WORKFLOW_CHANNEL, level="WARNING"):
+            self._run_implementing(
+                scenario.github,
+                scenario.issue,
+                run_agent=_QUOTA_STOP,
+                head_shas=(_FLOOR_SHA, _QUOTA_COMMIT),
+                has_new_commits=(False, True),
+                dirty_files=("pending.md",),
+            )
+        self._assert_committed_park(scenario, "agent_silent", "agent_session_limit")
+
         scenario.issue.comments.append(
             FakeComment(id=100, body="/orchestrator continue", user=FakeUser("dave")),
         )
-
-        # Tick 2: continue retry runs, returns REPORT: READY at sha-committed (no head change)
         self._run_implementing(
             scenario.github,
             scenario.issue,
             run_agent=_agent(session_id=_agy_stream.SESSION_ID, last_message=_reported("done")),
-            head_shas=["sha-committed", "sha-committed"],
+            head_shas=(_QUOTA_COMMIT, _QUOTA_COMMIT),
             has_new_commits=True,
             dirty_files=(),
             push_branch=True,
         )
         self._assert_published_continue(scenario)
-
 
 
 class HandleImplementingAGYRefusalTest(_RecoveryBase):

@@ -2,12 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """Reading a finished docs run, in the order the checks have to happen.
 
-A timeout is answered first because nothing the run left on disk can be
-trusted. The dirty-tree check is second and blocks every outcome after it: a
-push ships only committed work, so an agent that edited files without
-committing would have its edits silently dropped by the publication path and
-silently abandoned by the no-change and question paths alike. Only then does
-the `before_sha` comparison get to say whether THIS run produced a commit.
+A run an account quota stopped is asked about before either check below
+would park it: past its timeout or over a dirty tree it parks as the session
+limit, through the shared question park, since both of those parks would
+leave the operator without the reset and the retry a quota needs. A timeout
+is answered next because nothing the run left on disk can be trusted, and
+parks as `agent_timeout`. The dirty-tree check is third and blocks every
+outcome after it: a push ships only committed work, so an agent that edited
+files without committing would have its edits silently dropped by the
+publication path and silently abandoned by the no-change and question paths
+alike. Only then does the `before_sha` comparison get to say whether THIS run
+produced a commit.
 
 On a clean tree with no new commit the agent either checked the diff and found
 nothing to write, or it stopped for some other reason. The explicit
@@ -26,6 +31,7 @@ from orchestrator.workflow.stages.documenting import (
     parks as _parks,
     publication as _publication,
 )
+from orchestrator.workflow.stages.implementing import session_read as _session_read
 
 
 def _dispose_documenting_clean(
@@ -47,6 +53,29 @@ def _dispose_documenting_clean(
     _parks._park_documenting_question(ctx, run.agent_result)
 
 
+def _parks_a_quota_stop(
+    ctx: _models._DocumentingContext, run: _models._DocumentingRun, wt,
+) -> bool:
+    """Park a run an account quota stopped as the session limit where a timeout or an unclean tree would park it.
+
+    Returns True where it parked. Unclean is anything short of a status that
+    PROVED the tree clean: a status nobody could take lists no paths, and read
+    as clean it would hand the publication a checkout nothing vouched for. The timeout's park would drop the quota,
+    its reset, and the diagnostics, and the dirty-tree park pins no retryable
+    reason, so the bare continue a quota needs would be refused. Nothing is
+    published either way, and the uncommitted edits stay in the checkout for
+    the developer that continue resumes. A quota stop over a clean tree reads
+    on like any other run.
+    """
+    agent_result = run.agent_result
+    if not _session_read._is_session_limit(agent_result):
+        return False
+    if not agent_result.timed_out and _worktree_status._worktree_status(wt).is_clean:
+        return False
+    _parks._park_documenting_question(ctx, agent_result, before_sha=run.before_sha)
+    return True
+
+
 def _dispose_documenting_outcome(
     ctx: _models._DocumentingContext, run: _models._DocumentingRun,
 ) -> None:
@@ -56,6 +85,9 @@ def _dispose_documenting_outcome(
     Writes pinned state on every terminal branch; the caller returns
     unconditionally.
     """
+    wt = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
+    if _parks_a_quota_stop(ctx, run, wt):
+        return
     if run.agent_result.timed_out:
         _parks._park_documenting(
             ctx,
@@ -65,7 +97,6 @@ def _dispose_documenting_outcome(
         )
         return
 
-    wt = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
     after_sha = _verification_probes._head_sha(wt)
 
     # A dirty worktree blocks every downstream outcome -- commit + push would

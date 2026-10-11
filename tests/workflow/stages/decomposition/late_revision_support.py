@@ -16,10 +16,13 @@ from __future__ import annotations
 
 from types import MappingProxyType
 
+from orchestrator.agents import models as _agent_models
+from orchestrator.agents.backends import agy as _agy
 from orchestrator.git.measurement.models import (
     AdditionMeasurement,
     MeasurementFailure,
 )
+from tests.support import agy_stream as _agy_stream
 from tests.support.fakes import FakeLabel
 from tests.workflow.stages.decomposition.late_content_replies import reply
 from tests.workflow.stages.decomposition.late_content_support import (
@@ -63,6 +66,19 @@ DEV_SILENT = ""
 QUOTA_EXIT = 3
 
 QUOTA_NOTICE = "You've hit your session limit · resets 10pm (Asia/Novosibirsk)"
+
+
+def agy_quota_past_timeout() -> _agent_models.AgentResult:
+    """A synthetic Antigravity run the account quota stopped, normalized, whose clock then ran out.
+
+    Its final message is empty and the quota is named only on its failure
+    record, which is what has to keep the run from reading as a timeout that
+    worked on its prompt.
+    """
+    return _agy.agy_result(_agent_models.AgentRunOptions(), _agent_models.SubprocessResult(
+        _agy_stream.terminal(_agy_stream.FAILURE, response=None, error=_agy_stream.QUOTA_MESSAGE),
+        _agy_stream.QUOTA_PLAIN_STDERR, -1, True, False,
+    ))
 
 NON_ANSWERS = (
     ("prose without the marker", DEV_SOUNDS_LIKE_ACK),

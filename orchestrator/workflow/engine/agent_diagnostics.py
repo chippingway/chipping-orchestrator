@@ -1,8 +1,9 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
 r"""What a park comment and a log line say about an agent run that produced no
-usable message: its stderr and the exit code beside it, or the provider's own
-words where a Codex usage limit stopped it.
+usable message: its stderr and the exit code beside it, the reset interval
+above them where an account quota stopped it, or the provider's own words
+where a Codex usage limit did.
 
 Two budgets over one tail, because the two readers are different -- a park
 comment quotes 1KB for a human who came to the issue to find out what broke,
@@ -19,6 +20,13 @@ the provider's verbatim (`provider_failures.CodexUsageLimitFailure`), so it is
 redacted whole before it is cut to a budget of its own, and the reset the
 notice names is read off that redacted text rather than the raw one.
 
+Where a backend kept a failure record (`AgentResult.terminal_failure`), the
+exit code beside the stderr is told apart: the subprocess's own return, and
+the failure code the orchestrator normalized the run to. A result without that
+record carries the one code, which keeps its plain label rather than being
+called the process's return. An account-quota stop that record names is quoted
+through the same stderr block, under the reset interval the record kept.
+
 The comment block renders through `messages._as_blockquote`, the one quoting
 form every agent output an issue carries is rendered with, so a diagnostic
 block reads the same as the last-message body it is appended under.
@@ -32,9 +40,10 @@ from orchestrator.workflow.engine import messages as _messages
 
 _STDERR_TAIL_BUDGET = 1024
 
-# The provider's message a usage-limit park quotes, and the reset it names.
-# The provider writes a sentence or two and a date, so these bound a stream
-# nobody expected rather than the message it ordinarily sends.
+# The provider's message a usage-limit park quotes, and the reset a quota
+# park names -- a Codex date or an Antigravity interval. The provider writes a
+# sentence or two and a date, so these bound a stream nobody expected rather
+# than the message it ordinarily sends.
 _PROVIDER_MESSAGE_BUDGET = 1024
 _RESET_BUDGET = 120
 
@@ -61,9 +70,27 @@ def _format_stderr_diagnostics(
     if len(tail) > _STDERR_TAIL_BUDGET:
         tail = tail[-_STDERR_TAIL_BUDGET:]
     quoted = _messages._as_blockquote(tail)
+    return f"\n\n_{label} stderr (last 1KB):_\n\n{quoted}\n\n{_exit_code_line(agent_result, label)}"
+
+
+def _exit_code_line(agent_result: AgentResult, label: str) -> str:
+    """The exit code a park comment names, both of them where the failure record kept the process's own.
+
+    A result without that record carries one code, which may itself be a
+    normalized one, so it keeps the plain label rather than claiming to be
+    what the subprocess returned. A record whose run the timeout killed holds
+    no captured return, since the runner reports a sentinel for a process it
+    killed, and the line says so rather than presenting the sentinel as one.
+    """
+    failure = agent_result.terminal_failure
+    if failure is None:
+        return f"_{label} exit code:_ {agent_result.exit_code}"
+    captured = failure.process_exit_code
+    if captured is None:
+        captured = "not captured (the run timed out and was killed)"
     return (
-        f"\n\n_{label} stderr (last 1KB):_\n\n{quoted}\n\n"
-        f"_{label} exit code:_ {agent_result.exit_code}"
+        f"_{label} subprocess exit code:_ {captured} · "
+        f"_orchestrator's normalized failure code:_ {agent_result.exit_code}"
     )
 
 
@@ -111,3 +138,22 @@ def _format_usage_limit_diagnostics(
         _bounded(message, _PROVIDER_MESSAGE_BUDGET) or "(Codex sent no message)",
     )
     return f"\n\n{reset_line}\n\n_Codex usage-limit message:_\n\n{quoted}"
+
+
+def _format_quota_diagnostics(agent_result: AgentResult) -> str:
+    """Render an account-quota stop's reset interval and failure diagnostics for a park comment.
+
+    Returns a block beginning with two newlines, as the stderr block does: the
+    reset interval the failure record kept, or that the failure named none,
+    then the stderr block, whose redacted tail carries the CLI's diagnostic
+    lines and the terminal error and whose exit-code line tells the
+    subprocess's return apart from the normalized one. The interval is the
+    CLI's countdown from when the run stopped, not from when the comment is
+    read, so the line says which.
+    """
+    failure = agent_result.terminal_failure
+    reset = None if failure is None else failure.quota_reset
+    reset_line = "The failure named no reset interval."
+    if reset:
+        reset_line = f"The quota resets in {_bounded(reset, _RESET_BUDGET)}, counted from when the run stopped."
+    return f"\n\n{reset_line}{_format_stderr_diagnostics(agent_result)}"

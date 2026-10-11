@@ -204,6 +204,7 @@ _HELD_PARK = "late_held_authorization_park"
 _HELD_COMMAND = "late_held_authorization_command"
 
 _AGENT_TIMEOUT = "agent_timeout"
+_AGENT_SILENT = "agent_silent"
 _PARK_EXECUTION_FAILED = "agent_execution_failed"
 
 # The park a handoff refuses on: the checkout is not the commit the size

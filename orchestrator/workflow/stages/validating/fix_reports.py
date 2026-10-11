@@ -78,6 +78,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.implementing import (
     checkout_parks as _checkout_parks,
     parks as _dev_parks,
+    session_read as _session_read,
 )
 from orchestrator.workflow.stages.validating import (
     dev_fix as _dev_fix,
@@ -131,6 +132,12 @@ def _records_the_fix(
     in the same commit (`ReportWrite.behind`): what another road wrote while
     the developer ran is kept beside it, and a change request this run
     answered is retired with the park or not at all.
+
+    A run an account quota stopped records the same debt but takes the
+    session limit the shared question park takes, as a question would, the
+    caller's write landing it: the quota and its reset are what the operator
+    waits out, and the missing-report park would refuse the bare continue
+    that retries the round.
     """
     if _report_delivery.recording_stops_the_tick(
         gh, issue, state, run.agent_result, run.handed,
@@ -139,6 +146,11 @@ def _records_the_fix(
     if _drift_reports._reports(run.agent_result):
         return False
     _drift_reports._owes_the_undescribed(state)
+    if _session_read._is_session_limit(run.agent_result):
+        _dev_parks._on_question(gh, issue, state, _guards._ParkedRun(
+            run.agent_result, _guards._ROUTE_DEV_FIX, before_sha=run.before_sha,
+        ))
+        return True
     state.data.update(run.handed.retires)
     _report_delivery.parks_the_debt(
         _commits.ReportCommit(gh, issue, state), state,
@@ -209,7 +221,8 @@ def _dispose_reported_fix(
 
     The disposition order is the shared one -- an interrupted run first, so a
     shutdown-killed agent parks nothing and the next tick simply retries it,
-    then the timeout park -- because those two are answered before any report
+    then the timeout park, or the session limit where an account quota is
+    what stopped the run -- because those two are answered before any report
     is in question. What changes behind them is only what a run with nothing
     to publish MEANS: a report is an answer this road publishes, where every
     other no-commit reply is still the question it always was.
@@ -218,7 +231,12 @@ def _dispose_reported_fix(
         return _state._OUTCOME_PARKED
     if run.agent_result.timed_out:
         _evidence._consumes_the_delivered(state, run)
-        _dev_fix._park_dev_fix_timeout(gh, issue, state, run.before_sha)
+        if _session_read._is_session_limit(run.agent_result):
+            _dev_parks._on_question(gh, issue, state, _guards._ParkedRun(
+                run.agent_result, _guards._ROUTE_DEV_FIX, before_sha=run.before_sha,
+            ))
+        else:
+            _dev_fix._park_dev_fix_timeout(gh, issue, state, run.before_sha)
         return _state._OUTCOME_PARKED
     publishable = _dev_fix._publishable_dev_fix(spec, issue, state, run)
     if publishable is None:

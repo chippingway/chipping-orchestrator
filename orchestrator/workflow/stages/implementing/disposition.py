@@ -13,7 +13,7 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.config import models as _config_models
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
     paths as _worktree_paths,
@@ -30,6 +30,7 @@ from orchestrator.workflow.stages.implementing import (
     late_park_state as _late_park_state,
     models as _models,
     parks as _parks,
+    session_read as _session_read,
     state as _state,
     unreported_recovery as _unreported_recovery,
 )
@@ -39,20 +40,25 @@ def _park_agent_timeout(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
-    before_sha: str | None,
+    parked: _guards._ParkedRun,
 ) -> None:
     """Park an implementer timeout that produced no publishable commit.
 
     Tags the park `agent_timeout` and persists the pre-agent SHA so the
     next-tick recovery (`_try_recover_implementing_timeout_park`) can publish a
     commit a lingering descendant finishes after this point without waiting for
-    a human reply.
+    a human reply. A run an account quota stopped parks as that session limit
+    instead, through the shared question park, whatever the clock said: the
+    timeout's park would drop the quota, its reset, and the diagnostics.
 
     The park is bounded because a timeout is a run that ENDED after
     `AGENT_TIMEOUT` seconds: its notice lands above anything a human wrote in
     that window, and the quiet recovery that fires only on a thread with
     nothing new on it would otherwise run over the reply meant to end the park.
     """
+    if _session_read._is_session_limit(parked.agent_result):
+        _parks._on_question(gh, issue, state, parked)
+        return
     _guards._park_awaiting_human(
         gh, issue, state,
         f"{config.HITL_MENTIONS} agent timed out after "
@@ -61,7 +67,7 @@ def _park_agent_timeout(
         bounded=True,
     )
     state.set(_state._PARK_REASON, _state._AGENT_TIMEOUT)
-    state.set(_state._PRE_IMPLEMENT_SHA, before_sha or "")
+    state.set(_state._PRE_IMPLEMENT_SHA, parked.before_sha or "")
 
 
 def _try_recover_implementing_timeout_park(
@@ -179,10 +185,13 @@ def _run_left_commits(
     a branch that carries something -- so an ordinary reply, a question, or a
     run that fell short is read here exactly as it always was.
 
-    The second is an intentional `/orchestrator continue` retry of an
-    `agent_execution_failed` session failure park. When that failed run committed
-    work before parking, its tip moved past `pre_implement_sha` and above any
-    inherited floor. If its intentional retry returns a valid `REPORT: READY`
+    The second is an intentional `/orchestrator continue` retry of a park that
+    kept the failed run's floor: `agent_execution_failed`, taken past
+    unfinished tool steps, or `agent_silent` where an account quota stopped
+    the run -- beside such steps, or over a commit it left with the tree
+    unclean. When that failed run committed work before
+    parking, its tip moved past `pre_implement_sha` and above any inherited
+    floor. If its intentional retry returns a valid `REPORT: READY`
     outcome without moving HEAD again, that clean ahead-of-base commit is
     attributable to the failed run and is published through the normal report,
     size, push, and PR gates (`_unreported_recovery._attributable_failed_run_commit`).
@@ -321,16 +330,22 @@ def _dispose_agent_result(
 
     A timed-out run publishes a commit produced by THIS run (clean tree), parks
     a dirty tree for inspection, or parks `agent_timeout` when the run left no
-    commit. A clean exit publishes what this run committed or parks the
-    agent's question. Both halves ask the same pair of questions and neither
-    can be answered by one of them: `_has_new_commits` only compares to
-    `origin/<base>`, and a branch can arrive here already ahead of it, while a
-    head that merely MOVED says nothing about what it moved onto -- a base
-    that advanced under an hour-long run answers that comparison with no
-    commit having been made. So the base reading is taken beside a watermark:
-    `before_sha` on the timeout half (`_timeout_left_commits`), and the
-    certified baseline a read-only relabel left beside it on the clean one
-    (`_run_left_commits`).
+    commit -- unless an account quota is what stopped it, which takes the
+    question park's session-limit branch whatever the clock said, so its
+    notice still names the quota, the reset, and the diagnostics. A clean exit
+    publishes what this run committed or parks the agent's question. A quota
+    stop's commit, on either half, publishes only over a tree provably clean:
+    over any other the publication seam would park the tree, under a reason
+    that refuses the bare continue the quota needs, so it parks as the session
+    limit instead with the work left in the checkout. Both
+    halves ask the same pair of questions and neither can be answered by one
+    of them: `_has_new_commits` only compares to `origin/<base>`, and a branch
+    can arrive here already ahead of it, while a head that merely MOVED says
+    nothing about what it moved onto -- a base that advanced under an
+    hour-long run answers that comparison with no commit having been made. So
+    the base reading is taken beside a watermark: `before_sha` on the timeout
+    half (`_timeout_left_commits`), and the certified baseline a read-only
+    relabel left beside it on the clean one (`_run_left_commits`).
 
     A RECOVERED run is the clean half's own exception, and what it turns on is
     the pinned comment rather than the tree. No agent ran on this tick: the
@@ -347,9 +362,18 @@ def _dispose_agent_result(
     about this very head -- is `unreported_recovery`'s, which every other
     recovery that republishes an earlier run's commits asks too.
     """
+    parked = _guards._ParkedRun(
+        prepared.agent_result,
+        _guards._ROUTE_DEV_RUN,
+        before_sha=prepared.before_sha,
+    )
+    held = (
+        _session_read._is_session_limit(prepared.agent_result)
+        and not _worktree_status._worktree_status(prepared.worktree).is_clean
+    )
     if prepared.agent_result.timed_out:
         after_sha = _verification_probes._head_sha(prepared.worktree)
-        if _timeout_left_commits(spec, prepared, after_sha):
+        if not held and _timeout_left_commits(spec, prepared, after_sha):
             _candidate_recovery._publish_committed_work(
                 gh,
                 spec,
@@ -358,19 +382,12 @@ def _dispose_agent_result(
                 _models._AgentWork(prepared.agent_result, prepared.worktree),
             )
         else:
-            _park_agent_timeout(gh, issue, state, prepared.before_sha)
+            _park_agent_timeout(gh, issue, state, parked)
         gh.write_pinned_state(issue, state)
         return
 
-    if prepared.agent_result.unfinished_steps or not _run_left_commits(spec, state, prepared):
-        _parks._on_question(
-            gh, issue, state,
-            _guards._ParkedRun(
-                prepared.agent_result,
-                _guards._ROUTE_DEV_RUN,
-                before_sha=prepared.before_sha,
-            ),
-        )
+    if held or prepared.agent_result.unfinished_steps or not _run_left_commits(spec, state, prepared):
+        _parks._on_question(gh, issue, state, parked)
         gh.write_pinned_state(issue, state)
         return
     if prepared.recovered and _unreported_recovery._holds_unreported_work(

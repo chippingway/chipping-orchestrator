@@ -172,16 +172,20 @@ def _disposes(
     park, or the edit, exactly as this tick did. A run that left the rebase
     mid-flight parks as the resolution funnel parks it, ahead of the report
     and the push alike: a head that moved during an unfinished rebase is no
-    branch a report may describe or a push may send. A timeout reads ahead of
-    that, as it does in the funnel: the shared disposition parks it as the
-    session failure it is, which `/orchestrator continue` retries, where the
-    unfinished rebase would refuse the command for an answer only a human can
-    give. A report from a run that did not finish, or that left a head nothing
-    could read, is refused before it is recorded (`_refuses_the_report`).
+    branch a report may describe or a push may send -- and one an account
+    quota stopped parks there as the session limit it is. A timeout reads
+    ahead of that, as it does in the funnel: the shared disposition parks it
+    as the session failure it is, a session limit included, which
+    `/orchestrator continue` retries, where the unfinished rebase would refuse
+    the command for an answer only a human can give. A report from a run that
+    did not finish, or that left a head nothing could read, is refused before
+    it is recorded (`_refuses_the_report`).
     """
     if _guards._ignore_if_interrupted(ctx.issue, run.dev_result):
         return
-    if not run.dev_result.timed_out and _outcomes._parks_an_unfinished_rebase(ctx, run):
+    if not run.dev_result.timed_out and _outcomes._parks_an_unfinished_rebase(
+        ctx, run, _guards._ParkedRun(run.dev_result, _guards._ROUTE_DEV_DRIFT_RESUME, before_sha=before_sha),
+    ):
         return
     after_sha = _verification_probes._head_sha(run.worktree)
     if _drift_reports._reports(run.dev_result) and _refuses_the_report(ctx, run, before_sha, after_sha):

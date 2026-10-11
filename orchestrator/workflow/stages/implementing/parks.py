@@ -8,8 +8,10 @@ clear that reason and streak. Each park emits its event and leaves the state
 write to the caller. Its reply watermark stops before any unclaimed human
 comment from the run.
 
-The classification is what the emitted reason says: a quota stop and a provider
-refusal report themselves by name while pinning the retryable `agent_silent`,
+The classification is what the emitted reason says: a quota stop -- a Claude
+notice in the final message, or an exhausted quota a backend's failure record
+names -- and a provider refusal report themselves by name while pinning the
+retryable `agent_silent`,
 an unfinished command execution reports and pins `agent_execution_failed`, and a
 real question reports `agent_question` against a `park_reason` left null,
 because null there is what tells a later tick this park needs a human's actual
@@ -43,46 +45,95 @@ from orchestrator.workflow.state import stage_name
 log = logging.getLogger("orchestrator.workflow")
 
 
-def _mark_agent_silent_park(state: PinnedState) -> None:
-    """Flag a retryable `agent_silent` park and advance the silent-park streak.
+def _mark_retryable_park(
+    state: PinnedState,
+    reason: str = _state._AGENT_SILENT,
+    parked: _guards._ParkedRun | None = None,
+) -> None:
+    """Flag a retryable park, advance the silent-park streak, and keep a failed run's floor.
 
-    Shared by the session-limit and empty-output parks: both are retryable
-    `agent_silent` failures, not real questions. `_resume_dev_with_text` reads
-    the streak (via `_dev_session_retirement_reason`) to rotate a poisoned
-    session to a fresh spawn once it reaches `_SILENT_PARKS_BEFORE_FRESH_SESSION`.
+    Shared by every park `/orchestrator continue` retries rather than refuses:
+    none of them is a real question. `_resume_dev_with_text` reads the streak
+    (via `_dev_session_retirement_reason`) to rotate a poisoned session to a
+    fresh spawn once it reaches `_SILENT_PARKS_BEFORE_FRESH_SESSION`.
+
+    `parked` is handed in by the parks a run can take with commits already
+    on the branch -- the execution failure, which an unfinished tool step
+    sends here past a commit, and a quota stop, which parks here over a
+    commit it left beside an unclean tree. Its floor, `pre_implement_sha`, is
+    persisted on implementing routes without an open PR, so an intentional
+    retry that returns a valid report with no further commit can attribute
+    the committed work to the failed run
+    (`_unreported_recovery._attributable_failed_run_commit`). Kept for a run
+    that committed nothing too, it attributes nothing: the head still stands
+    on it.
     """
     count = int(state.get(_state._SILENT_PARK_COUNT) or 0)
     state.set(_state._AWAITING_HUMAN, True)
-    state.set(_state._PARK_REASON, "agent_silent")
+    state.set(_state._PARK_REASON, reason)
     state.set(_state._SILENT_PARK_COUNT, count + 1)
+    if parked is None:
+        return
+    if (
+        parked.route != _guards._ROUTE_DEV_FIX
+        and not state.get("pr_number")
+        and parked.before_sha
+        and not state.get(_state._PRE_IMPLEMENT_SHA)
+    ):
+        state.set(_state._PRE_IMPLEMENT_SHA, parked.before_sha)
 
 
 def _park_session_limit(
-    gh: GitHubClient, issue: Issue, state: PinnedState, raw: str
+    gh: GitHubClient, issue: Issue, state: PinnedState, parked: _guards._ParkedRun
 ) -> str:
-    """Park a session/usage-quota notice as a RETRYABLE session failure.
+    """Park a session/usage-quota stop as a RETRYABLE session failure.
 
-    A known quota notice ("You've hit your session limit ...") is non-empty but
-    is NOT a real agent question: the session is healthy, the account quota is
-    exhausted, and the only recovery is to wait for the reset and retry.
-    Parking it as `agent_silent` (the same reason a silent poisoned resume
-    uses) lets an operator's `/orchestrator continue` after the reset drop the
-    session and re-ground a fresh one; classifying it as a real question
+    A quota stop is NOT a real agent question: the account quota is exhausted,
+    and the only recovery is to wait for the reset and retry. Parking it as
+    `agent_silent` (the same reason a silent poisoned resume uses) lets an
+    operator's `/orchestrator continue` after the reset drop the session and
+    re-ground a fresh one; classifying it as a real question
     (`park_reason=None`) would refuse that continue as "needs your actual
     guidance". The silent-park streak is incremented so a session that keeps
-    returning the quota notice is eventually rotated, mirroring the
-    empty-message branch. Returns the distinct EVENT reason
-    (`agent_session_limit`) for observability -- the pinned `park_reason` stays
-    `agent_silent` (the control field `/orchestrator continue` keys off).
+    returning the quota stop is eventually rotated, mirroring the empty-message
+    branch. Returns the distinct EVENT reason (`agent_session_limit`) for
+    observability -- the pinned `park_reason` stays `agent_silent` (the control
+    field `/orchestrator continue` keys off).
+
+    The notice quotes whatever named the stop. A Claude notice ("You've hit
+    your session limit ...") is the final message itself. A quota the failure
+    record names left that message empty, so the notice explains the
+    exhausted account instead and appends the reset interval the record kept
+    with the redacted, bounded diagnostics and both exit codes
+    (`_format_quota_diagnostics`). A quota stop may follow commits the run made
+    first -- beside an unfinished tool step, or over a tree left unclean -- so
+    the park keeps the failed run's floor the way the execution-failure park
+    does, with the pinned reason still `agent_silent`.
     """
-    quoted = _session_read._as_blockquote(raw)
-    _comments._post_issue_comment(
-        gh, issue, state,
-        f"{config.HITL_MENTIONS} agent hit a session/usage limit and "
-        "stopped; retry with `/orchestrator continue` once it "
-        f"resets:\n\n{quoted}",
-    )
-    _mark_agent_silent_park(state)
+    agent_result = parked.agent_result
+    failure = agent_result.terminal_failure
+    if failure is not None and failure.quota_exhausted:
+        notice = (
+            "agent stopped because its account quota is exhausted; no further "
+            "work can run on this account until the quota resets, and nothing "
+            "here needs your judgment. Once it resets, reply with exactly "
+            "`/orchestrator continue` to retry."
+            f"{_agent_diagnostics._format_quota_diagnostics(agent_result)}"
+        )
+        log.warning(
+            "issue=#%s agent account quota exhausted; process_exit_code=%s "
+            "exit_code=%d quota_reset=%r stderr_tail=%r",
+            issue.number, failure.process_exit_code, agent_result.exit_code,
+            failure.quota_reset, _agent_diagnostics._stderr_log_tail(agent_result),
+        )
+    else:
+        quoted = _session_read._as_blockquote(agent_result.last_message.strip())
+        notice = (
+            "agent hit a session/usage limit and stopped; retry with "
+            f"`/orchestrator continue` once it resets:\n\n{quoted}"
+        )
+    _comments._post_issue_comment(gh, issue, state, f"{config.HITL_MENTIONS} {notice}")
+    _mark_retryable_park(state, parked=parked)
     return "agent_session_limit"
 
 
@@ -115,7 +166,7 @@ def _park_provider_unavailable(
         "continue` to retry this on a fresh session.\n\n"
         f"{quoted}",
     )
-    _mark_agent_silent_park(state)
+    _mark_retryable_park(state)
     return "agent_provider_unavailable"
 
 
@@ -165,8 +216,8 @@ def _park_silent_failure(
         issue.number, agent_result.exit_code, agent_result.timed_out,
         _agent_diagnostics._stderr_log_tail(agent_result),
     )
-    _mark_agent_silent_park(state)
-    return "agent_silent"
+    _mark_retryable_park(state)
+    return _state._AGENT_SILENT
 
 
 _PARK_EXECUTION_FAILED = _state._PARK_EXECUTION_FAILED
@@ -184,10 +235,9 @@ def _park_execution_failure(
     partial output was not accepted as a successful or verified result.
     Instead of misinterpreting partial output as a clarifying question or
     leaving `park_reason=None`, park with `agent_execution_failed` so an
-    operator's `/orchestrator continue` can retry the execution. Persists
-    `pre_implement_sha` on implementing routes without an open PR, so an
-    intentional retry that returns a valid report can attribute committed
-    work to the failed run.
+    operator's `/orchestrator continue` can retry the execution. Keeps the
+    failed run's floor (`_mark_retryable_park`), so an intentional retry that
+    returns a valid report can attribute committed work to the failed run.
     """
     agent_result = parked.agent_result
     diag = _agent_diagnostics._format_stderr_diagnostics(agent_result, "Agent")
@@ -207,17 +257,7 @@ def _park_execution_failure(
         [step.tool_name for step in agent_result.unfinished_steps],
         _agent_diagnostics._stderr_log_tail(agent_result),
     )
-    count = int(state.get(_state._SILENT_PARK_COUNT) or 0)
-    state.set(_state._AWAITING_HUMAN, True)
-    state.set(_state._PARK_REASON, _PARK_EXECUTION_FAILED)
-    state.set(_state._SILENT_PARK_COUNT, count + 1)
-    if (
-        parked.route != _guards._ROUTE_DEV_FIX
-        and not state.get("pr_number")
-        and parked.before_sha
-        and not state.get(_state._PRE_IMPLEMENT_SHA)
-    ):
-        state.set(_state._PRE_IMPLEMENT_SHA, parked.before_sha)
+    _mark_retryable_park(state, _PARK_EXECUTION_FAILED, parked)
     return _PARK_EXECUTION_FAILED
 
 
@@ -229,13 +269,17 @@ def _on_question(
 ) -> None:
     """Classify what a run with no publishable commit left, park it, report it.
 
-    The structured unfinished-command diagnostic is classified first: an
-    unfinished tool step is an execution failure rather than a question or
-    silent exit. Otherwise the final message is what picks the branch: the two
-    classifiers match known quota and provider-refusal phrasings as a PREFIX
-    of it, and an empty one is a silent exit. What the reported reason names
-    is the branch that ran, though, so the emitted vocabulary stays the closed
-    set above however the agent phrased itself.
+    A quota stop is classified first, from whichever channel carried it: the
+    failure record's quota verdict, read independently of the final message,
+    or a Claude notice matched as a PREFIX of that message. It outranks even
+    the structured unfinished-command diagnostic, because a run the account's
+    quota stopped is recovered by waiting out the reset whatever it left open.
+    An unfinished tool step is next, an execution failure rather than a
+    question or silent exit. Otherwise the final message is what picks the
+    branch: provider-refusal phrasings match as a PREFIX of it, any other
+    message is a real question, and an empty one is a silent exit. What the
+    reported reason names is the branch that ran, though, so the emitted
+    vocabulary stays the closed set above however the agent phrased itself.
 
     The correlation beside it is the part built from no prose at all. The road
     comes off `parked`, since the stage the event reads from the label is held
@@ -249,10 +293,10 @@ def _on_question(
     said_before = _comments._orchestrator_ids(state)
     agent_result = parked.agent_result
     raw = agent_result.last_message.strip()
-    if agent_result.unfinished_steps:
+    if _session_read._is_session_limit(agent_result):
+        park_reason = _park_session_limit(gh, issue, state, parked)
+    elif agent_result.unfinished_steps:
         park_reason = _park_execution_failure(gh, issue, state, parked)
-    elif _session_read._is_session_limit_message(agent_result):
-        park_reason = _park_session_limit(gh, issue, state, raw)
     elif _provider_failures.is_transient_provider_failure(agent_result):
         park_reason = _park_provider_unavailable(gh, issue, state, raw)
     elif raw:

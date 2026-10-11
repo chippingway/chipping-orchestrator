@@ -85,6 +85,9 @@ class _ConflictRunContext:
     # a tree with nothing in it names -- so a clean-rebase exit taken on it
     # would hand a reviewer a checkout nobody read.
     tree_readable: bool = True
+    # The readings in order, for a tree that CHANGES across the tick -- read
+    # clean ahead of the resume and nobody's to read once the run is back.
+    tree_states: tuple = ()
     rebase_in_progress: bool = False
     # What the size gate's count reports for the resolution about to be
     # pushed. A resolution is a candidate for a pull request the remote
@@ -192,6 +195,7 @@ def _run_conflict_merge(owner, github, issue, context):
             head_shas=context.head_shas,
             dirty_files=context.dirty_files,
             tree_readable=context.tree_readable,
+            tree_states=context.tree_states,
             rebase_in_progress=context.rebase_in_progress,
             added_lines=context.added_lines,
             branch_ahead_behind=context.branch_ahead_behind,

@@ -45,6 +45,7 @@ from orchestrator import config as _config
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import (
+    guards as _guards,
     report_binding as _report_binding,
     report_delivery as _report_delivery,
     report_outcomes as _report_outcomes,
@@ -58,6 +59,8 @@ from orchestrator.workflow.stages.fixing import (
 )
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
+    parks as _dev_parks,
+    session_read as _dev_session_read,
     state as _dev_state,
 )
 from orchestrator.workflow.stages.validating import state as _validating_state
@@ -227,6 +230,15 @@ def _holds_for_a_human(
         return False
     if undescribed:
         ctx.state.set(_report_delivery.UNREPORTED_WORK, True)
+    if _dev_session_read._is_session_limit(run.dev_result):
+        # The quota stopped this run, and the quota is what a human waits
+        # out: the same debt, under the session limit a bare continue retries.
+        ctx.state.set(_report_delivery.OWED_REPORT, True)
+        _dev_parks._on_question(ctx.gh, ctx.issue, ctx.state, _guards._ParkedRun(
+            run.dev_result, _guards._ROUTE_DEV_FIX, before_sha=run.before_sha,
+        ))
+        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+        return True
     _report_delivery.parks_an_undeliverable_report(
         ctx.gh, ctx.issue, ctx.state,
         (_MISREAD_PARK if misread else _UNDESCRIBED_PARK).format(
@@ -345,7 +357,10 @@ def _recording_stops_the_tick(
     the missing report it also is, in this road's own words rather than the
     engine's, which would tell a human their session wrote something it never
     did. The work is recorded as UNDESCRIBED beside the debt, because a record
-    an earlier run left describes the branch before these commits.
+    an earlier run left describes the branch before these commits. A run an
+    account quota stopped records the same debt but parks as the session limit
+    the shared question park takes, whose bare continue retries the round
+    where the missing-report park would refuse it.
 
     Both groups are handed over rather than derived here. `consumed` is the
     pairs the caller FROZE before it settled them, so the record names exactly
@@ -402,6 +417,13 @@ def _recording_stops_the_tick(
     if run.reported:
         return False
     ctx.state.set(_report_delivery.UNREPORTED_WORK, True)
+    if _dev_session_read._is_session_limit(run.dev_result):
+        ctx.state.set(_report_delivery.OWED_REPORT, True)
+        _dev_parks._on_question(ctx.gh, ctx.issue, ctx.state, _guards._ParkedRun(
+            run.dev_result, _guards._ROUTE_DEV_FIX, before_sha=run.before_sha,
+        ))
+        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+        return True
     _report_delivery.parks_an_undeliverable_report(
         ctx.gh, ctx.issue, ctx.state,
         _UNFINISHED_PARK.format(mentions=_config.HITL_MENTIONS),

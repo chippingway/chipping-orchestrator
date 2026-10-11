@@ -45,6 +45,7 @@ from orchestrator.workflow.stages.implementing import (
     late_push as _late_push,
     late_records as _late_records,
     parks as _dev_parks,
+    session_read as _session_read,
 )
 from orchestrator.workflow.stages.validating import (
     models as _models,
@@ -202,19 +203,22 @@ def _publish_dev_fix(
     install: the size gate freezes its entry on the tree, and `DECOMPOSE=off`
     keeps candidates out of that reading entirely -- so the unreadable half
     would reach the remote and be answered by the proof taken AFTER the push,
-    which holds the handoff over a commit the pull request already has.
+    which holds the handoff over a commit the pull request already has. A
+    run an account quota stopped parks over such a tree as that session limit
+    instead, whose bare continue the tree park would refuse.
     """
-    state.set("silent_park_count", 0)
     tree = _worktree_status._worktree_status(run.worktree)
     if not tree.is_clean:
-        _checkout_parks._on_unpublishable_tree(
-            gh, issue, state,
-            _guards._ParkedRun(
-                run.agent_result, _guards._ROUTE_DEV_FIX,
-            ),
-            tree,
-        )
+        parked = _guards._ParkedRun(run.agent_result, _guards._ROUTE_DEV_FIX)
+        if _session_read._is_session_limit(run.agent_result):
+            _dev_parks._on_question(gh, issue, state, parked)
+        else:
+            _checkout_parks._on_unpublishable_tree(gh, issue, state, parked, tree)
         return False
+    # A tree proved clean is a session that produced publishable work, so
+    # its silent-park streak comes down -- after the refusals, which reset it
+    # themselves or, for a quota stop, advance it from where it stood.
+    state.set("silent_park_count", 0)
     branch = _naming._resolve_branch_name(state, spec, issue.number)
     published = _late_push._publishes(
         _late_records._gate(gh, spec, issue, state, run.worktree), branch,
@@ -259,19 +263,20 @@ def _dispose_dev_fix_result(
 ) -> bool:
     if _guards._ignore_if_interrupted(issue, run.agent_result):
         return False
-    if run.agent_result.timed_out:
+    parked = _guards._ParkedRun(
+        run.agent_result,
+        _guards._ROUTE_DEV_FIX,
+        before_sha=run.before_sha,
+    )
+    # A run the account quota stopped parks as that session limit even once
+    # its clock ran out: the timeout park would drop the quota, its reset,
+    # and the diagnostics the operator waits it out on.
+    if run.agent_result.timed_out and not _session_read._is_session_limit(run.agent_result):
         _park_dev_fix_timeout(gh, issue, state, run.before_sha)
         return False
-    publishable = _publishable_dev_fix(spec, issue, state, run)
+    publishable = None if run.agent_result.timed_out else _publishable_dev_fix(spec, issue, state, run)
     if publishable is None:
-        _dev_parks._on_question(
-            gh, issue, state,
-            _guards._ParkedRun(
-                run.agent_result,
-                _guards._ROUTE_DEV_FIX,
-                before_sha=run.before_sha,
-            ),
-        )
+        _dev_parks._on_question(gh, issue, state, parked)
         return False
     return _publish_dev_fix(gh, spec, issue, state, publishable)
 

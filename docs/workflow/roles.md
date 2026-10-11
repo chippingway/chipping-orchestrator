@@ -2342,7 +2342,9 @@ out leaves `user_content_hash`, the local watermark, and the replies still owed 
 park a refused launch takes may still move the shared one past its own notice. So does a run whose CLI stopped before it
 worked — on its account's quota, on any refusal its provider answered with (a 401 or a 429 as much as a 529), or with a
 failed exit and nothing said: what it left is reconciled and parks as any unanswered revision does, but over guidance
-still unread, so the continue that answers that park hands it to the developer whole.
+still unread, so the continue that answers that park hands it to the developer whole. A quota stop counts even when
+the run's timeout fired too, and whether the CLI said so in its final message or, as Antigravity does, only in the
+failure diagnostics its result keeps.
 
 The first tick of an adjudication takes the baseline — over what the issue-wide `user_content_hash` covers, which is
 what the developer last worked against, and no further (`late_issue_baseline.py`). Comments are append-only, so that is

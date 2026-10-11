@@ -9,6 +9,7 @@ from orchestrator import config
 from orchestrator.git import commands as _git_commands
 from orchestrator.git.base_sync import pre_pr as _base_sync_pre_pr
 from tests.support.fakes import FakeComment, FakeUser
+from tests.workflow.agent_failure_values import agy_quota_stop
 from tests.workflow.fixtures import (
     _FAKE_WT,
     _TEST_SPEC,
@@ -16,6 +17,7 @@ from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     _agent,
 )
+from tests.workflow.session_limit_parks import READ_THEN_UNREADABLE, assert_session_limit_park
 from tests.workflow.stages.conflicts import conflict_resume_test_support
 from tests.workflow.stages.conflicts.conflicts_test_support import (
     CONFLICT_PR_HEAD_SHA,
@@ -36,6 +38,21 @@ MERGED_HEAD = RESOLVED_HEAD_SHA
 PUSH_BRANCH = "_push_branch"
 LABEL_VALIDATING = "workflow:validating"
 DEV_SESSION = "dev-sess"
+
+BARE_CONTINUE = "/orchestrator continue"
+OPERATOR = FakeUser("dave")
+
+# The ways a quota stop leaves a rebase the stage would otherwise park on its
+# own terms: mid-rebase with a tool step still open, past the run's timeout,
+# and resolved over a tree not proved clean -- uncommitted work left beside the
+# resolution, or a status nobody could take.
+QUOTA_RESULT = "run_agent_result"
+QUOTA_STALLS = (
+    ("mid-rebase", {"rebase_in_progress": True, QUOTA_RESULT: agy_quota_stop(unfinished=True)}),
+    ("timed out", {QUOTA_RESULT: agy_quota_stop(timed_out=True)}),
+    ("resolved over a dirty tree", {"dirty_files": ("a.py",), QUOTA_RESULT: agy_quota_stop()}),
+    ("resolved over an unreadable tree", {"tree_states": READ_THEN_UNREADABLE, QUOTA_RESULT: agy_quota_stop()}),
+)
 
 
 def _run_with_git_patches(
@@ -427,6 +444,31 @@ class ResolvingConflictSessionRecoveryTest(
         )
         conflict_resume_test_support.assert_continue_state(self, github)
         run_result[1].assert_not_called()
+
+    def test_quota_stop_parks_for_the_continue(self) -> None:
+        # A rebase an account quota stopped -- mid-rebase with a tool step
+        # still open, or past its timeout -- parks as the session limit rather
+        # than `rebase_in_progress` or `agent_timeout`, and the bare continue
+        # after the reset resumes the developer on it instead of refusing.
+        for shape, stalled in QUOTA_STALLS:
+            with self.subTest(stalled=shape):
+                github, issue = self._seed()[:2]
+                with self.assertLogs("orchestrator.workflow", level="WARNING"):
+                    self._run_with_merge(
+                        github, issue, merge_succeeded=False, conflicted_files=["a.py"],
+                        head_shas=[BEFORE_HEAD, "after"], push_branch=True, **stalled,
+                    )[0][PUSH_BRANCH].assert_not_called()
+                assert_session_limit_park(self, github, CONFLICT_ISSUE)
+                issue.comments.append(FakeComment(id=HUMAN_REPLY_ID, body=BARE_CONTINUE, user=OPERATOR))
+
+                resumed = self._run_with_merge(
+                    github, issue, merge_succeeded=True, head_shas=[BEFORE_HEAD, MERGED_HEAD], push_branch=True,
+                    run_agent_result=_agent(session_id=DEV_SESSION, last_message="resolved"),
+                )[0]
+
+                resumed[RUN_AGENT].assert_called_once()
+                self.assertNotIn(BARE_CONTINUE, resumed[RUN_AGENT].call_args.args[1])
+                self.assertIn((CONFLICT_ISSUE, LABEL_VALIDATING), github.label_history)
 
     def test_bare_continue_on_question_park_refuses(self) -> None:
         # A genuine agent question parks with `park_reason=None`. A content-free

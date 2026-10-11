@@ -26,6 +26,7 @@ from tests.workflow import (
     fix_report_crashes as crashes,
     fix_reports as world,
 )
+from tests.workflow.agent_failure_values import agy_quota_stop
 from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING, _agent
 
 ISSUE = 1_794
@@ -66,6 +67,19 @@ SUPERSEDING_REPORT = "Answers the edited criteria as well as the reviewer's."
 PR_LAST_COMMENT_ID = "pr_last_comment_id"
 
 ISSUE_ACTION_ID = "last_action_comment_id"
+
+
+# Rounds that committed and did not finish, beside the park each takes and the
+# words its notice carries: a failed exit parks for the missing report, and an
+# account quota's stop as that quota's session limit, over the same debt.
+UNFINISHED_ROUNDS = (
+    (
+        _agent(session_id=world.DEV_SESSION, last_message="died", exit_code=1),
+        _report_delivery.UNDELIVERABLE_REPORT,
+        "did not finish",
+    ),
+    (agy_quota_stop(), "agent_silent", "account quota is exhausted"),
+)
 
 
 class RequestedFixReportTest(unittest.TestCase, world._FixReportMixin):
@@ -246,19 +260,19 @@ class RequestedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
         # contract, because the roads it serves publish nothing either way.
         # This road publishes, so a nonzero exit over committed work is parked
         # as the missing report it also is -- in this road's own words, since
-        # the engine's speak for a developer that finished and declined.
-        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        # the engine's speak for a developer that finished and declined. An
+        # account quota stopping it records the same debt but parks as that
+        # session limit, whose bare continue retries the round.
+        for reply, reason, notice in UNFINISHED_ROUNDS:
+            with self.subTest(park=reason):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
 
-        mocks = self.requested_fix(
-            _agent(session_id=world.DEV_SESSION, last_message="died", exit_code=1),
-        )
+                self.requested_fix(reply)[PUSH_BRANCH].assert_not_called()
 
-        mocks[PUSH_BRANCH].assert_not_called()
-        self.assertEqual(
-            self.pinned()[PARK_REASON], _report_delivery.UNDELIVERABLE_REPORT,
-        )
-        self.assertIn("did not finish", _park_notice(self))
-        self.assertEqual(_round(self), 0)
+                self.assertEqual(self.pinned()[PARK_REASON], reason)
+                self.assertTrue(self.pinned()[_report_delivery.OWED_REPORT])
+                self.assertIn(notice, _park_notice(self))
+                self.assertEqual(_round(self), 0)
 
     def test_a_report_over_loose_work_parks(self) -> None:
         # A report of a checkout carrying uncommitted work describes something
@@ -311,11 +325,14 @@ class RequestedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
         # question this route has always read it as -- the reviewer asked for a
         # concrete change, so there is nothing to acknowledge. A timeout keeps
         # its own transient park, which the fixing handler retries without a
-        # human. And a shutdown-killed round records nothing at all, so the next
-        # tick simply runs the round again.
+        # human -- unless an account quota stopped it first, which parks as the
+        # session limit a bare continue retries once the quota resets. And a
+        # shutdown-killed round records nothing at all, so the next tick simply
+        # runs the round again.
         rounds = (
             (world.QUESTION_REPLY, (True, None)),
             (_agent(session_id=world.DEV_SESSION, timed_out=True), (True, "agent_timeout")),
+            (agy_quota_stop(timed_out=True), (True, "agent_silent")),
             (_agent(session_id=world.DEV_SESSION, interrupted=True), (False, None)),
         )
         for reply, expected in rounds:
