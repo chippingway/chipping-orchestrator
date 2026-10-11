@@ -18,15 +18,17 @@ transaction again, which settles whatever proves whole however the heads got
 back. The same holds for the checkout or remote the landed road itself reads
 leaving the head (`abandons`).
 
-The abandonment is a write of its own, over the comment read afresh, and it
-can fail: a comment nobody could read again, or one another road moved under
-the write. Until it lands, the transaction is still the attempt's to answer,
-so the coordinator takes none of those roads -- nothing is reset, cleared, or
-parked -- and holds the tick with the attempt standing
-(`abandons_off_the_landing` answers whether it may go on); the anchor keeps the
-dispatcher's reconciliation off the transaction meanwhile, and the next tick's
-recovery reads the landing and abandons it again. A landing put back before
-that tick reads as one nothing moved under, since nothing durable could record
+The abandonment is a write of its own, over the comment read afresh, and
+where that write does not land -- a comment that would not read again, a record
+moved under the write -- it is landed over the tick's own reading instead
+(`rewrite_finish_captured`), so the movement read is kept on the records the
+transaction already has. Only where no write lands at all is the transaction
+still the attempt's to answer: the coordinator then takes none of those roads
+-- nothing is reset, cleared, or parked -- and holds the tick with the attempt
+standing (`abandons_off_the_landing` answers whether it may go on), the anchor
+keeping the dispatcher's reconciliation off the transaction, for the next
+tick's recovery to read the landing and abandon it again. A landing put back
+before that tick reads as one nothing moved under, since no write could record
 the movement.
 
 A reset is the one road that moves the checkout off the landed head itself:

@@ -32,10 +32,11 @@ readings no request answers, behind every one that did: the checkout's own
 head and the configuration. The remote branch and the checkout are two
 readings, the checkout read whatever the remote's came to, and the records are
 compared on their own, whatever the proof before them could read. Every
-reading is taken, and none masks another: the last word
-answers with the first that establishes movement and the first that holds the
-route, side by side, so a reading nobody could take never hides one that read
-something move. A remote branch or a checkout read off the landed head
+reading is taken, and the last word answers with the first that establishes
+movement and the first that holds the route, side by side, so a reading nobody
+could take never hides movement another reading took. Movement that only the
+reading nobody could take would have shown is established by nothing: it
+holds, and is proved again. A remote branch or a checkout read off the landed head
 (`LEFT_THE_LANDING`) both holds the route -- the landing it would finish is no
 longer the one in front of it, and the next tick's recovery classifies the
 branch afresh -- and establishes movement; a remote branch nobody could read,
@@ -216,7 +217,8 @@ def last_word(
     is read first and the local readings last (`_answers_locally`), so
     nothing read before a request is taken on trust behind it.
 
-    Every reading is taken and none masks another. `moved` is the first that
+    Every reading is taken, and none nobody could take hides one that read
+    movement. `moved` is the first that
     establishes that something the route rests on moved -- every refusal that
     defers, and the two holds that read movement, a landing off its head and
     a base read elsewhere (`_MOVEMENT`) -- and a transaction the route would

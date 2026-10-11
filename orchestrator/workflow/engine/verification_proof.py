@@ -32,9 +32,10 @@ against, since a publication made against another reading would reopen the
 window this evidence exists to close.
 
 `recorded_verdict` is the part of that proof the pinned comment answers with
-no request at all -- the recorded subject, and the settled report it has to
-name -- for a caller whose whole proof stopped at a reading nobody could take
-and that still has to hear what those records say moved.
+no request at all -- the recorded subject, the settled report pair as a
+reviewer's reader judges it before reading anything, and that report named by
+the subject -- for a caller whose whole proof stopped at a reading nobody
+could take and that still has to hear what those records say moved.
 
 `configured_context_revision` is the context both witnesses are held to: the
 configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, minted by the verify
@@ -44,6 +45,7 @@ another one -- including an empty one -- is not current once it moves.
 """
 from __future__ import annotations
 
+import importlib
 from dataclasses import dataclass
 
 from github.Issue import Issue
@@ -63,6 +65,7 @@ from orchestrator.workflow.engine import (
     verification_subject as _subject,
     verification_world as _world,
 )
+from orchestrator.workflow.engine.stage_targets import _VALIDATING_REVIEW_REPORT_OWNER
 
 
 def configured_context_revision() -> str:
@@ -115,25 +118,30 @@ def recorded_verdict(
     """Refuse `binding` on the review and report records `state` carries alone, or None.
 
     Each refusal is one the whole proof makes too, taken with no request at
-    all: the recorded subject (`verification_subject.subject_verdict`), and
-    the settled report the comment records, whose revision and digest that
-    subject has to name. So a caller whose proof stopped at a reading nobody
-    could take -- the pull request, the branch fetch, the report re-read --
-    still hears what the records it holds say moved. A comment recording no
-    readable settled report says nothing here, and the whole proof answers
-    for it.
+    all: the recorded subject (`verification_subject.subject_verdict`), then
+    the settled report pair as a reviewer's reader judges it before it reads
+    anything (`stages/validating/review_report._settled_refusal`, resolved
+    when called) -- the current report readable, on this pull request, and
+    the handoff that settled it describing that very report -- and last the
+    subject naming that report's revision and digest. So a caller whose proof
+    stopped at a reading nobody could take -- the pull request, the branch
+    fetch, the report re-read -- still hears what the records it holds say
+    moved, a report record or handoff gone or out of step among them.
     """
     refused = _subject.subject_verdict(state, binding)
-    current = _report_settlement.read_current_report(state)
-    if refused is not None or current is None:
+    if refused is not None:
         return refused
+    review_report = importlib.import_module(_VALIDATING_REVIEW_REPORT_OWNER)
+    current = _report_settlement.read_current_report(state)
     target = binding.target
-    if target.subject_identity == (target.publication.pr_number, current.report_revision, current.content_revision):
+    refusal = review_report._settled_refusal(state, current, target.publication.pr_number)
+    if not refusal and target.subject_identity != (
+        target.publication.pr_number, current.report_revision, current.content_revision,
+    ):
+        refusal = "the review subject is not about the report this issue records as settled"
+    if not refusal:
         return None
-    return _evidence_models.ReportEvidence(
-        _evidence_models.ReportEvidenceVerdict.DEFER,
-        "the review subject is not about the report this issue records as settled",
-    )
+    return _evidence_models.ReportEvidence(_evidence_models.ReportEvidenceVerdict.DEFER, refusal)
 
 
 def binding_verdict(

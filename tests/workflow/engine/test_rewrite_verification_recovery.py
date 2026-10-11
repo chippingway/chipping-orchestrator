@@ -24,7 +24,9 @@ from __future__ import annotations
 
 import unittest
 from functools import partial
+from unittest.mock import patch
 
+from orchestrator.git.base_sync import pre_pr
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
@@ -34,6 +36,8 @@ from tests.workflow.engine import (
 from tests.workflow.interleaving import _RacesPastTheStep
 
 _EDITED_BODY = "Also cover a moved base."
+
+_UPDATE_REF = "update-ref"
 
 _STRAY_COMMIT = (
     "-c", "user.name=stray", "-c", "user.email=stray@example.invalid",
@@ -56,12 +60,12 @@ def _settles_once_read(case: support.VerificationRecoveryCase, head: str, reread
 
 def _rewinds_the_base(case: support.VerificationRecoveryCase, _head: str) -> None:
     """Force the remote's base back onto the commit the anchor was made over, dropping what it advanced by."""
-    case._git("update-ref", "refs/heads/main", f"{case.anchor}^", cwd=case._remote)
+    case._git(_UPDATE_REF, "refs/heads/main", f"{case.anchor}^", cwd=case._remote)
 
 
 def _puts_the_remote_back(case: support.VerificationRecoveryCase) -> None:
     """Move the pull request's remote branch back onto the head the rebase replaced."""
-    case._git("update-ref", f"refs/heads/{git_support.BRANCH}", case.anchor, cwd=case._remote)
+    case._git(_UPDATE_REF, f"refs/heads/{git_support.BRANCH}", case.anchor, cwd=case._remote)
 
 
 # What moves a captured run was bound to before the recovery reads it.
@@ -120,6 +124,39 @@ class MissingRecordRecoveryTest(support.VerificationRecoveryCase, unittest.TestC
             (git_support.nothing_recorded(self), 0),
         )
         self.assert_recovered(head)
+
+    def test_a_base_rewound_mid_rebase_runs_nothing(self) -> None:
+        # The refresh rebases the branch onto the advanced base, and the base
+        # -- the local ref and the remote's own -- is rewound the moment git
+        # returns, before the attempt records what its replay was made onto.
+        # The attempt names no tip the rewind could stand in for, so once a
+        # reviewer is handed the published head and its finish is recovered,
+        # nothing runs or is recorded and the head goes to the fresh reviewer.
+        rewound = self._git("rev-parse", "refs/heads/main", cwd=self._remote).strip()
+        git_support.advances_the_base(self)
+        rebases = partial(self._rebases_then_rewinds, pre_pr._rebase_base_into_worktree, rewound)
+        with patch.object(pre_pr, "_rebase_base_into_worktree", side_effect=rebases):
+            self.dies_routing(self.recovers)
+        head = git_support.remote_head(self)
+        self.pull_request.head.sha = head
+        self.reviews(head)
+
+        self.recovers()
+
+        recorded = readings.records(readings.pinned(self))
+        self.assertEqual(
+            (recorded, self.runs(), readings.relabels(self)),
+            (git_support.nothing_recorded(self), 0, readings.ROUTED),
+        )
+        said = (support.announced(self), self.pushes.call_count, self.developer.call_count)
+        self.assertEqual(said, ([head], 1, 0))
+
+    def _rebases_then_rewinds(self, rebase, rewound: str, spec, worktree) -> tuple:
+        """Run `rebase` as the refresh asked, then rewind the base -- the local ref and the remote's -- to `rewound`."""
+        rebased = rebase(spec, worktree)
+        self._git(_UPDATE_REF, "refs/remotes/origin/main", rewound, cwd=self._wt)
+        self._git(_UPDATE_REF, "refs/heads/main", rewound, cwd=self._remote)
+        return rebased
 
     def _assert_recorded_a_run_of(self, head: str) -> None:
         """The command's run on `head` pending, executed here and recorded as it printed, beside nothing current."""

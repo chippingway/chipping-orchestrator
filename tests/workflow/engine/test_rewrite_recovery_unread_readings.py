@@ -24,9 +24,8 @@ from unittest.mock import patch
 
 from orchestrator.git.base_sync import rewrite_facts
 from orchestrator.git.publication.probes import _BranchDivergence
-from orchestrator.workflow.engine import report_publication_evidence
+from orchestrator.workflow.engine import report_publication_evidence, report_records, review_subjects
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
-from orchestrator.workflow.engine.review_subjects import REVIEW_SUBJECT
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
@@ -58,11 +57,33 @@ def _unproved_at(original, failing: int, calls: list, *args):
     return replace(reading, head="", tree="", base=_BranchDivergence())
 
 
-def _moves_the_subject(case: support.VerificationRecoveryCase, recorded: dict) -> None:
-    """Record `recorded` on `case`'s pinned comment as the review subject the latest reviewer was handed."""
+def _records(case: support.VerificationRecoveryCase, key: str, recorded) -> None:
+    """Record `recorded` as `key` on `case`'s pinned comment, as another road's write would; None takes it out."""
     moved = case.gh.read_pinned_state(case.issue)
-    moved.set(REVIEW_SUBJECT, recorded)
+    moved.set(key, recorded)
     case.gh.write_pinned_state(case.issue, moved)
+
+
+# What another road moves among the records a captured run is bound through,
+# beside how it moves it: the review subject the latest reviewer was handed,
+# and the handoff that settled the developer report, taken out or put out of
+# step with that report.
+_MOVED_RECORDS = (
+    ("the review subject", review_subjects.REVIEW_SUBJECT, lambda recorded: {**recorded, "requirements": _ELSEWHERE}),
+    ("the report handoff, gone", report_records.REPORT_HANDOFF, lambda _recorded: None),
+    (
+        "the report handoff, out of step",
+        report_records.REPORT_HANDOFF,
+        lambda recorded: {**recorded, "revision": recorded["revision"] + 1},
+    ),
+)
+
+# Each move made before the recovery, and while it asks for the pull request.
+_MOVES = tuple(
+    (*record, during)
+    for record in _MOVED_RECORDS
+    for during in (False, True)
+)
 
 
 def _unread(move, *_args) -> ReportEvidence:
@@ -93,37 +114,38 @@ class UnreadCheckoutRecoveryTest(support.VerificationRecoveryCase, unittest.Test
 
     def test_an_unread_pull_request_hides_no_move(self) -> None:
         # The pull request cannot be read for the captured run's proof, which
-        # stops there, and the review subject the run answers for is moved on
-        # the comment before the recovery or while the pull request is asked.
-        # The records are read beside that reading all the same, so the run is
-        # abandoned unrun; with the subject put back, the head is routed with
+        # stops there, and a record the run is bound through -- the review
+        # subject, or the handoff that settled its report -- is moved on the
+        # comment before the recovery or while the pull request is asked. The
+        # records are judged beside that reading all the same, so the run is
+        # abandoned unrun; with the record put back, the head is routed with
         # nothing run or recorded.
-        for during in (False, True):
-            with self.subTest(moved_while_asked=during):
+        for move in _MOVES:
+            with self.subTest(moved=move[0], moved_while_asked=move[3]):
                 self.setUp()
                 head = self.lands_a_reviewed_rebase()
                 self.dies_routing(partial(self.finishes, head))
                 captured = readings.pinned_records(self)[0]
-                self._recovers_beside_a_moved_subject(during=during)
+                self._recovers_beside_a_moved_record(*move[1:])
 
                 self._assert_abandoned(captured)
                 self.recovers()
                 self._assert_abandoned(captured)
                 self.assert_recovered(head)
 
-    def _recovers_beside_a_moved_subject(self, *, during: bool) -> None:
-        """Recover over a pull request nobody could read, the review subject moved before or `during` that read.
+    def _recovers_beside_a_moved_record(self, key: str, moves, during: bool) -> None:
+        """Recover over a pull request nobody could read, `key` moved by `moves` before or `during` that read.
 
-        The subject is put back once the recovery is done.
+        The record is put back once the recovery is done.
         """
-        recorded = self.gh.read_pinned_state(self.issue).get(REVIEW_SUBJECT)
-        moves = partial(_moves_the_subject, self, {**recorded, "requirements": _ELSEWHERE})
+        recorded = self.gh.read_pinned_state(self.issue).get(key)
+        moving = partial(_records, self, key, moves(recorded))
         if not during:
-            moves()
-        unread = partial(_unread, moves if during else lambda: None)
+            moving()
+        unread = partial(_unread, moving if during else lambda: None)
         with patch.object(report_publication_evidence, _PULL_REQUEST_READ, side_effect=unread):
             self.recovers()
-        _moves_the_subject(self, recorded)
+        _records(self, key, recorded)
 
     def _assert_abandoned(self, captured) -> None:
         """Nothing pending or current, the settled evidence invalidated and `captured` abandoned, and no second run."""

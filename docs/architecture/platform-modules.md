@@ -600,12 +600,14 @@ orchestrator/
                         still owes a standing anchor its recovery -- which the workflow's recovery coordinator
                         runs; a terminal PR ends an anchored attempt's whole handoff through `terminal_handoff`
       pre_pr.py         the hardened rebase / merge probes and the aborting pre-PR local rebase
-      startup.py        the pre-rebase HEAD guard, and the anchor and the attempt's terms persisted before git
-                        runs -- the write that spends the reply a park of the refresh's let the rebase start on, and
-                        carries the retry the workflow staged read from it (`workflow/engine/rewrite_replies.py`)
+      startup.py        the pre-rebase HEAD guard, and the anchor, the attempt's terms, and the base tip the rebase
+                        will replay onto -- frozen off `<remote>/<base>` and blanked where that ref moved while git
+                        ran -- persisted before git runs: the write that spends the reply a park of the refresh's
+                        let the rebase start on, and carries the retry the workflow staged read from it
+                        (`workflow/engine/rewrite_replies.py`)
       attempts.py       the replay checkpoint, the announcement mark's presence checks, and the whole-record clear
                         that ends an auto-rebase attempt. The workflow's publication records its replay here, with
-                        the base tip it was made onto beside it (`pending_auto_base_rebase_rewrite_base`); the
+                        the base tip frozen before git ran beside it (`pending_auto_base_rebase_rewrite_base`); the
                         workflow's finish of every landing puts the mark down through its own guarded checkpoint,
                         while the anchor still stands and before relabeling, and reads it back here; the
                         workflow's handoff of an unpublished replay to a late generation

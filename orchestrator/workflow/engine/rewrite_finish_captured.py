@@ -75,10 +75,12 @@ finish is reached abandons it through the same last word
 from __future__ import annotations
 
 import logging
+from functools import partial
 
 from orchestrator.git.base_sync import attempts as _attempts, state as _base_sync_state
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    rewrite_finish_writes as _writes,
     verification_carries as _carries,
     verification_durable as _durable,
     verification_record_state as _record_state,
@@ -177,7 +179,8 @@ def stands_before_the_route(
     the answer whatever this reads: the last word is asked all the same, so a
     captured transaction something moved under is abandoned behind any stop.
 
-    Every reading is taken, and none masks another. Any that establishes
+    Every reading is taken, and none nobody could take hides one that read
+    movement. Any that establishes
     movement -- a refusal of the transaction's binding, a landing off its
     head, a base read elsewhere -- abandons the transaction the route would
     carry, in its own write (`_abandoned`): a decision something
@@ -229,9 +232,15 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
     its own -- is the movement this answers or none of its business, so it
     neither refuses the abandonment nor is written over. Only a carry's own
     approval goes with it (`verification_carries.abandons`), and only while
-    the comment still carries that approval; a comment that will not read
-    again, or no longer records `pending`, abandons nothing and holds the
-    route.
+    the comment still carries that approval. Where that write does not land
+    -- a comment that would not read again, a record moved under the write --
+    the abandonment is staged on the tick's own copy instead and landed as
+    `rewrite_finish_writes.ABANDONMENT`, decided only on the records it
+    retires and the attempt, so one failed reading or one move does not leave
+    the transaction standing for a later route to take once the landing is
+    put back. Only where neither lands -- the comment taking no write at all,
+    or no longer recording `pending` -- is the route held with the
+    transaction kept, logged.
 
     A comment with no room for the abandonment's history entry still takes a
     write that only shrinks it, and that write refuses the transaction for
@@ -246,30 +255,26 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
     over it, however the base, the landing, or the issue reads by then. The
     route is held behind that write.
     """
+    fits = None
     durable, _moved = _durable.durable_comment(finish.gh, finish.issue, finish.state)
-    if durable is None or _record_state.read_pending_evidence(durable) != pending:
+    if durable is not None and _record_state.read_pending_evidence(durable) == pending:
+        guard = _durable.guarded(durable, _ABANDONED, _attempts._ATTEMPT_KEYS)
+        fits = _abandons(finish, durable, pending, why)
+        if _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is not None:
+            fits = None
+    if fits is None and recorded(finish, logged=False) == pending:
+        fits = _writes.abandons(finish, partial(_abandons, finish, pending=pending, why=why))
+    if fits is None:
         log.warning(
-            "issue=#%d holding the route of %.8s: the pinned comment read again no longer records verification "
-            "evidence revision %d to abandon (%s)",
+            "issue=#%d holding the route of %.8s: verification evidence revision %d could not be abandoned over "
+            "the pinned comment read again or the tick's own reading of it (%s)",
             finish.issue.number, finish.head, pending.revision, why,
         )
-        return FinishOutcome.HELD
-    guard = _durable.guarded(durable, _ABANDONED, _attempts._ATTEMPT_KEYS)
-    fits = _abandons(finish, durable, pending, why)
-    if not fits:
-        durable.set(_records.PENDING_EVIDENCE, None)
-        durable.set(_base_sync_state._PENDING_REWRITE_BASE, None)
-    refused = _durable.lands(finish.gh, finish.issue, finish.state, guard, durable)
-    if refused is not None:
-        log.warning(
-            "issue=#%d holding the route of %.8s: abandoning verification evidence revision %d did not land (%s)",
-            finish.issue.number, finish.head, pending.revision, refused.refusal,
-        )
-    return None if fits and refused is None else FinishOutcome.HELD
+    return None if fits else FinishOutcome.HELD
 
 
 def _abandons(finish: LandedFinish, staged: PinnedState, pending: _records.PendingEvidence, why: str) -> bool:
-    """Stage `pending`'s abandonment into history on `staged`; whether it fit, logged either way.
+    """Stage `pending`'s abandonment into history on `staged`, or its drop where that has no room; whether it fit.
 
     Through the abandonment every transaction that will never settle takes
     (`verification_carries.abandons`), so a carry takes the approval of
@@ -286,4 +291,6 @@ def _abandons(finish: LandedFinish, staged: PinnedState, pending: _records.Pendi
         "verification evidence revision %d (%s); dropping it with the base tip it rests on instead",
         finish.issue.number, finish.head, pending.revision, why,
     )
+    staged.set(_records.PENDING_EVIDENCE, None)
+    staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
     return False

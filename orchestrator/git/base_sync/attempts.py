@@ -115,10 +115,13 @@ def _records_the_replay(context: _AutoRebaseContext, replayed: str, onto: str) -
     anchor answer: an attempt carrying them and no head reads back as one
     still IN FLIGHT rather than as one that never ran.
 
-    `onto` is the base tip the replay was made onto, from that same reading,
-    and goes down beside the head: what a landed head's evidence is later
-    held to (`rewrite_facts._standing_on_the_remote_base`) is that the base
-    is still this very commit, which no count over a base read later can say.
+    `onto` is the base tip the replay was made onto, frozen with the anchor
+    before git ran (`startup._frozen_base`) and blank where the ref moved
+    while it ran, and goes down beside the head: what a landed head's
+    evidence is later held to (`rewrite_facts._standing_on_the_remote_base`)
+    is that the base is still this very commit, which no count over a base
+    read later can say -- and a base ref read again once the replay exists
+    may already name another.
     """
     context.state.set(_PENDING_REWRITE_SHA, replayed)
     context.state.set(_PENDING_REWRITE_BASE, onto or None)

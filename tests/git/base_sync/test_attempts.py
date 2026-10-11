@@ -56,6 +56,10 @@ REPLAYED_SHA = "5ca1ab1e" * 5
 # The base tip a replay was made onto, written beside it.
 ONTO_SHA = "0e70ba5e" * 5
 
+# The base tip this fixture's divergence reading answers with, which the
+# anchor's write freezes off the base ref before git runs.
+FROZEN_BASE_SHA = "ba5e0000" * 5
+
 ABBREVIATED_SHA = REPLAYED_SHA[:8]
 
 NOT_A_SHA = "the-head-it-left"
@@ -90,6 +94,7 @@ _ANCHOR_AND_TERMS = MappingProxyType({
     KEY_ANCHOR: BEFORE_SHA,
     KEY_REWRITE_PR: PR_NUMBER,
     KEY_REWRITE_STAGE: LABEL_IN_REVIEW,
+    KEY_REWRITE_BASE: FROZEN_BASE_SHA,
 })
 
 _WITH_THE_REPLAY = MappingProxyType({
@@ -100,7 +105,7 @@ _WITH_THE_REPLAY = MappingProxyType({
 # the first one able to answer for its member.
 _WRITERS = (
     (
-        "the anchor and the terms, before git runs",
+        "the anchor, the terms, and the base tip frozen for the rebase, before git runs",
         lambda context: startup._record_auto_rebase_attempt(
             context, BEFORE_SHA, None,
         ),

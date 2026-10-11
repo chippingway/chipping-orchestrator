@@ -14,7 +14,13 @@ routed: conflicted files are the dev agent's work, anything else is a park.
 The attempt's own terms go down in the anchor's own statement for the same
 reason the anchor does: they are what a later tick re-asks this attempt's
 publication checks against, and read off the issue after a crash they would
-compare today with today.
+compare today with today. So does the base tip the rebase is about to replay
+onto, frozen off `<remote>/<base>` before git runs: that ref lives in a store
+the worktree can write, so a reading taken once git has returned may name a
+commit the replay was never made onto, and the evidence a landed head is later
+routed with is held to this frozen tip (`attempt_records._recorded_onto`). A
+ref that no longer names it once the rebase returns -- moved while git ran --
+leaves the attempt naming no base at all, which proves nothing.
 """
 from __future__ import annotations
 
@@ -28,11 +34,13 @@ from orchestrator.git.base_sync.state import (
     _AWAITING_HUMAN,
     _PARK_REASON,
     _PENDING_PUSH_SHA,
+    _PENDING_REWRITE_BASE,
     _PENDING_REWRITE_PR,
     _PENDING_REWRITE_STAGE,
     _REASON_AUTO_BASE_REBASE_FAILED,
     log,
 )
+from orchestrator.git.publication import probes as publication_probes
 from orchestrator.git.verification import probes
 
 
@@ -84,6 +92,10 @@ def _record_auto_rebase_attempt(
     recording its output recoverable at all. A crash there leaves a checkout
     on a replay nothing names -- but the terms on the comment still say which
     publication the attempt in flight was for.
+
+    The base tip the rebase will replay onto is frozen here too
+    (`_frozen_base`), before git runs, for the same reason: read once the
+    replay exists it would be whatever the ref says then.
     """
     if consumed_comment_id is not None:
         context.state.set("last_action_comment_id", consumed_comment_id)
@@ -92,7 +104,19 @@ def _record_auto_rebase_attempt(
     context.state.set(_PENDING_PUSH_SHA, before_sha)
     context.state.set(_PENDING_REWRITE_PR, context.pr_number)
     context.state.set(_PENDING_REWRITE_STAGE, str(context.label))
+    context.state.set(_PENDING_REWRITE_BASE, _frozen_base(context) or None)
     context.gh.write_pinned_state(context.issue, context.state)
+
+
+def _frozen_base(context: _AutoRebaseContext) -> str:
+    """The commit `<remote>/<base>` names in `context`'s checkout now, or "" where it reads as none.
+
+    Resolved by the reading every later count of the replay takes
+    (`publication.probes._branch_divergence`), so the tip frozen here and the
+    one a landed head is counted against are spelled by one owner.
+    """
+    base = publication_probes._branch_divergence(context.spec, context.worktree, context.spec.base_branch)
+    return base.tip if base.readable else ""
 
 
 def _handle_failed_auto_rebase(
@@ -167,4 +191,8 @@ def _start_auto_rebase(
     if not succeeded:
         _handle_failed_auto_rebase(context, pr, conflicted_files)
         return None
+    if _frozen_base(context) != (context.state.get(_PENDING_REWRITE_BASE) or ""):
+        # The ref moved while git ran, so nothing says which tip the replay
+        # sits on; the replay's own record carries the blank.
+        context.state.set(_PENDING_REWRITE_BASE, None)
     return before_sha

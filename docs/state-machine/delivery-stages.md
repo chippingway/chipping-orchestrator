@@ -1299,7 +1299,9 @@ because there it is the claim that this stage has already rerouted rather than a
   commands, exit statuses, and outputs; a passing run whose transcript no artifact can carry records nothing and leaves
   the evidence to the reviewer; and every other run is **failed**, returned whole so the failing command and its output
   stay actionable. The base is held to the tip the attempt recorded its replay as made onto
-  (`pending_auto_base_rebase_rewrite_base`), by identity rather than by counting commits -- the base the head was
+  (`pending_auto_base_rebase_rewrite_base`) -- frozen off the base ref with the anchor before git runs
+  (`git/base_sync/startup.py`), and left blank where the ref moved while git ran, so a base ref moved once the replay
+  exists is never what the attempt names -- by identity rather than by counting commits -- the base the head was
   counted against has to be that very tip, and the remote's base, read without a fetch, still there -- before a run
   starts and behind it, before a carry is recorded, and once more by the last word (next bullet). A base rewound or
   repointed under the head, or an attempt that recorded no tip -- or a tip blanked by a transaction refused for good --
@@ -1332,20 +1334,22 @@ because there it is the claim that this stage has already rerouted rather than a
   word -- a captured transaction's behind whatever stopped it, a hold for want of room or an evidence write refused or
   never confirmed included, so it is still proved again and abandoned where anything moved -- while a fresh decision
   held before its write, or whose write did not land, ends without it, having recorded nothing the tick knows of. The
-  last word is asked once nothing else is left to request -- behind the evidence write and any
-  failure notice's conversation read and post (`rewrite_finish_captured.stands_before_the_route`, over
+  last word is asked once nothing else is left to request -- behind the evidence write and any failure notice's
+  conversation read and post (`rewrite_finish_captured.stands_before_the_route`, over
   `rewrite_evidence_proof.last_word`) -- which reads everything that moves again in one fixed order: the network first,
   the remote branch the head landed on, the base, and -- over the issue and pinned comment fetched once more -- the
   requirements and the review and report records the transaction is bound to, and then what no request answers, the
-  checkout's own head and the configuration. Every reading is taken and none masks another, the checkout read whatever
-  the remote branch's reading came to and the records compared on their own, whatever the proof before them could read:
-  the first that establishes movement and the first that holds the route are answered side by side, so a reading nobody
-  could take never hides one that read something move. A captured transaction's proof that stops at a pull request
-  nobody could read is answered beside the records the comment it read carries (`verification_proof.recorded_verdict`)
-  the same way. A remote branch or checkout read off the landed head, a remote branch nobody could read or a checkout
-  whose head would not prove, or a base gone elsewhere or unreadable, holds the route; moved requirements, review
-  subject, settled report, or configuration, or a base no longer the recorded tip, refuse the transaction the route
-  would carry, and the head goes to the fresh reviewer. Wherever any reading establishes movement -- the captured
+  checkout's own head and the configuration. Every reading is taken, the checkout read whatever the remote branch's
+  reading came to and the records compared on their own, whatever the proof before them could read: the first that
+  establishes movement and the first that holds the route are answered side by side, so a reading nobody could take
+  never hides movement another reading took -- movement only the unread reading would have shown is established by
+  nothing, and holds for another proof. A captured transaction's proof that stops at a pull request nobody could read is
+  answered beside the records the comment it read carries (`verification_proof.recorded_verdict`: the review subject,
+  the settled report pair -- the current report readable and its handoff describing it -- and that report named by the
+  subject) the same way. A remote branch or checkout read off the landed head, a remote branch nobody could read or a
+  checkout whose head would not prove, or a base gone elsewhere or unreadable, holds the route; moved requirements,
+  review subject, settled report, or configuration, or a base no longer the recorded tip, refuse the transaction the
+  route would carry, and the head goes to the fresh reviewer. Wherever any reading establishes movement -- the captured
   transaction's own proof refusing it, those refusals, a landing read off its head, or a base read elsewhere -- the
   transaction is abandoned unrun in its own write, staged on the comment read afresh and committed guarded by that
   reading, so a review, report, or approval another road wrote meanwhile neither refuses it nor is written over -- only
@@ -1372,22 +1376,24 @@ because there it is the claim that this stage has already rerouted rather than a
   (`workflow/engine/rewrite_landing_moved.py`): a remote rolled back, a checkout reset onto the anchor, or both moved on
   to another head each sends the recovery down a road that clears, resets, or parks the attempt without taking that
   transaction's route, so once the heads are put back the dispatcher's reconciliation has nothing to settle. An
-  abandonment that does not land -- a comment nobody could read again, a write another road's move refused -- takes no
-  road at all: nothing is reset, cleared, or parked, the attempt stands, and its anchor keeps the reconciliation, which
-  asks for it itself, off the transaction until a later recovery abandons it; a landing put back before then reads as
-  one nothing moved under, since nothing durable could record the movement. A snapshot nobody could take -- a fetch that
-  failed, a remote head that would not resolve -- ends in the git owner's abort, which resets the checkout onto the
-  anchor and clears the attempt: where that reset landed, the recovery's own reset moved the checkout off the landed
-  head, so the transaction is abandoned on the state that abort's park writes (`git/base_sync/persistence.py` asks the
-  recovery before it drops the attempt) and goes in the one write that releases the attempt, or -- that write not
-  landing -- neither goes and the attempt still guards it; where the reset failed nothing moved and the transaction is
-  kept. Every other road that resets does the same, finding nothing left to abandon once the coordinator has, and so
-  does the abort the refresh takes directly over a checkout whose lag against base could not be counted
-  (`rewrite_recovery.answers_an_unreadable_checkout`). A checkout whose head would not prove, or a remote nobody could
-  read, abandons nothing and leaves the transaction to be proved again. Nothing is pushed a second time, no notice,
-  event, or round reset is repeated under the attempt's own mark, no developer is launched, and the evidence decision
-  resumes where the dead tick left it. A tick that died before its evidence write landed -- before the configured
-  commands ran, or behind a run that completed and was never recorded
+  abandonment whose write over the comment read again does not land -- a comment that would not read, a record moved
+  under the write -- is landed over the tick's own reading instead (`rewrite_finish_writes.ABANDONMENT`, decided only on
+  the records it retires and the attempt), so the movement read is kept. Only where no write lands at all does the
+  recovery take no road: nothing is reset, cleared, or parked, the attempt stands, and its anchor keeps the
+  reconciliation, which asks for it itself, off the transaction until a later recovery abandons it; a landing put back
+  before then reads as one nothing moved under, since no write could record the movement. A snapshot nobody could take
+  -- a fetch that failed, a remote head that would not resolve -- ends in the git owner's abort, which resets the
+  checkout onto the anchor and clears the attempt: where that reset landed, the recovery's own reset moved the checkout
+  off the landed head, so the transaction is abandoned on the state that abort's park writes
+  (`git/base_sync/persistence.py` asks the recovery before it drops the attempt) and goes in the one write that releases
+  the attempt, or -- that write not landing -- neither goes and the attempt still guards it; where the reset failed
+  nothing moved and the transaction is kept. Every other road that resets does the same, finding nothing left to abandon
+  once the coordinator has, and so does the abort the refresh takes directly over a checkout whose lag against base
+  could not be counted (`rewrite_recovery.answers_an_unreadable_checkout`). A checkout whose head would not prove, or a
+  remote nobody could read, abandons nothing and leaves the transaction to be proved again. Nothing is pushed a second
+  time, no notice, event, or round reset is repeated under the attempt's own mark, no developer is launched, and the
+  evidence decision resumes where the dead tick left it. A tick that died before its evidence write landed -- before the
+  configured commands ran, or behind a run that completed and was never recorded
   -- captured nothing, so the decision is taken afresh and the commands run again where the policy runs them, held to
   the base as above. A failure notice the dead tick recorded is that decision, published once with nothing run again;
   the last word behind that publication holds the route where the landing or the base moved, as it does behind a

@@ -1197,7 +1197,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             unreadable, holds the route, and a transaction the route would carry is abandoned unrun,
                             in its own write, staged on the comment read afresh and committed guarded by that reading
                             so a review, report, or approval another road wrote meanwhile neither refuses it nor is
-                            written over, wherever any reading establishes movement there -- the proof refusing it,
+                            written over -- and landed over the tick's own reading where that write does not
+                            (`rewrite_finish_writes.ABANDONMENT`) -- wherever any reading establishes movement there --
+                            the proof refusing it,
                             the binding's inputs or its review and report records moved, the landing moved, or the
                             base read elsewhere -- however the readings beside it came out, so no later route takes it
                             once everything is back; only readings nobody could take keep it. With no room for the
@@ -1226,7 +1228,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the round, and prepared with its notice's ledger entry reserved over the fresh ledger;
                             the evidence write, owning the four evidence records' pending, current, and history, the
                             revision floor, and a failed run's notice, decided on the attempt, the claim, and every
-                            record the evidence is bound through (`verification_durable.py`); the retirement, clearing
+                            record the evidence is bound through (`verification_durable.py`); the abandonment a write
+                            over the comment read afresh could not land, staged on the tick's copy and decided only on
+                            the records it retires and the attempt (`ABANDONMENT`, through `abandons`); the
+                            retirement, clearing
                             that notice beside the attempt, decided on the attempt, the park's flags, the round, the
                             claim, and every record the evidence is bound through, so a report or review moved after
                             the evidence was decided -- a captured record proved over the tick's reading included --
@@ -1274,7 +1279,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             compared on their own -- and then the checkout's own head and the configuration,
                             which no request answers, the checkout read whatever the remote's reading came to --
                             every reading taken, the first that establishes movement and
-                            the first that holds answered side by side, so an unread reading masks no movement: a
+                            the first that holds answered side by side, so an unread reading masks no movement
+                            another reading took: a
                             remote branch or checkout read off the head, or a base read elsewhere, both holds and
                             establishes movement, a remote branch nobody could read, a checkout head that would not
                             prove, or an unreadable base, issue, or comment only holds, and moved requirements,
@@ -1445,7 +1451,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             which the settlement takes again over the comment it re-read, and which the base-rewrite
                             evidence policy (`rewrite_evidence.py`) takes over a carry, and over a run's
                             binding before the run and behind it. `recorded_verdict` is the part the pinned comment
-                            answers with no request -- the recorded subject and the settled report it names -- for the
+                            answers with no request -- the recorded subject, the settled report pair as a reviewer's
+                            reader judges it (the current report readable and its handoff describing it), and that
+                            report named by the subject -- for the
                             rewrite evidence's proof (`rewrite_evidence_proof.py`) where its whole proof held.
                             `current_evidence_verdict`
                             is for a reader about to rely on the current record: the pull request, then its
@@ -1793,11 +1801,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `rewrite_landed.py` for a checkout or remote it reads leaving the head (`abandons`). Only
                             a transaction about the head the attempt announced is read, and it is handed to the
                             finish's last word with the movement already read (`rewrite_finish_captured.py`), so heads
-                            put back by then keep nothing. Each says whether its abandonment landed: one that did not
-                            -- a comment nobody could read again, a write refused -- leaves the coordinator holding
-                            the tick with the attempt standing, so its anchor keeps the reconciliation off the
-                            transaction until a later recovery abandons it. A reset that took the checkout off the
-                            head -- the git owner's abort behind a snapshot nobody could take among them -- is
+                            put back by then keep nothing. Each says whether its abandonment landed -- over the
+                            comment read afresh, or failing that over the tick's own reading: one no write lands
+                            leaves the coordinator holding the tick with the attempt standing, so its anchor keeps the
+                            reconciliation off the transaction until a later recovery abandons it. A reset that took
+                            the checkout off the head -- the git owner's abort behind a snapshot nobody could take
+                            among them -- is
                             answered on the state its park writes (`abandons_over_the_reset`, handed to
                             `git/base_sync/persistence.py` on the recovery's context and asked before the attempt is
                             dropped), so the abandonment goes in the write that releases the attempt or neither does
