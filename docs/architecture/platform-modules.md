@@ -730,8 +730,10 @@ orchestrator/
       persistence.py    the parks and the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the
-                        approved commit. The finish of a landing -- its report debt, notice, event, announcement
-                        mark, and route -- is the workflow's (`workflow/engine/rewrite_finish.py`)
+                        approved commit; a recovery's context is asked first what it owes over that reset
+                        (`settles_over_a_reset`), staged on the same state so it rides the one park write. The
+                        finish of a landing -- its report debt, notice, event, announcement mark, and route -- is
+                        the workflow's (`workflow/engine/rewrite_finish.py`)
       recovery_notices.py
                         how a recovery's park notices name the commits they are about
       models.py         the frozen contexts, requests, snapshots, and decisions

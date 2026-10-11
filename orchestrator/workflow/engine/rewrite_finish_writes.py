@@ -26,15 +26,14 @@ head's evidence decision durable ahead of its route
 (`rewrite_finish_evidence`): the current evidence retired into history, the
 transaction a fresh or carried result is recorded as, with the revision floor
 it raises, and the notice a failed run is owed (`rewrite_finish_failures`) --
-or a transaction recorded for a head the base advanced past abandoned, with the
-approval a carry takes (`rewrite_finish_captured.sets_aside`) -- decided on the
-attempt, the debt, and every record the evidence is bound through
-(`verification_durable`), so a report, a review subject, or an evidence record
-another road moved while the commands ran refuses it. The abandonment of a
-transaction something was read moving under is none of these: it is staged on
-the comment read afresh and committed guarded by that reading
-(`rewrite_finish_captured`), since the record that moved is the very movement
-it answers.
+decided on the attempt, the debt, and every record the evidence is bound
+through (`verification_durable`), so a report, a review subject, or an evidence
+record another road moved while the commands ran refuses it. The abandonment of
+a recorded transaction -- one something was read moving under, or one recorded
+for a head the base advanced past -- is none of these: it is staged on the
+comment read afresh and committed guarded by that reading
+(`rewrite_finish_captured`), since a record another road moved is the very
+movement it answers or none of its business.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, the claim the checkpoint made durable, and every

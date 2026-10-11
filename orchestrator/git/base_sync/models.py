@@ -11,6 +11,7 @@ one recorded.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -183,6 +184,11 @@ class _AutoRebaseRecoveryContext:
     pending_rewrite: _PendingRewrite = _PendingRewrite()
     behind: int = 0
     unparking_consumed_max: int | None = None
+    # What the workflow's recovery owes over a reset that takes the checkout
+    # off the head the attempt landed, staged on `state` before the attempt is
+    # dropped from it, so it rides the park's write with that release or not
+    # at all (`persistence._reset_clear_and_park`). None owes nothing.
+    settles_over_a_reset: Callable[[], None] | None = None
 
 
 @dataclass(frozen=True)

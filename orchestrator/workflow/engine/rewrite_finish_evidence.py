@@ -127,11 +127,11 @@ def continues(finish: LandedFinish) -> FinishOutcome | None:
 
     The caller's next rebase replaces that head, so a transaction recorded
     for it is a decision no route takes (`rewrite_finish_captured.sets_aside`),
-    abandoned in the evidence write before the attempt retires. Nothing is
-    decided, run, or invalidated for the head itself.
+    abandoned in a write of its own over the comment read afresh before the
+    attempt retires. Nothing is decided, run, or invalidated for the head
+    itself.
     """
-    staged = _writes.staging(finish)
-    return _captured.sets_aside(finish, staged) or _lands(finish, staged)
+    return _captured.sets_aside(finish)
 
 
 def _decides(finish: LandedFinish) -> FinishOutcome | None:

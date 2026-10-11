@@ -1378,13 +1378,14 @@ because there it is the claim that this stage has already rerouted rather than a
   one nothing moved under, since nothing durable could record the movement. A snapshot nobody could take -- a fetch that
   failed, a remote head that would not resolve -- ends in the git owner's abort, which resets the checkout onto the
   anchor and clears the attempt: where that reset landed, the recovery's own reset moved the checkout off the landed
-  head, so the transaction is abandoned behind it, and where the reset failed nothing moved and the transaction is kept.
-  An abandonment behind a landed reset that cannot itself land leaves the transaction beside a cleared attempt, its
-  checkout reset off the head, so the reconciliation's proof of it defers until something puts the checkout back. A
-  checkout whose head would not prove, or a remote nobody could read, abandons nothing and leaves the transaction to be
-  proved again. Nothing is pushed a second time, no notice, event, or round reset is repeated under the attempt's own
-  mark, no developer is launched, and the evidence decision resumes where the dead tick left it. A tick that died before
-  its evidence write landed -- before the configured commands ran, or behind a run that completed and was never recorded
+  head, so the transaction is abandoned on the state that abort's park writes (`git/base_sync/persistence.py` asks the
+  recovery before it drops the attempt) and goes in the one write that releases the attempt, or -- that write not
+  landing -- neither goes and the attempt still guards it; where the reset failed nothing moved and the transaction is
+  kept. Every other road that resets does the same, finding nothing left to abandon once the coordinator has. A checkout
+  whose head would not prove, or a remote nobody could read, abandons nothing and leaves the transaction to be proved
+  again. Nothing is pushed a second time, no notice, event, or round reset is repeated under the attempt's own mark, no
+  developer is launched, and the evidence decision resumes where the dead tick left it. A tick that died before its
+  evidence write landed -- before the configured commands ran, or behind a run that completed and was never recorded
   -- captured nothing, so the decision is taken afresh and the commands run again where the policy runs them, held to
   the base as above. A failure notice the dead tick recorded is that decision, published once with nothing run again;
   the last word behind that publication holds the route where the landing or the base moved, as it does behind a
@@ -1403,8 +1404,9 @@ because there it is the claim that this stage has already rerouted rather than a
   again. A report or review subject another road recorded while the proof ran is read by the last word behind it, which
   abandons the transaction; one recorded after the last word refuses the route, since the retirement behind it is
   decided on every record the transaction is bound through, and the next recovery proves the transaction against it. A
-  head the base advanced past again is not routed: a transaction recorded for it is abandoned in the evidence write
-  before the attempt retires (a failure notice recorded for it is cleared by that retirement), and the tick's rebase
+  head the base advanced past again is not routed: a transaction recorded for it is abandoned in a write of its own,
+  staged on the comment read afresh so another road's approval neither refuses it nor is written over, before the
+  attempt retires (a failure notice recorded for it is cleared by that retirement), and the tick's rebase
   goes on to a head decided afresh. Whether the current evidence has to be invalidated is asked afresh on every resumed
   finish, since the configuration can move between the two, and anything that moves while the recovery's own run is
   under way makes that run **moved**, as on the publication. Publishing and settling the recorded transaction behind the

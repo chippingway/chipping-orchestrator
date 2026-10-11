@@ -70,8 +70,7 @@ Only a record about the landed head is read here: while the attempt stands the
 anchor holds every other road, so nothing but a finish of this landing records
 evidence for that head; a recovery that reads the landing moved before any
 finish is reached abandons it through the same last word
-(`rewrite_landing_moved`). A record set aside is staged on the caller's copy,
-and the caller's evidence write (`rewrite_finish_writes.EVIDENCE`) lands it.
+(`rewrite_landing_moved`).
 """
 from __future__ import annotations
 
@@ -208,12 +207,17 @@ def stands_before_the_route(
     return behind or stopped
 
 
-def sets_aside(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
-    """Stage the abandonment of a record made for a landed head the base advanced past; HELD where it has no room."""
+def sets_aside(finish: LandedFinish) -> FinishOutcome | None:
+    """Abandon a record made for a landed head the base advanced past, in its own write; None to go on.
+
+    The same abandonment a movement read under the record takes
+    (`_abandoned`), staged on the comment read afresh, so an approval or a
+    review another road wrote meanwhile neither refuses it nor is written
+    over; one that does not land, or that has no room and only refuses the
+    record for good, holds the continuation with the attempt standing.
+    """
     pending = recorded(finish)
-    if pending is None or _abandons(finish, staged, pending, _ADVANCED):
-        return None
-    return FinishOutcome.HELD
+    return None if pending is None else _abandoned(finish, pending, _ADVANCED)
 
 
 def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str) -> FinishOutcome | None:

@@ -10,16 +10,24 @@ attempt -- so the run is abandoned first. Where that abandonment does not land
 under the write -- the recovery takes no road at all: nothing is reset,
 cleared, or parked, and the attempt's anchor keeps the dispatcher's
 reconciliation off the run, so putting the heads back settles nothing. The
-next recovery abandons the run and goes on down the road it chose. Nothing
-runs, pushes, or announces again, and no developer is launched.
+next recovery abandons the run and goes on down the road it chose.
+
+A fetch that fails ends in the git owner's abort, whose reset takes the
+checkout off the landed head itself: the run is abandoned on the state that
+abort's park writes, so it goes in the very write that releases the attempt --
+whatever a comment read of the abandonment's own would have answered -- or,
+where that write does not land, neither goes and the attempt still guards the
+run. Nothing runs, pushes, or announces again, and no developer is launched.
 """
 from __future__ import annotations
 
 import hashlib
+import subprocess
 import unittest
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator.git import branch_transport
 from orchestrator.workflow.engine import verification_durable, verification_transaction
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 from orchestrator.workflow.engine.review_subjects import REVIEW_SUBJECT
@@ -31,6 +39,9 @@ from tests.workflow.engine import (
 from tests.workflow.interleaving import _RacesPastTheStep
 
 _DURABLE_READ = "durable_comment"
+
+# A fetch of the pull request's branch that failed.
+_UNFETCHED = subprocess.CompletedProcess([], 1, "", "unread remote")
 
 # The comment read again for the abandonment answering as one nobody could read.
 _UNREAD = (None, ReportEvidence(ReportEvidenceVerdict.HOLD, "the pinned comment could not be read again"))
@@ -54,6 +65,13 @@ def _unreadable(*_called, **_options):
 def _puts_the_remote_on(case: support.VerificationRecoveryCase, head: str) -> None:
     """Point `case`'s remote branch at `head`."""
     case._git("update-ref", f"refs/heads/{git_support.BRANCH}", head, cwd=case._remote)
+
+
+def _captures(case: support.VerificationRecoveryCase) -> tuple:
+    """Land a reviewed rebase whose finish records its run and dies at the relabel; the head, and that run."""
+    head = case.lands_a_reviewed_rebase()
+    case.dies_routing(partial(case.finishes, head))
+    return head, readings.pinned_records(case)[0]
 
 
 def _reconciles(case: support.VerificationRecoveryCase) -> None:
@@ -94,6 +112,41 @@ class UnlandedAbandonmentTest(support.VerificationRecoveryCase, unittest.TestCas
 
                 self._assert_abandoned(head, captured)
 
+    def test_a_reset_carries_its_abandonment(self) -> None:
+        # The fetch fails, so the abort resets the checkout onto the anchor:
+        # the run is abandoned in the write that releases the attempt, even
+        # where the comment would not read again for an abandonment of its
+        # own. Put back on the landed head, the checkout settles nothing.
+        head, captured = _captures(self)
+        with (
+            patch.object(branch_transport, "_authed_fetch", return_value=_UNFETCHED),
+            patch.object(verification_durable, _DURABLE_READ, side_effect=_unreadable),
+        ):
+            self.recovers()
+
+        self.assertEqual(self._wt_head(), self.anchor)
+        self._assert_abandoned(head, captured)
+        self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+        _reconciles(self)
+        self._assert_abandoned(head, captured)
+
+    def test_an_unwritten_park_keeps_the_attempt(self) -> None:
+        # The fetch fails and the write of the abort's park does not land:
+        # neither the abandonment nor the attempt's release is written, so
+        # the attempt still guards the run, and the reconciliation leaves it
+        # be even with the checkout put back on the landed head.
+        head, captured = _captures(self)
+        with (
+            patch.object(branch_transport, "_authed_fetch", return_value=_UNFETCHED),
+            patch.object(self.gh, "write_pinned_state", side_effect=support.dies),
+        ):
+            self.recovers()
+
+        self.assert_held(captured)
+        self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+        _reconciles(self)
+        self.assertEqual(readings.pinned_records(self)[:2], (captured, None))
+
     def _holds_an_unlanded_abandonment(self, failing) -> tuple:
         """A fresh case's captured run, its remote rolled back and its abandonment failing as `failing` makes it.
 
@@ -101,9 +154,7 @@ class UnlandedAbandonmentTest(support.VerificationRecoveryCase, unittest.TestCas
         standing, and the run recorded. The head, and the run.
         """
         self.setUp()
-        head = self.lands_a_reviewed_rebase()
-        self.dies_routing(partial(self.finishes, head))
-        captured = readings.pinned_records(self)[0]
+        head, captured = _captures(self)
         _puts_the_remote_on(self, self.anchor)
         unlanded = failing(self, verification_durable.durable_comment)
         with patch.object(verification_durable, _DURABLE_READ, side_effect=unlanded):

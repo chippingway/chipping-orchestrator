@@ -25,8 +25,9 @@ found already landed -- hand it to the one finish every landing gets
   the tick instead, with nothing reset, cleared, or parked, so the attempt
   stands for the next tick to abandon it again. A snapshot nobody could take
   ends in the git owner's abort, which resets the checkout onto the anchor and
-  clears the attempt; where that reset landed, the transaction is abandoned
-  behind it, since the recovery's own reset moved the checkout off the head.
+  clears the attempt; a reset that landed is itself movement, so the
+  transaction is abandoned on the state the park writes, in the one write
+  that releases the attempt, or neither is written.
 - The remote head completes the comparison, and how far the transfer beside
   the attempt got is read off the comment (`git/base_sync/transfers.py`).
 - A remote standing on the checkout is a push that already landed, and the
@@ -48,6 +49,9 @@ before the issue is read and holds through the route; nothing here asks for
 one of its own.
 """
 from __future__ import annotations
+
+from dataclasses import replace
+from functools import partial
 
 from orchestrator.git.base_sync import (
     outcomes as _outcomes,
@@ -106,17 +110,21 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     still stands on the anchor of an attempt that never started, and the
     ordinary rebase goes on from it on this same tick -- or where a finish
     left a landed head the base has advanced past again.
+
+    Every road that resets the checkout drops the attempt in one write, and
+    the recovery's answer to that movement rides it: the context the roads
+    are handed carries `rewrite_landing_moved.abandons_over_the_reset`, which
+    the git owner asks once a reset landed and before the drop.
     """
-    if context.label not in _PR_REFRESH_DETOUR_LABELS:
-        return _replay_cleanup._answers_an_ineligible_label(context)
-    announced = _landing_moved.announced(context)
-    observed = _snapshot._fetch_recovery_snapshot(context)
+    owing = replace(context, settles_over_a_reset=partial(_landing_moved.abandons_over_the_reset, context))
+    if owing.label not in _PR_REFRESH_DETOUR_LABELS:
+        return _replay_cleanup._answers_an_ineligible_label(owing)
+    observed = _snapshot._fetch_recovery_snapshot(owing)
     if observed is None:
-        _landing_moved.abandons_behind_the_reset(context, announced)
         return True
-    if observed.local_head and observed.local_head == context.pending_pre_rebase_sha:
-        return _routes_an_unmoved_head(context, observed)
-    return _routes_the_comparison(context, observed)
+    if observed.local_head and observed.local_head == owing.pending_pre_rebase_sha:
+        return _routes_an_unmoved_head(owing, observed)
+    return _routes_the_comparison(owing, observed)
 
 
 def _routes_an_unmoved_head(
@@ -162,10 +170,8 @@ def _routes_the_comparison(
     heads the attempt itself recorded: the anchor the remote must still be
     standing on, and the replay the checkout must still be.
     """
-    announced = _landing_moved.announced(context)
     completed = _snapshot._complete_recovery_snapshot(context, observed)
     if completed is None:
-        _landing_moved.abandons_behind_the_reset(context, announced)
         return True
     if not _landing_moved.abandons_off_the_landing(context, completed):
         return True

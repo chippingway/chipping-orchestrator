@@ -2,7 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """A captured transaction's abandonment over a pinned comment short of room, or written by another road meanwhile.
 
-An exact tree's carry an earlier finish captured is proved again under a
+A run captured for the landed head the base advanced past again is abandoned
+before its attempt retires in the same write, staged on the comment as it
+then reads, so an approval another road wrote meanwhile is kept rather than
+refusing it, and the tick's rebase goes on. An exact tree's carry an earlier
+finish captured is proved again under a
 configuration that moved, over a comment with no room to invalidate the
 current evidence, or one another road wrote the carry's approval onto after
 the recovery read it, refusing the write that invalidates the current
@@ -74,6 +78,20 @@ def _approves_once(case: support.VerificationRecoveryCase, approved, done: list)
     case.gh.write_pinned_state(case.issue, written)
 
 
+def _approves_behind_the_classification(case: support.VerificationRecoveryCase, captured) -> None:
+    """Have another road write `captured`'s approval once `case`'s next recovery has classified what it fetched."""
+    approves = partial(_approves_once, case, captured.binding.target.subject, [])
+    racing = _RacesPastTheStep(getattr(replay_evidence, _CLASSIFIED), approves)
+    case.enterContext(patch.object(replay_evidence, _CLASSIFIED, side_effect=racing))
+
+
+def _captures(case: support.VerificationRecoveryCase) -> tuple:
+    """Land a reviewed rebase whose finish records its run and dies at the relabel; the head, and that run."""
+    head = case.lands_a_reviewed_rebase()
+    case.dies_routing(partial(case.finishes, head))
+    return head, readings.pinned_records(case)[0]
+
+
 class CommentWritesRecoveryTest(support.VerificationRecoveryCase, unittest.TestCase):
     """A captured transaction something moved under is abandoned whatever room the comment has or who wrote it."""
 
@@ -100,7 +118,7 @@ class CommentWritesRecoveryTest(support.VerificationRecoveryCase, unittest.TestC
         # refused. The carry is abandoned behind that refusal all the same,
         # its approval with it, and with the configuration back the head is
         # routed with nothing carried or run.
-        head, captured = self._holds_a_moved_carry(self._approves_behind_the_classification)
+        head, captured = self._holds_a_moved_carry(_approves_behind_the_classification)
 
         self._assert_retired(captured)
         self.assertIsNone(readings.pinned(self).get(APPROVED_SUBJECT))
@@ -108,6 +126,25 @@ class CommentWritesRecoveryTest(support.VerificationRecoveryCase, unittest.TestC
         self.recovers()
         self.assertEqual(self.runs(), 0)
         self.assert_recovered(head)
+
+    def test_an_advanced_base_keeps_the_approval(self) -> None:
+        # The base advances again past the landed head, and another road
+        # writes an approval once the recovery has read the comment: the
+        # captured run is still abandoned before the attempt retires -- in a
+        # write staged on the comment as it then reads, so the approval is
+        # kept rather than refusing it -- and the tick's rebase publishes the
+        # next head with nothing run again.
+        head, captured = _captures(self)
+        support.advances_the_base_again(self)
+        _approves_behind_the_classification(self, captured)
+
+        self.recovers()
+
+        self._assert_retired(captured)
+        approved = readings.pinned(self).get(APPROVED_SUBJECT)
+        said = (support.announced(self), self.pushes.call_count, self.runs())
+        self.assertEqual(approved, captured.binding.target.subject)
+        self.assertEqual(said, ([head, git_support.remote_head(self)], 1, 1))
 
     def test_another_roads_approval_is_kept(self) -> None:
         # Another road writes an approval while the recovery re-reads the
@@ -143,12 +180,6 @@ class CommentWritesRecoveryTest(support.VerificationRecoveryCase, unittest.TestC
         self.recovers()
         self.assert_held(None)
         return head, captured
-
-    def _approves_behind_the_classification(self, _case, captured) -> None:
-        """Have another road write `captured`'s approval once the next recovery has classified what it fetched."""
-        approves = partial(_approves_once, self, captured.binding.target.subject, [])
-        racing = _RacesPastTheStep(getattr(replay_evidence, _CLASSIFIED), approves)
-        self.enterContext(patch.object(replay_evidence, _CLASSIFIED, side_effect=racing))
 
     def _recovers_beside_an_approval(self) -> tuple:
         """A captured run, recovered with an approval written and the requirements edited as its report is re-read.

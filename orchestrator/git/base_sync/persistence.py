@@ -126,6 +126,12 @@ def _reset_clear_and_park(
     that will never happen, for an object no branch has any more. Only an
     outstanding record this build can read back whole is dropped, which is the
     rollback's own rule wherever a rewrite is undone.
+
+    A recovery's attempt may also stand guard over a record the workflow made
+    about the head the reset takes the checkout off -- a verification
+    transaction a finish captured for a landed head -- so the recovery is
+    asked to settle it on the same state first (`_settles_over_the_reset`):
+    it rides this one write with the attempt's drop, or neither lands.
     """
     reset = commands._git_hardened(
         "reset", "--hard", reset_sha, cwd=context.worktree,
@@ -149,6 +155,7 @@ def _reset_clear_and_park(
                 context.issue.number, (cleaned.stderr or "").strip(),
             )
     if restored:
+        _settles_over_the_reset(context)
         attempts._clears_the_attempt(context.state)
         _forgets_the_reset(context, reset_sha)
     _park_auto_rebase_failure(
@@ -158,6 +165,20 @@ def _reset_clear_and_park(
         message=message,
         reason=reason,
     )
+
+
+def _settles_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext) -> None:
+    """Stage what a recovery owes over its landed reset on the state the park writes, ahead of the attempt's drop.
+
+    A recovery's attempt can carry a record the workflow made about the head
+    the reset just took the checkout off -- a verification transaction a
+    finish captured for it -- which the attempt is the only thing keeping
+    anyone from settling. Staged here, its answer lands in the park's one
+    write beside the attempt's release, or neither does, so a dropped attempt
+    never leaves it behind.
+    """
+    if isinstance(context, _AutoRebaseRecoveryContext) and context.settles_over_a_reset is not None:
+        context.settles_over_a_reset()
 
 
 def _forgets_the_reset(
