@@ -1326,6 +1326,18 @@ because there it is the claim that this stage has already rerouted rather than a
   only whether the current evidence has to be invalidated is asked afresh, since the configuration can move between
   the two finishes: an exact tree's carry reused under a moved context invalidates the evidence it carried before the
   route, the carry left for the reconciliation to refuse.
+  The primitives a recovery taking such a decision up again is built from are in place and dormant -- no finish or
+  recovery road asks them yet, so none of what follows happens on any tick. The proof again hears the review and
+  report records beside a proof that stopped at an unread reading, the landed head is held to the base tip its replay
+  was recorded as made onto (`pending_auto_base_rebase_rewrite_base`: a base moved or unread holds, one rewound under
+  the head or never recorded defers), and a last word reads everything that moves behind every request
+  (`workflow/engine/rewrite_evidence_proof.py`). A captured transaction is routed as recorded only once that proves,
+  and is otherwise abandoned unrun into history in a write of its own, guarded by the comment read afresh and falling
+  back to the tick's reading (`rewrite_finish_writes.ABANDONMENT`); with no room for its history it is refused for good,
+  dropped with the recorded base tip blanked (`workflow/engine/rewrite_finish_captured.py`), and held rather than
+  written over an attempt another road put in place of the one read. The same abandonment answers a recovery that
+  reads the landing on another head -- a head nobody could read moves nothing -- or rides the park write of a reset
+  that took the checkout off it (`workflow/engine/rewrite_landing_moved.py`).
 
 ## The rewritten-head report debt (every dispatch)
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims

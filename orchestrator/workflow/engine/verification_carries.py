@@ -40,9 +40,13 @@ comment refuses it with nothing written, and every field it does not own -- a
 returned verdict, a usage total, a watermark, comment ids -- is kept as the
 comment carries it when it lands. The reconciliation's own retirements abandon
 through here every transaction that will never settle (`verification_transaction`),
-a carry or not, taking a carry's approval with it. A route behind the
-reconciliation abandons a carry only, and only on a refusal of the carry
-itself: the publication, at the reading of its own artifact
+a carry or not, taking a carry's approval with it; so do the recovery helpers
+of a landed base rewrite's captured evidence, in a write of their own, for a
+transaction an earlier finish of the landing recorded that something moved
+under or whose head the base advanced past (`rewrite_finish_captured`,
+`rewrite_landing_moved`) -- helpers no finish or recovery road asks yet. A
+route behind the reconciliation abandons a carry only, and only on a refusal
+of the carry itself: the publication, at the reading of its own artifact
 (`verification_publishing`), and the settlement, in the commit that records the
 artifact's ledger entry, where the comment read behind its proof still carries
 every bound record as the tick read it (`verification_settling`). Any other

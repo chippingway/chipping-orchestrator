@@ -171,7 +171,11 @@ evidence the rewrite moved past is invalidated into history, and a fresh run of 
 carry is recorded for the dispatcher to publish, or the fresh reviewer owes the evidence -- a failed run's notice
 recorded and put on the pull request once (`auto_base_rebase_failed_verification`). A decision nobody could take, an
 evidence write that did not land or fit, or a failure notice nobody could confirm published holds the route with the
-attempt standing.
+attempt standing. The attempt's record also carries the base tip its rebase replays onto, frozen before git runs and
+blank where the base ref moved while git ran (`pending_auto_base_rebase_rewrite_base`); a legacy attempt without one
+still reads whole and simply proves no base. The primitives that hold a landed head's evidence to that tip and abandon
+a run a finish captured where its landing, base, or binding moved are dormant -- no finish or recovery road asks them
+yet (`workflow/engine/rewrite_evidence_proof.py`, `rewrite_finish_captured.py`, `rewrite_landing_moved.py`).
 A replay the size gate hands to an adjudication instead is handed to the late generation adjudicating it
 (`workflow/engine/rewrite_takeover.py`) by the publication and by the recovery's retry alike, and a park the gate takes
 keeps the attempt for its recovery: where the pinned record proves a whole attempt and a live generation late

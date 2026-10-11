@@ -28,6 +28,7 @@ from tests.workflow.engine import (
     rewrite_evidence_test_support as rewrite_support,
     rewrite_finish_readings as _readings,
     verification_evidence_test_support as support,
+    verification_world_fixture as _world,
 )
 from tests.workflow.fixtures import _TEST_SPEC
 from tests.workflow.git_owners import seam_patch
@@ -46,13 +47,14 @@ REVIEWING = WorkflowLabel.IN_REVIEW
 FOUND = FinishRoad.RECOVERY
 
 
-def attempt_record(anchor: str, head: str, pr_number: int, stage: WorkflowLabel) -> dict:
-    """What an auto rebase of `anchor` pins before git runs, its replay onto `head` named, over a spent round."""
+def attempt_record(anchor: str, head: str, pr_number: int, stage: WorkflowLabel, onto: str | None = None) -> dict:
+    """What an auto rebase of `anchor` pins, its replay `head` and the base tip `onto` named, over a spent round."""
     return {
         _readings.KEY_PENDING_PUSH: anchor,
         _readings.KEY_REWRITE_PR: pr_number,
         _readings.KEY_REWRITE_STAGE: str(stage),
         _readings.KEY_REWRITE_SHA: head,
+        _readings.KEY_REWRITE_BASE: onto,
         _readings.KEY_REVIEW_ROUND: SPENT_ROUND,
     }
 
@@ -80,13 +82,14 @@ class RewriteFinishCase(rewrite_support.RewriteEvidenceCase):
         self.gh.set_workflow_label = _DurableAtTheRelabel(self)
 
     def attempts(self, head: str) -> None:
-        """Pin the attempt an auto rebase of the tested commit recorded, its replay onto `head` named.
+        """Pin the attempt an auto rebase of the tested commit recorded, its replay `head` and base tip named.
 
         Onto the comment as it stands, and into the state the case holds, so
         a later whole-state write of that state keeps it.
         """
         self.rereads()
-        for key, attempted in attempt_record(support.TESTED_SHA, head, support.PR_NUMBER, REVIEWING).items():
+        recorded = attempt_record(support.TESTED_SHA, head, support.PR_NUMBER, REVIEWING, _world.BASE_TIP)
+        for key, attempted in recorded.items():
             self.state.set(key, attempted)
         self.gh.write_pinned_state(self.issue, self.state)
 

@@ -900,7 +900,11 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   checkout not provably clean beneath a verdict, a transfer the receipt and debt do not account for -- and a refusal
   parks with HEAD and the anchor kept. Past those the landing is observed where the remote stands, or, for a transfer
   whose permission is still outstanding, proved by the permit-only leased no-op the gate settles that transfer through,
-  and either is handed to the same finish.
+  and either is handed to the same finish. The attempt freezes the base tip its rebase replays onto before git runs
+  (`git/base_sync/startup.py`), blank where that ref moved while git ran, and the publication records it beside the
+  replay (`pending_auto_base_rebase_rewrite_base`); whether a landed head still stands on that very tip -- standing,
+  moved, dropped, unread, or unproven where no tip was recorded -- is `rewrite_facts.py`'s to read
+  (`_standing_on_the_remote_base`).
 - The finish a landed rewrite still owes sits on the workflow side of that boundary.
   `workflow/engine/rewrite_finish.py` takes the landed record beside the issue it finishes and applies one policy to
   the ordinary publication, a recovered one, and a finish whose announcement is already out: the report debt staged
@@ -918,6 +922,13 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   pull request once (`workflow/engine/rewrite_finish_failures.py`). A decision nobody could take, an evidence write
   that did not land or fit, or a failure notice nobody could confirm published holds the route with the attempt
   standing, and the finish that completes it reuses what was recorded. It runs under its caller's issue writer claim.
+  Beside it sit the primitives a recovery of that evidence is built from, dormant until a finish or recovery road asks
+  them: the proof again, the head held to its recorded base tip, and the last word over everything that moves
+  (`workflow/engine/rewrite_evidence_proof.py`); a captured run proved again, or abandoned unrun -- refused for good,
+  its base tip blanked, where the comment has no room (`workflow/engine/rewrite_finish_captured.py`); and that
+  abandonment where a recovery reads the landing moved or its reset takes the checkout off it
+  (`workflow/engine/rewrite_landing_moved.py`), the git owner's reset tail asking a recovery context for that answer
+  (`settles_over_a_reset`) though no road hands one yet.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

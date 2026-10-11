@@ -23,13 +23,14 @@ KEY_PENDING_PUSH = "pending_auto_base_rebase_push_sha"
 KEY_REWRITE_PR = "pending_auto_base_rebase_rewrite_pr"
 KEY_REWRITE_STAGE = "pending_auto_base_rebase_rewrite_stage"
 KEY_REWRITE_SHA = "pending_auto_base_rebase_rewrite_sha"
+KEY_REWRITE_BASE = "pending_auto_base_rebase_rewrite_base"
 KEY_ANNOUNCED = "pending_auto_base_rebase_announced_sha"
 KEY_REVIEW_ROUND = "review_round"
 KEY_REVISION_FLOOR = "verification_evidence_revision"
 KEY_FAILED_VERIFICATION = "auto_base_rebase_failed_verification"
 
 # Every field one attempt puts on the comment, which a finish retires as one.
-ATTEMPT_KEYS = (KEY_PENDING_PUSH, KEY_REWRITE_PR, KEY_REWRITE_STAGE, KEY_REWRITE_SHA, KEY_ANNOUNCED)
+ATTEMPT_KEYS = (KEY_PENDING_PUSH, KEY_REWRITE_PR, KEY_REWRITE_STAGE, KEY_REWRITE_SHA, KEY_REWRITE_BASE, KEY_ANNOUNCED)
 
 # The attempt as a finish leaves it: every member blanked rather than removed.
 RETIRED = MappingProxyType(dict.fromkeys(ATTEMPT_KEYS))
@@ -38,6 +39,9 @@ ROUTED = (WorkflowLabel.VALIDATING,)
 
 # Why settled evidence a rewrite moved past retired, as history spells it.
 INVALIDATED = "invalidated"
+
+# Why a recorded transaction that will never settle retired, as history spells it.
+ABANDONED = "abandoned"
 
 # How the announcement of a landing and the notice of a failed run open.
 _FINISH_NOTICES = (":mag:", ":x:")

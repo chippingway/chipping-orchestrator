@@ -14,7 +14,7 @@ the pinned fields the publication is resolved from
 (`ReportWrite.on_the_publication`), and keeping every other field -- unknown
 ones included -- as the fresh reading carries it.
 
-Four writes, and each lists what it has to land exactly among the records it
+Five writes, and each lists what it has to land exactly among the records it
 is decided on as well as among its own, since a field staged as it was read is
 no move of the write's and would otherwise be left to whatever another road
 did with it. `CHECKPOINT` makes the report debt durable and, on a finish that
@@ -29,6 +29,15 @@ it raises, and the notice a failed run is owed (`rewrite_finish_failures`) --
 decided on the attempt, the debt, and every record the evidence is bound
 through (`verification_durable`), so a report, a review subject, or an
 evidence record another road moved while the commands ran refuses it.
+`ABANDONMENT` retires a recorded transaction no route may take -- one
+something was read moving under, or one recorded for a head the base advanced
+past -- where the abandonment staged on the comment read afresh and guarded by
+that reading did not land (`rewrite_finish_captured`): staged on the tick's
+own copy instead (`abandons`) and decided only on the records it retires and
+the attempt, so one comment reading that failed or one move under the write
+does not leave the transaction standing. It owns the base tip the replay was
+recorded as made onto too, which an abandonment with no room for its history
+entry blanks. Nothing a finish or recovery takes asks for it yet.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, and the claim the checkpoint made durable. `PARK`
@@ -49,6 +58,7 @@ still be written over it.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from types import MappingProxyType
 
 from orchestrator.git.base_sync import attempts as _attempts, state as _base_sync_state
@@ -65,6 +75,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.rewrite_finish_failures import FAILED_VERIFICATION
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
+from orchestrator.workflow.engine.verification_carries import ABANDONS
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -92,6 +103,16 @@ EVIDENCE = _commits.ReportWrite(
         FAILED_VERIFICATION,
     )),
     decided_on=frozenset(_durable._BOUND_RECORDS) | _ATTEMPT | {_rewrite_debt.REWRITE_DEBT},
+)
+
+# An abandonment staged on the tick's own copy, where the comment read afresh
+# would not take one: decided only on the records it retires and the attempt,
+# so a review, report, or approval another road moved since lands as the fresh
+# comment carries it rather than refusing it -- save a carry's approval the copy
+# still names, which another road's move refuses as the conflict it is.
+ABANDONMENT = _commits.ReportWrite(
+    owned=frozenset((*ABANDONS, _base_sync_state._PENDING_REWRITE_BASE)),
+    decided_on=frozenset((_evidence_records.PENDING_EVIDENCE, _evidence_records.EVIDENCE_HISTORY)) | _ATTEMPT,
 )
 
 FINISH = _commits.ReportWrite(
@@ -173,6 +194,17 @@ def lands(finish: LandedFinish, staged: PinnedState, write: _commits.ReportWrite
     """
     commit = _commits.ReportCommit(finish.gh, finish.issue, finish.state)
     return _stopped(finish, commit.lands(staged, write.on_the_publication()))
+
+
+def abandons(finish: LandedFinish, stage: Callable[[PinnedState], bool]) -> bool | None:
+    """Stage an abandonment on a copy of the tick's state with `stage`, and land it as `ABANDONMENT`.
+
+    Whether what `stage` staged fit -- the transaction retired into history,
+    or only dropped -- or None where the write did not land.
+    """
+    staged = staging(finish)
+    fits = stage(staged)
+    return fits if lands(finish, staged, ABANDONMENT) is None else None
 
 
 def parks(finish: LandedFinish) -> FinishOutcome:

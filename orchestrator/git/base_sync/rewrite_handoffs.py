@@ -28,7 +28,9 @@ a push an interrupted tick already landed (`workflow/engine/rewrite_landed.py`):
 the same candidate, with the landing observed where the remote stands rather
 than published again. The two trees a candidate carries are what the evidence
 policy of a landed rewrite (`workflow/engine/rewrite_evidence.py`) holds the
-current evidence's tested tree to; no policy is decided here.
+current evidence's tested tree to; no policy is decided here. Nor is one
+decided on `_BaseStanding`, the answer `rewrite_facts` reads for whether a
+landed head still stands on the base tip its replay was recorded as made onto.
 """
 from __future__ import annotations
 
@@ -39,6 +41,28 @@ from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.git.ref_transport import _RefRead
 from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.workflow.state import WorkflowLabel
+
+
+class _BaseStanding(StrEnum):
+    """Whether a landed candidate's head still stands on the base tip its replay was made onto.
+
+    STANDING is the base the head was counted against being that very tip,
+    and the remote's base still on it. MOVED is a base gone elsewhere -- a
+    counted base that advanced past the head, or a remote base read on another
+    commit since the head was counted -- which a later tick's fetch counts the
+    head against again. DROPPED is a counted base that is some other commit
+    the head is not behind -- rewound or repointed under it after the rebase
+    -- so the head carries a base the branch no longer is, and no later tick
+    changes that. UNPROVEN is an attempt that recorded no tip to hold the base
+    to, a legacy attempt recorded before the tip was among its members
+    included, and UNREAD a reading that did not happen.
+    """
+
+    STANDING = "standing"
+    MOVED = "moved"
+    DROPPED = "dropped"
+    UNPROVEN = "unproven"
+    UNREAD = "unread"
 
 
 class _RewriteRefusal(StrEnum):

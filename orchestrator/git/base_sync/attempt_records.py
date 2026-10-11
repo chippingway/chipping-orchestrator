@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Read the replay identity an interrupted auto-rebase attempt recorded.
+"""Read the replay identity an interrupted auto-rebase attempt recorded, and the base it was made onto.
 
 The shape reader distinguishes an absent record, an in-flight attempt, and
 damaged evidence. The attempts owner uses this same field group when clearing
@@ -8,6 +8,13 @@ a completed or abandoned attempt, while every wire key stays in state. The
 handoff of an unpublished replay to a late generation
 (`workflow/engine/rewrite_takeover.py`) hands over only a record this reader
 reads back whole.
+
+The base tip the replay was made onto is read apart from that group
+(`_recorded_onto`): it is no member of it, so a legacy attempt that names no
+tip still reads whole, and an unreadable tip is simply no tip. The
+publication's replay record carries it on (`workflow/engine/rewrite_publication.py`),
+and the evidence proof of a landed head holds the base to it
+(`workflow/engine/rewrite_evidence_proof.py`).
 """
 from __future__ import annotations
 
@@ -15,6 +22,7 @@ from orchestrator.git.base_sync.models import (
     _PendingRewrite,
 )
 from orchestrator.git.base_sync.state import (
+    _PENDING_REWRITE_BASE,
     _PENDING_REWRITE_PR,
     _PENDING_REWRITE_SHA,
     _PENDING_REWRITE_STAGE,
@@ -71,6 +79,21 @@ def _pending_rewrite(state: PinnedState) -> _PendingRewrite:
     if not _formats.is_hex_of(recorded, _formats.COMMIT_LENGTHS):
         return _PendingRewrite(damaged=True)
     return _PendingRewrite(sha=recorded, pr_number=number, stage=stage)
+
+
+def _recorded_onto(state: PinnedState) -> str:
+    """The base tip the attempt's replay was recorded as made onto, or "" for none readable.
+
+    Kept apart from the record `_pending_rewrite` reads whole, since a
+    legacy attempt that carries no tip is still a whole attempt: it simply
+    names no base, and a caller that needs one has nothing to prove with. A
+    value that is not a whole commit id is read the same way.
+    """
+    # Lazy for the reason `_pending_rewrite` spells out: one shape for a
+    # recorded commit, owned by the late domain.
+    from orchestrator.workflow.late_split import formats as _formats
+    recorded = state.get(_PENDING_REWRITE_BASE)
+    return recorded if _formats.is_hex_of(recorded, _formats.COMMIT_LENGTHS) else ""
 
 
 def _claims_a_record(state: PinnedState) -> bool:
