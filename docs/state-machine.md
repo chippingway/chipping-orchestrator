@@ -165,21 +165,32 @@ no room for — measured on the whole announcement write it rides and on the com
 announced nor routed: it parks with the attempt standing until room is made and a human replies. Every landed head --
 one the refresh published itself, one its recovery's retry pushed again, and one its recovery found already standing,
 observed rather than pushed a second time -- is finished by the one workflow-owned finish
-(`workflow/engine/rewrite_finish.py`) over guarded commits, with one post-push evidence decision ahead of its route
-(`workflow/engine/rewrite_evidence.py`), made durable before the relabel (`workflow/engine/rewrite_finish_evidence.py`):
+(`workflow/engine/rewrite_finish.py`) over guarded commits, with one post-push evidence decision ahead of its
+announcement and route (`workflow/engine/rewrite_evidence.py`), made durable before the notice, the `base_rebased`
+event, the round reset, and the relabel (`workflow/engine/rewrite_finish_evidence.py`):
 evidence the rewrite moved past is invalidated into history, and a fresh run of the configured commands or a proved
-carry is recorded for the dispatcher to publish, or the fresh reviewer owes the evidence -- a failed run's notice
+carry is recorded, then published and settled by the finish itself while its attempt still stands
+(`workflow/engine/rewrite_finish_settlement.py`), or the fresh reviewer owes the evidence -- a failed run's notice
 recorded and put on the pull request once (`auto_base_rebase_failed_verification`). A decision nobody could take, an
-evidence write that did not land or fit, or a failure notice nobody could confirm published holds the route with the
-attempt standing, and so does a base that moved after the head was counted against it
-(`workflow/engine/rewrite_evidence_proof.py`). The attempt's record also carries the base tip its rebase replays onto,
-frozen before git runs and blank where the base ref moved while git ran (`pending_auto_base_rebase_rewrite_base`); a
-legacy attempt without one still reads whole and simply proves no base, so nothing is run or carried for its head.
-The recovery resumes that decision with no developer launched: the commands run again only where no completed run was
-captured, and a captured one is routed only once it proves again (`workflow/engine/rewrite_finish_captured.py`),
+evidence write that did not land or fit, a failure notice nobody could confirm published, or a recorded transaction
+whose post or settlement did not resolve holds the route with nothing announced and the attempt standing, and so
+does a base that moved
+after the head was counted against it (`workflow/engine/rewrite_evidence_proof.py`). The attempt's record also
+carries the base tip its rebase replays onto, frozen before git runs and blank where the base ref moved while git ran
+(`pending_auto_base_rebase_rewrite_base`); a legacy attempt without one still reads whole and simply proves no base,
+so nothing is run or carried for its head. The recovery resumes that decision with no developer launched: the
+commands run again only where no completed run was captured, and a captured one is settled -- over an artifact an
+earlier post landed, found under its receipt -- and routed only once it proves again
+(`workflow/engine/rewrite_finish_captured.py`), one an earlier finish already settled is routed with nothing posted
+or settled again while nothing beside it says otherwise -- a newer transaction for the head is settled over it --
+and while the configuration it was taken under is still the one configured, being invalidated with nothing run
+again where it moved, and
+a captured one is
 abandoned with nothing run -- then or after -- where something it is bound to, the base, or the landing moved since,
 the landing read moving by the recovery's first snapshot -- or reset off by its own abort -- included
-(`workflow/engine/rewrite_landing_moved.py`). Every recovery park or hold that keeps the attempt for a later tick or a
+(`workflow/engine/rewrite_landing_moved.py`). Which pending transaction is that captured run is the receipt the
+finish put on the attempt in the write that recorded it (`pending_auto_base_rebase_evidence_receipt`); any other is
+another road's, and kept as it wrote it. Every recovery park or hold that keeps the attempt for a later tick or a
 human's reply proves a captured run again first, on readings no failed fetch is needed for, and abandons it where
 anything moved, so putting that input back before the attempt is taken up again revives nothing.
 A replay the size gate hands to an adjudication instead is handed to the late generation adjudicating it
@@ -244,7 +255,8 @@ verdict, and neither verdict is acted on until it settles; the approval's squash
 published -- of the passing run its own verify gate made on the approved head, or else of the evidence that approval
 rests on -- the tested commit unchanged, the new head an equivalent-tree target, holding the move to
 `workflow:documenting` until it settles; and a landed automatic base rewrite records a fresh run of its rewritten head,
-or a carry onto it, before its route, bound to the settled report and the review of that head
+or a carry onto it, bound to the settled report and the review of that head, and settles it through that same
+reconciliation's answer before its route, while its auto-rebase anchor still holds every handler
 ([evidence transaction](state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 The additive `developer_report_rewrite_debt` claim is the report a rewrite of the pull request's head leaves owed --
 the pull request, its branch, the head the rewrite replaced, and the exact head it published. While any claim stands,

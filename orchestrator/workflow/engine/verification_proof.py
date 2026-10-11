@@ -31,6 +31,13 @@ carries on. ENDED retires. PROVED carries the pull request it was proved
 against, since a publication made against another reading would reopen the
 window this evidence exists to close.
 
+One reading is a caller's own: a transaction the finish of a landed base
+rewrite settles while its auto-rebase anchor stands is proved under that
+anchor too (`ProofReading.anchored`), asked behind every other reading, so
+the head it answers for is held to the base tip its replay was made onto both
+before the artifact is posted and again before the settlement
+(`rewrite_finish_settlement`). Every other reader leaves it None.
+
 `recorded_verdict` is the part of that proof the pinned comment answers with
 no request at all -- the recorded subject, the settled report pair as a
 reviewer's reader judges it before reading anything, that report named by the
@@ -48,12 +55,12 @@ another one -- including an empty one -- is not current once it moves.
 from __future__ import annotations
 
 import importlib
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.config import models as _config_models
 from orchestrator.git.verification import models as _verify_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -80,12 +87,37 @@ def configured_context_revision() -> str:
 
 @dataclass(frozen=True)
 class ProofReading:
-    """The client, repository, issue, and pinned comment one proof reads."""
+    """The client, repository, issue, and pinned comment one proof reads.
+
+    `anchored` is the standing auto-rebase attempt's own proof of the head a
+    transaction its finish settles answers for, asked behind every other
+    reading of the whole proof, and `rests_on` the records that attempt is
+    pinned as, which every guarded write answering the transaction is decided
+    on beside the evidence's own bound records (`verification_durable.guarded`)
+    -- so an attempt another road put in its place refuses the post, the
+    settlement, and any retirement rather than being adopted by them. Neither
+    is set for any reading but that finish's. `observed`, where that finish
+    hands one, collects every refusal of the binding the answer reads, a bound
+    record read moved among them (`observes`), so a movement read once and put
+    back before anything reads the comment again is still the movement it was.
+    """
 
     gh: GitHubClient
-    spec: _config_models.RepoSpec
+    spec: config.RepoSpec
     issue: Issue
     state: PinnedState
+    anchored: Callable[[], _evidence_models.ReportEvidence | None] | None = None
+    rests_on: tuple[str, ...] = ()
+    observed: list[_evidence_models.ReportEvidence] | None = None
+
+    def anchor_verdict(self) -> _evidence_models.ReportEvidence | None:
+        """What the anchored proof refuses, or None -- where it proves, or where no anchor stands over this reading."""
+        return None if self.anchored is None else self.anchored()
+
+    def observes(self, refused: _evidence_models.ReportEvidence | None) -> None:
+        """Keep `refused` -- a refusal of the binding this reading's answer read -- where the caller collects them."""
+        if self.observed is not None and refused is not None:
+            self.observed.append(refused)
 
 
 def rest_verdict(
@@ -99,7 +131,8 @@ def rest_verdict(
     is being proved, so a caller that had to see it first hands it on here and
     the proved pull request is what comes back on success. The pinned readings
     come first, then the checkout, then the report and the requirements, each
-    of which is a request.
+    of which is a request, and the anchor a caller holds the binding to last
+    (`ProofReading.anchored`).
     """
     if not found.proved:
         return found
@@ -111,7 +144,7 @@ def rest_verdict(
     if refused is None:
         refused = _subject.requirements_verdict(
             reading.issue, reading.state, binding.target.publication.requirements_revision,
-        )
+        ) or reading.anchor_verdict()
     return found if refused is None else refused
 
 
@@ -169,12 +202,22 @@ def recorded_verdict(
 
 
 def binding_verdict(
-    reading: ProofReading, binding: _records.EvidenceBinding,
+    reading: ProofReading,
+    binding: _records.EvidenceBinding,
+    ahead: Callable[[object], _evidence_models.ReportEvidence | None] | None = None,
 ) -> _evidence_models.ReportEvidence:
-    """The whole proof of `binding`: the pull request read, then everything behind it."""
-    return rest_verdict(
-        reading, binding, _publication.subject_verdict(reading.gh, binding.target.publication),
-    )
+    """The whole proof of `binding`: the pull request read, then everything behind it.
+
+    `ahead` is a caller's own reading of the pull request the proof read --
+    the settlement's re-read of its artifact (`verification_settling`) --
+    asked between that reading and the rest, so every reading the rest takes
+    -- the requirements and the anchor's own proof among them -- lies behind its
+    request; a refusal of its own is the verdict.
+    """
+    found = _publication.subject_verdict(reading.gh, binding.target.publication)
+    if found.proved and ahead is not None:
+        found = ahead(found.pull_request) or found
+    return rest_verdict(reading, binding, found)
 
 
 def current_evidence_verdict(reading: ProofReading) -> _evidence_models.ReportEvidence:

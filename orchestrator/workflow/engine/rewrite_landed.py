@@ -58,10 +58,14 @@ decision is made here, in the order the recovery has always kept:
 
 What the proof or the observation found is handed to the one finish every
 landing gets (`rewrite_finish.finishes_the_recovery`): the debt and the room
-it needs, the announcement checkpoint, the evidence decision, the route, and
-the attempt's retirement, with the human reply that brought the attempt back
-spent. A mark already naming this head says its notice and its event are out,
-so that finish repeats neither and finishes only the route. One that finds
+it needs, the evidence decision -- recorded, published, and settled under the
+standing anchor before anything is announced -- then the announcement
+checkpoint, the route, and the attempt's retirement, with the human reply
+that brought the attempt back spent. A tick lost before the checkpoint leaves
+no mark, so the evidence it captured is found by the receipt the finish put on
+the attempt beside it (`rewrite_landing_records.captured`) rather than by any
+announced head. A mark already naming this head says its notice and its event
+are out, so that finish repeats neither and finishes only the route. One that finds
 the remote no longer on the head, or a base it cannot count the head against,
 makes nothing, and the next tick classifies whatever it then finds.
 

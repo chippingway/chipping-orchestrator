@@ -21,11 +21,17 @@ did with it. `CHECKPOINT` makes the report debt durable and, on a finish that
 announces, the reset round and the announcement mark beside it, the notice's
 ledger entry reserved over the fresh ledger and kept beside it; it is decided
 on the attempt being finished, the report records and claim the debt was
-staged over, the park's flags, and the round. `EVIDENCE` makes the landed
-head's evidence decision durable ahead of its route
+staged over, the park's flags, the round, and the evidence records, and it
+lands only once the landed head's evidence is resolved: a transaction another
+road recorded beside the one the finish settled or retired -- one recorded
+while the settlement's own answer came back among them -- refuses the
+announcement before its notice is posted, and the attempt stands for the next
+finish to answer it. `EVIDENCE` makes the landed head's
+evidence decision durable ahead of its announcement and its route
 (`rewrite_finish_evidence`): the current evidence retired into history, the
 transaction a fresh or carried result is recorded as, with the revision floor
-it raises, and the notice a failed run is owed (`rewrite_finish_failures`) --
+it raises and the attempt's receipt of it, and the notice a failed run is owed
+(`rewrite_finish_failures`) --
 decided on the attempt, the debt, and every record the evidence is bound
 through (`verification_durable`), so a report, a review subject, or an
 evidence record another road moved while the commands ran refuses it.
@@ -42,8 +48,7 @@ entry blanks.
 clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, the claim the checkpoint made durable, and every
 record the evidence is bound through -- so the head is routed only with
-evidence decided over the records the comment still carries, a transaction an
-earlier finish recorded and the evidence step left unchanged included: a
+evidence decided and settled over the records the comment still carries: a
 report, review subject, or evidence record another road moved since refuses
 the route rather than letting it carry a decision about a review nobody is
 handed any more. `PARK` records the park a debt with no room takes, decided on
@@ -94,9 +99,20 @@ _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PAR
 # subject it follows, and the claim already standing.
 _CLAIM = frozenset((*_commits.REPORT_RECORDS, _rewrite_debt.REWRITE_DEBT))
 
+# The evidence records a landed head's evidence step resolves before the
+# announcement: a transaction recorded, settled, or retired on them since is
+# evidence the announcement would otherwise go out over unresolved.
+_EVIDENCE_RECORDS = frozenset((
+    _evidence_records.PENDING_EVIDENCE,
+    _evidence_records.CURRENT_EVIDENCE,
+    _evidence_records.EVIDENCE_HISTORY,
+    _evidence_records.EVIDENCE_HANDOFF,
+    _evidence_records.REVISION_FLOOR,
+))
+
 CHECKPOINT = _commits.ReportWrite(
     owned=frozenset((_rewrite_debt.REWRITE_DEBT, _ROUND, _base_sync_state._PENDING_ANNOUNCED_SHA)),
-    decided_on=_CLAIM | _ATTEMPT | _PARK_FLAGS | {_ROUND},
+    decided_on=_CLAIM | _ATTEMPT | _PARK_FLAGS | {_ROUND} | _EVIDENCE_RECORDS,
 )
 
 EVIDENCE = _commits.ReportWrite(
@@ -106,6 +122,7 @@ EVIDENCE = _commits.ReportWrite(
         _evidence_records.EVIDENCE_HISTORY,
         _evidence_records.REVISION_FLOOR,
         FAILED_VERIFICATION,
+        _base_sync_state._PENDING_EVIDENCE_RECEIPT,
     )),
     decided_on=frozenset(_durable._BOUND_RECORDS) | _ATTEMPT | {_rewrite_debt.REWRITE_DEBT},
 )

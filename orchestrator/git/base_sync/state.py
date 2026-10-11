@@ -86,6 +86,15 @@ _PENDING_REWRITE_BASE = "pending_auto_base_rebase_rewrite_base"
 # request, for one publication that happened once.
 _PENDING_ANNOUNCED_SHA = "pending_auto_base_rebase_announced_sha"
 
+# The receipt of the verification transaction a finish of this attempt
+# recorded for the landed head, written in the very write that records it. A
+# finish records that evidence before it announces anything, so with no mark
+# down this is the one durable word that a pending transaction is the
+# finish's own rather than one another road recorded meanwhile. Additive: an
+# attempt that recorded none, or one from before this record existed, carries
+# none.
+_PENDING_EVIDENCE_RECEIPT = "pending_auto_base_rebase_evidence_receipt"
+
 _REASON_AUTO_BASE_REBASE_FAILED = "auto_base_rebase_failed"
 
 _REASON_AUTO_BASE_REBASE_PUSH_FAILED = "auto_base_rebase_push_failed"

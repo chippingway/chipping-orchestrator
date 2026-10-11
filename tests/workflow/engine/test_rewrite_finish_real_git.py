@@ -7,27 +7,26 @@ the branch carries invalidates the settled evidence before the route, and one
 that leaves the tested tree defers it; neither runs anything, since no review
 of the rewritten head exists yet. Handed a landing whose head a reviewer was
 handed, the finish runs the configured command through the verify runner in
-the checkout: a pass is recorded with exactly what it printed, a failure is
-posted on the pull request, and a run under which the checkout or the remote
-moved is recorded nowhere. An exact tree's carry a later finish proves again
-under a context moved between the two finishes is abandoned with nothing run,
+the checkout: a pass is recorded with exactly what it printed and settled
+before the route, a failure is posted on the pull request, and a run under
+which the checkout or the remote moved is recorded nowhere. An exact tree's
+carry whose artifact's post lost its answer, which a later finish proves again
+under a context moved between the two finishes, is abandoned with nothing run,
 and the evidence it carried is invalidated.
 """
 from __future__ import annotations
 
 import unittest
-from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad
 from tests.git.base_sync.real_git_test_support import _LocalBranchPusher
 from tests.workflow.engine import (
-    rewrite_finish_evidence_test_support as finish_support,
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
+    verification_evidence_test_support as _evidence_support,
 )
-from tests.workflow.interleaving import _RacesPastTheStep
 
 ROUTED = FinishOutcome.ROUTED
 
@@ -101,24 +100,24 @@ class RefreshedEvidenceRealGitTest(git_support.RealGitFinishCase, unittest.TestC
 class VerifiedRewriteRealGitTest(git_support.RealGitFinishCase, unittest.TestCase):
     """A landing whose head a reviewer was handed is verified by the configured command, in the checkout."""
 
-    def test_a_pass_is_recorded_as_it_printed(self) -> None:
+    def test_a_pass_is_settled_as_it_printed(self) -> None:
         head = self._reviewed_rebase(f"echo '{_FRESH}'")
 
         self.assertEqual(self.finishes(head), ROUTED)
 
         pending, current, retired = readings.pinned_records(self)
         self.assertEqual(
-            (current, retired, self.runs()),
+            (pending, retired, self.runs()),
             (None, git_support.invalidated(self), 1),
         )
-        self._assert_ran_on(pending, head)
+        self._assert_ran_on(current, head)
 
     def test_a_failure_is_posted_and_records_nothing(self) -> None:
         head = self._reviewed_rebase("echo 'test_rebased failed' && exit 3")
 
         self.assertEqual(self.finishes(head), ROUTED)
 
-        failed = readings.notices(self)[-1]
+        failed = readings.notices(self)[0]
         self.assertIn("exited with code 3", failed)
         self.assertIn("> test_rebased failed", failed)
         self.assertEqual(readings.pinned_records(self), git_support.nothing_recorded(self))
@@ -127,7 +126,8 @@ class VerifiedRewriteRealGitTest(git_support.RealGitFinishCase, unittest.TestCas
         # A command that commits moves the checkout past the remote; one that
         # puts the remote branch back moves the pull request's branch off the
         # head. Either way the run is of nothing the head can be routed with,
-        # and the landing it was made for no longer stands: the route holds.
+        # and the landing it was made for no longer stands: the route holds
+        # with nothing announced.
         for moved, command in (("the checkout", _commits), ("the remote", _puts_the_remote_back)):
             with self.subTest(moved=moved):
                 self.setUp()
@@ -140,17 +140,19 @@ class VerifiedRewriteRealGitTest(git_support.RealGitFinishCase, unittest.TestCas
                 self.assertEqual(readings.pinned_records(self), git_support.nothing_recorded(self))
                 self.assertEqual(
                     (self.runs(), len(readings.notices(self))),
-                    (1, 1),
+                    (1, 0),
                 )
 
-    def _assert_ran_on(self, pending, head: str) -> None:
-        """`pending` is the configured command's run on `head`, executed here and recorded as it printed."""
-        binding = pending.binding
+    def _assert_ran_on(self, current, head: str) -> None:
+        """`current` is the configured command's run on `head`, executed here and published as it printed."""
+        binding = current.binding
         self.assertEqual(
             (binding.tested_sha, binding.tested_tree, binding.source.value),
             (head, git_support.tree(self, head), "orchestrator-executed"),
         )
-        transcript = [(ran.exit_status, ran.output.strip()) for ran in pending.commands]
+        published = _evidence_support.posted_artifacts(self)[-1]
+        transcript = [(ran.exit_status, ran.output.strip()) for ran in published.commands]
+        self.assertEqual(published.receipt, current.receipt)
         self.assertEqual(transcript, [(0, _FRESH)])
 
     def _reviewed_rebase(self, command: str) -> str:
@@ -164,25 +166,23 @@ class VerifiedRewriteRealGitTest(git_support.RealGitFinishCase, unittest.TestCas
 
 
 class AbandonedCarryRealGitTest(git_support.RealGitFinishCase, unittest.TestCase):
-    """An exact tree's carry, recorded by a finish whose retirement was refused, proved again by the finish after it."""
+    """An exact tree's carry, recorded by a finish whose post lost its answer, proved again by the finish after it."""
 
     def test_a_moved_context_abandons_the_carry(self) -> None:
         # The rebase leaves the tested tree and a reviewer was handed it, so
-        # the settled evidence is carried and stays current; another road's
-        # round refuses the retirement behind the relabel. The configuration
-        # moves before the recovery finishes the landing: the carry is proved
-        # again and refused, so it is abandoned rather than routed, nothing
-        # runs, and the settled evidence the moved context no longer lets
-        # stand is invalidated before the route.
+        # the settled evidence is carried and stays current; the post of the
+        # carry's artifact lands and loses its answer, so the route holds.
+        # The configuration moves before the recovery finishes the landing:
+        # the carry is proved again and refused, so it is abandoned rather
+        # than settled or routed, nothing runs, and the settled evidence the
+        # moved context no longer lets stand is invalidated before the route.
         git_support.advances_the_base(self, net=False)
         head = self.rebases_by_hand()
         self.reviews(head)
-        relabel = self.gh.set_workflow_label
-        self.gh.set_workflow_label = _RacesPastTheStep(relabel, partial(finish_support.spends_a_round, self))
 
-        self.assertEqual(self.finishes(head), FinishOutcome.REFUSED)
+        with patch.object(self.gh.report_failures, "lost", {git_support.PR_NUMBER}):
+            self.assertEqual(self.finishes(head), FinishOutcome.HELD)
 
-        self.gh.set_workflow_label = relabel
         carried, current, _retired = readings.pinned_records(self)
         self.assertEqual(
             (carried.copied_from, carried.binding.tested_tree, current.receipt),

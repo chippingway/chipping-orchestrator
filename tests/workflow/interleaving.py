@@ -54,3 +54,26 @@ class _RacesPastTheStep:
         answered = self._wrapped(*called, **options)
         self._raced()
         return answered
+
+
+class _RacesPastTheCall:
+    """A step answering as it always does, with `raced` made once, just after its call number `nth` answers.
+
+    For a window that only one of a step's calls opens -- the recovery's
+    second reading of the checkout, or the first post of an artifact a later
+    poll finds rather than posts again -- where `_RacesPastTheStep` would race
+    every call.
+    """
+
+    def __init__(self, step: Callable, nth: int, raced: Callable) -> None:
+        self._step = step
+        self._calls = 0
+        self._nth = nth
+        self._raced = raced
+
+    def __call__(self, *called: Any, **options: Any) -> Any:
+        answered = self._step(*called, **options)
+        self._calls += 1
+        if self._calls == self._nth:
+            self._raced()
+        return answered

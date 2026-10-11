@@ -1156,22 +1156,31 @@ because there it is the claim that this stage has already rerouted rather than a
   (`stages/validating/squash_evidence.py`, see
   [`_handle_validating`](#_handle_validating-label-workflowvalidating)), in the write settling the squash's handoff,
   for the next tick's reconciliation to publish. And the finish of a landed automatic base rewrite records a fresh run
-  of its rewritten head, or a carry onto it, before its route (the **base-rewrite evidence** bullet below), which this
-  reconciliation publishes once the attempt is retired: a standing auto-rebase anchor outranks it, and the
-  reconciliation asks the anchor again itself, so whoever calls it leaves that transaction to the recovery while the
-  attempt stands. An issue without the record passes through reading nothing and writing nothing.
+  of its rewritten head, or a carry onto it, and publishes and settles it itself before its route, through this
+  reconciliation's own answer (`verification_transaction.answers`) with the attempt still standing (the
+  **base-rewrite evidence** bullets below): a standing auto-rebase anchor outranks this guard, and the guard asks the
+  anchor again itself, so whoever calls it leaves that transaction to the finish -- or the recovery that completes it
+  -- while the attempt stands. An issue without the record passes through reading nothing and writing nothing.
 - **Why it is behind the report transaction**: evidence answers for a review subject that names the developer
   report, so a report still owed is a subject about to move — the proof defers to it, and the report settles first.
 - **Stands aside**: a closed issue, a `done` or `rejected` label, a hard-skip control label, or no workflow label at
-  all. Nothing is published or dropped, so a reopen or a relabel finds the record as it was. The settlement asks the
-  same again of the issue read afresh after the post, and writes nothing at all where it no longer holds.
+  all. Nothing is published or dropped, so a reopen or a relabel finds the record as it was. The publication asks the
+  same again of the issue read afresh right before the post, and the settlement once more after it, and neither
+  writes anything at all where it no longer holds (`workflow/engine/verification_unguarded.py`).
 - **Outcomes**:
   - **Settled** → the pull request (the one `pr_number` pins), branch, checkout, tested and target trees, configured
     context, the recorded review subject (`review_returned_subject` for a reviewer's account, `review_subject`
     otherwise), the settled report re-read at its location as a reviewer is handed it, the subject passing that reader's
     own rules (requirements the round was due, a report not stale against it -- a report older than a baseline that is
     the subject's own requirements is not stale, since only settling the reply that bought the round leaves one), and
-    the requirements all PROVED; the
+    the requirements all PROVED -- and, for a transaction a landed base rewrite's finish answers under its standing
+    anchor, the head still on the base tip its replay was made onto, asked last
+    (`verification_proof.ProofReading.anchored`); behind those requests and the settlement's room, right before the
+    post, the readings no guarded commit holds are taken again (`workflow/engine/verification_unguarded.py`) -- the
+    anchor's landing and base, then the issue fetched afresh, still live work and its requirements hashed over that
+    very reading, and the configuration last -- so an issue edited, a base advanced, or a command configured
+    otherwise while the proof's requests were answered posts nothing (a carry, or a transaction published under a
+    standing anchor, is abandoned on it as on the proof's own refusal); the
     artifact is posted (or found where an earlier post's response was lost: a comment of ours under its receipt that
     reads back, in its own format, as exactly this artifact -- identity, commands, transcripts, and digest -- whatever
     body the writer would give it now, and that comment is neither rewritten nor posted again); a carry that copied the
@@ -1179,11 +1188,20 @@ because there it is the claim that this stage has already rerouted rather than a
     reads as damage and is dropped), which is re-read ahead of the post and again at the settlement and has to still
     be the current record, its artifact the one that settled and carrying exactly what was copied
     (`verification_current.copied_source_verdict`); the issue and the pinned
-    comment are read afresh, the comment has to carry every bound record as the tick held it, the whole proof is taken
-    again over them, and the artifact re-read at the comment it landed as has to be exactly this transaction's (edited
-    or deleted meanwhile, it stands down); the comment is read once more behind those requests and has to still carry
-    every bound record -- `review_approved_subject` among them -- as the proof read it (a subject removed or replaced
-    meanwhile stands it down, the move kept); then one guarded commit (`workflow/engine/pinned_commit.py`), composed
+    comment are read afresh, the comment has to carry every bound record as the tick held it, and the whole proof is
+    taken again over them -- the artifact re-read at the comment it landed as, right behind the pull request, has to
+    be exactly this transaction's (edited or deleted meanwhile, it stands down), and every other reading of the proof
+    is taken behind that re-read, so a requirement edited, or a head pushed or a base advanced under a standing
+    anchor, while it was answered stands
+    it down too; the comment is read once more behind those requests and has to still carry every bound record --
+    `review_approved_subject` among them -- as the proof read it (a subject removed or replaced meanwhile stands it
+    down, the move kept); the artifact is re-read once more behind all of them and has to still be exactly this
+    transaction's, so one edited while the settled report or anything else was read stands it down too; and behind
+    that the readings no guarded commit holds are taken last, in the order that
+    leaves none of them in front of a request -- the anchor's landing and base asked again, then the issue fetched
+    once more, still live work and its requirements hashed over that very reading, and the configuration read once
+    more last of all; then one guarded commit
+    (`workflow/engine/pinned_commit.py`), composed
     over that last reading, makes it current, moves the earlier current evidence into history as superseded, records
     the handoff, drops the pending record, and merges the artifact's id into the ledger -- laid over the comment read
     once more, which has to still carry every bound record as that last reading did, with every field the settlement
@@ -1213,23 +1231,24 @@ because there it is the claim that this stage has already rerouted rather than a
     response included), its own artifact found edited under its receipt, or the proof or either artifact re-read ahead
     of its settlement -- it is abandoned into history and the approval it was recorded for retired in the same guarded
     commit (`review_approved_subject` written `null`, `verification_carries`), so a context, a head, or an artifact put
-    back afterwards moves no label over it. A squash's carry was recorded for the approval it answers for; a base
-    rewrite's answers for the review of its rewritten head, and takes an approval with it only where the one recorded is
-    exactly that review. That commit is staged on the pinned comment read afresh -- at the settlement, the reading
-    behind the proof, recording the artifact's ledger entry too -- and guarded by it: an approval, a transaction, or any
-    other bound record another road moved under it refuses it with nothing written and the carry owed (at the
-    settlement, the ledger entry is then committed alone), and every field it does not own -- a returned verdict, a
-    usage total, another road's comment ids -- is kept as written. A bound record another road moved after the tick read
-    the comment and before or during the settlement's proof refuses what the tick decided over rather than the carry:
-    nothing is abandoned, the ledger entry is committed alone, and the next tick's proof decides over the comment as it
-    reads then. Only the approval the carry was recorded for goes, spelled exactly as the carry recorded it -- one
-    another road recorded in its place, of another subject or respelled, stands -- and it goes even where the comment
-    has no room for the carry's entry, since that write only shrinks the comment: the carry then stays owed, under an
-    approval nothing acts on, for a later tick to abandon.
-    A carry left owed for its standing approval -- the settlement had no room, before the post or behind it, a record
-    moved under it, or its commit did not land -- holds the squash handoff rather than letting it drop
-    (`squash_evidence.carried_onto`), so the next tick with room settles it and moves the label, with no second report
-    or reviewer.
+    back afterwards moves no label over it. A transaction a landed base rewrite's finish answers under its standing
+    anchor -- a fresh run as well as a carry -- is abandoned on those same refusals, since no route behind the anchor
+    answers it (`verification_carries.abandons_on_refusal`). A squash's carry was recorded for the approval it answers
+    for; a base rewrite's answers for the review of its rewritten head, and takes an approval with it only where the one
+    recorded is exactly that review. That commit is staged on the pinned comment read afresh -- at the settlement, the
+    reading behind the proof, recording the artifact's ledger entry too -- and guarded by it: an approval, a
+    transaction, or any other bound record another road moved under it refuses it with nothing written and the carry
+    owed (at the settlement, the ledger entry is then committed alone), and every field it does not own -- a returned
+    verdict, a usage total, another road's comment ids -- is kept as written. A bound record another road moved after
+    the tick read the comment and before or during the settlement's proof refuses what the tick decided over rather than
+    the carry: nothing is abandoned, the ledger entry is committed alone, and the next tick's proof decides over the
+    comment as it reads then. Only the approval the carry was recorded for goes, spelled exactly as the carry recorded
+    it -- one another road recorded in its place, of another subject or respelled, stands -- and it goes even where the
+    comment has no room for the carry's entry, since that write only shrinks the comment: the carry then stays owed,
+    under an approval nothing acts on, for a later tick to abandon. A carry left owed for its standing approval -- the
+    settlement had no room, before the post or behind it, a record moved under it, or its commit did not land -- holds
+    the squash handoff rather than letting it drop (`squash_evidence.carried_onto`), so the next tick with room settles
+    it and moves the label, with no second report or reviewer.
   - **Retired** → a record whose revision a settled or retired record already carries (a replay its own handoff
     names, or one a restored comment brought back) is dropped without a second post or history entry; an unreadable
     record is dropped; a record whose pull request ended, past which a revision was spent, or beside a revision floor
@@ -1277,8 +1296,9 @@ because there it is the claim that this stage has already rerouted rather than a
   ([`_handle_validating`](#_handle_validating-label-workflowvalidating)), and so does the base-rewrite evidence policy
   below, for a review recorded about the rewritten head alone.
 - **Base-rewrite evidence**: `decides` (`workflow/engine/rewrite_evidence.py`) is the evidence policy for the head a
-  landed automatic base rewrite publishes, asked at the finish's post-push, pre-route step for every head the finish
-  routes -- a head the base advanced past again is rebased once more and decided then. It writes nothing; the one
+  landed automatic base rewrite publishes, asked by the finish once its push landed and before it announces or routes
+  the head, for every head the finish routes -- a head the base advanced past again is rebased once more and decided
+  then. It writes nothing; the one
   staging its decision implies is the invalidation below (`RewriteEvidence.stages`). Where the
   tree the rewrite replaced, the tree it published, and the tree the current evidence tested all read as one under the
   configured context, it asks the carry-forward decision above and takes it only for a review subject recorded about
@@ -1309,33 +1329,43 @@ because there it is the claim that this stage has already rerouted rather than a
   next tick continues a head the base advanced past to another rebase; a base rewound or repointed under the head, or
   no recorded tip, records, carries, and runs nothing, and the fresh reviewer owes the evidence.
 - **Base-rewrite evidence, made durable**: the finish's evidence step (`workflow/engine/rewrite_finish_evidence.py`)
-  lands what that decision requires in one guarded commit (`rewrite_finish_writes.EVIDENCE`) after the announcement and
-  before the relabel to `workflow:validating` or the attempt's retirement, decided on the attempt, the debt, and every
+  lands what that decision requires in one guarded commit (`rewrite_finish_writes.EVIDENCE`) before the announcement
+  -- the notice, the `base_rebased` event, the round reset, and the mark -- the relabel to `workflow:validating`, or
+  the attempt's retirement, once the debt the announcement carries is measured to fit (a debt with no room parks
+  before anything runs or is recorded), decided on the attempt, the debt, and every
   record the evidence is bound through, so a report, review subject, or evidence record another road moved while the
   commands ran refuses it. On every route, current evidence the rewrite moved past goes into history whole as
   invalidated -- asked as the write is staged, behind any commands the decision ran, so a command or timeout
   configured otherwise while they ran invalidates evidence an equal tree would have spared. A **fresh** or
   **carried** result is minted and recorded as `verification_evidence_pending`, with the
-  room its settlement and later invalidation need; its artifact is posted by the reconciliation above, which proves
-  the whole binding again -- the settled report of the rewritten head and the review subject it was handed -- and only
-  then makes it current. A result the comment cannot record is recorded nowhere, and the head goes to the fresh
-  reviewer. **Reviewer** and **moved** record nothing as evidence, and neither does **failed**: its notice -- the
-  failing command, how it failed, and its output's tail -- is recorded in the same write
+  room its settlement and later invalidation need; its artifact is posted and settled by the finish itself before the
+  route (the next bullet), and only that settlement makes it current. A result the comment cannot record is recorded
+  nowhere, and the head goes to the fresh reviewer. **Reviewer** and **moved** record nothing as evidence, and neither
+  does **failed**: its notice -- the failing command, how it failed, and its output's tail -- is recorded in the same
+  write
   (`auto_base_rebase_failed_verification`, `workflow/engine/rewrite_finish_failures.py`) and then put on the pull
   request once before the route, posted only where no comment of ours there already carries it, and the retirement
   clears the record and enters the notice in the ledger. Routed with nothing recorded, the fresh reviewer is handed no
   current evidence for the rewritten head's subject -- an exact tree's evidence stays on the replaced head's review,
-  deferred -- so its prompt tells it to run the verification itself. The route is held instead, nothing relabelled or
-  retired and the anchor holding every handler, for a decision short of a reading nobody could take or of a base that
+  deferred -- so its prompt tells it to run the verification itself. Only a decision that resolved one of these ways
+  is announced -- the notice and event said, the round reset, and the mark written -- and routed, and the
+  announcement's checkpoint is decided on the evidence records as well (`rewrite_finish_writes.CHECKPOINT`): a
+  transaction another road recorded beside the one the finish settled or retired, even while the settlement's own
+  answer was coming back, refuses it before its notice is posted, with the attempt kept for the next finish to answer
+  that transaction. The route is held
+  instead, nothing announced, relabelled, or retired, the round as it was, and the anchor holding every handler, for
+  a decision short of a reading nobody could take or of a base that
   moved after the head was counted against it, an invalidation the comment has no room for, or a failure notice whose
   pull request would not read or whose post raised (`HELD`), and for an evidence write refused or never confirmed
-  (`REFUSED`, `UNCONFIRMED`). The retirement behind the route is decided on every record the evidence is bound through
-  too (`rewrite_finish_writes.FINISH`), so a report or review subject another road moved after the decision refuses
-  the route, and what that guard read moved is handed to the last word behind the refusal as movement, so a record put
-  back before that word reads the comment again is abandoned over all the same. Every route that carries or follows
-  a recorded decision ends in one last word asked once nothing else is left to request
+  (`REFUSED`, `UNCONFIRMED`) -- a captured transaction's evidence write refused over a bound record it read moved hands
+  that movement to the last word behind the refusal, so a record put back before that word reads the comment again
+  is abandoned over all the same. The retirement behind the route is decided on every record the evidence is bound
+  through too (`rewrite_finish_writes.FINISH`), so a report or review subject another road moved after the evidence
+  was decided or settled refuses the route, with the attempt standing for a later tick. Every route that carries or
+  follows a recorded decision ends in one last word asked once nothing else is left to request
   (`rewrite_finish_captured.stands_before_the_route`, over `rewrite_evidence_proof.last_word`) -- a captured
-  transaction's behind whatever stopped it, and once more behind the relabel before the retirement lands --
+  transaction's behind whatever stopped it, and once more behind its publication and settlement wherever they left
+  it owed or retired it --
   while a fresh decision held before its write, whose write did not land, or whose failure notice nobody could
   confirm ends without it, leaving no transaction to abandon. The last word reads
   everything that moves in one fixed order -- the remote branch, the base, and the requirements and the review and
@@ -1350,25 +1380,99 @@ because there it is the claim that this stage has already rerouted rather than a
   to the tick's reading (`rewrite_finish_writes.ABANDONMENT`) where that write does not land, and held rather than
   written over an attempt another road put in place of the one read. With no room for its history entry the
   transaction is dropped and the recorded base tip blanked, refusing it for good. Nothing put back revives it.
+- **Base-rewrite evidence, settled under the anchor**: a transaction the finish recorded for the landed head -- or a
+  captured one a later finish proved again -- is published and settled by the finish itself before the announcement,
+  the relabel, or the retirement, with the attempt still standing (`workflow/engine/rewrite_finish_settlement.py`),
+  through this
+  reconciliation's own answer (`verification_transaction.answers`) rather than a protocol of its own: the same
+  receipt-scoped post, and the same one guarded commit that makes it current, while the dispatcher's guard stands
+  aside behind the anchor. The proof is the reconciliation's, over the issue fetched afresh for it and a reading that
+  names the anchor (`verification_proof.ProofReading.anchored`), so ahead of the post and again ahead of the
+  settlement the landing is read over again, asked last -- the remote branch and the checkout still on the head, and
+  the base still the tip its replay was made onto (`rewrite_evidence_proof.last_word` over the landing alone) -- and
+  each of the post and the settlement asks it once more behind all of its own requests, then the issue fetched again
+  and its requirements hashed over that reading, and the configuration read last, right before the post or the
+  commit: a head pushed, a base advanced, an issue edited, or a command configured otherwise while the report or the
+  base was read refuses it.
+  Every write the
+  answer makes -- the post's prepared room, the settlement, a retirement or abandonment -- is decided on the attempt
+  as the finish read it beside the bound records (`ProofReading.rests_on`), so an attempt another road put in its
+  place refuses them, and a finish whose state took that attempt in all the same -- through an artifact's ledger
+  entry committed alone -- holds before anything abandons over it or clears it. So does one whose state took in a
+  newer transaction another road recorded in place of the answered one: the successor stands, with the history and
+  revision floor that road left, for the next finish to answer, rather than taking its predecessor's refusals. A
+  revision already settled or spent past, a pull request that ended, and any refusal short of a reading nobody could
+  take -- a moved head, report or review subject, requirements, configuration, or base, or an artifact edited under
+  its receipt -- retire the transaction into history, as a carry's would (`verification_carries.abandons_on_refusal`),
+  since no route behind the anchor answers it: the fresh reviewer owes the evidence and the route goes on. A
+  transaction still owed behind that answer -- a post or a settlement commit nobody confirmed, a reading nobody could
+  take, a settlement whose comment had no room or moved under it, an issue that stopped being live work while the
+  artifact was posted -- is held to the last word over the first movement the answer itself read
+  (`ProofReading.observed`: a refusal of its binding, a bound record a guard read moved, or a base read gone
+  elsewhere, each kept the moment it was read whatever a reading behind it came to, put back since or not),
+  or else over its proof taken again (`rewrite_finish_captured.proved_again`), which abandons it where any reading
+  establishes movement and lets the route go on where nothing holds it; one nothing
+  moved under holds the route (`HELD`) with the attempt standing, nothing announced, relabelled, retired, or reset.
+  The route goes on only once the transaction is settled -- its artifact posted once, its transcript, revision,
+  tested commit and tree, and source as recorded -- or retired, behind the last word over the landing and the base.
 - **Base-rewrite evidence, recovered**: the recovery of the push already landed (`workflow/engine/rewrite_landed.py`)
-  finishes a held route on a later tick under the attempt's own mark, with nothing pushed again, no second notice,
-  event, or round reset, and no developer launched. A tick that died before its evidence write landed -- before the
+  finishes a held route on a later tick under the attempt's own mark, with nothing pushed again, the notice, event,
+  and round reset made once -- by whichever finish first resolves the evidence -- and no developer launched. A tick
+  that died before its evidence write landed -- before the
   configured commands ran, or behind a run that completed and was never recorded -- captured nothing, so the decision
   is taken afresh and the commands run again where the policy runs them. A failure notice it recorded is published
   once with nothing run again. A transaction it recorded is a captured run or carry, never made again: its whole
-  binding is proved again over the issue and comment read afresh, and it is routed exactly as recorded -- transcript,
-  tested commit and tree, configuration, and source unchanged -- or abandoned with nothing run where anything it is
-  bound to, the landing, or the base moved since. An abandoned transaction stays in the evidence history with its
-  whole binding, so a later finish decides nothing afresh and runs nothing again. A head the base advanced past again
-  is not routed: a transaction recorded for it is abandoned before the attempt retires, and the tick's rebase goes on.
+  binding is proved again over the issue and comment read afresh, and it is settled exactly as recorded -- transcript,
+  tested commit and tree, configuration, and source unchanged, over an artifact an earlier post landed, its answer
+  lost included, found under its receipt rather than posted again -- and routed, or abandoned with nothing run where
+  anything it is bound to, the landing, or the base moved since. One an earlier finish already settled -- its commit
+  landed and the process died, or the commit's answer was lost -- is routed as it stands, behind the last word over
+  the landing and the base, with nothing decided, run, invalidated, posted, or settled again
+  (`rewrite_finish_settlement.resolves`) -- but only while the records agree it is the last word on the head: nothing
+  pending beside it, the handoff naming it, and no revision spent past it. A newer transaction recorded for the head
+  beside it is published and settled as any captured one, superseding it, rather than left owed behind a cleared
+  attempt, and any other disagreement holds the route. The records a finish's own publication and settlement leave
+  are held to that same agreement before anything is announced or routed, so a settlement or retirement another road
+  made while the run was published -- current evidence its handoff does not name, or a revision spent past it, which
+  comes in with the comment the answer adopted -- holds the route with the attempt standing, poll after poll. The
+  same holds where the head's own evidence was retired and
+  nothing is current: a pending record about any other head -- a successor about the anchor recorded over the run,
+  abandoning it -- is one no finish of this landing can answer, so the route is held over it poll after poll, the
+  successor and the revision floor it raised kept, with nothing announced. An abandoned transaction stays in the
+  evidence history with its
+  whole binding, so a later finish decides nothing afresh and runs nothing again; the history keeps only its latest
+  entries, so once records another road wrote push the run out of it, the receipt the finish put on the attempt
+  (`pending_auto_base_rebase_evidence_receipt`) says the same -- one naming no pending transaction is a capture
+  already settled or retired (`rewrite_landing_records.capture_answered`), beside which a pending successor holds the
+  route and nothing is run again. A head the base advanced past again
+  is not routed: a transaction recorded for it is abandoned before its continuation is announced or the attempt
+  retires -- an abandonment that does not land holds the continuation with nothing announced, and so does a record
+  another road left unresolved beside evidence this landing already resolved, as it holds the route -- and the tick's
+  rebase goes on.
   Only whether the current evidence has to be invalidated is asked afresh on every resumed finish, since the
-  configuration can move between the two. Before any road its snapshot chooses, the recovery's coordinator abandons a
-  transaction captured for the announced head where the remote or the checkout reads another head
-  (`workflow/engine/rewrite_landing_moved.py`), since every road but the landed one clears, resets, or parks the
+  configuration can move between the two -- evidence an earlier finish settled for the landed head included: under a
+  configuration that has moved since, it answers for nothing a route could carry, so it is invalidated whole with
+  nothing run again (an earlier finish's settled run counts as captured, `rewrite_finish_captured.retired`) and the
+  head routed to the fresh reviewer, rather than routed as current or held over a revision a newer transaction
+  abandoned over that very move spent past it. Before any road its snapshot chooses, the recovery's coordinator
+  abandons the transaction a finish of the attempt captured where the remote or the checkout reads a head off it
+  (`workflow/engine/rewrite_landing_moved.py`). Which transaction that is, is the attempt's own word: the finish puts
+  its receipt on the attempt in the very write that records it (`pending_auto_base_rebase_evidence_receipt`, staged
+  by `workflow/engine/rewrite_landing_records.py`), since it resolves the evidence ahead of any mark -- and an attempt
+  from before that receipt existed recorded evidence only behind its mark, which then names the head. Whether the
+  attempt's record names its replay yet says nothing either way, so an edited or not yet written replay neither
+  disowns a captured run nor leaves it standing behind an abort's release. Any other pending transaction -- a newer
+  head another road published, or a newer record about the same one -- is kept as that road wrote it, with its
+  transcript and revision floor, whatever the snapshot reads and on every road the recovery takes. The abandonment
+  comes first since every road but the landed one clears, resets, or parks the
   attempt without its route -- the checkout the fetch read asked before the remote head completes the snapshot, so a
   resolution that fails into an abort whose reset fails too leaves nothing for a human's continue to revive; the
   landed road does the same where the checkout leaves the fetched head or the remote is
-  observed off it. A head nobody could read abandons nothing by itself, but a recovery that stops there -- or on a
+  observed off it. A finish records evidence only once it has seen its push land, so with no mark down yet a replay
+  any evidence record names (`workflow/engine/rewrite_landing_records.py`) -- or the attempt's record names beside a
+  receipt a finish put on it, which outlives the history -- is never retried over a remote rolled back off it: it
+  parks as that rollback, with nothing pushed over it. A head nobody could read abandons nothing by
+  itself, but a recovery that stops there -- or on a
   landing the finish refuses, a base count nobody could take among the reasons, or behind a gate's hold -- proves the
   run again over every other reading first and abandons it where any moved. Every recovery park that keeps the
   attempt -- the abort or a rollback whose reset did not land, an issue relabelled out of the stages the refresh
@@ -1386,7 +1490,7 @@ because there it is the claim that this stage has already rerouted rather than a
   counted (`rewrite_recovery.answers_an_unreadable_checkout`) -- is movement, so the transaction is abandoned on the
   state the park writes (`git/base_sync/persistence.py`), in the one write that releases the attempt or not at all; a
   reset that failed keeps both, save a transaction the snapshot already read the landing move under. Publishing and
-  settling the recorded transaction is the reconciliation's above.
+  settling the recorded transaction is the finish's own, under the anchor (the bullet above).
 
 ## The rewritten-head report debt (every dispatch)
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims

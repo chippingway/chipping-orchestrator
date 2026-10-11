@@ -74,10 +74,12 @@ tip the attempt recorded its replay as made onto
 Two remote readings cannot be taken at one instant, so the network part of the
 last word is ordered rather than atomic, and the writes the route itself makes
 behind it are not read past. What moves there is no evidence anyone settles:
-the retirement behind the route is decided on every record the evidence is
-bound through (`rewrite_finish_writes.FINISH`), and the dispatcher's
-reconciliation proves a recorded transaction whole again before it publishes
-it (`verification_transaction`).
+the finish proves a recorded transaction whole again, held to the base too,
+before it publishes it and again before it settles it
+(`rewrite_finish_settlement`), and the retirement behind the route is decided
+on every record the evidence is bound through (`rewrite_finish_writes.FINISH`).
+`standing_refusal` is that settlement's anchored proof
+(`verification_proof.ProofReading.anchored`).
 """
 from __future__ import annotations
 
@@ -148,8 +150,10 @@ BASE_MOVED = _evidence_models.ReportEvidence(
     _HOLD, "the base moved after the rebased head was counted against it",
 )
 
-# The holds that read movement rather than a reading that did not happen.
-_MOVEMENT = (LEFT_THE_LANDING, BASE_MOVED)
+# The holds that read movement rather than a reading that did not happen; a
+# caller sorting refusals it collected itself sorts them by this too
+# (`rewrite_finish_settlement`).
+MOVEMENT = (LEFT_THE_LANDING, BASE_MOVED)
 
 # What the last word comes to: the first reading of movement, and the first
 # reading that holds the route.
@@ -221,14 +225,14 @@ def last_word(
     Every reading is taken, and none nobody could take hides one that read
     movement. `moved` is the first that establishes that something the route
     rests on moved -- every refusal that defers, and the two holds that read
-    movement, a landing off its head and a base gone elsewhere (`_MOVEMENT`)
+    movement, a landing off its head and a base gone elsewhere (`MOVEMENT`)
     -- and a transaction the route would carry can never be taken again after
     it. `held` is the first that holds the route: a reading nobody could take,
     or one of those two. Either is None where no reading says so.
     """
     answered = _answers_locally(finish, binding, _hears(finish, binding, landing), landing)
     found = [refused for refused in (earlier, *answered) if refused and not refused.proved]
-    movements = (refused for refused in found if not refused.holds or refused in _MOVEMENT)
+    movements = (refused for refused in found if not refused.holds or refused in MOVEMENT)
     holds = (refused for refused in found if refused.holds)
     return next(movements, None), next(holds, None)
 

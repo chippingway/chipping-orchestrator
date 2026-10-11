@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """A captured run whose abandonment is read moving keeps that abandonment, however its first write fails.
 
-A finish recorded its run for the landed head and died at its relabel, and the
-remote was rolled back onto the anchor before the next recovery. That snapshot
-is movement under the run, and the road it chooses resets and clears the
-attempt -- so the run is abandoned first. Where the abandonment's own write
+A finish recorded its run for the landed head and died posting its artifact,
+before it announced anything, and the checkout was reset onto the anchor
+before the next recovery. That snapshot is movement under the run, and the road
+it chooses resets and clears the attempt -- so the run is abandoned first. Where the abandonment's own write
 over the comment read again does not land -- that comment would not read, or
 another road moved a record under the write -- it is staged on the tick's own
 reading instead and lands there, so the movement is kept: with both heads put
@@ -17,12 +17,14 @@ attempt's anchor keeps the reconciliation off the run.
 A fetch that fails ends in the git owner's abort, whose reset takes the
 checkout off the landed head itself: the run is abandoned on the state that
 abort's park writes, so it goes in the very write that releases the attempt --
-whatever a comment read of the abandonment's own would have answered -- or,
-where that write does not land, neither goes and the attempt still guards the
-run. The park's notice goes out ahead of that write, so it says the write drops
-the attempt rather than that it is gone, whether the write is then refused or
-lands with its answer lost. Nothing runs, pushes, or announces again, and no
-developer is launched.
+whatever a comment read of the abandonment's own would have answered, and
+whether or not the attempt's record names its replay yet, since the receipt
+the finish put on the attempt beside the run is what says it is the finish's --
+or, where that write does not land, neither goes and the attempt still guards
+the run. The park's notice goes out ahead of that write, so it says the write
+drops the attempt rather than that it is gone, whether the write is then
+refused or lands with its answer lost. Nothing runs, pushes, or announces
+again, and no developer is launched.
 """
 from __future__ import annotations
 
@@ -67,9 +69,21 @@ def _unreadable(*_called, **_options):
     return _UNREAD
 
 
+def _unnames_the_replay(case: support.VerificationRecoveryCase) -> None:
+    """Blank the replay the attempt's record names, as the window before git's result is recorded leaves it."""
+    unnamed = case.gh.read_pinned_state(case.issue)
+    unnamed.set(readings.KEY_REWRITE_SHA, None)
+    case.gh.write_pinned_state(case.issue, unnamed)
+
+
 def _puts_the_remote_on(case: support.VerificationRecoveryCase, head: str) -> None:
     """Point `case`'s remote branch at `head`."""
     case._git("update-ref", f"refs/heads/{git_support.BRANCH}", head, cwd=case._remote)
+
+
+def _puts_the_checkout_on(case: support.VerificationRecoveryCase, head: str) -> None:
+    """Reset `case`'s checkout onto `head`."""
+    case._git("reset", "--quiet", "--hard", head, cwd=case._wt)
 
 
 # How the abandonment's write fails: the comment nobody could read again, or a
@@ -81,6 +95,12 @@ _UNLANDED = (
         lambda case, original: _RacesPastTheStep(original, partial(_moves_the_subject, case)),
     ),
 )
+
+
+# The attempt's record of its replay as the abort finds it, beside how it got
+# that way: named, or not yet named -- which the receipt the finish put on the
+# attempt with the run answers for all the same.
+_REPLAYS = (("named", None), ("not yet named", _unnames_the_replay))
 
 
 # How the write recording an abort's park goes wrong, beside whether it landed
@@ -103,32 +123,33 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
     def test_a_failed_write_falls_back(self) -> None:
         # The abandonment's write over the comment read again fails, so it is
         # landed over the tick's own reading: the run is abandoned and the
-        # rollback's road taken. With both heads put back on the landed head,
-        # a later recovery and the reconciliation settle nothing.
+        # road of a checkout back on the anchor taken. With both heads put
+        # back on the landed head, a later recovery and the reconciliation
+        # settle nothing.
         for failure, failing in _UNLANDED:
             with self.subTest(failure=failure):
-                head, captured = self._recovers_a_rollback(failing)
-                self._assert_released(head, captured)
+                head, captured = self._recovers_off_the_landing(failing)
+                self._assert_released(captured)
                 _puts_the_remote_on(self, head)
-                self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+                _puts_the_checkout_on(self, head)
 
                 self.recovers()
                 self.reconciles()
 
-                self._assert_released(head, captured)
+                self._assert_released(captured)
 
     def test_an_unwritable_comment_holds(self) -> None:
         # No write to the comment lands at all, so the run cannot be
-        # abandoned: nothing is reset, cleared, or parked, and the
-        # reconciliation leaves the run to the attempt still standing, even
-        # with the remote put back on the landed head.
-        head, captured = self._recovers_a_rollback(
+        # abandoned: nothing is cleared or parked, and the reconciliation
+        # leaves the run to the attempt still standing, even with the
+        # checkout put back on the landed head.
+        head, captured = self._recovers_off_the_landing(
             lambda _case, original: original, edit=PinnedEdit.MOVED,
         )
 
-        self.assertEqual(self._wt_head(), head)
+        self.assertFalse(readings.pinned(self).get("awaiting_human"))
         self.assert_held(captured)
-        _puts_the_remote_on(self, head)
+        _puts_the_checkout_on(self, head)
         self.reconciles()
         self.assertEqual(readings.pinned_records(self)[:2], (captured, None))
 
@@ -136,19 +157,25 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
         # The fetch fails, so the abort resets the checkout onto the anchor:
         # the run is abandoned in the write that releases the attempt, even
         # where the comment would not read again for an abandonment of its
-        # own. Put back on the landed head, the checkout settles nothing.
-        head, captured = self.captures()
-        with (
-            patch.object(branch_transport, "_authed_fetch", return_value=_UNFETCHED),
-            patch.object(verification_durable, _DURABLE_READ, side_effect=_unreadable),
-        ):
-            self.recovers()
+        # own, and whether or not the attempt's record names its replay yet.
+        # Put back on the landed head, the checkout settles nothing.
+        for replay, unnames in _REPLAYS:
+            with self.subTest(replay=replay):
+                self.setUp()
+                head, captured = self.captures()
+                if unnames is not None:
+                    unnames(self)
+                with (
+                    patch.object(branch_transport, "_authed_fetch", return_value=_UNFETCHED),
+                    patch.object(verification_durable, _DURABLE_READ, side_effect=_unreadable),
+                ):
+                    self.recovers()
 
-        self.assertEqual(self._wt_head(), self.anchor)
-        self._assert_released(head, captured)
-        self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
-        self.reconciles()
-        self._assert_released(head, captured)
+                self.assertEqual(self._wt_head(), self.anchor)
+                self._assert_released(captured)
+                _puts_the_checkout_on(self, head)
+                self.reconciles()
+                self._assert_released(captured)
 
     def test_an_unconfirmed_park_keeps_its_word(self) -> None:
         # The fetch fails and the abort's reset lands, and the write recording
@@ -164,10 +191,10 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
 
                 self.assertIn(_RELEASED_BY_THE_WRITE, notice)
                 if lands:
-                    self._assert_released(head, captured)
+                    self._assert_released(captured)
                 else:
                     self.assert_held(captured)
-                    self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+                    _puts_the_checkout_on(self, head)
                     self.reconciles()
                     self.assertEqual(readings.pinned_records(self)[:2], (captured, None))
 
@@ -187,15 +214,15 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
             self.recovers()
         return head, captured, self.gh.posted_comments[-1][1]
 
-    def _recovers_a_rollback(self, failing, edit: PinnedEdit | None = None) -> tuple:
-        """A fresh case's captured run, its remote rolled back, recovered with the comment read again as `failing` says.
+    def _recovers_off_the_landing(self, failing, edit: PinnedEdit | None = None) -> tuple:
+        """A fresh case's captured run, its checkout reset onto the anchor, recovered over the reading `failing` gives.
 
         `edit` is what every strict edit of the comment answers meanwhile,
         where one is given. The head, and the run.
         """
         self.setUp()
         head, captured = self.captures()
-        _puts_the_remote_on(self, self.anchor)
+        _puts_the_checkout_on(self, self.anchor)
         reread = failing(self, verification_durable.durable_comment)
         edits = self.gh.edit_pinned_state if edit is None else (lambda *_called, **_options: edit)
         with (
@@ -205,8 +232,8 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
             self.recovers()
         return head, captured
 
-    def _assert_released(self, head: str, captured) -> None:
-        """`captured` abandoned and the attempt cleared, `head` announced once, and nothing pushed, launched, or run."""
+    def _assert_released(self, captured) -> None:
+        """`captured` abandoned and the attempt cleared, with nothing announced, pushed, launched, or run again."""
         recorded = readings.pinned_records(self)
         attempt = readings.pinned(self)[readings.KEY_PENDING_PUSH]
         self.assertEqual(
@@ -214,7 +241,7 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
             (None, (captured.receipt, readings.ABANDONED), None),
         )
         said = (support.announced(self), self.pushes.call_count, self.developer.call_count)
-        self.assertEqual(said, ([head], 0, 0))
+        self.assertEqual(said, ([], 0, 0))
         self.assertEqual(self.runs(), 1)
 
 

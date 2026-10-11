@@ -61,10 +61,11 @@ class FinishOutcome(StrEnum):
     could not be taken or made good -- a reading nobody could take, the
     recorded decision of an earlier finish included, a base that moved after
     the head was counted against it, an invalidation or an abandonment the
-    pinned comment has no room for, or a failure notice
-    nobody could confirm the pull request carries -- so nothing was routed
-    and the attempt stands for a later tick to finish. UNFINISHABLE is a landing the
-    pinned record does not account for, and nothing at all was made for it.
+    pinned comment has no room for, a failure notice nobody could confirm the
+    pull request carries, or a recorded transaction whose publication or
+    settlement did not resolve -- so nothing was routed and the attempt stands
+    for a later tick to finish. UNFINISHABLE is a landing the pinned record
+    does not account for, and nothing at all was made for it.
     """
 
     ROUTED = "routed"

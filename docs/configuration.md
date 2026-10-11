@@ -634,7 +634,8 @@ reviewer (see [`_handle_validating`](state-machine/delivery-stages.md#_handle_va
 
 The same commands verify a head an automatic base rebase published, where no current evidence carries onto it -- an
 equal full tree under these two settings -- and a reviewer was already handed a report of the rebased head: a pass is
-recorded as orchestrator-executed evidence of that head before it is routed to `workflow:validating`, and a failure is
+recorded as orchestrator-executed evidence of that head, and its artifact posted and settled, before it is routed to
+`workflow:validating`, and a failure is
 recorded on the pinned comment and posted on the pull request once, with the failing command and its output's tail,
 before the route. Without that review -- the usual case,
 since the rebased head's report refresh has not run yet -- nothing runs: evidence the rebase moved past is

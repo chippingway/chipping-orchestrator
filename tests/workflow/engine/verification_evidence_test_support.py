@@ -169,13 +169,16 @@ class VerificationEvidenceCase:
 
     def artifacts(self) -> list:
         """Every verification artifact on the pull request, oldest first."""
-        readings = [
-            _artifacts.verification_artifact_from_comment(
-                posted, bot_login=self.gh._bot_login,
-            )
-            for posted in self.pull_request.issue_comments
-        ]
-        return [found for found in readings if found is not None]
+        return posted_artifacts(self)
+
+
+def posted_artifacts(case) -> list:
+    """Every verification artifact of ours on `case`'s pull request, oldest first."""
+    readings = (
+        _artifacts.verification_artifact_from_comment(posted, bot_login=case.gh._bot_login)
+        for posted in case.pull_request.issue_comments
+    )
+    return [found for found in readings if found is not None]
 
 
 def reading(case) -> _proof.ProofReading:

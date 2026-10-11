@@ -6,17 +6,17 @@ A tick that died after its push landed -- before the configured command ran,
 or behind a run that completed and was never recorded -- captured nothing, so
 the recovery proves the landing again and decides its evidence afresh: the
 command runs once more on the rebased head, and what it printed is recorded
-before the route -- unless the base was rewound under the head, which runs
-nothing. A run the evidence write captured before the tick died is routed
-exactly as recorded with no second run, unless something it was bound to moved
-since -- the requirements, the report and review subject, the configuration,
-or the base -- which abandons it, with nothing run again and the fresh reviewer
-owing the evidence; once abandoned it is never run again, even by a recovery
-whose own route that abandonment stopped short of. A review that moves while
-the recovery proves the run abandons it the same way. Something moving while the
-recovery's own run is under way leaves that run eligible for nothing -- a landing
-that moved holds the route too -- and a
-base that advances meanwhile holds the head unrouted for the next recovery to
+and settled before the route -- unless the base was rewound under the head,
+which runs nothing. A run the evidence write captured before the tick died is
+settled and routed exactly as recorded with no second run, unless something it
+was bound to moved since -- the requirements, the report and review subject,
+the configuration, or the base -- which abandons it, with nothing run again and
+the fresh reviewer owing the evidence; once abandoned it is never run again,
+even by a recovery whose own route that abandonment stopped short of. A review
+that moves while the recovery proves the run abandons it the same way.
+Something moving while the recovery's own run is under way leaves that run
+eligible for nothing -- a landing that moved holds the route too -- and a base
+that advances meanwhile holds the head unrouted for the next recovery to
 rebase. No recovery pushes the landed head again, repeats its announcement, or
 launches a developer.
 """
@@ -27,10 +27,13 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git.base_sync import pre_pr
+from orchestrator.github.pinned_state import PinnedEdit
+from orchestrator.workflow.engine import verification_durable
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
     rewrite_verification_recovery_support as support,
+    verification_evidence_test_support as _evidence_support,
     verification_report_fixture as _report,
 )
 from tests.workflow.interleaving import _RacesPastTheStep
@@ -133,7 +136,7 @@ class MissingRecordRecoveryTest(support.VerificationRecoveryCase, unittest.TestC
         git_support.advances_the_base(self)
         rebases = partial(self._rebases_then_rewinds, pre_pr._rebase_base_into_worktree, rewound)
         with patch.object(pre_pr, "_rebase_base_into_worktree", side_effect=rebases):
-            self.dies_routing(self.recovers)
+            self.dies_at(support.RELABEL, self.recovers)
         head = git_support.remote_head(self)
         self.pull_request.head.sha = head
         self.reviews(head)
@@ -156,35 +159,33 @@ class MissingRecordRecoveryTest(support.VerificationRecoveryCase, unittest.TestC
         return rebased
 
     def _assert_recorded_a_run_of(self, head: str) -> None:
-        """The command's run on `head` pending, executed here and recorded as it printed, beside nothing current."""
+        """The command's run on `head` current, executed here and published as it printed, nothing pending."""
         pending, current, retired = readings.pinned_records(self)
-        binding = pending.binding
+        binding = current.binding
         self.assertEqual(
-            (binding.tested_sha, binding.tested_tree, binding.source.value),
-            (head, git_support.tree(self, head), "orchestrator-executed"),
+            (binding.tested_sha, binding.tested_tree, binding.source.value, pending, retired),
+            (head, git_support.tree(self, head), "orchestrator-executed", None, git_support.invalidated(self)),
         )
-        transcript = [(command.exit_status, command.output.strip()) for command in pending.commands]
+        published = _evidence_support.posted_artifacts(self)[-1]
         self.assertEqual(
-            (transcript, current, retired),
-            ([(0, git_support.CHECKED)], None, git_support.invalidated(self)),
+            (published.receipt, [(command.exit_status, command.output.strip()) for command in published.commands]),
+            (current.receipt, [(0, git_support.CHECKED)]),
         )
 
 
 class CapturedRunRecoveryTest(support.CapturedRunCase, unittest.TestCase):
     """A run the evidence write captured is routed as recorded, or abandoned where what it was bound to moved."""
 
-    def test_a_captured_run_is_routed_as_recorded(self) -> None:
-        # The tick died at the relabel behind the write that recorded its
-        # run: the recovery routes that very transaction, run once.
+    def test_a_captured_run_is_settled_as_recorded(self) -> None:
+        # The tick died posting the artifact behind the write that recorded
+        # its run: the recovery publishes and settles that very transaction,
+        # run once, before it routes the head.
         head, captured = self.captures()
         self.assertEqual(readings.relabels(self), ())
 
         self.recovers()
 
-        self.assertEqual(
-            (readings.pinned_records(self), self.runs()),
-            ((captured, None, git_support.invalidated(self)), 1),
-        )
+        self.assert_settled(captured)
         self.assert_recovered(head)
 
     def test_a_moved_captured_run_is_abandoned(self) -> None:
@@ -224,6 +225,30 @@ class CapturedRunRecoveryTest(support.CapturedRunCase, unittest.TestCase):
             (readings.ROUTED, readings.RETIRED),
         )
 
+    def test_an_unabandoned_run_holds_the_rebase(self) -> None:
+        # The base moved again before the recovery, and no write that would
+        # abandon the captured run lands -- the comment read again for it
+        # unreadable, every guarded edit refused -- however often the
+        # recovery polls: nothing announces the continuation, resets the
+        # round, or clears the attempt, and the run stays pending. Once a
+        # write lands, the run is abandoned, the continuation announced, and
+        # the tick's rebase routes the next head.
+        head, captured = self.captures()
+        support.advances_the_base_again(self)
+        unread = (None, verification_durable._UNREAD)
+        with (
+            patch.object(verification_durable, "durable_comment", return_value=unread),
+            patch.object(self.gh, "edit_pinned_state", return_value=PinnedEdit.MOVED),
+        ):
+            self.recovers()
+            self.recovers()
+
+        self.assert_held(captured)
+        self.assert_unannounced()
+        self.recovers()
+        self.assert_abandoned(captured)
+        self.assertEqual(support.announced(self), [head, git_support.remote_head(self)])
+
     def test_an_abandoned_run_is_not_run_again(self) -> None:
         # The recovery abandons the captured run for a moved configuration
         # and dies at its relabel, behind that durable abandonment. The next
@@ -231,7 +256,7 @@ class CapturedRunRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         # and routes the head to the fresh reviewer.
         head, captured = self.captures()
         self.configures("echo another")
-        self.dies_routing(self.recovers)
+        self.dies_at(support.RELABEL, self.recovers)
         self.assert_abandoned(captured)
 
         self.recovers()

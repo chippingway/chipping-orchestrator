@@ -59,12 +59,15 @@ class _FakePinnedFailures:
 
     Three ways, as for a report: a thread nobody can read, an edit refused
     before it landed, and an edit that landed and whose response was lost --
-    the accepted write a caller cannot tell from the refused one.
+    the accepted write a caller cannot tell from the refused one. And a fourth
+    for reads alone: a read left unanswered once, every read after it answered
+    as always.
     """
 
     unreadable: set[int] = field(default_factory=set)
     refused: set[int] = field(default_factory=set)
     lost: set[int] = field(default_factory=set)
+    unanswered_once: set[int] = field(default_factory=set)
 
 
 @dataclass

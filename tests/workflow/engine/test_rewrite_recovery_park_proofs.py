@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """A captured run proved again before every recovery park that keeps its attempt, so no restoration revives it.
 
-A finish recorded its run for the landed head and died at its relabel, and the
+A finish recorded its run for the landed head and died posting its artifact, and the
 next recovery parks rather than finish the landing, keeping the attempt -- and
 the run with it -- for a human's reply: a fetch and an abort reset that both
 fail, an issue relabelled out of the stages the refresh drives, whether the

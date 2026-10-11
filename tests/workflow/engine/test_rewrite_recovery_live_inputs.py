@@ -202,7 +202,7 @@ class RecordedDecisionBaseTest(support.CapturedRunCase, unittest.TestCase):
         # routed again, and the next recovery continues the head to a rebase.
         self.configures("echo 'test_rebased failed' && exit 3")
         head = self.lands_a_reviewed_rebase()
-        self.dies_routing(partial(self.finishes, head))
+        self.dies_at(support.RELABEL, partial(self.finishes, head))
         failed = readings.failure(readings.pinned(self))
         _races(self.gh, "pr_conversation_thread", partial(support.advances_the_base_again, self))
 
@@ -224,7 +224,7 @@ class RecordedDecisionBaseTest(support.CapturedRunCase, unittest.TestCase):
         # the head to a rebase.
         head, captured = self.captures()
         self.configures("echo another")
-        self.dies_routing(self.recovers)
+        self.dies_at(support.RELABEL, self.recovers)
         self.enterContext(patch.object(branch_transport, _REMOTE_READ, branch_transport._remote_branch_read))
         _races(branch_transport, _REMOTE_READ, partial(support.advances_the_base_again, self))
 
@@ -242,7 +242,7 @@ class RecordedDecisionBaseTest(support.CapturedRunCase, unittest.TestCase):
         # nothing is run or posted again.
         self.configures("echo 'test_rebased failed' && exit 3")
         head = self.lands_a_reviewed_rebase()
-        self.dies_routing(partial(self.finishes, head))
+        self.dies_at(support.RELABEL, partial(self.finishes, head))
         failed = readings.failure(readings.pinned(self))
         commits = partial(self._git, *support.STRAY_COMMIT, cwd=self._wt)
         _races(self.gh, "pr_conversation_thread", commits)

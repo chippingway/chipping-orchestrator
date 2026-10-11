@@ -2538,13 +2538,13 @@ reference.
 
 The same commands also run outside this gate, through the same runner, on a head an automatic base rebase published,
 where no current evidence carries onto it and a reviewer was already handed a report of that head. That run gates
-nothing: a pass is recorded as orchestrator-executed evidence of the rebased head before it is routed to
-`workflow:validating`, and a failure parks nothing -- its notice is posted on the pull request and the fresh reviewer
-verifies the head itself (see
+nothing: a pass is recorded as orchestrator-executed evidence of the rebased head, and its artifact posted and
+settled, before it is routed to `workflow:validating`, and a failure parks nothing -- its notice is posted on the pull
+request and the fresh reviewer verifies the head itself (see
 [base-rewrite evidence](../state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 A tick that dies around that run leaves its recovery to run the commands again only where no run was recorded; a
-recorded run is never run twice, but routed as recorded or, where anything it was bound to moved, set aside for the
-fresh reviewer.
+recorded run is never run twice, but settled and routed as recorded -- its artifact found under its receipt where an
+earlier post landed -- or, where anything it was bound to moved, set aside for the fresh reviewer.
 
 [workflow-labels]: ../state-machine/labels-and-state.md#workflow-labels
 [review-subject]: ../state-machine/labels-and-state.md#pinned-state

@@ -1,13 +1,14 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a landed base rewrite's head is routed with, made durable before the relabel.
+"""What a landed base rewrite's head is routed with, made durable and settled before the relabel.
 
 Driven whole through the finish every landing gets, over an issue holding
 settled evidence of the head the rewrite replaced. A changed tree is verified
 afresh and recorded as a pending transaction -- the replaced head's evidence
-invalidated into history in the same write -- before the relabel, and only the
-dispatcher's reconciliation publishes it and makes it current; an exact tree
-carries that evidence with its provenance. Nothing configured, no review of
+invalidated into history in the same write -- and the finish publishes and
+settles it with the attempt still standing, before the relabel, leaving the
+dispatcher's reconciliation nothing owed; an exact tree carries that evidence
+with its provenance the same way. Nothing configured, no review of
 the rewritten head to bind to, a transcript the comment cannot record, or a
 failure records nothing, and the head goes to the fresh reviewer -- a failure
 posted on the pull request first.
@@ -48,18 +49,19 @@ _FAILED_TAIL = "> FAILED tests/test_widget.py::test_rebased - AssertionError\n> 
 
 
 class FreshEvidenceTest(unittest.TestCase, finish_support.RewriteFinishCase):
-    """A changed tree is verified afresh, recorded before its route, and published by the transaction."""
+    """A changed tree is verified afresh, recorded, published, and settled before its route."""
 
     def setUp(self) -> None:
         finish_support.RewriteFinishCase.setUp(self)
 
-    def test_a_changed_tree_is_recorded_first(self) -> None:
+    def test_a_changed_tree_is_settled_first(self) -> None:
         # Both runs passed and printed different transcripts. The fresh run is
         # recorded with exactly what it printed and the settled evidence goes
-        # into history whole -- both durable when the relabel comes, with no
-        # artifact posted yet. The next dispatch's reconciliation proves the
-        # report and review of the rebased head it is bound to, publishes it,
-        # and only then makes it current.
+        # into history whole; then, with the attempt still standing, the
+        # finish proves the report and review of the rebased head the run is
+        # bound to, posts its artifact once, and settles it current -- all
+        # durable when the relabel comes, so the next dispatch's
+        # reconciliation finds nothing owed.
         self.attempts(REBASED)
         self.rewrites(REBASED)
         self.outputs[support.SUITE] = rewrite_support.FRESH_OUTPUT
@@ -69,12 +71,12 @@ class FreshEvidenceTest(unittest.TestCase, finish_support.RewriteFinishCase):
 
         pending, current, retired = self.at_the_relabel()
         self.assertEqual(
-            (current, retired, len(self.artifacts())),
-            (None, self.invalidated(), posted),
+            (pending, retired, len(self.artifacts())),
+            (None, self.invalidated(), posted + 1),
         )
-        self._assert_fresh(pending)
+        self._assert_fresh(current)
         self.assertFalse(self.reconcile())
-        self._assert_settled(pending)
+        self.assertEqual(readings.pinned_records(self)[:2], (None, current))
 
     def test_a_fresh_result_with_no_room_is_refused(self) -> None:
         # The artifact could carry the transcript, but the pinned comment
@@ -90,26 +92,22 @@ class FreshEvidenceTest(unittest.TestCase, finish_support.RewriteFinishCase):
 
         self.assertEqual(self.at_the_relabel(), (None, None, self.invalidated()))
 
-    def _assert_fresh(self, pending) -> None:
-        """`pending` is the run of the rebased head, executed here and recorded exactly as it printed."""
-        binding = pending.binding
+    def _assert_fresh(self, current) -> None:
+        """`current` is the run of the rebased head, executed here and published exactly as it printed."""
+        binding = current.binding
         self.assertEqual(
             (binding.source.value, binding.tested_sha, binding.tested_tree, binding.target.target_head),
             ("orchestrator-executed", REBASED, support.REBASED_TREE, REBASED),
         )
-        transcript = [(ran.command, ran.exit_status, ran.output) for ran in pending.commands]
+        published = self.artifacts()[-1]
+        transcript = [(ran.command, ran.exit_status, ran.output) for ran in published.commands]
         self.assertEqual(transcript, [(support.SUITE, 0, rewrite_support.FRESH_OUTPUT)])
-        self.assertNotEqual(pending.commands, self.source.commands)
+        self.assertEqual(published.receipt, current.receipt)
+        self.assertNotEqual(published.commands, self.source.commands)
         self.assertEqual(
             (readings.attempt(readings.pinned(self)), readings.relabels(self)),
             (readings.RETIRED, TO_VALIDATING),
         )
-
-    def _assert_settled(self, pending) -> None:
-        """`pending` is the current evidence, published as the artifact it records."""
-        settled = _settlement.read_current_evidence(self.state)
-        self.assertEqual((settled.receipt, settled.binding), (pending.receipt, pending.binding))
-        self.assertEqual(self.artifacts()[-1].commands, pending.commands)
 
 
 class CarriedEvidenceTest(unittest.TestCase, finish_support.RewriteFinishCase):
@@ -120,31 +118,31 @@ class CarriedEvidenceTest(unittest.TestCase, finish_support.RewriteFinishCase):
 
     def test_an_exact_tree_carries_its_provenance(self) -> None:
         # Nothing runs. The carry keeps the commit and tree the commands ran
-        # on and names the artifact it copied, and the settled evidence stays
-        # current until the carry settles over it.
+        # on and their transcript, copied from the settled evidence, and it
+        # settles over that evidence before the relabel, sending it into
+        # history as superseded.
         self.attempts(SQUASHED)
         self.rewrites(SQUASHED)
 
         self.assertEqual(self.finishes(SQUASHED), ROUTED)
 
         pending, current, retired = self.at_the_relabel()
-        binding = pending.binding
+        binding = current.binding
         self.assertEqual(
-            (current.receipt, retired, self.handed),
-            (self.source.receipt, (), []),
+            (pending, retired, self.handed),
+            (None, ((self.source.receipt, "superseded"),), []),
         )
         self.assertEqual(
             (binding.tested_sha, binding.tested_tree, binding.target.target_head),
             (support.TESTED_SHA, support.TESTED_TREE, SQUASHED),
         )
+        published = self.artifacts()[-1]
         self.assertEqual(
-            (pending.copied_from, pending.commands),
-            (self.source.receipt, self.source.commands),
+            (published.receipt, published.tested_sha, published.commands),
+            (current.receipt, support.TESTED_SHA, self.source.commands),
         )
         self.assertFalse(self.reconcile())
-        settled = readings.pinned_records(self)[1:]
-        self.assertEqual(settled[0].receipt, pending.receipt)
-        self.assertEqual(settled[1], ((self.source.receipt, "superseded"),))
+        self.assertEqual(readings.pinned_records(self)[:2], (None, current))
 
 
 class ReviewerEvidenceTest(unittest.TestCase, finish_support.RewriteFinishCase):
@@ -203,9 +201,9 @@ class FailedEvidenceTest(unittest.TestCase, finish_support.RewriteFinishCase):
     def test_a_failure_is_posted_before_its_route(self) -> None:
         # The failing command, its exit status, and the tail of its output
         # are recorded with the invalidation before anything is posted, then
-        # posted behind the announcement before the relabel. The retirement
-        # behind the relabel enters the notice in the ledger and clears the
-        # record the pull request no longer needs.
+        # posted ahead of the announcement, which waits on it, and the
+        # relabel. The retirement behind the relabel enters the notice in the
+        # ledger and clears the record the pull request no longer needs.
         self.attempts(REBASED)
         self.rewrites(REBASED)
         self.exits[support.SUITE] = rewrite_support.FAILED_EXIT
@@ -213,7 +211,7 @@ class FailedEvidenceTest(unittest.TestCase, finish_support.RewriteFinishCase):
 
         self.assertEqual(self.finishes(REBASED), ROUTED)
 
-        announced, failed = readings.notices(self)
+        failed, announced = readings.notices(self)
         self.assertIn(":mag: PR was 0 commit(s) behind", announced)
         self.assertIn(_FAILED_DETAIL, failed)
         self.assertIn(_FAILED_TAIL, failed)
@@ -225,7 +223,7 @@ class FailedEvidenceTest(unittest.TestCase, finish_support.RewriteFinishCase):
         recorded = readings.failure(self.durable[0])
         self.assertEqual(recorded["head"], REBASED)
         self.assertTrue(failed.startswith(recorded["notice"]))
-        posted = self.pull_request.issue_comments[-1]
+        posted = next(comment for comment in self.pull_request.issue_comments if comment.body == failed)
         pinned = readings.pinned(self)
         self.assertIn(posted.id, pinned[support.LEDGER])
         self.assertIsNone(readings.failure(pinned))
