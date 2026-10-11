@@ -449,7 +449,10 @@ then `SQUASH_ON_APPROVAL`, then hands off to `workflow:documenting`; `CHANGES_RE
 **before** the dev spawn, and flips back before the round's report is bound; a flip back that never lands is
 finished by `workflow:fixing`'s recovery on the settled-round mark the round's record carries. `MAX_REVIEW_ROUNDS`
 parks with the `/orchestrator add-review-rounds N` escape hatch. No reviewer spawns while a developer report this
-issue recorded is still owed to the pull request.
+issue recorded is still owed to the pull request. A reviewer that times out or crashes parks for the next quiet tick
+to retry. A Codex reviewer whose last turn failed on the account's usage limit is recognized ahead of any VERDICT
+parse and parks `reviewer_usage_limit` with the round, pull request, and worktree kept; its notice names the limit and
+the reset the provider gave, and only a trusted `/orchestrator continue` buys the fresh reviewer that answers it.
 
 Each reviewer is handed the developer report the pull request carries, re-read where it settled and quoted whole in its
 prompt. A report that is missing, moved, edited, cut short, untrusted, out of step with its settlement, or stale against

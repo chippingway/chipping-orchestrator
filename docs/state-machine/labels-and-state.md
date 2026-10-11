@@ -1652,10 +1652,12 @@ The keys that matter for the state machine fall into a few groups:
   and `reviewer_unrecorded` in their own write for a reason of their own: neither retries itself, and the reason is
   what hands the reply to a fresh reviewer rather than to the developer, and what the drift check stands down for
   (see the **Returned reviewer verdict** bullet below). `reviewer_usage_limit` is the reviewer-side reason for a
-  reviewer its provider's usage limit stopped -- additive, and one no road sets yet, since recognizing that stop on a
-  reviewer's result is a separate change; what is defined is how the park is answered. It never retries itself,
-  because another poll is no evidence the quota reset, so it is outside `_VALIDATING_TRANSIENT_PARK_REASONS`; it is
-  among `_REVIEWER_SIDE_PARK_REASONS`, so the drift check stands down for it; and the one reply that answers it is a
+  reviewer its provider's usage limit stopped -- additive, and set in the park's own guarded commit for a Codex
+  reviewer whose last turn failed on the account's usage limit, read off the run's JSONL stream ahead of any VERDICT
+  parse, so that stop never reads as the `reviewer_failed` crash its empty final message resembles. It never
+  retries itself, because another poll is no evidence the quota reset, so it is outside
+  `_VALIDATING_TRANSIENT_PARK_REASONS`; it is among `_REVIEWER_SIDE_PARK_REASONS`, so the drift check stands down
+  for it; and the one reply that answers it is a
   trusted `/orchestrator continue`. Anything short of that command -- a quiet tick, an outsider's words the trust
   filter takes out, a trusted reply without the command -- holds the park with nothing run, posted, consumed, or
   written, the round, the pull request, the worktree, and the developer session left as they are; the command clears
