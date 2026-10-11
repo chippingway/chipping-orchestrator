@@ -3793,17 +3793,19 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      (`_reviewer_retry_awaiting_action`): a bare `/orchestrator continue` hands that round the thread through it, while
      a reply with words in it is requirements the report never saw, so the round is held for the developer to answer
      them first. The two verdict parks never retry themselves, so that reply is the only thing that ends them.
-     A `reviewer_usage_limit` park — a reviewer its provider's usage limit stopped; no road sets the reason yet — is
-     narrower still: another poll is no evidence the quota reset, so it is no transient park and never retries itself,
-     and only a batch carrying the `/orchestrator continue` line (honored only from an author `ALLOWED_ISSUE_AUTHORS`
-     lists) answers it. Short of that, the same road holds the tick ahead of the developer resume — a quiet tick, an
+     A `reviewer_usage_limit` park — a Codex reviewer whose last turn failed on the account's usage limit, parked by
+     step 6 below ahead of any verdict parse — is narrower still: another poll is no evidence the quota reset, so it
+     is no transient park and never retries itself, and only a batch carrying the `/orchestrator continue` line
+     (honored only from an author `ALLOWED_ISSUE_AUTHORS` lists) answers it. Short of that, the same road holds the
+     tick ahead of the developer resume — a quiet tick, an
      outsider's command the trust filter took out, or a reply without the command — running, posting, consuming, and
      writing nothing, so the round, the pull request, the worktree, and the developer session stand as the park left
      them. With it, the park clears into a fresh reviewer round exactly as a reply to any reviewer-side park does: no
      developer is resumed, and the command is recorded as read only by a round that ran — a reviewer the shutdown
      sweep kills leaves the park and the command for the next tick, and a launch the run circuit refuses leaves the
      command unread for the round its grant buys — while a reviewer that then times out or crashes parks under
-     `reviewer_timeout` / `reviewer_failed` with their usual meaning. A
+     `reviewer_timeout` / `reviewer_failed` with their usual meaning, and one that stops on the limit again parks
+     anew over the command it read. A
      further exception: a bare `/orchestrator continue` on a session-failure dev park (`agent_silent` /
      `agent_timeout` / `agent_execution_failed`) is intercepted (`_continue_command_action`) and retries the dev on
      the neutral `_DEVELOPER_CONTINUE_RETRY_PROMPT` — NOT the literal command, which the dev has no context for — while
@@ -4006,14 +4008,15 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      (`_paused_during_agent_run`) right after the reviewer returns short-circuits BEFORE the usage fold, session record,
      verdict parse, verify gate, squash, or relabel, so the next tick re-spawns a fresh reviewer from durable state, and
      so does a run the shutdown sweep interrupted. A reviewer that returns has the subject it was handed staged again as
-     `review_returned_subject` beside its usage, session, and return time -- by the park a timeout or a missing verdict
-     takes, in its own guarded commit prepared before its notice (`review_writes.parks_the_return`), so a comment with
-     no room for that park beside the run's records posts nothing, or by the disposition over its own last reading,
+     `review_returned_subject` beside its usage, session, and return time -- by the park a timeout, a usage-limit
+     stop, or a missing verdict takes, in its own guarded commit prepared before its notice
+     (`review_writes.parks_the_return`), so a comment with no room for that park beside the run's records posts
+     nothing, or by the disposition over its own last reading,
      so the usage is folded once: the launch's
      `review_subject` went down before the run budget was asked, so only this one says a reviewer really read the
      report.
-     Before the timeout park, the no-verdict park, or anything a verdict earns is written, the pinned
-     comment is read again against the reading the subject was bound to (`review_comment._records_stand`), and
+     Before the timeout park, the usage-limit park, the no-verdict park, or anything a verdict earns is written, the
+     pinned comment is read again against the reading the subject was bound to (`review_comment._records_stand`), and
      everything it changed since is carried onto the state in hand, whether or not the report records stand — a run
      another road charged or folded, the thread it read through, a round a reply bought — so every write the run
      makes from that state keeps it rather than putting back what the tick read. What a later road does is its own:
@@ -4041,7 +4044,20 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      stages as that reading already spelled them -- a comment that will not read or was replaced, or one filled past
      room for the write refuses the write with nothing written, and a park refused behind its notice leaves that
      notice with no park recorded, for the next tick's reviewer.
-  6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
+  6. Two runs park before any verdict is read, in this order, and neither emits `review_verdict`. A reviewer that
+     timed out parks `reviewer_timeout`, which the next quiet tick retries. A Codex reviewer whose last turn failed
+     on the account's usage limit (`provider_failures.codex_usage_limit_failure`) parks `reviewer_usage_limit`
+     instead of reading as the crash its empty final message would otherwise be. The stop is read off the
+     `codex exec --json` stream on stdout, which that turn leaves beside an empty `-o` file. A review that completed
+     and only quoted the provider's words is no stop. The park lands in the run's own guarded commit
+     (`review_writes.parks_the_return`) with the correlation fields the timeout park carries, and the run stays the
+     one launch the circuit charged for the round. Its bounded notice names the exhausted Codex usage limit, the
+     reset the provider gave (as the CLI phrased it, in the orchestrator host's local time) or that it gave none, and
+     says a trusted `/orchestrator continue` retries the reviewer after the reset. It quotes the provider's message
+     under its own budget, redacted before it is cut, with the reset read off that redacted text
+     (`agent_diagnostics._format_usage_limit_diagnostics`). The round, the pull request, the worktree, and the
+     developer session are left as they stand. The park never retries itself, and only that command answers it
+     (see the awaiting-human branch above). Otherwise parse the last `VERDICT:` marker (`_parse_review_verdict`):
      - **approved** → handed, with the run, to the returned-verdict disposition (below), which persists it with the
        evidence its declaration earned and publishes that evidence before acting on it. Unless the records moved above,
        the issue has to point at the pull request the subject names, and the whole subject is resolved again
@@ -4250,7 +4266,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        past the handoff: everything it owed is durable, and step 1 moves the label on the next tick instead of a
        second reviewer being run over a branch already published.
      - **unknown** (no marker) → park, split by whose failure it was
-       (`_reviewer_no_verdict_park`). An empty last message with a non-zero exit (a crash), or a message opening with
+       (`_reviewer_no_verdict_park`). A usage-limit stop never gets here. An empty last message with a non-zero exit
+       (a crash), or a message opening with
        a transient provider refusal (`is_transient_provider_failure` — `API Error: 529 Overloaded` and its 5xx
        siblings), is tagged `reviewer_failed` so the next tick's transient-recovery branch re-spawns the reviewer;
        real reviewer text that merely omitted the marker stays `reviewer_no_verdict` for human adjudication.

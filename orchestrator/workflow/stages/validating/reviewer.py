@@ -55,17 +55,26 @@ read-only and starts over next tick.
 The verdict itself fans out to two owners. A timeout or a missing VERDICT line
 parks, its return -- usage, session, and the subject it read -- recorded by
 the park's own guarded commit, prepared before its notice is posted
-(`review_writes.parks_the_return`); an approval or a change request goes to
-`review_disposition`, which records that return over its own last reading,
-persists the verdict with the evidence its declaration earned before
-publishing that evidence or acting on either verdict, and lets an approval
-reach the approval arc only over settled evidence that passed and covers every
-configured `VERIFY_COMMANDS` command -- parking one that does not under
-`reviewer_unverified`. A change request goes to its one developer from there,
-its feedback the reviewer's findings with that declaration set aside once it
-is read, save each check not shown passing.
-The event is emitted for all of them, before the fan-out, so the analytics
-record exists even for the paths that park. An approval and a change request
+(`review_writes.parks_the_return`). So does a Codex reviewer its account's
+usage limit stopped, recognized off the JSONL stream its failed turn left
+beside an empty final message, behind the timeout and ahead of any VERDICT
+parse: it parks under `reviewer_usage_limit`, which no later poll retries and
+only a trusted `/orchestrator continue` releases, since another poll is no
+evidence the quota reset. Read as a verdict instead, that empty message would
+park as a crash the next quiet tick re-spawns into the same limit. Its notice
+names the limit, the reset the provider gave, and that command, above the
+provider's message redacted and then cut to a budget. An approval or a change
+request goes to `review_disposition`, which records that return over its own
+last reading, persists the verdict with the evidence its declaration earned
+before publishing that evidence or acting on either verdict, and lets an
+approval reach the approval arc only over settled evidence that passed and
+covers every configured `VERIFY_COMMANDS` command -- parking one that does not
+under `reviewer_unverified`. A change request goes to its one developer from
+there, its feedback the reviewer's findings with that declaration set aside
+once it is read, save each check not shown passing.
+The verdict event is emitted for every parsed verdict, a missing one included,
+before the fan-out, so the analytics record exists even for the paths that
+park. An approval and a change request
 alike are acted on only while the whole subject the reviewer was handed --
 pull request, head, requirements, and report -- still stands; otherwise the
 run is recorded and the next tick's reviewer is handed the subject as it
@@ -79,9 +88,10 @@ those writes is a guarded commit captured over that reading
 (`review_writes`), so what another road writes after it is kept, or -- where
 it moved a record the write was decided on -- refuses the write. The
 disposition resolves the subject again for a verdict, and reads the comment
-once more behind that, before it persists anything. Failed-run parks (timeout and unknown verdict) enrich the
-shared park funnel with typed correlation fields (`agent_role`, `session_id`,
-`review_round`, `retry_count`, `pr_number`).
+once more behind that, before it persists anything. Failed-run parks (timeout,
+usage limit, and unknown verdict) enrich the shared park funnel with typed
+correlation fields (`agent_role`, `session_id`, `review_round`,
+`retry_count`, `pr_number`).
 """
 from __future__ import annotations
 
@@ -90,12 +100,13 @@ from dataclasses import replace
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.agents.models import AgentResult
+from orchestrator.agents import models as _agent_models, provider_failures as _provider_failures
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    agent_diagnostics as _agent_diagnostics,
     completion_verdicts as _completion_verdicts,
     guards as _guards,
     prompt_context as _prompt_context,
@@ -228,7 +239,7 @@ def _launches(
     state: PinnedState,
     handover: _review_comment._ResolvedSubject,
     **request,
-) -> tuple[AgentResult, _review_comment._ResolvedSubject]:
+) -> tuple[_agent_models.AgentResult, _review_comment._ResolvedSubject]:
     """Run the reviewer `request` describes, charged; its result, and the reading its return is measured against.
 
     The run circuit charges the launch on the comment behind the launch's
@@ -376,7 +387,12 @@ def _dispatch_reviewer_result(
     A run that leaves no verdict has its return recorded by its park's guarded
     commit (`review_writes.parks_the_return`); one that does leaves it to the
     disposition, which records it over the reading it persists the verdict
-    behind, so the usage is folded once.
+    behind, so the usage is folded once. Two such runs park before any VERDICT
+    is read: a timeout, and a Codex run its account's usage limit stopped
+    (`provider_failures.codex_usage_limit_failure`), which parks under
+    `reviewer_usage_limit` with the provider's reset and message
+    (`agent_diagnostics._format_usage_limit_diagnostics`) and emits no
+    `review_verdict` event, since the reviewer returned none.
     """
     review = reviewer_run.agent_result
     pr_num = _guards._safe_int(reviewer_run.pr_number)
@@ -391,6 +407,34 @@ def _dispatch_reviewer_result(
                 f"{config.HITL_MENTIONS} reviewer timed out after "
                 f"{config.REVIEW_TIMEOUT}s; manual intervention needed.",
                 reason=_state._REASON_REVIEWER_TIMEOUT,
+                agent_role="reviewer",
+                session_id=review.session_id,
+                review_round=reviewer_run.round_n,
+                retry_count=_guards._safe_int(state.get("retry_count")),
+                pr_number=pr_num,
+                bounded=True,
+            ),
+        ))
+        return
+
+    # A Codex turn the account's usage limit stopped writes no final message,
+    # so read as a verdict it would park as a crash the next quiet tick
+    # retries -- a launch spent finding out the quota has not reset. Nothing
+    # but the operator's `/orchestrator continue` says it has, so the park
+    # waits for that, and it is no verdict the event below could report.
+    stopped = _provider_failures.codex_usage_limit_failure(review)
+    if stopped is not None:
+        _review_writes.parks_the_return(gh, issue, state, reviewer_run, (
+            _state._REASON_REVIEWER_USAGE_LIMIT,
+            lambda: _guards._park_awaiting_human(
+                gh, issue, state,
+                f"{config.HITL_MENTIONS} reviewer stopped on the exhausted Codex "
+                "usage limit, so this round produced no review. Once the limit "
+                "resets, a trusted `/orchestrator continue` retries the "
+                "reviewer; no later poll or other reply does, and the pull "
+                "request, worktree, and review round stay as they are."
+                f"{_agent_diagnostics._format_usage_limit_diagnostics(stopped)}",
+                reason=_state._REASON_REVIEWER_USAGE_LIMIT,
                 agent_role="reviewer",
                 session_id=review.session_id,
                 review_round=reviewer_run.round_n,

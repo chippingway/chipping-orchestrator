@@ -56,7 +56,8 @@ file is the durable record.
   `review_round`, `retry_count`, `skill` (the triggered skill name). Reuses the list `record_agent_exit` already parsed;
   off-switch installs emit none.
 - `review_verdict` — `_handle_validating` after `_parse_review_verdict` reads the reviewer's last message; extras:
-  `verdict` (`approved` / `changes_requested` / `unknown`), `review_round`, `pr_number`, `session_id`.
+  `verdict` (`approved` / `changes_requested` / `unknown`), `review_round`, `pr_number`, `session_id`. A reviewer
+  that timed out or stopped on its Codex usage limit parks before that parse and emits none.
 - `park_awaiting_human` — every `_park_awaiting_human` (in `workflow/engine/guards.py`) call site, plus
   `_on_question`, `_on_dirty_worktree`, `_on_unreadable_worktree`, the validating parks filed in
   `stages/validating/review_parks.py`, the park of a handed change request's developer launch that may have started
@@ -88,7 +89,11 @@ file is the durable record.
   `unreadable_head` (nothing could name a commit a `resolving_conflict` round turns on — the head a
   clean rebase left, the head it started from, the head a body-edit resume begins at, or the head recovered commits
   leave the branch on — so the push behind it would carry neither a lease nor a named candidate),
-  `reviewer_timeout`, `reviewer_failed`, `reviewer_no_verdict`, `decomposer_timeout`, `decomposer_silent`,
+  `reviewer_timeout`, `reviewer_failed`, `reviewer_usage_limit` (additive: a Codex reviewer whose last turn failed
+  on the account's usage limit, read off its JSONL stream ahead of any VERDICT parse and parked durably under the
+  same reason until a trusted `/orchestrator continue` buys a fresh reviewer; it carries the failed-run correlation
+  fields below and none of the provider's message, which only the notice quotes, redacted and bounded),
+  `reviewer_no_verdict`, `decomposer_timeout`, `decomposer_silent`,
   `decomposer_question`, `decomposer_invalid_manifest`, `decomposer_dirty`, `replacement_lineage_unproved` (a split
   whose children's late lineage or snapshot the issue's record cannot prove, whose parent is already at the lineage
   bound, or one of whose slices names a snapshot ref its child would not be kept; a recovery or a dependency walk that

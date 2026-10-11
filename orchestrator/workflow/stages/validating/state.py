@@ -127,8 +127,9 @@ _REASON_REVIEWER_UNRECORDED = "reviewer_unrecorded"
 # no idle tick may spend a launch finding that out. And unlike the two above,
 # a reply does not answer it either -- only the operator's own
 # `/orchestrator continue`, written once the quota has reset, releases it into
-# a fresh reviewer. Nothing parks under it yet: recognizing the provider's stop
-# on a reviewer's result is the road that will.
+# a fresh reviewer. A Codex reviewer whose last turn the account's usage limit
+# failed parks under it, recognized ahead of any VERDICT parse
+# (`reviewer._dispatch_reviewer_result`).
 _REASON_REVIEWER_USAGE_LIMIT = "reviewer_usage_limit"
 
 # What a squash that could not be finished is filed under. Durable rather than
